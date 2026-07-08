@@ -85,6 +85,7 @@ describe("runOkfConversion", () => {
       adapter,
       scan: scanFor(["Notes/a.md", "Notes/b.md"]),
       options: { defaultType: "Note" },
+      concurrency: 1, // deterministic order + cache hit (the pool otherwise races the shared dir)
     });
     expect(report.changed).toEqual(["Notes/a.md", "Notes/b.md"]);
     // The shared backup dir segment is checked once (a.md), then cached (b.md).
@@ -129,8 +130,41 @@ describe("runOkfConversion", () => {
       scan: scanFor(["a.md", "b.md"]),
       options: { defaultType: "Note" },
       isCancelled: () => calls++ >= 1,
+      concurrency: 1, // deterministic: process one, then cancel
     });
     expect(report.cancelled).toBe(true);
     expect(report.changed.length).toBe(1);
+  });
+
+  it("processes files with bounded concurrency and converts them all", async () => {
+    const files: Record<string, string> = {};
+    const names: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      files[`n${i}.md`] = "# no frontmatter\n";
+      names.push(`n${i}.md`);
+    }
+    const base = makeAdapter(files);
+    let active = 0;
+    let maxActive = 0;
+    const adapter: OkfConversionAdapter = {
+      ...base.adapter,
+      readTextFile: async (p) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((r) => setTimeout(r, 3));
+        active--;
+        return base.adapter.readTextFile(p);
+      },
+    };
+    const report = await runOkfConversion({
+      adapter,
+      scan: scanFor(names),
+      options: { defaultType: "Note" },
+      concurrency: 4,
+    });
+    expect(report.changed.length).toBe(20);
+    expect(base.store.get("n0.md")).toContain("type: Note");
+    expect(maxActive).toBeGreaterThan(1); // genuinely ran in parallel
+    expect(maxActive).toBeLessThanOrEqual(4); // but bounded by the pool size
   });
 });

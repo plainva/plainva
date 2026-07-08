@@ -12,6 +12,9 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { oneDriveFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Store } from "@tauri-apps/plugin-store";
+import { appDataDir } from "@tauri-apps/api/path";
+import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
+import { indexDbFileName } from "../services/indexDbPath";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -132,6 +135,48 @@ export const okfPromptDismissedKey = (vaultPath: string) => `okfPromptDismissed_
 /** One-time "initial sync may take a while" notice, shown once per vault (WP6). */
 export const syncFirstNoticeKey = (vaultPath: string) => `syncFirstNotice_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
+/**
+ * Resolves the index-DB sqlite URL (WP5 5b). The SQLite index used to live in
+ * `<vault>/.plainva/vault.db`; on a network-drive vault the ~10 index statements
+ * per save were network round-trips (the sqlx pool forbids batching them into
+ * one transaction), which made saving very slow. The index now lives in the OS
+ * app-data dir — only the DB moves, backups stay in the vault.
+ *
+ * On the FIRST run at the new location we best-effort copy an existing in-vault
+ * DB (+ WAL/SHM sidecars) so the index AND the sync state carry over untouched:
+ * no reindex, and no spurious `.CONFLICT` files (the sync base is preserved).
+ * Any failure falls back cleanly — a fresh DB (reindex; still conflict-free for
+ * in-sync vaults thanks to the content-equality check) or, if app-data is
+ * unavailable, the old in-vault path.
+ */
+async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
+  const oldAbs = `${vaultPath}/.plainva/vault.db`;
+  try {
+    const dataDir = await appDataDir();
+    const dir = `${dataDir}/index`;
+    await mkdir(dir, { recursive: true });
+    const newAbs = `${dir}/${await indexDbFileName(vaultPath)}`;
+    if (!(await fsExists(newAbs)) && (await fsExists(oldAbs))) {
+      // Migrate the (closed) in-vault DB. Copying the WAL/SHM too avoids losing
+      // an un-checkpointed tail; each part is best-effort — a missing/failed
+      // sidecar just means a slightly stale index that the next save reconciles.
+      for (const suffix of ["", "-wal", "-shm"]) {
+        try {
+          if (await fsExists(oldAbs + suffix)) {
+            await writeFile(newAbs + suffix, await readFile(oldAbs + suffix));
+          }
+        } catch (e) {
+          console.warn(`[VaultContext] index DB migration (${suffix || "db"}) failed; continuing`, e);
+        }
+      }
+    }
+    return `sqlite:${newAbs}`;
+  } catch (e) {
+    console.warn("[VaultContext] app-data index path unavailable; keeping the in-vault DB", e);
+    return `sqlite:${oldAbs}`;
+  }
+}
+
 // Global tracker to prevent double-loads in React Strict Mode
 let activeLoadPath: string | null = null;
 let loadAbortController: AbortController | null = null;
@@ -245,8 +290,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         onBackupError: reportSnapshotFailure,
       });
 
-      // We'll store the database inside the vault in the .plainva folder
-      const dbPath = `sqlite:${path}/.plainva/vault.db`;
+      // The SQLite index lives in the OS app-data dir, not in the vault (WP5 5b):
+      // a network-drive vault paid a round-trip per index statement on every save.
+      // Backups stay in the vault; an existing in-vault DB is migrated once.
+      const dbPath = await resolveIndexDbUrl(path);
       const dbAdapter = new TauriDatabaseAdapter(dbPath);
       await dbAdapter.initialize();
       await initializeSchema(dbAdapter);

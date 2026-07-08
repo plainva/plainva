@@ -87,6 +87,8 @@ export async function runOkfConversion(opts: {
   sampleLimit?: number;
   onProgress?: (done: number, total: number, path: string) => void;
   isCancelled?: () => boolean;
+  /** Parallel file workers (default 8). Overlaps I/O latency on network drives. */
+  concurrency?: number;
 }): Promise<OkfRunReport> {
   const { adapter, scan, options, dryRun = false } = opts;
   const sampleLimit = opts.sampleLimit ?? 5;
@@ -102,45 +104,65 @@ export async function runOkfConversion(opts: {
     cancelled: false,
   };
 
-  const total = scan.convertiblePaths.length;
+  const paths = scan.convertiblePaths;
+  const total = paths.length;
   let done = 0;
   const createdDirs = new Set<string>(); // per-run ensureDirs cache (WP4)
+  let cancelled = false;
 
-  for (const path of scan.convertiblePaths) {
-    if (opts.isCancelled?.()) {
-      report.cancelled = true;
-      break;
+  const processOne = async (path: string): Promise<void> => {
+    const content = await adapter.readTextFile(path);
+    const result = convertFileToOkf(content, options);
+    if (!result.changed) {
+      report.unchanged++;
+      return;
     }
-    try {
-      const content = await adapter.readTextFile(path);
-      const result = convertFileToOkf(content, options);
-      if (!result.changed) {
-        report.unchanged++;
-      } else if (classifyOkfFile(path, result.content) !== null) {
-        // Post-write validation failed — never write a file we made worse.
-        report.skipped.push({ path, error: "validation failed after conversion" });
-      } else {
-        if (report.samples.length < sampleLimit) {
-          report.samples.push({
-            path,
-            before: frontmatterPreview(content),
-            after: frontmatterPreview(result.content),
-          });
-        }
-        if (!dryRun) {
-          const backupPath = `${backupDir}/${path}`;
-          await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
-          await adapter.writeTextFile(backupPath, content);
-          await adapter.writeTextFile(path, result.content);
-        }
-        report.changed.push(path);
+    if (classifyOkfFile(path, result.content) !== null) {
+      // Post-write validation failed — never write a file we made worse.
+      report.skipped.push({ path, error: "validation failed after conversion" });
+      return;
+    }
+    if (report.samples.length < sampleLimit) {
+      report.samples.push({
+        path,
+        before: frontmatterPreview(content),
+        after: frontmatterPreview(result.content),
+      });
+    }
+    if (!dryRun) {
+      const backupPath = `${backupDir}/${path}`;
+      await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
+      await adapter.writeTextFile(backupPath, content);
+      await adapter.writeTextFile(path, result.content);
+    }
+    report.changed.push(path);
+  };
+
+  // Bounded concurrency: the previous sequential loop did one network round-trip
+  // after another, which is brutal for a 500+ file vault on a network drive.
+  // Each file's work is independent (read -> convert -> backup -> write); a small
+  // worker pool overlaps the latency. ensureDirs' createdDirs cache is safe under
+  // concurrency (single-threaded JS; createDir is idempotent/recursive), and the
+  // report arrays are appended atomically between awaits.
+  const concurrency = Math.max(1, opts.concurrency ?? 8);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      if (cancelled || opts.isCancelled?.()) { cancelled = true; return; }
+      const i = next++;
+      if (i >= paths.length) return;
+      const path = paths[i];
+      try {
+        await processOne(path);
+      } catch (e) {
+        report.skipped.push({ path, error: e instanceof Error ? e.message : String(e) });
       }
-    } catch (e) {
-      report.skipped.push({ path, error: e instanceof Error ? e.message : String(e) });
+      done++;
+      opts.onProgress?.(done, total, path);
     }
-    done++;
-    opts.onProgress?.(done, total, path);
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, paths.length) }, () => worker()));
+  report.cancelled = cancelled;
 
   return report;
 }
