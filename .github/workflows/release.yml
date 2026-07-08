@@ -6,6 +6,11 @@ on:
 
 jobs:
   release:
+    # tauri-action creates the GitHub release and uploads the installers, which
+    # needs write access to repository contents. Fresh repos default to a
+    # read-only GITHUB_TOKEN, so grant it explicitly here.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
