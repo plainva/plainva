@@ -33,7 +33,8 @@ describe("SyncWorker", () => {
     queue = {
       queueWrite: vi.fn().mockResolvedValue(undefined),
       resetStuckOperations: vi.fn().mockResolvedValue(undefined),
-      hasPendingOperation: vi.fn().mockResolvedValue(false)
+      hasPendingOperation: vi.fn().mockResolvedValue(false),
+      hasPendingStructuralOp: vi.fn().mockResolvedValue(false)
     };
 
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
@@ -192,24 +193,80 @@ describe("SyncWorker", () => {
     expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
   });
 
-  it("skips reconcile for a file with an unpushed local change (no spurious conflict)", async () => {
-    // The user just edited a file locally (queued for push) but the worker's pull sees a
-    // changed remote etag. Reconciling here is what produced spurious .CONFLICT files; the
-    // worker must instead leave it to processQueue to push the local version this cycle.
-    target.pull.mockResolvedValueOnce({ etagMap: new Map([["db.base", "etag-new"]]) });
-    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["db.base", {
+  it("reconciles a pending-write file against a changed remote instead of clobbering it (3a)", async () => {
+    // The user edited a file locally (a WRITE is queued) AND the remote changed
+    // concurrently. The old blanket skip let processQueue push the stale local version
+    // straight over the newer remote with no .CONFLICT (the reported data loss). The
+    // worker must reconcile it: with no reliable base to merge (e.g. after a DB rebuild),
+    // it preserves the local copy as a .CONFLICT and adopts the remote — nothing is lost.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["note.md", "etag-new"]]) });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode("remote edit"));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["note.md", {
       local_sha256: "local-hash",
-      base_sha256: "base-hash",
-      remote_etag: "etag-old" // differs -> would normally reconcile
+      base_sha256: null,        // no reliable base
+      remote_etag: "etag-old",  // differs -> reconcile
     }]]));
-    queue.hasPendingOperation.mockResolvedValueOnce(true);
+    queue.hasPendingOperation.mockResolvedValue(true);       // a write is queued...
+    queue.hasPendingStructuralOp.mockResolvedValue(false);   // ...but not a delete/rename
+    vault.exists.mockResolvedValueOnce(true);
+    vault.readTextFile.mockResolvedValueOnce("local edit");
 
     await worker.runCycle();
 
-    expect(queue.hasPendingOperation).toHaveBeenCalledWith("db.base");
+    const calls = vault.writeTextFile.mock.calls;
+    // Local preserved as .CONFLICT, remote adopted as the canonical local. No silent clobber.
+    expect(calls[0][0]).toMatch(/note\.CONFLICT-.*\.md$/);
+    expect(calls[0][1]).toBe("local edit");
+    expect(calls.some((c: any[]) => c[0] === "note.md" && c[1] === "remote edit")).toBe(true);
+    expect(engine.processQueue).toHaveBeenCalled();
+  });
+
+  it("still skips reconcile for a file with a pending DELETE/RENAME (no resurrection) (3a)", async () => {
+    // A pending structural op must still short-circuit reconcile — re-downloading and
+    // rewriting a file the user is deleting/renaming would resurrect it. Only pending
+    // WRITES now fall through to reconcile.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["gone.md", "etag-new"]]) });
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["gone.md", {
+      local_sha256: "x",
+      base_sha256: "x",
+      remote_etag: "etag-old", // differs -> would reconcile if not for the pending delete
+    }]]));
+    queue.hasPendingStructuralOp.mockResolvedValueOnce(true);
+
+    await worker.runCycle();
+
+    expect(queue.hasPendingStructuralOp).toHaveBeenCalledWith("gone.md");
     expect(target.download).not.toHaveBeenCalled();
-    expect(vault.writeTextFile).not.toHaveBeenCalled(); // no .CONFLICT created
-    expect(engine.processQueue).toHaveBeenCalled();     // push still runs this cycle
+    expect(vault.writeTextFile).not.toHaveBeenCalled();
+    expect(engine.processQueue).toHaveBeenCalled(); // the push (delete/rename) still runs
+  });
+
+  it("excludes device-local paths from the pull progress count (2a)", async () => {
+    // A desktop client mirroring the same folder uploads .plainva/**; those entries are
+    // skipped during reconcile and must not inflate "Sync x/y" — only real files count.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([
+      [".plainva/backups/note.md.bak", "b1"],
+      [".plainva/vault.db", "b2"],
+      ["note.md", "etag-note"],
+    ]) });
+    target.download.mockResolvedValue(new TextEncoder().encode("x"));
+    const totals = new Set<number>();
+    worker.onProgress = (p) => { if (p?.phase === "pull") totals.add(p.total); };
+
+    await worker.runCycle();
+
+    // Only the single real file is counted (not the two device-local entries).
+    expect([...totals]).toEqual([1]);
+  });
+
+  it("fires onFirstCycleComplete once after the first successful cycle (3c)", async () => {
+    const spy = vi.fn();
+    worker.onFirstCycleComplete = spy;
+
+    await worker.runCycle();
+    await worker.runCycle();
+
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("should mirror a remote deletion when the local copy is unchanged", async () => {

@@ -148,8 +148,7 @@ export class SyncQueue {
 
   /**
    * Whether the given path currently has any queued operation (matched as either the
-   * source path or a rename target). Used by the sync worker to avoid reconciling — and
-   * thus possibly conflicting — a file the user just edited locally but hasn't pushed yet.
+   * source path or a rename target).
    */
   async hasPendingOperation(path: string): Promise<boolean> {
     const row = await this.db.queryOne<{ id: number }>(
@@ -157,6 +156,60 @@ export class SyncQueue {
       [path, path]
     );
     return !!row;
+  }
+
+  /**
+   * Whether the path has a queued DELETE or RENAME (a *structural* op), as opposed to a
+   * plain write. The sync worker must still short-circuit reconcile for a pending
+   * delete/rename — re-downloading and rewriting a file the user is deleting or renaming
+   * would resurrect it. A pending WRITE deliberately does NOT short-circuit reconcile: a
+   * concurrent remote change must be merged/preserved, not silently clobbered by the
+   * queued local push (data loss). See SyncWorker.runCycle.
+   */
+  async hasPendingStructuralOp(path: string): Promise<boolean> {
+    const row = await this.db.queryOne<{ id: number }>(
+      `SELECT id FROM offline_queue
+       WHERE (file_path = ? OR new_path = ?) AND operation IN ('rename', 'delete')
+       LIMIT 1`,
+      [path, path]
+    );
+    return !!row;
+  }
+
+  /**
+   * Enqueues write operations only for local files the remote has NOT confirmed yet
+   * (no `remote_etag` in sync_state) and that aren't already queued. Run once after the
+   * first successful pull so a fresh index (e.g. after the DB was rebuilt) does not
+   * blindly re-push EVERY file over a possibly-newer remote — the pull's reconcile
+   * establishes the base for files that exist remotely, and only genuinely local-only
+   * files are pushed. `.plainva`/`.CONFLICT` are excluded (device-local).
+   */
+  async enqueueLocalOnlyFiles(): Promise<void> {
+    await this.db.transaction(async () => {
+      const files = await this.db.query<{ path: string }>(
+        `SELECT f.path FROM files f
+         LEFT JOIN sync_state s ON s.path = f.path
+         WHERE f.path NOT LIKE '.plainva%'
+           AND f.path NOT LIKE '%.CONFLICT%'
+           AND (s.path IS NULL OR s.remote_etag IS NULL)`
+      );
+      for (const row of files) {
+        const existing = await this.db.queryOne<{ id: number }>(
+          `SELECT id FROM offline_queue WHERE file_path = ? LIMIT 1`,
+          [row.path]
+        );
+        if (!existing) {
+          await this.db.execute(
+            `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
+            [row.path, "write", Date.now()]
+          );
+          await this.db.execute(
+            `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
+            [row.path]
+          );
+        }
+      }
+    });
   }
 
   /**

@@ -222,6 +222,48 @@ describe("DriveSyncTarget", () => {
     expect(etagMap.size).toBe(1);
   });
 
+  it("does not walk device-local/VCS folders (.plainva, .git) during a full listing (1b)", async () => {
+    // A Google Drive DESKTOP client mirroring the same folder uploads .plainva/** (the
+    // index DB + hundreds of .bak snapshots). Walking it was slow and inflated the sync
+    // count; those trees must be skipped entirely, not just skipped after the fact.
+    let walkedInternal = false;
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("root-folder")) {
+        return res({ files: [
+          { id: "f1", name: "note.md", md5Checksum: "h1" },
+          { id: "pv-id", name: ".plainva", mimeType: FOLDER_MIME },
+          { id: "git-id", name: ".git", mimeType: FOLDER_MIME },
+        ] });
+      }
+      if (init.method === "GET" && (u.includes("pv-id") || u.includes("git-id"))) {
+        walkedInternal = true;
+        return res({ files: [{ id: "db", name: "vault.db", md5Checksum: "hx" }] });
+      }
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const { etagMap } = await target.pull();
+    expect(etagMap.get("note.md")).toBe("h1");
+    expect(walkedInternal).toBe(false);                 // neither internal tree was listed
+    expect(etagMap.has(".plainva/vault.db")).toBe(false);
+    expect(etagMap.size).toBe(1);
+  });
+
+  it("remoteEtag returns the current md5 for a path and null for conflict copies (3b probe)", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-5", md5Checksum: "cur" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files/file-5?") && u.includes("md5Checksum")) return res({ md5Checksum: "cur" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    expect(await target.remoteEtag("note.md")).toBe("cur");
+    expect(await target.remoteEtag("note.CONFLICT-1.md")).toBeNull();
+  });
+
   it("uploads an image with its real MIME type, not text/markdown", async () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       const u = String(url);

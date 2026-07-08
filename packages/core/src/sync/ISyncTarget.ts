@@ -54,6 +54,14 @@ export interface ISyncTarget {
   pull(cursor?: string): Promise<PullResult>;
   download(filePath: string): Promise<Uint8Array | null>;
   /**
+   * Optional: the CURRENT remote change marker (etag/hash) for a single path, or null if
+   * the file does not exist remotely. Used by the engine's optimistic-concurrency guard
+   * to detect that the remote moved since our merge base right before a push would
+   * overwrite it (3b). Adapters that cannot cheaply probe a single file leave this
+   * undefined; the worker's reconcile-before-push (3a) is the fallback guarantee.
+   */
+  remoteEtag?(filePath: string): Promise<string | null>;
+  /**
    * Optional folder browsing for the settings' remote-folder picker (2026-07-06):
    * child folder NAMES one level below `path` ("" = the account/bucket root).
    * Deliberately independent of the configured vault folder/prefix — the picker's

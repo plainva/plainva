@@ -74,6 +74,14 @@ export class SyncWorker {
   private currentStatus: SyncStatus = "idle";
   /** Consecutive failed cycles; drives the adaptive pull backoff (reset on success). */
   private consecutiveFailures = 0;
+  /**
+   * Fired once, after the first cycle whose pull succeeded. The desktop uses this to
+   * enqueue genuinely local-only files (those the remote did not confirm) for push —
+   * after a fresh index the initial push is deliberately deferred to the first pull so
+   * a rebuilt DB cannot blindly overwrite a newer remote. See 3c / enqueueLocalOnlyFiles.
+   */
+  public onFirstCycleComplete?: () => void;
+  private firstCycleComplete = false;
 
   private emitProgress(phase: "pull" | "push", current: number, total: number) {
     if (!this.onProgress || total <= 0) return;
@@ -288,32 +296,39 @@ export class SyncWorker {
       // stale within the loop.
       const stateMap = await this.stateRepo.getAllStates();
 
-      // 2. Reconcile each remote file against local state.
-      const pullTotal = pullResult.etagMap.size;
+      // 2. Reconcile each remote file against local state. Device-local paths
+      // (.plainva/*, .CONFLICT copies — e.g. an index DB a desktop client independently
+      // mirrored onto the same remote) are never reconciled and must not inflate the
+      // progress count either: "Sync x/y" should reflect real vault files, not thousands
+      // of mirrored backup snapshots. Count only the reconcilable entries.
+      const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
       let pullIdx = 0;
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (!this.isRunning) break;
-        this.emitProgress("pull", ++pullIdx, pullTotal);
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
         if (isLocalOnlyPath(path)) continue;
+        this.emitProgress("pull", ++pullIdx, pullTotal);
 
         const state = stateMap.get(path) ?? null;
 
         // Remote unchanged since our last recorded sync -> nothing to do.
         if (state && state.remote_etag === remoteEtag) continue;
 
-        // Skip files with an unpushed local change: reconciling a freshly-edited file
-        // against a (possibly stale) base is the dominant source of spurious .CONFLICT
-        // files during active editing (e.g. a .base file being edited in the database
-        // viewer). Let processQueue push the local version this cycle; the next cycle
-        // reconciles cleanly once local == remote. Trade-off: a genuine *concurrent*
-        // remote change is overwritten by the local version rather than preserved as a
-        // .CONFLICT. That is acceptable for the single-writer case this targets; true
-        // multi-device merge remains a post-MVP concern.
-        if (await this.queue.hasPendingOperation(path)) {
-          console.log(`[SyncWorker] skip reconcile for ${path}: local change pending push`);
+        // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
+        // and rewriting a file the user is deleting/renaming would resurrect it.
+        //
+        // A pending WRITE, however, must NOT skip reconcile. The old blanket skip let the
+        // subsequent processQueue push the local version straight over a concurrently
+        // changed remote — a silent overwrite with no .CONFLICT (the reported data loss).
+        // We reconcile the file here instead; the reconciled state (base advanced to the
+        // remote) makes the queued write self-cancel in the engine's push guard when
+        // local == remote, or carry a clean 3-way merge when it doesn't. A genuinely
+        // conflicting remote change is preserved as a .CONFLICT rather than lost. (Merges
+        // resolve cleanly for the common single-writer echo case because remote == base.)
+        if (await this.queue.hasPendingStructuralOp(path)) {
+          console.log(`[SyncWorker] skip reconcile for ${path}: pending delete/rename`);
           continue;
         }
 
@@ -463,6 +478,19 @@ export class SyncWorker {
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote)`);
       this.onProgress?.(null); // clear progress; the cycle's work is done
       this.consecutiveFailures = 0;
+
+      // First successful cycle: the remote base is now established for files that exist
+      // remotely. Let the host enqueue any genuinely local-only files (deferred after a
+      // fresh index so a rebuilt DB never blindly overwrites a newer remote — 3c).
+      if (!this.firstCycleComplete) {
+        this.firstCycleComplete = true;
+        try {
+          this.onFirstCycleComplete?.();
+        } catch (e) {
+          console.error("[SyncWorker] onFirstCycleComplete failed:", e);
+        }
+      }
+
       if (deletionMirroringSuspended) {
         // Pull/push worked, but the listing looked broken — the user must learn
         // why deletions are not being mirrored (clicking the status opens the

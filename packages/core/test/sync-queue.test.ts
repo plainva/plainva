@@ -154,4 +154,47 @@ describe("SyncQueue", () => {
     );
     expect(insertQ).toBeDefined();
   });
+
+  it("hasPendingStructuralOp matches only delete/rename ops (3a)", async () => {
+    db.mockedOneResults.push({ id: 1 });
+    expect(await queue.hasPendingStructuralOp("a.md")).toBe(true);
+
+    const q = db.queries.find(qq => qq.query.includes("operation IN ('rename', 'delete')"));
+    expect(q).toBeDefined();
+    expect(q?.params).toEqual(["a.md", "a.md"]);
+
+    db.mockedOneResults.push(null);
+    expect(await queue.hasPendingStructuralOp("b.md")).toBe(false);
+  });
+
+  it("enqueueLocalOnlyFiles enqueues only files the remote has not confirmed (3c)", async () => {
+    db.mockedResults.push([{ path: "new-local.md" }]); // LEFT JOIN result: no remote_etag
+    db.mockedOneResults.push(null);                     // not already queued
+
+    await queue.enqueueLocalOnlyFiles();
+
+    const selectQ = db.queries.find(q => q.query.includes("LEFT JOIN sync_state"));
+    expect(selectQ).toBeDefined();
+    expect(selectQ?.query).toContain("s.remote_etag IS NULL");
+    expect(selectQ?.query).toContain("NOT LIKE '.plainva%'");
+    expect(selectQ?.query).toContain("NOT LIKE '%.CONFLICT%'");
+
+    const insertQ = db.queries.find(
+      q => q.query.includes("INSERT INTO offline_queue") && (q.params as any[]).includes("new-local.md")
+    );
+    expect(insertQ).toBeDefined();
+    expect(insertQ?.params).toContain("write");
+  });
+
+  it("enqueueLocalOnlyFiles skips files that are already queued (3c)", async () => {
+    db.mockedResults.push([{ path: "already.md" }]);
+    db.mockedOneResults.push({ id: 5 }); // already queued
+
+    await queue.enqueueLocalOnlyFiles();
+
+    const insertQ = db.queries.find(
+      q => q.query.includes("INSERT INTO offline_queue") && (q.params as any[]).includes("already.md")
+    );
+    expect(insertQ).toBeUndefined();
+  });
 });

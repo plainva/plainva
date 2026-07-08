@@ -251,6 +251,66 @@ describe("SyncEngine", () => {
     expect(baseTextUpsert).toBeDefined();
   });
 
+  it("defers a write push when the remote moved since our base (3b optimistic-concurrency)", async () => {
+    // Between our last sync and this push, another writer changed the remote. Overwriting
+    // now would clobber that change with no .CONFLICT (the reported data loss). The engine
+    // probes the current remote marker; when it no longer matches base_etag it defers the
+    // push (leaving the next cycle's reconcile to merge) instead of overwriting.
+    const pushes: SyncOperation[] = [];
+    const probed: string[] = [];
+    const guardTarget: ISyncTarget = {
+      async push(op) { pushes.push(op); return { etag: "x" }; },
+      async pull() { return { etagMap: new Map() }; },
+      async download() { return null; },
+      async remoteEtag(p) { probed.push(p); return "remote-moved-on"; },
+    };
+    const repo = new SyncStateRepository(db);
+    const vaultWithContent = { async readBinaryFile() { return new Uint8Array([9, 9, 9]); } };
+    const engineWithState = new SyncEngine(queue, guardTarget, vaultWithContent as any, repo);
+
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 },
+    ]); // getPendingOperations
+    db.mockedResults.push([
+      { path: "note.md", local_sha256: "l", base_sha256: "base-sha", base_etag: "base-etag", remote_etag: "base-etag" },
+    ]); // getSyncState: base_sha differs from the content sha -> a real local edit
+
+    await engineWithState.processQueue();
+
+    expect(probed).toEqual(["note.md"]); // the remote was probed
+    expect(pushes.length).toBe(0);       // ...and the push was deferred, not sent
+    const retry = db.queries.find(q =>
+      q.query.includes("retry_count = retry_count + 1") && q.query.includes("next_retry_at = ?")
+    );
+    expect(retry).toBeDefined();
+  });
+
+  it("pushes normally when the remote etag still matches our base (3b: no false defer)", async () => {
+    const pushes: SyncOperation[] = [];
+    const guardTarget: ISyncTarget = {
+      async push(op) { pushes.push(op); return { etag: "same-etag" }; },
+      async pull() { return { etagMap: new Map() }; },
+      async download() { return null; },
+      async remoteEtag() { return "base-etag"; }, // == base_etag -> remote did not move
+    };
+    const repo = new SyncStateRepository(db);
+    const vaultWithContent = { async readBinaryFile() { return new Uint8Array([9, 9, 9]); } };
+    const engineWithState = new SyncEngine(queue, guardTarget, vaultWithContent as any, repo);
+
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 },
+    ]);
+    db.mockedResults.push([
+      { path: "note.md", local_sha256: "l", base_sha256: "base-sha", base_etag: "base-etag", remote_etag: "base-etag" },
+    ]);
+    db.mockedOneResults.push(null); // markSynced: no other pending op -> mark file synced
+
+    await engineWithState.processQueue();
+
+    expect(pushes.length).toBe(1);
+    expect(pushes[0].file_path).toBe("note.md");
+  });
+
   it("marks renamed files synced by their new path", async () => {
     db.mockedResults.push([
       { id: 9, file_path: "old.md", operation: "rename", new_path: "new.md", retry_count: 0, next_retry_at: 0, queued_at: 0 }

@@ -322,6 +322,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Only the initial full index below reports progress into React state (P3).
       let reportInitialProgress = true;
+      // Defer the initial-index push enqueue until the first pull establishes the base
+      // (3c). A COLD/rebuilt index sees EVERY local file as "new"; enqueuing them all as
+      // pushes let a rebuilt DB blindly overwrite a possibly-newer remote (the reported
+      // mass data loss). The first pull's reconcile adopts/merges the remote instead, and
+      // onFirstCycleComplete then sweeps only the genuinely local-only files.
+      let deferInitialEnqueue = true;
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         onExternalModification: (path) => {
           console.log(`VaultContext: External modification detected for ${path}`);
@@ -329,6 +335,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           enqueueLocalChange(path);
         },
         onNewLocalFile: (path) => {
+          // During the initial index, defer to the first pull (3c). Runtime discoveries
+          // (files created while running) enqueue normally.
+          if (deferInitialEnqueue) return;
           enqueueLocalChange(path);
         },
         onLocalFileDeleted: (path) => {
@@ -374,6 +383,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (indexedCount > 0) {
         reportInitialProgress = false; // background reconcile: no loading bar
+        // Warm index: files are already known, so the background pass discovers no mass
+        // of "new" files — let any genuinely new ones (created while closed) enqueue.
+        deferInitialEnqueue = false;
         void indexer
           .indexVaultFull()
           .then(() => {
@@ -387,9 +399,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           })
           .catch((e) => console.error("[VaultContext] background full index failed", e));
       } else {
-        // Fresh/empty index: block with progress so the tree isn't empty.
+        // Fresh/empty index: block with progress so the tree isn't empty. Every file is
+        // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
+        // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
         await indexer.indexVaultFull();
         reportInitialProgress = false;
+        deferInitialEnqueue = false;
       }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
@@ -482,6 +497,15 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             syncWorker.onProgress = (progress) => {
               // Coarse cycle progress for the status bar (WP6); throttled in core.
               syncStatusStore.set({ progress });
+            };
+            syncWorker.onFirstCycleComplete = () => {
+              // The first pull established the remote base. Now enqueue genuinely
+              // local-only files (no remote_etag) — including those whose initial-index
+              // enqueue we deferred (3c) — so new local files still reach the remote,
+              // without the fresh-index mass-overwrite risk.
+              syncQueue.enqueueLocalOnlyFiles()
+                .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
+                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the

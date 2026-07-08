@@ -55,6 +55,31 @@ export class SyncEngine {
                      consecutiveFailures = 0;
                      continue;
                    }
+
+                   // 3b — optimistic-concurrency guard. Local diverged from the base we
+                   // last synced against (a real edit). If the target can cheaply report
+                   // the CURRENT remote marker and it no longer matches our base_etag,
+                   // another writer moved the remote after our base. Overwriting now would
+                   // clobber that change with NO .CONFLICT (the reported data loss). Defer
+                   // instead: the next cycle's reconcile (which runs before this push)
+                   // downloads the remote and 3-way-merges it or preserves a conflict.
+                   // Providers without remoteEtag fall back to the worker's
+                   // reconcile-before-push guarantee (3a).
+                   if (state.base_etag && this.target.remoteEtag) {
+                     let currentRemote: string | null = null;
+                     try {
+                       currentRemote = await this.target.remoteEtag(op.file_path);
+                     } catch (probeErr) {
+                       // A metadata probe failure must not block the pipeline; fall through
+                       // to the normal push and let its own error handling run.
+                       console.warn(`[SyncEngine] remoteEtag probe failed for ${op.file_path}:`, probeErr);
+                     }
+                     if (currentRemote != null && currentRemote !== state.base_etag) {
+                       console.warn(`[SyncEngine] deferring push of ${op.file_path}: remote moved since base (remote=${currentRemote.slice(0, 8)}, base=${state.base_etag.slice(0, 8)})`);
+                       await this.queue.incrementRetry(op.id, Date.now() + 5000, "remote changed since base; deferring to reconcile");
+                       continue;
+                     }
+                   }
                 }
               }
             } catch (err: any) {

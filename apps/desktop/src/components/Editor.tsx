@@ -1133,18 +1133,67 @@ export const Editor: React.FC<{
 
     const handleExternalUpdate = async (e: Event) => {
       const customEvent = e as CustomEvent<{path: string}>;
-      if (customEvent.detail.path === activePath) {
-        if (!isDirtyRef.current) {
-          const text = await vaultAdapter!.readTextFile(activePath!);
-          applyExternalText(text.replace(/\r\n/g, '\n'), "external modification");
+      if (customEvent.detail.path !== activePath || !activePath) return;
+      const path = activePath;
 
-          if (vaultAdapter!.acknowledgeExternalUpdate) {
-            await vaultAdapter!.acknowledgeExternalUpdate(activePath!).catch(console.error);
-          }
-        } else {
-          console.log(`[Editor] ignoring external update for ${activePath} because editor is dirty (conflict will be handled on save)`);
+      if (!isDirtyRef.current) {
+        const text = await vaultAdapter!.readTextFile(path);
+        applyExternalText(text.replace(/\r\n/g, '\n'), "external modification");
+        if (vaultAdapter!.acknowledgeExternalUpdate) {
+          await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
         }
+        return;
       }
+
+      // The editor is DIRTY and the file changed on disk under us (another editor, a
+      // sync pull, the OS). The old behavior — keep the draft, "handle it on save" —
+      // lost data: the sync worker can advance our stored hash so the next save sees no
+      // divergence and clobbers the newer external version with the stale draft, with no
+      // .CONFLICT. Instead preserve the draft as a .CONFLICT sibling and adopt the
+      // external version now, so neither side is lost and the user can merge.
+      let disk: string;
+      try {
+        disk = (await vaultAdapter!.readTextFile(path)).replace(/\r\n/g, '\n');
+      } catch (err) {
+        console.error(`[Editor] external update: reading ${path} failed`, err);
+        return; // keep the draft rather than risk losing it
+      }
+      const view = sessionRef.current?.view;
+      const draft = view ? view.state.doc.toString() : contentRef.current;
+      // The external change already matches our draft (e.g. the echo of our own push):
+      // no conflict, just realign the dirty/sync state.
+      if (disk === draft) {
+        isDirtyRef.current = false;
+        dirtyStore.set(path, false);
+        if (vaultAdapter!.acknowledgeExternalUpdate) {
+          await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
+        }
+        return;
+      }
+      // Cancel a scheduled save so the stale draft cannot win right after we adopt.
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const extMatch = path.match(/(\.[^.]+)$/);
+      const ext = extMatch ? extMatch[1] : "";
+      const conflictBase = extMatch ? path.substring(0, path.length - ext.length) : path;
+      const conflictPath = `${conflictBase}.CONFLICT-${timestamp}${ext}`;
+      try {
+        await vaultAdapter!.writeTextFile(conflictPath, draft);
+      } catch (err) {
+        console.error(`[Editor] external update: preserving draft as ${conflictPath} failed`, err);
+        return; // don't adopt-and-lose; leave the draft in the editor
+      }
+      applyExternalText(disk, "external modification (draft preserved as conflict)");
+      isDirtyRef.current = false;
+      dirtyStore.set(path, false);
+      if (vaultAdapter!.acknowledgeExternalUpdate) {
+        await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
+      }
+      setConflictInfo({ conflictPath });
+      toast.warning(t("dialogs.conflictSavedMsg", { path: conflictPath }));
     };
 
     const handleAutoMerged = (e: Event) => {

@@ -25,6 +25,25 @@ const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const DEFAULT_ROOT = "Plainva";
 
+/**
+ * Folder names that hold device-local or VCS data and are never vault content: they must
+ * not be walked during a remote listing. A Google Drive DESKTOP client that independently
+ * mirrors the same folder uploads `.plainva/` (the SQLite index + hundreds of `.bak`
+ * backup snapshots); recursing into it made every full listing crawl thousands of objects
+ * the worker then skips anyway (`isLocalOnlyPath`) — slow, and it inflated the sync count.
+ */
+const INTERNAL_FOLDER_NAMES = new Set([
+  ".plainva",
+  ".git",
+  ".trash",
+  ".obsidian",
+  "node_modules",
+  ".smart-env",
+]);
+function isInternalFolderName(name: string): boolean {
+  return INTERNAL_FOLDER_NAMES.has(name) || name.startsWith(".stfolder");
+}
+
 interface DriveFile {
   id: string;
   name: string;
@@ -432,6 +451,9 @@ export class DriveSyncTarget implements ISyncTarget {
       for (const f of json.files || []) {
         const path = prefix ? `${prefix}/${f.name}` : f.name;
         if (f.mimeType === FOLDER_MIME) {
+          // Never walk device-local/VCS trees (.plainva backups, .git, …): they are not
+          // vault content and only slow the listing down. See INTERNAL_FOLDER_NAMES.
+          if (isInternalFolderName(f.name)) continue;
           this.folderToId.set(path, f.id);
           await this.listFolder(f.id, path, etagMap);
         } else if (isGoogleNative(f.mimeType)) {
@@ -514,6 +536,23 @@ export class DriveSyncTarget implements ISyncTarget {
     if (!res.ok) throw new Error(`Drive download failed: ${res.status} ${res.statusText}`);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
+  }
+
+  /**
+   * Current remote change marker for a path (md5, falling back to modifiedTime), or null
+   * if it no longer exists remotely. One lightweight metadata GET; used by the engine's
+   * optimistic-concurrency guard right before a push (3b). The etag semantics match
+   * `pull`/`push` (md5Checksum || modifiedTime).
+   */
+  public async remoteEtag(filePath: string): Promise<string | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const id = await this.findFileId(filePath);
+    if (!id) return null;
+    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=md5Checksum,modifiedTime`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Drive metadata failed: ${res.status} ${res.statusText}`);
+    const f = (await res.json()) as DriveFile;
+    return f.md5Checksum || f.modifiedTime || null;
   }
 
   /** Initial cursor for incremental change detection (Drive `changes.getStartPageToken`). */
