@@ -1893,6 +1893,7 @@ export function BaseViewer({
           baseFiles={baseFiles}
           currentBasePath={activePath}
           existingColumns={availableColumns}
+          rows={dbData}
           missingCount={dbData.filter((r) => r[editingColumn] === undefined).length}
           onFillMissing={() => { void materializeColumn(editingColumn); }}
           loadBaseConfig={vaultAdapter ? async (p) => parseBaseConfig(await vaultAdapter.readTextFile(p)) : undefined}

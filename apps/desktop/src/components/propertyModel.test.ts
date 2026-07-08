@@ -15,6 +15,7 @@ import {
   groupOptions,
   baseInputToType,
   inlineOptionsFrom,
+  mergeObservedOptions,
   splitMultiValue,
   columnValuesAreWikiLinks,
 } from "./propertyModel";
@@ -214,6 +215,29 @@ describe("propertyModel.inlineOptionsFrom", () => {
   it("flattens list values and falls back from note.-prefixed to bare keys", () => {
     const rows = [{ tags: ["a", "b"] }, { tags: ["b", "c"] }];
     expect(inlineOptionsFrom([], rows, "note.tags").map((o) => o.value)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("propertyModel.mergeObservedOptions (WP2)", () => {
+  it("seeds observed values when the schema has no curated options", () => {
+    const rows = [{ status: "draft" }, { status: "final" }, { status: "draft" }];
+    expect(mergeObservedOptions([], rows, "status")).toEqual([{ value: "draft" }, { value: "final" }]);
+  });
+  it("keeps curated options (with color/group/order) and appends only new values", () => {
+    const curated = [{ value: "final", color: "green", group: "Done" }];
+    const rows = [{ status: "final" }, { status: "draft" }, { status: "review" }];
+    expect(mergeObservedOptions(curated, rows, "status")).toEqual([
+      { value: "final", color: "green", group: "Done" },
+      { value: "draft" },
+      { value: "review" },
+    ]);
+  });
+  it("does not mutate the curated array and flattens multiselect list values", () => {
+    const curated = [{ value: "a", color: "teal" }];
+    const rows = [{ tags: ["a", "b"] }, { tags: ["c"] }];
+    const out = mergeObservedOptions(curated, rows, "note.tags");
+    expect(out).toEqual([{ value: "a", color: "teal" }, { value: "b" }, { value: "c" }]);
+    expect(curated).toEqual([{ value: "a", color: "teal" }]); // untouched
   });
 });
 

@@ -347,6 +347,26 @@ export function inlineOptionsFrom(curated: CuratedOption[], rows: Record<string,
 }
 
 /**
+ * Options to seed the schema editor with (WP2): the curated options first
+ * (keeping their color/group/order), then any distinct non-empty values the
+ * rows actually use that aren't curated yet. This lets a select/status/
+ * multiselect column whose values were typed ad-hoc into cells be colored
+ * without retyping every value — the color picker per option was already there,
+ * but the option list started empty for such columns.
+ */
+export function mergeObservedOptions(curated: CuratedOption[], rows: Record<string, any>[], col: string): CuratedOption[] {
+  const result = curated.map((o) => ({ ...o }));
+  const have = new Set(result.map((o) => o.value));
+  for (const o of inlineOptionsFrom([], rows, col)) {
+    if (!have.has(o.value)) {
+      have.add(o.value);
+      result.push({ value: o.value });
+    }
+  }
+  return result;
+}
+
+/**
  * Multi-value coercion for option-typed cells (Base-UX2 P1): arrays stay lists,
  * comma-joined strings split into their entries, scalars become a single entry.
  * Select/status/multiselect render and edit through this; explicit text columns

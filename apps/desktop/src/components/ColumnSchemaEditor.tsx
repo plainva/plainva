@@ -4,7 +4,7 @@ import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
-import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, type CuratedOption } from "./propertyModel";
+import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "./propertyModel";
 import { isValidNewPropertyName } from "./base/renameProperty";
 import { TypeMenu, BASE_TYPE_GROUPS, TYPE_ICONS, typeLabel, type MenuPropertyType } from "./PropertyValues";
 import { findReverseColumn, isValidReverseColumnName } from "../services/baseRelations";
@@ -36,13 +36,16 @@ function baseStem(path: string): string {
  * hands `newName` to onSave; the BaseViewer then rewrites the config and the
  * frontmatter key in the matching notes.
  */
-export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath, existingColumns = [], missingCount, onFillMissing, loadBaseConfig, onSave, onDelete, onClose, t }: {
+export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath, existingColumns = [], rows = [], missingCount, onFillMissing, loadBaseConfig, onSave, onDelete, onClose, t }: {
   column: string;
   schema: ColumnSchema;
   baseFiles: string[];
   currentBasePath: string;
   /** All bare property names of this base (collision check for renames). */
   existingColumns?: string[];
+  /** The base's shown rows — seeds the option list with values actually in use
+   *  (WP2) so ad-hoc select/status/multiselect values become colorable. */
+  rows?: Record<string, any>[];
   /** In how many of the currently shown notes this property is NOT set. */
   missingCount?: number;
   /** Explicit bulk materialization (decision F1): write the property (empty)
@@ -60,7 +63,15 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
   t: TFn;
 }) {
   const [input, setInput] = useState<string>(schema.input || "text");
-  const [options, setOptions] = useState<CuratedOption[]>(schema.options ? schema.options.map((o) => ({ ...o })) : []);
+  // Seed the option list from the curated schema AND the distinct values the
+  // rows already use, so colors can be assigned to values typed ad-hoc into
+  // cells (WP2). Only when the column is already an option type — freeform text
+  // values are not options.
+  const [options, setOptions] = useState<CuratedOption[]>(() => {
+    const curated = schema.options ? schema.options.map((o) => ({ ...o })) : [];
+    const seedable = schema.input === "select" || schema.input === "status" || schema.input === "multiselect";
+    return seedable ? mergeObservedOptions(curated, rows, column) : curated;
+  });
   const [relationBase, setRelationBase] = useState<string>(schema.relationBase || "");
   const [relationLimit, setRelationLimit] = useState<string>(schema.relationLimit === "one" ? "one" : "");
   const [name, setName] = useState<string>(column);
