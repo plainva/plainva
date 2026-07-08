@@ -25,7 +25,7 @@ import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "./DocIcon";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, plainvaMetaFromBlock } from "../services/docMeta";
-import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker } from "@plainva/core";
+import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
 import { BasePicker } from "./BasePicker";
 import { createInlineBase, folderOf, baseEmbedText } from "../services/inlineBase";
 import { generateIndexForFolder } from "../services/indexMd";
@@ -293,14 +293,19 @@ export const Editor: React.FC<{
         savedOrSafelyPreserved = true;
         setConflictInfo(null);
 
-        // Re-index only this file so FTS/tags/links are instantly updated!
-        await indexer.indexFile({
-          path,
-          name: path.split(/[/\\]/).pop()!,
-          isDirectory: false,
-          mtime: Date.now(), // approximation, adapter.write doesn't return stat
-          size: val.length
-        });
+        // Re-index only this file so FTS/tags/links are instantly updated. Pass
+        // the in-memory content (skip a re-read on a network drive, WP5 5d) and
+        // the REAL mtime from a stat: storing Date.now() never matched the file's
+        // actual mtime, so the watcher's mtime-based echo detection re-indexed
+        // the file a second time on EVERY save (WP5 5f). Fall back to the old
+        // approximation if the stat fails.
+        let info: VaultFileInfo;
+        try {
+          info = await vaultAdapter.getFileInfo(path);
+        } catch {
+          info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: val.length };
+        }
+        await indexer.indexFile(info, val);
         // File-only refresh (P2.5/P2.7): a save never changes the folder
         // structure, and views not showing this path can skip their reload.
         triggerFileTreeUpdate([path]);

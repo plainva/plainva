@@ -9,6 +9,14 @@ import i18n from "../i18n";
 export class TauriVaultAdapter implements IVaultAdapter {
   constructor(public readonly rootPath: string) {}
 
+  /** Cached normalize(rootPath): the vault root never changes, but getAbsolutePath
+   *  used to re-normalize it via IPC on EVERY read/write/exists/stat call (WP5). */
+  private normalizedRootPromise: Promise<string> | null = null;
+  private normalizedRoot(): Promise<string> {
+    if (!this.normalizedRootPromise) this.normalizedRootPromise = normalize(this.rootPath);
+    return this.normalizedRootPromise;
+  }
+
   async initialize(): Promise<void> {
     const isExist = await exists(this.rootPath);
     if (!isExist) {
@@ -23,7 +31,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
   private async getAbsolutePath(relativePath: string): Promise<string> {
     const absolute = await join(this.rootPath, relativePath);
     const normalized = await normalize(absolute);
-    const normalizedRoot = await normalize(this.rootPath);
+    const normalizedRoot = await this.normalizedRoot();
     if (!isWithinRoot(normalizedRoot, normalized, sep())) {
       throw new Error(`Path traversal detected: ${relativePath}`);
     }

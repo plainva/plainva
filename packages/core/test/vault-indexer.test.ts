@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.ts";
 import { VaultIndexer } from "../src/vault/VaultIndexer.ts";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.ts";
@@ -114,6 +114,23 @@ describe("VaultIndexer", () => {
     await indexer.indexFile({ ...base });
     insert = db.queries.filter((q) => q.query.includes("INSERT INTO files")).at(-1)!;
     expect((insert.params as any[])[5]).toBe(5000);
+  });
+
+  it("indexes provided content without re-reading the file (WP5 5d)", async () => {
+    await vaultAdapter.writeTextFile("provided.md", "# disk content");
+    const readSpy = vi.spyOn(vaultAdapter, "readTextFile");
+    db.mockedOneResults.push(null); // no existing files row
+    db.mockedOneResults.push(null); // no queue op
+    await indexer.indexFile(
+      { path: "provided.md", name: "provided.md", isDirectory: false, mtime: 1, size: 5 },
+      "# provided content"
+    );
+    // The just-written content was passed in, so disk was NOT read for this path.
+    expect(readSpy.mock.calls.some((c) => c[0] === "provided.md")).toBe(false);
+    // The index reflects the PROVIDED content.
+    const fts = db.queries.filter((q) => q.query.includes("INSERT INTO fts_notes")).at(-1)!;
+    expect((fts.params as any[]).join(" ")).toContain("provided content");
+    readSpy.mockRestore();
   });
 
   it("handles unparseable markdown files gracefully", async () => {

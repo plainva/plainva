@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -38,6 +38,23 @@ describe("BackupVaultAdapter", () => {
   it("honors the legacy maxBackupsPerFile option", () => {
     const adapter = new BackupVaultAdapter(innerAdapter, { maxBackupsPerFile: 3 });
     expect(adapter.getPolicy().maxBackupsPerFile).toBe(3);
+  });
+
+  it("skips the backup directory listing for a save within the snapshot interval (WP5 5a)", async () => {
+    const adapter = makeAdapter({ minSnapshotIntervalSeconds: 120 });
+    await innerAdapter.writeTextFile("note.md", "v1");
+    clock += 1000;
+    await adapter.writeTextFile("note.md", "v2"); // first snapshot: lists + records lastSnapshotAt
+
+    const listSpy = vi.spyOn(innerAdapter, "listDir");
+    clock += 1000; // still within the 120 s interval
+    await adapter.writeTextFile("note.md", "v3");
+    expect(listSpy).not.toHaveBeenCalled(); // fast path: no directory listing this save
+
+    clock += 120_000 + 1; // interval elapsed -> a new snapshot (and listing) is due
+    await adapter.writeTextFile("note.md", "v4");
+    expect(listSpy).toHaveBeenCalled();
+    listSpy.mockRestore();
   });
 
   it("should not create a backup on the first write (new file)", async () => {

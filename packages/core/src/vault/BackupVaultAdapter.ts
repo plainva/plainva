@@ -46,6 +46,9 @@ export class BackupVaultAdapter implements IVaultAdapter {
   private policy: BackupRetentionPolicy;
   private readonly now: () => number;
   private readonly onBackupError?: (path: string, error: unknown) => void;
+  /** Timestamp of the most recent snapshot per path this session (WP5 5a): lets
+   *  a save within the snapshot interval skip the (unbounded) directory listing. */
+  private readonly lastSnapshotAt = new Map<string, number>();
 
   constructor(
     private readonly inner: IVaultAdapter,
@@ -118,11 +121,25 @@ export class BackupVaultAdapter implements IVaultAdapter {
     // Internal housekeeping files are never themselves versioned.
     if (isPlainvaInternalPath(path)) return;
 
+    // Fast path (WP5 5a): the directory listing below ran on EVERY save,
+    // sequentially stat-ing every .bak in the file's shared backup folder —
+    // a cost that grows without bound as the vault ages, and one that hurts
+    // badly on a network drive. When we already recorded a recent snapshot this
+    // session, skip the listing entirely; a snapshot is only due every
+    // `minSnapshotIntervalSeconds`.
+    if (!force && this.policy.minSnapshotIntervalSeconds > 0) {
+      const last = this.lastSnapshotAt.get(path);
+      if (last !== undefined && this.now() - last < this.policy.minSnapshotIntervalSeconds * 1000) {
+        return;
+      }
+    }
+
     const existing = await this.listFileBackups(path);
 
     if (!force && this.policy.minSnapshotIntervalSeconds > 0 && existing.length > 0) {
       const newest = existing[existing.length - 1].timestamp;
       if (this.now() - newest < this.policy.minSnapshotIntervalSeconds * 1000) {
+        this.lastSnapshotAt.set(path, newest); // remember, so the next save skips the listing
         return; // recent enough snapshot exists
       }
     }
@@ -143,12 +160,14 @@ export class BackupVaultAdapter implements IVaultAdapter {
       throw err;
     }
 
-    const backupPath = makeBackupPath(path, this.now());
+    const ts = this.now();
+    const backupPath = makeBackupPath(path, ts);
     if (isBinary) {
       await this.inner.writeBinaryFile(backupPath, oldContent as Uint8Array);
     } else {
       await this.inner.writeTextFile(backupPath, oldContent as string);
     }
+    this.lastSnapshotAt.set(path, ts); // WP5 5a: skip the listing until the next interval
 
     await this.rotate(existing);
   }
