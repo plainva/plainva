@@ -1,6 +1,6 @@
 # Plainva Sync Compatibility
 
-Last reviewed: 2026-07-04 (updated after the OneDrive, Dropbox and S3 integrations)
+Last reviewed: 2026-07-08 (OneDrive and Dropbox now ship central app IDs — no BYO needed)
 
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 
@@ -11,8 +11,8 @@ Plainva syncs vaults through interchangeable sync adapters. This page shows whic
 | Local folder | Available | No setup needed; external changes (e.g. by other sync tools) are detected automatically. |
 | WebDAV / Nextcloud | Available, verified with Nextcloud | Server URL, username and (recommended) an app password. |
 | Google Drive | Available (BYO credentials) | Requires your own Google Cloud project, see the [Google Drive BYO guide](Google_Drive_BYO_Guide.md). |
-| OneDrive | Available (new 2026-07-04, native acceptance pending) | Sign-in via browser (PKCE, no secret). Until Plainva ships its own app registration, you need your own (free) Entra app registration: type "Mobile and desktop applications", redirect URI `http://localhost`. |
-| Dropbox | Available (new 2026-07-04, native acceptance pending) | Sign-in via browser (PKCE, no secret). Until Plainva ships its own app, you need your own (free) Dropbox app: full-Dropbox access, redirect URI exactly `http://127.0.0.1:41953`. |
+| OneDrive | Available | Sign-in via browser (PKCE, no secret). Plainva ships its own app registration — just pick OneDrive and connect, no setup needed. Using your own (free) Entra app registration stays optional (see the [OneDrive & Dropbox BYO guide](OneDrive_and_Dropbox_BYO_Guide.md)). |
+| Dropbox | Available | Sign-in via browser (PKCE, no secret). Plainva ships its own Dropbox app — just pick Dropbox and connect, no setup needed. Using your own (free) Dropbox app stays optional (see the [OneDrive & Dropbox BYO guide](OneDrive_and_Dropbox_BYO_Guide.md)). |
 | S3-compatible object storage | Available (new 2026-07-04, native acceptance pending) | AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner and others — just an endpoint, bucket, region and an API key pair; no browser sign-in. |
 
 ## Services usable via WebDAV
@@ -47,7 +47,7 @@ Until native integrations arrive, you can use any service whose desktop client k
 
 ## Note on the new integrations (2026-07-04)
 
-OneDrive, Dropbox and S3-compatible storage have been directly integrated since 2026-07-04 (see the table above) — earlier than planned in the master plan's staging (§13.3). Once Plainva ships central app registrations for OneDrive and Dropbox, the step with your own client ID or app key disappears; the fields will come pre-filled. The desktop-sync-client route (see above) remains available as an alternative.
+OneDrive, Dropbox and S3-compatible storage have been directly integrated since 2026-07-04 (see the table above). Plainva ships its own app registrations for OneDrive and Dropbox, so you don't need your own client ID or app key — the fields come pre-filled and you just connect. Bringing your own app ID stays optional (e.g. for corporate restrictions); see the [OneDrive & Dropbox BYO guide](OneDrive_and_Dropbox_BYO_Guide.md). The desktop-sync-client route (see above) remains available as an alternative.
 
 ## Deliberately not planned
 

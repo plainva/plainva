@@ -1,6 +1,6 @@
 # Plainva Sync-compatibiliteit
 
-Laatst bijgewerkt: 2026-07-04 (bijgewerkt na de integratie van OneDrive, Dropbox en S3)
+Laatst bijgewerkt: 2026-07-08 (OneDrive en Dropbox leveren nu centrale app-ID's mee — geen eigen app-registratie meer nodig)
 
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 
@@ -11,8 +11,8 @@ Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont
 | Lokale map | Beschikbaar | Geen installatie nodig; externe wijzigingen (bijv. door andere sync-tools) worden automatisch herkend. |
 | WebDAV / Nextcloud | Beschikbaar, geverifieerd met Nextcloud | Server-URL, gebruikersnaam en (aanbevolen) een app-wachtwoord. |
 | Google Drive | Beschikbaar (BYO-credentials) | Vereist een eigen Google Cloud-project, zie de [Google Drive BYO-handleiding](Google_Drive_BYO_Guide.md). |
-| OneDrive | Beschikbaar (nieuw 2026-07-04, native goedkeuring nog in behandeling) | Aanmelding via browser (PKCE, geen secret). Tot Plainva een eigen app-registratie meelevert, heb je een eigen (gratis) Entra-app-registratie nodig: type "Mobile and desktop applications", redirect-URI `http://localhost`. |
-| Dropbox | Beschikbaar (nieuw 2026-07-04, native goedkeuring nog in behandeling) | Aanmelding via browser (PKCE, geen secret). Tot Plainva een eigen app meelevert, heb je een eigen (gratis) Dropbox-app nodig: full-Dropbox-toegang, redirect-URI exact `http://127.0.0.1:41953`. |
+| OneDrive | Beschikbaar | Aanmelding via browser (PKCE, geen secret). Plainva levert een eigen app-registratie mee — kies gewoon OneDrive en verbind, geen configuratie nodig. Een eigen (gratis) Entra-app-registratie gebruiken blijft optioneel (zie de [OneDrive & Dropbox BYO-handleiding](OneDrive_and_Dropbox_BYO_Guide.md)). |
+| Dropbox | Beschikbaar | Aanmelding via browser (PKCE, geen secret). Plainva levert een eigen Dropbox-app mee — kies gewoon Dropbox en verbind, geen configuratie nodig. Een eigen (gratis) Dropbox-app gebruiken blijft optioneel (zie de [OneDrive & Dropbox BYO-handleiding](OneDrive_and_Dropbox_BYO_Guide.md)). |
 | S3-compatibele objectopslag | Beschikbaar (nieuw 2026-07-04, native goedkeuring nog in behandeling) | AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner en andere — alleen een endpoint, bucket, regio en een API-sleutelpaar nodig, geen browseraanmelding. |
 
 ## Diensten bruikbaar via WebDAV
@@ -47,7 +47,7 @@ Tot native integraties beschikbaar zijn, kun je elke dienst gebruiken waarvan de
 
 ## Opmerking over de nieuwe integraties (2026-07-04)
 
-OneDrive, Dropbox en S3-compatibele opslag zijn sinds 2026-07-04 rechtstreeks geïntegreerd (zie de tabel hierboven) — eerder dan gepland in de fasering van het masterplan (§13.3). Zodra Plainva centrale app-registraties voor OneDrive en Dropbox meelevert, vervalt de stap met een eigen client-ID of app-key; de velden komen dan vooraf ingevuld. De route via de desktop-sync-client (zie hierboven) blijft beschikbaar als alternatief.
+OneDrive, Dropbox en S3-compatibele opslag zijn sinds 2026-07-04 rechtstreeks geïntegreerd (zie de tabel hierboven) — eerder dan gepland in de fasering van het masterplan (§13.3). Plainva levert eigen app-registraties voor OneDrive en Dropbox mee, dus je hebt geen eigen client-ID of app-key nodig — de velden zijn al vooraf ingevuld en je hoeft alleen te verbinden. Een eigen app-ID gebruiken blijft optioneel (bijvoorbeeld bij zakelijke restricties); zie de [OneDrive & Dropbox BYO-handleiding](OneDrive_and_Dropbox_BYO_Guide.md). De route via de desktop-sync-client (zie hierboven) blijft beschikbaar als alternatief.
 
 ## Bewust niet gepland
 

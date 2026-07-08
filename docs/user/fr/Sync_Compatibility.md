@@ -1,6 +1,6 @@
 # Compatibilité de synchronisation de Plainva
 
-Dernière mise à jour : 2026-07-04 (mise à jour après les intégrations OneDrive, Dropbox et S3)
+Dernière mise à jour : 2026-07-08 (OneDrive et Dropbox fournissent désormais des IDs d'application centraux — plus besoin de BYO)
 
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 
@@ -11,8 +11,8 @@ Plainva synchronise les vaults via des adaptateurs de synchronisation interchang
 | Dossier local | Disponible | Aucune configuration nécessaire ; les modifications externes (p. ex. par d'autres outils de synchronisation) sont détectées automatiquement. |
 | WebDAV / Nextcloud | Disponible, vérifié avec Nextcloud | URL du serveur, nom d'utilisateur et (recommandé) un mot de passe d'application. |
 | Google Drive | Disponible (identifiants BYO) | Nécessite votre propre projet Google Cloud, voir le [guide Google Drive BYO](Google_Drive_BYO_Guide.md). |
-| OneDrive | Disponible (nouveau 2026-07-04, acceptation native en attente) | Connexion via navigateur (PKCE, sans secret). Jusqu'à ce que Plainva fournisse sa propre inscription d'application, vous avez besoin de votre propre (gratuite) inscription d'application Entra : type « Applications mobiles et de bureau », URI de redirection `http://localhost`. |
-| Dropbox | Disponible (nouveau 2026-07-04, acceptation native en attente) | Connexion via navigateur (PKCE, sans secret). Jusqu'à ce que Plainva fournisse sa propre application, vous avez besoin de votre propre (gratuite) application Dropbox : accès Full Dropbox, URI de redirection exactement `http://127.0.0.1:41953`. |
+| OneDrive | Disponible | Connexion via navigateur (PKCE, sans secret). Plainva fournit sa propre inscription d'application — il vous suffit de choisir OneDrive et de vous connecter, aucune configuration nécessaire. Utiliser votre propre (gratuite) inscription d'application Entra reste possible en option (voir le [guide OneDrive & Dropbox BYO](OneDrive_and_Dropbox_BYO_Guide.md)). |
+| Dropbox | Disponible | Connexion via navigateur (PKCE, sans secret). Plainva fournit sa propre application Dropbox — il vous suffit de choisir Dropbox et de vous connecter, aucune configuration nécessaire. Utiliser votre propre (gratuite) application Dropbox reste possible en option (voir le [guide OneDrive & Dropbox BYO](OneDrive_and_Dropbox_BYO_Guide.md)). |
 | Stockage objet compatible S3 | Disponible (nouveau 2026-07-04, acceptation native en attente) | AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner et d'autres — juste un endpoint, un bucket, une région et une paire de clés API ; pas de connexion via navigateur. |
 
 ## Services utilisables via WebDAV
@@ -47,7 +47,7 @@ En attendant l'arrivée des intégrations natives, vous pouvez utiliser n'import
 
 ## Remarque sur les nouvelles intégrations (2026-07-04)
 
-OneDrive, Dropbox et le stockage compatible S3 sont directement intégrés depuis le 2026-07-04 (voir le tableau ci-dessus) — plus tôt que prévu dans l'échelonnement du plan directeur (§13.3). Dès que Plainva fournira des inscriptions d'application centrales pour OneDrive et Dropbox, l'étape avec votre propre ID client ou clé d'application disparaîtra ; les champs seront alors préremplis. La voie du client de synchronisation de bureau (voir ci-dessus) reste disponible comme alternative.
+OneDrive, Dropbox et le stockage compatible S3 sont directement intégrés depuis le 2026-07-04 (voir le tableau ci-dessus) — plus tôt que prévu dans l'échelonnement du plan directeur (§13.3). Plainva fournit ses propres inscriptions d'application pour OneDrive et Dropbox, vous n'avez donc besoin ni de votre propre ID client, ni de votre propre clé d'application — les champs sont préremplis et il vous suffit de vous connecter. Utiliser votre propre ID d'application reste possible en option (p. ex. en cas de restrictions d'entreprise) ; voir le [guide OneDrive & Dropbox BYO](OneDrive_and_Dropbox_BYO_Guide.md). La voie du client de synchronisation de bureau (voir ci-dessus) reste disponible comme alternative.
 
 ## Délibérément non prévu
 

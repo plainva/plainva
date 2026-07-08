@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Stand: 2026-07-04 (atualizado após as integrações do OneDrive, Dropbox e S3)
+Stand: 2026-07-08 (OneDrive e Dropbox agora vêm com IDs de app centrais — BYO não é mais necessário)
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 
@@ -11,8 +11,8 @@ O Plainva sincroniza vaults por meio de adaptadores de sincronização intercamb
 | Pasta local | Disponível | Nenhuma configuração necessária; alterações externas (por exemplo, feitas por outras ferramentas de sincronização) são detectadas automaticamente. |
 | WebDAV / Nextcloud | Disponível, verificado com o Nextcloud | URL do servidor, nome de usuário e (recomendado) uma senha de aplicativo. |
 | Google Drive | Disponível (credenciais BYO) | Requer seu próprio projeto no Google Cloud, veja o [guia do Google Drive BYO](Google_Drive_BYO_Guide.md). |
-| OneDrive | Disponível (novo em 2026-07-04, aceitação nativa pendente) | Login pelo navegador (PKCE, sem secret). Até o Plainva disponibilizar seu próprio registro de app, você precisa de um registro de app próprio (gratuito) no Entra: tipo "Aplicativos móveis e de desktop", URI de redirecionamento `http://localhost`. |
-| Dropbox | Disponível (novo em 2026-07-04, aceitação nativa pendente) | Login pelo navegador (PKCE, sem secret). Até o Plainva disponibilizar seu próprio app, você precisa de um app próprio (gratuito) do Dropbox: acesso full-Dropbox, URI de redirecionamento exatamente `http://127.0.0.1:41953`. |
+| OneDrive | Disponível | Login pelo navegador (PKCE, sem secret). O Plainva já vem com seu próprio registro de app — basta escolher o OneDrive e conectar, sem necessidade de configuração. Usar seu próprio registro de app (gratuito) no Entra continua sendo opcional (veja o guia [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md)). |
+| Dropbox | Disponível | Login pelo navegador (PKCE, sem secret). O Plainva já vem com seu próprio app do Dropbox — basta escolher o Dropbox e conectar, sem necessidade de configuração. Usar seu próprio app (gratuito) do Dropbox continua sendo opcional (veja o guia [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md)). |
 | Armazenamento de objetos compatível com S3 | Disponível (novo em 2026-07-04, aceitação nativa pendente) | AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner e outros — basta um endpoint, bucket, região e um par de chaves de API; sem login pelo navegador. |
 
 ## Serviços utilizáveis via WebDAV
@@ -47,7 +47,7 @@ Até que integrações nativas cheguem, você pode usar qualquer serviço cujo c
 
 ## Observação sobre as novas integrações (2026-07-04)
 
-OneDrive, Dropbox e o armazenamento compatível com S3 foram diretamente integrados desde 2026-07-04 (veja a tabela acima) — antes do planejado no faseamento do plano mestre (§13.3). Assim que o Plainva disponibilizar registros de app centrais para OneDrive e Dropbox, a etapa com seu próprio client ID ou app key desaparece; os campos virão preenchidos. O caminho do cliente de sincronização de desktop (veja acima) continua disponível como alternativa.
+OneDrive, Dropbox e o armazenamento compatível com S3 foram diretamente integrados desde 2026-07-04 (veja a tabela acima) — antes do planejado no faseamento do plano mestre (§13.3). O Plainva já vem com seus próprios registros de app para OneDrive e Dropbox, então você não precisa do seu próprio client ID ou app key — os campos vêm pré-preenchidos e basta conectar. Usar seu próprio ID de app continua sendo opcional (por exemplo, por restrições corporativas); veja o guia [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md). O caminho do cliente de sincronização de desktop (veja acima) continua disponível como alternativa.
 
 ## Deliberadamente não planejado
 
