@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SyncWorker } from "../../src/sync/SyncWorker.js";
+import { SyncWorker, isLocalOnlyPath } from "../../src/sync/SyncWorker.js";
 
 describe("SyncWorker", () => {
   let engine: any;
@@ -260,6 +260,56 @@ describe("SyncWorker", () => {
     await worker.runCycle();
 
     expect(vault.deleteItem).toHaveBeenCalledWith("note-11.md");
+  });
+
+  it("never pulls device-local state (.plainva/vault.db) from the remote (index-corruption guard)", async () => {
+    // A Google Drive / Dropbox / OneDrive desktop client that independently mirrors the
+    // same folder uploads the SQLite index. If the worker pulled it back over the live
+    // local DB the index corrupts ("database disk image is malformed"). The pull side
+    // must skip .plainva just like the push side already does.
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map([
+        [".plainva/vault.db", "etag-db"],
+        ["note.md", "etag-note"],
+      ]),
+    });
+    target.download.mockResolvedValue(new TextEncoder().encode("hello"));
+
+    await worker.runCycle();
+
+    // The real note is pulled; the device-local index DB is never even downloaded.
+    expect(target.download).toHaveBeenCalledWith("note.md");
+    expect(target.download).not.toHaveBeenCalledWith(".plainva/vault.db");
+    const touchedPlainva = vault.writeTextFile.mock.calls.some((c: any[]) => String(c[0]).includes(".plainva"));
+    expect(touchedPlainva).toBe(false);
+    const wroteConflict = vault.writeTextFile.mock.calls.some((c: any[]) => String(c[0]).includes(".CONFLICT"));
+    expect(wroteConflict).toBe(false);
+  });
+
+  it("never deletion-mirrors a device-local file absent from the remote listing", async () => {
+    // .plainva/graph.json can linger in sync_state from an older build; a remote that no
+    // longer lists it must not make the worker delete the local device-local file.
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map([["kept.md", "etag-kept"]]),
+    });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode("kept"));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+      [".plainva/graph.json", { remote_etag: "etag-old", base_sha256: await sha("pins") }],
+    ]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("pins");
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalledWith(".plainva/graph.json");
+  });
+
+  it("isLocalOnlyPath classifies device-local and conflict paths", () => {
+    expect(isLocalOnlyPath(".plainva/vault.db")).toBe(true);
+    expect(isLocalOnlyPath(".plainva/graph.json")).toBe(true);
+    expect(isLocalOnlyPath("notes/a.CONFLICT-2026-07-08T00-00-00-000Z.md")).toBe(true);
+    expect(isLocalOnlyPath("notes/index.md")).toBe(false);
+    expect(isLocalOnlyPath("Projects.base")).toBe(false);
   });
 });
 

@@ -20,6 +20,20 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   return bytesToHex(await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource));
 }
 
+/**
+ * Paths that must never participate in sync. `.plainva/` holds device-local state
+ * — the SQLite index (`vault.db` plus its `-wal`/`-shm` sidecars), graph pins and
+ * bookmarks — and `.CONFLICT-<ts>` files are local conflict copies. The push side
+ * already excludes these (SyncQueue's `NOT LIKE '.plainva%'` and the VaultContext
+ * enqueue guards); the pull side must match. Otherwise a remote `.plainva/vault.db`
+ * — e.g. uploaded to the same folder by a Google Drive / Dropbox / OneDrive
+ * *desktop* client that mirrors the vault independently — gets downloaded on top of
+ * the live local index and corrupts it ("database disk image is malformed").
+ */
+export function isLocalOnlyPath(path: string): boolean {
+  return path.startsWith(".plainva") || path.includes(".CONFLICT");
+}
+
 export type SyncStatus = "idle" | "syncing" | "error";
 
 /** Upper bound for the adaptive pull backoff (a failing server is retried at most this slowly). */
@@ -250,6 +264,10 @@ export class SyncWorker {
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (!this.isRunning) break;
 
+        // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
+        // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
+        if (isLocalOnlyPath(path)) continue;
+
         const state = stateMap.get(path) ?? null;
 
         // Remote unchanged since our last recorded sync -> nothing to do.
@@ -362,7 +380,7 @@ export class SyncWorker {
         // before; skip purely local-ahead files that were never pushed.
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
-          if (path.includes(".CONFLICT")) continue;
+          if (isLocalOnlyPath(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
         const missing = confirmed.filter((c) => !remotePaths.has(c.path));
