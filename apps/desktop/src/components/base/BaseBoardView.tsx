@@ -6,6 +6,7 @@ import { GripHorizontal, Plus } from "lucide-react";
 import { hitTest, useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import { orderBoardGroups, reorderBoardKeys } from "./boardOrder";
+import { chipPaletteIndex } from "../propertyModel";
 import type { BaseCells } from "./useBaseCells";
 
 // Board (kanban) view of the BaseViewer (structural split, plan C3). Cards are
@@ -19,6 +20,7 @@ export function BaseBoardView({
   visibleColumns,
   boardGroupBy,
   boardColumnOrder,
+  boardColorMode = "chip",
   cells,
   onOpenNote,
   onDropToSplit,
@@ -31,6 +33,8 @@ export function BaseBoardView({
   boardGroupBy: string | null;
   /** Per-view saved column order (relation/text boards), from the active view. */
   boardColumnOrder?: string[];
+  /** Whole-column tint vs header-chip only (WP3); applies to option-typed groups. */
+  boardColorMode?: "chip" | "column";
   cells: BaseCells;
   onOpenNote?: (path: string, ev?: React.MouseEvent) => void;
   /** Dropping a card on the split zone opens it in the neighboring pane (P5). */
@@ -50,6 +54,8 @@ export function BaseBoardView({
   const groupInput = boardGroupBy ? getColumnSchema(boardGroupBy)?.input : undefined;
   const isReverseGroup = !!boardGroupBy && isReverseColumn(boardGroupBy);
   const isRelationGroup = isReverseGroup || groupInput === "relation" || groupInput === "link";
+  // Whole-column tint (WP3) only applies to curated option groups.
+  const isColoredGroup = groupInput === "select" || groupInput === "status" || groupInput === "multiselect";
   const cardKeyOf = (path: string, groupKey: string) => (isRelationGroup ? `${path}\n${groupKey}` : path);
   const pathOfCardKey = (key: string | null) => (key ? key.split("\n")[0]! : null);
 
@@ -148,6 +154,17 @@ export function BaseBoardView({
       : [];
   const orderedKeys = orderBoardGroups(Object.keys(groups), { optionOrder, savedOrder: boardColumnOrder });
 
+  // Palette slot for a group's whole-column tint (WP3): only for option groups
+  // in "column" mode; null = neutral column (header chip / plain label instead).
+  const optionsForGroup: any[] = !isRelationGroup && Array.isArray(dbConfig?.columns?.[boardGroupBy!]?.options)
+    ? dbConfig.columns[boardGroupBy!].options
+    : [];
+  const groupTintIndex = (key: string): number | null => {
+    if (boardColorMode !== "column" || !isColoredGroup || key === "__UNGROUPED__") return null;
+    const opt = optionsForGroup.find((o) => (o?.label || o?.value || String(o)) === key || o?.value === key);
+    return chipPaletteIndex(key, opt?.color);
+  };
+
   // Header drag: arm after a small move (so a plain click never flickers), then
   // hit-test the columns by rect and, on drop, hand the host the new key order.
   const colHeaderHandlers = (key: string) => ({
@@ -180,20 +197,23 @@ export function BaseBoardView({
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <div className="custom-scrollbar" style={{ display: "flex", gap: "1rem", padding: "1rem", overflowX: "auto", flex: 1, alignItems: "flex-start" }}>
-        {orderedKeys.map(groupKey => (
+        {orderedKeys.map(groupKey => {
+          const tintIdx = groupTintIndex(groupKey);
+          const tinted = tintIdx != null;
+          return (
           <div
             key={groupKey}
             ref={(el) => { registerTarget(groupKey)(el); if (el) colRefs.current.set(groupKey, el); else colRefs.current.delete(groupKey); }}
-            style={{ width: "280px", flexShrink: 0, background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", maxHeight: "100%", outline: (overTarget === groupKey && draggingPath) || (overCol === groupKey && dragCol && dragCol !== groupKey) ? "2px solid var(--accent-color)" : "none", outlineOffset: -2, opacity: dragCol === groupKey ? 0.5 : 1 }}
+            style={{ width: "280px", flexShrink: 0, background: tinted ? `var(--chip-${tintIdx}-bg)` : "var(--bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", maxHeight: "100%", outline: (overTarget === groupKey && draggingPath) || (overCol === groupKey && dragCol && dragCol !== groupKey) ? "2px solid var(--accent-color)" : "none", outlineOffset: -2, opacity: dragCol === groupKey ? 0.5 : 1 }}
           >
             <div
               {...(onReorderColumns ? colHeaderHandlers(groupKey) : {})}
-              style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between", fontWeight: 600, cursor: onReorderColumns ? "grab" : "default", touchAction: "none", userSelect: "none" }}
+              style={{ padding: "0.75rem", borderBottom: tinted ? "1px solid transparent" : "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between", fontWeight: 600, cursor: onReorderColumns ? "grab" : "default", touchAction: "none", userSelect: "none" }}
               data-testid={`board-col-header-${groupKey}`}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                {onReorderColumns && <GripHorizontal size={13} style={{ flexShrink: 0, color: "var(--text-faint)" }} aria-hidden="true" />}
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{groupKey === "__UNGROUPED__" ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span> : (renderTypedDisplay(boardGroupBy, groupKey) ?? groupKey)}</span>
+                {onReorderColumns && <GripHorizontal size={13} style={{ flexShrink: 0, color: tinted ? `var(--chip-${tintIdx}-fg)` : "var(--text-faint)" }} aria-hidden="true" />}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{groupKey === "__UNGROUPED__" ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span> : tinted ? <span style={{ color: `var(--chip-${tintIdx}-fg)`, fontWeight: 600 }}>{groupKey}</span> : (renderTypedDisplay(boardGroupBy, groupKey) ?? groupKey)}</span>
               </span>
               <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0 }}>{groups[groupKey].length}</span>
             </div>
@@ -226,7 +246,8 @@ export function BaseBoardView({
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
         {/* Relation groups mirror the linked notes — a "new group" would be a new
             note, which the relation editors already offer; hide the button. */}
         {isRelationGroup ? null : !addingGroup ? (

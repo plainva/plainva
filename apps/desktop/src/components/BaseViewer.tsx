@@ -1564,9 +1564,10 @@ export function BaseViewer({
     saveConfig(newConfig);
   };
 
-  // Graph view (plan Graph P8): options live on the active view's plainva
-  // namespace; a patch clones the config and persists through saveConfig.
-  const patchActiveViewGraph = (patch: Record<string, unknown>) => {
+  // Per-view options (graph P8, board color mode WP3): keys live on the active
+  // view's plainva namespace; a patch clones the config and persists through
+  // saveConfig. `undefined` deletes a key so defaults stay unwritten.
+  const patchActiveView = (patch: Record<string, unknown>) => {
     if (!dbConfig) return;
     const newConfig = JSON.parse(JSON.stringify(dbConfig));
     if (!Array.isArray(newConfig.views) || newConfig.views.length === 0) newConfig.views = [{ type: currentViewType }];
@@ -1596,11 +1597,11 @@ export function BaseViewer({
           numberKeys={columnKeysByKind((c) => c.input === "number")}
           onOpenNote={requestOpen}
           onDropToSplit={onOpenInSplit}
-          onPatchView={patchActiveViewGraph}
+          onPatchView={patchActiveView}
         />
       );
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
+    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
     if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} calMonth={calMonth} setCalMonth={setCalMonth} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineStart={timelineStart} setTimelineStart={setTimelineStart} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
@@ -1801,6 +1802,8 @@ export function BaseViewer({
             onSetSortRules={setSortRules}
             onAddProperty={addProperty}
             onSetBoardGroupBy={setBoardGroupByPersisted}
+            boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"}
+            onSetBoardColorMode={(m) => patchActiveView({ boardColorMode: m === "column" ? "column" : undefined })}
             onSetCoverImage={setCoverImagePersisted}
             onSetDateField={setDateField}
             onSetDateFieldType={setDateFieldType}

@@ -301,6 +301,9 @@ function normalizeViewIn(v: any): Record<string, any> {
   if (pv.graphShowIncoming === true) out.graphShowIncoming = true;
   // Board column order (namespace-only, plan Board-Reorder 2026-07-07).
   if (Array.isArray(pv.boardColumnOrder)) out.boardColumnOrder = pv.boardColumnOrder.map((x: any) => String(x));
+  // Board color mode (namespace-only, WP3): "column" tints the whole column in
+  // the group's color; "chip" (default) only colors the header chip.
+  if (pv.boardColorMode === "column") out.boardColorMode = "column";
   return out;
 }
 
@@ -471,6 +474,10 @@ export function serializeBaseConfig(config: any): string {
     // relation/text boards; select/status boards reorder their options instead.
     if (Array.isArray(v?.boardColumnOrder) && v.boardColumnOrder.length > 0) pv.boardColumnOrder = v.boardColumnOrder.map((x: any) => String(x));
     else delete pv.boardColumnOrder;
+    // Board color mode (WP3) — only "column" is stored; "chip" is the default
+    // and elided so files without the feature stay byte-identical.
+    if (v?.boardColorMode === "column") pv.boardColorMode = "column";
+    else delete pv.boardColorMode;
     // The file-level keys (icon tint P7, new-item folder/template P1) are
     // stamped onto the FIRST view only and scrubbed from the rest so
     // reorders/deletes never leave stale duplicates.

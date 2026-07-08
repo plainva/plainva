@@ -96,6 +96,31 @@ describe("baseFormat serialize: Obsidian-native output", () => {
     expect(out2.views[0].plainva.newItemFolder).toBe("Projekte/Aktiv");
   });
 
+  it("round-trips boardColorMode under views[i].plainva; chip is the default and elided (WP3)", () => {
+    const out = yaml.parse(
+      serializeBaseConfig({
+        columns: { status: { input: "status", options: [{ value: "draft" }] } },
+        views: [
+          { type: "board", boardColorMode: "column" },
+          { type: "board", boardColorMode: "chip" },
+        ],
+        _obsidian: {},
+      }),
+    );
+    expect(out.views[0].plainva.boardColorMode).toBe("column");
+    // "chip" is the default and must never be written (byte-stable files).
+    expect(out.views[1].plainva?.boardColorMode).toBeUndefined();
+
+    const parsed = parseBaseConfig(yaml.stringify(out));
+    expect(parsed.views[0].boardColorMode).toBe("column");
+    expect(parsed.views[1].boardColorMode).toBeUndefined();
+
+    // Cleared in memory -> scrubbed from the file on the next save.
+    delete parsed.views[0].boardColorMode;
+    const out2 = yaml.parse(serializeBaseConfig(parsed));
+    expect(out2.views[0].plainva?.boardColorMode).toBeUndefined();
+  });
+
   it("round-trips contextFilters (self-reference) under views[0].plainva only, ignored by Obsidian's filters", () => {
     const out = yaml.parse(
       serializeBaseConfig({

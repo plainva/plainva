@@ -9,6 +9,7 @@ import {
   stripWikiLink,
   toWikiLink,
   chipColorIndex,
+  chipPaletteIndex,
   filterTagSuggestions,
   normalizeFrontmatterValue,
   chipClass,
@@ -174,6 +175,17 @@ describe("propertyModel.chipClass", () => {
   it("falls back to a deterministic color for unknown/missing colors", () => {
     expect(chipClass("final")).toBe(chipClass("final", "not-a-color"));
     expect(chipClass("final")).toMatch(/^pv-chip pv-chip-[0-7]$/);
+  });
+});
+
+describe("propertyModel.chipPaletteIndex (WP3 board tint)", () => {
+  it("maps a curated palette name to its slot", () => {
+    expect(chipPaletteIndex("x", "teal")).toBe(1);
+    expect(chipPaletteIndex("x", "pink")).toBe(7);
+  });
+  it("falls back to the value hash for unknown/missing colors and matches chipClass", () => {
+    expect(chipPaletteIndex("final")).toBe(chipColorIndex("final"));
+    expect(`pv-chip pv-chip-${chipPaletteIndex("final", "gray")}`).toBe(chipClass("final", "gray"));
   });
 });
 

@@ -282,10 +282,17 @@ export const PALETTE_SWATCH: Record<string, string> = {
   amber: "#ba7517", coral: "#d85a30", purple: "#7f77dd", pink: "#d4537e",
 };
 
+/** Palette slot (0..CHIP_COLOR_COUNT-1) for an option: curated palette color if
+ *  valid, else deterministic by value. Maps to the `.pv-chip-N` classes and the
+ *  `--chip-N-bg`/`--chip-N-fg` tokens (used for whole-column board tinting, WP3). */
+export function chipPaletteIndex(value: string, color?: string): number {
+  const i = color ? PALETTE_NAMES.indexOf(color) : -1;
+  return i >= 0 ? i : chipColorIndex(value);
+}
+
 /** CSS class for an option chip: curated palette color if valid, else deterministic by value. */
 export function chipClass(value: string, color?: string): string {
-  const i = color ? PALETTE_NAMES.indexOf(color) : -1;
-  return `pv-chip pv-chip-${i >= 0 ? i : chipColorIndex(value)}`;
+  return `pv-chip pv-chip-${chipPaletteIndex(value, color)}`;
 }
 
 /** Solid swatch colour for an option: curated palette colour when valid, else the same

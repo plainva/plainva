@@ -448,6 +448,8 @@ export function BaseConfigPanel({
   onAddProperty,
   onReorderColumns,
   onSetBoardGroupBy,
+  boardColorMode,
+  onSetBoardColorMode,
   onSetCoverImage,
   onSetDateField,
   onSetDateFieldType,
@@ -489,6 +491,9 @@ export function BaseConfigPanel({
   /** Rewrites the active view's column order (drag-reorder in the properties list). */
   onReorderColumns: (cols: string[]) => void;
   onSetBoardGroupBy: (col: string) => void;
+  /** Board column tint mode (WP3): "column" tints the whole list, "chip" only the header chip. */
+  boardColorMode?: "chip" | "column";
+  onSetBoardColorMode: (mode: "chip" | "column") => void;
   onSetCoverImage: (col: string | null) => void;
   onSetDateField: (col: string) => void;
   onSetDateFieldType: (t: "date" | "datetime") => void;
@@ -648,6 +653,20 @@ export function BaseConfigPanel({
         {currentViewType === "board" && (
           <label className="base-cfg-field">{t("database.groupBy", "Gruppieren nach")}
             <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
+          </label>
+        )}
+        {/* Whole-column tint (WP3): only meaningful for a curated option group. */}
+        {currentViewType === "board" && boardGroupBy && ["select", "status", "multiselect"].includes(dbConfig?.columns?.[boardGroupBy]?.input) && (
+          <label className="base-cfg-field">{t("database.boardColor", "Spaltenfarbe")}
+            <Select
+              ariaLabel={t("database.boardColor", "Spaltenfarbe")}
+              value={boardColorMode === "column" ? "column" : "chip"}
+              onChange={(v) => onSetBoardColorMode(v === "column" ? "column" : "chip")}
+              options={[
+                { value: "chip", label: t("database.boardColorChip", "Nur Chip") },
+                { value: "column", label: t("database.boardColorColumn", "Ganze Liste") },
+              ]}
+            />
           </label>
         )}
         {(currentViewType === "calendar" || currentViewType === "timeline") && (

@@ -518,6 +518,37 @@ test('Base board: dragging a column header reorders the group options (report 20
     .toBe(true);
 });
 
+test('Base board: color mode "column" tints the whole column and persists (WP3)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Board');
+  await expect(page.getByText('active', { exact: true }).first()).toBeVisible({ timeout: 10000 });
+
+  // The "active" column div is the header's parent; read its inline style.
+  const colStyle = () =>
+    page.evaluate(() => {
+      const header = document.querySelector('[data-testid="board-col-header-active"]');
+      return (header?.parentElement as HTMLElement | null)?.getAttribute('style') ?? '';
+    });
+  // Starts neutral (chip mode is the default).
+  expect(await colStyle()).toContain('var(--bg-secondary)');
+
+  // Open the config panel and switch the column color to "whole list".
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await page.getByRole('button', { name: /^(Spaltenfarbe|Column color)$/ }).click();
+  await page.getByRole('option', { name: /^(Ganze Liste|Whole list)$/ }).click();
+
+  // The .base persists boardColorMode: column under the view's plainva namespace.
+  await expect
+    .poll(async () => {
+      const y = (await page.evaluate(() => (window as any).mockFs['/test-vault/Board.base'])) as string;
+      return typeof y === 'string' && y.includes('boardColorMode: column');
+    })
+    .toBe(true);
+
+  // The whole column is now tinted with a chip palette token.
+  await expect.poll(colStyle).toContain('var(--chip-');
+});
+
 test('Base wizard: new database via source step, live match count, created file opens', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('aside').getByText('Cockpit', { exact: true })).toBeVisible({ timeout: 10000 });
