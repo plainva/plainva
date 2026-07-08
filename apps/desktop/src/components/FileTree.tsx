@@ -15,6 +15,7 @@ import { buildNewNoteContent, getConfiguredNoteType } from "../services/newNote"
 import { hasSnippetMark, renderSnippetNodes } from "../lib/searchSnippet";
 import { setPendingSearchJump } from "../lib/searchJump";
 import { useStableHandler } from "../lib/useStableHandler";
+import { sameTreeFiles } from "../lib/treeFiles";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "./DocIcon";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
@@ -395,7 +396,9 @@ export const FileTree: React.FC<{
           const allFiles: { path: string; title: string; mode?: string; isDir?: boolean }[] =
             [...dbFiles, ...diskFolders];
 
-          if (!cancelled) setFiles(allFiles);
+          // Keep the previous reference when nothing tree-relevant changed, so a
+          // content-only autosave does not rebuild + re-render the whole tree.
+          if (!cancelled) setFiles((prev) => (sameTreeFiles(prev, allFiles) ? prev : allFiles));
         } else {
           // FTS5 search — prefix matching + snippets/title highlight (P1/P2).
           const results = await queryService.searchFullText(effectiveQuery);
@@ -415,9 +418,14 @@ export const FileTree: React.FC<{
           const pending = await queryService.db.query<{ path: string }>(
             `SELECT path FROM files WHERE sync_state IS NOT NULL AND sync_state != 'synced'`
           );
-          if (!cancelled) setPendingPaths(new Set(pending.map(p => p.path)));
+          if (!cancelled) setPendingPaths((prev) => {
+            const next = new Set(pending.map(p => p.path));
+            return prev.size === next.size && [...next].every((p) => prev.has(p)) ? prev : next;
+          });
         } else {
-          if (!cancelled) setPendingPaths(new Set());
+          // No sync target -> keep the empty reference (a new Set every save
+          // would needlessly re-render the tree rows).
+          if (!cancelled) setPendingPaths((prev) => (prev.size === 0 ? prev : new Set()));
         }
       } catch (e) {
         console.error("Error fetching files:", e);
