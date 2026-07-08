@@ -1,0 +1,18 @@
+/*
+ * Bundled theme token sets (axis: data-theme-name; registry:
+ * services/theme.ts). One file per theme; App.css carries the "petrol"
+ * default on :root. Order does not matter — every theme scopes with
+ * double-attribute selectors ([data-theme-name][data-theme]).
+ */
+@import "./nord.css";
+@import "./solarized.css";
+@import "./gruvbox.css";
+@import "./catppuccin.css";
+@import "./paper.css";
+@import "./sepia.css";
+@import "./forest.css";
+@import "./midnight.css";
+@import "./high-contrast.css";
+@import "./win95.css";
+@import "./phosphor.css";
+@import "./lcars.css";

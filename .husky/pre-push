@@ -1,0 +1,5 @@
+# Mirror the full CI (lint + typecheck + unit tests + E2E/axe).
+# Note: this checks the WORKING TREE, not the pushed commit — with multi-file
+# features still run `git add -A` (after reviewing `git status`) so no file is
+# left behind (see CI lesson from 2026-06-30, missing blockTransforms.ts).
+pnpm lint && pnpm typecheck && pnpm run test:all

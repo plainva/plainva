@@ -1,0 +1,589 @@
+/*
+ * Theme tokens. :root carries the default theme ("Petrol") as light values plus
+ * the dark overrides under [data-theme="dark"]. Axes on <html>:
+ *   data-theme         — resolved mode ("light" | "dark")
+ *   data-theme-name    — bundled theme id (registry: services/theme.ts,
+ *                        token sets: src/themes/*.css)
+ *   data-theme-variant — optional collectible variant (LCARS easter egg)
+ * Components consume ONLY these variables (colors, radii, fonts) — themes can
+ * restyle everything without touching a component.
+ */
+:root {
+  /* Tell the native engine (WebKitGTK) which scheme to render form controls,
+     <select> popups, native text selection and scrollbars in. */
+  color-scheme: light;
+  accent-color: var(--accent-color);
+  --bg-primary: #ffffff;
+  --bg-secondary: #eff5f4;
+  --bg-hover: #e0ecea;
+  --bg-active: rgba(15, 118, 110, 0.15);
+  --text-main: #1b2b29;
+  --text-muted: #5c6b69;
+  --text-faint: #5f6e6b;
+  --accent-color: #0f766e;
+  --accent-color-hover: #115e59;
+  --accent-on: #ffffff;
+  --border-color: #d7e5e3;
+  --border-color-light: #e4eeed;
+  --error-bg: #fbeaea;
+  --error-border: #f1c9c9;
+  --error-text: #b42318;
+
+  --wiki-link-color: var(--accent-color);
+  --overlay-bg: rgba(15, 28, 27, 0.45);
+
+  /* Editor-specific */
+  --selection-bg: rgba(15, 118, 110, 0.16);
+  --active-line-bg: rgba(15, 118, 110, 0.05);
+  --code-bg: #eef4f3;
+  --quote-border: #cdddda;
+  --highlight-bg: #fdf3b8;
+
+  /* Callout palette (Obsidian > [!type]). Single source for editor (live + read)
+     callout borders/tints/icons; consumed via components/callouts.ts. Themes can
+     override these on the data-theme-name axis (see below). */
+  --callout-blue: #3a8ca6;
+  --callout-green: #3fae6a;
+  --callout-amber: #d9a23f;
+  --callout-orange: #d9883f;
+  --callout-red: #d64d4d;
+  --callout-purple: #9d6ddb;
+  --callout-gray: #8a8a8a;
+  --callout-cyan: #2fa39a;
+  --callout-blue-tint: #3a8ca614;
+  --callout-green-tint: #3fae6a14;
+  --callout-amber-tint: #d9a23f14;
+  --callout-orange-tint: #d9883f14;
+  --callout-red-tint: #d64d4d14;
+  --callout-purple-tint: #9d6ddb14;
+  --callout-gray-tint: #8a8a8a14;
+  --callout-cyan-tint: #2fa39a14;
+
+  /* Structure tokens — themes may reshape the app through these (e.g. LCARS
+     pill buttons). Sized steps: xs 4 / sm 6 / md 8 / lg 10 / xl 12 / pill.
+     Geometric radii (perfect circles via 50%, 1-2px micro details) stay literal. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  /* Font split: chrome (sidebars, buttons, titlebar) vs. document content
+     (editor + read view). Both default to the same stack; display-heavy themes
+     (LCARS) restyle only the chrome so long-form text stays readable.
+     --font-family is the legacy alias most components consume. */
+  --font-ui: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-content: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-family: var(--font-ui);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-primary: #0f1c1b;
+  --bg-secondary: #152625;
+  --bg-hover: #213533;
+  --bg-active: rgba(45, 212, 191, 0.2);
+  --text-main: #d7e4e2;
+  --text-muted: #93a5a3;
+  --text-faint: #809390;
+  --accent-color: #2dd4bf;
+  --accent-color-hover: #5eead4;
+  --accent-on: #06302b;
+  --border-color: #2a3c3a;
+  --border-color-light: #233331;
+  --error-bg: #3a1715;
+  --error-border: #5e2420;
+  --error-text: #f3a39b;
+
+  --overlay-bg: rgba(0, 0, 0, 0.55);
+
+  /* Editor-specific */
+  --selection-bg: rgba(45, 212, 191, 0.26);
+  --active-line-bg: rgba(45, 212, 191, 0.07);
+  --code-bg: #1a2c2b;
+  --quote-border: #2f4a47;
+  --highlight-bg: #4d4a1e;
+}
+
+/*
+ * Swappable themes (second axis: data-theme-name) live in src/themes/*.css —
+ * one file per theme, loaded via src/themes/index.css. To add a bundled theme:
+ * register it in services/theme.ts (AVAILABLE_THEMES, with swatch colours for
+ * the settings preview cards) and create its token file using DOUBLE-attribute
+ * selectors so the cascade never depends on file order:
+ *
+ *   [data-theme-name="indigo"][data-theme="light"] { ... light tokens ... }
+ *   [data-theme-name="indigo"][data-theme="dark"]  { ... dark tokens ... }
+ *
+ * Components consume only the CSS variables, so they never change. Themeable
+ * surface includes ALL editor/read/code tokens (--code-bg, --quote-border,
+ * --highlight-bg, --selection-bg, --active-line-bg), the callout palette
+ * (--callout-<key> / --callout-<key>-tint), the radius scale (--radius-*) and
+ * the font split (--font-ui / --font-content). Structural rules are allowed
+ * when scoped to the theme (e.g. [data-theme-name="lcars"] .pv-btn-primary),
+ * but must never change display/visibility/pointer-events or hide focus.
+ * Details: docs/engineering/Theme_Platform.md
+ */
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  /* 'auto' (not 'none') so emphasis renders italic even when the resolved font
+     has no dedicated italic face — otherwise *kursiv* stays upright. */
+  font-synthesis: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+a {
+  font-weight: 500;
+  color: var(--accent-color);
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: var(--accent-color-hover);
+}
+
+button {
+  cursor: pointer;
+  outline: none;
+}
+
+/* Soft accent ring OUTSIDE the control; follows the element's border-radius
+   (plan Designsprache P12 — the old inset 2px solid ring read as a hard box). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-color)) !important;
+  outline-offset: 1px;
+}
+
+/*
+ * Editor focus ring. The global :focus-visible above also fires on the editor's
+ * contenteditable on a MOUSE click in WebKitGTK, leaving a box around the editor.
+ * Suppress it on the editor, and show a ring only when the user navigated by
+ * keyboard (data-modality, set in services/inputModality.ts). Keyboard focus /
+ * Tab navigation keeps working regardless — only the visual box is gated.
+ */
+.cm-editor.cm-focused,
+.cm-content:focus,
+.cm-content:focus-visible,
+.cm-scroller:focus-visible {
+  outline: none !important;
+}
+html[data-modality="keyboard"] .cm-editor.cm-focused {
+  outline: 2px solid var(--focus-ring, var(--accent-color)) !important;
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * Readable line length for the editor (#1). The width toggle in the editor header
+ * adds `pv-cm-narrow` to the CodeMirror wrapper; we then center the text column to
+ * the same ~800px the read view uses, so live/source read like the reader. Without
+ * the class the editor uses the full pane width.
+ */
+.pv-cm-narrow .cm-content {
+  max-width: 800px;
+  margin-inline: auto;
+}
+
+/*
+ * Document header (W3): full-width color stripe + Notion-like document icon.
+ * Shared by the read view (DocumentHeaderRead) and the live-mode CM widget
+ * (documentHeader.ts). In live mode the stripe's width/margin are set by the
+ * full-bleed measurer so it spans the pane despite the centered text column.
+ */
+.pv-doc-header-stripe {
+  height: 88px;
+  flex-shrink: 0;
+}
+.pv-doc-header-live .pv-doc-header-stripe {
+  cursor: pointer;
+}
+.pv-doc-header-icon {
+  font-size: 44px;
+  line-height: 1;
+}
+button.pv-doc-header-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: var(--radius-md);
+}
+button.pv-doc-header-icon:hover {
+  background: var(--bg-hover);
+}
+.pv-doc-header-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-top: 10px;
+}
+.pv-doc-header-actions {
+  display: flex;
+  gap: 0.4rem;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  padding: 2px 0 4px;
+}
+.pv-doc-header:hover .pv-doc-header-actions {
+  opacity: 1;
+}
+.pv-doc-header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+.pv-doc-header-action:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+.pv-doc-header-read .pv-doc-header-icon {
+  display: inline-block;
+  margin-top: 1.1rem;
+}
+/* The widget hosts buttons, not text — no caret. */
+.cm-content .pv-doc-header {
+  caret-color: transparent;
+}
+
+/* Links inside rendered table cells (live preview widget). */
+.cm-md-cell-link {
+  color: var(--wiki-link-color, var(--accent-color));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* HTML comments in live mode — visible but dimmed (e.g. the invisible
+   list separator `<!-- -->` inserted by block drag). */
+.cm-md-comment-dim {
+  color: var(--text-faint);
+  opacity: 0.75;
+}
+
+/* Scrollbars are themed globally so EVERY scroll area follows the theme —
+   including the CodeMirror scroller and the file tree, which never carried the
+   old opt-in class. `.custom-scrollbar` stays in markup as a no-op alias.
+   NOTE: never add `scrollbar-color` — it makes Chromium drop these
+   ::-webkit-scrollbar pseudos entirely. */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+/* Floating pill thumb on an invisible track (P12): the 3px transparent border
+   + padding-box clip inset the pill so it never touches the content edge. */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--border-color));
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--border-color-light));
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Version-history diff (@codemirror/merge): theme the MergeView with tokens —
+   its stock chunk colors are light-theme literals and unreadable on dark
+   themes. The rgba overlays stay legible on both. */
+.pv-merge-host .cm-mergeView {
+  height: 100%;
+  background: var(--bg-primary);
+}
+.pv-merge-host .cm-mergeViewEditors {
+  height: 100%;
+}
+.pv-merge-host .cm-editor {
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-content);
+  font-size: 0.88rem;
+}
+.pv-merge-host .cm-mergeViewEditor + .cm-mergeViewEditor {
+  border-left: 1px solid var(--border-color);
+}
+.pv-merge-host .cm-changedLine,
+.pv-merge-host .cm-deletedChunk {
+  background: rgba(224, 108, 117, 0.14);
+}
+.pv-merge-host .cm-changedText,
+.pv-merge-host .cm-deletedText {
+  background: rgba(224, 108, 117, 0.32);
+}
+.pv-merge-host .cm-merge-b .cm-changedLine {
+  background: rgba(112, 190, 130, 0.14);
+}
+.pv-merge-host .cm-merge-b .cm-changedText {
+  background: rgba(112, 190, 130, 0.32);
+}
+.pv-merge-host .cm-changeGutter {
+  background: var(--bg-secondary);
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin 2s linear infinite;
+}
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); width: 20%; }
+  50% { transform: translateX(100%); width: 80%; }
+  100% { transform: translateX(300%); width: 20%; }
+}
+.indeterminate-progress {
+  animation: indeterminate 1.5s infinite linear;
+  transform-origin: left;
+}
+
+/* Native <select> dropdown list items follow the theme. The popup is partly
+   OS-rendered (color-scheme above does the heavy lifting), this styles the
+   options where the engine honours it. */
+select,
+option {
+  background-color: var(--bg-secondary);
+  color: var(--text-main);
+}
+
+/* Editor text selection: override CodeMirror's built-in pale-lilac default with
+   the theme accent tint — both the drawn layer and the native ::selection. */
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground,
+.cm-editor .cm-content ::selection,
+.cm-editor .cm-line ::selection {
+  background-color: var(--selection-bg) !important;
+}
+
+/* .base viewer header: responsive to the PANE width (a size container), so it
+   degrades correctly inside a split pane where a viewport media query would be
+   wrong. Below the threshold the Filter/Sort/Columns buttons collapse to
+   icon-only — the visible label is hidden, accessible names stay via
+   aria-label/title. The view switcher wraps on its own via flex-wrap.
+   The threshold is purely cosmetic and safe to tune. */
+.base-header-container {
+  container-type: inline-size;
+  container-name: base-header;
+}
+@container base-header (max-width: 600px) {
+  .base-toolbar-label {
+    display: none;
+  }
+}
+
+/* ============================================================
+ * Properties panel (right sidebar) — typed, responsive rows.
+ * Container-query driven: rows stack label-over-value when narrow.
+ * ============================================================ */
+.pv-props { container-type: inline-size; }
+
+.pv-row { display: flex; gap: 6px; align-items: flex-start; padding: 3px 2px; border-radius: var(--radius-sm); }
+.pv-row:hover { background: var(--bg-hover); }
+.pv-row-label { position: relative; width: 100px; flex-shrink: 0; padding-top: 4px; }
+.pv-key-box { display: flex; align-items: center; gap: 2px; width: 100%; border-radius: var(--radius-sm); min-width: 0; }
+.pv-type-btn { display: flex; align-items: center; justify-content: center; padding: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
+.pv-type-btn:hover { color: var(--text-main); background: var(--bg-active); }
+.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: 0.8rem; padding: 2px 0; }
+.pv-key:focus { color: var(--text-main); }
+.pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; }
+.pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
+.pv-row:hover .pv-del { opacity: 0.55; }
+.pv-del:hover { opacity: 1; }
+
+@container (max-width: 220px) {
+  .pv-row { flex-direction: column; align-items: stretch; gap: 3px; }
+  .pv-row-label { width: 100%; padding-top: 0; }
+  .pv-del { position: absolute; top: 2px; right: 2px; }
+}
+
+/* text / number / url / email / phone inputs */
+.pv-input-wrap { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.pv-input { flex: 1; min-width: 0; padding: 4px 7px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-size: 0.85rem; }
+.pv-input:focus { border-color: var(--accent-color); }
+.pv-icon-btn { display: flex; align-items: center; justify-content: center; padding: 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
+.pv-icon-btn:hover { color: var(--accent-color); }
+
+/* checkbox toggle */
+.pv-switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+.pv-switch-on { background: var(--accent-color); }
+.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.pv-switch-on .pv-switch-knob { left: 18px; }
+
+/* date display button */
+.pv-date-display { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; font-size: 0.85rem; text-align: left; }
+.pv-date-display:hover { border-color: var(--border-color); background: var(--bg-active); }
+.pv-date-display svg { color: var(--accent-color); flex-shrink: 0; }
+
+/* chips (list / tags / link / select / multiselect) */
+.pv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; width: 100%; }
+.pv-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 2px 8px; font-size: 0.78rem; line-height: 1.5; max-width: 100%; overflow: hidden; }
+.pv-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-chip-x { display: inline-flex; align-items: center; border: none; background: transparent; color: inherit; opacity: 0.6; cursor: pointer; padding: 0; margin-left: 1px; }
+.pv-chip-x:hover { opacity: 1; }
+.pv-chip-input { flex: 1 1 60px; min-width: 56px; border: none; background: transparent; color: var(--text-main); font-size: 0.8rem; padding: 3px 2px; }
+.pv-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+.pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+/* Chip colors come from the theme-overridable tokens in styles/tokens.css
+   (light + dark variants live there — no [data-theme] overrides here). */
+.pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); }
+.pv-tag-parent { color: var(--chip-tag-parent-fg); }
+.pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); padding-left: 4px; }
+.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 0.78rem; }
+.pv-chip-link-open:hover { text-decoration: underline; }
+
+/* select / status / multiselect */
+.pv-select { position: relative; width: 100%; }
+.pv-tags { position: relative; width: 100%; }
+.pv-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
+.pv-select-trigger:hover { border-color: var(--border-color); background: var(--bg-active); }
+.pv-select-caret { color: var(--text-muted); flex-shrink: 0; }
+.pv-placeholder { color: var(--text-faint); font-size: 0.82rem; }
+
+/* popover (autocomplete / type menu / value picker) */
+/* Skin only — positioning comes from useFixedPopover (fixed + viewport-clamped, P12). */
+.pv-popover { min-width: 180px; max-width: 300px; max-height: 300px; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 4px; }
+/* Anchored mode (useFixedPopover): hidden off-screen until the layout effect measures + clamps. */
+.pv-popover--fixed { position: fixed; left: -9999px; top: -9999px; visibility: hidden; z-index: var(--z-menu); }
+.pv-popover-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 6px 9px 3px; }
+.pv-popover-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 9px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; text-align: left; font-size: 0.83rem; }
+.pv-popover-row:hover:not(:disabled) { background: var(--bg-hover); }
+.pv-popover-row:disabled { opacity: 0.4; cursor: default; }
+.pv-popover-row-active { background: var(--bg-active); }
+.pv-popover-ic { color: var(--text-muted); flex-shrink: 0; }
+.pv-popover-count { margin-left: auto; color: var(--text-faint); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.pv-popover-create { color: var(--accent-color); }
+.pv-popover-clear { color: var(--text-muted); border-bottom: 1px solid var(--border-color-light); border-radius: 0; }
+.pv-popover-empty { padding: 8px 9px; color: var(--text-faint); font-size: 0.8rem; font-style: italic; }
+.pv-popover-search { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border-color-light); color: var(--text-muted); }
+.pv-popover-search input { flex: 1; border: none; background: transparent; color: var(--text-main); font-size: 0.83rem; }
+
+/* add property */
+.pv-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.82rem; }
+.pv-add-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
+.pv-add-popover { width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: 0.85rem; }
+.pv-add-name:focus { border-color: var(--accent-color); }
+.pv-add-types { max-height: 240px; overflow-y: auto; }
+
+/* Deterministic chip palette — values in styles/tokens.css (theme-overridable). */
+.pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+.pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+.pv-chip-2 { background: var(--chip-2-bg); color: var(--chip-2-fg); }
+.pv-chip-3 { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.pv-chip-4 { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+.pv-chip-5 { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+.pv-chip-6 { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+.pv-chip-7 { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+/* Relation chip whose target note no longer exists: muted + inert (Base-Relationen P7). */
+.pv-chip-broken { background: transparent; border: 1px dashed var(--border-color); color: var(--text-faint); }
+
+/* Column-schema editor modal (BaseViewer) + option rows */
+.pv-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.pv-modal-card { width: 440px; max-width: 100%; max-height: 85vh; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.85rem; }
+.pv-modal-head { display: flex; align-items: center; justify-content: space-between; }
+.pv-modal-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
+.pv-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.pv-modal-section { display: flex; flex-direction: column; gap: 0.4rem; }
+.pv-modal-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+.pv-opt-row { display: grid; grid-template-columns: 18px minmax(0, 2fr) 140px 28px; gap: 0.4rem; align-items: center; }
+.pv-opt-row.pv-opt-status { grid-template-columns: 18px minmax(0, 2fr) minmax(0, 1.4fr) 140px 28px; }
+.pv-opt-row .pv-input { width: 100%; min-width: 0; box-sizing: border-box; }
+.pv-opt-head { font-size: 0.68rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
+.pv-opt-grip { display: flex; align-items: center; justify-content: center; color: var(--text-faint); cursor: grab; touch-action: none; }
+.pv-opt-grip:active { cursor: grabbing; }
+.pv-opt-drop { box-shadow: inset 0 2px 0 var(--accent-color); border-radius: var(--radius-xs); }
+.pv-modal-hint { font-size: 0.72rem; color: var(--text-faint); line-height: 1.4; }
+.pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-main); cursor: pointer; }
+.pv-modal-check input { accent-color: var(--accent-color); }
+.pv-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+.pv-btn-primary { padding: 7px 14px; border-radius: var(--radius-md); border: none; background: var(--accent-color); color: var(--accent-on); font-size: 0.85rem; cursor: pointer; }
+.pv-btn-secondary { padding: 7px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: transparent; color: var(--text-main); font-size: 0.85rem; cursor: pointer; }
+
+/* Managed index.md read view (plan UI-UX P11): title with accent rule, link
+   lists as a theme card grid. Applied only to marker-carrying listings. */
+.pv-index-doc h1 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.35rem; }
+.pv-index-doc ul { list-style: none; padding: 0; margin: 0.75rem 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: 0.9rem; line-height: 1.45; }
+.pv-index-doc ul li a { font-weight: 600; text-decoration: none; }
+.pv-index-doc ul li a:hover { text-decoration: underline; }
+
+/* Peek window for notes opened from a .base view (Base-UX2 P5) */
+/* Floating peek window: free-floating (non-modal), draggable + resizable. The
+   dynamic position/size come in as CSS vars set inline by BasePeekModal. */
+.pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: var(--z-modal); display: flex; flex-direction: column; overflow: hidden; }
+.pv-peek-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
+.pv-peek-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem 0.4rem 0.6rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
+.pv-peek-nav { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+.pv-peek-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-peek-actions { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
+.pv-peek-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent; border: none; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.pv-peek-btn:not(:disabled):hover { background: var(--bg-hover); color: var(--text-main); }
+.pv-peek-btn:disabled { color: var(--text-faint); opacity: 0.4; cursor: default; }
+.pv-peek-btn--active { background: var(--bg-hover); color: var(--accent-color); }
+.pv-peek-body { flex: 1; min-height: 0; display: flex; flex-direction: row; }
+.pv-peek-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pv-peek-side { flex: 0 0 260px; min-width: 0; overflow: auto; border-left: 1px solid var(--border-color); background: var(--bg-primary); padding: 0.5rem 0.7rem; }
+.pv-peek-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
+.pv-peek-resize::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-right: 2px solid var(--border-color); border-bottom: 2px solid var(--border-color); }
+.pv-btn-secondary:hover { background: var(--bg-hover); }
+
+/* Sidebar search results (plan Suche P4): match highlight in snippets and
+   titles. Theme-correct via the accent token; text color stays inherited. */
+.pv-search-mark { background: color-mix(in srgb, var(--accent-color) 24%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.pv-search-snippet { overflow-wrap: anywhere; }
+
+/* GFM footnotes in read mode (P3.6): remark-gfm renders them natively; this
+   only gives the section its quiet reference-apparatus look. */
+.markdown-reader section[data-footnotes] { margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.85em; color: var(--text-muted); }
+.markdown-reader section[data-footnotes] h2 { display: none; } /* implicit "Footnotes" heading */
+.markdown-reader section[data-footnotes] ol { padding-left: 1.4em; margin: 0.4em 0; }
+.markdown-reader section[data-footnotes] li { margin: 0.25em 0; }
+.markdown-reader sup a[data-footnote-ref] { text-decoration: none; font-weight: 600; padding: 0 2px; }
+.markdown-reader a[data-footnote-backref] { text-decoration: none; }
+
+/* Print / save as PDF (P3.10): the read view is CLONED into this body-level
+   host before window.print() — printing the nested scroll container in place
+   would cut everything after the first page. */
+.pv-print-host { display: none; }
+@media print {
+  body[data-printing] #root { display: none !important; }
+  body[data-printing] .pv-print-host { display: block !important; }
+  body[data-printing] { background: var(--bg-primary); }
+  .pv-print-host .markdown-reader { max-width: none !important; padding: 0 !important; }
+}

@@ -1,0 +1,80 @@
+/*
+ * Solarized — the long-form reading classic with precisely tuned contrast.
+ * Palette: Solarized (ethanschoonover.com/solarized), MIT license,
+ * Copyright (c) Ethan Schoonover.
+ */
+[data-theme-name="solarized"][data-theme="light"] {
+  --bg-primary: #FDF6E3;
+  --bg-secondary: #EEE8D5;
+  --bg-hover: #E6DFC8;
+  --bg-active: rgba(38, 139, 210, 0.14);
+  --text-main: #586E75;
+  --text-muted: #657B83;
+  --text-faint: #839496;
+  --accent-color: #268BD2;
+  --accent-color-hover: #1E6CA8;
+  --accent-on: #FDF6E3;
+  --border-color: #DDD6C1;
+  --border-color-light: #E8E1CC;
+
+  --selection-bg: rgba(38, 139, 210, 0.15);
+  --active-line-bg: rgba(38, 139, 210, 0.05);
+  --code-bg: #EEE8D5;
+  --quote-border: #D3CBB7;
+  --highlight-bg: #B5890030;
+
+  --callout-blue: #268BD2;
+  --callout-green: #859900;
+  --callout-amber: #B58900;
+  --callout-orange: #CB4B16;
+  --callout-red: #DC322F;
+  --callout-purple: #6C71C4;
+  --callout-gray: #839496;
+  --callout-cyan: #2AA198;
+  --callout-blue-tint: #268BD214;
+  --callout-green-tint: #85990014;
+  --callout-amber-tint: #B5890014;
+  --callout-orange-tint: #CB4B1614;
+  --callout-red-tint: #DC322F14;
+  --callout-purple-tint: #6C71C414;
+  --callout-gray-tint: #83949614;
+  --callout-cyan-tint: #2AA19814;
+}
+
+[data-theme-name="solarized"][data-theme="dark"] {
+  --bg-primary: #002B36;
+  --bg-secondary: #073642;
+  --bg-hover: #0E4B5A;
+  --bg-active: rgba(42, 161, 152, 0.2);
+  --text-main: #93A1A1;
+  --text-muted: #7C9194;
+  --text-faint: #657B83;
+  --accent-color: #268BD2;
+  --accent-color-hover: #3CA3F0;
+  --accent-on: #FDF6E3;
+  --border-color: #164B59;
+  --border-color-light: #0D3D49;
+
+  --selection-bg: rgba(38, 139, 210, 0.3);
+  --active-line-bg: rgba(42, 161, 152, 0.06);
+  --code-bg: #073642;
+  --quote-border: #1D525F;
+  --highlight-bg: #B5890040;
+
+  --callout-blue: #268BD2;
+  --callout-green: #859900;
+  --callout-amber: #B58900;
+  --callout-orange: #CB4B16;
+  --callout-red: #DC322F;
+  --callout-purple: #6C71C4;
+  --callout-gray: #839496;
+  --callout-cyan: #2AA198;
+  --callout-blue-tint: #268BD21F;
+  --callout-green-tint: #8599001F;
+  --callout-amber-tint: #B589001F;
+  --callout-orange-tint: #CB4B161F;
+  --callout-red-tint: #DC322F1F;
+  --callout-purple-tint: #6C71C41F;
+  --callout-gray-tint: #8394961F;
+  --callout-cyan-tint: #2AA1981F;
+}

@@ -1,0 +1,44 @@
+name: Bug report
+description: Something does not work as documented or expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please never include secrets, API keys, private vault contents or private file paths. Security issues go to the private channel described in [SECURITY.md](../blob/main/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+      placeholder: Steps to reproduce, expected vs. actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Version details
+      description: "In Plainva: Settings → About & diagnostics shows the version block; 'Report a problem' prefills it for you."
+      placeholder: "Plainva 0.1.0 · Tauri 2.x · Windows 11 · de"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Editor / Markdown
+        - Databases (.base)
+        - Sync
+        - Graph
+        - Search
+        - Backups / versioning
+        - UI / themes
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: "Settings → About & diagnostics → Export diagnostics… creates a Markdown file WITHOUT note content; attach it if relevant."

@@ -1,0 +1,250 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
+import type { SceneEdge, SceneNode } from "./graphTypes";
+
+/**
+ * jsdom has no 2D canvas context — the engine's draw path no-ops on a null
+ * ctx by design, so these tests cover the interaction/geometry layer: hit
+ * testing, transforms, selection, keyboard focus, pointer gestures, SVG.
+ */
+
+function shimEnvironment() {
+  if (typeof globalThis.requestAnimationFrame !== "function") {
+    (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 0) as any;
+    (globalThis as any).cancelAnimationFrame = (id: number) => clearTimeout(id);
+  }
+  if (typeof (globalThis as any).ResizeObserver === "undefined") {
+    (globalThis as any).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+}
+
+function makeCanvas(): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  document.body.appendChild(canvas);
+  return canvas;
+}
+
+function pointer(canvas: HTMLCanvasElement, type: string, opts: MouseEventInit & { pointerId?: number } = {}) {
+  const ev = new MouseEvent(type, { bubbles: true, clientX: 0, clientY: 0, button: 0, ...opts });
+  (ev as any).pointerId = opts.pointerId ?? 1;
+  canvas.dispatchEvent(ev);
+}
+
+const NODES: SceneNode[] = [
+  { id: "center.md", label: "Center", shape: "note", size: 10, x: 100, y: 100 },
+  { id: "right.md", label: "Right", shape: "note", size: 10, x: 300, y: 100 },
+  { id: "below.md", label: "Below", shape: "note", size: 10, x: 100, y: 300 },
+  { id: "near.md", label: "NearButUnlinked", shape: "note", size: 10, x: 180, y: 108 },
+];
+const EDGES: SceneEdge[] = [
+  { id: "e1", source: "center.md", target: "right.md", style: "link", width: 1 },
+  { id: "e2", source: "center.md", target: "below.md", style: "property", width: 1, label: "projekt" },
+];
+
+describe("graphEngine", () => {
+  let canvas: HTMLCanvasElement;
+  let deps: GraphEngineDeps;
+  let depsRef: { current: GraphEngineDeps };
+  let scene: GraphScene;
+
+  beforeEach(() => {
+    shimEnvironment();
+    canvas = makeCanvas();
+    deps = { reducedMotion: () => true };
+    depsRef = { current: deps };
+    scene = createGraphScene(canvas, depsRef);
+    scene.setData(NODES, EDGES);
+  });
+
+  afterEach(() => {
+    scene.destroy();
+    canvas.remove();
+  });
+
+  it("hit-tests nodes through the transform", () => {
+    expect(scene.nodeAtClient(104, 104)).toBe("center.md");
+    expect(scene.nodeAtClient(400, 400)).toBeNull();
+
+    scene.setTransform({ x: 50, y: 0, k: 2 });
+    // world (100,100) -> client (100*2+50, 100*2+0) = (250, 200)
+    expect(scene.nodeAtClient(250, 200)).toBe("center.md");
+    expect(scene.nodeAtClient(104, 104)).toBeNull();
+  });
+
+  it("zoomToFit contains every node in the viewport", () => {
+    scene.zoomToFit(40);
+    const t = scene.getTransform();
+    for (const n of NODES) {
+      const px = n.x * t.k + t.x;
+      const py = n.y * t.k + t.y;
+      expect(px).toBeGreaterThanOrEqual(0);
+      expect(px).toBeLessThanOrEqual(800);
+      expect(py).toBeGreaterThanOrEqual(0);
+      expect(py).toBeLessThanOrEqual(600);
+    }
+  });
+
+  it("defers a fit while hidden and syncs the backing store once shown (no blank-until-toggle)", () => {
+    // Sidebar canvas: created display:none (rect 0×0), shown once data loads.
+    let w = 0;
+    let h = 0;
+    const c = document.createElement("canvas");
+    c.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    document.body.appendChild(c);
+    const s = createGraphScene(c, { current: { reducedMotion: () => true } });
+    s.setData(NODES, EDGES);
+
+    // Still hidden: the fit must defer and leave the backing store tiny.
+    s.zoomToFit();
+    expect(c.width).toBeLessThanOrEqual(1);
+
+    // Now visible: the deferred fit runs on the real size and the backing store
+    // matches, so drawing is no longer clipped to a 1×1 buffer.
+    w = 800;
+    h = 600;
+    s.zoomToFit();
+    expect(c.width).toBe(800);
+    expect(c.height).toBe(600);
+
+    s.destroy();
+    c.remove();
+  });
+
+  it("keeps prior animated positions for surviving nodes and prunes stale selection/focus", () => {
+    scene.setSelection(["right.md"]);
+    scene.setKeyboardFocus("right.md");
+    scene.setData(NODES.filter((n) => n.id !== "right.md"), []);
+    expect(scene.getSelection()).toEqual([]);
+    expect(scene.getKeyboardFocus()).toBeNull();
+  });
+
+  it("prefers graph neighbors for arrow-key navigation", () => {
+    scene.setKeyboardFocus("center.md");
+    // near.md is closer to the right, but right.md is the linked neighbor.
+    scene.moveFocus("right");
+    expect(scene.getKeyboardFocus()).toBe("right.md");
+    scene.setKeyboardFocus("center.md");
+    scene.moveFocus("down");
+    expect(scene.getKeyboardFocus()).toBe("below.md");
+  });
+
+  it("fires activate on Enter and context on the ContextMenu key", () => {
+    const onNodeActivate = vi.fn();
+    const onNodeContext = vi.fn();
+    depsRef.current = { ...deps, onNodeActivate, onNodeContext };
+    scene.setKeyboardFocus("center.md");
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(onNodeActivate).toHaveBeenCalledWith("center.md");
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { key: "ContextMenu" }));
+    expect(onNodeContext).toHaveBeenCalled();
+    expect(onNodeContext.mock.calls[0][0]).toBe("center.md");
+  });
+
+  it("emits click with modifier flags for a stationary node press", () => {
+    const onNodeClick = vi.fn();
+    depsRef.current = { ...deps, onNodeClick };
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100 });
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 100, ctrlKey: true });
+    expect(onNodeClick).toHaveBeenCalledTimes(1);
+    expect(onNodeClick.mock.calls[0][0]).toBe("center.md");
+    expect(onNodeClick.mock.calls[0][1].ctrl).toBe(true);
+  });
+
+  it("drag to empty space pins the node; drop onto a node connects and restores", () => {
+    const onNodeDragEnd = vi.fn();
+    const onNodeDropOnNode = vi.fn();
+    depsRef.current = { ...deps, onNodeDragEnd, onNodeDropOnNode };
+
+    // Move center.md by (50, 40) onto empty space.
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100 });
+    pointer(canvas, "pointermove", { clientX: 150, clientY: 140 });
+    pointer(canvas, "pointerup", { clientX: 150, clientY: 140 });
+    expect(onNodeDropOnNode).not.toHaveBeenCalled();
+    expect(onNodeDragEnd).toHaveBeenCalledWith("center.md", 150, 140);
+    expect(scene.getNodePositions().get("center.md")).toEqual({ x: 150, y: 140 });
+
+    // Drag center.md onto right.md -> connect gesture, position restored.
+    pointer(canvas, "pointerdown", { clientX: 150, clientY: 140 });
+    pointer(canvas, "pointermove", { clientX: 300, clientY: 100 });
+    pointer(canvas, "pointerup", { clientX: 300, clientY: 100 });
+    expect(onNodeDropOnNode).toHaveBeenCalledWith("center.md", "right.md");
+    expect(scene.getNodePositions().get("center.md")).toEqual({ x: 150, y: 140 });
+  });
+
+  it("selects nodes inside a shift-lasso", () => {
+    const onLassoSelect = vi.fn();
+    depsRef.current = { ...deps, onLassoSelect };
+    pointer(canvas, "pointerdown", { clientX: 50, clientY: 50, shiftKey: true });
+    pointer(canvas, "pointermove", { clientX: 220, clientY: 220 });
+    pointer(canvas, "pointerup", { clientX: 220, clientY: 220 });
+    expect(onLassoSelect).toHaveBeenCalledTimes(1);
+    const ids = onLassoSelect.mock.calls[0][0] as string[];
+    expect(ids.sort()).toEqual(["center.md", "near.md"]);
+  });
+
+  it("pans on background drag and zooms around the wheel position", () => {
+    pointer(canvas, "pointerdown", { clientX: 500, clientY: 500 });
+    pointer(canvas, "pointermove", { clientX: 520, clientY: 470 });
+    pointer(canvas, "pointerup", { clientX: 520, clientY: 470 });
+    expect(scene.getTransform()).toMatchObject({ x: 20, y: -30, k: 1 });
+
+    const onZoomChange = vi.fn();
+    depsRef.current = { ...deps, onZoomChange };
+    canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, clientX: 400, clientY: 300, cancelable: true }));
+    const t = scene.getTransform();
+    expect(t.k).toBeGreaterThan(1);
+    expect(onZoomChange).toHaveBeenCalledWith(t.k);
+    // The world point under the cursor stays under the cursor.
+    const world = scene.clientToWorld(400, 300);
+    expect(world.x * t.k + t.x).toBeCloseTo(400, 5);
+    expect(world.y * t.k + t.y).toBeCloseTo(300, 5);
+  });
+
+  it("routes contextmenu to node, edge or canvas", () => {
+    const onNodeContext = vi.fn();
+    const onEdgeContext = vi.fn();
+    const onCanvasContext = vi.fn();
+    depsRef.current = { ...deps, onNodeContext, onEdgeContext, onCanvasContext };
+
+    canvas.dispatchEvent(new MouseEvent("contextmenu", { clientX: 100, clientY: 100, cancelable: true }));
+    expect(onNodeContext).toHaveBeenCalledWith("center.md", 100, 100);
+
+    // Midpoint of center->right edge, away from both nodes.
+    canvas.dispatchEvent(new MouseEvent("contextmenu", { clientX: 200, clientY: 100, cancelable: true }));
+    expect(onEdgeContext).toHaveBeenCalledWith("e1", 200, 100);
+
+    canvas.dispatchEvent(new MouseEvent("contextmenu", { clientX: 700, clientY: 500, cancelable: true }));
+    expect(onCanvasContext).toHaveBeenCalled();
+  });
+
+  it("serializes the scene to SVG without hidden nodes and with escaped labels", () => {
+    scene.setData(
+      [
+        { id: "a.md", label: "A & <B>", shape: "note", size: 10, x: 0, y: 0 },
+        { id: "ghost.md", label: "Ghost", shape: "note", size: 10, x: 50, y: 0, hidden: true },
+      ],
+      []
+    );
+    const svg = scene.toSVG();
+    expect(svg).toContain("<circle");
+    expect(svg).toContain("A &amp; &lt;B&gt;");
+    expect(svg).not.toContain("Ghost");
+  });
+
+  it("stops emitting after destroy", () => {
+    const onNodeClick = vi.fn();
+    depsRef.current = { ...deps, onNodeClick };
+    scene.destroy();
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100 });
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 100 });
+    expect(onNodeClick).not.toHaveBeenCalled();
+  });
+});

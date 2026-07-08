@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret Scanning (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          scanners: 'secret'
+          hide-progress: false
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: npm audit (production dependencies)
+        run: pnpm audit --prod --audit-level high
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Core tests
+        run: pnpm --filter @plainva/core test
+
+      - name: Desktop tests
+        run: pnpm --filter desktop test
+
+      - name: Desktop web build
+        run: pnpm --filter desktop build
+
+      - name: Install Playwright Browsers
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: xvfb-run pnpm --filter desktop run test:e2e
+
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+
+      # tauri::generate_context! embeds frontendDist at compile time; the web
+      # build does not run in this job, so provide an empty stand-in.
+      - name: Provide frontend dist stub
+        run: mkdir -p apps/desktop/dist
+
+      - name: cargo check
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+
+      # Lint gate (P5.6): warnings are errors so drift cannot accumulate.
+      - name: cargo clippy
+        run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+
+      - name: cargo test
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      # Ignored advisories have no actionable fix today (transitive, not reachable
+      # by this app's runtime). Re-evaluate on the next major tauri/plist bump.
+      #   RUSTSEC-2026-0194 / RUSTSEC-2026-0195: quick-xml DoS. Pinned to 0.39.x by
+      #     `plist = "^0.39.2"` (via tauri); >=0.41 needs a tauri/plist major bump.
+      #     plist only parses our own bundled Info.plist (macOS), never untrusted input.
+      #   RUSTSEC-2023-0071: `rsa` Marvin attack. No fixed upstream release exists.
+      #     Pulled via sqlx-mysql (tauri-plugin-sql); this app is SQLite-only, so the
+      #     MySQL auth path that would exercise RSA never runs.
+      - name: cargo audit
+        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195 --ignore RUSTSEC-2023-0071

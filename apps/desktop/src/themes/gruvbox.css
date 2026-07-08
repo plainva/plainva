@@ -1,0 +1,80 @@
+/*
+ * Gruvbox — warm, earthy, retro. Palette: Gruvbox (github.com/morhetz/gruvbox),
+ * MIT license, Copyright (c) Pavel Pertsev. Light/dark medium backgrounds with
+ * the faded (light) / bright (dark) accent rows.
+ */
+[data-theme-name="gruvbox"][data-theme="light"] {
+  --bg-primary: #FBF1C7;
+  --bg-secondary: #F2E5BC;
+  --bg-hover: #EBDBB2;
+  --bg-active: rgba(214, 93, 14, 0.14);
+  --text-main: #3C3836;
+  --text-muted: #504945;
+  --text-faint: #665C54;
+  --accent-color: #D65D0E;
+  --accent-color-hover: #AF3A03;
+  --accent-on: #FBF1C7;
+  --border-color: #D5C4A1;
+  --border-color-light: #E3D5B7;
+
+  --selection-bg: rgba(214, 93, 14, 0.18);
+  --active-line-bg: rgba(214, 93, 14, 0.05);
+  --code-bg: #F2E5BC;
+  --quote-border: #CCBC9C;
+  --highlight-bg: #D7992133;
+
+  --callout-blue: #076678;
+  --callout-green: #79740E;
+  --callout-amber: #B57614;
+  --callout-orange: #AF3A03;
+  --callout-red: #9D0006;
+  --callout-purple: #8F3F71;
+  --callout-gray: #7C6F64;
+  --callout-cyan: #427B58;
+  --callout-blue-tint: #07667814;
+  --callout-green-tint: #79740E14;
+  --callout-amber-tint: #B5761414;
+  --callout-orange-tint: #AF3A0314;
+  --callout-red-tint: #9D000614;
+  --callout-purple-tint: #8F3F7114;
+  --callout-gray-tint: #7C6F6414;
+  --callout-cyan-tint: #427B5814;
+}
+
+[data-theme-name="gruvbox"][data-theme="dark"] {
+  --bg-primary: #282828;
+  --bg-secondary: #32302F;
+  --bg-hover: #3C3836;
+  --bg-active: rgba(254, 128, 25, 0.18);
+  --text-main: #EBDBB2;
+  --text-muted: #BDAE93;
+  --text-faint: #A89984;
+  --accent-color: #FE8019;
+  --accent-color-hover: #FFAB5E;
+  --accent-on: #1D2021;
+  --border-color: #504945;
+  --border-color-light: #3C3836;
+
+  --selection-bg: rgba(254, 128, 25, 0.25);
+  --active-line-bg: rgba(254, 128, 25, 0.06);
+  --code-bg: #3C3836;
+  --quote-border: #504945;
+  --highlight-bg: #FABD2F40;
+
+  --callout-blue: #83A598;
+  --callout-green: #B8BB26;
+  --callout-amber: #FABD2F;
+  --callout-orange: #FE8019;
+  --callout-red: #FB4934;
+  --callout-purple: #D3869B;
+  --callout-gray: #A89984;
+  --callout-cyan: #8EC07C;
+  --callout-blue-tint: #83A59814;
+  --callout-green-tint: #B8BB2614;
+  --callout-amber-tint: #FABD2F14;
+  --callout-orange-tint: #FE801914;
+  --callout-red-tint: #FB493414;
+  --callout-purple-tint: #D3869B14;
+  --callout-gray-tint: #A8998414;
+  --callout-cyan-tint: #8EC07C14;
+}

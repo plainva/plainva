@@ -1,0 +1,20 @@
+name: Question
+description: Ask how something works or whether a behavior is intended.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Quick answers often live in the [user guide](https://github.com/plainva/plainva/blob/main/docs/user/README.md) (setup, sync, databases, FAQ) — worth a look first.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What are you trying to do, and what is unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context (optional)
+      description: "App version (Settings → About & diagnostics), OS, sync provider, and anything you already tried."

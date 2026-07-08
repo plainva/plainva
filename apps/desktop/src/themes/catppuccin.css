@@ -1,0 +1,80 @@
+/*
+ * Catppuccin — soothing pastels. Palette: Catppuccin (catppuccin.com),
+ * MIT license, Copyright (c) Catppuccin Org. Light = "Latte", dark = "Mocha";
+ * mauve as the accent.
+ */
+[data-theme-name="catppuccin"][data-theme="light"] {
+  --bg-primary: #EFF1F5;
+  --bg-secondary: #E6E9EF;
+  --bg-hover: #DCE0E8;
+  --bg-active: rgba(136, 57, 239, 0.12);
+  --text-main: #4C4F69;
+  --text-muted: #5C5F77;
+  --text-faint: #6C6F85;
+  --accent-color: #8839EF;
+  --accent-color-hover: #7326D3;
+  --accent-on: #FFFFFF;
+  --border-color: #CCD0DA;
+  --border-color-light: #D8DCE5;
+
+  --selection-bg: rgba(136, 57, 239, 0.15);
+  --active-line-bg: rgba(136, 57, 239, 0.045);
+  --code-bg: #E6E9EF;
+  --quote-border: #BCC0CC;
+  --highlight-bg: #DF8E1D33;
+
+  --callout-blue: #1E66F5;
+  --callout-green: #40A02B;
+  --callout-amber: #DF8E1D;
+  --callout-orange: #FE640B;
+  --callout-red: #D20F39;
+  --callout-purple: #8839EF;
+  --callout-gray: #7C7F93;
+  --callout-cyan: #179299;
+  --callout-blue-tint: #1E66F514;
+  --callout-green-tint: #40A02B14;
+  --callout-amber-tint: #DF8E1D14;
+  --callout-orange-tint: #FE640B14;
+  --callout-red-tint: #D20F3914;
+  --callout-purple-tint: #8839EF14;
+  --callout-gray-tint: #7C7F9314;
+  --callout-cyan-tint: #17929914;
+}
+
+[data-theme-name="catppuccin"][data-theme="dark"] {
+  --bg-primary: #1E1E2E;
+  --bg-secondary: #181825;
+  --bg-hover: #313244;
+  --bg-active: rgba(203, 166, 247, 0.16);
+  --text-main: #CDD6F4;
+  --text-muted: #A6ADC8;
+  --text-faint: #9399B2;
+  --accent-color: #CBA6F7;
+  --accent-color-hover: #E0C7FB;
+  --accent-on: #1E1E2E;
+  --border-color: #313244;
+  --border-color-light: #2A2B3C;
+
+  --selection-bg: rgba(203, 166, 247, 0.25);
+  --active-line-bg: rgba(203, 166, 247, 0.06);
+  --code-bg: #313244;
+  --quote-border: #45475A;
+  --highlight-bg: #F9E2AF40;
+
+  --callout-blue: #89B4FA;
+  --callout-green: #A6E3A1;
+  --callout-amber: #F9E2AF;
+  --callout-orange: #FAB387;
+  --callout-red: #F38BA8;
+  --callout-purple: #CBA6F7;
+  --callout-gray: #9399B2;
+  --callout-cyan: #94E2D5;
+  --callout-blue-tint: #89B4FA14;
+  --callout-green-tint: #A6E3A114;
+  --callout-amber-tint: #F9E2AF14;
+  --callout-orange-tint: #FAB38714;
+  --callout-red-tint: #F38BA814;
+  --callout-purple-tint: #CBA6F714;
+  --callout-gray-tint: #9399B214;
+  --callout-cyan-tint: #94E2D514;
+}

@@ -1,0 +1,442 @@
+/*
+ * LCARS — hidden easter-egg theme (dark only, unlocked via the hailing-
+ * frequencies dialog; see services/startrekQuotes.ts). An homage to Michael
+ * Okuda's TNG-era interface: black panels, warm colour bars with black seams,
+ * pill buttons, condensed uppercase chrome. LCARS is a CBS/Paramount design —
+ * this ships unadvertised as an easter egg (maintainer decision E3, 2026-07-04).
+ *
+ * Every recognised Star Trek line unlocks one palette VARIANT (the collection
+ * mechanic). Variants only rotate the colour roles below — the structure is
+ * shared. Structural rules must never touch display/visibility/pointer-events
+ * or hide focus (platform contract, see App.css).
+ *
+ * Font: Antonio (SIL OFL 1.1, see src/assets/fonts/antonio/OFL.txt) — the free
+ * condensed face commonly used for LCARS lettering. Chrome only; document
+ * content keeps the readable default stack.
+ */
+@font-face {
+  font-family: "Antonio";
+  src: url("../assets/fonts/antonio/Antonio-Variable.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+[data-theme-name="lcars"][data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #070707;
+  --bg-hover: #1A1408;
+  --bg-active: rgba(255, 156, 0, 0.22);
+  --text-main: #F0E0C8;
+  --text-muted: #C9A26B;
+  --text-faint: #8F7448;
+  --accent-color: #FF9C00;
+  --accent-color-hover: #FFBB55;
+  --accent-on: #000000;
+  --border-color: #4A3418;
+  --border-color-light: #2E2010;
+  --error-bg: #2A0808;
+  --error-border: #7A2424;
+  --error-text: #FF8080;
+
+  --overlay-bg: rgba(0, 0, 0, 0.78);
+
+  --selection-bg: rgba(255, 156, 0, 0.3);
+  --active-line-bg: rgba(255, 156, 0, 0.06);
+  --code-bg: #0F0C06;
+  --quote-border: #6B4E22;
+  --highlight-bg: #4A3418;
+
+  --callout-blue: #9999FF;
+  --callout-green: #66CC99;
+  --callout-amber: #FFCC66;
+  --callout-orange: #FF9C00;
+  --callout-red: #CC6666;
+  --callout-purple: #CC99CC;
+  --callout-gray: #8C8C99;
+  --callout-cyan: #66CCCC;
+  --callout-blue-tint: #9999FF14;
+  --callout-green-tint: #66CC9914;
+  --callout-amber-tint: #FFCC6614;
+  --callout-orange-tint: #FF9C0014;
+  --callout-red-tint: #CC666614;
+  --callout-purple-tint: #CC99CC14;
+  --callout-gray-tint: #8C8C9914;
+  --callout-cyan-tint: #66CCCC14;
+
+  /* Chrome gets the condensed LCARS face; long-form text stays readable. */
+  --font-ui: "Antonio", "Bahnschrift SemiCondensed", "Arial Narrow", "Inter", sans-serif;
+  --font-content: Inter, Avenir, Helvetica, Arial, sans-serif;
+
+  /* LCARS panels are square tiles + pills, not soft cards. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* LCARS panels are flat black tiles — elevation comes from colour frames,
+     never from shadows (invisible on #000 anyway). */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+
+  /* Colour roles rotated by the collectible variants (bars 1-4) + the little
+     registry lettering in the status bar. Default = "make-it-so" (TNG classic). */
+  --lcars-1: #FF9C00;
+  --lcars-2: #FF9966;
+  --lcars-3: #CC99CC;
+  --lcars-4: #9999CC;
+  --lcars-registry: "LCARS 47 · NCC-1701-D";
+}
+
+/* ------------------------------------------------------------------ */
+/* Collectible variants — one per recognised Star Trek line.           */
+/* ------------------------------------------------------------------ */
+[data-theme-name="lcars"][data-theme-variant="live-long"] {
+  --accent-color: #D98E4A; --accent-color-hover: #EBAB70;
+  --bg-active: rgba(217, 142, 74, 0.22); --selection-bg: rgba(217, 142, 74, 0.3);
+  --lcars-1: #D98E4A; --lcars-2: #C46A3D; --lcars-3: #E8B37E; --lcars-4: #8C6A4F;
+  --lcars-registry: "LCARS 47 · VULCAN · 40 ERIDANI A";
+}
+[data-theme-name="lcars"][data-theme-variant="engage"] {
+  --accent-color: #7A9BFF; --accent-color-hover: #A3BAFF;
+  --bg-active: rgba(122, 155, 255, 0.22); --selection-bg: rgba(122, 155, 255, 0.3);
+  --lcars-1: #7A9BFF; --lcars-2: #9999CC; --lcars-3: #99CCFF; --lcars-4: #CC99CC;
+  --lcars-registry: "LCARS 47 · WARP 9.6 · ENGAGE";
+}
+[data-theme-name="lcars"][data-theme-variant="resistance"] {
+  --accent-color: #4CE07A; --accent-color-hover: #7DF0A3;
+  --bg-active: rgba(76, 224, 122, 0.22); --selection-bg: rgba(76, 224, 122, 0.3);
+  --lcars-1: #4CE07A; --lcars-2: #2FA65C; --lcars-3: #8CE3AC; --lcars-4: #5C7A66;
+  --lcars-registry: "LCARS 47 · CUBE 461 · ADAPT";
+}
+[data-theme-name="lcars"][data-theme-variant="tea"] {
+  --accent-color: #FFCC99; --accent-color-hover: #FFE0BD;
+  --bg-active: rgba(255, 204, 153, 0.22); --selection-bg: rgba(255, 204, 153, 0.3);
+  --lcars-1: #FFCC99; --lcars-2: #D9A066; --lcars-3: #FFE0B3; --lcars-4: #CC9966;
+  --lcars-registry: "LCARS 47 · REPLICATOR · EARL GREY · HOT";
+}
+[data-theme-name="lcars"][data-theme-variant="fascinating"] {
+  --accent-color: #5CD6D6; --accent-color-hover: #8AE6E6;
+  --bg-active: rgba(92, 214, 214, 0.22); --selection-bg: rgba(92, 214, 214, 0.3);
+  --lcars-1: #5CD6D6; --lcars-2: #3399AA; --lcars-3: #99E6E6; --lcars-4: #9999CC;
+  --lcars-registry: "LCARS 47 · SCIENCE STATION 1";
+}
+[data-theme-name="lcars"][data-theme-variant="space-frontier"] {
+  --accent-color: #FFCC00; --accent-color-hover: #FFDD55;
+  --bg-active: rgba(255, 204, 0, 0.22); --selection-bg: rgba(255, 204, 0, 0.3);
+  --lcars-1: #FFCC00; --lcars-2: #CC3333; --lcars-3: #6699CC; --lcars-4: #E8B37E;
+  --lcars-registry: "LCARS 47 · NCC-1701 · FIVE-YEAR MISSION";
+}
+[data-theme-name="lcars"][data-theme-variant="hailing"] {
+  --accent-color: #CC77CC; --accent-color-hover: #E0A3E0;
+  --bg-active: rgba(204, 119, 204, 0.22); --selection-bg: rgba(204, 119, 204, 0.3);
+  --lcars-1: #CC77CC; --lcars-2: #9966CC; --lcars-3: #FF99CC; --lcars-4: #CC99CC;
+  --lcars-registry: "LCARS 47 · SUBSPACE CHANNEL OPEN";
+}
+[data-theme-name="lcars"][data-theme-variant="beam-me-up"] {
+  --accent-color: #9CC7FF; --accent-color-hover: #C2DCFF;
+  --bg-active: rgba(156, 199, 255, 0.22); --selection-bg: rgba(156, 199, 255, 0.3);
+  --lcars-1: #9CC7FF; --lcars-2: #8FA8C7; --lcars-3: #CCE6FF; --lcars-4: #B0C4DE;
+  --lcars-registry: "LCARS 47 · TRANSPORTER ROOM 3";
+}
+[data-theme-name="lcars"][data-theme-variant="darmok"] {
+  --accent-color: #CC7A52; --accent-color-hover: #E09970;
+  --bg-active: rgba(204, 122, 82, 0.22); --selection-bg: rgba(204, 122, 82, 0.3);
+  --lcars-1: #CC7A52; --lcars-2: #B35A3B; --lcars-3: #E0B08C; --lcars-4: #8C6A4F;
+  --lcars-registry: "LCARS 47 · EL-ADREL IV · TANAGRA";
+}
+[data-theme-name="lcars"][data-theme-variant="qapla"] {
+  --accent-color: #E05C5C; --accent-color-hover: #F08585;
+  --bg-active: rgba(224, 92, 92, 0.22); --selection-bg: rgba(224, 92, 92, 0.3);
+  --lcars-1: #E05C5C; --lcars-2: #8C2B2B; --lcars-3: #FF8C7A; --lcars-4: #995C66;
+  --lcars-registry: "LCARS 47 · QO'NOS · BATLETH READY";
+}
+[data-theme-name="lcars"][data-theme-variant="four-lights"] {
+  --accent-color: #F2F2F2; --accent-color-hover: #FFFFFF;
+  --bg-active: rgba(242, 242, 242, 0.2); --selection-bg: rgba(242, 242, 242, 0.28);
+  --lcars-1: #FF9C00; --lcars-2: #CC99CC; --lcars-3: #9999FF; --lcars-4: #FF9966;
+  --lcars-registry: "LCARS 47 · THERE · ARE · FOUR · LIGHTS";
+}
+[data-theme-name="lcars"][data-theme-variant="red-alert"] {
+  --accent-color: #FF4444; --accent-color-hover: #FF7A7A;
+  --bg-active: rgba(255, 68, 68, 0.24); --selection-bg: rgba(255, 68, 68, 0.32);
+  --text-muted: #D98080; --text-faint: #995C5C;
+  --border-color: #5C1F1F; --border-color-light: #3A1414;
+  --lcars-1: #FF4444; --lcars-2: #992222; --lcars-3: #FF9999; --lcars-4: #CC6666;
+  --lcars-registry: "LCARS 47 · RED ALERT · SHIELDS UP";
+}
+
+/* ------------------------------------------------------------------ */
+/* Structure — the Okuda look. Scoped to the theme; colours only come  */
+/* from the rotated variables so every variant inherits the shape.     */
+/* ------------------------------------------------------------------ */
+
+/* Title bar: black strip with a segmented colour bar along its bottom edge
+   (rounded end cap on the right — the classic LCARS run). */
+[data-theme-name="lcars"] header[data-tauri-drag-region] {
+  position: relative;
+}
+[data-theme-name="lcars"] header[data-tauri-drag-region]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 6px;
+  bottom: -1px;
+  height: 5px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--lcars-1) 0,
+    var(--lcars-1) calc(28% - 4px),
+    #000 calc(28% - 4px),
+    #000 28%,
+    var(--lcars-2) 28%,
+    var(--lcars-2) calc(62% - 4px),
+    #000 calc(62% - 4px),
+    #000 62%,
+    var(--lcars-3) 62%,
+    var(--lcars-3) calc(85% - 4px),
+    #000 calc(85% - 4px),
+    #000 85%,
+    var(--lcars-4) 85%,
+    var(--lcars-4) 100%
+  );
+  border-radius: 0 999px 999px 0;
+}
+
+/* Sidebars: a solid colour rail on the content-facing edge. Together with the
+   title-bar run this forms the L-shaped LCARS frame. */
+[data-theme-name="lcars"] aside[aria-label="Left Sidebar"],
+[data-theme-name="lcars"] aside[aria-label="Right Sidebar"] {
+  position: relative;
+}
+[data-theme-name="lcars"] aside[aria-label="Left Sidebar"]::after,
+[data-theme-name="lcars"] aside[aria-label="Right Sidebar"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  pointer-events: none;
+  background: var(--lcars-1);
+}
+[data-theme-name="lcars"] aside[aria-label="Left Sidebar"]::after {
+  right: 0;
+  border-radius: 0 0 0 999px;
+}
+[data-theme-name="lcars"] aside[aria-label="Right Sidebar"]::after {
+  left: 0;
+  border-radius: 0 0 999px 0;
+}
+
+/* Status bar: registry lettering on the right — pure decoration. */
+[data-theme-name="lcars"] footer[aria-label]::after {
+  content: var(--lcars-registry);
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--lcars-2);
+  text-transform: uppercase;
+}
+
+/* Buttons become pills with condensed uppercase lettering. */
+[data-theme-name="lcars"] .pv-btn,
+[data-theme-name="lcars"] .pv-btn-primary,
+[data-theme-name="lcars"] .pv-btn-secondary,
+[data-theme-name="lcars"] .pv-add-btn {
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-theme-name="lcars"] .pv-btn--secondary,
+[data-theme-name="lcars"] .pv-btn-secondary {
+  border-color: var(--lcars-4);
+}
+
+/* Tabs as true Okuda pills (P12): floating capsules instead of flat tiles.
+   The active tab fills with the primary bar colour and flips to black type —
+   the classic LCARS "selected segment". Only the stylesheet underline is
+   neutralised below; the inline drag-drop indicator stays visible (the old
+   blanket `box-shadow: none !important` also killed it, which made tab drags
+   look dead under LCARS — maintainer fix 2026-07-05). */
+[data-theme-name="lcars"] [role="tab"] {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  height: auto !important;
+  align-self: center;
+  margin: 0 3px;
+  padding: 3px 12px !important;
+  border-radius: var(--radius-pill);
+  border-right: none !important;
+  background: #131313;
+}
+[data-theme-name="lcars"] .tabstrip [role="tab"][aria-selected="true"] {
+  box-shadow: none; /* the filled pill marks the active tab instead */
+}
+[data-theme-name="lcars"] [role="tab"][aria-selected="true"] {
+  background: var(--lcars-1);
+  color: #000000 !important;
+}
+[data-theme-name="lcars"] [role="tab"][aria-selected="true"] .pv-tab-dirty {
+  background: #000000;
+}
+[data-theme-name="lcars"] .tabstrip {
+  gap: 1px;
+  padding: 0 4px;
+}
+
+/* .base view switcher + period toolbar ride the same pill language. */
+[data-theme-name="lcars"] .base-view-tab,
+[data-theme-name="lcars"] .base-view-tab-btn,
+[data-theme-name="lcars"] .base-nav-btn,
+[data-theme-name="lcars"] .base-today-btn,
+[data-theme-name="lcars"] .base-cfg-dirbtn,
+[data-theme-name="lcars"] .base-cfg-addbtn,
+[data-theme-name="lcars"] .base-cfg-seg {
+  border-radius: var(--radius-pill);
+}
+[data-theme-name="lcars"] .base-view-tab-btn {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+[data-theme-name="lcars"] .base-view-tab.active {
+  background: var(--lcars-4);
+}
+[data-theme-name="lcars"] .base-view-tab.active .base-view-tab-btn,
+[data-theme-name="lcars"] .base-view-tab.active .base-view-tab-caret {
+  color: #000000;
+}
+
+/* Chips as console readouts: hollow pills in their own hue. */
+[data-theme-name="lcars"] .pv-chip-0, [data-theme-name="lcars"] .pv-chip-1,
+[data-theme-name="lcars"] .pv-chip-2, [data-theme-name="lcars"] .pv-chip-3,
+[data-theme-name="lcars"] .pv-chip-4, [data-theme-name="lcars"] .pv-chip-5,
+[data-theme-name="lcars"] .pv-chip-6, [data-theme-name="lcars"] .pv-chip-7,
+[data-theme-name="lcars"] .pv-chip-tag {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+/* Status bar chrome speaks LCARS too (info content stays untouched, E8). */
+[data-theme-name="lcars"] footer[aria-label] {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* The colour rails are 5px wide — give the sidebars breathing room so the
+   calendar column / tree rows never sit underneath them (P12 fix). */
+[data-theme-name="lcars"] aside[aria-label="Left Sidebar"] {
+  padding-right: 7px;
+}
+[data-theme-name="lcars"] aside[aria-label="Right Sidebar"] {
+  padding-left: 7px;
+}
+
+/* Modals/peek windows/palettes: black panel, colour frame, one big LCARS corner. */
+[data-theme-name="lcars"] .pv-modal,
+[data-theme-name="lcars"] .pv-modal-card,
+[data-theme-name="lcars"] .pv-peek-card,
+[data-theme-name="lcars"] .pv-palette {
+  border: 2px solid var(--lcars-1);
+  border-radius: 26px 6px 6px 6px;
+  background: #000000;
+}
+[data-theme-name="lcars"] .pv-modal-heading,
+[data-theme-name="lcars"] .pv-modal-title,
+[data-theme-name="lcars"] .pv-peek-title {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lcars-1);
+}
+
+/* Popovers/menus/tooltips: square tiles with a colour edge. */
+[data-theme-name="lcars"] .pv-popover,
+[data-theme-name="lcars"] .pv-menu,
+[data-theme-name="lcars"] .pv-tooltip {
+  border: 1px solid var(--lcars-4);
+  border-left: 4px solid var(--lcars-1);
+  border-radius: 0 10px 10px 0;
+}
+
+/* Read-view headings: condensed face + a colour block in front of H1. */
+[data-theme-name="lcars"] .markdown-reader h1,
+[data-theme-name="lcars"] .markdown-reader h2,
+[data-theme-name="lcars"] .markdown-reader h3 {
+  font-family: var(--font-ui);
+  letter-spacing: 0.02em;
+}
+[data-theme-name="lcars"] .markdown-reader h1 {
+  border-left: 14px solid var(--lcars-2);
+  padding-left: 12px;
+}
+
+/* Stage-2 decoration (plan Designsprache P10, E5): fields as black consoles
+   with a colour base line, right-sidebar section headers as classic LCARS
+   colour blocks (black lettering on a warm bar), dialogs read like a computer
+   query. All token-driven, so every collectible variant recolours it. */
+[data-theme-name="lcars"] .pv-field {
+  border: none;
+  border-bottom: 2px solid var(--lcars-4);
+  border-radius: 0;
+  background: #0A0A0A;
+}
+[data-theme-name="lcars"] .pv-field:focus {
+  border-bottom-color: var(--accent-color);
+}
+[data-theme-name="lcars"] .pv-side-section-header {
+  background: var(--lcars-4);
+  color: #000000;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  margin: 4px 8px 4px 0;
+}
+[data-theme-name="lcars"] .pv-side-section-header:hover {
+  background: var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-side-section-header span,
+[data-theme-name="lcars"] .pv-side-section-header svg {
+  color: #000000 !important;
+}
+[data-theme-name="lcars"] .pv-empty {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Scrollbars ride the accent rail (scrollbar styling is global since the
+   themed-scrollbar fix, so the override matches the global selector). */
+[data-theme-name="lcars"] ::-webkit-scrollbar-thumb {
+  background: var(--lcars-4);
+  background-clip: padding-box;
+}
+[data-theme-name="lcars"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--lcars-1);
+  background-clip: padding-box;
+}
+
+/* Red alert: the frame pulses gently. Decoration only; disabled for users
+   who prefer reduced motion. */
+@keyframes pv-lcars-alert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+[data-theme-name="lcars"][data-theme-variant="red-alert"] header[data-tauri-drag-region]::after,
+[data-theme-name="lcars"][data-theme-variant="red-alert"] aside[aria-label="Left Sidebar"]::after,
+[data-theme-name="lcars"][data-theme-variant="red-alert"] aside[aria-label="Right Sidebar"]::after {
+  animation: pv-lcars-alert 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme-name="lcars"][data-theme-variant="red-alert"] header[data-tauri-drag-region]::after,
+  [data-theme-name="lcars"][data-theme-variant="red-alert"] aside[aria-label="Left Sidebar"]::after,
+  [data-theme-name="lcars"][data-theme-variant="red-alert"] aside[aria-label="Right Sidebar"]::after {
+    animation: none;
+  }
+}

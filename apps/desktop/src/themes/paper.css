@@ -1,0 +1,80 @@
+/*
+ * Paper — near-monochrome E-Ink look for distraction-free writing (Plainva
+ * original). Light = paper, dark = "ink". Callouts are desaturated so nothing
+ * shouts; they stay distinguishable by hue and brightness.
+ */
+[data-theme-name="paper"][data-theme="light"] {
+  --bg-primary: #FAFAF7;
+  --bg-secondary: #F1F1EC;
+  --bg-hover: #E7E7E0;
+  --bg-active: rgba(26, 26, 24, 0.08);
+  --text-main: #1A1A18;
+  --text-muted: #50504A;
+  --text-faint: #6E6E66;
+  --accent-color: #2B2B27;
+  --accent-color-hover: #000000;
+  --accent-on: #FFFFFF;
+  --border-color: #DCDCD4;
+  --border-color-light: #E8E8E1;
+
+  --selection-bg: rgba(26, 26, 24, 0.12);
+  --active-line-bg: rgba(26, 26, 24, 0.03);
+  --code-bg: #F1F1EC;
+  --quote-border: #C9C9C0;
+  --highlight-bg: #F0E9C8;
+
+  --callout-blue: #4A6470;
+  --callout-green: #4F6B52;
+  --callout-amber: #8A7440;
+  --callout-orange: #8A5F40;
+  --callout-red: #8A4640;
+  --callout-purple: #6A5A7A;
+  --callout-gray: #6E6E66;
+  --callout-cyan: #4A6E6A;
+  --callout-blue-tint: #4A647012;
+  --callout-green-tint: #4F6B5212;
+  --callout-amber-tint: #8A744012;
+  --callout-orange-tint: #8A5F4012;
+  --callout-red-tint: #8A464012;
+  --callout-purple-tint: #6A5A7A12;
+  --callout-gray-tint: #6E6E6612;
+  --callout-cyan-tint: #4A6E6A12;
+}
+
+[data-theme-name="paper"][data-theme="dark"] {
+  --bg-primary: #161614;
+  --bg-secondary: #201F1C;
+  --bg-hover: #2A2926;
+  --bg-active: rgba(232, 230, 224, 0.1);
+  --text-main: #E8E6E0;
+  --text-muted: #A5A39B;
+  --text-faint: #8A887F;
+  --accent-color: #D8D6CE;
+  --accent-color-hover: #FFFFFF;
+  --accent-on: #161614;
+  --border-color: #35342F;
+  --border-color-light: #292824;
+
+  --selection-bg: rgba(232, 230, 224, 0.14);
+  --active-line-bg: rgba(232, 230, 224, 0.04);
+  --code-bg: #201F1C;
+  --quote-border: #45443E;
+  --highlight-bg: #56502C;
+
+  --callout-blue: #8FA6B0;
+  --callout-green: #93AC96;
+  --callout-amber: #BFA96E;
+  --callout-orange: #BF9370;
+  --callout-red: #BF7A72;
+  --callout-purple: #A292B5;
+  --callout-gray: #8A887F;
+  --callout-cyan: #8FADA8;
+  --callout-blue-tint: #8FA6B014;
+  --callout-green-tint: #93AC9614;
+  --callout-amber-tint: #BFA96E14;
+  --callout-orange-tint: #BF937014;
+  --callout-red-tint: #BF7A7214;
+  --callout-purple-tint: #A292B514;
+  --callout-gray-tint: #8A887F14;
+  --callout-cyan-tint: #8FADA814;
+}

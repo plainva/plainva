@@ -1,0 +1,31 @@
+/*
+ * Midnight — true-black OLED theme with the Petrol accent (Plainva original).
+ * Dark only (the mode is pinned via the registry). Callouts inherit defaults.
+ */
+[data-theme-name="midnight"][data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0C0C0C;
+  --bg-hover: #181818;
+  --bg-active: rgba(45, 212, 191, 0.2);
+  --text-main: #E8E8E8;
+  --text-muted: #9C9C9C;
+  --text-faint: #7A7A7A;
+  --accent-color: #2DD4BF;
+  --accent-color-hover: #5EEAD4;
+  --accent-on: #06302B;
+  --border-color: #1F1F1F;
+  --border-color-light: #161616;
+
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+
+  --selection-bg: rgba(45, 212, 191, 0.25);
+  --active-line-bg: rgba(45, 212, 191, 0.06);
+  --code-bg: #0E0E0E;
+  --quote-border: #262626;
+  --highlight-bg: #4D4A1E;
+
+  /* Shadows are invisible on true black — borders do the separation. */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+}

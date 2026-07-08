@@ -1,0 +1,79 @@
+/*
+ * Sepia — warm paper and brown ink for long reading sessions (Plainva
+ * original). Light = "library", dark = "candlelight".
+ */
+[data-theme-name="sepia"][data-theme="light"] {
+  --bg-primary: #F7F0E1;
+  --bg-secondary: #EFE5CF;
+  --bg-hover: #E5D8BC;
+  --bg-active: rgba(139, 94, 47, 0.14);
+  --text-main: #43382A;
+  --text-muted: #6F5F48;
+  --text-faint: #857459;
+  --accent-color: #8B5E2F;
+  --accent-color-hover: #6E4922;
+  --accent-on: #FBF6EA;
+  --border-color: #DFD2B6;
+  --border-color-light: #E9DFC8;
+
+  --selection-bg: rgba(139, 94, 47, 0.16);
+  --active-line-bg: rgba(139, 94, 47, 0.05);
+  --code-bg: #EFE5CF;
+  --quote-border: #CDBC98;
+  --highlight-bg: #E5C87340;
+
+  --callout-blue: #5E7A8A;
+  --callout-green: #6B7F4A;
+  --callout-amber: #A87F2E;
+  --callout-orange: #A8652E;
+  --callout-red: #A84C3A;
+  --callout-purple: #7D6390;
+  --callout-gray: #857459;
+  --callout-cyan: #57837C;
+  --callout-blue-tint: #5E7A8A14;
+  --callout-green-tint: #6B7F4A14;
+  --callout-amber-tint: #A87F2E14;
+  --callout-orange-tint: #A8652E14;
+  --callout-red-tint: #A84C3A14;
+  --callout-purple-tint: #7D639014;
+  --callout-gray-tint: #85745914;
+  --callout-cyan-tint: #57837C14;
+}
+
+[data-theme-name="sepia"][data-theme="dark"] {
+  --bg-primary: #241D12;
+  --bg-secondary: #2E2517;
+  --bg-hover: #3A2F1E;
+  --bg-active: rgba(200, 148, 84, 0.16);
+  --text-main: #E9DCC3;
+  --text-muted: #B3A183;
+  --text-faint: #94856B;
+  --accent-color: #C89454;
+  --accent-color-hover: #DDAF70;
+  --accent-on: #241D12;
+  --border-color: #463923;
+  --border-color-light: #382D1B;
+
+  --selection-bg: rgba(200, 148, 84, 0.22);
+  --active-line-bg: rgba(200, 148, 84, 0.06);
+  --code-bg: #2E2517;
+  --quote-border: #55462B;
+  --highlight-bg: #A8842E4D;
+
+  --callout-blue: #8FA9BA;
+  --callout-green: #9FB37A;
+  --callout-amber: #D6AC57;
+  --callout-orange: #D68A57;
+  --callout-red: #D67662;
+  --callout-purple: #AC94C0;
+  --callout-gray: #94856B;
+  --callout-cyan: #87B0A8;
+  --callout-blue-tint: #8FA9BA14;
+  --callout-green-tint: #9FB37A14;
+  --callout-amber-tint: #D6AC5714;
+  --callout-orange-tint: #D68A5714;
+  --callout-red-tint: #D6766214;
+  --callout-purple-tint: #AC94C014;
+  --callout-gray-tint: #94856B14;
+  --callout-cyan-tint: #87B0A814;
+}

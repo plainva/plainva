@@ -1,0 +1,9 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Favicon for the dev/web view: the Plainva mark ("lines with cursor") in
+       fixed petrol colors (the OS icon master lives at
+       src-tauri/icons/source/plainva-icon.svg). -->
+  <rect x="2" y="2" width="28" height="28" rx="8" fill="#0f766e" />
+  <rect x="9" y="11" width="14" height="2.7" rx="1.35" fill="#ffffff" />
+  <rect x="9" y="16.6" width="7.6" height="2.7" rx="1.35" fill="#ffffff" />
+  <rect x="18.4" y="16.2" width="2.8" height="3.6" rx="0.9" fill="#5eead4" />
+</svg>

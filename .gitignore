@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+.turbo/
+.vite/
+.cache/
+
+# Rust / Tauri outputs
+target/
+src-tauri/target/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+packages/core/test-benchmark-vault/
+
+# Keys and certificates must never enter the repository
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Local-only collection folder: anything that must never reach the public
+# repo (easter-egg docs, internal notes) lives here (maintainer, 2026-07-06)
+/local/
+
+# Harness runtime/personal files (also covered by global ignores, kept here
+# so fresh clones on other machines never track them)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

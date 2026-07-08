@@ -1,0 +1,356 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { DriveSyncTarget } from "../../src/sync/DriveSyncTarget.js";
+import type { FetchFn } from "../../src/sync/WebDavSyncTarget.js";
+
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+function res(body: any, init: { ok?: boolean; status?: number } = {}) {
+  const status = init.status ?? 200;
+  return {
+    ok: init.ok ?? (status >= 200 && status < 300),
+    status,
+    statusText: "",
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+    arrayBuffer: async () => {
+      if (body instanceof Uint8Array) return body.buffer;
+      return new TextEncoder().encode(String(body)).buffer;
+    },
+  } as any;
+}
+
+function makeTarget(fetchImpl: any) {
+  const fetchFn = vi.fn<FetchFn>(fetchImpl);
+  const target = new DriveSyncTarget(
+    { clientId: "cid", clientSecret: "secret", refreshToken: "rtok", accessToken: "atok" },
+    fetchFn
+  );
+  return { target, fetchFn };
+}
+
+describe("DriveSyncTarget", () => {
+  let isFolderLookup: (u: string) => boolean;
+  beforeEach(() => {
+    // A folder-existence lookup is the only request carrying the folder mime *in the
+    // query* (q=...mimeType='application/vnd.google-apps.folder'...). Listing requests
+    // merely mention "mimeType" in their fields= param, so match the mime literal.
+    isFolderLookup = (u: string) => u.includes("/drive/v3/files?") && u.includes("vnd.google-apps.folder");
+  });
+
+  it("creates a new top-level file and returns its remote id + etag", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [] }); // file lookup: not found
+      if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "file-1", md5Checksum: "abc123" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const result = await target.push({
+      id: 1, file_path: "note.md", operation: "write",
+      content: new TextEncoder().encode("hello"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    expect(result).toEqual({ etag: "abc123", remoteId: "file-1" });
+    const upload = fetchFn.mock.calls.find((c: any) => String(c[0]).includes("/upload/") && c[1].method === "POST");
+    expect(upload).toBeDefined();
+    expect((upload as any)[1].headers["Content-Type"]).toContain("multipart/related");
+  });
+
+  it("updates an existing file via media PATCH", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-9", md5Checksum: "old" }] });
+      if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/file-9")) return res({ id: "file-9", md5Checksum: "new" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const result = await target.push({
+      id: 2, file_path: "note.md", operation: "write",
+      content: new TextEncoder().encode("changed"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    expect(result).toEqual({ etag: "new", remoteId: "file-9" });
+    expect(fetchFn.mock.calls.some((c: any) => c[1].method === "PATCH" && String(c[0]).includes("uploadType=media"))).toBe(true);
+  });
+
+  it("reports renameSourceMissing when the rename source id cannot be resolved (P1.2)", async () => {
+    // `if (!id) return;` used to mark the op synced while the file existed
+    // under NO Drive path at all — the engine now re-uploads at the new path.
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [] }); // source not found
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const result = await target.push({
+      id: 3, file_path: "old.md", operation: "rename", new_path: "new.md",
+      retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    expect(result).toEqual({ renameSourceMissing: true });
+  });
+
+  it("downloads file content by resolving its id", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files/file-7?alt=media")) return res(new TextEncoder().encode("body!"));
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const bytes = await target.download("note.md");
+    expect(bytes).not.toBeNull();
+    expect(new TextDecoder().decode(bytes!)).toBe("body!");
+  });
+
+  it("pulls a full nested listing into a path-keyed etag map", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("root-folder") && u.includes("in")) {
+        return res({ files: [
+          { id: "f1", name: "a.md", md5Checksum: "h1" },
+          { id: "sub-id", name: "sub", mimeType: FOLDER_MIME },
+        ] });
+      }
+      if (init.method === "GET" && u.includes("sub-id")) {
+        return res({ files: [{ id: "f2", name: "b.md", md5Checksum: "h2" }] });
+      }
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const { etagMap, deleted, nextCursor } = await target.pull();
+    expect(etagMap.get("a.md")).toBe("h1");
+    expect(etagMap.get("sub/b.md")).toBe("h2");
+    expect(deleted).toBeUndefined();
+    expect(nextCursor).toBeUndefined();
+  });
+
+  it("pulls incremental changes with deletions and a follow-up cursor", async () => {
+    let phase: "list" | "changes" = "list";
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (phase === "list") {
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        if (init.method === "GET" && u.includes("root-folder")) {
+          return res({ files: [
+            { id: "f1", name: "a.md", md5Checksum: "h1" },
+            { id: "f3", name: "c.md", md5Checksum: "h3" },
+          ] });
+        }
+      }
+      if (u.includes("/drive/v3/changes?")) {
+        return res({
+          changes: [
+            { fileId: "f1", file: { id: "f1", name: "a.md", md5Checksum: "h1b" } },
+            { fileId: "f3", removed: true },
+          ],
+          newStartPageToken: "cursor-2",
+        });
+      }
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    await target.pull(); // seed the id<->path caches
+    phase = "changes";
+    const { etagMap, deleted, nextCursor } = await target.pull("cursor-1");
+
+    expect(etagMap.get("a.md")).toBe("h1b");
+    expect(deleted).toEqual(["c.md"]);
+    expect(nextCursor).toBe("cursor-2");
+  });
+
+  it("refreshes the access token on a 401 and retries", async () => {
+    let folderLookups = 0;
+    let refreshed = false;
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "POST" && u.includes("oauth2.googleapis.com/token")) {
+        refreshed = true;
+        return res({ access_token: "fresh-token", expires_in: 3600 });
+      }
+      if (init.method === "GET" && isFolderLookup(u)) {
+        folderLookups++;
+        if (folderLookups === 1) return res({}, { status: 401 });
+        return res({ files: [{ id: "root-folder" }] });
+      }
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("alt=media")) return res(new TextEncoder().encode("ok"));
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const onRefresh = vi.fn();
+    target.onTokenRefreshed = onRefresh;
+
+    const bytes = await target.download("note.md");
+    expect(refreshed).toBe(true);
+    expect(onRefresh).toHaveBeenCalledWith("fresh-token", 3600);
+    expect(new TextDecoder().decode(bytes!)).toBe("ok");
+  });
+
+  it("never pushes or downloads .CONFLICT files", async () => {
+    const { target, fetchFn } = makeTarget(async () => { throw new Error("should not fetch"); });
+    const pushed = await target.push({
+      id: 3, file_path: "note.CONFLICT-1.md", operation: "write",
+      content: new Uint8Array(), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+    expect(pushed).toBeUndefined();
+    expect(await target.download("note.CONFLICT-1.md")).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("skips Google-native files (Docs/Sheets) in the listing", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("root-folder")) {
+        return res({ files: [
+          { id: "f1", name: "note.md", md5Checksum: "h1" },
+          { id: "gd", name: "Doc", mimeType: "application/vnd.google-apps.document" },
+        ] });
+      }
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const { etagMap } = await target.pull();
+    expect(etagMap.get("note.md")).toBe("h1");
+    expect(etagMap.has("Doc")).toBe(false);
+    expect(etagMap.size).toBe(1);
+  });
+
+  it("uploads an image with its real MIME type, not text/markdown", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "img-1", md5Checksum: "old" }] });
+      if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/img-1")) return res({ id: "img-1", md5Checksum: "new" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    await target.push({
+      id: 1, file_path: "assets/pic.png", operation: "write",
+      content: new Uint8Array([1, 2, 3]), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    const patch = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH");
+    expect(patch).toBeDefined();
+    expect((patch as any)[1].headers["Content-Type"]).toBe("image/png");
+  });
+
+  it("recreates a file when update hits a stale 404", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "stale-id" }] });
+      if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/stale-id")) return res({ error: { message: "not found" } }, { status: 404 });
+      if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "new-id", md5Checksum: "h" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    const result = await target.push({
+      id: 1, file_path: "note.md", operation: "write",
+      content: new TextEncoder().encode("x"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+    expect(result).toEqual({ etag: "h", remoteId: "new-id" });
+  });
+
+  it("skips a file that returns 403 on download instead of aborting", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f7" }] });
+      if (init.method === "GET" && u.includes("alt=media")) {
+        return res({ error: { errors: [{ reason: "cannotDownloadAbusiveFile" }] } }, { status: 403 });
+      }
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+
+    expect(await target.download("note.md")).toBeNull();
+  });
+
+  describe("listFolders (settings picker, 2026-07-06)", () => {
+    it("lists MY-DRIVE-root folders (paginated, sorted) without creating anything", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method !== "GET" || !u.includes("/drive/v3/files?")) throw new Error(`unexpected ${init.method} ${u}`);
+        if (u.includes("pageToken=tok-1")) return res({ files: [{ name: "Archiv" }] });
+        return res({ files: [{ name: "Plainva" }, { name: "Fotos" }], nextPageToken: "tok-1" });
+      });
+
+      const names = await target.listFolders("");
+      expect(names).toEqual(["Archiv", "Fotos", "Plainva"]);
+
+      const first = String(fetchFn.mock.calls[0][0]);
+      const q = decodeURIComponent(first.split("q=")[1].split("&")[0]);
+      expect(q).toBe(`'root' in parents and mimeType='${FOLDER_MIME}' and trashed=false`);
+      // Browse-only: no POST (findOrCreateFolder must NOT run).
+      expect(fetchFn.mock.calls.every((c: any) => c[1].method === "GET")).toBe(true);
+    });
+
+    it("resolves a nested path segment-wise (find-only) and lists its children", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = decodeURIComponent(String(url));
+        if (init.method !== "GET") throw new Error(`unexpected ${init.method} ${u}`);
+        if (u.includes("name='Apps'") && u.includes("'root' in parents")) return res({ files: [{ id: "f-apps", name: "Apps" }] });
+        if (u.includes("name='Vaults'") && u.includes("'f-apps' in parents")) return res({ files: [{ id: "f-vaults", name: "Vaults" }] });
+        if (u.includes("'f-vaults' in parents")) return res({ files: [{ name: "Privat" }, { name: "Arbeit" }] });
+        throw new Error(`unexpected lookup ${u}`);
+      });
+
+      const names = await target.listFolders("Apps/Vaults");
+      expect(names).toEqual(["Arbeit", "Privat"]);
+      expect(fetchFn.mock.calls.every((c: any) => c[1].method === "GET")).toBe(true);
+    });
+
+    it("throws a clear error when a path segment does not exist (no create)", async () => {
+      const { target, fetchFn } = makeTarget(async () => res({ files: [] }));
+      await expect(target.listFolders("Weg")).rejects.toThrow("Drive folder not found: Weg");
+      expect(fetchFn.mock.calls.every((c: any) => c[1].method === "GET")).toBe(true);
+    });
+
+    it("throws on a failed listing", async () => {
+      const { target } = makeTarget(async () => res({ error: { message: "nope" } }, { status: 403 }));
+      await expect(target.listFolders("")).rejects.toThrow("Drive folder listing failed: 403");
+    });
+  });
+
+  describe("nested rootFolderName (2026-07-06)", () => {
+    it("resolves 'Apps/Plainva' segment by segment before the first push", async () => {
+      const lookups: string[] = [];
+      const fetchFn = vi.fn(async (url: string, init: any) => {
+        const u = decodeURIComponent(String(url));
+        if (init.method === "GET" && u.includes("vnd.google-apps.folder")) {
+          lookups.push(u);
+          if (u.includes("name='Apps'") && u.includes("'root' in parents")) return res({ files: [{ id: "f-apps", name: "Apps" }] });
+          if (u.includes("name='Plainva'") && u.includes("'f-apps' in parents")) return res({ files: [] }); // -> create
+          throw new Error(`unexpected folder lookup ${u}`);
+        }
+        if (init.method === "POST" && u.includes("/drive/v3/files?fields=id")) {
+          const body = JSON.parse(init.body);
+          expect(body).toMatchObject({ name: "Plainva", parents: ["f-apps"] });
+          return res({ id: "f-plainva" });
+        }
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [] }); // file lookup: not found
+        if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "file-1", md5Checksum: "abc" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+      const target = new DriveSyncTarget(
+        { clientId: "cid", clientSecret: "secret", refreshToken: "rtok", accessToken: "atok", rootFolderName: "Apps/Plainva" },
+        fetchFn as any
+      );
+
+      const result = await target.push({
+        id: 1, file_path: "note.md", operation: "write",
+        content: new TextEncoder().encode("x"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+      });
+      expect(result).toMatchObject({ remoteId: "file-1" });
+      expect(lookups).toHaveLength(2);
+      expect(lookups[0]).toContain("'root' in parents");
+      expect(lookups[1]).toContain("'f-apps' in parents");
+    });
+  });
+});

@@ -1,0 +1,145 @@
+/*
+ * Phosphor Green / Phosphor Amber — CRT terminal homage (Plainva originals).
+ * Dark only (mode pinned via the registry). Monospace stack for chrome AND
+ * content, a very subtle scanline overlay (pure decoration: pointer-events
+ * none, low alpha) and a soft glow on headings/primary buttons only — body
+ * text stays crisp for readability. No flicker animation on purpose.
+ */
+
+/* ---------------------------------------------------------------- green */
+[data-theme-name="phosphor-green"][data-theme="dark"] {
+  --bg-primary: #030A04;
+  --bg-secondary: #061109;
+  --bg-hover: #0B1D10;
+  --bg-active: rgba(92, 255, 156, 0.16);
+  --text-main: #4AE886;
+  --text-muted: #2FA65C;
+  --text-faint: #23814A;
+  --accent-color: #5CFF9C;
+  --accent-color-hover: #8AFFBC;
+  --accent-on: #02150A;
+  --border-color: #123D24;
+  --border-color-light: #0C2A18;
+  --error-bg: #2A0A06;
+  --error-border: #7A2E1F;
+  --error-text: #FF6B5C;
+
+  --overlay-bg: rgba(0, 8, 3, 0.75);
+
+  --selection-bg: rgba(92, 255, 156, 0.22);
+  --active-line-bg: rgba(92, 255, 156, 0.05);
+  --code-bg: #061109;
+  --quote-border: #1C5C36;
+  --highlight-bg: #14522E;
+
+  --callout-blue: #4AB8C9;
+  --callout-green: #5CFF9C;
+  --callout-amber: #D9E34A;
+  --callout-orange: #E3A34A;
+  --callout-red: #FF6B5C;
+  --callout-purple: #B08FE3;
+  --callout-gray: #4F8A66;
+  --callout-cyan: #4AE8D9;
+  --callout-blue-tint: #4AB8C914;
+  --callout-green-tint: #5CFF9C14;
+  --callout-amber-tint: #D9E34A14;
+  --callout-orange-tint: #E3A34A14;
+  --callout-red-tint: #FF6B5C14;
+  --callout-purple-tint: #B08FE314;
+  --callout-gray-tint: #4F8A6614;
+  --callout-cyan-tint: #4AE8D914;
+
+  --font-ui: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --font-content: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --phosphor-glow: rgba(92, 255, 156, 0.35);
+
+  /* CRT surfaces are flat — glow, not shadow, carries the depth. */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+}
+
+/* ---------------------------------------------------------------- amber */
+[data-theme-name="phosphor-amber"][data-theme="dark"] {
+  --bg-primary: #0A0500;
+  --bg-secondary: #140B02;
+  --bg-hover: #201203;
+  --bg-active: rgba(255, 197, 61, 0.16);
+  --text-main: #F0AE3C;
+  --text-muted: #B37E20;
+  --text-faint: #8A6119;
+  --accent-color: #FFC53D;
+  --accent-color-hover: #FFD86E;
+  --accent-on: #1A0F00;
+  --border-color: #4A320E;
+  --border-color-light: #2E1F08;
+  --error-bg: #2A0A06;
+  --error-border: #7A2E1F;
+  --error-text: #FF6B5C;
+
+  --overlay-bg: rgba(8, 4, 0, 0.75);
+
+  --selection-bg: rgba(255, 197, 61, 0.22);
+  --active-line-bg: rgba(255, 197, 61, 0.05);
+  --code-bg: #140B02;
+  --quote-border: #66471A;
+  --highlight-bg: #4A320E;
+
+  --callout-blue: #4AA8C9;
+  --callout-green: #A8D94A;
+  --callout-amber: #FFC53D;
+  --callout-orange: #FF9C3D;
+  --callout-red: #FF6B5C;
+  --callout-purple: #C98FE3;
+  --callout-gray: #8A6F4A;
+  --callout-cyan: #4AD9C9;
+  --callout-blue-tint: #4AA8C914;
+  --callout-green-tint: #A8D94A14;
+  --callout-amber-tint: #FFC53D14;
+  --callout-orange-tint: #FF9C3D14;
+  --callout-red-tint: #FF6B5C14;
+  --callout-purple-tint: #C98FE314;
+  --callout-gray-tint: #8A6F4A14;
+  --callout-cyan-tint: #4AD9C914;
+
+  --font-ui: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --font-content: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --phosphor-glow: rgba(255, 197, 61, 0.35);
+
+  /* CRT surfaces are flat — glow, not shadow, carries the depth. */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+}
+
+/* Scanline overlay — decoration only. Sits above the app but never intercepts
+   input; alpha kept low so text contrast stays intact. */
+[data-theme-name="phosphor-green"] body::after,
+[data-theme-name="phosphor-amber"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.16) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* Soft phosphor glow on display elements only (headings, primary actions,
+   modal titles) — body text stays crisp. Covers the ui/ primitives since the
+   Designsprache migration (P10). */
+[data-theme-name="phosphor-green"] .markdown-reader h1,
+[data-theme-name="phosphor-green"] .markdown-reader h2,
+[data-theme-name="phosphor-green"] .pv-btn-primary,
+[data-theme-name="phosphor-green"] .pv-btn--primary,
+[data-theme-name="phosphor-green"] .pv-modal-heading,
+[data-theme-name="phosphor-amber"] .markdown-reader h1,
+[data-theme-name="phosphor-amber"] .markdown-reader h2,
+[data-theme-name="phosphor-amber"] .pv-btn-primary,
+[data-theme-name="phosphor-amber"] .pv-btn--primary,
+[data-theme-name="phosphor-amber"] .pv-modal-heading {
+  text-shadow: 0 0 6px var(--phosphor-glow);
+}

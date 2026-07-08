@@ -1,0 +1,178 @@
+/*
+ * Plainva UI 1.0 — token foundation (plan Designsprache 2026-07-05, P1).
+ * NEW token families live here; the original color/radius/font tokens stay in
+ * App.css (:root) until their consumers migrate. Themes may override any token
+ * on the data-theme-name axis (see docs/engineering/Design_Language.md and
+ * docs/engineering/Theme_Platform.md).
+ *
+ * Loaded from main.tsx BEFORE themes/index.css. Order is irrelevant for theme
+ * overrides (double-attribute selectors), but tokens must exist before any
+ * component CSS consumes them.
+ */
+:root {
+  /* Spacing — 4px grid. Paddings/margins/gaps in chrome come from this scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography scale (chrome only; document content stays 16px/1.6). */
+  --text-xs: 0.6875rem; /* 11px — micro labels, badges, section headers */
+  --text-sm: 0.75rem;   /* 12px — secondary text, hints, status bar */
+  --text-ui: 0.8125rem; /* 13px — default: menus, buttons, tree, tabs */
+  --text-md: 0.875rem;  /* 14px — inputs, dialog body text */
+  --text-lg: 1rem;      /* 16px — modal titles, section headings */
+
+  /* Control heights (buttons, inputs, selects). */
+  --control-sm: 24px;
+  --control-md: 28px;
+  --control-lg: 34px;
+
+  /* Density roles (consumed by tree/list/menu rows and table cells; the
+     compact block below tightens them — document content is unaffected). */
+  --pad-row-y: 6px;
+  --pad-cell: 8px 12px;
+
+  /* Density-driven chrome tokens for INLINE styles that can't reach a
+     [data-density] selector (e.g. the file tree rows, which are the most
+     visible list in the app). Defaults equal today's hardcoded values so
+     "comfortable" is unchanged; the compact block tightens them. */
+  --tree-row-pad-y: 4px;
+  --tree-row-font: 0.9rem;
+
+  /* Elevation — 1 cards at rest, 2 menus/popovers, 3 modals/peek.
+     Dark mode and black themes override (see below / theme files). */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.07);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.16);
+  --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.28);
+
+  /* Stacking layers (replaces the 50/1000/1200/4000 ad-hoc values). Menus sit
+     above modals (dropdowns open from inside dialogs); appDialogs (confirm/
+     prompt) sit above EVERY modal — legacy hand-rolled overlays go up to 1200
+     until they migrate onto <Modal> (plan P4). Toasts/tooltips top it all. */
+  --z-popover: 500;
+  --z-modal: 1000;
+  --z-menu: 1100;
+  --z-dialog: 1250;
+  --z-toast: 1300;
+  --z-tooltip: 1400;
+
+  /* Motion. */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --ease-1: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Focus ring — soft accent, sits OUTSIDE the control and follows its
+     border-radius (outline does since Chromium 94). Themes may harden it
+     (High Contrast) or recolor it (LCARS variants inherit via accent). */
+  --focus-ring: color-mix(in srgb, var(--accent-color) 60%, transparent);
+
+  /* Scrollbars — floating pill thumb on a transparent track. */
+  --scrollbar-thumb: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text-muted) 55%, transparent);
+
+  /* Chrome-canvas + title-bar roles. Defaults alias the regular chrome
+     colors; themes may repaint them (win95: teal desktop, navy title bar).
+     They exist as tokens because TitleBar/App place these surfaces via
+     inline styles — a plain theme selector could never override those. */
+  --canvas-bg: var(--bg-secondary);
+  --titlebar-bg: var(--bg-secondary);
+  --titlebar-fg: var(--text-main);
+  --titlebar-fg-muted: var(--text-muted);
+  --titlebar-hover: var(--bg-hover);
+
+  /* Status colors (error lives in App.css as --error-*). */
+  --warning-bg: #fdf3e1;
+  --warning-border: #f0d9a8;
+  --warning-text: #92610e;
+  --success-bg: #e6f6ec;
+  --success-border: #bfe3cd;
+  --success-text: #1b7d43;
+  --info-bg: #e8f2fb;
+  --info-border: #c4ddf2;
+  --info-text: #1a629e;
+
+  /* Deterministic chip palette (select/status/multiselect/tag values). Was
+     hardcoded in .pv-chip-0..7 — as tokens every theme can restyle it. */
+  --chip-0-bg: #eceae3; --chip-0-fg: #44443f;
+  --chip-1-bg: #e1f5ee; --chip-1-fg: #0f6e56;
+  --chip-2-bg: #e6f1fb; --chip-2-fg: #185fa5;
+  --chip-3-bg: #eaf3de; --chip-3-fg: #3b6d11;
+  --chip-4-bg: #faeeda; --chip-4-fg: #854f0b;
+  --chip-5-bg: #faece7; --chip-5-fg: #993c1d;
+  --chip-6-bg: #eeedfe; --chip-6-fg: #534ab7;
+  --chip-7-bg: #fbeaf0; --chip-7-fg: #993556;
+  --chip-tag-bg: #eceae3; --chip-tag-fg: #2c2c2a; --chip-tag-parent-fg: #5f5e5a;
+  --chip-link-bg: #e1f5ee; --chip-link-fg: #0f6e56;
+
+  /* Curated accent palette (doc icons, header stripes, base colors). Single
+     source for the PALETTE arrays formerly duplicated in EmojiPicker and
+     HeaderColorPicker. */
+  --palette-1: #c94f4f;
+  --palette-2: #d97a2b;
+  --palette-3: #c9a227;
+  --palette-4: #4f9d4f;
+  --palette-5: #2f6f6f;
+  --palette-6: #2f6f8f;
+  --palette-7: #5a5fd0;
+  --palette-8: #8a4fd0;
+  --palette-9: #c04f8a;
+  --palette-10: #7a7f85;
+}
+
+[data-theme="dark"] {
+  /* Shadows need more presence on dark surfaces. */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  --warning-bg: #3a2c10;
+  --warning-border: #5e4a1c;
+  --warning-text: #f0c063;
+  --success-bg: #12321f;
+  --success-border: #1f5233;
+  --success-text: #6fce96;
+  --info-bg: #102a40;
+  --info-border: #1d4b70;
+  --info-text: #7db8e8;
+
+  --chip-0-bg: rgba(255, 255, 255, 0.09); --chip-0-fg: #cfcdc4;
+  --chip-1-bg: rgba(45, 212, 191, 0.16);  --chip-1-fg: #5dcaa5;
+  --chip-2-bg: rgba(55, 138, 221, 0.18);  --chip-2-fg: #85b7eb;
+  --chip-3-bg: rgba(99, 153, 34, 0.2);    --chip-3-fg: #97c459;
+  --chip-4-bg: rgba(186, 117, 23, 0.22);  --chip-4-fg: #ef9f27;
+  --chip-5-bg: rgba(216, 90, 48, 0.2);    --chip-5-fg: #f0997b;
+  --chip-6-bg: rgba(127, 119, 221, 0.22); --chip-6-fg: #afa9ec;
+  --chip-7-bg: rgba(212, 83, 126, 0.2);   --chip-7-fg: #ed93b1;
+  --chip-tag-bg: rgba(255, 255, 255, 0.09); --chip-tag-fg: #e8e6dd; --chip-tag-parent-fg: #a8a69d;
+  --chip-link-bg: rgba(45, 212, 191, 0.16); --chip-link-fg: #5dcaa5;
+}
+
+/*
+ * Density mode (plan §2.5). "comfortable" is the attribute-less default above;
+ * data-density="compact" on <html> tightens CHROME metrics only. Applied by
+ * services/density.ts; setting lives in Settings → Appearance.
+ */
+[data-density="compact"] {
+  --control-sm: 20px;
+  --control-md: 24px;
+  --control-lg: 28px;
+  --pad-row-y: 3px;
+  --pad-cell: 4px 8px;
+
+  /* File tree rows — the dominant list; tightening these makes compact
+     unmistakable (shorter rows + smaller labels). */
+  --tree-row-pad-y: 2px;
+  --tree-row-font: 0.8rem;
+
+  /* Chrome typography a notch smaller across menus, buttons, inputs, tabs and
+     the status bar. Document content uses --font-content / fixed sizes and is
+     deliberately NOT scaled here. */
+  --text-xs: 0.625rem;
+  --text-sm: 0.6875rem;
+  --text-ui: 0.75rem;
+  --text-md: 0.8125rem;
+}

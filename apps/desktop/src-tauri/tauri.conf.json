@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Plainva",
+  "version": "0.1.0",
+  "identifier": "com.plainva.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Plainva",
+        "width": 1280,
+        "height": 832,
+        "minWidth": 720,
+        "minHeight": 520,
+        "center": true,
+        "decorations": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' blob: https: data:; connect-src 'self' https: ipc:; style-src 'self' 'unsafe-inline';"
+    }
+  },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:plainva.db"]
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyMzdDODIyNzA5MzQ2NzYKUldSMlJwTndJc2czTWpuQkxvclZrb0JHZXJLT3k1bUMrazVZRVJlOExISkg3WXloc1pDSVJld1IK",
+      "endpoints": [
+        "https://github.com/plainva/plainva/releases/latest/download/latest.json"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

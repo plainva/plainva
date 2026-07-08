@@ -1,0 +1,12 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Master source of the OS app icon (P7, 2026-07-05; "lines with cursor"
+       variant chosen by the maintainer). Same mark as the in-app PlainvaLogo
+       (rounded square, two "text lines" and a typing cursor), but with FIXED
+       petrol colors instead of theme CSS variables. Regenerate the icon set
+       from apps/desktop with:
+         pnpm tauri icon src-tauri/icons/source/plainva-icon.svg -->
+  <rect x="64" y="64" width="896" height="896" rx="256" fill="#0f766e" />
+  <rect x="288" y="352" width="448" height="86.4" rx="43.2" fill="#ffffff" />
+  <rect x="288" y="531.2" width="243.2" height="86.4" rx="43.2" fill="#ffffff" />
+  <rect x="588.8" y="518.4" width="89.6" height="115.2" rx="28.8" fill="#5eead4" />
+</svg>

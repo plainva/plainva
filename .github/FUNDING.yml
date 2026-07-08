@@ -1,0 +1,6 @@
+# Shows a "Sponsor" button on this repository. Links to the Plainva GitHub
+# organization's Sponsors profile plus one-time (Ko-fi) and recurring
+# (Liberapay) options, matching the funding links on plainva.com.
+github: plainva
+ko_fi: plainva
+liberapay: Plainva

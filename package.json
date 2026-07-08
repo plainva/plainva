@@ -1,0 +1,30 @@
+{
+  "name": "@plainva/monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source, local-first editor for plain Markdown vaults.",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:all": "turbo run test && pnpm --filter desktop test:e2e",
+    "typecheck": "turbo run typecheck",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
+    "husky": "^9.1.7",
+    "turbo": "^2.10.4",
+    "typescript-eslint": "^8.63.0"
+  }
+}

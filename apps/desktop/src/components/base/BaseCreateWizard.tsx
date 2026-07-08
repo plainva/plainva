@@ -1,0 +1,193 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Database, X, Plus, Trash2, Info } from "lucide-react";
+import { useVault } from "../../contexts/VaultContext";
+import { Select } from "../Select";
+import { SourceConditionEditor } from "./SourceConditionEditor";
+import { buildWizardConfig, collectWizardColumns, type WizardColumn, type WizardNewColumn } from "./createWizardModel";
+import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+
+// Creation wizard of a new `.base` (plan W3, P1/P2): step 1 picks the data
+// source (folders/tags, combinable; a brand-new folder starts from zero), step
+// 2 picks the columns from the properties found in the matching notes. The
+// file is only written on "create" — cancelling leaves no file behind.
+export function BaseCreateWizard({
+  fileName,
+  onCreate,
+  onCancel,
+}: {
+  /** Display name of the file being created (e.g. "Projekte.base"). */
+  fileName: string;
+  onCreate: (config: any) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const { queryService, vaultAdapter } = useVault();
+
+  const [clauses, setClauses] = useState<string[]>([]);
+  const [folders, setFolders] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [matchCount, setMatchCount] = useState<number | null>(null);
+  const [columns, setColumns] = useState<WizardColumn[]>([]);
+  const [newColumns, setNewColumns] = useState<WizardNewColumn[]>([]);
+  const [newPropName, setNewPropName] = useState("");
+  const [newPropType, setNewPropType] = useState("text");
+
+  useEffect(() => {
+    if (!queryService) return;
+    queryService.getAllFolders().then(setFolders).catch(console.error);
+    queryService.getAllTags().then((all) => setTags(all.map((x) => x.tag))).catch(console.error);
+  }, [queryService]);
+
+  // Probe query on every source change: the match count and the property union
+  // drive step 2. No source selected -> no query (a vault-wide scan is never
+  // done implicitly; P1 requires at least one folder or tag).
+  useEffect(() => {
+    let cancelled = false;
+    if (!queryService || clauses.length === 0) {
+      setMatchCount(null);
+      setColumns([]);
+      return;
+    }
+    queryService
+      .queryDatabaseFiles({ filters: { and: clauses }, views: [{ type: "table" }] })
+      .then((rows) => {
+        if (cancelled) return;
+        setMatchCount(rows.length);
+        setColumns((prev) => collectWizardColumns(rows, prev));
+      })
+      .catch((e) => { if (!cancelled) { console.error("Wizard probe query failed", e); setMatchCount(null); } });
+    return () => { cancelled = true; };
+  }, [queryService, clauses]);
+
+  const createFolder = async (path: string): Promise<boolean> => {
+    if (!vaultAdapter) return false;
+    try {
+      await vaultAdapter.createDir(path);
+      return true;
+    } catch (e) {
+      try {
+        if (await vaultAdapter.exists(path)) return true;
+      } catch { /* fall through to failure */ }
+      console.error("Failed to create folder in the base wizard", path, e);
+      return false;
+    }
+  };
+
+  const takenNames = new Set([...columns.map((c) => c.name), ...newColumns.map((c) => c.name)]);
+  const newPropInvalid = !newPropName.trim() || takenNames.has(newPropName.trim()) || newPropName.trim().startsWith("file.");
+  const addNewProp = () => {
+    if (newPropInvalid) return;
+    setNewColumns((prev) => [...prev, { name: newPropName.trim(), input: newPropType }]);
+    setNewPropName("");
+    setNewPropType("text");
+  };
+
+  const canCreate = clauses.length > 0;
+  const stepBadge = (n: string) => (
+    <span style={{ background: "var(--bg-active)", color: "var(--accent-color)", fontSize: "0.7rem", fontWeight: 600, padding: "1px 8px", borderRadius: "var(--radius-pill)", flexShrink: 0 }}>{n}</span>
+  );
+
+  return (
+    <div className="pv-modal-overlay" onMouseDown={onCancel}>
+      <div className="pv-modal-card" style={{ width: 560 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="pv-modal-head">
+          <span className="pv-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Database size={16} color="var(--accent-color)" />
+            {t("database.wizardTitle", "Neue Datenbank")}: {fileName}
+          </span>
+          <button type="button" className="pv-icon-btn" aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex" }}><X size={16} /></button>
+        </div>
+
+        <div className="pv-modal-section">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {stepBadge("1")}
+            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-main)" }}>{t("database.sourceConfig", "Datenquelle")}</span>
+          </div>
+          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
+          <SourceConditionEditor
+            conditions={clauses.map((clause, idx) => ({ clause, idx }))}
+            folders={folders}
+            tags={tags}
+            t={t}
+            onAdd={(clause) => setClauses((prev) => (prev.includes(clause) ? prev : [...prev, clause]))}
+            onRemoveAt={(idx) => setClauses((prev) => prev.filter((_, i) => i !== idx))}
+            onCreateFolder={createFolder}
+          />
+          {matchCount !== null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-active)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "0.82rem", color: "var(--text-main)" }}>
+              <Info size={14} color="var(--accent-color)" />
+              {t("database.wizardMatches", { count: matchCount, defaultValue: "{{count}} Notizen entsprechen dieser Quelle" })}
+            </div>
+          )}
+        </div>
+
+        <div className="pv-modal-section" style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {stepBadge("2")}
+            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-main)" }}>{t("database.properties", "Eigenschaften")}</span>
+          </div>
+          {clauses.length === 0 && <div style={{ fontSize: "0.8rem", color: "var(--text-faint)", fontStyle: "italic" }}>{t("database.wizardNoSource", "Zuerst oben eine Quelle wählen.")}</div>}
+          {clauses.length > 0 && (
+            <>
+              {columns.length > 0 && <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("database.wizardColumnsHint", "In den gefundenen Notizen vorhandene Eigenschaften – als Spalten übernehmen?")}</div>}
+              <div style={{ display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" }}>
+                {columns.map((col) => (
+                  <label key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
+                    <input type="checkbox" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
+                    {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
+                    <span className="base-cfg-badge" title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
+                  </label>
+                ))}
+                {newColumns.map((col) => (
+                  <div key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
+                    <input type="checkbox" checked readOnly disabled />
+                    {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
+                    <span className="base-cfg-badge">{t("database.newProperty", "Neue Eigenschaft")}</span>
+                    <button onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <input
+                  type="text"
+                  className="base-cfg-input"
+                  style={{ flex: 1, minWidth: 0 }}
+                  placeholder={t("database.propertyNamePlaceholder", "Name der Eigenschaft...")}
+                  value={newPropName}
+                  onChange={(e) => setNewPropName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addNewProp(); }}
+                />
+                <div style={{ width: 150, flexShrink: 0 }}>
+                  <Select
+                    ariaLabel={t("properties.type", { defaultValue: "Typ" })}
+                    value={newPropType}
+                    size="sm"
+                    minWidth={60}
+                    onChange={setNewPropType}
+                    options={baseInputTypeOptions(t)}
+                  />
+                </div>
+                <button className="base-cfg-addbtn" onClick={addNewProp} disabled={newPropInvalid} style={{ opacity: newPropInvalid ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} />{t("database.add", "Hinzufügen")}</button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
+          <button type="button" className="pv-btn-secondary" onClick={onCancel} style={{ padding: "0.45rem 1rem", cursor: "pointer", background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-main)", borderRadius: "var(--radius-sm)" }}>{t("common.cancel", "Abbrechen")}</button>
+          <button
+            type="button"
+            className="pv-btn-primary"
+            onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
+            disabled={!canCreate}
+            title={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
+            style={{ padding: "0.45rem 1rem", cursor: canCreate ? "pointer" : "default", background: "var(--accent-color)", border: "none", color: "var(--accent-on)", borderRadius: "var(--radius-sm)", opacity: canCreate ? 1 : 0.5 }}
+          >
+            {t("database.wizardCreate", "Datenbank erstellen")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

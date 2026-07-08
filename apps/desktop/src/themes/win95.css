@@ -1,0 +1,246 @@
+/*
+ * Windows 95 — retro desktop homage (maintainer request 2026-07-05; authentic
+ * rework + easter-egg gating 2026-07-06). Light only (mode pinned via the
+ * registry). Unlocked by transmitting Scotty's "Hello computer" (Star Trek IV)
+ * in the hailing-frequencies dialog. "Windows" is a Microsoft trademark — see
+ * docs/engineering/Theme_Platform.md for the attribution note (same handling
+ * as LCARS/CBS-Paramount).
+ *
+ * Authenticity notes (maintainer feedback "zu viel Grau, muss mehr wie
+ * Windows aussehen"): the palette uses the NEUTRAL system colors of the era —
+ * ButtonFace #C0C0C0, ButtonShadow #808080, ButtonLight #DFDFDF, ButtonHilight
+ * #FFFFFF, WindowFrame #0A0A0A — not warm-tinted grays. The three signature
+ * anchors: the TEAL desktop (#008080) behind the document panes, the NAVY
+ * title bar (#000080) with white lettering, and the two-step 3D bevels
+ * (box-shadow stacks, light from the upper left).
+ *
+ * Structural rules must never touch display/visibility/pointer-events or hide
+ * focus (platform contract, see App.css).
+ */
+[data-theme-name="win95"][data-theme="light"] {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #C0C0C0;
+  --bg-hover: #B0B0B0;
+  --bg-active: rgba(0, 0, 128, 0.16);
+  --text-main: #000000;
+  --text-muted: #3F3F3F;
+  --text-faint: #6E6E6E;
+  --accent-color: #000080;
+  --accent-color-hover: #1F1F9E;
+  --accent-on: #FFFFFF;
+  --border-color: #808080;
+  --border-color-light: #A6A6A6;
+  --error-bg: #FFE4E4;
+  --error-border: #AA0000;
+  --error-text: #AA0000;
+
+  --overlay-bg: rgba(64, 64, 64, 0.45);
+
+  --selection-bg: rgba(0, 0, 128, 0.25);
+  --active-line-bg: rgba(0, 0, 128, 0.05);
+  --code-bg: #F2F2F2;
+  --quote-border: #808080;
+  --highlight-bg: #FFF3A0;
+
+  /* The signature teal desktop behind the document panes, plus the navy
+     window title bar (tokens consumed by App/TitleBar inline styles). */
+  --canvas-bg: #008080;
+  --titlebar-bg: #000080;
+  --titlebar-fg: #FFFFFF;
+  --titlebar-fg-muted: #C8C8E8;
+  --titlebar-hover: #1F1F9E;
+
+  /* The era's UI face. Tahoma shipped with the 95 era (Plus!/Office); the
+     MS Sans Serif successors follow as fallbacks. */
+  --font-ui: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", "Segoe UI", Verdana, Arial, sans-serif;
+  --font-content: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", "Segoe UI", Verdana, Arial, sans-serif;
+
+  /* Hard corners everywhere — pills become rectangles on purpose. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-pill: 0px;
+
+  /* Depth comes from bevels; menus/modals get one hard offset shadow. */
+  --shadow-1: none;
+  --shadow-2: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-3: 3px 3px 0 rgba(0, 0, 0, 0.35);
+
+  /* Square scrollbars (thumb painted below with a real bevel). */
+  --scrollbar-thumb: #A6A6A6;
+  --scrollbar-thumb-hover: #808080;
+}
+
+/* ------------------------------------------------------------------ */
+/* Structure — the raised/sunken bevel language, theme-scoped.         */
+/*                                                                     */
+/* Classic two-step bevels as inset box-shadow stacks (light from the  */
+/* upper left):                                                        */
+/*   raised:  #FFF/#DFDFDF top-left, #0A0A0A/#808080 bottom-right      */
+/*   pressed: inverted                                                 */
+/*   sunken:  #808080/#0A0A0A top-left, #FFF/#DFDFDF bottom-right      */
+/* ------------------------------------------------------------------ */
+
+/* Buttons: raised silver tiles that visibly depress on click. Primary keeps
+   its navy fill (reads like a themed default button). */
+[data-theme-name="win95"] .pv-btn,
+[data-theme-name="win95"] .pv-btn--primary,
+[data-theme-name="win95"] .pv-btn--secondary,
+[data-theme-name="win95"] .pv-btn-primary,
+[data-theme-name="win95"] .pv-btn-secondary,
+[data-theme-name="win95"] .pv-add-btn {
+  border: none;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .pv-btn:active,
+[data-theme-name="win95"] .pv-btn--primary:active,
+[data-theme-name="win95"] .pv-btn--secondary:active,
+[data-theme-name="win95"] .pv-btn-primary:active,
+[data-theme-name="win95"] .pv-btn-secondary:active,
+[data-theme-name="win95"] .pv-add-btn:active {
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #0A0A0A,
+    inset -2px -2px 0 #DFDFDF,
+    inset 2px 2px 0 #808080;
+}
+[data-theme-name="win95"] .pv-btn,
+[data-theme-name="win95"] .pv-btn--secondary,
+[data-theme-name="win95"] .pv-btn-secondary,
+[data-theme-name="win95"] .pv-add-btn {
+  background: #C0C0C0;
+  color: #000000;
+}
+
+/* Inputs sit in sunken white wells. */
+[data-theme-name="win95"] .pv-field,
+[data-theme-name="win95"] .pv-input {
+  background: #FFFFFF;
+  border: none;
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #808080,
+    inset -2px -2px 0 #DFDFDF,
+    inset 2px 2px 0 #0A0A0A;
+}
+
+/* Menus/popovers: raised silver panels with the navy selection bar —
+   the signature Win95 menu look. */
+[data-theme-name="win95"] .pv-menu,
+[data-theme-name="win95"] .pv-popover {
+  background: #C0C0C0;
+  border: none;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #DFDFDF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #FFFFFF,
+    var(--shadow-2);
+}
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled),
+[data-theme-name="win95"] .pv-menu-item:focus-visible {
+  background: #000080;
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled) .pv-menu-ic,
+[data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-ic,
+[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled) .pv-menu-hint,
+[data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-hint {
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-menu-sep {
+  height: 2px;
+  background: none;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #FFFFFF;
+}
+
+/* Modals/peek windows/palettes: silver window with a navy title bar. */
+[data-theme-name="win95"] .pv-modal,
+[data-theme-name="win95"] .pv-modal-card,
+[data-theme-name="win95"] .pv-peek-card,
+[data-theme-name="win95"] .pv-palette {
+  background: #C0C0C0;
+  border: none;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #DFDFDF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #FFFFFF,
+    var(--shadow-3);
+}
+[data-theme-name="win95"] .pv-modal-header {
+  background: #000080;
+}
+[data-theme-name="win95"] .pv-modal-header .pv-modal-heading {
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-modal-header .pv-icon-btn {
+  color: #FFFFFF;
+}
+
+/* Chrome strips: the title bar is the navy window bar (colors via the
+   titlebar tokens above); the status bar reads as classic furniture. */
+[data-theme-name="win95"] header[data-tauri-drag-region] {
+  border-bottom: 1px solid #808080;
+}
+[data-theme-name="win95"] footer[aria-label] {
+  border-top: 2px groove #DFDFDF;
+}
+
+/* Title-bar buttons: silver raised squares with black glyphs on the navy
+   bar — the [_][□][X] look. Hover keeps the silver face (Win95 had no hover
+   states); pressing gives the inverted bevel. */
+[data-theme-name="win95"] header[data-tauri-drag-region] button:not([data-testid="titlebar-logo"]) {
+  background: #C0C0C0;
+  color: #000000;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] header[data-tauri-drag-region] button:not([data-testid="titlebar-logo"]):active {
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #0A0A0A,
+    inset -2px -2px 0 #DFDFDF,
+    inset 2px 2px 0 #808080;
+}
+
+/* Tabs ride the navy bar: the active tab gets a white underline (the accent
+   underline from ui.css would be navy-on-navy) and a light navy fill. */
+[data-theme-name="win95"] .tabstrip [role="tab"] {
+  border-right-color: #1F1F9E !important;
+}
+[data-theme-name="win95"] .tabstrip [role="tab"][aria-selected="true"] {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 -2px 0 #FFFFFF;
+}
+
+/* Scrollbars: silver beveled thumbs on a light track — the global styling
+   paints floating pills, which reads wrong here. */
+[data-theme-name="win95"] ::-webkit-scrollbar-track {
+  background: #DFDFDF;
+}
+[data-theme-name="win95"] ::-webkit-scrollbar-thumb,
+[data-theme-name="win95"] ::-webkit-scrollbar-thumb:hover {
+  background: #C0C0C0;
+  border: none;
+  border-radius: 0;
+  background-clip: border-box;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] ::-webkit-scrollbar-corner {
+  background: #DFDFDF;
+}

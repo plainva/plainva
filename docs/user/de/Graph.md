@@ -1,0 +1,47 @@
+# Graph
+
+Stand: 2026-07-07
+
+Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
+
+## Kontext-Graph (rechte Seitenleiste)
+
+Öffne in der rechten Seitenleiste die Sektion **Graph**. Sie zeigt die aktive Notiz in der Mitte, die Ordner-Struktur oben, bei Ordner-Übersichten (index.md) die enthaltenen Notizen unten, eingehende Verweise links und ausgehende rechts. Relationen aus Datenbanken tragen ihren Eigenschaftsnamen als Beschriftung.
+
+- Klick auf einen Knoten öffnet die Notiz (der Fokus wandert mit).
+- Strg/Cmd+Klick öffnet im Split, Mittelklick in einem neuen Tab.
+- Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. **Verlinken** schreibt einen echten Wiki-Link in die Quell-Notiz; **Vorschlag verwerfen** merkt sich die Entscheidung.
+
+## Vault-Karte (eigener Tab)
+
+Öffne die Karte mit **Strg/Cmd+Umschalt+G**, über das Graph-Symbol in der **Aktionsleiste** ganz links oder über die Befehls-Palette (**Graph öffnen**). Sie öffnet sich in einem eigenen Tab. Statt eines Wollknäuels siehst Du Deine echte Ordnerstruktur als Blasen — ein Doppelklick auf eine Blase entfaltet ihre Notizen, **Alle Ordner einklappen** kehrt zurück. Das Layout ist deterministisch: Dieselbe Karte sieht bei jedem Öffnen gleich aus. Verschiebst Du einen Knoten, bleibt er gepinnt (kleiner Punkt); **Layout zurücksetzen** löst alle Pins. Pins werden pro Gerät gespeichert.
+
+Werkzeuge in der Kopfleiste:
+
+- Kantenstile auf einen Blick (Legende unten links): **Relationen** sind durchgezogene Akzent-Linien mit Beschriftung, **Links** gestrichelt, **Embeds** gepunktet.
+- **Suchen** dimmt alles, was nicht passt. Filter nach **Typ** (OKF) und **Tag**; Kantenarten (**Links**, **Relationen**, **Embeds**) sind einzeln zuschaltbar.
+- **Fokus auf Auswahl** reduziert die Karte auf eine gewählte Notiz plus 1–3 Nachbarschafts-Sprünge.
+- **Heatmap** hellt zuletzt bearbeitete Notizen auf (7/30/90 Tage) — „Woran habe ich zuletzt gearbeitet?"
+- **Zeitreise** blendet Notizen nach ihrem Entstehungsdatum ein; der Schieberegler spielt das Wachstum Deines Vaults ab. Das Datum stammt aus einer `date`-/`datum`-Eigenschaft, sonst aus dem Datei-Erstelldatum (bei reinen Cloud-Vaults eine Näherung).
+
+Arbeiten auf der Karte:
+
+- Ziehe einen Knoten **auf** einen anderen: Plainva bietet an, einen Text-Link zu schreiben — oder direkt eine passende **Relation** aus Deinen Datenbanken (erlaubt die Relation genau einen Eintrag, fragt Plainva vor dem Ersetzen).
+- Rechtsklick auf einen Knoten: Öffnen, Peek, Im Split öffnen, **Neue verbundene Notiz**, Umbenennen (mit vault-weitem Link-Update), Lesezeichen, Löschen.
+- Rechtsklick auf freie Fläche: **Neue Notiz**, Layout zurücksetzen, **Als PNG/SVG exportieren**.
+- Klick auf ein Kanten-Bündel zwischen Ordnern listet die einzelnen Verknüpfungen; beim Überfahren einer Kante zeigt ein Tooltip den Satz, in dem der Link steht.
+- Umschalt+Ziehen wählt mehrere Notizen aus (Fußzeile: Lesezeichen/Löschen für die Auswahl).
+
+## Aufräumen
+
+Der Knopf **Aufräumen** öffnet eine Arbeitsliste mit drei Reitern: **Waisen** (Notizen ohne Verbindungen), **Kaputte Links** (Ziele, die es nicht gibt — **Notiz erstellen** legt sie an) und **Erwähnungen** (**Vault scannen** findet Stellen, an denen eine Notiz beim Namen genannt, aber nicht verlinkt ist; **Verlinken** macht aus der Fundstelle einen Wiki-Link). Die Fußzeile der Karte zeigt die Waisen-Zahl — ein Klick darauf öffnet das Panel.
+
+## Graph als Datenbank-Ansicht
+
+Jede `.base`-Datenbank kann eine **Graph**-Ansicht bekommen (Ansicht hinzufügen → **Graph**): Die Zeilen der Datenbank werden zu Knoten, Deine **Relationen** zu beschrifteten Kanten. In der Kopfleiste wählst Du die Kanten-Eigenschaften, **Farbe nach** einer Auswahl-Eigenschaft, **Größe nach** einer Zahl und ob **externe Ziele** (Relationen aus der Datenbank hinaus) oder **eingehende Relationen** (Relationen aus anderen Datenbanken, die auf diese Einträge zeigen — z. B. die Aufgaben eines Projekts) erscheinen. Die Ansicht wird Obsidian-kompatibel gespeichert — Obsidian zeigt dieselbe Datei als Tabelle.
+
+## Grenzen
+
+- Der Graph zeigt Notizen (Dateien), keine einzelnen Absätze.
+- Pins und verworfene Vorschläge liegen unter `.plainva/` und wandern nicht mit dem Sync — das Grund-Layout ist auf jedem Gerät identisch.
+- Vorschläge sind reine Vault-Analysen; nichts verlässt Deinen Rechner.

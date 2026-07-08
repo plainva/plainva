@@ -1,0 +1,37 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Weekly scheduled scan is omitted while the repo is private (code scanning
+  # needs GitHub Advanced Security, which is free only on public repos). Re-add
+  # at go-public:
+  #   schedule:
+  #     - cron: "30 4 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (JavaScript/TypeScript)
+    runs-on: ubuntu-latest
+    # Code scanning requires GitHub Advanced Security, which is free only on public
+    # repos. Skip (not fail) while the repo is private; the job runs automatically
+    # once the repo is public.
+    if: ${{ !github.event.repository.private }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4

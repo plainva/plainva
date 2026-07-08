@@ -1,0 +1,46 @@
+[package]
+name = "plainva-desktop"
+version = "0.1.0"
+description = "Plainva - a Markdown vault editor"
+authors = ["Plainva contributors"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "plainva_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-fs = { version = "2", features = ["watch"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-store = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-http = "^2"
+# OS keychain (ADR 0005, A6). Platform-native backends: macOS Keychain, Windows
+# Credential Manager, Linux Secret Service. NOTE (maintainer): the exact Linux
+# feature/crypto flags below are unverified in the AI harness (no cargo); verify the
+# native build, especially the secret-service/DBus path, before release.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+trash = "5.2.6"
+tauri-plugin-updater = "2.10.1"
+tauri-plugin-process = "2.3.1"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+walkdir = "2.5.0"
+# Direct reqwest for the OAuth token POST (oauth_token_request): a native HTTP client
+# sends NO Origin header, unlike the webview fetch (Azure AADSTS90023). tauri-plugin-http
+# already pulls reqwest 0.12; the rustls-tls feature keeps it OpenSSL-free cross-platform.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

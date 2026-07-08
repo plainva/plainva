@@ -1,0 +1,47 @@
+# Grafo
+
+Stand: 2026-07-07
+
+Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
+
+## Grafo contestuale (barra laterale destra)
+
+Apri la sezione **Grafo** nella barra laterale destra. Mostra la nota attiva al centro, la struttura delle cartelle sopra, per le panoramiche di cartella (index.md) le note contenute sotto, i riferimenti in entrata a sinistra e quelli in uscita a destra. Le relazioni dai database portano il nome della loro proprietà come etichetta.
+
+- Cliccare su un nodo apre la nota (il focus ruota con te).
+- Ctrl/Cmd+clic apre in una divisione, il clic centrale in una nuova scheda.
+- Sotto, compaiono fino a tre **suggerimenti**: note che menzionano la tua nota attiva (ma non la collegano), sono spesso collegate insieme a essa, condividono un vicinato simile o condividono un tag raro. **Collega** scrive un vero wiki-link nella nota di origine; **Ignora suggerimento** ricorda la tua decisione.
+
+## Mappa del vault (scheda dedicata)
+
+Apri la mappa con **Ctrl/Cmd+Shift+G**, tramite l'icona del grafo nella **barra delle azioni** all'estrema sinistra, oppure tramite la palette dei comandi (**Apri grafo**). Si apre in una scheda dedicata. Invece di una matassa, vedi la tua struttura di cartelle reale come bolle — doppio clic su una bolla per aprire le sue note, **Comprimi tutte le cartelle** torna indietro. Il layout è deterministico: la stessa mappa appare uguale ogni volta che la apri. Trascina un nodo e resta fissato (piccolo punto); **Reimposta layout** cancella tutti i fissaggi. I fissaggi sono memorizzati per dispositivo.
+
+Strumenti nella barra dell'intestazione:
+
+- Stili degli archi a colpo d'occhio (legenda, in basso a sinistra): le **relazioni** sono linee di accento continue con un'etichetta, i **collegamenti** sono tratteggiati, gli **incorporamenti** sono punteggiati.
+- **Cerca** attenua tutto ciò che non corrisponde. Filtra per **tipo** (OKF) e **tag**; i tipi di arco (**Collegamenti**, **Relazioni**, **Incorporamenti**) si attivano/disattivano singolarmente.
+- **Focus sulla selezione** riduce la mappa a una nota selezionata più 1–3 salti di vicinato.
+- **Mappa di calore** illumina le note modificate di recente (7/30/90 giorni) — "su cosa stavo lavorando?"
+- **Viaggio nel tempo** mostra le note in base alla loro data di creazione; il cursore riproduce la crescita del tuo vault. La data proviene da una proprietà `date`/`datum`, altrimenti dalla data di creazione del file (un'approssimazione per i vault solo cloud).
+
+Lavorare sulla mappa:
+
+- Trascina un nodo **su** un altro: Plainva propone di scrivere un link di testo — oppure direttamente una **relazione** corrispondente dai tuoi database (se la relazione consente esattamente una voce, Plainva chiede conferma prima di sostituire).
+- Clic destro su un nodo: Apri, Anteprima, Apri nella divisione, **Nuova nota collegata**, Rinomina (con aggiornamento dei link in tutto il vault), Segnalibro, Elimina.
+- Clic destro su uno spazio vuoto: **Nuova nota**, Reimposta layout, **Esporta come PNG/SVG**.
+- Cliccare su un fascio di archi tra cartelle elenca i singoli link; passare il mouse su un arco mostra la frase in cui vive il link.
+- Shift+trascina seleziona più note (piè di pagina: segnalibro/elimina la selezione).
+
+## Pulizia
+
+Il pulsante **Pulizia** apre un elenco di lavoro con tre schede: **Orfane** (note senza connessioni), **Link interrotti** (destinazioni che non esistono — **Crea nota** le crea) e **Menzioni** (**Scansiona il vault** trova i punti in cui una nota viene nominata ma non collegata; **Collega** trasforma l'occorrenza in un wiki-link). Il piè di pagina della mappa mostra il conteggio delle orfane — cliccarci apre il pannello.
+
+## Grafo come vista database
+
+Ogni database `.base` può ottenere una vista **Grafo** (aggiungi vista → **Grafo**): le righe del database diventano nodi, le tue **relazioni** diventano archi etichettati. Nella barra dell'intestazione scegli le proprietà degli archi, **Colore per** una proprietà di selezione, **Dimensione per** un numero e se le **destinazioni esterne** (relazioni che puntano fuori dal database) o le **relazioni in entrata** (relazioni da altri database che puntano a queste voci — ad es. le attività di un progetto) compaiono. La vista è salvata in modo compatibile con Obsidian: Obsidian mostra lo stesso file come una tabella.
+
+## Limiti
+
+- Il grafo mostra note (file), non singoli paragrafi.
+- I fissaggi e i suggerimenti ignorati vivono sotto `.plainva/` e non viaggiano con la sincronizzazione — il layout di base è identico su ogni dispositivo.
+- I suggerimenti sono pure analisi del vault; nulla lascia il tuo computer.

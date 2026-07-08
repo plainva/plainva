@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the workflow that is currently awkward or impossible — that matters more than a specific solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution (optional)
+      description: If you have a concrete idea, sketch it here. Comparisons ("Obsidian/Notion does X") are welcome.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Constraints to keep in mind (optional)
+      description: "Plainva's hard rules: plain Markdown stays canonical, and Obsidian must still be able to open every file."

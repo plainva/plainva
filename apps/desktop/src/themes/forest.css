@@ -1,0 +1,45 @@
+/*
+ * Forest — calm sage and pine green, a sibling of the Petrol default (Plainva
+ * original). Callouts inherit the app defaults, which sit well on both modes.
+ */
+[data-theme-name="forest"][data-theme="light"] {
+  --bg-primary: #F4F7F1;
+  --bg-secondary: #E9EFE4;
+  --bg-hover: #DCE6D5;
+  --bg-active: rgba(63, 122, 82, 0.14);
+  --text-main: #22301F;
+  --text-muted: #4E5F49;
+  --text-faint: #66775F;
+  --accent-color: #3F7A52;
+  --accent-color-hover: #2F6140;
+  --accent-on: #F6FAF4;
+  --border-color: #D3DECB;
+  --border-color-light: #E1E9DA;
+
+  --selection-bg: rgba(63, 122, 82, 0.16);
+  --active-line-bg: rgba(63, 122, 82, 0.05);
+  --code-bg: #E9EFE4;
+  --quote-border: #BFCDB4;
+  --highlight-bg: #D9CB6B45;
+}
+
+[data-theme-name="forest"][data-theme="dark"] {
+  --bg-primary: #121A10;
+  --bg-secondary: #1B2618;
+  --bg-hover: #253321;
+  --bg-active: rgba(127, 176, 138, 0.16);
+  --text-main: #D9E4D3;
+  --text-muted: #9FB199;
+  --text-faint: #839680;
+  --accent-color: #7FB08A;
+  --accent-color-hover: #98C7A2;
+  --accent-on: #0F1A12;
+  --border-color: #2C3B28;
+  --border-color-light: #223020;
+
+  --selection-bg: rgba(127, 176, 138, 0.22);
+  --active-line-bg: rgba(127, 176, 138, 0.06);
+  --code-bg: #1B2618;
+  --quote-border: #35472F;
+  --highlight-bg: #6B662E;
+}

@@ -1,0 +1,52 @@
+{
+  "name": "@plainva/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "description": "Shared Plainva domain logic and early risk-spike tests.",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "benchmark": "tsx scripts/benchmark.ts"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.9.3",
+    "node-diff3": "^3.2.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "better-sqlite3": "^12.11.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
+  },
+  "peerDependenciesMeta": {
+    "sqlite": {
+      "optional": true
+    },
+    "sqlite3": {
+      "optional": true
+    }
+  }
+}

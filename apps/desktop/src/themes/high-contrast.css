@@ -1,0 +1,88 @@
+/*
+ * High Contrast — accessibility-first theme with strong borders, saturated
+ * accents and loud states (Plainva original). Text on background aims well
+ * beyond WCAG AA in both modes.
+ */
+[data-theme-name="high-contrast"][data-theme="light"] {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F2F2F2;
+  --bg-hover: #E0E0E0;
+  --bg-active: rgba(0, 51, 204, 0.18);
+  --text-main: #000000;
+  --text-muted: #262626;
+  --text-faint: #404040;
+  --accent-color: #0033CC;
+  --accent-color-hover: #001F80;
+  --accent-on: #FFFFFF;
+  --border-color: #000000;
+  --border-color-light: #4D4D4D;
+  --error-bg: #FFE8E8;
+  --error-border: #B10000;
+  --error-text: #B10000;
+
+  --selection-bg: rgba(0, 51, 204, 0.25);
+  --active-line-bg: rgba(0, 51, 204, 0.07);
+  --code-bg: #F0F0F0;
+  --quote-border: #000000;
+  --highlight-bg: #FFEB3B;
+
+  --callout-blue: #0033CC;
+  --callout-green: #006600;
+  --callout-amber: #8A6D00;
+  --callout-orange: #B34700;
+  --callout-red: #C00000;
+  --callout-purple: #5A00B3;
+  --callout-gray: #333333;
+  --callout-cyan: #006677;
+  --callout-blue-tint: #0033CC1A;
+  --callout-green-tint: #0066001A;
+  --callout-amber-tint: #8A6D001A;
+  --callout-orange-tint: #B347001A;
+  --callout-red-tint: #C000001A;
+  --callout-purple-tint: #5A00B31A;
+  --callout-gray-tint: #3333331A;
+  --callout-cyan-tint: #0066771A;
+}
+
+[data-theme-name="high-contrast"][data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0D0D0D;
+  --bg-hover: #262626;
+  --bg-active: rgba(255, 213, 0, 0.25);
+  --text-main: #FFFFFF;
+  --text-muted: #E6E6E6;
+  --text-faint: #CCCCCC;
+  --accent-color: #FFD500;
+  --accent-color-hover: #FFE866;
+  --accent-on: #000000;
+  --border-color: #FFFFFF;
+  --border-color-light: #B3B3B3;
+  --error-bg: #330000;
+  --error-border: #FF5C5C;
+  --error-text: #FF8080;
+
+  --overlay-bg: rgba(0, 0, 0, 0.8);
+
+  --selection-bg: rgba(255, 213, 0, 0.35);
+  --active-line-bg: rgba(255, 213, 0, 0.08);
+  --code-bg: #111111;
+  --quote-border: #FFFFFF;
+  --highlight-bg: #806E00;
+
+  --callout-blue: #66A3FF;
+  --callout-green: #66FF66;
+  --callout-amber: #FFD500;
+  --callout-orange: #FF9933;
+  --callout-red: #FF5C5C;
+  --callout-purple: #CC99FF;
+  --callout-gray: #E6E6E6;
+  --callout-cyan: #66FFFF;
+  --callout-blue-tint: #66A3FF1F;
+  --callout-green-tint: #66FF661F;
+  --callout-amber-tint: #FFD5001F;
+  --callout-orange-tint: #FF99331F;
+  --callout-red-tint: #FF5C5C1F;
+  --callout-purple-tint: #CC99FF1F;
+  --callout-gray-tint: #E6E6E61F;
+  --callout-cyan-tint: #66FFFF1F;
+}
