@@ -294,6 +294,65 @@ describe("VaultIndexer", () => {
     expect(params).toContain(content); // base_text == file content
     expect(params).toContain(await sha256Hex(content)); // local_sha256 == text hash
   });
+
+  // indexFile returns whether tree-relevant metadata changed so the editor can
+  // skip the app-wide fileTreeVersion bump on pure prose edits (the autosave
+  // typing-lag fix). The single-file path issues, in order:
+  //   queryOne: existingFileState (files) -> hasPendingQueueOp (offline_queue) -> old plainva (properties)
+  //   query:    getSyncState (sync_state) -> old tags (tags)
+  // so we prime the mock FIFOs to represent the previously-indexed row.
+  it("indexFile returns false when only the body changed (no title/mode/tags/plainva)", async () => {
+    await vaultAdapter.writeTextFile("note.md", "# note\nrewritten body text");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" }, // existingFileState
+      null, // no pending queue op
+      null, // old plainva property (none)
+    ];
+    db.mockedResults = [
+      [], // getSyncState -> none
+      [], // old tags -> none (new tag signature is also empty)
+    ];
+    const changed = await indexer.indexFile({
+      path: "note.md",
+      name: "note.md",
+      isDirectory: false,
+      mtime: 2000,
+      size: 30,
+    });
+    expect(changed).toBe(false);
+  });
+
+  it("indexFile returns true when the title changed", async () => {
+    await vaultAdapter.writeTextFile("note.md", "---\ntitle: New Title\n---\n# note");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "Old Title", mode: "okf" }, // existingFileState
+      null,
+      null,
+    ];
+    db.mockedResults = [[], []];
+    const changed = await indexer.indexFile({
+      path: "note.md",
+      name: "note.md",
+      isDirectory: false,
+      mtime: 2000,
+      size: 40,
+    });
+    expect(changed).toBe(true);
+  });
+
+  it("indexFile returns true for a newly discovered file (no existing row)", async () => {
+    await vaultAdapter.writeTextFile("fresh.md", "# fresh");
+    db.mockedOneResults = [null, null, null]; // no existing files row
+    db.mockedResults = [[], []];
+    const changed = await indexer.indexFile({
+      path: "fresh.md",
+      name: "fresh.md",
+      isDirectory: false,
+      mtime: 2000,
+      size: 7,
+    });
+    expect(changed).toBe(true);
+  });
 });
 
 async function sha256Hex(text: string): Promise<string> {

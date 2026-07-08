@@ -73,6 +73,13 @@ export class VaultIndexer {
   private pendingNewLocalFiles: string[] = [];
   /** External-modification events buffered during the current pass; flushed post-transaction. */
   private pendingExternalMods: { path: string; oldHash: string; newHash: string }[] = [];
+  /**
+   * Set by the single-file index pass: did anything the file tree / tag tree /
+   * doc icons render change (title, mode, tags, plainva namespace)? Read by
+   * `indexFile`/`indexPath` so the UI can skip its app-wide refresh on pure
+   * prose edits. Defaults to true (a fresh pass with no comparison = assume changed).
+   */
+  private lastIndexMetadataChanged = true;
 
   constructor(
     private readonly vaultAdapter: IVaultAdapter,
@@ -129,15 +136,21 @@ export class VaultIndexer {
   /**
    * Indexes a single markdown file into the database.
    * Note: This method opens its own transaction.
+   *
+   * Returns whether tree-relevant metadata (title, mode, tags, plainva
+   * namespace) changed, so the caller can skip the app-wide UI refresh on pure
+   * prose edits. Non-markdown / directories return false (nothing indexed).
    */
-  async indexFile(fileInfo: VaultFileInfo): Promise<void> {
-    if (fileInfo.isDirectory || !fileInfo.name.endsWith(".md")) return;
+  async indexFile(fileInfo: VaultFileInfo): Promise<boolean> {
+    if (fileInfo.isDirectory || !fileInfo.name.endsWith(".md")) return false;
     this.pendingNewLocalFiles = [];
     this.pendingExternalMods = [];
+    this.lastIndexMetadataChanged = true;
     await this.dbAdapter.transaction(async () => {
       await this._indexFileInternal(fileInfo);
     });
     this.flushCallbacks();
+    return this.lastIndexMetadataChanged;
   }
 
   /**
@@ -151,8 +164,8 @@ export class VaultIndexer {
     const sha256 = await sha256Hash(content);
     const existingFileState = lookups
       ? lookups.fileStateById.get(fileId) ?? null
-      : await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null }>(
-          `SELECT sync_state, ctime FROM files WHERE id = ?`,
+      : await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
+          `SELECT sync_state, ctime, title, mode FROM files WHERE id = ?`,
           [fileId]
         );
     const hasPendingQueueOp = lookups
@@ -200,6 +213,38 @@ export class VaultIndexer {
       if (fmResult.success && fmResult.data) {
         if (fmResult.data.title) title = fmResult.data.title;
         if (fmResult.data.type) mode = "okf";
+      }
+
+      // Detect whether anything the FILE TREE / tag tree / doc-icons care about
+      // changed (title, mode, tags, or the plainva presentation namespace). Pure
+      // prose/body-link edits leave this false so the editor can skip the
+      // app-wide fileTreeVersion bump — that fan-out is what made typing lag.
+      // Only computed on the single-file path (bulk full-index ignores it).
+      if (!lookups) {
+        const newTagSig = [...new Set((tags as { name: string }[]).map((tg) => tg.name))].sort().join("\n");
+        const newPlainvaSig =
+          fmResult.success && fmResult.data && fmResult.data.plainva !== undefined
+            ? JSON.stringify(fmResult.data.plainva)
+            : null;
+        const oldTagRows = await this.dbAdapter.query<{ tag: string }>(
+          `SELECT tag FROM tags WHERE file_id = ?`,
+          [fileId]
+        );
+        const oldTagSig = [...new Set(oldTagRows.map((r) => r.tag))].sort().join("\n");
+        const oldPlainvaRow = await this.dbAdapter.queryOne<{ value: string }>(
+          `SELECT value FROM properties WHERE file_id = ? AND key = 'plainva'`,
+          [fileId]
+        );
+        const oldPlainvaSig = oldPlainvaRow?.value ?? null;
+        // In the !lookups branch existingFileState comes from the extended
+        // queryOne (has title/mode); the bulk union type does not, hence the cast.
+        const efs = existingFileState as { title?: string | null; mode?: string | null } | null;
+        this.lastIndexMetadataChanged =
+          !efs ||
+          (efs.title ?? null) !== title ||
+          (efs.mode ?? null) !== mode ||
+          oldTagSig !== newTagSig ||
+          oldPlainvaSig !== newPlainvaSig;
       }
 
       // Delete existing data for this file
