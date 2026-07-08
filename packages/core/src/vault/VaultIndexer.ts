@@ -215,27 +215,36 @@ export class VaultIndexer {
         if (fmResult.data.type) mode = "okf";
       }
 
-      // Detect whether anything the FILE TREE / tag tree / doc-icons care about
-      // changed (title, mode, tags, or the plainva presentation namespace). Pure
-      // prose/body-link edits leave this false so the editor can skip the
-      // app-wide fileTreeVersion bump — that fan-out is what made typing lag.
-      // Only computed on the single-file path (bulk full-index ignores it).
+      // Detect whether anything OUTSIDE the note body changed: title, mode, tags,
+      // or ANY frontmatter property. Views derive from exactly these — the file
+      // tree (title/mode), tag tree (tags), doc icons (plainva.*) AND `.base`
+      // tables/boards (arbitrary frontmatter columns like `status`). The note
+      // BODY only feeds FTS + links, which are rewritten to the DB regardless, so
+      // pure prose typing leaves this false and the editor can skip the app-wide
+      // fileTreeVersion bump — that fan-out is what made typing lag. Frontmatter
+      // is serialized exactly as it is stored below (same strValue rule, sorted),
+      // so the comparison against the DB rows is apples-to-apples. Only computed
+      // on the single-file path (bulk full-index ignores it).
       if (!lookups) {
         const newTagSig = [...new Set((tags as { name: string }[]).map((tg) => tg.name))].sort().join("\n");
-        const newPlainvaSig =
-          fmResult.success && fmResult.data && fmResult.data.plainva !== undefined
-            ? JSON.stringify(fmResult.data.plainva)
-            : null;
+        const newPropPairs: string[] = [];
+        if (fmResult.success && fmResult.data) {
+          for (const [key, value] of Object.entries(fmResult.data)) {
+            const strValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+            newPropPairs.push(`${key}\t${strValue}`);
+          }
+        }
+        const newPropSig = newPropPairs.sort().join("\n");
         const oldTagRows = await this.dbAdapter.query<{ tag: string }>(
           `SELECT tag FROM tags WHERE file_id = ?`,
           [fileId]
         );
         const oldTagSig = [...new Set(oldTagRows.map((r) => r.tag))].sort().join("\n");
-        const oldPlainvaRow = await this.dbAdapter.queryOne<{ value: string }>(
-          `SELECT value FROM properties WHERE file_id = ? AND key = 'plainva'`,
+        const oldPropRows = await this.dbAdapter.query<{ key: string; value: string }>(
+          `SELECT key, value FROM properties WHERE file_id = ?`,
           [fileId]
         );
-        const oldPlainvaSig = oldPlainvaRow?.value ?? null;
+        const oldPropSig = oldPropRows.map((r) => `${r.key}\t${r.value}`).sort().join("\n");
         // In the !lookups branch existingFileState comes from the extended
         // queryOne (has title/mode); the bulk union type does not, hence the cast.
         const efs = existingFileState as { title?: string | null; mode?: string | null } | null;
@@ -244,7 +253,7 @@ export class VaultIndexer {
           (efs.title ?? null) !== title ||
           (efs.mode ?? null) !== mode ||
           oldTagSig !== newTagSig ||
-          oldPlainvaSig !== newPlainvaSig;
+          oldPropSig !== newPropSig;
       }
 
       // Delete existing data for this file

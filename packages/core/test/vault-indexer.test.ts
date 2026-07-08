@@ -298,28 +298,60 @@ describe("VaultIndexer", () => {
   // indexFile returns whether tree-relevant metadata changed so the editor can
   // skip the app-wide fileTreeVersion bump on pure prose edits (the autosave
   // typing-lag fix). The single-file path issues, in order:
-  //   queryOne: existingFileState (files) -> hasPendingQueueOp (offline_queue) -> old plainva (properties)
-  //   query:    getSyncState (sync_state) -> old tags (tags)
+  //   queryOne: existingFileState (files) -> hasPendingQueueOp (offline_queue)
+  //   query:    getSyncState (sync_state) -> old tags (tags) -> old props (properties)
   // so we prime the mock FIFOs to represent the previously-indexed row.
-  it("indexFile returns false when only the body changed (no title/mode/tags/plainva)", async () => {
+  it("indexFile returns false when only the body changed (no frontmatter)", async () => {
     await vaultAdapter.writeTextFile("note.md", "# note\nrewritten body text");
     db.mockedOneResults = [
       { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" }, // existingFileState
       null, // no pending queue op
-      null, // old plainva property (none)
     ];
     db.mockedResults = [
       [], // getSyncState -> none
       [], // old tags -> none (new tag signature is also empty)
+      [], // old properties -> none (new prop signature is also empty)
     ];
     const changed = await indexer.indexFile({
-      path: "note.md",
-      name: "note.md",
-      isDirectory: false,
-      mtime: 2000,
-      size: 30,
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 30,
     });
     expect(changed).toBe(false);
+  });
+
+  it("indexFile returns false when the body of a note WITH unchanged frontmatter changed", async () => {
+    // A `.base` row note: editing its body must NOT force a view refresh, but its
+    // frontmatter (the column values) is unchanged, so metadata is unchanged.
+    await vaultAdapter.writeTextFile("task.md", "---\nstatus: Todo\n---\n# task\nnew body");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "task", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [],
+      [],
+      [{ key: "status", value: "Todo" }], // old properties match the new frontmatter
+    ];
+    const changed = await indexer.indexFile({
+      path: "task.md", name: "task.md", isDirectory: false, mtime: 2000, size: 40,
+    });
+    expect(changed).toBe(false);
+  });
+
+  it("indexFile returns true when a frontmatter property changed (e.g. a .base column)", async () => {
+    await vaultAdapter.writeTextFile("task.md", "---\nstatus: Done\n---\n# task");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "task", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [],
+      [],
+      [{ key: "status", value: "Todo" }], // old status differs -> metadata changed
+    ];
+    const changed = await indexer.indexFile({
+      path: "task.md", name: "task.md", isDirectory: false, mtime: 2000, size: 40,
+    });
+    expect(changed).toBe(true);
   });
 
   it("indexFile returns true when the title changed", async () => {
@@ -327,29 +359,37 @@ describe("VaultIndexer", () => {
     db.mockedOneResults = [
       { sync_state: "synced", ctime: 1000, title: "Old Title", mode: "okf" }, // existingFileState
       null,
+    ];
+    db.mockedResults = [[], [], []];
+    const changed = await indexer.indexFile({
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 40,
+    });
+    expect(changed).toBe(true);
+  });
+
+  it("indexFile returns true when a tag was added", async () => {
+    await vaultAdapter.writeTextFile("note.md", "# note\nBody with #newtag");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" },
       null,
     ];
-    db.mockedResults = [[], []];
+    db.mockedResults = [
+      [],
+      [], // old tags -> none, but the new content has #newtag
+      [],
+    ];
     const changed = await indexer.indexFile({
-      path: "note.md",
-      name: "note.md",
-      isDirectory: false,
-      mtime: 2000,
-      size: 40,
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 30,
     });
     expect(changed).toBe(true);
   });
 
   it("indexFile returns true for a newly discovered file (no existing row)", async () => {
     await vaultAdapter.writeTextFile("fresh.md", "# fresh");
-    db.mockedOneResults = [null, null, null]; // no existing files row
-    db.mockedResults = [[], []];
+    db.mockedOneResults = [null, null]; // no existing files row
+    db.mockedResults = [[], [], []];
     const changed = await indexer.indexFile({
-      path: "fresh.md",
-      name: "fresh.md",
-      isDirectory: false,
-      mtime: 2000,
-      size: 7,
+      path: "fresh.md", name: "fresh.md", isDirectory: false, mtime: 2000, size: 7,
     });
     expect(changed).toBe(true);
   });
