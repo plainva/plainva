@@ -34,7 +34,7 @@ export function StatusBar() {
   const { syncWorker, vaultPath } = useVault();
   // Sync status via the external store (P3/E2), with anti-flicker: a no-op
   // poll cycle every 15 s must not blink the icon.
-  const { status: syncStatus } = useDisplaySyncStatus();
+  const { status: syncStatus, progress: syncProgress } = useDisplaySyncStatus();
   const [doc, setDoc] = useState<ActiveDoc>(() => activeDocument.get());
   const [stats, setStats] = useState<Stats | null>(null);
   // Selection-aware counts (P3.9): while text is selected in the active
@@ -130,7 +130,17 @@ export function StatusBar() {
     const icon = syncStatus === "syncing"
       ? <RefreshCw size={12} className="spin-animation" />
       : <Cloud size={12} />;
-    return <span data-tip={syncStatus === "syncing" ? t("sync.syncing") : t("sync.idle")} style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent-color)", fontWeight: 600 }}>{icon}{t("statusbar.online", { defaultValue: "Online" })}</span>;
+    // On a long/initial sync, surface the running count (WP6) so the user can see
+    // it is working through the vault rather than just a spinning icon. The phase
+    // (downloading vs uploading) goes into the tooltip.
+    const showCount = syncStatus === "syncing" && syncProgress && syncProgress.total > 0;
+    const label = showCount
+      ? t("sync.syncingCount", { current: syncProgress!.current, total: syncProgress!.total, defaultValue: "Sync {{current}}/{{total}}" })
+      : t("statusbar.online", { defaultValue: "Online" });
+    const tip = showCount
+      ? t(syncProgress!.phase === "push" ? "sync.uploading" : "sync.downloading", { current: syncProgress!.current, total: syncProgress!.total, defaultValue: "{{current}}/{{total}}" })
+      : syncStatus === "syncing" ? t("sync.syncing") : t("sync.idle");
+    return <span data-tip={tip} style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent-color)", fontWeight: 600 }}>{icon}{label}</span>;
   };
 
   return (

@@ -13,6 +13,11 @@ function Probe() {
   return <output>{snap.status}</output>;
 }
 
+function ProgressProbe() {
+  const snap = useDisplaySyncStatus(400);
+  return <output>{`${snap.status}:${snap.progress?.current ?? "-"}/${snap.progress?.total ?? "-"}`}</output>;
+}
+
 /**
  * Regression for the read-mode Mermaid flicker: the sync worker flips
  * idle→syncing→idle every 15 s poll. A consumer that re-rendered on each flip
@@ -65,5 +70,20 @@ describe("useDisplaySyncStatus", () => {
     act(() => root.render(<Probe />));
     act(() => { syncStatusStore.set({ status: "error", message: "boom" }); });
     expect(shown()).toBe("error");
+  });
+
+  it("flows progress updates through once syncing is revealed, without re-collapsing (WP6)", () => {
+    act(() => root.render(<ProgressProbe />));
+    act(() => { syncStatusStore.set({ status: "syncing", progress: { phase: "pull", current: 1, total: 10 } }); });
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(shown()).toBe("syncing:1/10");
+
+    // A later progress tick (status stays syncing) updates the count in place.
+    act(() => { syncStatusStore.set({ progress: { phase: "pull", current: 7, total: 10 } }); });
+    expect(shown()).toBe("syncing:7/10");
+
+    // Cycle end clears progress and returns to idle.
+    act(() => { syncStatusStore.set({ status: "idle", progress: null }); });
+    expect(shown()).toBe("idle:-/-");
   });
 });

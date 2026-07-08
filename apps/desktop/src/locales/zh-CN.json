@@ -388,6 +388,11 @@
   "sync": {
     "error": "同步出错——点击查看详情并重试",
     "syncing": "同步中…",
+    "syncingCount": "同步 {{current}}/{{total}}",
+    "downloading": "正在下载更改… {{current}}/{{total}}",
+    "uploading": "正在上传更改… {{current}}/{{total}}",
+    "firstSyncTitle": "已开始首次同步",
+    "firstSyncBody": "Plainva 正在首次将你的笔记与云端同步。根据笔记数量，这可能需要几分钟。你可以继续工作——右下角的状态栏会显示进度。",
     "idle": "立即同步(含重试)",
     "none": "为此仓库配置一个同步服务商（WebDAV、Google Drive、OneDrive、Dropbox或S3）以启用同步。",
     "disconnect": "断开同步",

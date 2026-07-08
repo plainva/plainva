@@ -115,6 +115,8 @@ export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 /** One-time vault-open conversion offer; a dismissal is remembered per vault. */
 export const okfPromptDismissedKey = (vaultPath: string) => `okfPromptDismissed_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** One-time "initial sync may take a while" notice, shown once per vault (WP6). */
+export const syncFirstNoticeKey = (vaultPath: string) => `syncFirstNotice_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 // Global tracker to prevent double-loads in React Strict Mode
 let activeLoadPath: string | null = null;
@@ -384,7 +386,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             syncWorker.onStatusChange = (status, errorMsg) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app.
-              syncStatusStore.set({ status, message: errorMsg || null });
+              syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+            };
+            syncWorker.onProgress = (progress) => {
+              // Coarse cycle progress for the status bar (WP6); throttled in core.
+              syncStatusStore.set({ progress });
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the

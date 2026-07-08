@@ -21,14 +21,21 @@ export class SyncEngine {
     private readonly stateRepo?: SyncStateRepository
   ) {}
 
-  public async processQueue(isAborted?: () => boolean): Promise<void> {
+  public async processQueue(
+    isAborted?: () => boolean,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<void> {
     const pending = await this.queue.getPendingOperations();
     if (pending.length > 0) {
       console.log(`[SyncEngine] pushing ${pending.length} pending operation(s)`);
     }
     let consecutiveFailures = 0;
+    let pushIdx = 0;
     for (let op of pending) {
       if (isAborted && isAborted()) break;
+      // Progress ticks for the status bar (WP6); the desktop throttles rendering.
+      if (onProgress) onProgress(pushIdx, pending.length);
+      pushIdx++;
       try {
          if (op.operation === "write") {
             try {

@@ -388,6 +388,11 @@
   "sync": {
     "error": "Sync error – click for details and retry",
     "syncing": "Syncing...",
+    "syncingCount": "Sync {{current}}/{{total}}",
+    "downloading": "Downloading changes… {{current}}/{{total}}",
+    "uploading": "Uploading changes… {{current}}/{{total}}",
+    "firstSyncTitle": "Initial sync started",
+    "firstSyncBody": "Plainva is syncing your notes with the cloud for the first time. Depending on how many there are, this can take a few minutes. You can keep working — the progress is shown in the status bar at the bottom right.",
     "idle": "Sync now (including retry)",
     "none": "Configure a sync provider (WebDAV, Google Drive, OneDrive, Dropbox or S3) for this vault to enable synchronization.",
     "disconnect": "Disconnect sync",

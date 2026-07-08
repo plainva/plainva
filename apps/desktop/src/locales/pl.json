@@ -388,6 +388,11 @@
   "sync": {
     "error": "Błąd synchronizacji – kliknij, aby zobaczyć szczegóły i ponowić",
     "syncing": "Synchronizowanie...",
+    "syncingCount": "Sync {{current}}/{{total}}",
+    "downloading": "Pobieranie zmian… {{current}}/{{total}}",
+    "uploading": "Wysyłanie zmian… {{current}}/{{total}}",
+    "firstSyncTitle": "Rozpoczęto pierwszą synchronizację",
+    "firstSyncBody": "Plainva po raz pierwszy synchronizuje Twoje notatki z chmurą. W zależności od ich liczby może to potrwać kilka minut. Możesz dalej pracować — postęp jest widoczny na pasku stanu w prawym dolnym rogu.",
     "idle": "Synchronizuj teraz (z ponowieniem)",
     "none": "Skonfiguruj dostawcę synchronizacji (WebDAV, Google Drive, OneDrive, Dropbox lub S3) dla tego vaultu, aby włączyć synchronizację.",
     "disconnect": "Rozłącz synchronizację",

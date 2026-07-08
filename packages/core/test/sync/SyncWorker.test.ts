@@ -55,6 +55,27 @@ describe("SyncWorker", () => {
     expect(engine.processQueue).toHaveBeenCalled();
   });
 
+  it("emits pull progress carrying the remote listing size, then clears it (WP6)", async () => {
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "1"], ["b.md", "2"]]) });
+    target.download.mockResolvedValue(new TextEncoder().encode("x"));
+    const progress: Array<{ phase: string; current: number; total: number } | null> = [];
+    worker.onProgress = (p) => progress.push(p);
+
+    await worker.runCycle();
+
+    const pullTicks = progress.filter((p): p is { phase: string; current: number; total: number } => p?.phase === "pull");
+    expect(pullTicks.length).toBeGreaterThan(0);
+    expect(pullTicks.every((p) => p.total === 2)).toBe(true);
+    expect(pullTicks[pullTicks.length - 1].current).toBe(2);
+    // The cycle clears progress with a terminal null.
+    expect(progress[progress.length - 1]).toBeNull();
+  });
+
+  it("passes an abort + progress callback into the push engine (WP6)", async () => {
+    await worker.runCycle();
+    expect(engine.processQueue).toHaveBeenCalledWith(expect.any(Function), expect.any(Function));
+  });
+
   it("should skip re-downloading when the remote etag is unchanged", async () => {
     target.pull.mockResolvedValueOnce({
       etagMap: new Map([["stable.md", "etag-1"]])

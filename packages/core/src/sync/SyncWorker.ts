@@ -36,6 +36,19 @@ export function isLocalOnlyPath(path: string): boolean {
 
 export type SyncStatus = "idle" | "syncing" | "error";
 
+/**
+ * Coarse progress of the running cycle (WP6): which phase (pulling the remote
+ * listing vs pushing the local queue) and how far through it. `total` is known
+ * upfront (remote listing size / pending-operation count); emission is throttled
+ * so a fast no-op poll never floods the UI. Surfaced only while "syncing" is
+ * actually shown (past the anti-flicker delay), i.e. on long/initial syncs.
+ */
+export interface SyncProgress {
+  phase: "pull" | "push";
+  current: number;
+  total: number;
+}
+
 /** Upper bound for the adaptive pull backoff (a failing server is retried at most this slowly). */
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
 
@@ -52,9 +65,24 @@ export class SyncWorker {
    * OS filesystem-watch reliability.
    */
   public onFilesChanged?: (paths: string[]) => void;
+  /**
+   * Coarse cycle progress for the status bar (WP6). Throttled to ~7/s via
+   * `lastProgressAt`; the terminal `null` marks "no active progress".
+   */
+  public onProgress?: (progress: SyncProgress | null) => void;
+  private lastProgressAt = 0;
   private currentStatus: SyncStatus = "idle";
   /** Consecutive failed cycles; drives the adaptive pull backoff (reset on success). */
   private consecutiveFailures = 0;
+
+  private emitProgress(phase: "pull" | "push", current: number, total: number) {
+    if (!this.onProgress || total <= 0) return;
+    const now = Date.now();
+    // Always emit the final tick; throttle the rest so no-op polls stay quiet.
+    if (current < total && now - this.lastProgressAt < 150) return;
+    this.lastProgressAt = now;
+    this.onProgress({ phase, current, total });
+  }
 
   constructor(
     private readonly engine: SyncEngine,
@@ -261,8 +289,11 @@ export class SyncWorker {
       const stateMap = await this.stateRepo.getAllStates();
 
       // 2. Reconcile each remote file against local state.
+      const pullTotal = pullResult.etagMap.size;
+      let pullIdx = 0;
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (!this.isRunning) break;
+        this.emitProgress("pull", ++pullIdx, pullTotal);
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
@@ -420,13 +451,17 @@ export class SyncWorker {
       if (!this.isRunning) return;
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
-      await this.engine.processQueue(() => !this.isRunning);
+      await this.engine.processQueue(
+        () => !this.isRunning,
+        (current, total) => this.emitProgress("push", current, total)
+      );
 
       if (changedPaths.length > 0 && this.onFilesChanged) {
         this.onFilesChanged(changedPaths);
       }
 
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote)`);
+      this.onProgress?.(null); // clear progress; the cycle's work is done
       this.consecutiveFailures = 0;
       if (deletionMirroringSuspended) {
         // Pull/push worked, but the listing looked broken — the user must learn
@@ -439,6 +474,7 @@ export class SyncWorker {
     } catch (error) {
       this.consecutiveFailures++;
       console.error("[SyncWorker] cycle error:", error);
+      this.onProgress?.(null);
       this.setStatus("error", error instanceof Error ? error.message : String(error));
     }
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { Store } from "@tauri-apps/plugin-store";
-import { useVault, STORE_KEY, okfPromptDismissedKey, type SyncProviderId } from "./contexts/VaultContext";
+import { useVault, STORE_KEY, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId } from "./contexts/VaultContext";
 import { useDisplaySyncStatus } from "./services/syncStatusStore";
 import type { SyncWorker } from "@plainva/core";
 import { scanVaultOkf } from "./services/okfConversion";
@@ -37,7 +37,7 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
-import { appConfirm } from "./services/appDialogs";
+import { appConfirm, appMessage } from "./services/appDialogs";
 import { toast } from "./services/toastStore";
 import { Button } from "./components/ui/Button";
 import { CommandPalette } from "./components/CommandPalette";
@@ -141,6 +141,28 @@ function App() {
       }
     })();
   }, [vaultPath, isLoading, vaultAdapter, queryService, t]);
+  // One-time notice when an online vault is first connected (WP6): the initial
+  // sync can take a while for large vaults. Shown once per vault; the running
+  // count then lives in the status bar. `isNewConnection` fires once at OAuth /
+  // first-save completion for every provider.
+  useEffect(() => {
+    const onCredsSaved = (e: Event) => {
+      if (!(e as CustomEvent).detail?.isNewConnection || !vaultPath) return;
+      void (async () => {
+        try {
+          const store = await Store.load(STORE_KEY);
+          if (await store.get<boolean>(syncFirstNoticeKey(vaultPath))) return;
+          await store.set(syncFirstNoticeKey(vaultPath), true);
+          await store.save();
+          await appMessage({ title: t("sync.firstSyncTitle"), message: t("sync.firstSyncBody") });
+        } catch (err) {
+          console.warn("[App] first-sync notice failed", err);
+        }
+      })();
+    };
+    window.addEventListener("plainva-credentials-saved", onCredsSaved);
+    return () => window.removeEventListener("plainva-credentials-saved", onCredsSaved);
+  }, [vaultPath, t]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);

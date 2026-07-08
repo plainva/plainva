@@ -388,6 +388,11 @@
   "sync": {
     "error": "Synchronisatiefout – klik voor details en een nieuwe poging",
     "syncing": "Synchroniseren...",
+    "syncingCount": "Sync {{current}}/{{total}}",
+    "downloading": "Wijzigingen downloaden… {{current}}/{{total}}",
+    "uploading": "Wijzigingen uploaden… {{current}}/{{total}}",
+    "firstSyncTitle": "Eerste synchronisatie gestart",
+    "firstSyncBody": "Plainva synchroniseert je notities voor het eerst met de cloud. Afhankelijk van het aantal kan dit enkele minuten duren. Je kunt blijven werken — de voortgang staat rechtsonder in de statusbalk.",
     "idle": "Nu synchroniseren (inclusief nieuwe poging)",
     "none": "Configureer een sync-provider (WebDAV, Google Drive, OneDrive, Dropbox of S3) voor deze vault om synchronisatie in te schakelen.",
     "disconnect": "Synchronisatie ontkoppelen",

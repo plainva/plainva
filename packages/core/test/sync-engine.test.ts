@@ -73,6 +73,18 @@ describe("SyncEngine", () => {
     expect(deleteParams[0]).toBe(1); // queueId
   });
 
+  it("reports push progress per pending operation (WP6)", async () => {
+    db.mockedResults.push([
+      { id: 1, file_path: "test.md", operation: "write", content: new Uint8Array([1]), retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([]); // For markSynced
+
+    const ticks: Array<[number, number]> = [];
+    await engine.processQueue(undefined, (c, t) => ticks.push([c, t]));
+
+    expect(ticks[0]).toEqual([0, 1]);
+  });
+
   it("applies exponential backoff on failure", async () => {
     db.mockedResults.push([
       { id: 2, file_path: "fail.md", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 }

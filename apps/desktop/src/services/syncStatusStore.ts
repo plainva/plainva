@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus } from "@plainva/core";
+import type { SyncStatus, SyncProgress } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { logDiagnostic } from "./diagnosticsLog";
 
@@ -15,9 +15,11 @@ export interface SyncStatusSnapshot {
   message: string | null;
   /** Provider of the running sync worker (error UI deep-links into its form). */
   provider: SyncProviderId | null;
+  /** Coarse progress of the current cycle (WP6); null = no active progress. */
+  progress: SyncProgress | null;
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null };
 
 let snapshot: SyncStatusSnapshot = IDLE;
 const listeners = new Set<() => void>();
@@ -69,7 +71,14 @@ export function useSyncStatus(): SyncStatusSnapshot {
 }
 
 function sameSnap(a: SyncStatusSnapshot, b: SyncStatusSnapshot): boolean {
-  return a.status === b.status && a.message === b.message && a.provider === b.provider;
+  return (
+    a.status === b.status &&
+    a.message === b.message &&
+    a.provider === b.provider &&
+    a.progress?.phase === b.progress?.phase &&
+    a.progress?.current === b.progress?.current &&
+    a.progress?.total === b.progress?.total
+  );
 }
 
 /** The displayed snapshot with "syncing" collapsed to "idle" (anti-flicker). */
@@ -96,21 +105,32 @@ export function useDisplaySyncStatus(delayMs = 400): SyncStatusSnapshot {
   const [display, setDisplay] = useState<SyncStatusSnapshot>(() => displayOf(syncStatusStore.get(), false));
   useEffect(() => {
     let timer: number | null = null;
-    const apply = (next: SyncStatusSnapshot) => setDisplay((prev) => (sameSnap(prev, next) ? prev : next));
+    // Once "syncing" has been revealed (past the delay) it stays shown until the
+    // status leaves syncing — so progress ticks (WP6) update the count in place
+    // instead of re-collapsing the display to idle on every emit.
+    let revealed = false;
+    const commit = (next: SyncStatusSnapshot) => setDisplay((prev) => (sameSnap(prev, next) ? prev : next));
     const recompute = () => {
       const snap = syncStatusStore.get();
       if (snap.status === "syncing") {
-        // Keep the last non-syncing display until the delay elapses.
-        apply(displayOf(snap, false));
+        if (revealed) {
+          commit(snap); // already shown -> flow updates (progress) straight through
+          return;
+        }
+        commit(displayOf(snap, false)); // keep the last non-syncing display
         if (timer === null) {
           timer = window.setTimeout(() => {
             timer = null;
-            if (syncStatusStore.get().status === "syncing") apply(syncStatusStore.get());
+            if (syncStatusStore.get().status === "syncing") {
+              revealed = true;
+              commit(syncStatusStore.get());
+            }
           }, delayMs);
         }
       } else {
         if (timer !== null) { window.clearTimeout(timer); timer = null; }
-        apply(snap);
+        revealed = false;
+        commit(snap);
       }
     };
     const unsub = syncStatusStore.subscribe(recompute);
