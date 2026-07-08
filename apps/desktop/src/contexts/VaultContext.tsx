@@ -128,12 +128,13 @@ export const syncFirstNoticeKey = (vaultPath: string) => `syncFirstNotice_${btoa
  * one transaction), which made saving very slow. The index now lives in the OS
  * app-data dir — only the DB moves, backups stay in the vault.
  *
- * On the FIRST run at the new location we best-effort copy an existing in-vault
- * DB (+ WAL/SHM sidecars) so the index AND the sync state carry over untouched:
- * no reindex, and no spurious `.CONFLICT` files (the sync base is preserved).
- * Any failure falls back cleanly — a fresh DB (reindex; still conflict-free for
- * in-sync vaults thanks to the content-equality check) or, if app-data is
- * unavailable, the old in-vault path.
+ * When an existing in-vault DB is found, we migrate it (copy the DB + WAL/SHM
+ * sidecars) so the index AND the sync state carry over untouched — no reindex,
+ * no spurious `.CONFLICT`. CRITICAL: we only switch to the app-data DB when that
+ * migration actually succeeds (or there is no old DB = a genuinely new vault).
+ * If the copy fails, we keep using the WARM in-vault DB instead of pointing at a
+ * fresh, empty app-data DB — otherwise a failed copy would silently trigger a
+ * full re-index of the whole vault on startup, and repeat it every launch.
  */
 async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
   const oldAbs = `${vaultPath}/.plainva/vault.db`;
@@ -142,18 +143,31 @@ async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
     const dir = `${dataDir}/index`;
     await mkdir(dir, { recursive: true });
     const newAbs = `${dir}/${await indexDbFileName(vaultPath)}`;
-    if (!(await fsExists(newAbs)) && (await fsExists(oldAbs))) {
-      // Migrate the (closed) in-vault DB. Copying the WAL/SHM too avoids losing
-      // an un-checkpointed tail; each part is best-effort — a missing/failed
-      // sidecar just means a slightly stale index that the next save reconciles.
-      for (const suffix of ["", "-wal", "-shm"]) {
-        try {
-          if (await fsExists(oldAbs + suffix)) {
-            await writeFile(newAbs + suffix, await readFile(oldAbs + suffix));
-          }
-        } catch (e) {
-          console.warn(`[VaultContext] index DB migration (${suffix || "db"}) failed; continuing`, e);
-        }
+
+    // Already relocated (or a fresh vault whose DB was created here before): use it.
+    if (await fsExists(newAbs)) return `sqlite:${newAbs}`;
+
+    // No in-vault DB -> genuinely new vault: create the index in app-data (it is
+    // indexed once, which is correct for a new vault).
+    if (!(await fsExists(oldAbs))) return `sqlite:${newAbs}`;
+
+    // Migrate the (closed) in-vault DB. The MAIN .db copy must succeed to reuse
+    // the warm index; on failure keep the in-vault DB (warm, no reindex) rather
+    // than falling through to an empty app-data DB.
+    try {
+      await writeFile(newAbs, await readFile(oldAbs));
+    } catch (e) {
+      console.warn("[VaultContext] index DB migration failed; keeping the in-vault DB (no reindex)", e);
+      return `sqlite:${oldAbs}`;
+    }
+    // Sidecars are best-effort: copying the WAL/SHM avoids losing an
+    // un-checkpointed tail, but a miss only costs a few files the next save
+    // reconciles — it must not undo the successful main copy above.
+    for (const suffix of ["-wal", "-shm"]) {
+      try {
+        if (await fsExists(oldAbs + suffix)) await writeFile(newAbs + suffix, await readFile(oldAbs + suffix));
+      } catch (e) {
+        console.warn(`[VaultContext] index DB sidecar ${suffix} copy failed; continuing`, e);
       }
     }
     return `sqlite:${newAbs}`;
