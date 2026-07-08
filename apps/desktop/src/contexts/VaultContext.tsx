@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath } from "@plainva/core";
@@ -24,14 +24,6 @@ interface VaultState {
   vaultAdapter: IVaultAdapter | null;
   /** The backup layer of the adapter chain (forceBackup/updatePolicy live here). */
   backupAdapter: BackupVaultAdapter | null;
-  /**
-   * The RAW filesystem adapter (no backup/queue/conflict layers). For bulk
-   * operations that manage their own safety and sync (e.g. OKF conversion,
-   * index.md generation, WP4): writing 500 files through the full chain fans
-   * each write out into ~50 IPC round-trips. Callers enqueue changed paths via
-   * enqueueForSync so a synced vault still pushes them.
-   */
-  bulkVaultAdapter: IVaultAdapter | null;
   dbAdapter: TauriDatabaseAdapter | null;
   indexer: VaultIndexer | null;
   queryService: VaultQueryService | null;
@@ -80,12 +72,6 @@ interface VaultContextType extends VaultState {
   /** Forgets a vault in the recent list — files on disk are untouched. */
   removeRecentVault: (path: string) => Promise<void>;
   setAutoOpenLastVault: (value: boolean) => Promise<void>;
-  /**
-   * Batch-enqueue changed paths for the sync push (WP4). Bulk operations that
-   * write through bulkVaultAdapter (raw) bypass the queueing layer, so they call
-   * this once at the end so a synced vault still propagates the changes.
-   */
-  enqueueForSync: (paths: string[]) => Promise<void>;
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -182,24 +168,10 @@ let activeLoadPath: string | null = null;
 let loadAbortController: AbortController | null = null;
 
 export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const syncQueueRef = useRef<SyncQueue | null>(null);
-  const enqueueForSync = useCallback(async (paths: string[]) => {
-    const q = syncQueueRef.current;
-    if (!q || paths.length === 0) return;
-    for (const p of paths) {
-      if (isInternalPath(p) || p.includes(".CONFLICT")) continue;
-      await q.queueWrite(p);
-    }
-    // One trigger for the whole batch (the QueueingVaultAdapter fires one per
-    // write; here we coalesce so a 500-file conversion pokes the worker once).
-    window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
-  }, []);
-
   const [state, setState] = useState<VaultState>({
     vaultPath: null,
     vaultAdapter: null,
     backupAdapter: null,
-    bulkVaultAdapter: null,
     dbAdapter: null,
     indexer: null,
     queryService: null,
@@ -299,7 +271,6 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await initializeSchema(dbAdapter);
 
       const syncQueue = new SyncQueue(dbAdapter);
-      syncQueueRef.current = syncQueue; // batch enqueue for bulk ops (WP4)
       const queueingVaultAdapter = new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
 
       const syncRepo = new SyncStateRepository(dbAdapter);
@@ -493,7 +464,6 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         vaultPath: path,
         vaultAdapter,
         backupAdapter: backupVaultAdapter,
-        bulkVaultAdapter: tauriVaultAdapter,
         dbAdapter,
         indexer,
         queryService,
@@ -696,13 +666,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
     syncStatusStore.reset();
-    syncQueueRef.current = null;
     setState(s => ({
       ...s,
       vaultPath: null,
       vaultAdapter: null,
       backupAdapter: null,
-      bulkVaultAdapter: null,
       dbAdapter: null,
       indexer: null,
       queryService: null,
@@ -769,7 +737,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, enqueueForSync }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

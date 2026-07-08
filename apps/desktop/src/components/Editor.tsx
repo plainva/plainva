@@ -293,19 +293,20 @@ export const Editor: React.FC<{
         savedOrSafelyPreserved = true;
         setConflictInfo(null);
 
-        // Re-index only this file so FTS/tags/links are instantly updated. Pass
-        // the in-memory content (skip a re-read on a network drive, WP5 5d) and
-        // the REAL mtime from a stat: storing Date.now() never matched the file's
-        // actual mtime, so the watcher's mtime-based echo detection re-indexed
-        // the file a second time on EVERY save (WP5 5f). Fall back to the old
-        // approximation if the stat fails.
+        // Re-index only this file so FTS/tags/links are instantly updated.
+        // indexFile RE-READS the file from disk so the index always matches what
+        // the adapter actually wrote — including the auto-merge case where the
+        // ConflictAware layer writes merged content, not `val`. We still pass the
+        // file's REAL mtime from a stat (not Date.now()): a matching mtime lets
+        // the watcher's echo detection skip re-indexing this save a second time
+        // (WP5 5f). Fall back to the old approximation if the stat fails.
         let info: VaultFileInfo;
         try {
           info = await vaultAdapter.getFileInfo(path);
         } catch {
           info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: val.length };
         }
-        await indexer.indexFile(info, val);
+        await indexer.indexFile(info);
         // File-only refresh (P2.5/P2.7): a save never changes the folder
         // structure, and views not showing this path can skip their reload.
         triggerFileTreeUpdate([path]);

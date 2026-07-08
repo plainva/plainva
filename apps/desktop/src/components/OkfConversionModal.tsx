@@ -22,10 +22,10 @@ export const OkfConversionModal: React.FC<{
   onOpenIndexManager?: () => void;
 }> = ({ onClose, onConverted, onOpenIndexManager }) => {
   const { t } = useTranslation();
-  // Bulk conversion writes through the RAW adapter (WP4): 500 files through the
-  // full backup/queue/conflict chain fan out into ~50 IPC each. OKF writes its
-  // own explicit backup, and changed paths are enqueued for sync at the end.
-  const { vaultPath, bulkVaultAdapter, queryService, indexer, triggerFileTreeUpdate, enqueueForSync } = useVault();
+  // Conversion writes through the FULL adapter chain (backup/version-history +
+  // conflict detection + sync-state). Speed comes from processing files
+  // concurrently (runOkfConversion's worker pool), not from bypassing safety.
+  const { vaultPath, vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
 
   const [step, setStep] = useState<Step>("scanning");
   const [scan, setScan] = useState<OkfScanResult | null>(null);
@@ -40,9 +40,9 @@ export const OkfConversionModal: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    if (!vaultPath || !bulkVaultAdapter || !queryService) return;
+    if (!vaultPath || !vaultAdapter || !queryService) return;
     getConfiguredNoteType(vaultPath).then((v) => { if (alive) setDefaultType(v); }).catch(() => {});
-    scanVaultOkf({ vaultPath, queryService, adapter: bulkVaultAdapter })
+    scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter })
       .then((result) => {
         if (!alive) return;
         setScan(result);
@@ -54,7 +54,7 @@ export const OkfConversionModal: React.FC<{
         setStep("options");
       });
     return () => { alive = false; };
-  }, [vaultPath, bulkVaultAdapter, queryService]);
+  }, [vaultPath, vaultAdapter, queryService]);
 
   const violationCount = (kind: OkfViolationKind) =>
     scan?.violations.filter((v) => v.kind === kind).length ?? 0;
@@ -73,10 +73,10 @@ export const OkfConversionModal: React.FC<{
   } as const;
 
   const runPreview = async () => {
-    if (!bulkVaultAdapter || !scan) return;
+    if (!vaultAdapter || !scan) return;
     setStep("scanning");
     try {
-      const result = await runOkfConversion({ adapter: bulkVaultAdapter, scan, options, dryRun: true });
+      const result = await runOkfConversion({ adapter: vaultAdapter, scan, options, dryRun: true });
       setPreview(result);
       setStep("preview");
     } catch (e) {
@@ -86,12 +86,12 @@ export const OkfConversionModal: React.FC<{
   };
 
   const runConversion = async () => {
-    if (!bulkVaultAdapter || !scan) return;
+    if (!vaultAdapter || !scan) return;
     cancelRef.current = false;
     setProgress({ done: 0, total: scan.convertiblePaths.length });
     setStep("running");
     const result = await runOkfConversion({
-      adapter: bulkVaultAdapter,
+      adapter: vaultAdapter,
       scan,
       options,
       onProgress: (done, total) => setProgress({ done, total }),
@@ -101,9 +101,6 @@ export const OkfConversionModal: React.FC<{
     // Refresh index + open editors so the new frontmatter is visible everywhere.
     try {
       await indexer?.indexVaultFull();
-      // Converted files were written through the raw adapter (bypassing the
-      // sync queue); enqueue them once so a synced vault still pushes them.
-      await enqueueForSync(result.changed);
       triggerFileTreeUpdate();
       for (const path of result.changed) {
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));

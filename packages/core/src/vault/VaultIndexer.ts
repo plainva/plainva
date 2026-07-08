@@ -130,25 +130,24 @@ export class VaultIndexer {
    * Indexes a single markdown file into the database.
    * Note: This method opens its own transaction.
    */
-  async indexFile(fileInfo: VaultFileInfo, content?: string): Promise<void> {
+  async indexFile(fileInfo: VaultFileInfo): Promise<void> {
     if (fileInfo.isDirectory || !fileInfo.name.endsWith(".md")) return;
     this.pendingNewLocalFiles = [];
     this.pendingExternalMods = [];
     await this.dbAdapter.transaction(async () => {
-      await this._indexFileInternal(fileInfo, undefined, content);
+      await this._indexFileInternal(fileInfo);
     });
     this.flushCallbacks();
   }
 
   /**
    * Internal method that indexes a file without starting a new transaction.
-   * Useful for bulk indexing. `providedContent` lets the caller pass content it
-   * already has in memory (e.g. the editor right after a save, WP5 5d) so we do
-   * not re-read the file from disk — a network round-trip on a network drive.
+   * Useful for bulk indexing. Always re-reads the file from disk so the index
+   * matches exactly what is on disk (incl. content the adapter may have merged).
    */
-  private async _indexFileInternal(fileInfo: VaultFileInfo, lookups?: BulkIndexLookups, providedContent?: string): Promise<void> {
+  private async _indexFileInternal(fileInfo: VaultFileInfo, lookups?: BulkIndexLookups): Promise<void> {
     const fileId = await this.generateFileId(fileInfo.path);
-    const content = providedContent ?? await this.vaultAdapter.readTextFile(fileInfo.path);
+    const content = await this.vaultAdapter.readTextFile(fileInfo.path);
     const sha256 = await sha256Hash(content);
     const existingFileState = lookups
       ? lookups.fileStateById.get(fileId) ?? null
