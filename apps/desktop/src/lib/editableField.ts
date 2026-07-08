@@ -9,6 +9,8 @@
  *    which fire the beforeinput/input events CodeMirror already handles.
  */
 
+import { markdownToPlainText } from "./markdownToPlainText";
+
 export type EditableKind = "input" | "textarea" | "contenteditable";
 
 export interface EditableTarget {
@@ -56,7 +58,14 @@ export function selectedText(editable: EditableTarget | null): string {
     return el.value.slice(el.selectionStart ?? 0, el.selectionEnd ?? 0);
   }
   const sel = window.getSelection();
-  return sel && !sel.isCollapsed ? sel.toString() : "";
+  const raw = sel && !sel.isCollapsed ? sel.toString() : "";
+  // In the live-preview editor, right-click Copy should match Ctrl+C, which
+  // strips Markdown via clipboardOutputFilter. The CodeMirror contentDOM carries
+  // data-pv-live-preview only in live mode; source mode and plain fields copy raw.
+  if (raw && editable?.kind === "contenteditable" && editable.el.getAttribute("data-pv-live-preview") === "true") {
+    return markdownToPlainText(raw);
+  }
+  return raw;
 }
 
 function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {

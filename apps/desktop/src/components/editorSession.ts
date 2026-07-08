@@ -26,6 +26,7 @@ import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
 import { minimalDocChange } from "../lib/textDiff";
 import { countWords } from "../lib/wordCount";
+import { markdownToPlainText } from "../lib/markdownToPlainText";
 import type { EditorTriggerDeps } from "./editorTriggers";
 
 /**
@@ -145,6 +146,18 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       imagePreviewPlugin(cfg.vaultPath, isLive),
       noteEmbedPlugin(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab) => deps.current.openWikiTarget(target, newTab), isLive),
+      // Copy-as-plain-text (WP1): in live preview the markers are hidden on
+      // screen, so copying the raw doc slice pastes Markdown noise. Strip it on
+      // the way to the clipboard (covers Ctrl+C, Cut and drag). Source mode
+      // keeps this filter absent, so it copies raw by design. `data-pv-live-
+      // preview` lets the right-click Copy (services/contextMenuStore ->
+      // lib/editableField) mirror this without editor-view access.
+      isLive
+        ? [
+            EditorView.clipboardOutputFilter.of((text) => markdownToPlainText(text)),
+            EditorView.contentAttributes.of({ "data-pv-live-preview": "true" }),
+          ]
+        : [],
     ];
   };
 

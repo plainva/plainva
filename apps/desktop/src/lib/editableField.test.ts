@@ -80,6 +80,27 @@ describe("selectedText", () => {
     vi.spyOn(window, "getSelection").mockReturnValue({ isCollapsed: false, toString: () => "sel" } as unknown as Selection);
     expect(selectedText(null)).toBe("sel");
   });
+
+  it("strips Markdown in the live-preview editor (data-pv-live-preview)", () => {
+    const host = mount(document.createElement("div"));
+    host.setAttribute("contenteditable", "true");
+    host.setAttribute("data-pv-live-preview", "true");
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      toString: () => "**bold** and [[Page|Alias]]",
+    } as unknown as Selection);
+    expect(selectedText(findEditable(host))).toBe("bold and Alias");
+  });
+
+  it("keeps raw Markdown for the source-mode editor (no marker)", () => {
+    const host = mount(document.createElement("div"));
+    host.setAttribute("contenteditable", "true");
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      toString: () => "**bold**",
+    } as unknown as Selection);
+    expect(selectedText(findEditable(host))).toBe("**bold**");
+  });
 });
 
 describe("insertIntoEditable / deleteEditableSelection (input)", () => {

@@ -70,6 +70,30 @@ export function remarkStripHtmlComments() {
   };
 }
 
+const HIGHLIGHT_RE = /==([^=\n]+?)==/g;
+
+/**
+ * remark plugin: removes the `==` markers of `==highlight==` from text nodes so
+ * they no longer show — nor get copied — as literal `==` in the reading view.
+ * Read mode has no raw-HTML support to render an actual <mark>, so this drops
+ * the markers to plain text (the editor's live preview still highlights).
+ * Only `text` nodes are touched; `inlineCode`/`code` nodes stay verbatim.
+ */
+export function remarkStripHighlightMarks() {
+  return (tree: MdastNodeLike) => {
+    const walk = (node: MdastNodeLike) => {
+      if (!Array.isArray(node.children)) return;
+      for (const child of node.children) {
+        if (child.type === "text" && typeof child.value === "string" && child.value.includes("==")) {
+          child.value = child.value.replace(HIGHLIGHT_RE, "$1");
+        }
+        walk(child);
+      }
+    };
+    walk(tree);
+  };
+}
+
 const HTML_BR_NODE_RE = /^<br\s*\/?>$/i;
 
 /**
