@@ -50,6 +50,7 @@ Eine `index.md` ist das Inhaltsverzeichnis eines Ordners: eine Liste der enthalt
 - **Automatische Pflege** — von Plainva *erzeugte* Listings tragen am Dateiende eine unsichtbare Markierung (ein HTML-Kommentar). Nur solche markierten Dateien hält Plainva automatisch aktuell, sobald sich im Ordner etwas ändert — und nur in OKF-Vaults (erkennbar an `okf_version` in der Wurzel-`index.md`).
 - **Schreibgeschützt mit Ausweg** — verwaltete index.md-Dateien öffnen im Lesemodus mit dem Banner „Diese index.md wird von Plainva verwaltet und automatisch aktualisiert." Dort kannst Du **Aktualisieren** — oder **Trotzdem bearbeiten**: Das entfernt die Markierung, und die Datei gehört wieder ganz Dir (keine automatischen Updates mehr).
 - **Alle auf einmal** — **Alle index.md aktualisieren** gibt es im Kontextmenü des Vault-Stamms und in den Einstellungen; Dateien ohne Markierung werden dabei übersprungen.
+- **Lücken füllen** — im index.md-Manager wählt der Knopf **In allen Ordnern ohne index.md erzeugen** jeden Ordner vor, der noch keine index.md hat, sodass Du sie in einem Durchgang anlegst.
 - In der Leseansicht erscheinen verwaltete Listings als Karten mit Datei-/Ordner-Icons; Links öffnen direkt in Plainva.
 
 ## Einen bestehenden Vault konvertieren (Opt-in)

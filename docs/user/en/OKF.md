@@ -50,6 +50,7 @@ An `index.md` is a folder's table of contents: a list of the notes and subfolder
 - **Automatic upkeep** — listings *generated* by Plainva carry an invisible marker at the end of the file (an HTML comment). Only such marked files are kept up to date automatically whenever the folder changes — and only in OKF vaults (recognizable by `okf_version` in the root `index.md`).
 - **Read-only with an exit** — managed index.md files open in read mode with the banner "This index.md is managed by Plainva and updated automatically." There you can **Refresh** — or choose **Edit anyway**: that removes the marker and the file is fully yours again (no more automatic updates).
 - **All at once** — **Update all index.md files** is available in the vault root's context menu and in the settings; files without the marker are skipped.
+- **Fill the gaps** — inside the index.md manager, **Generate index.md in all N folders without one** preselects every folder that has no index.md yet, so you can create them all in one run.
 - In read mode, managed listings render as cards with file/folder icons; links open right inside Plainva.
 
 ## Converting an existing vault (opt-in)

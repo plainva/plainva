@@ -50,6 +50,7 @@ Un `index.md` è il sommario di una cartella: un elenco delle note e sottocartel
 - **Manutenzione automatica** — gli elenchi *generati* da Plainva portano un marcatore invisibile alla fine del file (un commento HTML). Solo tali file contrassegnati vengono mantenuti automaticamente aggiornati ogni volta che la cartella cambia — e solo nei vault OKF (riconoscibili da `okf_version` nell'`index.md` radice).
 - **Sola lettura con via d'uscita** — i file index.md gestiti si aprono in modalità lettura con il banner "Questo index.md è gestito da Plainva e aggiornato automaticamente." Lì puoi **Aggiornare** — oppure scegliere **Modifica comunque**: questo rimuove il marcatore e il file torna interamente tuo (niente più aggiornamenti automatici).
 - **Tutti in una volta** — **Aggiorna tutti i file index.md** è disponibile nel menu contestuale della radice del vault e nelle impostazioni; i file senza il marcatore vengono saltati.
+- **Colmare le lacune** — nella gestione index.md, il pulsante **Genera index.md in tutte le cartelle che non ce l'hanno** preseleziona ogni cartella priva di un index.md, così puoi crearli tutti in un solo passaggio.
 - In modalità lettura, gli elenchi gestiti sono renderizzati come schede con icone di file/cartella; i link si aprono direttamente in Plainva.
 
 ## Convertire un vault esistente (opt-in)

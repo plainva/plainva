@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-06
+Laatst bijgewerkt: 2026-07-08
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -10,7 +10,8 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 
 - Installatie onder **Instellingen → Vault-instellingen → Cloud Sync**. De **Sync-provider** wordt per vault gekozen: **Geen (alleen lokaal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** of **S3-compatibele opslag** — altijd precies één per vault.
 - Lokale opslagen worden meteen geüpload; op externe wijzigingen controleert Plainva op het ingestelde **Sync-interval (seconden)**.
-- Offline wijzigingen worden verzameld in een wachtrij en overgedragen bij het volgende contact; de statusbalk toont **Online**/**Offline** en de sync-indicator de status (**Nu synchroniseren** bij klik).
+- Offline wijzigingen worden verzameld in een wachtrij en overgedragen bij het volgende contact; de statusbalk toont **Online**/**Offline** en de sync-indicator de status (**Nu synchroniseren** bij klik). Bij een lange of eerste synchronisatie toont de statusbalk de voortgang als een teller (bijv. **Sync 123/540**), zodat je ziet dat de vault wordt doorgewerkt.
+- Wanneer je voor het eerst een online vault verbindt, wijst een eenmalige melding je erop dat de eerste synchronisatie afhankelijk van de vaultgrootte even kan duren — je kunt ondertussen gewoon doorwerken.
 - Wijzigen beide kanten hetzelfde bestand, dan voegt Plainva ze automatisch samen (3-weg-merge). Lukt dat niet, dan wordt jouw versie veilig bewaard als een `.CONFLICT`-bestand — er gaat nooit iets verloren (zie [FAQ](FAQ.md)).
 - **Conflicten oplossen**: een banner in de betreffende notitie (en **Conflict oplossen…** in het rechtsklikmenu van het `.CONFLICT`-bestand in de boom) opent het vergelijkingsdialoogvenster — de huidige staat van het bestand links, jouw bewaarde versie rechts, bewerkbaar met overname per blok. **Rechterversie opslaan en oplossen** schrijft het resultaat naar het bestand en ruimt de conflictkopie op; **Andere kant behouden** verwerpt jouw kopie (een versiesnapshot blijft bewaard). Ook het synchronisatiefout-dialoogvenster toont bestaande conflictkopieën en leidt je met één klik naar diezelfde vergelijking.
 - Bijlagen (afbeeldingen enz.) worden mee gesynchroniseerd.

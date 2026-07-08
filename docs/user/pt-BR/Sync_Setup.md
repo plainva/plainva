@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Stand: 2026-07-06
+Stand: 2026-07-08
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -10,7 +10,8 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 
 - A configuração fica em **Configurações → Configurações do vault → Sincronização na nuvem**. O **Provedor de sincronização** é escolhido por vault: **Nenhum (somente local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Armazenamento compatível com S3** — sempre exatamente um por vault.
 - Salvamentos locais são enviados imediatamente; o Plainva verifica alterações remotas no **Intervalo de sincronização (segundos)** configurado.
-- Alterações offline ficam em uma fila e são transferidas no próximo contato; a barra de status mostra **Online**/**Offline** e o indicador de sincronização mostra o estado (**Sincronizar agora** ao clicar).
+- Alterações offline ficam em uma fila e são transferidas no próximo contato; a barra de status mostra **Online**/**Offline** e o indicador de sincronização mostra o estado (**Sincronizar agora** ao clicar). Durante uma sincronização longa ou a primeira sincronização, a barra de status mostra o progresso como um contador (por exemplo, **Sync 123/540**), para que você veja que ela está avançando pelo vault.
+- Na primeira vez que você conecta um vault online, um aviso único lembra que a sincronização inicial pode demorar um pouco dependendo do tamanho do vault — você pode continuar trabalhando enquanto ela roda.
 - Se os dois lados alterarem o mesmo arquivo, o Plainva os mescla automaticamente (mesclagem em três vias). Se isso não for possível, sua versão é preservada com segurança como um arquivo `.CONFLICT` — nada nunca se perde (veja [FAQ](FAQ.md)).
 - **Resolver conflitos**: um banner na nota afetada (e **Resolver conflito…** no menu de contexto do arquivo `.CONFLICT` na árvore) abre o diálogo de comparação — o estado atual do arquivo à esquerda, sua versão preservada à direita, editável com adoção por bloco. **Salvar o lado direito e resolver** grava o resultado no arquivo e remove a cópia de conflito; **Manter o outro lado** descarta sua cópia (um snapshot de versão permanece). O diálogo de erro de sincronização também lista as cópias de conflito existentes e leva à mesma comparação com um clique.
 - Anexos (imagens etc.) também são sincronizados.

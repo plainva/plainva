@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-06
+Stan na: 2026-07-08
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -10,7 +10,8 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 
 - Konfiguracja znajduje się w **Ustawienia → Ustawienia vaultu → Synchronizacja z chmurą**. **Dostawca synchronizacji** jest wybierany dla każdego vaultu osobno: **Brak (tylko lokalnie)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** lub **magazyn zgodny z S3** — zawsze dokładnie jeden na vault.
 - Lokalne zapisy są wysyłane od razu; Plainva sprawdza zdalne zmiany w skonfigurowanym **interwale synchronizacji (sekundy)**.
-- Zmiany offline są kolejkowane i przesyłane przy najbliższym kontakcie; pasek stanu pokazuje **Online**/**Offline**, a wskaźnik synchronizacji stan (**Synchronizuj teraz** po kliknięciu).
+- Zmiany offline są kolejkowane i przesyłane przy najbliższym kontakcie; pasek stanu pokazuje **Online**/**Offline**, a wskaźnik synchronizacji stan (**Synchronizuj teraz** po kliknięciu). Podczas długiej lub pierwszej synchronizacji pasek stanu pokazuje postęp w postaci licznika (np. **Sync 123/540**), dzięki czemu widzisz, że przetwarza cały vault.
+- Gdy po raz pierwszy połączysz vault online, jednorazowy komunikat przypomina, że pierwsza synchronizacja może potrwać dłużej w zależności od rozmiaru vaultu — możesz w tym czasie normalnie pracować.
 - Jeśli obie strony zmienią ten sam plik, Plainva scala je automatycznie (scalanie trójstronne). Jeśli nie jest to możliwe, Twoja wersja jest bezpiecznie zachowywana jako plik `.CONFLICT` — nic nigdy nie ginie (patrz [FAQ](FAQ.md)).
 - **Rozwiązywanie konfliktów**: baner w dotkniętej notatce (oraz **Rozwiąż konflikt…** w menu kontekstowym pliku `.CONFLICT` w drzewie) otwiera okno porównania — bieżący stan pliku po lewej, Twoja zachowana wersja po prawej, edytowalne z przejmowaniem poszczególnych bloków. **Zapisz prawą wersję i rozwiąż** zapisuje wynik do pliku i usuwa kopię konfliktu; **Zachowaj drugą stronę** odrzuca Twoją kopię (pozostaje migawka wersji). Okno dialogowe błędu synchronizacji również wyświetla listę istniejących kopii konfliktów i jednym kliknięciem przenosi do tego samego porównania.
 - Załączniki (obrazy itp.) są synchronizowane razem z notatkami.

@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-07-07
+Stand: 2026-07-08
 
 OKF (Open Knowledge Format) é uma convenção aberta para coleções de conhecimento em Markdown: arquivos Markdown puros com um cabeçalho de frontmatter pequeno e uniforme. Esta página explica o que é o OKF, o que o Plainva faz automaticamente por ele — e por que você não *precisa* usar nada disso.
 
@@ -50,6 +50,7 @@ Um `index.md` é o sumário de uma pasta: uma lista das notas e subpastas que el
 - **Manutenção automática** — listagens *geradas* pelo Plainva carregam um marcador invisível no final do arquivo (um comentário HTML). Somente esses arquivos marcados são mantidos atualizados automaticamente sempre que a pasta muda — e apenas em vaults OKF (reconhecíveis pelo `okf_version` no `index.md` raiz).
 - **Somente leitura com uma saída** — arquivos index.md gerenciados abrem no modo de leitura com o aviso "Este index.md é gerenciado pelo Plainva e atualizado automaticamente." Ali você pode **Atualizar** — ou escolher **Editar mesmo assim**: isso remove o marcador e o arquivo volta a ser totalmente seu (sem mais atualizações automáticas).
 - **Tudo de uma vez** — **Atualizar todos os arquivos index.md** está disponível no menu de contexto da raiz do vault e nas configurações; arquivos sem o marcador são ignorados.
+- **Preenchendo as lacunas** — dentro do gerenciador de index.md, o botão **Gerar index.md nas pastas que não têm** pré-seleciona toda pasta que ainda não tem um index.md, para que você possa criá-los todos de uma vez.
 - No modo de leitura, listagens gerenciadas são renderizadas como cartões com ícones de arquivo/pasta; os links abrem direto dentro do Plainva.
 
 ## Convertendo um vault existente (opt-in)

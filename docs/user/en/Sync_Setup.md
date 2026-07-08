@@ -10,7 +10,8 @@ Which services work in general (also via WebDAV or the provider's desktop client
 
 - Setup lives under **Settings → Vault Settings → Cloud Sync**. The **Sync Provider** is chosen per vault: **None (Local only)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** or **S3-compatible storage** — always exactly one per vault.
 - Local saves are uploaded immediately; Plainva checks for remote changes at the configured **Sync Interval (seconds)**.
-- Offline changes are queued and transferred on the next contact; the status bar shows **Online**/**Offline** and the sync indicator shows the state (**Sync now** on click).
+- Offline changes are queued and transferred on the next contact; the status bar shows **Online**/**Offline** and the sync indicator shows the state (**Sync now** on click). During a long or first-time sync the status bar shows the progress as a count (e.g. **Sync 123/540**), so you can see it working through the vault.
+- The first time you connect an online vault, a one-time note reminds you that the initial sync can take a while depending on the vault size — you can keep working while it runs.
 - If both sides change the same file, Plainva merges them automatically (3-way merge). If that is not possible, your version is safely preserved as a `.CONFLICT` file — nothing is ever lost (see [FAQ](FAQ.md)).
 - **Resolving conflicts**: a banner in the affected note (and **Resolve conflict…** in the `.CONFLICT` file's right-click menu in the tree) opens the comparison dialog — the file's current state on the left, your preserved version on the right, editable with per-block take-over. **Save right side & resolve** writes the result into the file and cleans up the conflict copy; **Keep the other side** discards your copy (a version snapshot remains). The sync error dialog also lists existing conflict copies and takes you to the same comparison with one click.
 - Attachments (images etc.) are synced too.

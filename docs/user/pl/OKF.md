@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stan na: 2026-07-07
+Stan na: 2026-07-08
 
 OKF (Open Knowledge Format) to otwarta konwencja dla kolekcji wiedzy w Markdown: zwykłe pliki Markdown z małym, jednolitym nagłówkiem frontmatter. Ta strona wyjaśnia, czym jest OKF, co Plainva robi dla niego automatycznie — i dlaczego niczego z tego nie *musisz* używać.
 
@@ -50,6 +50,7 @@ Zwykły Markdown jest wspaniale przenośny — ale sam w sobie nie ma niezawodne
 - **Automatyczna aktualizacja** — listingi *wygenerowane* przez Plainva mają na końcu pliku niewidoczny znacznik (komentarz HTML). Tylko takie oznaczone pliki są automatycznie aktualizowane, ilekroć coś się zmieni w folderze — i tylko w vaultach OKF (rozpoznawanych po `okf_version` w głównej `index.md`).
 - **Tylko do odczytu z wyjściem awaryjnym** — zarządzane pliki index.md otwierają się w trybie czytania z banerem „Ten plik index.md jest zarządzany przez Plainva i aktualizowany automatycznie.” Tam możesz kliknąć **Odśwież** — lub wybrać **Edytuj mimo to**: usuwa to znacznik, a plik znów w pełni należy do Ciebie (już bez automatycznych aktualizacji).
 - **Wszystko naraz** — **Zaktualizuj wszystkie pliki index.md** jest dostępne w menu kontekstowym głównego katalogu vaultu i w ustawieniach; pliki bez znacznika są przy tym pomijane.
+- **Uzupełnianie braków** — w zarządzaniu index.md przycisk **Utwórz index.md we wszystkich folderach bez niego** zaznacza z góry każdy folder, który nie ma jeszcze index.md, dzięki czemu możesz utworzyć je wszystkie za jednym razem.
 - W trybie czytania zarządzane listingi renderują się jako karty z ikonami plików/folderów; linki otwierają się bezpośrednio w Plainva.
 
 ## Konwertowanie istniejącego vaultu (opt-in)

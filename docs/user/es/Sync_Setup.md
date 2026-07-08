@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Stand: 2026-07-06
+Stand: 2026-07-08
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -10,7 +10,8 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 
 - La configuración vive en **Configuración → Configuración del vault → Sincronización en la nube**. El **Proveedor de sincronización** se elige por vault: **Ninguno (solo local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** o **Almacenamiento compatible con S3** — siempre exactamente uno por vault.
 - Los guardados locales se suben de inmediato; Plainva comprueba si hay cambios remotos en el **Intervalo de sincronización (segundos)** configurado.
-- Los cambios sin conexión se ponen en cola y se transfieren en el próximo contacto; la barra de estado muestra **En línea**/**Sin conexión** y el indicador de sincronización muestra el estado (**Sincronizar ahora** al hacer clic).
+- Los cambios sin conexión se ponen en cola y se transfieren en el próximo contacto; la barra de estado muestra **En línea**/**Sin conexión** y el indicador de sincronización muestra el estado (**Sincronizar ahora** al hacer clic). Durante una sincronización larga o la primera vez, la barra de estado muestra el progreso como un contador (p. ej., **Sync 123/540**), para que veas cómo va recorriendo el vault.
+- La primera vez que conectas un vault en línea, un aviso puntual te recuerda que la sincronización inicial puede tardar un poco según el tamaño del vault — puedes seguir trabajando mientras se ejecuta.
 - Si ambos lados cambian el mismo archivo, Plainva los combina automáticamente (fusión a tres bandas). Si eso no es posible, tu versión se conserva de forma segura como un archivo `.CONFLICT` — nunca se pierde nada (ver [FAQ](FAQ.md)).
 - **Resolver conflictos**: un banner en la nota afectada (y **Resolver conflicto…** en el menú contextual del archivo `.CONFLICT` en el árbol) abre el diálogo de comparación — el estado actual del archivo a la izquierda, tu versión conservada a la derecha, editable con toma por bloques. **Guardar la versión derecha y resolver** escribe el resultado en el archivo y limpia la copia de conflicto; **Conservar el otro lado** descarta tu copia (queda una instantánea de versión). El diálogo de error de sincronización también lista las copias de conflicto existentes y lleva a la misma comparación con un clic.
 - Los adjuntos (imágenes, etc.) también se sincronizan.
