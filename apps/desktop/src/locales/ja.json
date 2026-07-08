@@ -1083,6 +1083,7 @@
     "renameHint": "通常のノートとして使われているindex.mdは、ファイルツリーで名前を変更できます——リンクは自動的に更新されます。",
     "running": "実行中…",
     "runButton": "{{count}}件の操作を実行",
+    "generateAllMissing": "index.md がない {{count}} 個すべてのフォルダーに作成",
     "resultCreated": "index.mdを作成しました（{{entries}}件のエントリ）",
     "resultUpdated": "index.mdを再生成しました（{{entries}}件のエントリ、バックアップを作成しました）",
     "resultAdopted": "{{file}}をindex.mdとして採用しました",

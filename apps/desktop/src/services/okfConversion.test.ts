@@ -74,6 +74,24 @@ describe("runOkfConversion", () => {
     expect(report.samples[0]?.path).toBe("a.md");
   });
 
+  it("ensures each shared backup directory only once per run (WP4)", async () => {
+    const base = makeAdapter({ "Notes/a.md": "# a\n", "Notes/b.md": "# b\n" });
+    const existsCalls: string[] = [];
+    const adapter: OkfConversionAdapter = {
+      ...base.adapter,
+      exists: async (p) => { existsCalls.push(p); return base.adapter.exists(p); },
+    };
+    const report = await runOkfConversion({
+      adapter,
+      scan: scanFor(["Notes/a.md", "Notes/b.md"]),
+      options: { defaultType: "Note" },
+    });
+    expect(report.changed).toEqual(["Notes/a.md", "Notes/b.md"]);
+    // The shared backup dir segment is checked once (a.md), then cached (b.md).
+    expect(existsCalls.filter((p) => p === report.backupDir).length).toBe(1);
+    expect(existsCalls.filter((p) => p === `${report.backupDir}/Notes`).length).toBe(1);
+  });
+
   it("dry run changes nothing on disk but reports what would change", async () => {
     const { store, adapter } = makeAdapter({ "a.md": "# x\n" });
     const report = await runOkfConversion({

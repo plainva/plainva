@@ -3,8 +3,24 @@ import {
   collectFolderIndexInfos,
   generateIndexForFolder,
   adoptFileAsIndex,
+  foldersMissingIndex,
   type IndexMdAdapter,
 } from "./indexMd";
+
+describe("foldersMissingIndex (WP4)", () => {
+  it("returns only the folders without an index.md, preserving order", () => {
+    const infos = [
+      { folder: "", hasIndex: true },
+      { folder: "Projects", hasIndex: false },
+      { folder: "Areas", hasIndex: true },
+      { folder: "Archive", hasIndex: false },
+    ];
+    expect(foldersMissingIndex(infos)).toEqual(["Projects", "Archive"]);
+  });
+  it("returns an empty list when every folder already has one", () => {
+    expect(foldersMissingIndex([{ folder: "A", hasIndex: true }])).toEqual([]);
+  });
+});
 
 function makeVault(files: Record<string, string>, properties: { path: string; value: string }[] = []) {
   const store = new Map(Object.entries(files));

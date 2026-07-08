@@ -1089,6 +1089,7 @@
     "renameHint": "Plik index.md używany jako zwykła notatka można przemianować w drzewie plików — linki zostaną zaktualizowane automatycznie.",
     "running": "Wykonywanie…",
     "runButton": "Wykonaj akcje ({{count}})",
+    "generateAllMissing": "Utwórz index.md w {{count}} folderach bez niego",
     "resultCreated": "Utworzono index.md (wpisy: {{entries}})",
     "resultUpdated": "Wygenerowano index.md ponownie (wpisy: {{entries}}, utworzono kopię zapasową)",
     "resultAdopted": "Przejęto {{file}} jako index.md",

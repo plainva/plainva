@@ -1085,6 +1085,7 @@
     "renameHint": "Een index.md die als gewone notitie wordt gebruikt, kun je in de bestandsboom hernoemen — links worden automatisch bijgewerkt.",
     "running": "Bezig…",
     "runButton": "{{count}} actie(s) uitvoeren",
+    "generateAllMissing": "index.md maken in de {{count}} mappen zonder",
     "resultCreated": "index.md aangemaakt ({{entries}} items)",
     "resultUpdated": "index.md opnieuw gegenereerd ({{entries}} items, back-up aangemaakt)",
     "resultAdopted": "{{file}} overgenomen als index.md",

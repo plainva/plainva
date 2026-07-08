@@ -9,6 +9,7 @@ import {
   collectFolderIndexInfos,
   generateIndexForFolder,
   adoptFileAsIndex,
+  foldersMissingIndex,
   type FolderIndexInfo,
 } from "../services/indexMd";
 
@@ -47,8 +48,21 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 
   const actionFor = (folder: string): FolderAction => actions[folder] ?? { kind: "skip" };
   const selectedCount = infos?.filter((i) => actionFor(i.folder).kind !== "skip").length ?? 0;
+  const missingFolders = infos ? foldersMissingIndex(infos) : [];
+  const missingCount = missingFolders.length;
 
   const folderLabel = (folder: string) => (folder === "" ? t("indexMd.rootFolder") : folder);
+
+  // Bulk action (WP4): preselect "generate" for every folder that has no
+  // index.md yet — the requested "create an index.md in all folders without
+  // one". Folders that already have one are untouched.
+  const selectAllMissing = () => {
+    setActions((prev) => {
+      const next = { ...prev };
+      for (const folder of missingFolders) next[folder] = { kind: "generate" };
+      return next;
+    });
+  };
 
   const run = async () => {
     if (!vaultAdapter || !queryService || !infos) return;
@@ -134,6 +148,14 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", marginBottom: "var(--space-2)" }}>
             {t("indexMd.intro")}
           </div>
+
+          {infos !== null && missingCount > 0 && (
+            <div style={{ marginBottom: "var(--space-2)" }}>
+              <Button onClick={selectAllMissing}>
+                {t("indexMd.generateAllMissing", { count: missingCount })}
+              </Button>
+            </div>
+          )}
 
           {infos === null ? (
             <div style={{ fontSize: "var(--text-md)" }}>{t("okf.scanning")}</div>

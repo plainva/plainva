@@ -63,14 +63,19 @@ function frontmatterPreview(content: string): string {
   return match ? match[0].trimEnd() : "";
 }
 
-async function ensureDirs(adapter: OkfConversionAdapter, dirPath: string): Promise<void> {
+async function ensureDirs(adapter: OkfConversionAdapter, dirPath: string, created?: Set<string>): Promise<void> {
   const parts = dirPath.split("/").filter(Boolean);
   let current = "";
   for (const part of parts) {
     current = current ? `${current}/${part}` : part;
+    // Per-run cache (WP4): a 500-file conversion re-checked the same backup dir
+    // segments for every file — one exists()/createDir() IPC pair each. Skip
+    // segments we already ensured this run.
+    if (created?.has(current)) continue;
     if (!(await adapter.exists(current))) {
       await adapter.createDir(current);
     }
+    created?.add(current);
   }
 }
 
@@ -99,6 +104,7 @@ export async function runOkfConversion(opts: {
 
   const total = scan.convertiblePaths.length;
   let done = 0;
+  const createdDirs = new Set<string>(); // per-run ensureDirs cache (WP4)
 
   for (const path of scan.convertiblePaths) {
     if (opts.isCancelled?.()) {
@@ -123,7 +129,7 @@ export async function runOkfConversion(opts: {
         }
         if (!dryRun) {
           const backupPath = `${backupDir}/${path}`;
-          await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"));
+          await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"), createdDirs);
           await adapter.writeTextFile(backupPath, content);
           await adapter.writeTextFile(path, result.content);
         }

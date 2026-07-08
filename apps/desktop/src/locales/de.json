@@ -1085,6 +1085,7 @@
     "renameHint": "Eine als normale Notiz genutzte index.md kannst du im Dateibaum umbenennen — Links werden dabei automatisch aktualisiert.",
     "running": "Wird ausgeführt…",
     "runButton": "{{count}} Aktion(en) ausführen",
+    "generateAllMissing": "In allen {{count}} Ordnern ohne index.md erzeugen",
     "resultCreated": "index.md erzeugt ({{entries}} Einträge)",
     "resultUpdated": "index.md aktualisiert ({{entries}} Einträge, Backup angelegt)",
     "resultAdopted": "{{file}} als index.md übernommen",

@@ -1083,6 +1083,7 @@
     "renameHint": "被用作普通笔记的index.md可以在文件树中重命名——链接会自动更新。",
     "running": "正在执行…",
     "runButton": "执行{{count}}项操作",
+    "generateAllMissing": "在全部 {{count}} 个没有 index.md 的文件夹中创建",
     "resultCreated": "已创建index.md（{{entries}}个条目）",
     "resultUpdated": "已重新生成index.md（{{entries}}个条目，已创建备份）",
     "resultAdopted": "已将{{file}}采用为index.md",

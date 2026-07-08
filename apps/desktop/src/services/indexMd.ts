@@ -35,6 +35,12 @@ export interface FolderIndexInfo {
   candidates: IndexCandidate[];
 }
 
+/** Folders that have no index.md yet — the "create in all folders without one"
+ *  bulk action (WP4). Pure so the modal and its test share the selection. */
+export function foldersMissingIndex(infos: Pick<FolderIndexInfo, "folder" | "hasIndex">[]): string[] {
+  return infos.filter((i) => !i.hasIndex).map((i) => i.folder);
+}
+
 async function listMarkdownPaths(queryService: VaultQueryService): Promise<string[]> {
   const rows = await queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`

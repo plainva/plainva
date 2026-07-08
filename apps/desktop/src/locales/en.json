@@ -1085,6 +1085,7 @@
     "renameHint": "An index.md used as a regular note can be renamed in the file tree — links are updated automatically.",
     "running": "Running…",
     "runButton": "Run {{count}} action(s)",
+    "generateAllMissing": "Generate index.md in all {{count}} folders without one",
     "resultCreated": "index.md created ({{entries}} entries)",
     "resultUpdated": "index.md regenerated ({{entries}} entries, backup created)",
     "resultAdopted": "Adopted {{file}} as index.md",

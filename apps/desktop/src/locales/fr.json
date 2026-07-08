@@ -1087,6 +1087,7 @@
     "renameHint": "Un index.md utilisé comme note normale peut être renommé dans l'arborescence de fichiers — les liens sont mis à jour automatiquement.",
     "running": "Exécution en cours…",
     "runButton": "Exécuter {{count}} action(s)",
+    "generateAllMissing": "Générer index.md dans les {{count}} dossiers qui n'en ont pas",
     "resultCreated": "index.md créé ({{entries}} entrées)",
     "resultUpdated": "index.md régénéré ({{entries}} entrées, sauvegarde créée)",
     "resultAdopted": "{{file}} adopté comme index.md",
