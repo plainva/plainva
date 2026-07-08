@@ -5,6 +5,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "./pathGuard";
 import { toast } from "../services/toastStore";
 import i18n from "../i18n";
+import { createLimiter, type ConcurrencyLimiter } from "../lib/concurrencyLimiter";
+
+/**
+ * How many filesystem calls (stat/readDir/exists) may be in flight at once
+ * during a directory walk. The walk used to stat every file strictly
+ * sequentially, which on a network drive meant 500+ serial round-trips before
+ * the first note could render. Bounding at 8 keeps the IPC bridge from being
+ * overwhelmed while overlapping the network latency.
+ */
+const LIST_CONCURRENCY = 8;
+
+type FsLimiter = ConcurrencyLimiter;
 
 export class TauriVaultAdapter implements IVaultAdapter {
   constructor(public readonly rootPath: string) {}
@@ -129,15 +141,14 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   // Internal method to handle recursion and symlink protection
-  private async _listDirInternal(path: string, absPath: string, recursive: boolean, visited: Set<string>): Promise<VaultFileInfo[]> {
+  private async _listDirInternal(path: string, absPath: string, recursive: boolean, visited: Set<string>, limit: FsLimiter): Promise<VaultFileInfo[]> {
     if (visited.has(absPath)) return [];
     visited.add(absPath);
 
-    if (!(await exists(absPath))) return [];
-    
-    const results: VaultFileInfo[] = [];
-    const entries = await readDir(absPath);
-    
+    if (!(await limit.run(() => exists(absPath)))) return [];
+
+    const entries = await limit.run(() => readDir(absPath));
+
     // Filter valid entries
     const validEntries = entries.filter(e => {
       if (e.isSymlink) return false; // Prevent infinite symlink loops
@@ -148,58 +159,64 @@ export class TauriVaultAdapter implements IVaultAdapter {
     const separator = absPath.includes('\\') ? '\\' : '/';
     const basePath = absPath.endsWith(separator) ? absPath : absPath + separator;
 
-    // Process sequentially to avoid overloading the IPC bridge
-    for (const entry of validEntries) {
-      const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
-      const childAbsPath = basePath + entry.name;
-      
-      let mtime = Date.now();
-      let ctime: number | undefined;
-      let size = 0;
-
-      // Stat every file (not just .md): attachments need a real mtime/size too, or the
-      // indexer's mtime-based change detection treats them as changed every pass and
-      // re-reads + re-hashes them. A stat() per file is far cheaper than that. Directories
-      // are skipped (no stat needed).
-      if (!entry.isDirectory) {
-        try {
-          const entryStat = await stat(childAbsPath);
-          mtime = entryStat.mtime?.getTime() || Date.now();
-          ctime = entryStat.birthtime?.getTime() || undefined;
-          size = entryStat.size;
-        } catch {
-          console.warn(`Failed to stat ${childAbsPath}`);
-        }
-      }
-
-      results.push({
-        name: entry.name!,
-        path: relativeChildPath,
-        isDirectory: entry.isDirectory,
-        mtime,
-        ctime,
-        size
-      });
-    }
-
-    // Process directories recursively
-    if (recursive) {
-      for (const entry of validEntries) {
+    // Stat the files of this folder CONCURRENTLY (bounded by the shared limiter).
+    // The stats used to run strictly one after another — on a network drive that
+    // was the dominant vault-load cost. Directories carry no stat (mtime/size are
+    // unused for them). Order is preserved via Promise.all over validEntries.
+    //
+    // Stat every file (not just .md): attachments need a real mtime/size too, or
+    // the indexer's mtime-based change detection treats them as changed every
+    // pass and re-reads + re-hashes them. A stat() is far cheaper than that.
+    const results: VaultFileInfo[] = await Promise.all(
+      validEntries.map((entry) => {
+        const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
         if (entry.isDirectory) {
-          const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
-          const childAbsPath = basePath + entry.name;
-          const childResults = await this._listDirInternal(relativeChildPath, childAbsPath, true, visited);
-          results.push(...childResults);
+          return Promise.resolve<VaultFileInfo>({
+            name: entry.name!, path: relativeChildPath, isDirectory: true,
+            mtime: Date.now(), ctime: undefined, size: 0,
+          });
         }
-      }
+        const childAbsPath = basePath + entry.name;
+        return limit.run(async () => {
+          let mtime = Date.now();
+          let ctime: number | undefined;
+          let size = 0;
+          try {
+            const entryStat = await stat(childAbsPath);
+            mtime = entryStat.mtime?.getTime() || Date.now();
+            ctime = entryStat.birthtime?.getTime() || undefined;
+            size = entryStat.size;
+          } catch {
+            console.warn(`Failed to stat ${childAbsPath}`);
+          }
+          return { name: entry.name!, path: relativeChildPath, isDirectory: false, mtime, ctime, size };
+        });
+      })
+    );
+
+    // Recurse into subdirectories concurrently too; the shared limiter keeps the
+    // total in-flight FS calls across the whole tree at LIST_CONCURRENCY. No call
+    // holds a slot while awaiting children, so there is no deadlock. `visited`
+    // guards symlink loops (the check+add is synchronous, before the first await).
+    if (recursive) {
+      const childLists = await Promise.all(
+        validEntries
+          .filter((e) => e.isDirectory)
+          .map((entry) => {
+            const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
+            const childAbsPath = basePath + entry.name;
+            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit);
+          })
+      );
+      for (const cl of childLists) results.push(...cl);
     }
-    
+
     return results;
   }
 
   async listDir(path: string = "", recursive: boolean = false): Promise<VaultFileInfo[]> {
     const absPath = await this.getAbsolutePath(path);
-    return this._listDirInternal(path, absPath, recursive, new Set<string>());
+    return this._listDirInternal(path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY));
   }
 
   async createDir(path: string): Promise<void> {

@@ -358,9 +358,39 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const queryService = new VaultQueryService(dbAdapter);
       const graphService = new GraphService(dbAdapter);
 
-      // Perform an initial index (the only run that reports progress, P3).
-      await indexer.indexVaultFull();
-      reportInitialProgress = false;
+      // Time-to-first-note: don't block the whole load on the full index when the
+      // index is already WARM. After the app-data relocation an existing vault's
+      // DB carries over, so the file tree (files come from the DB, folders from
+      // disk) is fully populated at open; the full index is then just a
+      // reconciliation pass that can run in the background — the vault renders
+      // immediately and any changes reconcile in with a single fileTreeVersion
+      // bump when it finishes. A COLD/empty index (a genuinely fresh vault, or a
+      // first index) still blocks WITH the progress bar so the tree is not empty
+      // while hundreds of files are parsed.
+      const indexedCount = await queryService.db
+        .query<{ n: number }>(`SELECT COUNT(*) AS n FROM files`)
+        .then((r) => (r[0]?.n ?? 0))
+        .catch(() => 0);
+
+      if (indexedCount > 0) {
+        reportInitialProgress = false; // background reconcile: no loading bar
+        void indexer
+          .indexVaultFull()
+          .then(() => {
+            if (currentAbortSignal.aborted) return;
+            setState((s) => ({
+              ...s,
+              fileTreeVersion: s.fileTreeVersion + 1,
+              treeStructureVersion: s.treeStructureVersion + 1,
+              fileTreeVersionPaths: null,
+            }));
+          })
+          .catch((e) => console.error("[VaultContext] background full index failed", e));
+      } else {
+        // Fresh/empty index: block with progress so the tree isn't empty.
+        await indexer.indexVaultFull();
+        reportInitialProgress = false;
+      }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
       if (isNewConnection) {
