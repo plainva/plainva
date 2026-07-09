@@ -142,9 +142,11 @@ export class VaultIndexer {
    * Indexes a single markdown file into the database.
    * Note: This method opens its own transaction.
    *
-   * Returns whether tree-relevant metadata (title, mode, tags, plainva
-   * namespace) changed, so the caller can skip the app-wide UI refresh on pure
-   * prose edits. Non-markdown / directories return false (nothing indexed).
+   * Returns whether view-relevant data (title, mode, tags, plainva namespace,
+   * frontmatter properties, or the file's links) changed, so the caller can
+   * skip the app-wide UI refresh on pure prose edits. Links count: the
+   * backlinks panel and the graph cache key off the index version.
+   * Non-markdown / directories return false (nothing indexed).
    */
   async indexFile(fileInfo: VaultFileInfo): Promise<boolean> {
     if (fileInfo.isDirectory || !fileInfo.name.endsWith(".md")) return false;
@@ -220,16 +222,32 @@ export class VaultIndexer {
         if (fmResult.data.type) mode = "okf";
       }
 
-      // Detect whether anything OUTSIDE the note body changed: title, mode, tags,
-      // or ANY frontmatter property. Views derive from exactly these — the file
-      // tree (title/mode), tag tree (tags), doc icons (plainva.*) AND `.base`
-      // tables/boards (arbitrary frontmatter columns like `status`). The note
-      // BODY only feeds FTS + links, which are rewritten to the DB regardless, so
-      // pure prose typing leaves this false and the editor can skip the app-wide
-      // fileTreeVersion bump — that fan-out is what made typing lag. Frontmatter
-      // is serialized exactly as it is stored below (same strValue rule, sorted),
-      // so the comparison against the DB rows is apples-to-apples. Only computed
-      // on the single-file path (bulk full-index ignores it).
+      // Link rows exactly as they are inserted below: body links (property_key
+      // NULL) plus frontmatter relation links. Built up front so the change
+      // detection compares the very same values that hit the DB.
+      const linkRows: unknown[][] = links.map((link) => [
+        fileId, link.target, link.rawTarget, link.type, link.anchor || null, null,
+      ]);
+      if (fmResult.success && fmResult.data) {
+        for (const fmLink of extractFrontmatterLinks(fmResult.data)) {
+          linkRows.push([fileId, fmLink.target, fmLink.rawTarget, "wikilink", fmLink.anchor || null, fmLink.propertyKey]);
+        }
+      }
+
+      // Detect whether anything view-relevant changed: title, mode, tags, ANY
+      // frontmatter property — or the file's LINKS. Views derive from exactly
+      // these — the file tree (title/mode), tag tree (tags), doc icons
+      // (plainva.*), `.base` tables/boards (arbitrary frontmatter columns like
+      // `status`), and the backlinks panel / graph cache (links: loadGraphCached
+      // keys off fileTreeVersion, so a hand-typed [[link]] must bump it or it
+      // stays invisible until an app restart). Pure prose typing leaves every
+      // signature unchanged and the editor can skip the app-wide
+      // fileTreeVersion bump — that fan-out is what made typing lag. FTS is
+      // rewritten to the DB regardless (search queries live, no bump needed).
+      // Frontmatter is serialized exactly as it is stored below (same strValue
+      // rule, sorted), so the comparison against the DB rows is
+      // apples-to-apples. Only computed on the single-file path (bulk
+      // full-index ignores it).
       if (!lookups) {
         const newTagSig = [...new Set((tags as { name: string }[]).map((tg) => tg.name))].sort().join("\n");
         const newPropPairs: string[] = [];
@@ -253,12 +271,31 @@ export class VaultIndexer {
         // In the !lookups branch existingFileState comes from the extended
         // queryOne (has title/mode); the bulk union type does not, hence the cast.
         const efs = existingFileState as { title?: string | null; mode?: string | null } | null;
-        this.lastIndexMetadataChanged =
+        let changed =
           !efs ||
           (efs.title ?? null) !== title ||
           (efs.mode ?? null) !== mode ||
           oldTagSig !== newTagSig ||
           oldPropSig !== newPropSig;
+        if (!changed) {
+          // Multiset compare (duplicates kept — backlinks count them) of the
+          // full insert tuple, read BEFORE the cascading DELETE below.
+          const linkSig = (target: unknown, raw: unknown, type: unknown, anchor: unknown, propKey: unknown) =>
+            [target, raw, type, anchor, propKey].map((v) => String(v ?? "")).join("\t");
+          const newLinkSig = linkRows.map((r) => linkSig(r[1], r[2], r[3], r[4], r[5])).sort().join("\n");
+          const oldLinkRows = await this.dbAdapter.query<{
+            target_path: string; target_raw: string; link_type: string; anchor: string | null; property_key: string | null;
+          }>(
+            `SELECT target_path, target_raw, link_type, anchor, property_key FROM links WHERE source_id = ?`,
+            [fileId]
+          );
+          const oldLinkSig = oldLinkRows
+            .map((r) => linkSig(r.target_path, r.target_raw, r.link_type, r.anchor, r.property_key))
+            .sort()
+            .join("\n");
+          changed = oldLinkSig !== newLinkSig;
+        }
+        this.lastIndexMetadataChanged = changed;
       }
 
       // Delete existing data for this file
@@ -285,17 +322,8 @@ export class VaultIndexer {
         await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content);
       }
 
-      // Insert links: body links (property_key NULL) and frontmatter relation
-      // links share ONE multi-row batch — inserting row by row was 10-30
-      // additional IPC round-trips per file (P2.4).
-      const linkRows: unknown[][] = links.map((link) => [
-        fileId, link.target, link.rawTarget, link.type, link.anchor || null, null,
-      ]);
-      if (fmResult.success && fmResult.data) {
-        for (const fmLink of extractFrontmatterLinks(fmResult.data)) {
-          linkRows.push([fileId, fmLink.target, fmLink.rawTarget, "wikilink", fmLink.anchor || null, fmLink.propertyKey]);
-        }
-      }
+      // Insert links (rows built above): ONE multi-row batch — inserting row
+      // by row was 10-30 additional IPC round-trips per file (P2.4).
       await this.executeBatch(
         `INSERT INTO links (source_id, target_path, target_raw, link_type, anchor, property_key) VALUES `,
         `(?, ?, ?, ?, ?, ?)`,

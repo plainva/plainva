@@ -394,6 +394,84 @@ describe("VaultIndexer", () => {
     expect(changed).toBe(true);
   });
 
+  // Links count as view-relevant: the backlinks panel and the graph cache key
+  // off the index version, so a hand-typed [[link]] (a pure body edit) must
+  // bump it — it previously stayed invisible until an app restart. The link
+  // signature is only compared when nothing else changed, as query #4 after
+  // getSyncState -> old tags -> old props.
+  it("indexFile returns true when a body wiki link was added", async () => {
+    await vaultAdapter.writeTextFile("note.md", "# note\nNow see [[Other]] here.");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [], // getSyncState
+      [], // old tags
+      [], // old properties
+      [], // old links -> none, but the new body carries [[Other]]
+    ];
+    const changed = await indexer.indexFile({
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 30,
+    });
+    expect(changed).toBe(true);
+  });
+
+  it("indexFile returns true when a body wiki link was removed", async () => {
+    await vaultAdapter.writeTextFile("note.md", "# note\nplain text, link gone");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [],
+      [],
+      [],
+      [{ target_path: "Other", target_raw: "Other", link_type: "wikilink", anchor: null, property_key: null }],
+    ];
+    const changed = await indexer.indexFile({
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 30,
+    });
+    expect(changed).toBe(true);
+  });
+
+  it("indexFile returns false when the body changed but the link set is identical", async () => {
+    await vaultAdapter.writeTextFile("note.md", "# note\nreworded prose around [[Other]].");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [],
+      [],
+      [],
+      [{ target_path: "Other", target_raw: "Other", link_type: "wikilink", anchor: null, property_key: null }],
+    ];
+    const changed = await indexer.indexFile({
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 40,
+    });
+    expect(changed).toBe(false);
+  });
+
+  it("indexFile counts duplicate links (backlinks show xN) in the comparison", async () => {
+    // Second occurrence of the SAME link added: set-wise equal, multiset-wise not.
+    await vaultAdapter.writeTextFile("note.md", "See [[Other]] and again [[Other]].");
+    db.mockedOneResults = [
+      { sync_state: "synced", ctime: 1000, title: "note", mode: "obsidian" },
+      null,
+    ];
+    db.mockedResults = [
+      [],
+      [],
+      [],
+      [{ target_path: "Other", target_raw: "Other", link_type: "wikilink", anchor: null, property_key: null }],
+    ];
+    const changed = await indexer.indexFile({
+      path: "note.md", name: "note.md", isDirectory: false, mtime: 2000, size: 40,
+    });
+    expect(changed).toBe(true);
+  });
+
   describe("indexPath deletion classification", () => {
     it("returns needs-full-scan for a vanished folder with indexed children", async () => {
       // "projects" never exists on disk; folders have no files row, but an indexed

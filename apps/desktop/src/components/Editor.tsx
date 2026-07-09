@@ -310,10 +310,12 @@ export const Editor: React.FC<{
         // File-only refresh (P2.5/P2.7): a save never changes the folder
         // structure, and views not showing this path can skip their reload.
         // Skip the app-wide fileTreeVersion bump entirely on pure prose edits
-        // (title/mode/tags/plainva unchanged) — that fan-out re-fires 8-12
-        // uncached queries across every useVault() consumer and was the source
-        // of the typing lag during autosave. FTS/links are already updated in
-        // the DB above, so search/backlinks stay correct without a re-render.
+        // (title/mode/tags/properties/links unchanged) — that fan-out re-fires
+        // 8-12 uncached queries across every useVault() consumer and was the
+        // source of the typing lag during autosave. FTS is already updated in
+        // the DB above (search queries live), while LINK changes do report
+        // metaChanged: the backlinks panel and loadGraphCached key off the
+        // version, so a hand-typed [[link]] must bump it to become visible.
         if (metaChanged) triggerFileTreeUpdate([path]);
       } catch (e: any) {
         console.error("Failed to save file", e);

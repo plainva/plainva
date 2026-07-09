@@ -1,9 +1,32 @@
-import { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
+import { CompletionContext, CompletionResult, Completion, pickedCompletion } from "@codemirror/autocomplete";
+import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
 import { searchEmoji } from "./emojiData";
 
 // `[[` note-link and `#` tag autocomplete (#10), combined into the editor's
 // single autocompletion (see editorCompletion.ts). Both are completion *sources*.
+
+/**
+ * How many `]` directly after the completed range the insertion must consume:
+ * closeBrackets already produced the closing `]]` while the user typed `[[`,
+ * so a plain string apply would leave `[[Title]]]]` behind.
+ */
+export function closersToConsume(after: string): number {
+  return after.startsWith("]]") ? 2 : after.startsWith("]") ? 1 : 0;
+}
+
+/** Apply for `[[`/`![[` completions: insert the full link, swallowing any
+ *  auto-closed `]]` right of the caret, and park the caret after the link. */
+function applyLinkText(insert: string) {
+  return (view: EditorView, completion: Completion, from: number, to: number) => {
+    const extra = closersToConsume(view.state.sliceDoc(to, Math.min(view.state.doc.length, to + 2)));
+    view.dispatch({
+      changes: { from, to: to + extra, insert },
+      selection: { anchor: from + insert.length },
+      annotations: pickedCompletion.of(completion),
+    });
+  };
+}
 
 export interface EditorTriggerDeps {
   getQueryService: () => {
@@ -36,7 +59,7 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
       );
       const options: TriggerCompletion[] = rows.map((r) => {
         const title = r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || r.path;
-        return { label: title, apply: `[[${title}]]`, type: "wikilink", description: r.path };
+        return { label: title, apply: applyLinkText(`[[${title}]]`), type: "wikilink", description: r.path };
       });
       if (options.length === 0) return null;
       return { from: word.from, filter: false, options };
@@ -70,7 +93,7 @@ export function embedCompletionSource(deps: EditorTriggerDeps) {
         const name = r.title || r.path.split(/[/\\]/).pop() || r.path;
         const isImg = /\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i.test(r.path);
         const isBase = /\.base$/i.test(r.path);
-        return { label: name, apply: `![[${r.path}]]`, type: isImg ? "image" : isBase ? "base" : "embed", description: r.path };
+        return { label: name, apply: applyLinkText(`![[${r.path}]]`), type: isImg ? "image" : isBase ? "base" : "embed", description: r.path };
       });
       if (options.length === 0) return null;
       return { from: word.from, filter: false, options };

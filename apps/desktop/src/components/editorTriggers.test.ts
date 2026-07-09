@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
-import { CompletionContext } from "@codemirror/autocomplete";
-import { wikiLinkCompletionSource, tagCompletionSource, emojiColonCompletionSource } from "./editorTriggers";
+import { CompletionContext, Completion } from "@codemirror/autocomplete";
+import { closersToConsume, wikiLinkCompletionSource, embedCompletionSource, tagCompletionSource, emojiColonCompletionSource } from "./editorTriggers";
 
 function ctx(doc: string, pos = doc.length) {
   return new CompletionContext(EditorState.create({ doc }), pos, false);
@@ -10,18 +10,69 @@ const deps = (rows: any[], tags: { tag: string; count: number }[] = []) => ({
   getQueryService: () => ({ db: { query: async () => rows }, getAllTags: async () => tags }),
 });
 
+/** Runs an option's apply function against a minimal view built on a real
+ *  EditorState — exactly the (view, completion, from, to) contract CM uses. */
+function applied(option: Completion, doc: string, from: number, to: number): { doc: string; caret: number } {
+  let state = EditorState.create({ doc, selection: { anchor: to } });
+  const view = {
+    get state() {
+      return state;
+    },
+    dispatch(spec: any) {
+      state = state.update(spec).state;
+    },
+  };
+  (option.apply as (v: any, c: Completion, f: number, t: number) => void)(view, option, from, to);
+  return { doc: state.doc.toString(), caret: state.selection.main.anchor };
+}
+
 describe("wikiLinkCompletionSource", () => {
   it("searches notes after [[ and inserts [[Title]]", async () => {
     const src = wikiLinkCompletionSource(deps([{ path: "A/My Note.md", title: "My Note" }]));
     const res = await src(ctx("[[my"));
     expect(res).not.toBeNull();
     expect(res!.from).toBe(0);
-    expect(res!.options[0].apply).toBe("[[My Note]]");
+    expect(applied(res!.options[0], "[[my", 0, 4).doc).toBe("[[My Note]]");
+  });
+
+  it("consumes the auto-closed ]] so picking a suggestion never doubles the closers", async () => {
+    const src = wikiLinkCompletionSource(deps([{ path: "A/My Note.md", title: "My Note" }]));
+    // closeBrackets turned the typed `[[` into `[[|]]`; typing the term gives `[[my]]` with the caret at 4.
+    const res = await src(ctx("[[my]]", 4));
+    expect(res).not.toBeNull();
+    const { doc, caret } = applied(res!.options[0], "[[my]]", 0, 4);
+    expect(doc).toBe("[[My Note]]");
+    expect(caret).toBe("[[My Note]]".length);
+  });
+
+  it("consumes a single leftover ] and leaves following text alone", async () => {
+    const src = wikiLinkCompletionSource(deps([{ path: "A/My Note.md", title: "My Note" }]));
+    const res = await src(ctx("[[my] rest", 4));
+    expect(applied(res!.options[0], "[[my] rest", 0, 4).doc).toBe("[[My Note]] rest");
   });
 
   it("returns null without a preceding [[", async () => {
     const src = wikiLinkCompletionSource(deps([{ path: "A.md", title: "A" }]));
     expect(await src(ctx("hello"))).toBeNull();
+  });
+});
+
+describe("embedCompletionSource", () => {
+  it("consumes the auto-closed ]] when picking an embed target", async () => {
+    const src = embedCompletionSource(deps([{ path: "img/pic.png", title: "" }]));
+    const res = await src(ctx("![[pi]]", 5));
+    expect(res).not.toBeNull();
+    expect(applied(res!.options[0], "![[pi]]", 0, 5).doc).toBe("![[img/pic.png]]");
+  });
+});
+
+describe("closersToConsume", () => {
+  it("counts up to two closing brackets directly after the caret", () => {
+    expect(closersToConsume("]]")).toBe(2);
+    expect(closersToConsume("] x")).toBe(1);
+    expect(closersToConsume("]]] ")).toBe(2);
+    expect(closersToConsume("")).toBe(0);
+    expect(closersToConsume("text")).toBe(0);
   });
 });
 
