@@ -7,6 +7,10 @@ import { credentialManager } from "../services/CredentialManager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfirm } from "../services/appDialogs";
 import { Checkbox } from "./ui/Checkbox";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
+import { forgetVaultData } from "../services/vaultForget";
+import { toast } from "../services/toastStore";
 import { PlainvaLogo } from "./PlainvaLogo";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
@@ -34,8 +38,38 @@ export const SplashScreen: React.FC = () => {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  // Remove-recent dialog (E1 2026-07-09): list-only removal vs. forgetting all
+  // per-vault app data; ZIP backups only via the explicit opt-in checkbox.
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [forgetZips, setForgetZips] = useState(false);
+  const [forgetting, setForgetting] = useState(false);
 
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+
+  const handleRemoveOnlyList = async () => {
+    if (!removeTarget) return;
+    const path = removeTarget;
+    setRemoveTarget(null);
+    await removeRecentVault(path);
+  };
+
+  const handleForgetAppData = async () => {
+    if (!removeTarget) return;
+    const path = removeTarget;
+    setForgetting(true);
+    try {
+      const result = await forgetVaultData(path, { deleteZipBackups: forgetZips });
+      await removeRecentVault(path);
+      if (result.ok) {
+        toast.info(t("splash.removeForgotten", { name: getBasename(path) }));
+      } else {
+        toast.warning(t("splash.removeForgetPartial", { name: getBasename(path), what: result.errors.join(", ") }));
+      }
+    } finally {
+      setForgetting(false);
+      setRemoveTarget(null);
+    }
+  };
 
   const handleWebDavNext = () => {
     if (url && user && pass) setShowPicker(true);
@@ -299,7 +333,7 @@ export const SplashScreen: React.FC = () => {
                         className="pv-icon-btn"
                         aria-label={t("splash.removeFromList")}
                         title={t("splash.removeFromListHint")}
-                        onClick={() => removeRecentVault(path)}
+                        onClick={() => { setForgetZips(false); setRemoveTarget(path); }}
                         style={{ marginRight: "8px" }}
                         onMouseOver={(e) => { e.currentTarget.style.color = "var(--error-text)"; }}
                         onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
@@ -388,6 +422,33 @@ export const SplashScreen: React.FC = () => {
 
       {showPicker && (
         <WebDavFolderPickerModal initialUrl={url} user={user} pass={pass} onSelect={handleWebDavFolderSelected} onCancel={() => setShowPicker(false)} />
+      )}
+      {removeTarget !== null && (
+        <Modal
+          title={t("splash.removeDialogTitle")}
+          onClose={() => { if (!forgetting) setRemoveTarget(null); }}
+          size="md"
+          footer={
+            <>
+              <Button onClick={() => setRemoveTarget(null)} disabled={forgetting}>
+                {t("common.cancel")}
+              </Button>
+              <Button onClick={() => { void handleRemoveOnlyList(); }} disabled={forgetting} data-testid="splash-remove-list-only">
+                {t("splash.removeOnlyList")}
+              </Button>
+              <Button variant="danger" onClick={() => { void handleForgetAppData(); }} disabled={forgetting} data-testid="splash-remove-forget">
+                {t("splash.removeForget")}
+              </Button>
+            </>
+          }
+        >
+          <p style={{ margin: "0 0 12px", lineHeight: 1.5 }}>
+            {t("splash.removeDialogBody", { name: getBasename(removeTarget) })}
+          </p>
+          <Checkbox checked={forgetZips} onChange={(e) => setForgetZips(e.target.checked)} disabled={forgetting}>
+            {t("splash.removeForgetZips")}
+          </Checkbox>
+        </Modal>
       )}
     </div>
   );

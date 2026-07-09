@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-07
+Laatst bijgewerkt: 2026-07-09
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -16,7 +16,7 @@ Bij het opstarten begroet het welkomstscherm je:
 - **Nieuwe vault aanmaken** — begin leeg of met een voorbereide mappenstructuur; beide zijn altijd aan te passen. De **Lege vault** bevat alleen een `index.md`-overzicht. Als sjablonen zijn beschikbaar: **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** en **Journal** — elk maakt mappen, een welkomstnotitie met korte handleiding en automatisch bijgehouden `index.md`-overzichten in het [OKF-formaat](OKF.md) aan (map- en bestandsnamen volgen de app-taal). Het **Journal**-sjabloon stelt bovendien meteen de dagelijkse-notities-instellingen van de vault in. De sjablonen **PARA**, **GTD**, **Zettelkasten** en **Journal** leveren ook kant-en-klaar gekoppelde [databases](Databases_Base.md) mee met bijpassende notitiesjablonen — bijvoorbeeld projecten met een statusbord en een gebiedslink, of taken die naar hun project verwijzen.
 - **Online vault openen** — kies je cloudprovider: **WebDAV / Nextcloud** verbindt rechtstreeks (voer de server-URL, gebruikersnaam en wachtwoord of app-token in, dan **Server doorbladeren**); voor **Google Drive**, **OneDrive**, **Dropbox** en **S3-compatibele opslag** kies je eerst een lokale sync-map — de installatie opent daarna automatisch in de instellingen (zie [Sync instellen](Sync_Setup.md)).
 
-Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit lijst verwijderen** verdwijnt een item alleen uit Plainva — de bestanden blijven op schijf staan. De optie **Laatste vault automatisch openen bij het starten** slaat het welkomstscherm voortaan over.
+Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit lijst verwijderen** verdwijnt een item alleen uit Plainva — de bestanden blijven op schijf staan. De optie **Laatste vault automatisch openen bij het starten** slaat het welkomstscherm voortaan over. Bij het verwijderen vraagt Plainva of daarnaast alle app-gegevens van de vault vergeten moeten worden (zoekindex, instellingen, vensterindeling, synchronisatie-inloggegevens; automatische ZIP-back-ups alleen via het extra selectievakje) — je vault-map blijft in elk geval onaangetast.
 
 ## De interface
 

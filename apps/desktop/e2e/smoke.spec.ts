@@ -644,8 +644,41 @@ test('Splash: removing a recent vault only forgets it — files stay on disk', a
   await page.goto('/');
   await expect(page.getByText('test-vault', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: /Aus Liste entfernen|Remove from list/ }).click();
+  // The remove dialog (E1 2026-07-09) offers list-only removal vs. forgetting
+  // app data; the list-only choice is the old non-destructive behavior.
+  await page.getByTestId('splash-remove-list-only').click();
   await expect(page.getByText('test-vault', { exact: true })).toHaveCount(0);
   // Non-destructive: the vault files are untouched.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'] !== undefined)).toBe(true);
+});
+
+test('Splash: "forget app data" purges the vault\'s per-vault settings keys', async ({ page }) => {
+  await page.addInitScript(() => {
+    const deleted: string[] = [];
+    (window as any).__storeDeleted = deleted;
+    const suffix = '_' + btoa(unescape(encodeURIComponent('/test-vault')));
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
+      if (cmd === 'plugin:store|keys') return ['appLanguage', 'syncIntervalSeconds' + suffix, 'templateFolder' + suffix];
+      if (cmd === 'plugin:store|delete') { deleted.push(args?.key); return true; }
+      if (cmd === 'plugin:path|resolve_directory') return '/appdata';
+      if (cmd === 'keychain_delete') return null;
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('test-vault', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByRole('button', { name: /Aus Liste entfernen|Remove from list/ }).click();
+  await page.getByTestId('splash-remove-forget').click();
+
+  await expect(page.getByText('test-vault', { exact: true })).toHaveCount(0);
+  // Both per-vault keys were purged via the shared suffix scan; globals stayed.
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__storeDeleted))
+    .toEqual(expect.arrayContaining([expect.stringContaining('syncIntervalSeconds_'), expect.stringContaining('templateFolder_')]));
+  expect(await page.evaluate(() => (window as any).__storeDeleted.includes('appLanguage'))).toBe(false);
+  // The vault files themselves are untouched.
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'] !== undefined)).toBe(true);
 });
 

@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-07
+Stan na: 2026-07-09
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -16,7 +16,7 @@ Po uruchomieniu wita ekran powitalny:
 - **Utwórz nowy vault** — zacznij od pustego vaultu lub od przygotowanej struktury folderów; oba warianty można zmienić w każdej chwili. **Pusty vault** zawiera tylko przegląd `index.md`. Dostępne szablony: **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** i **Journal** — każdy tworzy foldery, notatkę powitalną z krótką instrukcją oraz automatycznie zarządzane przeglądy `index.md` w [formacie OKF](OKF.md) (nazwy folderów i plików są zgodne z językiem aplikacji). Szablon **Journal** dodatkowo od razu konfiguruje ustawienia notatek dziennych vaultu. Szablony **PARA**, **GTD**, **Zettelkasten** i **Journal** zawierają też gotowe, powiązane ze sobą [bazy danych](Databases_Base.md) wraz z pasującymi szablonami notatek — na przykład projekty z tablicą statusu i linkiem do obszaru albo zadania wskazujące na swój projekt.
 - **Otwórz vault online** — wybierz dostawcę chmury: **WebDAV / Nextcloud** łączy się bezpośrednio (wpisz adres URL serwera, nazwę użytkownika i hasło lub token aplikacji, następnie **Przeglądaj serwer**); dla **Google Drive**, **OneDrive**, **Dropbox** i **magazynu zgodnego z S3** najpierw wybierasz lokalny folder synchronizacji — konfiguracja otwiera się następnie automatycznie w ustawieniach (patrz [Konfiguracja synchronizacji](Sync_Setup.md)).
 
-**Ostatnie vaulty** pokazują wszystko, co było już wcześniej otwierane. **Usuń z listy** usuwa wpis wyłącznie z Plainva — pliki pozostają na dysku. Włącz opcję **Automatycznie otwieraj ostatni vault przy starcie**, aby w przyszłości pomijać ekran powitalny.
+**Ostatnie vaulty** pokazują wszystko, co było już wcześniej otwierane. **Usuń z listy** usuwa wpis wyłącznie z Plainva — pliki pozostają na dysku. Włącz opcję **Automatycznie otwieraj ostatni vault przy starcie**, aby w przyszłości pomijać ekran powitalny. Podczas usuwania Plainva pyta, czy dodatkowo zapomnieć wszystkie dane aplikacji vaultu (indeks wyszukiwania, ustawienia, układ okna, dane logowania synchronizacji; automatyczne kopie ZIP tylko przez dodatkowe pole wyboru) — folder vaultu pozostaje w każdym przypadku nietknięty.
 
 ## Interfejs
 

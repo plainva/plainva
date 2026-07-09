@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-07
+Stand: 2026-07-09
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -16,7 +16,7 @@ Beim Start begrüßt Dich der Willkommensbildschirm:
 - **Neuen Vault erstellen** — starte leer oder mit einer vorbereiteten Ordnerstruktur; beides ist jederzeit anpassbar. Der **Leere Vault** enthält nur eine `index.md`-Übersicht. Als Vorlagen stehen **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** und **Journal** bereit — jede legt Ordner, eine Willkommensnotiz mit Kurzanleitung und automatisch gepflegte `index.md`-Übersichten im [OKF-Format](OKF.md) an (Ordner- und Dateinamen folgen der App-Sprache). Die **Journal**-Vorlage richtet zusätzlich die Tagesnotizen-Einstellungen des Vaults gleich mit ein. Die Vorlagen **PARA**, **GTD**, **Zettelkasten** und **Journal** bringen außerdem fertig verknüpfte [Datenbanken](Databases_Base.md) samt Notiz-Vorlagen mit — etwa Projekte mit Status-Board und Bereichs-Bezug oder Aufgaben, die auf ihr Projekt verweisen.
 - **Online-Vault öffnen** — wähle deinen Cloud-Anbieter: **WebDAV / Nextcloud** verbindet direkt (Server-URL, Benutzername und Passwort oder App-Token eingeben, dann **Server durchsuchen**); bei **Google Drive**, **OneDrive**, **Dropbox** und **S3-kompatibler Speicher** wählst Du zuerst einen lokalen Sync-Ordner — die Einrichtung öffnet sich anschließend automatisch in den Einstellungen (siehe [Sync einrichten](Sync_Setup.md)).
 
-Unter **Kürzliche Vaults** findest Du alles, was Du schon einmal geöffnet hast. Mit **Aus Liste entfernen** verschwindet ein Eintrag nur aus Plainva — die Dateien bleiben auf der Festplatte. Die Option **Letzten Vault beim Start automatisch öffnen** überspringt den Willkommensbildschirm künftig.
+Unter **Kürzliche Vaults** findest Du alles, was Du schon einmal geöffnet hast. Mit **Aus Liste entfernen** verschwindet ein Eintrag nur aus Plainva — die Dateien bleiben auf der Festplatte. Die Option **Letzten Vault beim Start automatisch öffnen** überspringt den Willkommensbildschirm künftig. Beim Entfernen fragt Plainva, ob zusätzlich alle App-Daten des Vaults vergessen werden sollen (Suchindex, Einstellungen, Fenster-Layout, Sync-Zugangsdaten; automatische ZIP-Backups nur über die extra Checkbox) – Dein Vault-Ordner bleibt in jedem Fall unangetastet.
 
 ## Die Oberfläche
 

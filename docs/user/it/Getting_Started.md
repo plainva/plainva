@@ -1,6 +1,6 @@
 # Per iniziare
 
-Stand: 2026-07-07
+Stand: 2026-07-09
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -16,7 +16,7 @@ All'avvio, la schermata di benvenuto ti accoglie con:
 - **Crea nuovo vault** — inizia da vuoto o da una struttura di cartelle già pronta; entrambi modificabili in qualsiasi momento. Il **Vault vuoto** contiene solo una panoramica `index.md`. Modelli disponibili: **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** e **Journal** — ognuno crea cartelle, una nota di benvenuto con una guida rapida e panoramiche `index.md` mantenute automaticamente nel [formato OKF](OKF.md) (i nomi di cartelle e file seguono la lingua dell'app). Il modello **Journal** collega inoltre le impostazioni delle note giornaliere del vault. I modelli **PARA**, **GTD**, **Zettelkasten** e **Journal** includono anche [database](Databases_Base.md) già collegati con modelli di nota corrispondenti — ad esempio progetti con una bacheca di stato e un link all'area, oppure attività che rimandano al loro progetto.
 - **Apri vault online** — scegli il tuo provider cloud: **WebDAV / Nextcloud** si connette direttamente (inserisci l'URL del server, il nome utente e la password o il token dell'app, poi **Sfoglia il server**); per **Google Drive**, **OneDrive**, **Dropbox** e **Archiviazione compatibile S3** scegli prima una cartella locale di sincronizzazione — la configurazione si apre poi automaticamente nelle Impostazioni (vedi [Configurare la sincronizzazione](Sync_Setup.md)).
 
-**Vault recenti** elenca tutto ciò che hai già aperto in precedenza. **Rimuovi dalla lista** rimuove una voce solo da Plainva — i file restano sul disco. Attiva **Apri automaticamente l'ultimo vault all'avvio** per saltare la schermata di benvenuto in futuro.
+**Vault recenti** elenca tutto ciò che hai già aperto in precedenza. **Rimuovi dalla lista** rimuove una voce solo da Plainva — i file restano sul disco. Attiva **Apri automaticamente l'ultimo vault all'avvio** per saltare la schermata di benvenuto in futuro. Alla rimozione, Plainva chiede se dimenticare anche tutti i dati dell'app del vault (indice di ricerca, impostazioni, layout della finestra, credenziali di sincronizzazione; i backup ZIP automatici solo tramite la casella aggiuntiva) — la tua cartella del vault resta comunque intatta.
 
 ## L'interfaccia
 

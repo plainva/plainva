@@ -33,7 +33,9 @@ export function buildZipFileName(vaultName: string, when: Date): string {
   return `${sanitizeFileName(vaultName)}_${format(when, "yyyy-MM-dd_HH-mm-ss")}.zip`;
 }
 
-function zipNamePattern(vaultName: string): RegExp {
+/** Strict name pattern of OUR zips for a vault — protects foreign files in a
+ *  user-chosen destination (rotation + the forget-vault cleanup share it). */
+export function zipNamePattern(vaultName: string): RegExp {
   const esc = sanitizeFileName(vaultName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^${esc}_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.zip$`);
 }

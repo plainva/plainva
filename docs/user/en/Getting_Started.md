@@ -1,6 +1,6 @@
 # Getting Started
 
-Last reviewed: 2026-07-07
+Last reviewed: 2026-07-09
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -16,7 +16,7 @@ On launch, the welcome screen greets you:
 - **Create New Vault** — start empty or from a prepared folder structure; both are adjustable anytime. The **Empty vault** contains just an `index.md` overview. Available templates: **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** and **Journal** — each creates folders, a welcome note with a quick guide and automatically maintained `index.md` overviews in the [OKF format](OKF.md) (folder and file names follow the app language). The **Journal** template additionally wires up the vault's daily-notes settings. The **PARA**, **GTD**, **Zettelkasten** and **Journal** templates also ship ready-linked [databases](Databases_Base.md) with matching note templates — for example projects with a status board and an area link, or tasks that point to their project.
 - **Open Online Vault** — pick your cloud provider: **WebDAV / Nextcloud** connects directly (enter the server URL, username and password or app token, then **Browse Server**); for **Google Drive**, **OneDrive**, **Dropbox** and **S3-compatible storage** you pick a local sync folder first — setup then opens automatically in Settings (see [Sync Setup](Sync_Setup.md)).
 
-**Recent Vaults** lists everything you have opened before. **Remove from list** removes an entry from Plainva only — the files stay on disk. Enable **Automatically open the last vault on start** to skip the welcome screen in the future.
+**Recent Vaults** lists everything you have opened before. **Remove from list** removes an entry from Plainva only — the files stay on disk. Enable **Automatically open the last vault on start** to skip the welcome screen in the future. When removing, Plainva asks whether to additionally forget all of the vault's app data (search index, settings, window layout, sync credentials; automatic ZIP backups only via the extra checkbox) — your vault folder always stays untouched.
 
 ## The interface
 

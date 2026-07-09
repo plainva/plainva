@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-09
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -16,7 +16,7 @@ Au démarrage, l'écran d'accueil vous accueille :
 - **Créer un nouveau vault** — commencez à vide ou à partir d'une structure de dossiers prête à l'emploi ; les deux sont modifiables à tout moment. Le **Vault vide** ne contient qu'un aperçu `index.md`. Modèles disponibles : **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** et **Journal** — chacun crée des dossiers, une note de bienvenue avec un guide rapide et des aperçus `index.md` maintenus automatiquement au [format OKF](OKF.md) (les noms de dossiers et de fichiers suivent la langue de l'application). Le modèle **Journal** configure en plus les paramètres de notes quotidiennes du vault. Les modèles **PARA**, **GTD**, **Zettelkasten** et **Journal** fournissent aussi des [bases de données](Databases_Base.md) déjà reliées avec des modèles de notes assortis — par exemple des projets avec un board de statut et un lien vers un domaine, ou des tâches qui pointent vers leur projet.
 - **Ouvrir un vault en ligne** — choisissez votre fournisseur cloud : **WebDAV / Nextcloud** se connecte directement (saisissez l'URL du serveur, le nom d'utilisateur et le mot de passe ou jeton d'application, puis **Parcourir le serveur**) ; pour **Google Drive**, **OneDrive**, **Dropbox** et **Stockage compatible S3**, vous choisissez d'abord un dossier de synchronisation local — la configuration s'ouvre ensuite automatiquement dans les paramètres (voir [Configurer la synchronisation](Sync_Setup.md)).
 
-**Vaults récents** liste tout ce que vous avez déjà ouvert. **Retirer de la liste** supprime une entrée uniquement de Plainva — les fichiers restent sur le disque. Activez **Ouvrir automatiquement le dernier vault au démarrage** pour ignorer l'écran d'accueil à l'avenir.
+**Vaults récents** liste tout ce que vous avez déjà ouvert. **Retirer de la liste** supprime une entrée uniquement de Plainva — les fichiers restent sur le disque. Activez **Ouvrir automatiquement le dernier vault au démarrage** pour ignorer l'écran d'accueil à l'avenir. Lors du retrait, Plainva demande s'il faut en plus oublier toutes les données d'application du vault (index de recherche, réglages, disposition de la fenêtre, identifiants de synchronisation ; sauvegardes ZIP automatiques uniquement via la case dédiée) — votre dossier de vault reste dans tous les cas intact.
 
 ## L'interface
 
