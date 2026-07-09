@@ -52,6 +52,15 @@ export interface SyncProgress {
 /** Upper bound for the adaptive pull backoff (a failing server is retried at most this slowly). */
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
 
+/**
+ * How many incremental (cursor) pulls to run between full listings for change-token
+ * providers (Drive). The periodic full listing re-seeds the adapter's id<->path caches,
+ * catches remotely-created files whose parent a bare change cannot resolve, and runs the
+ * authoritative missing-from-listing deletion mirror. At the 15 s default this is a full
+ * listing roughly every 5 minutes; every cycle in between is one cheap changes.list call.
+ */
+const FULL_LISTING_EVERY_N_CYCLES = 20;
+
 export class SyncWorker {
   private timeoutId: any;
   private isRunning = false;
@@ -82,6 +91,16 @@ export class SyncWorker {
    */
   public onFirstCycleComplete?: () => void;
   private firstCycleComplete = false;
+  /**
+   * Incremental-pull state for change-token providers (Drive). `cursor` is the change
+   * token from the last pull; `cyclesSinceFull` forces a periodic full listing. Both live
+   * only in memory for the session: a full listing must run first each session anyway to
+   * seed the adapter's id<->path caches that changes.list maps against, so there is nothing
+   * to persist across restarts. An undefined `cursor` (WebDAV/S3/OneDrive/Dropbox, or any
+   * target without getStartCursor) means every cycle is a full listing, exactly as before.
+   */
+  private cursor?: string;
+  private cyclesSinceFull = 0;
 
   private emitProgress(phase: "pull" | "push", current: number, total: number) {
     if (!this.onProgress || total <= 0) return;
@@ -279,14 +298,61 @@ export class SyncWorker {
     await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
   }
 
+  /**
+   * Mirrors a remote deletion for one path, but only when the local copy is UNCHANGED
+   * since the last sync — a locally-modified file is kept (it resurfaces as a local-ahead
+   * change) rather than destroyed. Device-local paths (.plainva/*, .CONFLICT) are never
+   * touched. Shared by the full-listing (missing-from-listing) and incremental (explicit
+   * `deleted[]`) deletion paths.
+   */
+  private async mirrorRemoteDeletion(
+    path: string,
+    stateMap: Map<string, SyncState>,
+    changedPaths: string[]
+  ): Promise<void> {
+    if (isLocalOnlyPath(path)) return;
+    const state = stateMap.get(path) ?? null;
+    const localExists = await this.vault.exists(path);
+    if (!localExists) {
+      await this.stateRepo.deleteSyncState(path);
+      return;
+    }
+    const localSha = isTextFile(path)
+      ? await sha256Hash(await this.vault.readTextFile(path))
+      : await sha256Bytes(await this.vault.readBinaryFile(path));
+    if (state?.base_sha256 && localSha === state.base_sha256) {
+      await this.vault.deleteItem(path);
+      await this.stateRepo.deleteSyncState(path);
+      changedPaths.push(path);
+    }
+    // else: local has unsynced edits -> keep it.
+  }
+
   public async runCycle() {
     try {
       console.log("[SyncWorker] cycle start");
       this.setStatus("syncing");
       const changedPaths: string[] = [];
 
-      // 1. Pull remote listing.
-      const pullResult = await this.target.pull();
+      // 1. Pull the remote change set. Change-token providers (Drive) pull only what
+      // changed since the last cursor — a single cheap changes.list instead of walking the
+      // whole tree every cycle — with a periodic full listing as a safety net. Every other
+      // provider (no getStartCursor) always takes the full-listing path, exactly as before.
+      const doFullListing = !this.cursor || this.cyclesSinceFull >= FULL_LISTING_EVERY_N_CYCLES;
+      let seededCursor: string | undefined;
+      if (doFullListing && this.target.getStartCursor) {
+        // Fetch the change token BEFORE the listing so the next incremental pull OVERLAPS
+        // the listing (a change landing mid-listing is caught next cycle, never dropped in
+        // a gap). The overlap only costs an idempotent re-reconcile.
+        try {
+          seededCursor = await this.target.getStartCursor();
+        } catch (e) {
+          console.warn("[SyncWorker] getStartCursor failed; staying on full listings", e);
+        }
+      }
+      const pullResult = doFullListing
+        ? await this.target.pull()
+        : await this.target.pull(this.cursor);
       const now = Date.now();
       const remotePaths = new Set(pullResult.etagMap.keys());
 
@@ -413,17 +479,26 @@ export class SyncWorker {
         }
       }
 
-      // 2b. Mirror remote deletions. Only run when the listing is non-empty, so a
-      // transient empty/failed PROPFIND can never trigger a mass local delete.
-      //
-      // KNOWN, INTENTIONAL LIMIT: this means a genuine "everything was deleted on the
-      // remote" is NOT mirrored locally — we choose safety (never destroy local data on a
-      // broken/empty listing) over completeness. A future hardening could distinguish the
-      // two with a two-cycle confirmation or a provider-authoritative empty-state signal.
+      // 2b. Mirror remote deletions.
       let deletionMirroringSuspended: string | null = null;
-      if (this.isRunning && remotePaths.size > 0) {
-        // Only mirror deletions for files we actually confirmed on the remote
-        // before; skip purely local-ahead files that were never pushed.
+      if (this.isRunning && !doFullListing) {
+        // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
+        // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
+        // here — a cursor pull lists only CHANGED files, so every unchanged file would look
+        // "missing" and get destroyed. Act only on the explicit list, with the same
+        // per-file safety (never delete a locally-modified file).
+        for (const path of pullResult.deleted ?? []) {
+          if (!this.isRunning) break;
+          await this.mirrorRemoteDeletion(path, stateMap, changedPaths);
+        }
+      } else if (this.isRunning && remotePaths.size > 0) {
+        // FULL listing: derive deletions from files we confirmed before that are now
+        // missing. Only run on a non-empty listing so a transient empty/failed listing can
+        // never trigger a mass local delete.
+        //
+        // KNOWN, INTENTIONAL LIMIT: a genuine "everything deleted remotely" is NOT mirrored
+        // — we choose safety (never destroy local data on a broken/empty listing) over
+        // completeness.
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
           if (isLocalOnlyPath(path)) continue;
@@ -431,34 +506,17 @@ export class SyncWorker {
         }
         const missing = confirmed.filter((c) => !remotePaths.has(c.path));
 
-        // Sanity guard: when an implausibly large share of previously confirmed
-        // files vanishes from the listing at once, assume a broken/partial
-        // listing (truncated response, parser miss, server hiccup) rather than a
-        // genuine mass deletion — suspend mirroring for this cycle and surface
-        // it as a sync error instead of deleting local files.
+        // Sanity guard: when an implausibly large share of previously confirmed files
+        // vanishes at once, assume a broken/partial listing (truncated response, parser
+        // miss, server hiccup) rather than a genuine mass deletion — suspend mirroring and
+        // surface a sync error instead of deleting local files.
         if (missing.length > 10 && missing.length > confirmed.length * 0.2) {
           deletionMirroringSuspended = `${missing.length} of ${confirmed.length} previously synced files are missing from the remote listing; deletion mirroring suspended for safety`;
           console.warn(`[SyncWorker] ${deletionMirroringSuspended}`);
         } else {
-          for (const { path, state } of missing) {
+          for (const { path } of missing) {
             if (!this.isRunning) break;
-
-            const localExists = await this.vault.exists(path);
-            if (!localExists) {
-              await this.stateRepo.deleteSyncState(path);
-              continue;
-            }
-
-            const localContent = await this.vault.readTextFile(path);
-            const localSha = await sha256Hash(localContent);
-            if (state.base_sha256 && localSha === state.base_sha256) {
-              // Local unchanged since last sync -> safe to mirror the deletion.
-              await this.vault.deleteItem(path);
-              await this.stateRepo.deleteSyncState(path);
-              changedPaths.push(path);
-            }
-            // Otherwise local has unsynced edits: keep the file and let it surface
-            // as a local-ahead change rather than destroying the user's work.
+            await this.mirrorRemoteDeletion(path, stateMap, changedPaths);
           }
         }
       }
@@ -478,6 +536,18 @@ export class SyncWorker {
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote)`);
       this.onProgress?.(null); // clear progress; the cycle's work is done
       this.consecutiveFailures = 0;
+
+      // Advance the incremental-pull state for the NEXT cycle (only on success — a failed
+      // cycle keeps the old cursor and retries). After a full listing, adopt the token we
+      // seeded before it (undefined for non-token providers -> stays on full listings);
+      // after a cursor pull, adopt the follow-up token and count toward the next full pass.
+      if (doFullListing) {
+        this.cursor = seededCursor;
+        this.cyclesSinceFull = 0;
+      } else {
+        if (pullResult.nextCursor) this.cursor = pullResult.nextCursor;
+        this.cyclesSinceFull++;
+      }
 
       // First successful cycle: the remote base is now established for files that exist
       // remotely. Let the host enqueue any genuinely local-only files (deferred after a

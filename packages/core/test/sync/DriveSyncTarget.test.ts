@@ -264,6 +264,15 @@ describe("DriveSyncTarget", () => {
     expect(await target.remoteEtag("note.CONFLICT-1.md")).toBeNull();
   });
 
+  it("getStartCursor returns the Drive startPageToken (1a)", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && u.includes("/drive/v3/changes/startPageToken")) return res({ startPageToken: "tok-42" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+    expect(await target.getStartCursor()).toBe("tok-42");
+  });
+
   it("uploads an image with its real MIME type, not text/markdown", async () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       const u = String(url);

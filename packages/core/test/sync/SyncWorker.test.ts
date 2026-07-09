@@ -389,6 +389,70 @@ describe("SyncWorker", () => {
     expect(isLocalOnlyPath("notes/index.md")).toBe(false);
     expect(isLocalOnlyPath("Projects.base")).toBe(false);
   });
+
+  it("does a full listing first, then pulls incrementally with the seeded cursor (1a)", async () => {
+    target.getStartCursor = vi.fn().mockResolvedValue("cursor-A");
+    target.download.mockResolvedValue(new TextEncoder().encode("x"));
+    // Cycle 1: full listing (no cursor yet) -> seeds the cursor.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+    await worker.runCycle();
+    // Cycle 2: incremental pull with the seeded cursor.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: [], nextCursor: "cursor-B" });
+    await worker.runCycle();
+
+    expect(target.getStartCursor).toHaveBeenCalledTimes(1); // only before the full listing
+    expect(target.pull.mock.calls[0][0]).toBeUndefined();   // cycle 1 = full listing
+    expect(target.pull.mock.calls[1][0]).toBe("cursor-A");  // cycle 2 = incremental
+  });
+
+  it("an incremental cycle deletes only explicit deleted[] paths, never missing-from-listing (1a safety)", async () => {
+    // Force incremental mode (cursor already seeded). Two previously-synced files exist
+    // locally, unchanged vs base: in a FULL listing an empty etagMap would make BOTH look
+    // "missing" and delete them. The incremental path must ignore that and delete ONLY the
+    // explicitly-deleted one.
+    worker["cursor"] = "c0";
+    const sameSha = await sha("same");
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+      ["keep.md", { remote_etag: "e-keep", base_sha256: sameSha }],
+      ["gone.md", { remote_etag: "e-gone", base_sha256: sameSha }],
+    ]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("same");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: ["gone.md"], nextCursor: "c1" });
+
+    await worker.runCycle();
+
+    expect(target.pull).toHaveBeenCalledWith("c0"); // incremental
+    expect(vault.deleteItem).toHaveBeenCalledWith("gone.md");
+    expect(vault.deleteItem).not.toHaveBeenCalledWith("keep.md");
+  });
+
+  it("runs a periodic full listing after N incremental cycles (1a)", async () => {
+    worker["cursor"] = "c0";
+    worker["cyclesSinceFull"] = 20; // at the threshold -> the next cycle must be a full listing
+    target.getStartCursor = vi.fn().mockResolvedValue("c-fresh");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map() });
+
+    await worker.runCycle();
+
+    expect(target.getStartCursor).toHaveBeenCalled(); // full listing re-seeds the cursor
+    expect(target.pull.mock.calls[0][0]).toBeUndefined(); // full pull (no cursor arg)
+    expect(worker["cyclesSinceFull"]).toBe(0);
+    expect(worker["cursor"]).toBe("c-fresh");
+  });
+
+  it("stays on full listings when the target has no getStartCursor (1a fallback)", async () => {
+    // The shared mock has no getStartCursor (like WebDAV/S3/OneDrive/Dropbox).
+    target.download.mockResolvedValue(new TextEncoder().encode("x"));
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+    await worker.runCycle();
+    await worker.runCycle();
+
+    expect(target.pull.mock.calls[0][0]).toBeUndefined();
+    expect(target.pull.mock.calls[1][0]).toBeUndefined();
+    expect(worker["cursor"]).toBeUndefined();
+  });
 });
 
 async function sha(text: string): Promise<string> {

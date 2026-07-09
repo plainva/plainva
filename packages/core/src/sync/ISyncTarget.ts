@@ -62,6 +62,15 @@ export interface ISyncTarget {
    */
   remoteEtag?(filePath: string): Promise<string | null>;
   /**
+   * Optional: a fresh change token representing "now", for change-token providers (Drive
+   * `changes.getStartPageToken`). The worker fetches one right before a full listing and
+   * then passes it to `pull(cursor)` on subsequent cycles to fetch only what changed —
+   * turning a full-tree walk every cycle into a single incremental call. Adapters without
+   * incremental change detection (WebDAV/S3/OneDrive/Dropbox) leave this undefined and the
+   * worker always does a full listing.
+   */
+  getStartCursor?(): Promise<string>;
+  /**
    * Optional folder browsing for the settings' remote-folder picker (2026-07-06):
    * child folder NAMES one level below `path` ("" = the account/bucket root).
    * Deliberately independent of the configured vault folder/prefix — the picker's

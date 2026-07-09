@@ -417,8 +417,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       try {
         // Target selection per vault: the settings UI enforces one provider per vault
         // (saving one clears the others), so this order only decides ties in corrupt
-        // states: Drive > OneDrive > Dropbox > S3 > WebDAV. All targets use the
-        // full-listing pull() model of the worker (cursor mode is a later opt).
+        // states: Drive > OneDrive > Dropbox > S3 > WebDAV. Drive additionally drives the
+        // worker's incremental cursor pull (getStartCursor + pull(cursor)); the others use
+        // the full-listing model.
         let target: ISyncTarget | null = null;
         if (driveReady && driveCreds && driveCreds.refreshToken) {
           syncProvider = "drive";
