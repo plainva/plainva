@@ -47,9 +47,12 @@ export function httpHeaderSafeJson(value: unknown): string {
 
 /**
  * Dropbox implementation of {@link ISyncTarget} (sync-provider plan 2026-07-04, P6).
- * Path-addressed; `pull()` is always a full recursive `files/list_folder` (+continue)
- * sweep — the worker's model. The change marker is `content_hash` (content-stable:
- * a rename doesn't change it, an edit does), falling back to `rev`.
+ * Path-addressed; `pull()` without a cursor is a full recursive `files/list_folder`
+ * (+continue) sweep — the worker's model. With a cursor it is an incremental
+ * `files/list_folder/continue` delta (only changes since the cursor, deletions as
+ * `deleted` entries), so the worker does one cheap call per cycle (2026-07-09). The
+ * change marker is `content_hash` (content-stable: a rename doesn't change it, an edit
+ * does), falling back to `rev`.
  *
  * Folder semantics are native: move_v2/delete_v2 are recursive, and uploads create
  * missing parent folders implicitly — no MKCOL-style dance needed. Non-downloadable
@@ -218,7 +221,58 @@ export class DropboxSyncTarget implements ISyncTarget {
     return entry.content_hash || entry.rev || entry.id || "";
   }
 
-  public async pull(_cursor?: string): Promise<PullResult> {
+  /**
+   * A change cursor representing "now" for the vault root (`files/list_folder/get_latest_cursor`
+   * returns a cursor without enumerating anything). The worker seeds this right before a
+   * full listing and then passes it to `pull(cursor)`. On first connect the root may not
+   * exist yet — this throws, the worker stays on the full listing (which creates the root),
+   * and the next cycle seeds successfully.
+   */
+  public async getStartCursor(): Promise<string> {
+    const res = await this.rpc("files/list_folder/get_latest_cursor", {
+      path: this.rootPath,
+      recursive: true,
+      include_deleted: false,
+      include_non_downloadable_files: false,
+    });
+    if (!res.ok) {
+      const summary = await this.errorSummary(res);
+      throw new Error(`Dropbox get_latest_cursor failed: ${summary || res.status}`);
+    }
+    const json = (await res.json()) as { cursor: string };
+    return json.cursor;
+  }
+
+  /**
+   * Incremental delta: only entries changed since `cursor` (deletions arrive as `deleted`
+   * entries). A 409 means the cursor was reset/expired — surfaced as an error so the worker
+   * drops it and re-syncs via a full listing next cycle (self-heal).
+   */
+  private async pullDelta(cursor: string): Promise<PullResult> {
+    const etagMap = new Map<string, string>();
+    const deleted: string[] = [];
+    let currentCursor = cursor;
+    for (;;) {
+      const res = await this.rpc("files/list_folder/continue", { cursor: currentCursor });
+      if (!res.ok) {
+        const summary = await this.errorSummary(res);
+        throw new Error(`Dropbox list_folder/continue failed: ${summary || res.status}`);
+      }
+      const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
+      for (const entry of json.entries || []) {
+        const rel = this.relPathFor(entry);
+        if (!rel || rel.includes(".CONFLICT")) continue;
+        if (entry[".tag"] === "deleted") deleted.push(rel);
+        else if (entry[".tag"] === "file") etagMap.set(rel, this.fileEtag(entry));
+        // folder entries are ignored
+      }
+      currentCursor = json.cursor;
+      if (!json.has_more) return { etagMap, deleted, nextCursor: currentCursor };
+    }
+  }
+
+  public async pull(cursor?: string): Promise<PullResult> {
+    if (cursor) return this.pullDelta(cursor);
     const etagMap = new Map<string, string>();
 
     let res = await this.rpc("files/list_folder", {

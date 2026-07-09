@@ -31,15 +31,21 @@ interface GraphItem {
   lastModifiedDateTime?: string;
   folder?: object;
   file?: object;
+  /** Present on delta results; used to reconstruct the vault-relative path. */
+  parentReference?: { path?: string };
+  /** Present on delta results for removed items. */
+  deleted?: object;
 }
 
 /**
  * OneDrive (Microsoft Graph) implementation of {@link ISyncTarget} (sync-provider
  * plan 2026-07-04, P4). Path-addressed throughout (`/me/drive/root:/<root>/<path>:`),
- * so no path<->id cache is needed. `pull()` is always a full recursive children
- * listing (the worker's model); the change marker is the item's `cTag`, which — unlike
- * `eTag` — only changes when the CONTENT changes (renames/metadata edits don't spoil
- * the reconciliation), with eTag/lastModified fallbacks.
+ * so no path<->id cache is needed. `pull()` without a cursor is a full recursive children
+ * listing (the worker's model); with a cursor it is an incremental Graph `delta` (only
+ * items changed/deleted since the token) so the worker does one cheap call per cycle
+ * instead of walking every folder (2026-07-09). The change marker is the item's `cTag`,
+ * which — unlike `eTag` — only changes when the CONTENT changes (renames/metadata edits
+ * don't spoil the reconciliation), with eTag/lastModified fallbacks.
  *
  * Folder ops (delete/rename of a folder path) are natively recursive in Graph.
  * Parents are NOT auto-created by path-based uploads, so writes retry once after
@@ -312,9 +318,13 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
   }
 
-  // Full recursive listing (the worker's model); the optional cursor is ignored
-  // like WebDAV — Graph delta stays a later optimization.
-  public async pull(_cursor?: string): Promise<PullResult> {
+  /**
+   * Without a cursor: a full recursive children listing (the worker's model). With a
+   * cursor: an incremental Graph `delta` (only items changed/deleted since the token), so
+   * the worker does one cheap call per cycle instead of walking every folder.
+   */
+  public async pull(cursor?: string): Promise<PullResult> {
+    if (cursor) return this.pullDelta(cursor);
     const etagMap = new Map<string, string>();
     const rootExists = await this.listInto("", etagMap);
     if (!rootExists) {
@@ -323,6 +333,64 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
     console.log(`[OneDrive] listing -> ${etagMap.size} file(s)`);
     return { etagMap };
+  }
+
+  /**
+   * A change token representing "now" for the vault-root delta (Graph `?token=latest`
+   * returns an empty page plus a deltaLink). The worker seeds this right before a full
+   * listing and then passes it to `pull(cursor)`. On first connect the root may not exist
+   * yet — this throws, the worker stays on the full listing (which creates the root), and
+   * the next cycle seeds successfully.
+   */
+  public async getStartCursor(): Promise<string> {
+    const res = await this.authedFetch("GET", this.itemUrl("", "delta") + "?token=latest");
+    if (!res.ok) throw new Error(`OneDrive delta token failed: ${res.status} ${res.statusText}`);
+    const json = (await res.json()) as { "@odata.deltaLink"?: string };
+    if (!json["@odata.deltaLink"]) throw new Error("OneDrive delta returned no deltaLink");
+    return json["@odata.deltaLink"];
+  }
+
+  /** Incremental delta pull: only items changed/deleted since `cursor` (a deltaLink URL). */
+  private async pullDelta(cursor: string): Promise<PullResult> {
+    const etagMap = new Map<string, string>();
+    const deleted: string[] = [];
+    let url: string | undefined = cursor;
+    let nextCursor = cursor;
+    while (url) {
+      const res: Response = await this.authedFetch("GET", url);
+      if (!res.ok) throw new Error(`OneDrive delta failed: ${res.status} ${res.statusText}`);
+      const json = (await res.json()) as {
+        value?: GraphItem[];
+        "@odata.nextLink"?: string;
+        "@odata.deltaLink"?: string;
+      };
+      for (const item of json.value || []) {
+        if (item.folder) continue; // folders (incl. the vault root itself) are not content
+        const path = this.deltaItemPath(item);
+        if (!path || path.includes(".CONFLICT")) continue;
+        if (item.deleted) deleted.push(path);
+        else etagMap.set(path, this.itemEtag(item));
+      }
+      url = json["@odata.nextLink"];
+      if (json["@odata.deltaLink"]) nextCursor = json["@odata.deltaLink"];
+    }
+    return { etagMap, deleted, nextCursor };
+  }
+
+  /**
+   * Vault-relative path of a delta item from its `parentReference.path` + name. The delta
+   * is scoped to the vault root, so items sit under `/drive/root:/<rootName>`. Returns null
+   * for items we can't place (e.g. no parentReference).
+   */
+  private deltaItemPath(item: GraphItem): string | null {
+    const parent = item.parentReference?.path;
+    if (!parent || !item.name) return null;
+    let decoded: string;
+    try { decoded = decodeURIComponent(parent); } catch { decoded = parent; }
+    const prefix = `/drive/root:/${this.rootName}`;
+    if (decoded === prefix) return item.name;
+    if (decoded.startsWith(`${prefix}/`)) return `${decoded.slice(prefix.length + 1)}/${item.name}`;
+    return null;
   }
 
   /** Lists one folder level (paginated) and recurses into subfolders. false = folder missing. */

@@ -135,6 +135,58 @@ describe("DropboxSyncTarget", () => {
     expect(calls(fetchFn).map((c) => c.url)).toEqual([`${API}/files/list_folder`, `${API}/files/create_folder_v2`]);
   });
 
+  it("getStartCursor returns a cursor via get_latest_cursor (1a)", async () => {
+    const { target } = makeTarget(async (url: string, init: any) => {
+      if (url === `${API}/files/list_folder/get_latest_cursor`) {
+        expect(JSON.parse(init.body)).toEqual({
+          path: "/Plainva",
+          recursive: true,
+          include_deleted: false,
+          include_non_downloadable_files: false,
+        });
+        return res({ cursor: "cur-now" });
+      }
+      throw new Error(`unexpected url ${url}`);
+    });
+    expect(await target.getStartCursor()).toBe("cur-now");
+  });
+
+  it("pull(cursor) is an incremental continue delta: changed files, deletions, next cursor (1a)", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      if (url === `${API}/files/list_folder/continue`) {
+        expect(JSON.parse(init.body).cursor).toBe("cur-now");
+        return res({
+          entries: [
+            { ".tag": "file", name: "a.md", path_display: "/Plainva/a.md", path_lower: "/plainva/a.md", content_hash: "h1b" },
+            { ".tag": "deleted", name: "gone.md", path_display: "/Plainva/gone.md", path_lower: "/plainva/gone.md" },
+            { ".tag": "folder", name: "sub", path_display: "/Plainva/sub", path_lower: "/plainva/sub" },
+          ],
+          cursor: "cur-next",
+          has_more: false,
+        });
+      }
+      throw new Error(`unexpected url ${url}`);
+    });
+
+    const result = await target.pull("cur-now");
+    expect(result.etagMap.get("a.md")).toBe("h1b");
+    expect(result.etagMap.size).toBe(1); // folder entry ignored
+    expect(result.deleted).toEqual(["gone.md"]);
+    expect(result.nextCursor).toBe("cur-next");
+    // The very first call was list_folder/continue, not a full list_folder.
+    expect(calls(fetchFn)[0].url).toBe(`${API}/files/list_folder/continue`);
+  });
+
+  it("pull(cursor) surfaces a reset cursor (409) as an error so the worker re-syncs (1a self-heal)", async () => {
+    const { target } = makeTarget(async (url: string) => {
+      if (url === `${API}/files/list_folder/continue`) {
+        return res({ error_summary: "reset/..", error: {} }, { status: 409 });
+      }
+      throw new Error(`unexpected url ${url}`);
+    });
+    await expect(target.pull("stale-cursor")).rejects.toThrow(/continue failed/);
+  });
+
   it("downloads via content endpoint with header-safe args and maps not_found to null", async () => {
     const bytes = new TextEncoder().encode("body");
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {

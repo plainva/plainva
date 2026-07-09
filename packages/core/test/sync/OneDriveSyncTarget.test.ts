@@ -132,6 +132,42 @@ describe("OneDriveSyncTarget", () => {
     expect(await target.download("missing.md")).toBeNull();
   });
 
+  it("getStartCursor returns the delta token deltaLink (?token=latest) (1a)", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string) => {
+      if (url === `${GRAPH}/me/drive/root:/Plainva:/delta?token=latest`) {
+        return res({ value: [], "@odata.deltaLink": `${GRAPH}/me/drive/root:/Plainva:/delta?token=DL1` });
+      }
+      throw new Error(`unexpected ${url}`);
+    });
+    expect(await target.getStartCursor()).toBe(`${GRAPH}/me/drive/root:/Plainva:/delta?token=DL1`);
+    expect(calls(fetchFn).every((c) => c.method === "GET")).toBe(true);
+  });
+
+  it("pull(cursor) is an incremental delta: changed files, deletions, next deltaLink (1a)", async () => {
+    const deltaLink = `${GRAPH}/me/drive/root:/Plainva:/delta?token=DL1`;
+    const { target } = makeTarget(async (url: string) => {
+      if (url === deltaLink) {
+        return res({
+          value: [
+            { id: "i1", name: "a.md", file: {}, cTag: "c1b", parentReference: { path: "/drive/root:/Plainva" } },
+            { id: "i2", name: "c.md", file: {}, cTag: "c9", parentReference: { path: "/drive/root:/Plainva/sub" } },
+            { id: "i3", name: "gone.md", deleted: {}, parentReference: { path: "/drive/root:/Plainva" } },
+            { id: "root", name: "Plainva", folder: {}, parentReference: { path: "/drive/root:" } },
+          ],
+          "@odata.deltaLink": `${GRAPH}/me/drive/root:/Plainva:/delta?token=DL2`,
+        });
+      }
+      throw new Error(`unexpected ${url}`);
+    });
+
+    const result = await target.pull(deltaLink);
+    expect(result.etagMap.get("a.md")).toBe("c1b");
+    expect(result.etagMap.get("sub/c.md")).toBe("c9");
+    expect(result.etagMap.has("Plainva")).toBe(false); // the root folder item is skipped
+    expect(result.deleted).toEqual(["gone.md"]);
+    expect(result.nextCursor).toBe(`${GRAPH}/me/drive/root:/Plainva:/delta?token=DL2`);
+  });
+
   it("pushes a small write via path-based PUT and returns cTag + id", async () => {
     const { target, fetchFn } = makeTarget(async () => res({ id: "i1", name: "a.md", cTag: "c1" }, { status: 201 }));
     const result = await target.push({
