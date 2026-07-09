@@ -48,6 +48,7 @@ import { turnInto, moveBlockAbove, listMarkerStyle } from "./blockTransforms";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "./editorSession";
 import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "../lib/searchJump";
 import { toggleTaskAtIndex } from "../lib/taskToggle";
+import { decideDirtyExternalUpdate } from "../lib/externalUpdateDecision";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
 // closed and reopened, the NEW editor instance must still wait for a write the
@@ -250,6 +251,12 @@ export const Editor: React.FC<{
   const saveTimeoutRef = useRef<number | null>(null);
   const contentSyncTimeoutRef = useRef<number | null>(null);
   const isDirtyRef = useRef<boolean>(false);
+  // The last on-disk content this editor knowingly produced or adopted (own
+  // save, load, external adopt, auto-merge, restore); null before the first
+  // load. Lets the external-update handler tell the watcher echo of our OWN
+  // save apart from a genuine external change while the user keeps typing —
+  // writing a .CONFLICT for that echo was the spurious-conflict bug.
+  const lastPersistedRef = useRef<string | null>(null);
   // A sync conflict preserved the editor text in a .CONFLICT file; the target
   // file on disk now holds the OTHER side. Shown as a persistent banner (a
   // transient toast is too easy to miss for a "your text lives elsewhere now").
@@ -291,6 +298,10 @@ export const Editor: React.FC<{
         setSaveError(null);
         await vaultAdapter.writeTextFile(path, val);
         savedOrSafelyPreserved = true;
+        // Remember what WE wrote so the watcher echo of this save is never
+        // mistaken for an external change (the auto-merge case updates this via
+        // plainva-auto-merged instead, since the adapter wrote merged content).
+        lastPersistedRef.current = val;
         setConflictInfo(null);
 
         // Re-index only this file so FTS/tags/links are instantly updated.
@@ -1065,6 +1076,7 @@ export const Editor: React.FC<{
   useEffect(() => {
     if (!vaultAdapter || !activePath) {
       loadedPathRef.current = null;
+      lastPersistedRef.current = null;
       setContent("");
       setIsLoading(false);
       setSaveError(null);
@@ -1073,6 +1085,7 @@ export const Editor: React.FC<{
 
     let isMounted = true;
     loadedPathRef.current = null;
+    lastPersistedRef.current = null;
     setIsLoading(true);
     setConflictInfo(null);
     // Wait for an in-flight write to this file (P1.7) — loading mid-write
@@ -1084,6 +1097,8 @@ export const Editor: React.FC<{
     readAfterWrites.then(text => {
       if (isMounted) {
         loadedPathRef.current = activePath;
+        // The freshly loaded disk state counts as "our" persisted baseline.
+        lastPersistedRef.current = text.replace(/\r\n/g, '\n');
         setContent(text.replace(/\r\n/g, '\n'));
         setIsLoading(false);
         if (vaultAdapter.acknowledgeExternalUpdate) {
@@ -1140,6 +1155,7 @@ export const Editor: React.FC<{
 
       if (!isDirtyRef.current) {
         const text = await vaultAdapter!.readTextFile(path);
+        lastPersistedRef.current = text.replace(/\r\n/g, '\n');
         applyExternalText(text.replace(/\r\n/g, '\n'), "external modification");
         if (vaultAdapter!.acknowledgeExternalUpdate) {
           await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
@@ -1162,14 +1178,24 @@ export const Editor: React.FC<{
       }
       const view = sessionRef.current?.view;
       const draft = view ? view.state.doc.toString() : contentRef.current;
+      const action = decideDirtyExternalUpdate({ disk, draft, lastPersisted: lastPersistedRef.current });
       // The external change already matches our draft (e.g. the echo of our own push):
       // no conflict, just realign the dirty/sync state.
-      if (disk === draft) {
+      if (action === "realign") {
         isDirtyRef.current = false;
         dirtyStore.set(path, false);
         if (vaultAdapter!.acknowledgeExternalUpdate) {
           await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
         }
+        return;
+      }
+      // The disk equals the last text WE persisted: the watcher echo of our own
+      // save (or a stale-hash false positive from the sync push race) arriving
+      // while the user kept typing. Not an external change — keep the newer
+      // draft and the dirty flag; the scheduled save persists it normally.
+      // Writing a .CONFLICT here was the spurious-conflict bug.
+      if (action === "own-echo") {
+        console.log(`[Editor] external update for ${path} matches our last save — own echo, keeping the draft`);
         return;
       }
       // Cancel a scheduled save so the stale draft cannot win right after we adopt.
@@ -1188,6 +1214,7 @@ export const Editor: React.FC<{
         console.error(`[Editor] external update: preserving draft as ${conflictPath} failed`, err);
         return; // don't adopt-and-lose; leave the draft in the editor
       }
+      lastPersistedRef.current = disk;
       applyExternalText(disk, "external modification (draft preserved as conflict)");
       isDirtyRef.current = false;
       dirtyStore.set(path, false);
@@ -1204,6 +1231,7 @@ export const Editor: React.FC<{
         // On save, external + local changes were auto-merged and written to disk.
         // Adopt the merged content so the next save does not overwrite the merge
         // with the stale pre-merge view (which would silently drop external changes).
+        lastPersistedRef.current = customEvent.detail.mergedText.replace(/\r\n/g, '\n');
         applyExternalText(customEvent.detail.mergedText.replace(/\r\n/g, '\n'), "auto-merged content");
         isDirtyRef.current = false;
       }
@@ -1240,6 +1268,7 @@ export const Editor: React.FC<{
         window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
+      lastPersistedRef.current = restored.replace(/\r\n/g, "\n");
       applyExternalText(restored.replace(/\r\n/g, "\n"), "restored version");
       isDirtyRef.current = false;
       if (vaultAdapter?.acknowledgeExternalUpdate) {

@@ -13,6 +13,9 @@ class MockSyncTarget implements ISyncTarget {
   /** Rename ops on these paths report a missing remote source (P1.2). */
   public renameSourceMissingPaths = new Set<string>();
 
+  /** Runs while the "upload" is in flight (simulates a concurrent editor save). */
+  public pushHook: (() => Promise<void>) | null = null;
+
   async push(op: SyncOperation): Promise<{etag?: string; renameSourceMissing?: boolean}> {
     if (this.shouldFail || this.failPaths.has(op.file_path)) {
       throw new Error("Network error");
@@ -20,6 +23,7 @@ class MockSyncTarget implements ISyncTarget {
     if (op.operation === "rename" && this.renameSourceMissingPaths.has(op.file_path)) {
       return { renameSourceMissing: true };
     }
+    if (this.pushHook) await this.pushHook();
     this.pushes.push(op);
     return { etag: "mock-etag" };
   }
@@ -32,9 +36,12 @@ class MockVaultAdapter {
   /** Optional per-path contents; unknown paths read as empty bytes (legacy behavior). */
   public files = new Map<string, Uint8Array>();
   public failWith: Error | null = null;
+  /** Called on every content read (ordering pin for the P1 conflict-race fix). */
+  public onRead: ((path?: string) => void) | null = null;
 
   async readBinaryFile(path?: string) {
     if (this.failWith) throw this.failWith;
+    if (this.onRead) this.onRead(path);
     if (path && this.files.has(path)) return this.files.get(path)!;
     return new Uint8Array();
   }
@@ -83,6 +90,46 @@ describe("SyncEngine", () => {
     await engine.processQueue(undefined, (c, t) => ticks.push([c, t]));
 
     expect(ticks[0]).toEqual([0, 1]);
+  });
+
+  it("keeps a local_sha256 written during the upload window (P1 conflict-race)", async () => {
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    vault.files.set("note.md", new TextEncoder().encode("v1 content"));
+
+    // Queue holds one write op…
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    // …and the state at push start records the editor's marker for v1.
+    db.mockedResults.push([
+      { path: "note.md", local_sha256: "shaV1", remote_etag: null, base_sha256: null, base_etag: null, remote_id: null, last_sync_ts: null, base_text: null }
+    ]);
+
+    // Ordering pin: the marker must be read BEFORE the file content, so the
+    // guard value can never be newer than the pushed bytes.
+    let stateReadsAtContentRead = -1;
+    vault.onRead = () => {
+      stateReadsAtContentRead = db.queries.filter((q) => q.query.includes("FROM sync_state WHERE path")).length;
+    };
+    // A save lands while the upload is in flight and advances the local marker.
+    target.pushHook = async () => {
+      await repo.updateLocalHash("note.md", "shaV2");
+    };
+
+    await engine.processQueue();
+
+    expect(stateReadsAtContentRead).toBe(1);
+    // The post-push update must be the guarded variant carrying the marker read
+    // at push START ("shaV1"), never the concurrently written one — SQLite's
+    // CASE then leaves the newer "shaV2" in place while base_text advances.
+    const guarded = db.queries.find((q) => q.query.includes("ELSE sync_state.local_sha256"));
+    expect(guarded).toBeDefined();
+    const params = guarded!.params as any[];
+    expect(params[0]).toBe("note.md");
+    expect(params[1]).toMatch(/^[0-9a-f]{64}$/); // sha of the pushed bytes
+    expect(params[2]).toBe("v1 content");        // base_text = the pushed content
+    expect(params[3]).toBe("shaV1");             // guard = marker at push start
   });
 
   it("applies exponential backoff on failure", async () => {

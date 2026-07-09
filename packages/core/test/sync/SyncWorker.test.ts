@@ -19,6 +19,9 @@ describe("SyncWorker", () => {
       // The worker reads the whole per-cycle state through ONE snapshot (P2.2).
       getAllStates: vi.fn().mockResolvedValue(new Map()),
       updateLocalHashAndBaseText: vi.fn().mockResolvedValue(undefined),
+      updateLocalHashAndBaseTextGuarded: vi.fn().mockResolvedValue(undefined),
+      updateLocalHash: vi.fn().mockResolvedValue(undefined),
+      updateLocalHashGuarded: vi.fn().mockResolvedValue(undefined),
       updateRemoteState: vi.fn().mockResolvedValue(undefined),
       updateBaseState: vi.fn().mockResolvedValue(undefined),
       deleteSyncState: vi.fn().mockResolvedValue(undefined),
@@ -97,6 +100,41 @@ describe("SyncWorker", () => {
 
     expect(target.download).not.toHaveBeenCalled();
     expect(vault.writeTextFile).not.toHaveBeenCalled();
+  });
+
+  it("adopts the local marker only while unchanged when reconcile did not rewrite the file (P1)", async () => {
+    // Remote equals local -> writeNeeded=false -> the guarded update must carry
+    // the hash read locally, so a save landing mid-reconcile keeps its newer marker.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["same.md", "etag-2"]]) });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode("same content"));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["same.md", {
+      local_sha256: "whatever",
+      base_sha256: "whatever",
+      remote_etag: "etag-1"
+    }]]));
+    vault.exists.mockResolvedValueOnce(true);
+    vault.readTextFile.mockResolvedValueOnce("same content");
+
+    await worker.runCycle();
+
+    expect(vault.writeTextFile).not.toHaveBeenCalled();
+    expect(stateRepo.updateLocalHashAndBaseText).not.toHaveBeenCalled();
+    expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledTimes(1);
+    const [path, newSha, baseText, expected] = stateRepo.updateLocalHashAndBaseTextGuarded.mock.calls[0];
+    expect(path).toBe("same.md");
+    expect(baseText).toBe("same content");
+    expect(expected).toBe(newSha); // no-write case: the guard is the locally read hash
+  });
+
+  it("updates the local marker unconditionally when the reconcile wrote the file (P1)", async () => {
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["new.md", "e1"]]) });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode("remote content"));
+
+    await worker.runCycle();
+
+    expect(vault.writeTextFile).toHaveBeenCalledWith("new.md", "remote content");
+    expect(stateRepo.updateLocalHashAndBaseText).toHaveBeenCalledTimes(1);
+    expect(stateRepo.updateLocalHashAndBaseTextGuarded).not.toHaveBeenCalled();
   });
 
   it("should handle conflicts when local has pending edits", async () => {

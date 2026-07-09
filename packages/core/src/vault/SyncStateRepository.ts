@@ -111,6 +111,49 @@ export class SyncStateRepository {
     );
   }
 
+  /**
+   * Post-sync variant of updateLocalHashAndBaseText: base_text always advances
+   * (the pushed/reconciled content IS the new common ancestor), but local_sha256
+   * is only adopted when it still equals `expectedLocalSha` — the value read when
+   * the network round-trip started — or is unset. An editor save that lands while
+   * the upload is in flight updates local_sha256 first; unconditionally
+   * overwriting it with the older pushed hash made the NEXT save look like an
+   * external modification and produced spurious .CONFLICT files from nothing but
+   * fast consecutive local edits (single-device autosave race).
+   */
+  async updateLocalHashAndBaseTextGuarded(
+    path: string,
+    localSha256: string,
+    baseText: string,
+    expectedLocalSha: string | null
+  ): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, local_sha256, base_text)
+       VALUES (?, ?, ?)
+       ON CONFLICT(path) DO UPDATE SET
+         base_text = excluded.base_text,
+         local_sha256 = CASE
+           WHEN sync_state.local_sha256 IS NULL OR sync_state.local_sha256 = ? THEN excluded.local_sha256
+           ELSE sync_state.local_sha256
+         END`,
+      [path, localSha256, baseText, expectedLocalSha]
+    );
+  }
+
+  /** See updateLocalHashAndBaseTextGuarded — variant without base_text (binary files). */
+  async updateLocalHashGuarded(path: string, localSha256: string, expectedLocalSha: string | null): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, local_sha256)
+       VALUES (?, ?)
+       ON CONFLICT(path) DO UPDATE SET
+         local_sha256 = CASE
+           WHEN sync_state.local_sha256 IS NULL OR sync_state.local_sha256 = ? THEN excluded.local_sha256
+           ELSE sync_state.local_sha256
+         END`,
+      [path, localSha256, expectedLocalSha]
+    );
+  }
+
   async updateRemoteState(path: string, remoteEtag: string | null, remoteId: string | null, syncTs: number): Promise<void> {
     // Upsert: a push may be the very first time we record state for a file (e.g.
     // files queued by enqueueAllLocalFiles have no row yet). A plain UPDATE would

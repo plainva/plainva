@@ -340,10 +340,14 @@ export class SyncWorker {
     const remoteSha = await sha256Bytes(contentBytes);
     const localExists = await this.vault.exists(path);
     let writeNeeded = !localExists;
+    // Local hash at read time — the no-write path below only adopts the marker
+    // while it is still current (P1 conflict-race; see the guarded repo update).
+    let localShaAtRead: string | null = null;
 
     if (localExists) {
       const localBytes = await this.vault.readBinaryFile(path);
       const localSha = await sha256Bytes(localBytes);
+      localShaAtRead = localSha;
       if (localSha === remoteSha) {
         writeNeeded = false; // identical content
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
@@ -366,7 +370,14 @@ export class SyncWorker {
     }
 
     // Local is now aligned with the remote; record state with a byte hash (no base_text).
-    await this.stateRepo.updateLocalHash(path, remoteSha);
+    // When we did NOT rewrite the file, adopt the marker only while no concurrent
+    // app save changed it since our read (guarded, P1 conflict-race); after our own
+    // write the disk state IS remoteSha and the update stays unconditional.
+    if (writeNeeded) {
+      await this.stateRepo.updateLocalHash(path, remoteSha);
+    } else {
+      await this.stateRepo.updateLocalHashGuarded(path, remoteSha, localShaAtRead);
+    }
     await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
     await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
   }
@@ -446,9 +457,13 @@ export class SyncWorker {
     const localExists = await this.vault.exists(path);
     const localContent = localExists ? await this.vault.readTextFile(path) : null;
     let mergedContent = remoteContent;
+    // Local hash at read time — the no-write path below only adopts the marker
+    // while it is still current (P1 conflict-race; see the guarded repo update).
+    let localShaAtRead: string | null = null;
 
     if (localExists && localContent !== null) {
       const localSha = await sha256Hash(localContent);
+      localShaAtRead = localSha;
 
       if (localSha === remoteSha) {
         mergedContent = remoteContent; // identical content
@@ -496,7 +511,15 @@ export class SyncWorker {
     }
 
     const newLocalSha = await sha256Hash(mergedContent);
-    await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
+    // When we did NOT rewrite the file, adopt the local marker only while no
+    // concurrent app save changed it since our read (guarded, P1 conflict-race);
+    // base_text still advances unconditionally — the reconciled content IS the
+    // new common ancestor. After our own write the update stays unconditional.
+    if (writeNeeded) {
+      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
+    } else {
+      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, mergedContent, localShaAtRead);
+    }
 
     if (pushMerge) {
       // Our reconciled content is ahead of the remote -> enqueue a push so
