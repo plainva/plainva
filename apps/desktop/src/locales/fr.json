@@ -371,6 +371,7 @@
     "emptyPane": "Aucun document ouvert",
     "openFile": "Ouvrir un fichier",
     "pane": "Volet d'éditeur",
+    "revealInTree": "Afficher dans l'arborescence de fichiers",
     "revealInFileManager": "Afficher dans le gestionnaire de fichiers",
     "conflictBanner": "Conflit de synchronisation : votre version est enregistrée dans « {{path}} ». Ce fichier affiche désormais l'état de l'autre côté.",
     "conflictBannerNoPath": "Conflit de synchronisation : votre version a été conservée comme copie de conflit. Ce fichier affiche désormais l'état de l'autre côté.",

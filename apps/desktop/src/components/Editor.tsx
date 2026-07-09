@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, Printer } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -49,6 +49,7 @@ import { createEditorSession, type EditorSession, type EditorSessionDeps } from 
 import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "../lib/searchJump";
 import { toggleTaskAtIndex } from "../lib/taskToggle";
 import { decideDirtyExternalUpdate } from "../lib/externalUpdateDecision";
+import { parkTreeReveal } from "../lib/treeReveal";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
 // closed and reopened, the NEW editor instance must still wait for a write the
@@ -229,6 +230,18 @@ export const Editor: React.FC<{
       console.warn("[Editor] reveal in file manager failed", err);
       toast.error((err as Error)?.message ?? String(err));
     }
+  };
+
+  // In-app counterpart of "reveal in file manager": expand + select the file
+  // in Plainva's own tree. Park + event: App un-collapses the sidebar /
+  // switches to the files tab on the event; a mounted tree handles it live,
+  // an unmounted one consumes the parked path when it mounts (lib/treeReveal).
+  // The tree deliberately never auto-reveals on opening a file — only this
+  // explicit menu action does.
+  const handleMenuRevealInTree = () => {
+    if (!activePath) return;
+    parkTreeReveal(activePath);
+    window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: activePath } }));
   };
   const [tablePicker, setTablePicker] = useState<{ x: number; y: number; pos: number } | null>(null);
   // `@` mention -> "Datum wählen…" opens the calendar at the caret (#4).
@@ -1493,6 +1506,9 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<ClipboardCopy size={15} />} onSelect={() => { void handleMenuCopyPath(); }}>
                 {t("fileTree.copyPath")}
+              </MenuItem>
+              <MenuItem icon={<FolderTree size={15} />} data-testid="editor-menu-reveal-tree" onSelect={handleMenuRevealInTree}>
+                {t("editor.revealInTree")}
               </MenuItem>
               <MenuItem icon={<FolderOpen size={15} />} onSelect={() => { void handleMenuReveal(); }}>
                 {t("editor.revealInFileManager", "Im Dateimanager anzeigen")}

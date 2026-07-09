@@ -17,6 +17,7 @@ import { hasSnippetMark, renderSnippetNodes } from "../lib/searchSnippet";
 import { setPendingSearchJump } from "../lib/searchJump";
 import { useStableHandler } from "../lib/useStableHandler";
 import { sameTreeFiles } from "../lib/treeFiles";
+import { consumePendingTreeReveal } from "../lib/treeReveal";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "./DocIcon";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
@@ -137,6 +138,7 @@ const TreeNodeView: React.FC<{
     return (
       <div
         draggable={true}
+        data-tree-path={node.path}
         onDragStart={(e) => onDragStart(e, node.path!)}
         onDragEnd={onDragEnd}
         onClick={(e) => { if (isRenaming) return; onItemClick(node.path!, false, e); }}
@@ -206,6 +208,7 @@ const TreeNodeView: React.FC<{
     >
       <div
         draggable={true}
+        data-tree-path={node.path}
         onDragStart={(e) => onDragStart(e, node.path!)}
         onDragEnd={onDragEnd}
         onClick={(e) => { if (!isRenaming) onItemClick(node.path, true, e); }}
@@ -619,24 +622,49 @@ export const FileTree: React.FC<{
     return () => window.removeEventListener("plainva-new-item", onNew);
   }, [selectionAnchor, folderPaths, files, createNewItem]);
 
-  // Folder links in read-mode listings reveal the folder here: expand its
-  // ancestors and select it (Nachbesserung 2026-07-04).
+  // Reveal + select a path: expand the ancestors, select the row and scroll it
+  // into view. Shared by folder links in read-mode listings (2026-07-04), the
+  // editor's ⋮ "Reveal in file tree" and the parked hand-off below.
+  const revealPath = useStableHandler((path: string) => {
+    if (path === "") {
+      setSelection(new Set());
+      setSelectionAnchor(null);
+      return;
+    }
+    setExpandedFolders((prev) => new Set([...prev, ...ancestorsOf(path), path]));
+    setSelection(new Set([path]));
+    setSelectionAnchor(path);
+    // Double rAF: the first frame fires before React committed the expanded
+    // children; the probe is DOM-based so the memoized rows stay untouched.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-tree-path="${CSS.escape(path)}"]`)
+          ?.scrollIntoView({ block: "nearest" });
+      })
+    );
+  });
+
   useEffect(() => {
     const onReveal = (e: Event) => {
       const path = (e as CustomEvent).detail?.path as string | undefined;
       if (path == null) return;
-      if (path === "") {
-        setSelection(new Set());
-        setSelectionAnchor(null);
-        return;
-      }
-      setExpandedFolders((prev) => new Set([...prev, ...ancestorsOf(path), path]));
-      setSelection(new Set([path]));
-      setSelectionAnchor(path);
+      // Handled live — drop a parked copy so it cannot replay stale on remount.
+      consumePendingTreeReveal();
+      revealPath(path);
     };
     window.addEventListener("plainva-reveal-folder", onReveal);
     return () => window.removeEventListener("plainva-reveal-folder", onReveal);
-  }, []);
+  }, [revealPath]);
+
+  // The ⋮ menu can fire while this tree is unmounted (tags/bookmarks tab) or
+  // before its rows exist after a remount: consume the parked path once the
+  // file list is loaded (lib/treeReveal).
+  useEffect(() => {
+    if (files.length === 0) return;
+    const parked = consumePendingTreeReveal();
+    if (parked !== null) revealPath(parked);
+  }, [files, revealPath]);
 
   const handleNewItemSubmit = useStableHandler(async (e?: React.FormEvent) => {
     e?.preventDefault();

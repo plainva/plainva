@@ -371,6 +371,7 @@
     "emptyPane": "Nenhum documento aberto",
     "openFile": "Abrir arquivo",
     "pane": "Painel do editor",
+    "revealInTree": "Mostrar na árvore de arquivos",
     "revealInFileManager": "Mostrar no gerenciador de arquivos",
     "conflictBanner": "Conflito de sincronização: sua versão está salva em '{{path}}'. Este arquivo agora mostra o estado do outro lado.",
     "conflictBannerNoPath": "Conflito de sincronização: sua versão foi preservada como cópia de conflito. Este arquivo agora mostra o estado do outro lado.",

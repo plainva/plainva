@@ -371,6 +371,7 @@
     "emptyPane": "Brak otwartego dokumentu",
     "openFile": "Otwórz plik",
     "pane": "Panel edytora",
+    "revealInTree": "Pokaż w drzewie plików",
     "revealInFileManager": "Pokaż w menedżerze plików",
     "conflictBanner": "Konflikt synchronizacji: Twoja wersja jest zapisana w '{{path}}'. Ten plik pokazuje teraz stan drugiej strony.",
     "conflictBannerNoPath": "Konflikt synchronizacji: Twoja wersja została zachowana jako kopia konfliktu. Ten plik pokazuje teraz stan drugiej strony.",

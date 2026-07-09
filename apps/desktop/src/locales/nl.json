@@ -371,6 +371,7 @@
     "emptyPane": "Geen document geopend",
     "openFile": "Bestand openen",
     "pane": "Editorpaneel",
+    "revealInTree": "Tonen in bestandsboom",
     "revealInFileManager": "Tonen in bestandsbeheer",
     "conflictBanner": "Synchronisatieconflict: jouw versie staat in '{{path}}'. Dit bestand toont nu de staat van de andere kant.",
     "conflictBannerNoPath": "Synchronisatieconflict: jouw versie is bewaard als conflictkopie. Dit bestand toont nu de staat van de andere kant.",

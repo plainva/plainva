@@ -503,6 +503,19 @@ function App() {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [vaultPath, splitEditor, openInFocusedPane]);
 
+  // "Reveal in file tree" (editor ⋮, folder links, templates folder) must be
+  // able to un-collapse the left sidebar and switch to the files tab — the
+  // tree itself may be unmounted when the event fires; it then consumes the
+  // parked path on mount (lib/treeReveal).
+  useEffect(() => {
+    const onReveal = () => {
+      setLeftCollapsed(false);
+      setLeftSidebarTab("files");
+    };
+    window.addEventListener("plainva-reveal-folder", onReveal);
+    return () => window.removeEventListener("plainva-reveal-folder", onReveal);
+  }, []);
+
   // Persist user-chosen sidebar widths.
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);
   useEffect(() => { localStorage.setItem("plainva-right-sidebar-width", String(rightSidebarWidth)); }, [rightSidebarWidth]);

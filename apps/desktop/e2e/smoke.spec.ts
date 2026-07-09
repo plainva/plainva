@@ -448,6 +448,39 @@ test('File tree: deleting a large share of the vault shows the second prompt', a
     .toBe(0);
 });
 
+// --- Editor ⋮: "Reveal in file tree" expands + selects the note (2026-07-09) ---
+test('Editor menu: reveal in file tree re-expands the folder and selects the note', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Tief': { isDir: true },
+      '/test-vault/Tief/Drin.md': '# Drin\n',
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Open the nested note, then collapse its folder again — the tree must NOT
+  // auto-reveal open files (deliberate; only the explicit menu action does).
+  await aside.getByText('Tief', { exact: true }).click();
+  await aside.getByText('Drin', { exact: true }).click();
+  await aside.getByText('Tief', { exact: true }).click();
+  await expect(aside.getByText('Drin', { exact: true })).not.toBeVisible();
+
+  // Switch to the bookmarks tab: the tree unmounts. The reveal must switch
+  // back to the files tab (App listener) AND apply on the remounted tree
+  // (parked hand-off in lib/treeReveal).
+  await aside.getByRole('tab', { name: /Lesezeichen|Bookmarks/ }).click();
+
+  await page.getByTestId('editor-menu-btn').click();
+  await page.getByTestId('editor-menu-reveal-tree').click();
+
+  // Files tab is active again, the ancestors re-expanded, the row is in view.
+  await expect(aside.getByRole('tab', { name: /Dateien|Files/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(aside.getByText('Drin', { exact: true })).toBeVisible();
+  await expect(aside.locator('[data-tree-path="Tief/Drin.md"]')).toBeVisible();
+});
+
 // --- Images open in the in-app viewer instead of the OS app (UI-UX P10) ---
 test('File tree: clicking an image opens the in-app image viewer', async ({ page }) => {
   await page.addInitScript(() => {
