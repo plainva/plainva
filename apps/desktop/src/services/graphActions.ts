@@ -84,11 +84,91 @@ export async function createConnectedNote(
   return path;
 }
 
+export interface InlineOccurrence {
+  /** Index into the FULL content string (frontmatter included). */
+  index: number;
+  /** The actual matched text, in the document's original casing. */
+  matched: string;
+}
+
+/**
+ * Character offset where the note BODY begins: right after a leading YAML
+ * frontmatter block (`---` … `---`), or 0 when there is none. Used to keep the
+ * mention scan out of the frontmatter — a title/alias that only appears as a
+ * YAML value must never be turned into a wiki link (it would corrupt the YAML).
+ */
+export function frontmatterBodyOffset(content: string): number {
+  const open = /^---\r?\n/.exec(content);
+  if (!open) return 0;
+  // Closing fence: a line that is exactly `---` (optional trailing spaces).
+  const close = /\r?\n---[ \t]*(\r?\n|$)/.exec(content.slice(open[0].length));
+  if (!close) return 0; // unterminated block — treat everything as body.
+  return open[0].length + close.index + close[0].length;
+}
+
+/**
+ * Finds the first UNLINKED, word-boundary occurrence of any of `terms` in the
+ * note BODY of `content`. Occurrences inside an existing `[[wiki link]]` and
+ * inside the YAML frontmatter are skipped. Matching is case-insensitive; the
+ * returned `matched` keeps the document's casing. Longer terms are tried first
+ * so that, at the same position, the more specific phrase wins; across terms
+ * the earliest occurrence is returned.
+ */
+export function findFirstUnlinkedOccurrence(content: string, terms: string[]): InlineOccurrence | null {
+  const bodyStart = frontmatterBodyOffset(content);
+  const cleaned = [...new Set(terms.map((t) => t.trim()).filter(Boolean))].sort((a, b) => b.length - a.length);
+  let best: InlineOccurrence | null = null;
+  for (const term of cleaned) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?<![\\p{L}\\p{N}\\[])${escaped}(?![\\p{L}\\p{N}\\]])`, "giu");
+    re.lastIndex = bodyStart;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      const idx = m.index;
+      // Skip occurrences already inside a wiki link: an unclosed "[[" before it.
+      const before = content.substring(0, idx);
+      const open = before.lastIndexOf("[[");
+      if (open !== -1 && before.indexOf("]]", open) === -1) continue;
+      if (!best || idx < best.index) best = { index: idx, matched: m[0] };
+      break; // earliest valid occurrence of THIS term found
+    }
+  }
+  return best;
+}
+
+/**
+ * Links the first unlinked body occurrence of any `terms` in `sourcePath` onto
+ * `targetPath`, using `[[target]]` when the visible text equals the wiki target
+ * and `[[target|visibleText]]` otherwise (the aliased-link principle). The
+ * occurrence is re-verified against the live file — a stale preview writes
+ * nothing and returns null. Returns the written occurrence for UI feedback.
+ */
+export async function applyInlineLink(
+  adapter: IVaultAdapter,
+  queryService: VaultQueryService,
+  sourcePath: string,
+  targetPath: string,
+  terms: string[]
+): Promise<{ matched: string; link: string } | null> {
+  const notes = await queryService.listNotes();
+  const allPaths = notes.map((n) => n.path);
+  const target = wikiTargetForPath(targetPath, allPaths);
+
+  await requestSaveFlush(sourcePath);
+  const content = await adapter.readTextFile(sourcePath);
+  const occ = findFirstUnlinkedOccurrence(content, terms);
+  if (!occ) return null;
+  const link = occ.matched === target ? `[[${occ.matched}]]` : `[[${target}|${occ.matched}]]`;
+  const next = content.substring(0, occ.index) + link + content.substring(occ.index + occ.matched.length);
+  await adapter.writeTextFile(sourcePath, next);
+  return { matched: occ.matched, link };
+}
+
 /**
  * Turns the first UNLINKED word-boundary occurrence of `term` in `sourcePath`
  * into a wiki link onto `targetPath` (cleanup action "link this mention").
- * The occurrence is re-verified against the live file content — a stale scan
- * result writes nothing and returns false.
+ * Thin boolean wrapper over {@link applyInlineLink}; a stale scan writes
+ * nothing and returns false.
  */
 export async function applyMentionLink(
   adapter: IVaultAdapter,
@@ -97,26 +177,5 @@ export async function applyMentionLink(
   targetPath: string,
   term: string
 ): Promise<boolean> {
-  const notes = await queryService.listNotes();
-  const allPaths = notes.map((n) => n.path);
-  const target = wikiTargetForPath(targetPath, allPaths);
-
-  await requestSaveFlush(sourcePath);
-  const content = await adapter.readTextFile(sourcePath);
-  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const boundary = new RegExp(`(?<![\\p{L}\\p{N}\\[])${escaped}(?![\\p{L}\\p{N}\\]])`, "giu");
-
-  for (const match of content.matchAll(boundary)) {
-    const idx = match.index ?? 0;
-    // Skip occurrences already inside a wiki link: an unclosed "[[" before it.
-    const before = content.substring(0, idx);
-    const open = before.lastIndexOf("[[");
-    if (open !== -1 && before.indexOf("]]", open) === -1) continue;
-    const found = match[0];
-    const link = found === target ? `[[${found}]]` : `[[${target}|${found}]]`;
-    const next = content.substring(0, idx) + link + content.substring(idx + found.length);
-    await adapter.writeTextFile(sourcePath, next);
-    return true;
-  }
-  return false;
+  return (await applyInlineLink(adapter, queryService, sourcePath, targetPath, [term])) !== null;
 }

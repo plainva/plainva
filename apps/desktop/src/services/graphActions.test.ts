@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { appendWikiLink, applyMentionLink, removeLinksTo } from "./graphActions";
+import {
+  appendWikiLink,
+  applyInlineLink,
+  applyMentionLink,
+  findFirstUnlinkedOccurrence,
+  frontmatterBodyOffset,
+  removeLinksTo,
+} from "./graphActions";
 
 vi.mock("./newNote", () => ({
   buildNewNoteContent: (type: string, title?: string) => `---\ntype: ${type}\n---\n# ${title}\n`,
@@ -110,5 +117,99 @@ describe("appendWikiLink", () => {
     await appendWikiLink(fakeAdapter(files), fakeQuery(["open.md", "Z.md"]), "open.md", "Z.md");
     window.removeEventListener("plainva-flush-pending-save", onFlush);
     expect(files["open.md"]).toBe("fresh\n\n[[Z]]\n");
+  });
+});
+
+describe("frontmatterBodyOffset", () => {
+  it("returns 0 when there is no frontmatter", () => {
+    expect(frontmatterBodyOffset("# Note\nBody")).toBe(0);
+  });
+
+  it("points past a leading YAML block", () => {
+    const c = "---\ntype: note\nalias: Ziel\n---\nBody text";
+    expect(c.slice(frontmatterBodyOffset(c))).toBe("Body text");
+  });
+
+  it("treats an unterminated block as body (safe fallback)", () => {
+    expect(frontmatterBodyOffset("---\nno closing fence\nmore")).toBe(0);
+  });
+});
+
+describe("findFirstUnlinkedOccurrence", () => {
+  it("finds a word-boundary occurrence and keeps the document casing", () => {
+    expect(findFirstUnlinkedOccurrence("We met Projekt X today.", ["projekt x"])).toEqual({
+      index: 7,
+      matched: "Projekt X",
+    });
+  });
+
+  it("skips occurrences already inside a wiki link", () => {
+    const occ = findFirstUnlinkedOccurrence("[[Projekt X]] then Projekt X bare.", ["Projekt X"]);
+    expect(occ?.index).toBe("[[Projekt X]] then ".length);
+    expect(occ?.matched).toBe("Projekt X");
+  });
+
+  it("never matches inside the frontmatter (would corrupt YAML)", () => {
+    const c = "---\nalias: Ziel\n---\nprose without the term";
+    expect(findFirstUnlinkedOccurrence(c, ["Ziel"])).toBeNull();
+  });
+
+  it("respects word boundaries", () => {
+    expect(findFirstUnlinkedOccurrence("Projekt Xtra only", ["Projekt X"])).toBeNull();
+  });
+
+  it("returns the earliest occurrence across terms; the longer phrase wins on a tie", () => {
+    expect(findFirstUnlinkedOccurrence("see Project Plan here", ["Project", "Project Plan"])).toEqual({
+      index: 4,
+      matched: "Project Plan",
+    });
+  });
+});
+
+describe("applyInlineLink", () => {
+  it("links the passage bare when the visible text equals the wiki target", async () => {
+    const files: Record<string, string> = { "src.md": "We met Projekt X today." };
+    const res = await applyInlineLink(
+      fakeAdapter(files),
+      fakeQuery(["src.md", "Projekt X.md"]),
+      "src.md",
+      "Projekt X.md",
+      ["Projekt X"]
+    );
+    expect(res).toEqual({ matched: "Projekt X", link: "[[Projekt X]]" });
+    expect(files["src.md"]).toBe("We met [[Projekt X]] today.");
+  });
+
+  it("uses the [[target|text]] form when the visible text differs (the aliased-link principle)", async () => {
+    const files: Record<string, string> = { "src.md": "We met projekt x today." };
+    const res = await applyInlineLink(
+      fakeAdapter(files),
+      fakeQuery(["src.md", "Projekt X.md"]),
+      "src.md",
+      "Projekt X.md",
+      ["projekt x"]
+    );
+    expect(res).toEqual({ matched: "projekt x", link: "[[Projekt X|projekt x]]" });
+    expect(files["src.md"]).toBe("We met [[Projekt X|projekt x]] today.");
+  });
+
+  it("path-qualifies the target and aliases the visible text on a basename collision", async () => {
+    const files: Record<string, string> = { "src.md": "about Ziel here" };
+    const res = await applyInlineLink(
+      fakeAdapter(files),
+      fakeQuery(["src.md", "A/Ziel.md", "B/Ziel.md"]),
+      "src.md",
+      "A/Ziel.md",
+      ["Ziel"]
+    );
+    expect(res).toEqual({ matched: "Ziel", link: "[[A/Ziel|Ziel]]" });
+    expect(files["src.md"]).toBe("about [[A/Ziel|Ziel]] here");
+  });
+
+  it("returns null and writes nothing when no live occurrence remains (stale preview)", async () => {
+    const files: Record<string, string> = { "src.md": "no term here" };
+    const res = await applyInlineLink(fakeAdapter(files), fakeQuery(["src.md", "T.md"]), "src.md", "T.md", ["Missing"]);
+    expect(res).toBeNull();
+    expect(files["src.md"]).toBe("no term here");
   });
 });

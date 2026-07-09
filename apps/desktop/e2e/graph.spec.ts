@@ -200,10 +200,18 @@ test('context graph section shows suggestions and accepting one writes a real wi
   await expect(suggestion).toHaveCount(1, { timeout: 10000 });
   await expect(suggestion).toContainText('mention'); // note title = basename
 
+  // The preview shows WHICH passage will be linked, BEFORE accepting: the
+  // unlinked "Projekt X" inside mention.md. It is an incoming mention, so the
+  // edit lands in that other note and the preview is prefixed with its title.
+  const preview = suggestion.getByTestId('graph-suggestion-preview');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('Projekt X');
+
   await suggestion.getByTestId('graph-suggestion-accept').click();
+  // Accepting links the passage INLINE, not appended at the document end.
   await expect
     .poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/mention.md']))
-    .toContain('[[Projekt X]]');
+    .toContain('über [[Projekt X]] gestern');
 });
 
 test('vault map opens via shortcut with stats, canvas menu creates a note', async ({ page }) => {

@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-09
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -10,7 +10,7 @@ Ouvrez la section **Graphe** dans la barre latérale droite. Elle affiche la not
 
 - Cliquer sur un nœud ouvre la note (le focus tourne avec vous).
 - Ctrl/Cmd+clic ouvre dans un split, le clic central dans un nouvel onglet.
-- En dessous apparaissent jusqu'à trois **suggestions** : des notes qui mentionnent votre note active (sans la lier), sont souvent liées ensemble avec elle, partagent un voisinage commun ou partagent un tag rare. **Lier** écrit un vrai lien wiki dans la note source ; **Ignorer la suggestion** mémorise votre décision.
+- En dessous apparaissent jusqu'à trois **suggestions** : des notes qui mentionnent votre note active (sans la lier), sont souvent liées ensemble avec elle, partagent un voisinage commun ou partagent un tag rare. Lorsque le titre apparaît sous forme de texte dans la note en cours d'édition, la suggestion affiche un **aperçu du passage** qui serait lié ; **Lier** transforme exactement ce passage en lien wiki (sous la forme `[[Cible|texte]]` lorsque le texte visible diffère de la cible). S'il n'y a pas de passage correspondant, le lien est ajouté à la fin de la note (l'aperçu l'indique). **Ignorer la suggestion** mémorise votre décision.
 
 ## Carte du coffre (son propre onglet)
 

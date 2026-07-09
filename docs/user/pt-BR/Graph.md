@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-07
+Stand: 2026-07-09
 
 O grafo do Plainva é uma ferramenta de trabalho, não um pôster: ele mostra onde você está, o que está conectado, o que está faltando — e você pode agir diretamente nele. Existe UM único motor de grafo com três formas de aparecer.
 
@@ -10,7 +10,7 @@ Abra a seção **Grafo** na barra lateral direita. Ela mostra a nota ativa no ce
 
 - Clicar em um nó abre a nota (o foco acompanha você).
 - Ctrl/Cmd+clique abre em uma divisão, clique do meio em uma nova aba.
-- Abaixo, aparecem até três **sugestões**: notas que mencionam sua nota ativa (mas não a vinculam), costumam ser vinculadas junto com ela, compartilham uma vizinhança semelhante ou compartilham uma tag rara. **Vincular** grava um link wiki de verdade na nota de origem; **Descartar sugestão** memoriza sua decisão.
+- Abaixo, aparecem até três **sugestões**: notas que mencionam sua nota ativa (mas não a vinculam), costumam ser vinculadas junto com ela, compartilham uma vizinhança semelhante ou compartilham uma tag rara. Quando o título ocorre como texto na nota que está sendo editada, a sugestão mostra uma **prévia do trecho** que seria vinculado; **Vincular** transforma exatamente esse trecho em um link wiki (como `[[Alvo|texto]]` quando o texto visível difere do alvo). Se não houver um trecho correspondente, o link é adicionado ao final da nota (a prévia indica isso). **Descartar sugestão** memoriza sua decisão.
 
 ## Mapa do vault (aba própria)
 

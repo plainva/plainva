@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-07-07
+Laatst bijgewerkt: 2026-07-09
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -10,7 +10,7 @@ Open de sectie **Graaf** in de rechterzijbalk. Deze toont de actieve notitie in 
 
 - Klikken op een node opent de notitie (de focus draait mee).
 - Ctrl/Cmd+klik opent in een split, middelklik in een nieuw tabblad.
-- Daaronder verschijnen tot drie **suggesties**: notities die je actieve notitie noemen (maar er niet naar linken), er vaak samen mee worden gelinkt, een vergelijkbare buurt delen of een zeldzame tag delen. **Linken** schrijft een echte wiki-link in de bronnotitie; **Suggestie negeren** onthoudt je keuze.
+- Daaronder verschijnen tot drie **suggesties**: notities die je actieve notitie noemen (maar er niet naar linken), er vaak samen mee worden gelinkt, een vergelijkbare buurt delen of een zeldzame tag delen. Staat de titel als tekst in de notitie die je bewerkt, dan toont de suggestie een **voorbeeld van het fragment** dat gelinkt zou worden; **Koppelen** maakt precies dat fragment tot een wiki-link (als `[[Doel|tekst]]` wanneer de zichtbare tekst van het doel afwijkt). Is er geen overeenkomend fragment, dan wordt de link aan het einde van de notitie toegevoegd (het voorbeeld geeft dat aan). **Suggestie negeren** onthoudt je keuze.
 
 ## Vault-kaart (eigen tabblad)
 

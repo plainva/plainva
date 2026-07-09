@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Check, Lightbulb, X } from "lucide-react";
 import type { GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { appendWikiLink } from "../../services/graphActions";
+import { appendWikiLink, applyInlineLink, findFirstUnlinkedOccurrence } from "../../services/graphActions";
+import { buildOccurrenceSnippet, type OccurrenceSnippet } from "../../lib/occurrenceSnippet";
 import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
@@ -25,10 +26,26 @@ interface GraphContextSectionProps {
   onOpenPathInSplit?: (path: string) => void;
 }
 
+/**
+ * What accepting a suggestion will do, previewed in the card. When a matching
+ * text passage exists in the note that gets edited (`editPath`), accepting
+ * links THAT passage inline; `snippet` shows it. Otherwise the link is appended
+ * at the end of `editPath` (snippet null). `editPath` is usually the active
+ * note, but for an incoming mention it is the other note (editIsActive false).
+ */
+interface SuggestionPreview {
+  editPath: string;
+  editTitle: string;
+  editIsActive: boolean;
+  terms: string[];
+  snippet: OccurrenceSnippet | null;
+}
+
 export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit }: GraphContextSectionProps) {
   const { t } = useTranslation();
   const { graphService, queryService, vaultAdapter, fileTreeVersion } = useVault();
   const [data, setData] = useState<ContextData | null>(null);
+  const [previews, setPreviews] = useState<Map<string, SuggestionPreview>>(new Map());
   const [dismissTick, setDismissTick] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<GraphScene | null>(null);
@@ -40,6 +57,7 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
   useEffect(() => {
     if (!graphService || !activePath || !/\.md$/i.test(activePath)) {
       setData(null);
+      setPreviews(new Map());
       return;
     }
     let alive = true;
@@ -50,7 +68,10 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
         // graph; only an index bump (fileTreeVersion) rebuilds it.
         const graph = await loadGraphCached(graphService, fileTreeVersion, { includeAttachments: false });
         if (!graph.nodes.has(activePath)) {
-          if (alive) setData(null);
+          if (alive) {
+            setData(null);
+            setPreviews(new Map());
+          }
           return;
         }
         const neighborhood = await graphService.getNeighborhood(activePath, 1, graph);
@@ -67,16 +88,53 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
         suggestions = suggestions
           .filter((s) => !graphState?.isDismissed(suggestionKey(s.reason, s.source, s.target)))
           .slice(0, 3);
-        if (alive) setData({ neighborhood, graph, suggestions });
+
+        // Preview per suggestion: the passage that would be linked inline (or
+        // null → appended at the end). Editing `s.source`; the term is the
+        // known mention phrase, else the target note's title. At most three
+        // small reads on the debounced refresh.
+        const previewMap = new Map<string, SuggestionPreview>();
+        for (const s of suggestions) {
+          const editPath = s.source;
+          const editTitle = graph.nodes.get(editPath)?.title ?? editPath;
+          const terms = s.term
+            ? [s.term]
+            : [graph.nodes.get(s.target)?.title].filter((x): x is string => !!x);
+          let snippet: OccurrenceSnippet | null = null;
+          if (terms.length > 0 && vaultAdapter) {
+            try {
+              const content = await vaultAdapter.readTextFile(editPath);
+              const occ = findFirstUnlinkedOccurrence(content, terms);
+              if (occ) snippet = buildOccurrenceSnippet(content, occ.index, occ.matched.length);
+            } catch {
+              /* no readable passage → append fallback */
+            }
+          }
+          previewMap.set(suggestionKey(s.reason, s.source, s.target), {
+            editPath,
+            editTitle,
+            editIsActive: editPath === activePath,
+            terms,
+            snippet,
+          });
+        }
+
+        if (alive) {
+          setData({ neighborhood, graph, suggestions });
+          setPreviews(previewMap);
+        }
       } catch {
-        if (alive) setData(null);
+        if (alive) {
+          setData(null);
+          setPreviews(new Map());
+        }
       }
     }, REFRESH_DEBOUNCE_MS);
     return () => {
       alive = false;
       clearTimeout(timer);
     };
-  }, [graphService, graphState, activePath, fileTreeVersion, dismissTick]);
+  }, [graphService, graphState, activePath, fileTreeVersion, dismissTick, vaultAdapter]);
 
   // ---- scene ---------------------------------------------------------------
 
@@ -149,14 +207,21 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
     async (s: GraphSuggestion) => {
       if (!vaultAdapter || !queryService) return;
       try {
-        await appendWikiLink(vaultAdapter, queryService, s.source, s.target);
-        graphState?.dismissSuggestion(suggestionKey(s.reason, s.source, s.target));
+        const key = suggestionKey(s.reason, s.source, s.target);
+        // Link the matching passage inline (aliased when the visible text
+        // differs); fall back to appending at the end when no live occurrence
+        // remains (stale preview) or the suggestion has no findable term.
+        const terms = previews.get(key)?.terms ?? (s.term ? [s.term] : []);
+        const linked =
+          terms.length > 0 && (await applyInlineLink(vaultAdapter, queryService, s.source, s.target, terms)) !== null;
+        if (!linked) await appendWikiLink(vaultAdapter, queryService, s.source, s.target);
+        graphState?.dismissSuggestion(key);
         setDismissTick((n) => n + 1);
       } catch {
         /* surfaced through the unchanged suggestion list */
       }
     },
-    [vaultAdapter, queryService, graphState]
+    [vaultAdapter, queryService, graphState, previews]
   );
 
   const dismissSuggestion = useCallback(
@@ -211,36 +276,66 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
                   : s.reason === "neighbors"
                     ? t("graph.reasonNeighbors", { defaultValue: "gleiche Nachbarschaft" })
                     : t("graph.reasonTag", { defaultValue: "teilt seltenen Tag {{tag}}", tag: s.detail ?? "" });
+            const key = suggestionKey(s.reason, s.source, s.target);
+            const preview = previews.get(key);
             return (
               <div
-                key={suggestionKey(s.reason, s.source, s.target)}
+                key={key}
                 data-testid="graph-suggestion"
-                style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-primary)", border: "1px solid var(--border-color-light)" }}
+                style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-primary)", border: "1px solid var(--border-color-light)" }}
               >
-                <button
-                  onClick={() => onOpenPath(other)}
-                  style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", fontSize: "var(--text-sm)", padding: 0 }}
-                >
-                  <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{otherTitle}</span>
-                  <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)" }}>{reasonLabel}</span>
-                </button>
-                <button
-                  className="pv-iconbtn pv-iconbtn--sm"
-                  aria-label={t("graph.acceptSuggestion", { defaultValue: "Verlinken" })}
-                  data-tip={t("graph.acceptSuggestion", { defaultValue: "Verlinken" })}
-                  data-testid="graph-suggestion-accept"
-                  onClick={() => void acceptSuggestion(s)}
-                >
-                  <Check size={13} />
-                </button>
-                <button
-                  className="pv-iconbtn pv-iconbtn--sm"
-                  aria-label={t("graph.dismissSuggestion", { defaultValue: "Vorschlag verwerfen" })}
-                  data-tip={t("graph.dismissSuggestion", { defaultValue: "Vorschlag verwerfen" })}
-                  onClick={() => dismissSuggestion(s)}
-                >
-                  <X size={13} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
+                  <button
+                    onClick={() => onOpenPath(other)}
+                    style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", fontSize: "var(--text-sm)", padding: 0 }}
+                  >
+                    <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{otherTitle}</span>
+                    <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)" }}>{reasonLabel}</span>
+                  </button>
+                  <button
+                    className="pv-iconbtn pv-iconbtn--sm"
+                    aria-label={t("graph.acceptSuggestion", { defaultValue: "Verlinken" })}
+                    data-tip={t("graph.acceptSuggestion", { defaultValue: "Verlinken" })}
+                    data-testid="graph-suggestion-accept"
+                    onClick={() => void acceptSuggestion(s)}
+                  >
+                    <Check size={13} />
+                  </button>
+                  <button
+                    className="pv-iconbtn pv-iconbtn--sm"
+                    aria-label={t("graph.dismissSuggestion", { defaultValue: "Vorschlag verwerfen" })}
+                    data-tip={t("graph.dismissSuggestion", { defaultValue: "Vorschlag verwerfen" })}
+                    onClick={() => dismissSuggestion(s)}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                {preview &&
+                  (preview.snippet ? (
+                    <div
+                      data-testid="graph-suggestion-preview"
+                      title={`${preview.snippet.before}${preview.snippet.match}${preview.snippet.after}`}
+                      style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {!preview.editIsActive && (
+                        <span style={{ color: "var(--text-faint)" }}>
+                          {t("graph.suggestionInNote", { defaultValue: "in {{note}}", note: preview.editTitle })}:{" "}
+                        </span>
+                      )}
+                      <span>{preview.snippet.before}</span>
+                      <span style={{ fontWeight: 700, color: "var(--accent-color)" }}>{preview.snippet.match}</span>
+                      <span>{preview.snippet.after}</span>
+                    </div>
+                  ) : (
+                    <div
+                      data-testid="graph-suggestion-preview"
+                      style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {preview.editIsActive
+                        ? t("graph.suggestionAtEnd", { defaultValue: "wird am Ende eingefügt" })
+                        : t("graph.suggestionAtEndIn", { defaultValue: "wird am Ende von {{note}} eingefügt", note: preview.editTitle })}
+                    </div>
+                  ))}
               </div>
             );
           })}

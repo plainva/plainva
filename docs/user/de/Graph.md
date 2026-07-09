@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-07-07
+Stand: 2026-07-09
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -10,7 +10,7 @@ Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du
 
 - Klick auf einen Knoten öffnet die Notiz (der Fokus wandert mit).
 - Strg/Cmd+Klick öffnet im Split, Mittelklick in einem neuen Tab.
-- Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. **Verlinken** schreibt einen echten Wiki-Link in die Quell-Notiz; **Vorschlag verwerfen** merkt sich die Entscheidung.
+- Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. Kommt der Titel als Text in der betroffenen Notiz vor, zeigt der Vorschlag eine **Vorschau der Textstelle**, die verlinkt würde; **Verlinken** verwandelt genau diese Stelle in einen Wiki-Link (als `[[Ziel|Text]]`, wenn der sichtbare Text vom Ziel abweicht). Gibt es keine passende Stelle, wird der Link am Ende der Notiz angehängt (die Vorschau weist darauf hin). **Vorschlag verwerfen** merkt sich die Entscheidung.
 
 ## Vault-Karte (eigener Tab)
 

@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-07
+Stand: 2026-07-09
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -10,7 +10,7 @@ Apri la sezione **Grafo** nella barra laterale destra. Mostra la nota attiva al 
 
 - Cliccare su un nodo apre la nota (il focus ruota con te).
 - Ctrl/Cmd+clic apre in una divisione, il clic centrale in una nuova scheda.
-- Sotto, compaiono fino a tre **suggerimenti**: note che menzionano la tua nota attiva (ma non la collegano), sono spesso collegate insieme a essa, condividono un vicinato simile o condividono un tag raro. **Collega** scrive un vero wiki-link nella nota di origine; **Ignora suggerimento** ricorda la tua decisione.
+- Sotto, compaiono fino a tre **suggerimenti**: note che menzionano la tua nota attiva (ma non la collegano), sono spesso collegate insieme a essa, condividono un vicinato simile o condividono un tag raro. Se il titolo compare come testo nella nota attiva, il suggerimento mostra un'**anteprima del passaggio** che verrebbe collegato; **Collega** trasforma esattamente quel passaggio in un wiki-link (come `[[Destinazione|testo]]` quando il testo visibile differisce dalla destinazione). Se non esiste un passaggio corrispondente, il link viene aggiunto alla fine della nota (l'anteprima lo indica). **Ignora suggerimento** ricorda la tua decisione.
 
 ## Mappa del vault (scheda dedicata)
 
