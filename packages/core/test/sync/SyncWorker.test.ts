@@ -453,6 +453,18 @@ describe("SyncWorker", () => {
     expect(target.pull.mock.calls[1][0]).toBeUndefined();
     expect(worker["cursor"]).toBeUndefined();
   });
+
+  it("drops the cursor after a failed pull so the next cycle re-syncs via full listing (1a self-heal)", async () => {
+    // A stale/expired change token (Drive 410) or any pull error must not wedge the worker
+    // on a broken cursor forever — the cursor is reset so the next cycle does a full listing.
+    worker["cursor"] = "stale-token";
+    target.pull.mockRejectedValueOnce(new Error("410 change token expired"));
+
+    await worker.runCycle();
+
+    expect(target.pull).toHaveBeenCalledWith("stale-token"); // it did try the incremental pull
+    expect(worker["cursor"]).toBeUndefined();                // ...and reset the cursor on failure
+  });
 });
 
 async function sha(text: string): Promise<string> {

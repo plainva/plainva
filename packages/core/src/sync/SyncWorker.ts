@@ -537,10 +537,11 @@ export class SyncWorker {
       this.onProgress?.(null); // clear progress; the cycle's work is done
       this.consecutiveFailures = 0;
 
-      // Advance the incremental-pull state for the NEXT cycle (only on success — a failed
-      // cycle keeps the old cursor and retries). After a full listing, adopt the token we
-      // seeded before it (undefined for non-token providers -> stays on full listings);
-      // after a cursor pull, adopt the follow-up token and count toward the next full pass.
+      // Advance the incremental-pull state for the NEXT cycle (only on success — a failure
+      // resets the cursor in the catch below so the next cycle re-establishes a full
+      // listing). After a full listing, adopt the token we seeded before it (undefined for
+      // non-token providers -> stays on full listings); after a cursor pull, adopt the
+      // follow-up token and count toward the next periodic full pass.
       if (doFullListing) {
         this.cursor = seededCursor;
         this.cyclesSinceFull = 0;
@@ -571,6 +572,13 @@ export class SyncWorker {
       }
     } catch (error) {
       this.consecutiveFailures++;
+      // Drop the incremental cursor so the NEXT cycle does a full listing. This self-heals
+      // an invalidated/expired change token (Drive answers 410 for a stale startPageToken)
+      // and re-establishes ground truth after any failure — a full listing always works and
+      // re-seeds a fresh cursor. Without this, a bad cursor would fail every cycle forever
+      // (the periodic full-listing counter only advances on success). Cost: at most one
+      // extra full listing per error recovery.
+      this.cursor = undefined;
       console.error("[SyncWorker] cycle error:", error);
       this.onProgress?.(null);
       this.setStatus("error", error instanceof Error ? error.message : String(error));
