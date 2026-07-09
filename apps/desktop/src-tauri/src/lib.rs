@@ -1,6 +1,7 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod backup;
@@ -53,7 +54,20 @@ fn keychain_delete(key: String) -> Result<(), String> {
 // connection, extracts ?code=&state=, replies with a small HTML page and returns them.
 // Verify natively (single-connection accept, timeout, URL-decoding of the code).
 
-struct OAuthLoopback(Mutex<Option<TcpListener>>);
+/// Native OAuth loopback state.
+///
+/// `listener` holds the bound socket between `oauth_loopback_start` and
+/// `oauth_loopback_wait`. `cancel` is the abort flag of the CURRENT (or most
+/// recently started) wait loop: setting it to `true` makes the accept-loop
+/// return early instead of idling until the timeout. This lets a NEW
+/// authorization attempt tear down a previous, abandoned one (e.g. the user
+/// closed the browser tab without granting access) so its port and blocking
+/// thread are released — otherwise a fixed-port provider (Dropbox) would stay
+/// unreachable for the full timeout.
+struct OAuthLoopback {
+    listener: Mutex<Option<TcpListener>>,
+    cancel: Mutex<Option<Arc<AtomicBool>>>,
+}
 
 #[derive(serde::Serialize, Debug)]
 struct OAuthResult {
@@ -126,23 +140,51 @@ fn oauth_loopback_start(
     state: tauri::State<'_, OAuthLoopback>,
     port: Option<u16>,
 ) -> Result<u16, String> {
+    // Abort a previous wait loop that is still running (e.g. an earlier login the
+    // user abandoned in the browser). It releases its socket + blocking thread
+    // once it observes the flag, which frees a fixed port for a retry.
+    if let Some(prev) = state.cancel.lock().map_err(|e| e.to_string())?.take() {
+        prev.store(true, Ordering::SeqCst);
+    }
     let listener = TcpListener::bind(("127.0.0.1", port.unwrap_or(0))).map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
-    *state.0.lock().map_err(|e| e.to_string())? = Some(listener);
+    *state.listener.lock().map_err(|e| e.to_string())? = Some(listener);
+    *state.cancel.lock().map_err(|e| e.to_string())? = Some(Arc::new(AtomicBool::new(false)));
     Ok(port)
 }
 
 /// Waits (up to `timeout_secs`) for the single OAuth redirect, returns the code + state.
+///
+/// `async` on purpose: the accept-loop can block for the whole timeout when the
+/// user abandons the browser login. A synchronous command would run that busy
+/// wait on the MAIN thread and freeze the entire WebView UI (Tauri runs non-async
+/// commands on the main thread) — which reads as a crash. `spawn_blocking` moves
+/// the wait onto a blocking worker so the UI stays responsive throughout.
 #[tauri::command]
-fn oauth_loopback_wait(
+async fn oauth_loopback_wait(
     state: tauri::State<'_, OAuthLoopback>,
     timeout_secs: u64,
 ) -> Result<OAuthResult, String> {
-    let listener = {
-        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-        guard.take().ok_or_else(|| "oauth listener not started".to_string())?
+    // Take the listener and clone the cancel flag under short, non-async locks;
+    // the std Mutex guards are dropped before the await below (guards are not Send).
+    let (listener, cancel) = {
+        let listener = {
+            let mut guard = state.listener.lock().map_err(|e| e.to_string())?;
+            guard.take().ok_or_else(|| "oauth listener not started".to_string())?
+        };
+        let cancel = state
+            .cancel
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone()
+            .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
+        (listener, cancel)
     };
-    wait_for_oauth_redirect(listener, timeout_secs)
+    tauri::async_runtime::spawn_blocking(move || {
+        wait_for_oauth_redirect(listener, timeout_secs, &cancel)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Accept-loop behind `oauth_loopback_wait`, kept free of Tauri state so it is
@@ -151,10 +193,19 @@ fn oauth_loopback_wait(
 /// connection is therefore NOT necessarily the redirect. Every connection
 /// without a `code` (or `error`) parameter is answered politely and the loop
 /// keeps waiting until the deadline.
-fn wait_for_oauth_redirect(listener: TcpListener, timeout_secs: u64) -> Result<OAuthResult, String> {
+fn wait_for_oauth_redirect(
+    listener: TcpListener,
+    timeout_secs: u64,
+    cancel: &AtomicBool,
+) -> Result<OAuthResult, String> {
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + Duration::from_secs(timeout_secs.max(1));
     loop {
+        // Torn down by a newer authorization attempt (or an explicit abort):
+        // stop waiting instead of holding the port until the timeout.
+        if cancel.load(Ordering::SeqCst) {
+            return Err("oauth loopback cancelled".to_string());
+        }
         match listener.accept() {
             Ok((mut stream, _)) => {
                 stream.set_nonblocking(false).ok();
@@ -204,7 +255,9 @@ fn wait_for_oauth_redirect(listener: TcpListener, timeout_secs: u64) -> Result<O
                 if Instant::now() >= deadline {
                     return Err("oauth loopback timed out".to_string());
                 }
-                std::thread::sleep(Duration::from_millis(200));
+                // Short poll so a cancel (checked at the loop top) reacts quickly
+                // and the port is freed promptly for a retry.
+                std::thread::sleep(Duration::from_millis(100));
             }
             Err(e) => return Err(e.to_string()),
         }
@@ -255,7 +308,10 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(OAuthLoopback(Mutex::new(None)))
+        .manage(OAuthLoopback {
+            listener: Mutex::new(None),
+            cancel: Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             keychain_set,
             keychain_get,
@@ -326,7 +382,7 @@ mod oauth_tests {
             let _ = s.read_to_end(&mut sink);
         });
 
-        let result = wait_for_oauth_redirect(listener, 10).unwrap();
+        let result = wait_for_oauth_redirect(listener, 10, &AtomicBool::new(false)).unwrap();
         sender.join().unwrap();
         assert_eq!(result.code, "the-code");
         assert_eq!(result.state.as_deref(), Some("the-state"));
@@ -344,8 +400,33 @@ mod oauth_tests {
             let _ = s.read_to_end(&mut sink);
         });
 
-        let err = wait_for_oauth_redirect(listener, 10).unwrap_err();
+        let err = wait_for_oauth_redirect(listener, 10, &AtomicBool::new(false)).unwrap_err();
         sender.join().unwrap();
         assert!(err.contains("access_denied"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn cancel_flag_ends_the_wait_without_a_redirect() {
+        // The user abandoned the browser login: no redirect ever arrives. A newer
+        // attempt (or an explicit abort) sets the cancel flag; the loop must return
+        // promptly instead of blocking a thread/port until the long timeout — which
+        // is what used to leave the UI frozen and the fixed Dropbox port occupied.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let flag = cancel.clone();
+        let canceller = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(250));
+            flag.store(true, Ordering::SeqCst);
+        });
+
+        let started = Instant::now();
+        let err = wait_for_oauth_redirect(listener, 30, &cancel).unwrap_err();
+        canceller.join().unwrap();
+        assert!(err.contains("cancel"), "unexpected error: {err}");
+        // Returned via the cancel flag, nowhere near the 30 s timeout.
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "cancel did not short-circuit the wait"
+        );
     }
 }
