@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Fichiers",
+    "collapseAll": "Replier tous les dossiers",
+    "expandAll": "Déplier tous les dossiers",
     "tags": "Tags",
     "bookmarks": "Signets",
     "noBookmarks": "Aucun signet",

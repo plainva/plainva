@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "文件",
+    "collapseAll": "折叠所有文件夹",
+    "expandAll": "展开所有文件夹",
     "tags": "标签",
     "bookmarks": "书签",
     "noBookmarks": "暂无书签",

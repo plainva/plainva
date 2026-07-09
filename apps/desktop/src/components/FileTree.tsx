@@ -326,7 +326,10 @@ export const FileTree: React.FC<{
   onOpenInSplit?: (path: string, direction: "vertical" | "horizontal") => void;
   isBookmarked?: (path: string) => boolean;
   onToggleBookmarkPath?: (path: string) => void;
-}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath }) => {
+  /** Reports whether any folder is expanded — feeds the sidebar's
+   *  collapse/expand-all toggle icon (E3 2026-07-09). */
+  onExpandedStateChange?: (hasExpanded: boolean) => void;
+}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange }) => {
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
@@ -656,6 +659,20 @@ export const FileTree: React.FC<{
     window.addEventListener("plainva-reveal-folder", onReveal);
     return () => window.removeEventListener("plainva-reveal-folder", onReveal);
   }, [revealPath]);
+
+  // Sidebar "collapse/expand all" toggle (E3 2026-07-09): anything expanded →
+  // collapse everything, else expand every folder (collectFolderPaths memo).
+  useEffect(() => {
+    const onToggleAll = () => {
+      setExpandedFolders((prev) => (prev.size > 0 ? new Set() : new Set(folderPaths)));
+    };
+    window.addEventListener("plainva-tree-toggle-all", onToggleAll);
+    return () => window.removeEventListener("plainva-tree-toggle-all", onToggleAll);
+  }, [folderPaths]);
+
+  useEffect(() => {
+    onExpandedStateChange?.(expandedFolders.size > 0);
+  }, [expandedFolders, onExpandedStateChange]);
 
   // The ⋮ menu can fire while this tree is unmounted (tags/bookmarks tab) or
   // before its rows exist after a remount: consume the parked path once the

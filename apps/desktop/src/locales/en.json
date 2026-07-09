@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Files",
+    "collapseAll": "Collapse all folders",
+    "expandAll": "Expand all folders",
     "tags": "Tags",
     "bookmarks": "Bookmarks",
     "noBookmarks": "No bookmarks",

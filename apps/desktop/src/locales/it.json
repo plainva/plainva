@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "File",
+    "collapseAll": "Comprimi tutte le cartelle",
+    "expandAll": "Espandi tutte le cartelle",
     "tags": "Tag",
     "bookmarks": "Segnalibri",
     "noBookmarks": "Nessun segnalibro",

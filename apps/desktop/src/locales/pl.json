@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Pliki",
+    "collapseAll": "Zwiń wszystkie foldery",
+    "expandAll": "Rozwiń wszystkie foldery",
     "tags": "Tagi",
     "bookmarks": "Zakładki",
     "noBookmarks": "Brak zakładek",

@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Bestanden",
+    "collapseAll": "Alle mappen invouwen",
+    "expandAll": "Alle mappen uitvouwen",
     "tags": "Tags",
     "bookmarks": "Bladwijzers",
     "noBookmarks": "Geen bladwijzers",

@@ -44,7 +44,7 @@ import { Button } from "./components/ui/Button";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, FilePlus, FolderPlus, Database, CalendarDays, X } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, CalendarDays, X } from "lucide-react";
 import { useDebouncedValue } from "./lib/useDebouncedValue";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -191,6 +191,9 @@ function App() {
   }, []);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "bookmarks">("files");
+  // Whether any tree folder is expanded — drives the collapse/expand-all
+  // toggle in the sidebar tab row (E3 2026-07-09; reported by the FileTree).
+  const [treeHasExpanded, setTreeHasExpanded] = useState(false);
   const [leftQuery, setLeftQuery] = useState("");
   // Input state stays immediate (controlled field, X button); the consumers
   // (file search, tag filter, bookmark filter) get the debounced value so
@@ -775,32 +778,45 @@ function App() {
             />
           </div>
         </div>
-        {/* View switch (Files / Tags / Bookmarks) */}
-        <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, padding: '0 10px 8px' }}>
-          {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })]] as const).map(([key, Icon, label]) => {
-            const active = leftSidebarTab === key;
-            return (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={active}
-                aria-label={label}
-                title={label}
-                onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
-                style={{ flex: 1, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: active ? 'var(--bg-active)' : 'transparent', border: 'none', color: active ? 'var(--accent-color)' : 'var(--text-muted)', borderRadius: "var(--radius-md)", cursor: 'pointer' }}
-                onMouseOver={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseOut={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <Icon size={16} />
-              </button>
-            );
-          })}
+        {/* View switch (Files / Tags / Bookmarks) + tree collapse/expand-all */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px 8px' }}>
+          <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, flex: 1 }}>
+            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })]] as const).map(([key, Icon, label]) => {
+              const active = leftSidebarTab === key;
+              return (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
+                  style={{ flex: 1, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: active ? 'var(--bg-active)' : 'transparent', border: 'none', color: active ? 'var(--accent-color)' : 'var(--text-muted)', borderRadius: "var(--radius-md)", cursor: 'pointer' }}
+                  onMouseOver={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                  onMouseOut={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Icon size={16} />
+                </button>
+              );
+            })}
+          </div>
+          {leftSidebarTab === 'files' && (
+            <button
+              className="pv-icon-btn"
+              aria-label={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
+              data-tip={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
+              onClick={() => window.dispatchEvent(new CustomEvent('plainva-tree-toggle-all'))}
+            >
+              {treeHasExpanded ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
+            </button>
+          )}
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
             <FileTree
               activePath={activePath}
               onSelect={openInFocusedPane}
+              onExpandedStateChange={setTreeHasExpanded}
               onCloseTabsByPrefix={closeTabsByPrefix}
               onRenameTabPrefix={renameTabPrefix}
               externalQuery={leftQueryDebounced}

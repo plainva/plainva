@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Arquivos",
+    "collapseAll": "Recolher todas as pastas",
+    "expandAll": "Expandir todas as pastas",
     "tags": "Tags",
     "bookmarks": "Favoritos",
     "noBookmarks": "Sem favoritos",

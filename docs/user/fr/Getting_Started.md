@@ -20,7 +20,7 @@ Au démarrage, l'écran d'accueil vous accueille :
 
 ## L'interface
 
-- **Barre latérale gauche** — trois vues : **Fichiers** (l'arborescence de fichiers), **Tags** (tous les `#tags` du vault) et **Signets**. En haut se trouve le grand bouton **Nouveau** (Nouvelle note, avec **Plus d'options** pour Nouveau dossier, Nouvelle base, Note quotidienne). En bas : le sélecteur de vault, **Ouvrir la note quotidienne** et **Paramètres**.
+- **Barre latérale gauche** — trois vues : **Fichiers** (l'arborescence de fichiers), **Tags** (tous les `#tags` du vault) et **Signets**. En haut se trouve le grand bouton **Nouveau** (Nouvelle note, avec **Plus d'options** pour Nouveau dossier, Nouvelle base, Note quotidienne). En bas : le sélecteur de vault, **Ouvrir la note quotidienne** et **Paramètres**. Le bouton à double chevron à côté des trois vues replie ou déplie tous les dossiers d'un coup, et **Afficher dans l'arborescence de fichiers** dans le menu ⋮ de l'éditeur affiche directement la note ouverte dans l'arborescence.
 - **Barre de titre** — vos onglets ouverts. Les onglets peuvent être réordonnés par glisser-déposer et déplacés entre les volets de l'éditeur.
 - **Zone de l'éditeur** — où vous lisez et écrivez. Via le menu de l'onglet (**Scinder à droite** / **Scinder en bas**) ou les raccourcis `Ctrl+Alt+V` / `Ctrl+Alt+S`, vous scindez l'éditeur en deux volets, par exemple une note à côté d'une base de données.
 - **Barre latérale droite** — quatre sections, réorganisables par glisser-déposer : **Calendrier** (notes quotidiennes), **Plan** (titres de la note active), **Backlinks** (qui renvoie ici) et **Propriétés** (le frontmatter de la note).

@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Archivos",
+    "collapseAll": "Contraer todas las carpetas",
+    "expandAll": "Expandir todas las carpetas",
     "tags": "Etiquetas",
     "bookmarks": "Marcadores",
     "noBookmarks": "No hay marcadores",

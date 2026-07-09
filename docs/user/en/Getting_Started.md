@@ -20,7 +20,7 @@ On launch, the welcome screen greets you:
 
 ## The interface
 
-- **Left sidebar** — three views: **Files** (the file tree), **Tags** (all `#tags` in the vault) and **Bookmarks**. At the top sits the big **New** button (New Note, plus **More options** for New Folder, New Base, Daily Note). At the bottom: the vault switcher, **Open Daily Note** and **Settings**.
+- **Left sidebar** — three views: **Files** (the file tree), **Tags** (all `#tags` in the vault) and **Bookmarks**. At the top sits the big **New** button (New Note, plus **More options** for New Folder, New Base, Daily Note). At the bottom: the vault switcher, **Open Daily Note** and **Settings**. The double-chevron button next to the three views collapses or expands all folders at once, and **Reveal in file tree** in the editor's ⋮ menu jumps straight to the open note in the tree.
 - **Title bar** — your open tabs. Tabs can be reordered by dragging and moved between editor panes.
 - **Editor area** — where you read and write. Via the tab menu (**Split right** / **Split down**) or the shortcuts `Ctrl+Alt+V` / `Ctrl+Alt+S` you split the editor into two panes, e.g. a note next to a database.
 - **Right sidebar** — four sections, reorderable by drag: **Calendar** (daily notes), **Outline** (headings of the active note), **Backlinks** (who links here) and **Properties** (the note's frontmatter).

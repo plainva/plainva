@@ -20,7 +20,7 @@ Po uruchomieniu wita ekran powitalny:
 
 ## Interfejs
 
-- **Lewy pasek boczny** — trzy widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie) i **Zakładki**. Na górze znajduje się duży przycisk **Nowy** (Nowa notatka, obok **Więcej opcji** dla Nowy folder, Nowa baza, Notatka dzienna). Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**.
+- **Lewy pasek boczny** — trzy widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie) i **Zakładki**. Na górze znajduje się duży przycisk **Nowy** (Nowa notatka, obok **Więcej opcji** dla Nowy folder, Nowa baza, Notatka dzienna). Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**. Przycisk z podwójną strzałką obok trzech widoków zwija lub rozwija wszystkie foldery naraz, a **Pokaż w drzewie plików** w menu ⋮ edytora pokazuje otwartą notatkę bezpośrednio w drzewie.
 - **Pasek tytułu** — otwarte karty. Karty można przeciągać, zmieniając ich kolejność, oraz przenosić między panelami edytora.
 - **Obszar edytora** — tu czytasz i piszesz. Przez menu karty (**Podziel w prawo** / **Podziel w dół**) lub skróty `Ctrl+Alt+V` / `Ctrl+Alt+S` dzielisz edytor na dwa panele, np. notatkę obok bazy danych.
 - **Prawy pasek boczny** — cztery sekcje, których kolejność można zmieniać przez przeciąganie: **Kalendarz** (notatki dzienne), **Konspekt** (nagłówki aktywnej notatki), **Linki zwrotne** (kto tu linkuje) i **Właściwości** (frontmatter notatki).

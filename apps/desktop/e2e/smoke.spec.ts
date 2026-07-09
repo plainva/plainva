@@ -448,6 +448,31 @@ test('File tree: deleting a large share of the vault shows the second prompt', a
     .toBe(0);
 });
 
+// --- File tree: one toggle collapses/expands all folders (E3 2026-07-09) ---
+test('File tree: the sidebar toggle collapses and expands all folders', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Alpha-Ordner': { isDir: true },
+      '/test-vault/Alpha-Ordner/eins.md': '# eins\n',
+      '/test-vault/Beta-Ordner': { isDir: true },
+      '/test-vault/Beta-Ordner/zwei.md': '# zwei\n',
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Nothing expanded yet -> the toggle expands every folder at once.
+  await aside.getByRole('button', { name: /Alle Ordner ausklappen|Expand all folders/ }).click();
+  await expect(aside.getByText('eins', { exact: true })).toBeVisible();
+  await expect(aside.getByText('zwei', { exact: true })).toBeVisible();
+
+  // Something is expanded -> the same button (flipped icon/label) collapses all.
+  await aside.getByRole('button', { name: /Alle Ordner einklappen|Collapse all folders/ }).click();
+  await expect(aside.getByText('eins', { exact: true })).not.toBeVisible();
+  await expect(aside.getByText('zwei', { exact: true })).not.toBeVisible();
+});
+
 // --- Editor ⋮: "Reveal in file tree" expands + selects the note (2026-07-09) ---
 test('Editor menu: reveal in file tree re-expands the folder and selects the note', async ({ page }) => {
   await page.addInitScript(() => {

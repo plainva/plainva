@@ -411,6 +411,8 @@
   },
   "sidebar": {
     "files": "Dateien",
+    "collapseAll": "Alle Ordner einklappen",
+    "expandAll": "Alle Ordner ausklappen",
     "tags": "Tags",
     "bookmarks": "Lesezeichen",
     "noBookmarks": "Keine Lesezeichen",

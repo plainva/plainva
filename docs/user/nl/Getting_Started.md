@@ -20,7 +20,7 @@ Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit 
 
 ## De interface
 
-- **Linkerzijbalk** — drie weergaven: **Bestanden** (de bestandsboom), **Tags** (alle `#tags` in de vault) en **Bladwijzers**. Bovenaan staat de grote **Nieuw**-knop (Nieuwe notitie, met **Meer opties** voor Nieuwe map, Nieuwe base, Dagnotitie). Onderaan: vault-wisselaar, **Dagnotitie openen** en **Instellingen**.
+- **Linkerzijbalk** — drie weergaven: **Bestanden** (de bestandsboom), **Tags** (alle `#tags` in de vault) en **Bladwijzers**. Bovenaan staat de grote **Nieuw**-knop (Nieuwe notitie, met **Meer opties** voor Nieuwe map, Nieuwe base, Dagnotitie). Onderaan: vault-wisselaar, **Dagnotitie openen** en **Instellingen**. De dubbele-pijl-knop naast de drie weergaven vouwt alle mappen in één keer in of uit, en **Tonen in bestandsboom** in het ⋮-menu van de editor toont de geopende notitie direct in de boom.
 - **Titelbalk** — je geopende tabbladen. Tabbladen kun je verslepen om te herordenen en tussen editorpanelen te verplaatsen.
 - **Editorgebied** — hier lees en schrijf je. Via het tabbladmenu (**Rechts splitsen** / **Onder splitsen**) of de sneltoetsen `Ctrl+Alt+V` / `Ctrl+Alt+S` splits je de editor in twee panelen, bijv. een notitie naast een database.
 - **Rechterzijbalk** — vier secties, herordenbaar door slepen: **Kalender** (dagelijkse notities), **Structuur** (koppen van de actieve notitie), **Backlinks** (wie hierheen linkt) en **Eigenschappen** (de frontmatter van de notitie).
