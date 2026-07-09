@@ -5,6 +5,7 @@ import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, Backup
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "../services/toastStore";
+import { appConfirm } from "../services/appDialogs";
 import i18n from "../i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { startBackupScheduler } from "../services/backupScheduler";
@@ -517,6 +518,35 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                   window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: p } }));
                 }
               }
+            };
+            const guardedWorker = syncWorker;
+            syncWorker.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
+              // The push-side mass-deletion guard tripped: a large share of the
+              // synced files is queued for REMOTE deletion (typically the local
+              // vault folder was emptied or moved while Plainva knew the vault).
+              // Never execute that silently — ask. Cancel/Escape takes the safe
+              // branch: the deletes are discarded and the files restored from the
+              // remote on the next cycle.
+              void (async () => {
+                const confirmed = await appConfirm({
+                  title: i18n.t("sync.massDeleteTitle"),
+                  message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
+                  kind: "danger",
+                  confirmLabel: i18n.t("sync.massDeleteConfirm"),
+                  cancelLabel: i18n.t("sync.massDeleteRestore"),
+                });
+                if (confirmed) {
+                  guardedWorker.approveMassDeletion();
+                } else {
+                  try {
+                    const discarded = await guardedWorker.discardMassDeletion();
+                    toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
+                  } catch (e) {
+                    console.error("[VaultContext] discardMassDeletion failed", e);
+                    toast.error(i18n.t("sync.massDeleteRestoreFailed"));
+                  }
+                }
+              })();
             };
             syncWorker.start();
         }

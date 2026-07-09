@@ -77,6 +77,18 @@ const CHANGED_PATHS_CHUNK = 25;
  */
 const MAX_CONSECUTIVE_PULL_FAILURES = 3;
 
+/**
+ * Push-side mass-deletion guard thresholds (mirror of the pull side's
+ * missing-from-listing sanity guard). A local mass deletion — the vault folder
+ * emptied, moved or its drive unmounted while the app knows the vault — floods
+ * the queue with remote DELETEs; executing them would wipe the remote copy.
+ * When more than MIN queued deletes ALSO exceed SHARE of the synced baseline,
+ * the worker holds all deletes until the user explicitly confirms (or discards)
+ * them. Small, plausible deletions are never held.
+ */
+const MASS_DELETE_MIN = 10;
+const MASS_DELETE_SHARE = 0.2;
+
 export class SyncWorker {
   private timeoutId: any;
   private isRunning = false;
@@ -112,6 +124,18 @@ export class SyncWorker {
    */
   public onFirstCycleComplete?: () => void;
   private firstCycleComplete = false;
+  /**
+   * Fired once when the mass-deletion guard trips (see MASS_DELETE_MIN/SHARE): the
+   * queued remote deletions are held and the desktop must ask the user to either
+   * approveMassDeletion() (execute them) or discardMassDeletion() (drop the deletes
+   * and restore the files from the remote). Re-armed once the condition clears, so
+   * a NEW mass deletion later signals again.
+   */
+  public onMassDeletionPending?: (info: { pendingDeletes: number; syncedTotal: number }) => void;
+  /** User approved executing the held deletes; session-scoped, reset when the queue drains. */
+  private massDeletionApproved = false;
+  /** The pending guard state was already signaled to the host (no re-fire every poll). */
+  private massDeletionSignaled = false;
   /**
    * Incremental-pull state for change-token providers (Drive). `cursor` is the change
    * token from the last pull; `cyclesSinceFull` forces a periodic full listing. Both live
@@ -195,6 +219,34 @@ export class SyncWorker {
       clearTimeout(this.timeoutId);
       this.timeoutId = undefined;
     }
+  }
+
+  /**
+   * Executes the held mass deletion: the next cycle pushes the queued remote
+   * DELETEs. Session-scoped — still-pending mass deletes trip the guard again
+   * after a restart (deliberate: destructive intent must not outlive the session).
+   */
+  public approveMassDeletion(): void {
+    this.massDeletionApproved = true;
+    this.triggerImmediate();
+  }
+
+  /**
+   * Discards the held mass deletion and restores the files from the remote:
+   * drops every queued DELETE, clears the paths' sync_state (the reconcile skips
+   * paths whose recorded remote_etag still matches — a stale row would block the
+   * re-download forever) and forces the next cycle onto a full listing so the
+   * files come back immediately instead of at the next periodic full pass.
+   */
+  public async discardMassDeletion(): Promise<number> {
+    const paths = await this.queue.discardPendingDeletes();
+    for (const p of paths) {
+      await this.stateRepo.deleteSyncState(p);
+    }
+    this.massDeletionSignaled = false;
+    this.cursor = undefined; // full listing next cycle -> immediate restore
+    if (paths.length > 0) this.triggerImmediate();
+    return paths.length;
   }
 
   public triggerImmediate() {
@@ -615,10 +667,39 @@ export class SyncWorker {
       // phase starts; the finally below only backstops aborts.
       flushChangedPaths(true);
 
+      // Push-side mass-deletion guard (mirror of the pull side's sanity guard): a
+      // local mass deletion — the vault folder emptied, moved or unmounted while the
+      // app knows the vault — floods the queue with remote DELETEs, and executing
+      // them would wipe the remote copy. Hold ALL deletes (writes/renames proceed)
+      // until the user explicitly approves or discards them; signal the host once.
+      let deletionsHeld: string | null = null;
+      const pendingDeletePaths = await this.queue.getPendingDeletePaths();
+      const syncedTotal = [...stateMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
+      const isMassDeletion =
+        pendingDeletePaths.length > MASS_DELETE_MIN &&
+        pendingDeletePaths.length > syncedTotal * MASS_DELETE_SHARE;
+      if (isMassDeletion && !this.massDeletionApproved) {
+        deletionsHeld = `${pendingDeletePaths.length} of ${syncedTotal} synced files are queued for remote deletion; deletions are paused until confirmed`;
+        console.warn(`[SyncWorker] ${deletionsHeld}`);
+        if (!this.massDeletionSignaled) {
+          this.massDeletionSignaled = true;
+          try {
+            this.onMassDeletionPending?.({ pendingDeletes: pendingDeletePaths.length, syncedTotal });
+          } catch (e) {
+            console.error("[SyncWorker] onMassDeletionPending consumer failed:", e);
+          }
+        }
+      } else if (!isMassDeletion) {
+        // Condition cleared (deletes executed or discarded): re-arm the guard.
+        this.massDeletionApproved = false;
+        this.massDeletionSignaled = false;
+      }
+
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
       await this.engine.processQueue(
         () => !this.isRunning,
-        (current, total) => this.emitProgress("push", current, total)
+        (current, total) => this.emitProgress("push", current, total),
+        { skipDeletes: deletionsHeld !== null }
       );
 
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote, ${pullFailureCount} pull failure(s))`);
@@ -658,7 +739,11 @@ export class SyncWorker {
         }
       }
 
-      if (deletionMirroringSuspended) {
+      if (deletionsHeld) {
+        // The user has a pending decision (execute or discard the held remote
+        // deletions); keep the error status visible until it is made.
+        this.setStatus("error", deletionsHeld);
+      } else if (deletionMirroringSuspended) {
         // Pull/push worked, but the listing looked broken — the user must learn
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.

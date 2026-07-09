@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-09
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -14,6 +14,7 @@ Which services work in general (also via WebDAV or the provider's desktop client
 - The first time you connect an online vault, a one-time note reminds you that the initial sync can take a while depending on the vault size — you can keep working while it runs.
 - If both sides change the same file, Plainva merges them automatically (3-way merge). If that is not possible, your version is safely preserved as a `.CONFLICT` file — nothing is ever lost (see [FAQ](FAQ.md)).
 - **Resolving conflicts**: a banner in the affected note (and **Resolve conflict…** in the `.CONFLICT` file's right-click menu in the tree) opens the comparison dialog — the file's current state on the left, your preserved version on the right, editable with per-block take-over. **Save right side & resolve** writes the result into the file and cleans up the conflict copy; **Keep the other side** discards your copy (a version snapshot remains). The sync error dialog also lists existing conflict copies and takes you to the same comparison with one click.
+- **Mass-deletion protection**: if an unusually large share of the synced files is about to be deleted in the cloud at once (for example because the local vault folder was emptied or moved), Plainva holds the deletions and asks first: **Delete in the cloud** executes them, **Don't delete (restore)** discards them and restores the files from the cloud on the next sync.
 - Attachments (images etc.) are synced too.
 - Credentials and tokens are stored in the operating system's keychain (status: **Settings → System diagnostics → OS keychain**), never in files inside the vault.
 - **Disconnect** stops the vault's sync; no files are deleted anywhere by doing so.

@@ -322,4 +322,23 @@ describe("SyncEngine", () => {
     const updateQuery = db.queries.find(q => q.query.includes("UPDATE files SET sync_state = 'synced'"));
     expect(updateQuery?.params).toEqual(["new.md"]);
   });
+
+  it("skipDeletes leaves queued delete operations untouched (mass-deletion guard)", async () => {
+    // The worker holds remote deletions until the user confirms a suspected local
+    // mass deletion; writes and renames of other files must still flow.
+    db.mockedResults.push([
+      { id: 1, file_path: "keep.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 },
+      { id: 2, file_path: "gone.md", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 1 }
+    ]);
+    db.mockedOneResults.push(null); // markSynced pending-check for the write
+
+    await engine.processQueue(undefined, undefined, { skipDeletes: true });
+
+    // The write was pushed; the delete was neither pushed nor consumed from the queue.
+    expect(target.pushes.map(p => `${p.operation}:${p.file_path}`)).toEqual(["write:keep.md"]);
+    const consumedIds = db.queries
+      .filter(q => q.query.includes("DELETE FROM offline_queue WHERE id"))
+      .map(q => (q.params as any[])[0]);
+    expect(consumedIds).toEqual([1]);
+  });
 });

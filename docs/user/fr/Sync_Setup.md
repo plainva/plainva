@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-06
+Dernière mise à jour : 2026-07-09
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -14,6 +14,7 @@ Quels services fonctionnent en général (aussi via WebDAV ou le client de burea
 - La première fois que vous connectez un vault en ligne, une note ponctuelle vous rappelle que la synchronisation initiale peut prendre du temps selon la taille du vault — vous pouvez continuer à travailler pendant ce temps.
 - Si les deux côtés modifient le même fichier, Plainva les fusionne automatiquement (fusion à 3 voies). Si ce n'est pas possible, votre version est préservée en sécurité comme fichier `.CONFLICT` — rien n'est jamais perdu (voir [FAQ](FAQ.md)).
 - **Résoudre les conflits** : une bannière dans la note concernée (et **Résoudre le conflit…** dans le menu contextuel du fichier `.CONFLICT` dans l'arborescence) ouvre la boîte de dialogue de comparaison — l'état actuel du fichier à gauche, votre version conservée à droite, modifiable avec reprise par bloc. **Enregistrer la version de droite et résoudre** écrit le résultat dans le fichier et supprime la copie de conflit ; **Garder l'autre côté** abandonne votre copie (un instantané de version subsiste). La boîte de dialogue d'erreur de synchronisation liste elle aussi les copies de conflit existantes et vous mène à la même comparaison en un clic.
+- **Protection contre les suppressions en masse** : si une part inhabituellement grande des fichiers synchronisés est sur le point d'être supprimée d'un coup dans le cloud (par exemple parce que le dossier local du vault a été vidé ou déplacé), Plainva suspend les suppressions et demande d'abord confirmation : **Supprimer dans le cloud** les exécute, **Ne pas supprimer (restaurer)** les abandonne et restaure les fichiers depuis le cloud lors de la prochaine synchronisation.
 - Les pièces jointes (images etc.) sont également synchronisées.
 - Les identifiants et jetons sont stockés dans le trousseau du système d'exploitation (statut : **Paramètres → Diagnostic système → Trousseau du système**), jamais dans des fichiers à l'intérieur du vault.
 - **Déconnecter** arrête la synchronisation du vault ; aucun fichier n'est supprimé nulle part par cette action.

@@ -34,7 +34,9 @@ describe("SyncWorker", () => {
       queueWrite: vi.fn().mockResolvedValue(undefined),
       resetStuckOperations: vi.fn().mockResolvedValue(undefined),
       hasPendingOperation: vi.fn().mockResolvedValue(false),
-      hasPendingStructuralOp: vi.fn().mockResolvedValue(false)
+      hasPendingStructuralOp: vi.fn().mockResolvedValue(false),
+      getPendingDeletePaths: vi.fn().mockResolvedValue([]),
+      discardPendingDeletes: vi.fn().mockResolvedValue([])
     };
 
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
@@ -74,7 +76,11 @@ describe("SyncWorker", () => {
 
   it("passes an abort + progress callback into the push engine (WP6)", async () => {
     await worker.runCycle();
-    expect(engine.processQueue).toHaveBeenCalledWith(expect.any(Function), expect.any(Function));
+    expect(engine.processQueue).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.any(Function),
+      expect.objectContaining({ skipDeletes: false })
+    );
   });
 
   it("should skip re-downloading when the remote etag is unchanged", async () => {
@@ -653,6 +659,81 @@ describe("SyncWorker", () => {
       target.pull.mockResolvedValueOnce({ etagMap: new Map() });
       await worker.runCycle();
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("push-side mass-deletion guard", () => {
+    const syncedBaseline = (n: number) =>
+      new Map(Array.from({ length: n }, (_, i) => [`s-${i}.md`, { remote_etag: `e${i}` }]));
+
+    it("holds queued remote deletes and signals the host exactly once", async () => {
+      // 12 queued deletes against 20 synced files: > 10 AND > 20% -> a local mass
+      // deletion (e.g. the vault folder was emptied). Executing it would wipe the
+      // remote copy — exactly the abandoned-vault incident this guard prevents.
+      queue.getPendingDeletePaths.mockResolvedValue(
+        Array.from({ length: 12 }, (_, i) => `del-${i}.md`)
+      );
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+      const pendingSpy = vi.fn();
+      worker.onMassDeletionPending = pendingSpy;
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+      await worker.runCycle();
+
+      const calls = engine.processQueue.mock.calls;
+      expect(calls[0][2]).toEqual({ skipDeletes: true });
+      expect(calls[1][2]).toEqual({ skipDeletes: true });
+      expect(pendingSpy).toHaveBeenCalledTimes(1); // no re-prompt every poll cycle
+      expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 12, syncedTotal: 20 });
+      const errorCall = statusSpy.mock.calls.find(([s]) => s === "error");
+      expect(String(errorCall?.[1])).toContain("queued for remote deletion");
+    });
+
+    it("lets small, plausible deletions through untouched", async () => {
+      queue.getPendingDeletePaths.mockResolvedValue(["one.md", "two.md"]);
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+      const pendingSpy = vi.fn();
+      worker.onMassDeletionPending = pendingSpy;
+
+      await worker.runCycle();
+
+      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(pendingSpy).not.toHaveBeenCalled();
+    });
+
+    it("approveMassDeletion executes the held deletes on the next cycle", async () => {
+      queue.getPendingDeletePaths.mockResolvedValue(
+        Array.from({ length: 12 }, (_, i) => `del-${i}.md`)
+      );
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+
+      await worker.runCycle();
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toEqual({ skipDeletes: true });
+
+      worker["isRunning"] = false; // keep triggerImmediate from racing the unit test
+      worker.approveMassDeletion();
+      worker["isRunning"] = true;
+      await worker.runCycle();
+
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toEqual({ skipDeletes: false });
+    });
+
+    it("discardMassDeletion drops the deletes, clears their sync_state and forces a full listing", async () => {
+      queue.discardPendingDeletes.mockResolvedValue(["a.md", "b.md"]);
+      worker["cursor"] = "c0";
+      worker["isRunning"] = false; // triggerImmediate is a no-op in the unit test
+
+      const discarded = await worker.discardMassDeletion();
+
+      expect(discarded).toBe(2);
+      // Clearing sync_state is what makes the restore work: the reconcile skips
+      // paths whose recorded remote_etag still matches, so a stale row would
+      // block the re-download forever.
+      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("a.md");
+      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("b.md");
+      expect(worker["cursor"]).toBeUndefined(); // next cycle full-lists -> immediate restore
     });
   });
 });

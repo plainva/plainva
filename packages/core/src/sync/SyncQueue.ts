@@ -176,6 +176,28 @@ export class SyncQueue {
     return !!row;
   }
 
+  /** Paths of all queued DELETE operations (regardless of backoff/manual-intervention state). */
+  async getPendingDeletePaths(): Promise<string[]> {
+    const rows = await this.db.query<{ file_path: string }>(
+      `SELECT file_path FROM offline_queue WHERE operation = 'delete'`
+    );
+    return rows.map((r) => r.file_path);
+  }
+
+  /**
+   * Discards ALL queued DELETE operations and returns their paths. Used by the
+   * mass-deletion guard's "restore from remote" choice: the caller additionally
+   * clears the paths' sync_state so the next full listing re-downloads the files
+   * (the reconcile skips paths whose recorded remote_etag still matches).
+   */
+  async discardPendingDeletes(): Promise<string[]> {
+    const paths = await this.getPendingDeletePaths();
+    if (paths.length > 0) {
+      await this.db.execute(`DELETE FROM offline_queue WHERE operation = 'delete'`);
+    }
+    return paths;
+  }
+
   /**
    * Enqueues write operations only for local files the remote has NOT confirmed yet
    * (no `remote_etag` in sync_state) and that aren't already queued. Run once after the

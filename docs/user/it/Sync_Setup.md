@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Stand: 2026-07-06
+Stand: 2026-07-09
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -14,6 +14,7 @@ Quali servizi funzionano in generale (anche tramite WebDAV o il client desktop d
 - La prima volta che colleghi un vault online, un avviso una tantum ricorda che la sincronizzazione iniziale può richiedere del tempo a seconda delle dimensioni del vault — nel frattempo puoi continuare a lavorare.
 - Se entrambe le parti modificano lo stesso file, Plainva le unisce automaticamente (unione a tre vie). Se non è possibile, la tua versione viene preservata in sicurezza come file `.CONFLICT` — non si perde mai nulla (vedi [FAQ](FAQ.md)).
 - **Risoluzione dei conflitti**: un banner nella nota interessata (e **Risolvi conflitto…** nel menu contestuale del file `.CONFLICT` nell'albero) apre la finestra di dialogo di confronto — lo stato attuale del file a sinistra, la tua versione preservata a destra, modificabile con la ripresa dei singoli blocchi. **Salva la versione destra e risolvi** scrive il risultato nel file e rimuove la copia di conflitto; **Mantieni l'altra parte** scarta la tua copia (resta uno snapshot nella cronologia versioni). Anche la finestra di dialogo degli errori di sincronizzazione elenca le copie di conflitto esistenti e porta con un clic allo stesso confronto.
+- **Protezione dalle eliminazioni di massa**: se una quota insolitamente grande dei file sincronizzati sta per essere eliminata nel cloud in una sola volta (ad esempio perché la cartella locale del vault è stata svuotata o spostata), Plainva sospende le eliminazioni e chiede prima conferma: **Elimina nel cloud** le esegue, **Non eliminare (ripristina)** le scarta e ripristina i file dal cloud alla prossima sincronizzazione.
 - Vengono sincronizzati anche gli allegati (immagini ecc.).
 - Le credenziali e i token sono memorizzati nel portachiavi del sistema operativo (stato: **Impostazioni → Diagnostica di sistema → Portachiavi del sistema operativo**), mai in file dentro il vault.
 - **Disconnetti** interrompe la sincronizzazione del vault; nessun file viene eliminato da nessuna parte facendo questo.

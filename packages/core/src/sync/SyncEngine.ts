@@ -23,9 +23,21 @@ export class SyncEngine {
 
   public async processQueue(
     isAborted?: () => boolean,
-    onProgress?: (current: number, total: number) => void
+    onProgress?: (current: number, total: number) => void,
+    opts?: {
+      /**
+       * Leave queued DELETE operations untouched this pass (mass-deletion guard:
+       * the worker holds remote deletions until the user confirms them). Writes
+       * and renames of other files proceed normally; skipped deletes stay queued
+       * and burn no retry budget.
+       */
+      skipDeletes?: boolean;
+    }
   ): Promise<void> {
-    const pending = await this.queue.getPendingOperations();
+    let pending = await this.queue.getPendingOperations();
+    if (opts?.skipDeletes) {
+      pending = pending.filter((op) => op.operation !== "delete");
+    }
     if (pending.length > 0) {
       console.log(`[SyncEngine] pushing ${pending.length} pending operation(s)`);
     }

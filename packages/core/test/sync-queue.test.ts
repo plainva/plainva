@@ -197,4 +197,33 @@ describe("SyncQueue", () => {
     );
     expect(insertQ).toBeUndefined();
   });
+
+  it("getPendingDeletePaths returns the queued delete paths", async () => {
+    db.mockedResults.push([{ file_path: "a.md" }, { file_path: "b.md" }]);
+
+    const paths = await queue.getPendingDeletePaths();
+
+    expect(paths).toEqual(["a.md", "b.md"]);
+    expect(db.queries.at(-1)!.query).toContain("operation = 'delete'");
+  });
+
+  it("discardPendingDeletes removes all queued deletes and returns their paths", async () => {
+    db.mockedResults.push([{ file_path: "a.md" }]);
+
+    const paths = await queue.discardPendingDeletes();
+
+    expect(paths).toEqual(["a.md"]);
+    expect(
+      db.queries.some(q => q.query.includes("DELETE FROM offline_queue WHERE operation = 'delete'"))
+    ).toBe(true);
+  });
+
+  it("discardPendingDeletes is a no-op when nothing is queued", async () => {
+    db.mockedResults.push([]);
+
+    const paths = await queue.discardPendingDeletes();
+
+    expect(paths).toEqual([]);
+    expect(db.queries.some(q => q.query.includes("DELETE FROM offline_queue"))).toBe(false);
+  });
 });

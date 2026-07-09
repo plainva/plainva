@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-06
+Stand: 2026-07-09
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -14,6 +14,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - Wenn Du zum ersten Mal einen Online-Vault verbindest, weist ein einmaliger Hinweis darauf hin, dass die erste Synchronisierung je nach Vault-Größe etwas dauern kann — Du kannst dabei weiterarbeiten.
 - Ändern beide Seiten dieselbe Datei, führt Plainva sie automatisch zusammen (3-Wege-Merge). Geht das nicht, wird Deine Version sicher als `.CONFLICT`-Datei bewahrt — nichts geht verloren (siehe [FAQ](FAQ.md)).
 - **Konflikte lösen**: Ein Banner in der betroffenen Notiz (und **Konflikt lösen…** im Rechtsklick-Menü der `.CONFLICT`-Datei im Baum) öffnet den Vergleichsdialog — links der aktuelle Stand der Datei, rechts Deine gesicherte Version zum Bearbeiten und blockweisen Übernehmen. **Rechte Version speichern & auflösen** schreibt das Ergebnis in die Datei und räumt die Konfliktkopie auf; **Andere Seite behalten** verwirft Deine Kopie (ein Versions-Snapshot bleibt). Auch der Sync-Fehler-Dialog listet vorhandene Konfliktkopien und führt mit einem Klick in denselben Vergleich.
+- **Schutz vor Massenlöschungen**: Sollen ungewöhnlich viele der synchronisierten Dateien auf einmal in der Cloud gelöscht werden (z. B. weil der lokale Vault-Ordner geleert oder verschoben wurde), hält Plainva die Löschungen an und fragt zuerst nach: **In der Cloud löschen** führt sie aus, **Nicht löschen (wiederherstellen)** verwirft sie und stellt die Dateien beim nächsten Sync aus der Cloud wieder her.
 - Anhänge (Bilder etc.) werden mitsynchronisiert.
 - Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → System-Diagnose → OS-Keychain**), nie in Dateien im Vault.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
