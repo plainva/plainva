@@ -10,6 +10,7 @@ Abre la sección **Grafo** en la barra lateral derecha. Muestra la nota activa e
 
 - Al hacer clic en un nodo se abre la nota (el foco gira contigo).
 - Ctrl/Cmd+clic abre en un panel dividido, el clic central en una pestaña nueva.
+- Arrastra un nodo a otro lugar y queda anclado (punto pequeño), guardado por nota — al volver a abrir esa nota, tu disposición reaparece. La nota activa siempre permanece en el centro.
 - Debajo aparecen hasta tres **sugerencias**: notas que mencionan tu nota activa (pero no la enlazan), que suelen enlazarse junto a ella, que comparten un vecindario similar o que comparten una etiqueta rara. Donde el título aparece como texto en la nota que estás editando, la sugerencia muestra una **vista previa del pasaje** que se enlazaría; **Enlazar** convierte exactamente ese pasaje en un enlace wiki (como `[[Destino|texto]]` cuando el texto visible difiere del destino). Si no hay ningún pasaje coincidente, el enlace se añade al final de la nota (la vista previa lo indica). **Descartar sugerencia** recuerda tu decisión.
 
 ## Mapa del vault (su propia pestaña)

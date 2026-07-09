@@ -10,6 +10,7 @@ Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du
 
 - Klick auf einen Knoten öffnet die Notiz (der Fokus wandert mit).
 - Strg/Cmd+Klick öffnet im Split, Mittelklick in einem neuen Tab.
+- Ziehst Du einen Knoten an eine andere Stelle, bleibt er dort (kleiner Punkt) und wird pro Notiz gemerkt — beim nächsten Öffnen dieser Notiz findest Du Deine Anordnung wieder. Die aktive Notiz bleibt in der Mitte.
 - Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. Kommt der Titel als Text in der betroffenen Notiz vor, zeigt der Vorschlag eine **Vorschau der Textstelle**, die verlinkt würde; **Verlinken** verwandelt genau diese Stelle in einen Wiki-Link (als `[[Ziel|Text]]`, wenn der sichtbare Text vom Ziel abweicht). Gibt es keine passende Stelle, wird der Link am Ende der Notiz angehängt (die Vorschau weist darauf hin). **Vorschlag verwerfen** merkt sich die Entscheidung.
 
 ## Vault-Karte (eigener Tab)

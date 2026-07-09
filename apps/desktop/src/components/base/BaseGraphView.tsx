@@ -42,8 +42,10 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<GraphScene | null>(null);
   const depsRef = useRef<GraphEngineDeps>({});
+  // The pin context we last fitted the viewport for. zoomToFit runs only when
+  // this changes (a different base/view), never on a data or pin update.
+  const fitKeyRef = useRef<string | null>(null);
   const [graph, setGraph] = useState<VaultGraph | null>(null);
-  const [pinsTick, setPinsTick] = useState(0);
   const [edgePopover, setEdgePopover] = useState<{ x: number; y: number; source: string; target: string; label?: string } | null>(null);
   const graphState = vaultAdapter ? getGraphState(vaultAdapter) : null;
   const pinContext = `base:${dbConfig?._path ?? dbConfig?.name ?? "?"}#${activeView?.name ?? ""}`;
@@ -89,7 +91,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
       labelForKey: (k) => columnLabel(k, t, dbConfig),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, dbData, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, graphState, pinContext, pinsTick]);
+  }, [graph, dbData, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, graphState, pinContext]);
 
   useLayoutEffect(() => {
     depsRef.current = {
@@ -101,7 +103,10 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
       onNodeActivate: (id) => onOpenNote(id),
       onNodeDragEnd: (id, x, y) => {
         graphState?.setPin(pinContext, id, { x, y });
-        setPinsTick((n) => n + 1);
+        // Persist only; the engine keeps the dragged position this session and
+        // the next rebuild applies the pin. Not forcing a rebuild here avoids
+        // re-solving the force layout (which would shuffle the unpinned nodes).
+        sceneRef.current?.patchNode(id, { pinned: true });
       },
       // Edges act here too (report #5): click lists source/target to open.
       onEdgeClick: (edgeId, x, y) => {
@@ -118,17 +123,28 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
     const scene = createGraphScene(canvas, depsRef);
     sceneRef.current = scene;
     return () => {
+      // Persist a pin dragged right before the view unmounts (tab close / view
+      // switch); the store write is debounced 800ms otherwise.
+      void graphState?.flush();
       scene.destroy();
       sceneRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !sceneModel) return;
-    scene.setData(sceneModel.nodes, sceneModel.edges);
-    scene.zoomToFit(30);
-  }, [sceneModel]);
+    // Fit only when the graph's context changes (a different base or view),
+    // never on a data or pin update — otherwise dragging a node past the
+    // current bounds re-centered the entire view (report 2026-07-09).
+    const isNewContext = fitKeyRef.current !== pinContext;
+    scene.setData(sceneModel.nodes, sceneModel.edges, { animate: !isNewContext });
+    if (isNewContext) {
+      scene.zoomToFit(30);
+      fitKeyRef.current = pinContext;
+    }
+  }, [sceneModel, pinContext]);
 
   const toggleEdgeKey = (key: string) => {
     const active = new Set(edgeKeys);

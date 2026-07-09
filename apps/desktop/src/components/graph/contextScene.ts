@@ -24,7 +24,11 @@ export function sceneHasContent(model: { nodes: SceneNode[] } | null): boolean {
   return !!model && model.nodes.length > 1;
 }
 
-export function buildContextScene(data: ContextData, activePath: string): { nodes: SceneNode[]; edges: SceneEdge[] } {
+export function buildContextScene(
+  data: ContextData,
+  activePath: string,
+  pins: Record<string, { x: number; y: number }> = {}
+): { nodes: SceneNode[]; edges: SceneEdge[] } {
   const { neighborhood, graph } = data;
   const centerInfo = graph.nodes.get(activePath);
   const nodes: SceneNode[] = [];
@@ -168,6 +172,19 @@ export function buildContextScene(data: ContextData, activePath: string): { node
 
   placeZone(incoming, "left");
   placeZone(outgoing, "right");
+
+  // Stored pins override the computed zone positions so a hand-arranged context
+  // graph reopens exactly as the user left it (report 2026-07-09). The focus
+  // note keeps its center slot; only neighbors are re-positionable.
+  for (const n of nodes) {
+    if (n.id === activePath) continue;
+    const p = pins[n.id];
+    if (p) {
+      n.x = p.x;
+      n.y = p.y;
+      n.pinned = true;
+    }
+  }
 
   return { nodes, edges };
 }

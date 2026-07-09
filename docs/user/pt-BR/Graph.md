@@ -10,6 +10,7 @@ Abra a seção **Grafo** na barra lateral direita. Ela mostra a nota ativa no ce
 
 - Clicar em um nó abre a nota (o foco acompanha você).
 - Ctrl/Cmd+clique abre em uma divisão, clique do meio em uma nova aba.
+- Arraste um nó para outro lugar e ele fica fixado (um pontinho), lembrado por nota — reabra essa nota e seu layout está de volta. A nota ativa sempre permanece no centro.
 - Abaixo, aparecem até três **sugestões**: notas que mencionam sua nota ativa (mas não a vinculam), costumam ser vinculadas junto com ela, compartilham uma vizinhança semelhante ou compartilham uma tag rara. Quando o título ocorre como texto na nota que está sendo editada, a sugestão mostra uma **prévia do trecho** que seria vinculado; **Vincular** transforma exatamente esse trecho em um link wiki (como `[[Alvo|texto]]` quando o texto visível difere do alvo). Se não houver um trecho correspondente, o link é adicionado ao final da nota (a prévia indica isso). **Descartar sugestão** memoriza sua decisão.
 
 ## Mapa do vault (aba própria)

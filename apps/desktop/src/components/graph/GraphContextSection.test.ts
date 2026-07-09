@@ -76,6 +76,29 @@ describe("buildContextScene", () => {
     expect(markers.every((m) => m.dimmed)).toBe(true);
   });
 
+  it("applies stored pins to neighbors but keeps the focus centered", () => {
+    const g = graphOf(
+      [node("P/focus.md"), node("in.md"), node("out.md")],
+      [edge("in.md", "P/focus.md"), edge("P/focus.md", "out.md")]
+    );
+    const scene = buildContextScene(
+      {
+        graph: g,
+        neighborhood: { center: "P/focus.md", nodes: [...g.nodes.values()], edges: g.edges, truncated: false },
+        suggestions: [],
+      },
+      "P/focus.md",
+      // A pin on the focus note must be ignored — the center slot is fixed.
+      { "in.md": { x: 240, y: -80 }, "P/focus.md": { x: 999, y: 999 } }
+    );
+
+    const byId = new Map(scene.nodes.map((n) => [n.id, n]));
+    expect(byId.get("in.md")).toMatchObject({ x: 240, y: -80, pinned: true });
+    expect(byId.get("P/focus.md")).toMatchObject({ x: 0, y: 0 });
+    expect(byId.get("P/focus.md")!.pinned).toBeFalsy();
+    expect(byId.get("out.md")!.pinned).toBeFalsy(); // unpinned neighbor keeps its zone slot
+  });
+
   it("lists an index note's folder children below and collapses zone overflow into +N", () => {
     const children = Array.from({ length: 3 }, (_, i) => node(`P/c${i}.md`));
     const manyIncoming = Array.from({ length: 11 }, (_, i) => node(`src${i}.md`));

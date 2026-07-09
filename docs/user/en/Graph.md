@@ -10,6 +10,7 @@ Open the **Graph** section in the right sidebar. It shows the active note in the
 
 - Clicking a node opens the note (the focus rotates with you).
 - Ctrl/Cmd+click opens in a split, middle-click in a new tab.
+- Drag a node elsewhere and it stays put (small dot), remembered per note — reopen that note and your arrangement is back. The active note always stays in the center.
 - Below it, up to three **suggestions** appear: notes that mention your active note (but do not link it), are often linked together with it, share a similar neighborhood, or share a rare tag. Where the title occurs as text in the note being edited, the suggestion shows a **preview of the passage** that would be linked; **Link** turns exactly that passage into a wiki link (as `[[Target|text]]` when the visible text differs from the target). If there is no matching passage, the link is appended at the end of the note (the preview says so). **Dismiss suggestion** remembers your decision.
 
 ## Vault map (its own tab)

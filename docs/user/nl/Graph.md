@@ -10,6 +10,7 @@ Open de sectie **Graaf** in de rechterzijbalk. Deze toont de actieve notitie in 
 
 - Klikken op een node opent de notitie (de focus draait mee).
 - Ctrl/Cmd+klik opent in een split, middelklik in een nieuw tabblad.
+- Sleep je een node naar een andere plek, dan blijft hij daar vastgezet (klein puntje) en wordt dat per notitie onthouden — open je die notitie opnieuw, dan is je indeling er weer. De actieve notitie blijft altijd in het midden.
 - Daaronder verschijnen tot drie **suggesties**: notities die je actieve notitie noemen (maar er niet naar linken), er vaak samen mee worden gelinkt, een vergelijkbare buurt delen of een zeldzame tag delen. Staat de titel als tekst in de notitie die je bewerkt, dan toont de suggestie een **voorbeeld van het fragment** dat gelinkt zou worden; **Koppelen** maakt precies dat fragment tot een wiki-link (als `[[Doel|tekst]]` wanneer de zichtbare tekst van het doel afwijkt). Is er geen overeenkomend fragment, dan wordt de link aan het einde van de notitie toegevoegd (het voorbeeld geeft dat aan). **Suggestie negeren** onthoudt je keuze.
 
 ## Vault-kaart (eigen tabblad)

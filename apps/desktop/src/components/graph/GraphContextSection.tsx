@@ -51,6 +51,9 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
   const sceneRef = useRef<GraphScene | null>(null);
   const depsRef = useRef<GraphEngineDeps>({});
   const graphState = vaultAdapter ? getGraphState(vaultAdapter) : null;
+  // Pins are keyed per active note — the context graph's content IS that note's
+  // neighborhood, so each note remembers its own hand-arranged layout.
+  const pinContext = activePath ? `context:${activePath}` : "";
 
   // ---- data ----------------------------------------------------------------
 
@@ -138,7 +141,13 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
 
   // ---- scene ---------------------------------------------------------------
 
-  const sceneModel = useMemo(() => (data && activePath ? buildContextScene(data, activePath) : null), [data, activePath]);
+  // Rebuilds on data/note change (reading the current pins), never on drag: a
+  // drag persists via onNodeDragEnd + patchNode, so the scene is not recomputed
+  // and the view never re-fits mid-arrangement.
+  const sceneModel = useMemo(
+    () => (data && activePath ? buildContextScene(data, activePath, graphState?.getPins(pinContext) ?? {}) : null),
+    [data, activePath, graphState, pinContext]
+  );
   const hasConnections = sceneHasContent(sceneModel);
 
   // Engine callbacks rebind every render via the deps ref (editorSession
@@ -156,8 +165,23 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
         const target = scenePathOf(id);
         if (target) onOpenPath(target);
       },
+      onNodeDragEnd: (id, x, y) => {
+        // The focus note is always re-centered on rebuild; overflow markers
+        // ("+N", index-less folder chains) are not real notes — pin neither.
+        if (!graphState || id === activePath || scenePathOf(id) === null) return;
+        graphState.setPin(pinContext, id, { x, y });
+        // Show the pin dot immediately without rebuilding/re-fitting the scene;
+        // the position itself is already held by the engine for this session.
+        sceneRef.current?.patchNode(id, { pinned: true });
+      },
     };
   });
+
+  // Flush a pin dragged right before the section unmounts (e.g. vault close):
+  // the store write is debounced 800ms, which a fast unmount would otherwise
+  // drop. Navigating between notes keeps the section mounted, so the debounce
+  // fires normally there.
+  useEffect(() => () => void graphState?.flush(), [graphState]);
 
   // The scene is created ONLY while the canvas is actually mounted AND visible
   // (hasConnections → the canvas renders display:block, never display:none).

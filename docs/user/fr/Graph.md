@@ -10,6 +10,7 @@ Ouvrez la section **Graphe** dans la barre latérale droite. Elle affiche la not
 
 - Cliquer sur un nœud ouvre la note (le focus tourne avec vous).
 - Ctrl/Cmd+clic ouvre dans un split, le clic central dans un nouvel onglet.
+- Faites glisser un nœud ailleurs et il reste épinglé (petit point), mémorisé par note — rouvrez cette note et retrouvez votre disposition. La note active reste toujours au centre.
 - En dessous apparaissent jusqu'à trois **suggestions** : des notes qui mentionnent votre note active (sans la lier), sont souvent liées ensemble avec elle, partagent un voisinage commun ou partagent un tag rare. Lorsque le titre apparaît sous forme de texte dans la note en cours d'édition, la suggestion affiche un **aperçu du passage** qui serait lié ; **Lier** transforme exactement ce passage en lien wiki (sous la forme `[[Cible|texte]]` lorsque le texte visible diffère de la cible). S'il n'y a pas de passage correspondant, le lien est ajouté à la fin de la note (l'aperçu l'indique). **Ignorer la suggestion** mémorise votre décision.
 
 ## Carte du coffre (son propre onglet)

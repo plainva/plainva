@@ -118,6 +118,16 @@ describe("graphEngine", () => {
     c.remove();
   });
 
+  it("preserves the viewport transform across setData/patchNode (only zoomToFit moves the view)", () => {
+    // A data or pin rebuild must never re-center the view — the base/context
+    // graph views rely on this so dragging a node does not jump the viewport.
+    scene.setTransform({ x: 123, y: -45, k: 1.7 });
+    scene.setData(NODES, EDGES);
+    expect(scene.getTransform()).toMatchObject({ x: 123, y: -45, k: 1.7 });
+    scene.patchNode("center.md", { pinned: true });
+    expect(scene.getTransform()).toMatchObject({ x: 123, y: -45, k: 1.7 });
+  });
+
   it("keeps prior animated positions for surviving nodes and prunes stale selection/focus", () => {
     scene.setSelection(["right.md"]);
     scene.setKeyboardFocus("right.md");
