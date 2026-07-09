@@ -37,7 +37,8 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
-import { appConfirm, appMessage } from "./services/appDialogs";
+import { appMessage } from "./services/appDialogs";
+import { confirmDeletion } from "./services/deleteConfirm";
 import { toast } from "./services/toastStore";
 import { Button } from "./components/ui/Button";
 import { CommandPalette } from "./components/CommandPalette";
@@ -395,13 +396,17 @@ function App() {
 
   const handleDeleteFile = async (path: string) => {
     if (!vaultAdapter) return;
-    const ok = await appConfirm({
-      title: t("dialogs.deleteConfirmTitle", { defaultValue: "Löschen bestätigen" }),
-      message: t("dialogs.deleteConfirmMsg", { defaultValue: "Möchtest du diese Datei wirklich löschen?", name: path.split(/[/\\]/).pop() }),
-      kind: "danger",
-      confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
+    // Shared confirmation with the tree (cloud note when sync is connected);
+    // a single file never triggers the large-deletion second prompt.
+    const ok = await confirmDeletion({
+      t,
+      single: { name: path.split(/[/\\]/).pop() ?? path, isFolder: false },
+      fileCount: 1,
+      vaultFileCount: 0,
+      syncActive: !!syncWorker,
     });
     if (!ok) return;
+    syncWorker?.noteUserInitiatedDeletion([path]);
     try {
       await vaultAdapter.deleteItem(path);
       closeTabsByPrefix(path);

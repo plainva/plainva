@@ -34,6 +34,26 @@ export function isLocalOnlyPath(path: string): boolean {
   return path.startsWith(".plainva") || path.includes(".CONFLICT");
 }
 
+/**
+ * Drops paths that are covered by another path in the list acting as their
+ * folder ancestor (and exact duplicates). A folder deletion enqueues the folder
+ * AND one op per contained file; counting the children again inflated the
+ * mass-deletion guard's share and tripped it on ordinary folder deletions.
+ * O(n · depth) via ancestor-prefix probes against a set.
+ */
+export function dropCoveredDeletePaths(paths: string[]): string[] {
+  const unique = [...new Set(paths)];
+  const set = new Set(unique);
+  return unique.filter((p) => {
+    let idx = p.lastIndexOf("/");
+    while (idx > 0) {
+      if (set.has(p.substring(0, idx))) return false;
+      idx = p.lastIndexOf("/", idx - 1);
+    }
+    return true;
+  });
+}
+
 export type SyncStatus = "idle" | "syncing" | "error";
 
 /**
@@ -134,6 +154,15 @@ export class SyncWorker {
   public onMassDeletionPending?: (info: { pendingDeletes: number; syncedTotal: number }) => void;
   /** User approved executing the held deletes; session-scoped, reset when the queue drains. */
   private massDeletionApproved = false;
+  /**
+   * Path prefixes of deletions the user explicitly confirmed IN the app this
+   * session (tree/editor delete dialogs — incl. the second, sharper prompt for
+   * large deletions). The mass-deletion guard neither counts nor holds these:
+   * the in-app flow already carried its own confirmation. Deliberately
+   * session-scoped — deletes still pending after a restart re-trip the guard
+   * (destructive intent must not outlive the session).
+   */
+  private userDeletionPrefixes: string[] = [];
   /** The pending guard state was already signaled to the host (no re-fire every poll). */
   private massDeletionSignaled = false;
   /**
@@ -229,6 +258,22 @@ export class SyncWorker {
   public approveMassDeletion(): void {
     this.massDeletionApproved = true;
     this.triggerImmediate();
+  }
+
+  /**
+   * Records deletions the user explicitly confirmed in the app (a path acts as
+   * a prefix, so one folder entry covers all its children). These bypass the
+   * mass-deletion guard's count/hold — see userDeletionPrefixes.
+   */
+  public noteUserInitiatedDeletion(paths: string[]): void {
+    for (const p of paths) {
+      const norm = p.replace(/\\/g, "/").replace(/\/+$/, "");
+      if (norm) this.userDeletionPrefixes.push(norm);
+    }
+  }
+
+  private isUserInitiatedDeletion(path: string): boolean {
+    return this.userDeletionPrefixes.some((pre) => path === pre || path.startsWith(pre + "/"));
   }
 
   /**
@@ -698,9 +743,18 @@ export class SyncWorker {
       let deletionsHeld: string | null = null;
       const pendingDeletePaths = await this.queue.getPendingDeletePaths();
       const syncedTotal = [...stateMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
+      // Only UNEXPLAINED deletions count towards the guard: paths the user
+      // explicitly confirmed in the app carry their own confirmation (incl. the
+      // second prompt for large deletions), and children covered by a queued
+      // ancestor folder delete must not inflate the share — both used to trip
+      // the guard on an ordinary, deliberate folder deletion, whose "restore"
+      // answer then resurrected the folder from the cloud.
+      const unexplainedDeletes = dropCoveredDeletePaths(
+        pendingDeletePaths.filter((p) => !this.isUserInitiatedDeletion(p))
+      );
       const isMassDeletion =
-        pendingDeletePaths.length > MASS_DELETE_MIN &&
-        pendingDeletePaths.length > syncedTotal * MASS_DELETE_SHARE;
+        unexplainedDeletes.length > MASS_DELETE_MIN &&
+        unexplainedDeletes.length > syncedTotal * MASS_DELETE_SHARE;
       if (isMassDeletion && !this.massDeletionApproved) {
         deletionsHeld = `${pendingDeletePaths.length} of ${syncedTotal} synced files are queued for remote deletion; deletions are paused until confirmed`;
         console.warn(`[SyncWorker] ${deletionsHeld}`);

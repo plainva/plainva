@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SyncWorker, isLocalOnlyPath } from "../../src/sync/SyncWorker.js";
+import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths } from "../../src/sync/SyncWorker.js";
+
+describe("dropCoveredDeletePaths", () => {
+  it("drops children covered by an ancestor and exact duplicates", () => {
+    expect(dropCoveredDeletePaths(["a", "a/b/c.md", "a/d.md", "x.md", "a"]).sort()).toEqual(["a", "x.md"]);
+  });
+
+  it("keeps siblings whose name merely starts with the ancestor's name", () => {
+    expect(dropCoveredDeletePaths(["a", "ab.md", "a!b.md"]).sort()).toEqual(["a", "a!b.md", "ab.md"]);
+  });
+
+  it("covers grandchildren through any ancestor level", () => {
+    expect(dropCoveredDeletePaths(["deep/nest/leaf.md", "deep"])).toEqual(["deep"]);
+  });
+});
 
 describe("SyncWorker", () => {
   let engine: any;
@@ -739,6 +753,60 @@ describe("SyncWorker", () => {
 
       expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
       expect(pendingSpy).not.toHaveBeenCalled();
+    });
+
+    it("deletions confirmed in-app bypass the guard (session allowlist, E2)", async () => {
+      // A deliberate folder deletion confirmed in the app: 1 folder op + 11
+      // child ops. The guard must neither hold nor prompt — the in-app flow
+      // already ran its own (double) confirmation.
+      queue.getPendingDeletePaths.mockResolvedValue([
+        "proj",
+        ...Array.from({ length: 11 }, (_, i) => `proj/f-${i}.md`),
+      ]);
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+      const pendingSpy = vi.fn();
+      worker.onMassDeletionPending = pendingSpy;
+
+      worker.noteUserInitiatedDeletion(["proj"]);
+      await worker.runCycle();
+
+      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(pendingSpy).not.toHaveBeenCalled();
+    });
+
+    it("children covered by a queued ancestor folder delete do not inflate the count", async () => {
+      // Even WITHOUT the session allowlist (e.g. after a restart), one folder
+      // deletion is ONE unexplained deletion, not twelve — the N+1 inflation
+      // used to trip the guard on ordinary folders.
+      queue.getPendingDeletePaths.mockResolvedValue([
+        "folder",
+        ...Array.from({ length: 11 }, (_, i) => `folder/f-${i}.md`),
+      ]);
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+      const pendingSpy = vi.fn();
+      worker.onMassDeletionPending = pendingSpy;
+
+      await worker.runCycle();
+
+      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(pendingSpy).not.toHaveBeenCalled();
+    });
+
+    it("a genuine external mass deletion still trips the guard despite unrelated user deletions", async () => {
+      queue.getPendingDeletePaths.mockResolvedValue([
+        "user-folder",
+        ...Array.from({ length: 12 }, (_, i) => `ext-${i}.md`),
+      ]);
+      stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
+      const pendingSpy = vi.fn();
+      worker.onMassDeletionPending = pendingSpy;
+
+      worker.noteUserInitiatedDeletion(["user-folder"]);
+      await worker.runCycle();
+
+      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: true });
+      // The prompt reports what the two buttons would act on: ALL queued deletes.
+      expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 13, syncedTotal: 20 });
     });
 
     it("approveMassDeletion executes the held deletes on the next cycle", async () => {

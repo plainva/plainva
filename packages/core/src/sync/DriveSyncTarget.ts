@@ -252,6 +252,37 @@ export class DriveSyncTarget implements ISyncTarget {
     return created.id;
   }
 
+  /**
+   * Read-only variant of resolveFolderId for LOOKUPS (delete/rename/update
+   * checks): resolves the folder id without ever creating missing segments.
+   * A delete op for a child of an already-deleted folder must be a no-op —
+   * resolving its parent through findOrCreateFolder resurrected the empty
+   * folder structure on Drive. Returns null when any segment does not exist.
+   */
+  private async resolveFolderIdReadOnly(folderPath: string): Promise<string | null> {
+    const normalized = folderPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (normalized === "") return this.getRootFolderId();
+    const cached = this.folderToId.get(normalized);
+    if (cached) return cached;
+
+    const segments = normalized.split("/").filter((s) => s.length > 0);
+    let parentId = await this.getRootFolderId();
+    let acc = "";
+    for (const seg of segments) {
+      acc = acc ? `${acc}/${seg}` : seg;
+      const hit = this.folderToId.get(acc);
+      if (hit) {
+        parentId = hit;
+        continue;
+      }
+      const found = await this.findFolder(seg, parentId);
+      if (!found) return null;
+      this.folderToId.set(acc, found);
+      parentId = found;
+    }
+    return parentId;
+  }
+
   /** Resolves (creating as needed) the Drive folder id for a relative folder path. */
   private async resolveFolderId(folderPath: string): Promise<string> {
     const normalized = folderPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
@@ -297,7 +328,11 @@ export class DriveSyncTarget implements ISyncTarget {
     const cached = this.pathToId.get(filePath);
     if (cached) return cached;
     const { folder, name } = this.splitPath(filePath);
-    const parentId = await this.resolveFolderId(folder);
+    // Pure lookup: never create missing parents here. The query carries no
+    // mimeType filter, so this resolves FOLDERS too (a folder delete op finds
+    // the folder object and Drive deletes it recursively).
+    const parentId = await this.resolveFolderIdReadOnly(folder);
+    if (parentId === null) return null;
     const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
     const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)`;
     const res = await this.authedFetch("GET", url);

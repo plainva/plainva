@@ -396,6 +396,10 @@ test('File tree: Ctrl-selection deletes both notes after a single confirm', asyn
     Object.assign((window as any).mockFs, {
       '/test-vault/Beta.md': '# Beta\n',
       '/test-vault/Gamma.md': '# Gamma\n',
+      // Enough unrelated files that deleting two stays under the 20% threshold
+      // of the large-deletion double prompt (E2 2026-07-09) — the P9
+      // single-confirm flow must keep working for ordinary deletions.
+      ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`/test-vault/Fill-${i}.md`, `# F${i}\n`])),
     });
   });
   await page.goto('/');
@@ -415,6 +419,33 @@ test('File tree: Ctrl-selection deletes both notes after a single confirm', asyn
     .poll(async () => await page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => /\/(Beta|Gamma)\.md$/.test(k)).length), { timeout: 8000 })
     .toBe(0);
   await expect(aside.getByText('Beta', { exact: true })).not.toBeVisible();
+});
+
+// --- File tree: a large share of the vault asks a second, sharper time (E2 2026-07-09) ---
+test('File tree: deleting a large share of the vault shows the second prompt', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Beta.md': '# Beta\n',
+      '/test-vault/Gamma.md': '# Gamma\n',
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await aside.getByText('Beta', { exact: true }).click();
+  await aside.getByText('Gamma', { exact: true }).click({ modifiers: ['Control'] });
+  await aside.getByText('Gamma', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /^(Löschen|Delete)$/ }).click();
+  await page.locator('.pv-modal-footer button.pv-btn--danger').click();
+
+  // 2 of 3 vault files (>20%) -> the second, sharper prompt names the share.
+  await expect(page.getByText(/2 von 3|2 of 3/)).toBeVisible();
+  await page.locator('.pv-modal-footer button.pv-btn--danger').click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => /\/(Beta|Gamma)\.md$/.test(k)).length), { timeout: 8000 })
+    .toBe(0);
 });
 
 // --- Images open in the in-app viewer instead of the OS app (UI-UX P10) ---

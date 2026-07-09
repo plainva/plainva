@@ -52,9 +52,32 @@ export class QueueingVaultAdapter implements IVaultAdapter {
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
+    // Capture a folder's contained FILES before the deletion removes them: the
+    // remote deletion becomes deterministic (folder op first — natively
+    // recursive on every provider — then one op per file as a no-op fallback)
+    // instead of depending on the follow-up full-scan reconcile to discover the
+    // children fire-and-forget. queueDelete is idempotent, so the scan's
+    // onLocalFileDeleted fan-out cannot double-enqueue these paths.
+    let childFiles: string[] = [];
+    if (!isLocalOnly(path)) {
+      try {
+        const info = await this.inner.getFileInfo(path);
+        if (info.isDirectory) {
+          const entries = await this.inner.listDir(path, true);
+          childFiles = entries
+            .filter((e) => !e.isDirectory && !isLocalOnly(e.path))
+            .map((e) => e.path);
+        }
+      } catch {
+        // Stat/listing failure (already gone, permissions): plain delete below.
+      }
+    }
     await this.inner.deleteItem(path, recursive);
     if (!isLocalOnly(path)) {
       await this.syncQueue.queueDelete(path);
+      for (const child of childFiles) {
+        await this.syncQueue.queueDelete(child);
+      }
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
     }
   }

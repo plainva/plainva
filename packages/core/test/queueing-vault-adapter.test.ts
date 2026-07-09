@@ -61,6 +61,27 @@ describe("QueueingVaultAdapter", () => {
     expect(params[0]).toBe("test.md");
   });
 
+  it("deleting a folder enqueues the folder AND each contained file (deterministic cloud deletion)", async () => {
+    await adapter.createDir("proj/sub");
+    await adapter.writeTextFile("proj/a.md", "a");
+    await adapter.writeTextFile("proj/sub/b.md", "b");
+    db.clear(); // only inspect the deletion's queue traffic
+
+    await adapter.deleteItem("proj", true);
+
+    const deletes = db.queries
+      .filter((q) => q.query.includes("INSERT INTO offline_queue") && (q.params as any[])[1] === "delete")
+      .map((q) => (q.params as any[])[0]);
+    // Folder op first (natively recursive on every provider), then one op per
+    // FILE as the deterministic fallback; subfolders are not enqueued (their
+    // remote deletion rides on the folder op's recursion).
+    expect(deletes[0]).toBe("proj");
+    expect(deletes).toContain("proj/a.md");
+    expect(deletes).toContain("proj/sub/b.md");
+    expect(deletes.length).toBe(3);
+    await expect(fs.access(path.join(tmpDir, "proj"))).rejects.toThrow();
+  });
+
   it("queues renameItem", async () => {
     await adapter.writeTextFile("old.md", "hello");
     await adapter.renameItem("old.md", "new.md");

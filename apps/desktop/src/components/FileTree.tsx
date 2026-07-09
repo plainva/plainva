@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { appConfirm } from "../services/appDialogs";
+import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { toast } from "../services/toastStore";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "./ui/Menu";
 import { openPath } from "@tauri-apps/plugin-opener";
@@ -739,15 +740,20 @@ export const FileTree: React.FC<{
   const handleDelete = async (path: string, isFolder: boolean) => {
     setContextMenu(null);
     if (!vaultAdapter || !indexer) return;
-    
+
     const displayName = path.split(/[/\\]/).pop();
-    const ok = await appConfirm({
-      title: t("dialogs.deleteConfirmTitle"),
-      message: t("dialogs.deleteConfirmMsg", { kind: isFolder ? t("dialogs.folderKind") : t("dialogs.fileKind"), name: displayName }),
-      kind: "danger",
-      confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
+    // Shared confirmation (cloud note + second prompt for large deletions, E2).
+    const ok = await confirmDeletion({
+      t,
+      single: { name: displayName ?? path, isFolder },
+      fileCount: countAffectedFiles(files, [path]),
+      vaultFileCount: files.filter((f) => !f.isDir).length,
+      syncActive: !!syncWorker,
     });
     if (!ok) return;
+    // Fully confirmed: the mass-deletion guard must not hold (and on "restore"
+    // resurrect) this deliberate deletion on the next sync cycle.
+    syncWorker?.noteUserInitiatedDeletion([path]);
 
     try {
       await vaultAdapter.deleteItem(path, true);
@@ -790,13 +796,16 @@ export const FileTree: React.FC<{
     setContextMenu(null);
     if (!vaultAdapter || !indexer) return;
     const roots = pruneNestedPaths(paths);
-    const ok = await appConfirm({
-      title: t("dialogs.deleteConfirmTitle"),
-      message: t("dialogs.deleteManyConfirmMsg", { count: roots.length }),
-      kind: "danger",
-      confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
+    // Shared confirmation (cloud note + second prompt for large deletions, E2).
+    const ok = await confirmDeletion({
+      t,
+      rootCount: roots.length,
+      fileCount: countAffectedFiles(files, roots),
+      vaultFileCount: files.filter((f) => !f.isDir).length,
+      syncActive: !!syncWorker,
     });
     if (!ok) return;
+    syncWorker?.noteUserInitiatedDeletion(roots);
     const errors: string[] = [];
     const deletedOps: { type: "delete"; path: string; isFolder: boolean }[] = [];
     for (const p of roots) {

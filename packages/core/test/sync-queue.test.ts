@@ -48,6 +48,19 @@ describe("SyncQueue", () => {
     expect(updateQ).toBeDefined();
   });
 
+  it("queueDelete is idempotent: no second pending delete row for the same path", async () => {
+    await queue.queueDelete("folder/a.md");
+    // A pending delete row now exists for the path (the folder deletion enqueues
+    // children explicitly AND the follow-up full scan reports them again).
+    db.mockedOneResults.push({ id: 1 });
+    await queue.queueDelete("folder/a.md");
+
+    const inserts = db.queries.filter(
+      (q) => q.query.includes("INSERT INTO offline_queue") && (q.params as any[])[1] === "delete"
+    );
+    expect(inserts.length).toBe(1);
+  });
+
   it("marks a queue item as synced", async () => {
     // mock the check for remaining pending items to return null
     db.mockedOneResults.push(null);

@@ -404,4 +404,61 @@ describe("DriveSyncTarget", () => {
       expect(lookups[1]).toContain("'f-apps' in parents");
     });
   });
+
+  describe("delete ops", () => {
+    const deleteOp = (filePath: string) => ({
+      id: 9, file_path: filePath, operation: "delete" as const,
+      retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    it("deletes a file by its resolved id (404 on DELETE is success)", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1" }] });
+        if (init.method === "DELETE" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(deleteOp("note.md"))).resolves.toBeUndefined();
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/f-1"))).toBe(true);
+    });
+
+    it("deletes a FOLDER: the mime-unfiltered lookup finds the folder object (Drive deletes recursively)", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        // The delete lookup carries NO mimeType filter, so the folder itself matches.
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) {
+          expect(u).toContain(encodeURIComponent("name='proj'"));
+          expect(u).not.toContain(encodeURIComponent(FOLDER_MIME));
+          return res({ files: [{ id: "folder-7" }] });
+        }
+        if (init.method === "DELETE" && u.includes("/files/folder-7")) return res({});
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(deleteOp("proj"))).resolves.toBeUndefined();
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/folder-7"))).toBe(true);
+    });
+
+    it("a delete for a child of an already-deleted folder never re-creates folders (read-only lookup)", async () => {
+      // The old lookup resolved the parent through findOrCreateFolder and
+      // RESURRECTED the just-deleted folder structure (empty) on Drive.
+      const posts: string[] = [];
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "POST") { posts.push(u); return res({ id: "should-not-exist" }); }
+        if (init.method === "GET" && isFolderLookup(u)) {
+          // The root exists; the deleted folder "gone" does not.
+          return u.includes(encodeURIComponent("name='gone'")) ? res({ files: [] }) : res({ files: [{ id: "root-folder" }] });
+        }
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(deleteOp("gone/child.md"))).resolves.toBeUndefined();
+      expect(posts).toEqual([]); // no folder was created
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE")).toBe(false); // nothing to delete
+    });
+  });
 });

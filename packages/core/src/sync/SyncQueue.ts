@@ -50,10 +50,20 @@ export class SyncQueue {
   }
 
   /**
-   * Queues a delete operation.
+   * Queues a delete operation. Idempotent: an in-app folder deletion enqueues
+   * the folder AND each contained file explicitly (QueueingVaultAdapter), while
+   * the follow-up full-scan reports the same children via onLocalFileDeleted —
+   * a second pending delete row for the same path would only inflate the
+   * mass-deletion guard's count and produce redundant remote calls.
    */
   async queueDelete(path: string): Promise<void> {
     await this.db.transaction(async () => {
+      const existing = await this.db.queryOne<{ id: number }>(
+        `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'delete' LIMIT 1`,
+        [path]
+      );
+      if (existing) return;
+
       await this.db.execute(
         `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
         [path, "delete", Date.now()]
