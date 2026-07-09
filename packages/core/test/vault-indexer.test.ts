@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.ts";
 import { VaultIndexer } from "../src/vault/VaultIndexer.ts";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.ts";
@@ -392,6 +392,54 @@ describe("VaultIndexer", () => {
       path: "fresh.md", name: "fresh.md", isDirectory: false, mtime: 2000, size: 7,
     });
     expect(changed).toBe(true);
+  });
+
+  describe("indexPath deletion classification", () => {
+    it("returns needs-full-scan for a vanished folder with indexed children", async () => {
+      // "projects" never exists on disk; folders have no files row, but an indexed
+      // child under the vanished path proves an external folder deletion.
+      db.mockedOneResults = [
+        null,              // exact files row for "projects" -> none (it was a folder)
+        { id: "child-1" }, // child-prefix probe -> a stale row still lives under it
+      ];
+
+      const result = await indexer.indexPath("projects");
+
+      expect(result).toBe("needs-full-scan");
+      const childQuery = db.queries.at(-1)!;
+      expect(childQuery.query).toContain("LIKE ?");
+      expect(childQuery.query).toContain("ESCAPE");
+      expect((childQuery.params as any[])[0]).toBe("projects/%");
+    });
+
+    it("returns unchanged for a vanished never-indexed path with no children", async () => {
+      db.mockedOneResults = [null, null]; // no exact row, no children
+      const result = await indexer.indexPath("scratch/never-indexed.md");
+      expect(result).toBe("unchanged");
+    });
+
+    it("still removes a vanished indexed file", async () => {
+      db.mockedOneResults = [{ id: "file-1" }]; // exact row exists -> plain file deletion
+      const deleted: string[] = [];
+      const idx = new VaultIndexer(vaultAdapter, db, { onLocalFileDeleted: (p) => deleted.push(p) });
+
+      const result = await idx.indexPath("gone.md");
+
+      expect(result).toBe("removed");
+      expect(db.queries.some((q) => q.query.includes("DELETE FROM files"))).toBe(true);
+      expect(deleted).toEqual(["gone.md"]);
+    });
+
+    it("escapes LIKE wildcards in the child-prefix probe", async () => {
+      // A path containing % or _ must match literally, not as a wildcard — otherwise
+      // a vanished file like "50%_off" could match unrelated rows and force a scan.
+      db.mockedOneResults = [null, null];
+
+      await indexer.indexPath("50%_off");
+
+      const childQuery = db.queries.at(-1)!;
+      expect((childQuery.params as any[])[0]).toBe("50\\%\\_off/%");
+    });
   });
 });
 

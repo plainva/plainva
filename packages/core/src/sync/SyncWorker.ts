@@ -61,6 +61,22 @@ const MAX_BACKOFF_MS = 5 * 60 * 1000;
  */
 const FULL_LISTING_EVERY_N_CYCLES = 20;
 
+/**
+ * Emit onFilesChanged in chunks of this many paths while the cycle is still running.
+ * Deliberately below the desktop's incremental-index batch cap (50 paths), so every
+ * chunk takes the cheap per-path index route; pulled files appear in the tree
+ * progressively during a long first sync instead of only after the whole cycle.
+ */
+const CHANGED_PATHS_CHUNK = 25;
+
+/**
+ * Abort the pull phase after this many reconcile ATTEMPTS failing in a row (mirrors
+ * SyncEngine's consecutive-failure breaker on the push side): one poisoned file must
+ * not starve the rest of the pull, but an unbroken failure streak looks like a
+ * provider/network outage — abort, back off, retry the whole cycle later.
+ */
+const MAX_CONSECUTIVE_PULL_FAILURES = 3;
+
 export class SyncWorker {
   private timeoutId: any;
   private isRunning = false;
@@ -68,10 +84,15 @@ export class SyncWorker {
   private pendingSyncRequest = false;
   public onStatusChange?: (status: SyncStatus, error?: string) => void;
   /**
-   * Fired after a cycle that changed local files (pulled writes, conflict files
-   * or mirrored deletions). The desktop wires this to a re-index + file-tree
-   * refresh so pulled changes become visible deterministically, independent of
-   * OS filesystem-watch reliability.
+   * Fired for local files changed by the running cycle (pulled writes, conflict
+   * files or mirrored deletions). The desktop wires this to a re-index + file-tree
+   * refresh so pulled changes become visible deterministically, independent of OS
+   * filesystem-watch reliability. Delivery guarantee: paths are emitted in chunks
+   * WHILE the cycle runs (progressive tree updates during a long first sync) and a
+   * final flush runs even when the cycle aborts (error, breaker or stop) — each
+   * file's sync_state advances the moment it is reconciled, so a write this cycle
+   * never reports would otherwise stay invisible until an app restart. Each path
+   * is reported exactly once per cycle.
    */
   public onFilesChanged?: (paths: string[]) => void;
   /**
@@ -328,11 +349,167 @@ export class SyncWorker {
     // else: local has unsynced edits -> keep it.
   }
 
+  /**
+   * Reconciles ONE pulled file against local state: download, binary or 3-way text
+   * merge (conflict copies on divergence), local write and sync_state advance.
+   * Extracted from the cycle loop so a per-file failure can be caught and skipped
+   * without aborting the whole pull.
+   */
+  private async reconcilePulledFile(
+    path: string,
+    remoteEtag: string,
+    state: SyncState | null,
+    now: number,
+    changedPaths: string[]
+  ): Promise<void> {
+    // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
+    // and rewriting a file the user is deleting/renaming would resurrect it.
+    //
+    // A pending WRITE, however, must NOT skip reconcile. The old blanket skip let the
+    // subsequent processQueue push the local version straight over a concurrently
+    // changed remote — a silent overwrite with no .CONFLICT (the reported data loss).
+    // We reconcile the file here instead; the reconciled state (base advanced to the
+    // remote) makes the queued write self-cancel in the engine's push guard when
+    // local == remote, or carry a clean 3-way merge when it doesn't. A genuinely
+    // conflicting remote change is preserved as a .CONFLICT rather than lost. (Merges
+    // resolve cleanly for the common single-writer echo case because remote == base.)
+    if (await this.queue.hasPendingStructuralOp(path)) {
+      console.log(`[SyncWorker] skip reconcile for ${path}: pending delete/rename`);
+      return;
+    }
+
+    const contentBytes = await this.target.download(path);
+    if (!contentBytes) return;
+
+    // Binary files (images, PDFs, …) must never be decoded to text and merged —
+    // that corrupts them. Reconcile them byte-wise with conflict-copy on divergence.
+    if (!isTextFile(path)) {
+      await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths);
+      return;
+    }
+
+    const remoteContent = new TextDecoder().decode(contentBytes);
+    const remoteSha = await sha256Hash(remoteContent);
+
+    const localExists = await this.vault.exists(path);
+    const localContent = localExists ? await this.vault.readTextFile(path) : null;
+    let mergedContent = remoteContent;
+
+    if (localExists && localContent !== null) {
+      const localSha = await sha256Hash(localContent);
+
+      if (localSha === remoteSha) {
+        mergedContent = remoteContent; // identical content
+      } else if (state && state.base_sha256 && localSha === state.base_sha256) {
+        mergedContent = remoteContent; // local unchanged since base -> fast-forward
+      } else if (state && state.base_sha256) {
+        // Both sides changed -> attempt a 3-way merge against the base.
+        const baseText = await this.stateRepo.getBaseText(path);
+        if (baseText !== null) {
+          const mergeRes = mergeText(baseText, localContent, remoteContent);
+          if (mergeRes.hasConflicts) {
+            const cp = await this.preserveLocalAsConflict(path, localContent);
+            changedPaths.push(cp);
+            mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
+          } else {
+            mergedContent = mergeRes.mergedText;
+          }
+        } else {
+          const cp = await this.preserveLocalAsConflict(path, localContent);
+          changedPaths.push(cp);
+          mergedContent = remoteContent;
+        }
+      } else {
+        // No reliable base (e.g. first connect) and content diverges. Never
+        // silently overwrite the working copy: preserve it as .CONFLICT and
+        // adopt remote as canonical local.
+        const cp = await this.preserveLocalAsConflict(path, localContent);
+        changedPaths.push(cp);
+        mergedContent = remoteContent;
+      }
+    }
+
+    if (!this.isRunning) return;
+
+    // Only rewrite the local file when the reconciled content actually differs
+    // from what is on disk. Skipping the no-op write is what stops a just-pushed
+    // change (or our own etag flux) from echoing back into the open editor.
+    const writeNeeded = !localExists || mergedContent !== localContent;
+    // Push when our reconciled content differs from what the remote has.
+    const pushMerge = mergedContent !== remoteContent;
+
+    if (writeNeeded) {
+      await this.vault.writeTextFile(path, mergedContent);
+      changedPaths.push(path);
+    }
+
+    const newLocalSha = await sha256Hash(mergedContent);
+    await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
+
+    if (pushMerge) {
+      // Our reconciled content is ahead of the remote -> enqueue a push so
+      // processQueue (below) propagates it this same cycle.
+      await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+      await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
+      await this.queue.queueWrite(path);
+    } else {
+      // Fully in sync with the remote version.
+      await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
+      await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+    }
+  }
+
   public async runCycle() {
+    // Paths changed locally by THIS cycle plus the emission cursor for chunked
+    // onFilesChanged delivery. Hoisted out of the try so the finally can flush
+    // whatever was already written before an abort: sync_state advances per file,
+    // so a write this cycle never reports would never be reported again.
+    const changedPaths: string[] = [];
+    let emittedCount = 0;
+    const flushChangedPaths = (force = false) => {
+      if (!this.onFilesChanged) return;
+      while (
+        changedPaths.length - emittedCount >= CHANGED_PATHS_CHUNK ||
+        (force && changedPaths.length > emittedCount)
+      ) {
+        const chunk = changedPaths.slice(emittedCount, emittedCount + CHANGED_PATHS_CHUNK);
+        // Advance the cursor BEFORE invoking the consumer: a throwing consumer
+        // must not re-consume its chunk on the next flush.
+        emittedCount += chunk.length;
+        try {
+          this.onFilesChanged(chunk);
+        } catch (e) {
+          console.error("[SyncWorker] onFilesChanged consumer failed:", e);
+        }
+      }
+    };
+    // Per-file pull resilience (mirrors the push side's continue-past-poison
+    // behavior): one failing download/merge/deletion-mirror skips that file instead
+    // of aborting the cycle; an unbroken streak of failing ATTEMPTS aborts (outage
+    // heuristic — etag-skips don't touch the streak). Any failure blocks cursor
+    // adoption below, so skipped files are re-listed and retried next cycle.
+    let pullFailureCount = 0;
+    let consecutivePullFailures = 0;
+    const guardPullStep = async (path: string, step: () => Promise<void>) => {
+      try {
+        await step();
+        consecutivePullFailures = 0;
+      } catch (e) {
+        pullFailureCount++;
+        consecutivePullFailures++;
+        console.error(`[SyncWorker] pull step failed for ${path}:`, e);
+        if (consecutivePullFailures >= MAX_CONSECUTIVE_PULL_FAILURES) {
+          throw new Error(
+            `pull aborted after ${MAX_CONSECUTIVE_PULL_FAILURES} consecutive file failures (${pullFailureCount} failed this cycle): ${e instanceof Error ? e.message : String(e)}`,
+            { cause: e }
+          );
+        }
+      }
+      flushChangedPaths();
+    };
     try {
       console.log("[SyncWorker] cycle start");
       this.setStatus("syncing");
-      const changedPaths: string[] = [];
 
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the
@@ -382,101 +559,9 @@ export class SyncWorker {
         // Remote unchanged since our last recorded sync -> nothing to do.
         if (state && state.remote_etag === remoteEtag) continue;
 
-        // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
-        // and rewriting a file the user is deleting/renaming would resurrect it.
-        //
-        // A pending WRITE, however, must NOT skip reconcile. The old blanket skip let the
-        // subsequent processQueue push the local version straight over a concurrently
-        // changed remote — a silent overwrite with no .CONFLICT (the reported data loss).
-        // We reconcile the file here instead; the reconciled state (base advanced to the
-        // remote) makes the queued write self-cancel in the engine's push guard when
-        // local == remote, or carry a clean 3-way merge when it doesn't. A genuinely
-        // conflicting remote change is preserved as a .CONFLICT rather than lost. (Merges
-        // resolve cleanly for the common single-writer echo case because remote == base.)
-        if (await this.queue.hasPendingStructuralOp(path)) {
-          console.log(`[SyncWorker] skip reconcile for ${path}: pending delete/rename`);
-          continue;
-        }
-
-        const contentBytes = await this.target.download(path);
-        if (!contentBytes) continue;
-
-        // Binary files (images, PDFs, …) must never be decoded to text and merged —
-        // that corrupts them. Reconcile them byte-wise with conflict-copy on divergence.
-        if (!isTextFile(path)) {
-          await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths);
-          continue;
-        }
-
-        const remoteContent = new TextDecoder().decode(contentBytes);
-        const remoteSha = await sha256Hash(remoteContent);
-
-        const localExists = await this.vault.exists(path);
-        const localContent = localExists ? await this.vault.readTextFile(path) : null;
-        let mergedContent = remoteContent;
-
-        if (localExists && localContent !== null) {
-          const localSha = await sha256Hash(localContent);
-
-          if (localSha === remoteSha) {
-            mergedContent = remoteContent; // identical content
-          } else if (state && state.base_sha256 && localSha === state.base_sha256) {
-            mergedContent = remoteContent; // local unchanged since base -> fast-forward
-          } else if (state && state.base_sha256) {
-            // Both sides changed -> attempt a 3-way merge against the base.
-            const baseText = await this.stateRepo.getBaseText(path);
-            if (baseText !== null) {
-              const mergeRes = mergeText(baseText, localContent, remoteContent);
-              if (mergeRes.hasConflicts) {
-                const cp = await this.preserveLocalAsConflict(path, localContent);
-                changedPaths.push(cp);
-                mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
-              } else {
-                mergedContent = mergeRes.mergedText;
-              }
-            } else {
-              const cp = await this.preserveLocalAsConflict(path, localContent);
-              changedPaths.push(cp);
-              mergedContent = remoteContent;
-            }
-          } else {
-            // No reliable base (e.g. first connect) and content diverges. Never
-            // silently overwrite the working copy: preserve it as .CONFLICT and
-            // adopt remote as canonical local.
-            const cp = await this.preserveLocalAsConflict(path, localContent);
-            changedPaths.push(cp);
-            mergedContent = remoteContent;
-          }
-        }
-
-        if (!this.isRunning) break;
-
-        // Only rewrite the local file when the reconciled content actually differs
-        // from what is on disk. Skipping the no-op write is what stops a just-pushed
-        // change (or our own etag flux) from echoing back into the open editor.
-        const writeNeeded = !localExists || mergedContent !== localContent;
-        // Push when our reconciled content differs from what the remote has.
-        const pushMerge = mergedContent !== remoteContent;
-
-        if (writeNeeded) {
-          await this.vault.writeTextFile(path, mergedContent);
-          changedPaths.push(path);
-        }
-
-        const newLocalSha = await sha256Hash(mergedContent);
-        await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
-
-        if (pushMerge) {
-          // Our reconciled content is ahead of the remote -> enqueue a push so
-          // processQueue (below) propagates it this same cycle.
-          await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
-          await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
-          await this.queue.queueWrite(path);
-        } else {
-          // Fully in sync with the remote version.
-          await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
-          await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
-        }
+        await guardPullStep(path, () =>
+          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths)
+        );
       }
 
       // 2b. Mirror remote deletions.
@@ -489,7 +574,10 @@ export class SyncWorker {
         // per-file safety (never delete a locally-modified file).
         for (const path of pullResult.deleted ?? []) {
           if (!this.isRunning) break;
-          await this.mirrorRemoteDeletion(path, stateMap, changedPaths);
+          // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
+          // once per cursor position, so a failed mirror must block cursor adoption
+          // below (otherwise the deletion stays unmirrored until the next full listing).
+          await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
         }
       } else if (this.isRunning && remotePaths.size > 0) {
         // FULL listing: derive deletions from files we confirmed before that are now
@@ -516,12 +604,16 @@ export class SyncWorker {
         } else {
           for (const { path } of missing) {
             if (!this.isRunning) break;
-            await this.mirrorRemoteDeletion(path, stateMap, changedPaths);
+            await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
           }
         }
       }
 
       if (!this.isRunning) return;
+
+      // Everything pulled so far must be visible before the (potentially long) push
+      // phase starts; the finally below only backstops aborts.
+      flushChangedPaths(true);
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
       await this.engine.processQueue(
@@ -529,31 +621,35 @@ export class SyncWorker {
         (current, total) => this.emitProgress("push", current, total)
       );
 
-      if (changedPaths.length > 0 && this.onFilesChanged) {
-        this.onFilesChanged(changedPaths);
-      }
-
-      console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote)`);
+      console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote, ${pullFailureCount} pull failure(s))`);
       this.onProgress?.(null); // clear progress; the cycle's work is done
       this.consecutiveFailures = 0;
 
-      // Advance the incremental-pull state for the NEXT cycle (only on success — a failure
-      // resets the cursor in the catch below so the next cycle re-establishes a full
-      // listing). After a full listing, adopt the token we seeded before it (undefined for
-      // non-token providers -> stays on full listings); after a cursor pull, adopt the
-      // follow-up token and count toward the next periodic full pass.
-      if (doFullListing) {
-        this.cursor = seededCursor;
-        this.cyclesSinceFull = 0;
-      } else {
-        if (pullResult.nextCursor) this.cursor = pullResult.nextCursor;
-        this.cyclesSinceFull++;
+      // Advance the incremental-pull state for the NEXT cycle — but ONLY when every
+      // pull step succeeded. A skipped file's sync_state did not advance, so replaying
+      // the SAME cursor (or, after a full listing, running another full listing because
+      // the seeded token was not adopted) re-lists exactly the failed files next cycle;
+      // adopting the next token would hide them for up to FULL_LISTING_EVERY_N_CYCLES
+      // cycles. (A failure that ABORTS the cycle instead resets the cursor in the catch
+      // below.) After a clean full listing, adopt the token we seeded before it
+      // (undefined for non-token providers -> stays on full listings); after a clean
+      // cursor pull, adopt the follow-up token and count toward the next full pass.
+      if (pullFailureCount === 0) {
+        if (doFullListing) {
+          this.cursor = seededCursor;
+          this.cyclesSinceFull = 0;
+        } else {
+          if (pullResult.nextCursor) this.cursor = pullResult.nextCursor;
+          this.cyclesSinceFull++;
+        }
       }
 
-      // First successful cycle: the remote base is now established for files that exist
+      // First fully-clean pull: the remote base is now established for files that exist
       // remotely. Let the host enqueue any genuinely local-only files (deferred after a
-      // fresh index so a rebuilt DB never blindly overwrites a newer remote — 3c).
-      if (!this.firstCycleComplete) {
+      // fresh index so a rebuilt DB never blindly overwrites a newer remote — 3c). Gated
+      // on zero pull failures: a file whose reconcile failed has no remote base yet and
+      // would be misclassified as local-only, i.e. pushed over a possibly newer remote.
+      if (!this.firstCycleComplete && pullFailureCount === 0) {
         this.firstCycleComplete = true;
         try {
           this.onFirstCycleComplete?.();
@@ -567,6 +663,12 @@ export class SyncWorker {
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
         this.setStatus("error", deletionMirroringSuspended);
+      } else if (pullFailureCount > 0) {
+        // The cycle completed, but some files could not be pulled. Surface it (the
+        // frozen cursor retries them next cycle) WITHOUT counting toward the
+        // consecutive-failure backoff: one permanently poisoned file must not slow
+        // down all syncing. A fully clean next cycle clears this automatically.
+        this.setStatus("error", `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle`);
       } else {
         this.setStatus("idle");
       }
@@ -582,6 +684,11 @@ export class SyncWorker {
       console.error("[SyncWorker] cycle error:", error);
       this.onProgress?.(null);
       this.setStatus("error", error instanceof Error ? error.message : String(error));
+    } finally {
+      // Loss-proofing: report files already written this cycle even when the cycle
+      // aborted (error, breaker or stop()) — their sync_state has already advanced,
+      // so an unreported write would stay invisible in the app until a restart.
+      flushChangedPaths(true);
     }
   }
 }

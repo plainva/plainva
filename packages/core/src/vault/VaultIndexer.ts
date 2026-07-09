@@ -31,6 +31,11 @@ export function isInternalPath(path: string): boolean {
   return segments.some((s) => s === ".plainva" || s === ".git" || s === "node_modules" || s === ".obsidian" || s === ".trash" || s === ".smart-env" || s.startsWith(".stfolder"));
 }
 
+/** Escapes SQL LIKE wildcards (and the escape char itself) so a path prefix matches literally. */
+function escapeLikePrefix(prefix: string): string {
+  return prefix.replace(/[\\%_]/g, "\\$&");
+}
+
 export interface VaultIndexerOptions {
   onExternalModification?: (path: string, oldHash: string | null, newHash: string) => void;
   /**
@@ -433,7 +438,20 @@ export class VaultIndexer {
         `SELECT id FROM files WHERE path = ?`,
         [path]
       );
-      if (!known) return "unchanged";
+      if (!known) {
+        // No exact row: this may have been a FOLDER — folders never get files rows,
+        // only their contained files do. If any indexed file still lives under the
+        // vanished path, the folder was deleted externally: hand off to the full
+        // scan, which purges the stale child rows and fires onLocalFileDeleted for
+        // each (so remote deletes propagate). The trailing "/" keeps a deleted FILE
+        // named "a" from matching a sibling "a.md" or a folder "ab/".
+        const child = await this.dbAdapter.queryOne<{ id: string }>(
+          `SELECT id FROM files WHERE path LIKE ? ESCAPE '\\' LIMIT 1`,
+          [escapeLikePrefix(path) + "/%"]
+        );
+        if (child) return "needs-full-scan";
+        return "unchanged";
+      }
       await this.removePathFromIndex(path);
       return "removed";
     }

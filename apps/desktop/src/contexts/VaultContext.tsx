@@ -15,6 +15,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
+import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -46,6 +47,13 @@ interface VaultState {
    */
   fileTreeVersionPaths: string[] | null;
   syncWorker: SyncWorker | null;
+  /**
+   * Serialized incremental-index queue shared by the watcher and the sync
+   * worker's onFilesChanged (services/incrementalIndexQueue.ts): batches never
+   * run concurrently, and batches arriving during a run coalesce into one
+   * follow-up pass instead of stacking redundant full scans.
+   */
+  indexQueue: IncrementalIndexQueue | null;
   // Sync status/message/provider live in services/syncStatusStore.ts (P3/E2):
   // the worker flips idle→syncing→idle on every 15-s poll cycle, which must
   // not re-render every useVault consumer.
@@ -196,42 +204,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     treeStructureVersion: 0,
     fileTreeVersionPaths: null,
     syncWorker: null,
+    indexQueue: null,
     recentVaults: [],
     autoOpenLastVault: false,
   });
 
-  /**
-   * Incremental index for a batch of changed paths (watcher events, sync
-   * pulls) — P2.5. Falls back to the full scan for folder-level changes or
-   * event floods; a batch of pure echoes ("unchanged") triggers NO re-render.
-   */
-  const applyIncrementalIndex = async (indexer: VaultIndexer, paths: string[]) => {
-    const MAX_INCREMENTAL = 50;
-    let fullScan = paths.length > MAX_INCREMENTAL;
-    let anyChange = false;
-    if (!fullScan) {
-      for (const p of paths) {
-        try {
-          const result = await indexer.indexPath(p);
-          if (result === "needs-full-scan") {
-            fullScan = true;
-            break;
-          }
-          if (result === "indexed" || result === "removed") anyChange = true;
-        } catch (e) {
-          console.warn("[VaultContext] incremental index failed for", p, e);
-          fullScan = true;
-          break;
-        }
-      }
-    }
-    if (fullScan) {
-      await indexer.indexVaultFull().catch(console.error);
-      setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
-    } else if (anyChange) {
-      setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: paths }));
-    }
-  };
+  // Incremental indexing for changed-path batches (watcher events, sync pulls)
+  // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
+  // serialized queue per vault and maps its batch results to version bumps.
 
   const loadVault = async (path: string, isNewConnection?: boolean) => {
     // If we're already loading this exact path, ignore the duplicate call
@@ -366,6 +346,23 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
       const queryService = new VaultQueryService(dbAdapter);
       const graphService = new GraphService(dbAdapter);
+
+      // Serialized incremental indexing for watcher events and sync pulls (P2.5):
+      // one batch at a time, concurrent producers coalesce into one follow-up
+      // pass, redundant full scans collapse. Batch results map to the version
+      // bumps here: a full scan may have changed the folder structure (both
+      // versions), a per-path batch is file-only, a pure echo batch bumps nothing.
+      const indexQueue = createIncrementalIndexQueue({
+        indexer,
+        exists: (p) => tauriVaultAdapter.exists(p),
+        onBatchDone: ({ fullScan, anyChange, paths: batchPaths }) => {
+          if (fullScan) {
+            setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
+          } else if (anyChange) {
+            setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: batchPaths }));
+          }
+        },
+      });
 
       // Time-to-first-note: don't block the whole load on the full index when the
       // index is already WARM. After the app-data relocation an existing vault's
@@ -510,9 +507,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             };
             syncWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the
-              // file tree and search reflect them deterministically. Incremental
-              // per-path (P2.5) — the sync reports exactly which paths changed.
-              void applyIncrementalIndex(indexer, paths);
+              // file tree and search reflect them deterministically. The worker
+              // emits in chunks while the cycle runs (and flushes on abort), so the
+              // tree fills progressively during a long first sync and an aborted
+              // cycle can no longer hide already-written files until a restart.
+              indexQueue.enqueue(paths);
               for (const p of paths) {
                 if (!p.includes(".CONFLICT")) {
                   window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: p } }));
@@ -543,6 +542,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         treeStructureVersion: s.treeStructureVersion + 1,
         fileTreeVersionPaths: null,
         syncWorker,
+        indexQueue,
         loadingProgress: undefined,
         loadingPath: null,
       }));
@@ -600,7 +600,8 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   useEffect(() => {
-    if (!state.vaultAdapter || !state.indexer) return;
+    if (!state.vaultAdapter || !state.indexQueue) return;
+    const indexQueue = state.indexQueue;
 
     let unwatchFn: (() => void) | undefined;
     let debounceTimer: ReturnType<typeof setTimeout>;
@@ -631,9 +632,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               pendingWatchPaths.clear();
               console.log("[VaultContext] vault watcher detected changes", batch);
               // Incremental per-path indexing (P2.5) — the former full scan
-              // walked the ENTIRE vault over IPC after every save echo.
-              const idx = state.indexer;
-              if (idx) void applyIncrementalIndex(idx, batch);
+              // walked the ENTIRE vault over IPC after every save echo. The
+              // shared queue serializes this with concurrent sync-pull batches.
+              indexQueue.enqueue(batch);
             }, 1000);
           }
         });
@@ -648,7 +649,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       clearTimeout(debounceTimer);
       if (unwatchFn) unwatchFn();
     };
-  }, [state.vaultAdapter, state.indexer]);
+  }, [state.vaultAdapter, state.indexQueue]);
 
   // Per-vault background backups: daily ZIP + daily snapshot pruning. The
   // scheduler re-reads its settings from the store on every tick, so only the
@@ -746,6 +747,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       graphService: null,
       fileTreeVersion: 0,
       syncWorker: null,
+      indexQueue: null,
       isLoading: false,
       error: null,
       loadingProgress: undefined,

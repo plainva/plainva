@@ -465,6 +465,196 @@ describe("SyncWorker", () => {
     expect(target.pull).toHaveBeenCalledWith("stale-token"); // it did try the incremental pull
     expect(worker["cursor"]).toBeUndefined();                // ...and reset the cursor on failure
   });
+
+  describe("chunked, loss-proof onFilesChanged (tree-refresh fix)", () => {
+    it("emits onFilesChanged in chunks during the cycle and never double-reports", async () => {
+      const paths = Array.from({ length: 60 }, (_, i) => `note-${String(i).padStart(2, "0")}.md`);
+      target.pull.mockResolvedValueOnce({ etagMap: new Map(paths.map((p, i) => [p, `e${i}`])) });
+      target.download.mockResolvedValue(new TextEncoder().encode("x"));
+      const batches: string[][] = [];
+      worker.onFilesChanged = (p) => batches.push(p);
+
+      await worker.runCycle();
+
+      // 60 written files -> chunks of <= 25, at least two of them mid-cycle.
+      expect(batches.length).toBeGreaterThanOrEqual(2);
+      expect(batches.every((b) => b.length <= 25)).toBe(true);
+      const flat = batches.flat();
+      expect(flat.length).toBe(60);
+      expect(new Set(flat).size).toBe(60); // no double-reporting
+      expect(new Set(flat)).toEqual(new Set(paths));
+    });
+
+    it("reports pulled files even when the push phase fails (the reported bug)", async () => {
+      // THE reported failure mode: files were written and their sync_state advanced,
+      // then the cycle errored -> the old end-of-cycle emission never ran and the next
+      // cycle skipped the files via the etag match. They stayed invisible until restart.
+      const paths = ["a.md", "b.md", "c.md", "d.md", "e.md"];
+      target.pull.mockResolvedValueOnce({ etagMap: new Map(paths.map((p, i) => [p, `e${i}`])) });
+      target.download.mockResolvedValue(new TextEncoder().encode("x"));
+      engine.processQueue.mockRejectedValueOnce(new Error("push exploded"));
+      const batches: string[][] = [];
+      worker.onFilesChanged = (p) => batches.push(p);
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+
+      expect(new Set(batches.flat())).toEqual(new Set(paths));
+      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+    });
+
+    it("reports files written before a mid-pull abort (finally flush)", async () => {
+      // a+b download fine, then three consecutive failures trip the breaker and abort
+      // the cycle. The finally flush must still deliver a+b.
+      const paths = ["a.md", "b.md", "c.md", "d.md", "e.md"];
+      target.pull.mockResolvedValueOnce({ etagMap: new Map(paths.map((p, i) => [p, `e${i}`])) });
+      target.download.mockImplementation(async (p: string) => {
+        if (p === "a.md" || p === "b.md") return new TextEncoder().encode("x");
+        throw new Error("503 unavailable");
+      });
+      const batches: string[][] = [];
+      worker.onFilesChanged = (p) => batches.push(p);
+
+      await worker.runCycle();
+
+      expect(target.download).toHaveBeenCalledTimes(5); // a, b ok; c, d, e fail -> abort
+      expect(batches.flat()).toEqual(["a.md", "b.md"]);
+      expect(worker["consecutiveFailures"]).toBe(1); // the abort engages the backoff
+    });
+
+    it("reports pulled files when the worker is stopped mid-cycle", async () => {
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"]]) });
+      target.download.mockResolvedValue(new TextEncoder().encode("x"));
+      vault.writeTextFile.mockImplementation(async () => {
+        worker["isRunning"] = false; // stop() lands right after the first write
+      });
+      const batches: string[][] = [];
+      worker.onFilesChanged = (p) => batches.push(p);
+
+      await worker.runCycle();
+
+      expect(batches.flat()).toEqual(["a.md"]);
+      expect(engine.processQueue).not.toHaveBeenCalled(); // the cycle really did stop early
+    });
+
+    it("a throwing onFilesChanged consumer does not fail the cycle", async () => {
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+      target.download.mockResolvedValue(new TextEncoder().encode("x"));
+      worker.onFilesChanged = () => { throw new Error("consumer bug"); };
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+
+      expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("idle");
+      expect(worker["consecutiveFailures"]).toBe(0);
+    });
+  });
+
+  describe("per-file pull resilience", () => {
+    it("continues past a single failing download and does not adopt the seeded cursor", async () => {
+      target.getStartCursor = vi.fn().mockResolvedValue("cursor-A");
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"], ["c.md", "e3"]]) });
+      target.download.mockImplementation(async (p: string) => {
+        if (p === "b.md") throw new Error("403 rate limited");
+        return new TextEncoder().encode("x");
+      });
+      const batches: string[][] = [];
+      worker.onFilesChanged = (p) => batches.push(p);
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+
+      // The neighbors were pulled and reported; the poisoned file was skipped.
+      expect(new Set(batches.flat())).toEqual(new Set(["a.md", "c.md"]));
+      expect(stateRepo.updateRemoteState.mock.calls.every((c: any[]) => c[0] !== "b.md")).toBe(true);
+      // The seeded cursor is NOT adopted -> the next cycle full-lists and retries b.md.
+      expect(worker["cursor"]).toBeUndefined();
+      const errorCall = statusSpy.mock.calls.find(([s]) => s === "error");
+      expect(String(errorCall?.[1])).toContain("1 file(s)");
+      // A completed cycle with partial failures must NOT engage the backoff.
+      expect(worker["consecutiveFailures"]).toBe(0);
+    });
+
+    it("aborts the pull after 3 consecutive file failures and resets the cursor", async () => {
+      worker["cursor"] = "c0";
+      const paths = ["a.md", "b.md", "c.md", "d.md", "e.md"];
+      target.pull.mockResolvedValueOnce({
+        etagMap: new Map(paths.map((p, i) => [p, `e${i}`])),
+        nextCursor: "c1",
+      });
+      target.download.mockRejectedValue(new Error("network down"));
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+
+      expect(target.download).toHaveBeenCalledTimes(3); // breaker: outage, not per-file poison
+      expect(worker["cursor"]).toBeUndefined();          // catch resets -> full-listing self-heal
+      expect(worker["consecutiveFailures"]).toBe(1);     // backoff engaged
+      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+    });
+
+    it("keeps the incremental cursor for replay when a file failed", async () => {
+      worker["cursor"] = "c0";
+      target.pull.mockResolvedValueOnce({
+        etagMap: new Map([["a.md", "e1"], ["b.md", "e2"]]),
+        nextCursor: "c1",
+      });
+      target.download.mockImplementation(async (p: string) => {
+        if (p === "b.md") throw new Error("timeout");
+        return new TextEncoder().encode("x");
+      });
+
+      await worker.runCycle();
+
+      // Replaying the SAME cursor next cycle re-lists exactly the failed file.
+      expect(worker["cursor"]).toBe("c0");
+      expect(worker["cyclesSinceFull"]).toBe(0);
+    });
+
+    it("keeps the cursor when an explicit deletion fails to mirror", async () => {
+      worker["cursor"] = "c0";
+      const sameSha = await sha("same");
+      target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: ["a.md", "b.md"], nextCursor: "c1" });
+      stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+        ["a.md", { remote_etag: "ea", base_sha256: sameSha }],
+        ["b.md", { remote_etag: "eb", base_sha256: sameSha }],
+      ]));
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue("same");
+      vault.deleteItem.mockImplementation(async (p: string) => {
+        if (p === "a.md") throw new Error("locked");
+      });
+      const statusSpy = vi.fn();
+      worker.onStatusChange = statusSpy;
+
+      await worker.runCycle();
+
+      // The other deletion still ran; the unadvanced cursor replays the failed one.
+      expect(vault.deleteItem).toHaveBeenCalledWith("b.md");
+      expect(worker["cursor"]).toBe("c0");
+      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+    });
+
+    it("defers onFirstCycleComplete until a cycle with zero pull failures", async () => {
+      // A failed reconcile leaves that file without a remote base; enqueueLocalOnlyFiles
+      // would misclassify it as local-only and push it over a possibly newer remote (3c).
+      const spy = vi.fn();
+      worker.onFirstCycleComplete = spy;
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"]]) });
+      target.download.mockRejectedValueOnce(new Error("flaky"));
+
+      await worker.runCycle();
+      expect(spy).not.toHaveBeenCalled();
+
+      target.pull.mockResolvedValueOnce({ etagMap: new Map() });
+      await worker.runCycle();
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 async function sha(text: string): Promise<string> {
