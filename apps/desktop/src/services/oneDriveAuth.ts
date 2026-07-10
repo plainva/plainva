@@ -17,11 +17,15 @@ import { oneDriveFetch } from "./authFetch";
  * `http://localhost` redirect matches ANY loopback port, so the ephemeral listener
  * works unchanged (the listener itself binds 127.0.0.1, which localhost resolves to).
  */
-export async function runOneDriveAuthorization(opts: {
+/**
+ * Runs the OAuth flow and RETURNS the fresh credentials without persisting them
+ * (splash onboarding authorizes before the local vault folder exists). The
+ * vault-bound `runOneDriveAuthorization` below wraps this and persists.
+ */
+export async function authorizeOneDrive(opts: {
   clientId: string;
-  vaultPath: string;
-}): Promise<void> {
-  const { clientId, vaultPath } = opts;
+}): Promise<{ clientId: string; refreshToken: string }> {
+  const { clientId } = opts;
 
   const port = await invoke<number>("oauth_loopback_start");
   const redirectUri = `http://localhost:${port}`;
@@ -48,10 +52,17 @@ export async function runOneDriveAuthorization(opts: {
     );
   }
 
-  const existing = await credentialManager.getOneDriveCredentials(vaultPath);
-  await credentialManager.saveOneDriveCredentials(vaultPath, {
-    clientId,
-    refreshToken: tokens.refreshToken,
+  return { clientId, refreshToken: tokens.refreshToken };
+}
+
+export async function runOneDriveAuthorization(opts: {
+  clientId: string;
+  vaultPath: string;
+}): Promise<void> {
+  const creds = await authorizeOneDrive(opts);
+  const existing = await credentialManager.getOneDriveCredentials(opts.vaultPath);
+  await credentialManager.saveOneDriveCredentials(opts.vaultPath, {
+    ...creds,
     rootFolderName: existing?.rootFolderName,
   });
 }

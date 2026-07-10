@@ -845,12 +845,11 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toHaveCount(0);
 });
 
-test('Online vault: chooser lists all providers; a provider pick deep-links into Settings', async ({ page }) => {
+test('Online vault: chooser lists all providers; picking one opens the in-splash setup (connect first)', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
     (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
       if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
-      if (cmd === 'plugin:dialog|open') return '/sync-vault';
       return orig(cmd, args, options);
     };
   });
@@ -865,21 +864,22 @@ test('Online vault: chooser lists all providers; a provider pick deep-links into
   await page.getByRole('button', { name: /WebDAV/ }).click();
   await expect(page.getByText(/Mit WebDAV verbinden|Connect to WebDAV/)).toBeVisible();
   await page.getByRole('button', { name: /Zurück|Back/ }).click();
-  await expect(page.getByRole('button', { name: /Dropbox/ })).toBeVisible();
 
-  // OAuth/key providers: pick the local sync folder, the vault opens and the
-  // Settings modal comes up with the provider's form preselected.
-  // The BYO handbook links sit under the provider grid (Nachfass P3.12);
-  // Google Drive is the provider that stays BYO.
+  // The BYO handbook links sit under the provider grid; Google Drive stays BYO.
   await expect(page.getByRole('link', { name: 'Google Drive', exact: true })).toBeVisible();
 
+  // NEW flow: picking Dropbox opens the in-splash setup (CONNECT first), NOT a
+  // deep-link into Settings and NOT a local-folder dialog up front.
   await page.getByRole('button', { name: /Dropbox/ }).click();
-  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await expect(dlg).toBeVisible({ timeout: 15000 });
-  await expect(dlg.getByRole('button', { name: /Mit Dropbox verbinden|Connect to Dropbox/ })).toBeVisible();
-  // Dropbox ships a central app key since 2026-07-06 (providerDefaults filled)
-  // — its form must NOT carry the BYO badge anymore.
-  await expect(dlg.getByText(/Eigene App-ID nötig|Own app ID required/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Dropbox verbinden|Connect Dropbox/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Verbinden|Connect)$/ })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Einstellungen|Settings/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /Zurück|Back/ }).click();
+
+  // S3: the credentials form appears right away (endpoint field), before any
+  // local folder dialog — the whole point of the unified flow.
+  await page.getByRole('button', { name: /S3/ }).click();
+  await expect(page.getByPlaceholder('https://s3.eu-central-1.amazonaws.com')).toBeVisible();
 });
 
 test('Sync error dialog: deep-links into the sync settings (broken connection recovery)', async ({ page }) => {

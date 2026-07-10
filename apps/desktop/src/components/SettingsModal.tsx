@@ -26,9 +26,7 @@ import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui
 import { GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../services/docsLinks";
 import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
-import { DriveSyncTarget, OneDriveSyncTarget, DropboxSyncTarget, S3SyncTarget } from "@plainva/core";
-import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { oneDriveFetch } from "../services/authFetch";
+import { buildDriveTarget, buildOneDriveTarget, buildDropboxTarget, buildS3Target } from "../services/syncTargets";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -912,56 +910,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
    */
   const listSyncFolders = async (prov: "drive" | "onedrive" | "dropbox" | "s3", path: string): Promise<string[]> => {
     if (prov === "s3") {
-      const target = new S3SyncTarget(
-        {
-          endpoint: s3Endpoint.trim(),
-          region: s3Region.trim() || "us-east-1",
-          bucket: s3Bucket.trim(),
-          accessKeyId: s3AccessKeyId.trim(),
-          secretAccessKey: s3SecretKey,
-          forcePathStyle: s3PathStyle,
-        },
-        httpFetch
-      );
-      return target.listFolders(path);
+      return buildS3Target({
+        endpoint: s3Endpoint.trim(),
+        region: s3Region.trim() || "us-east-1",
+        bucket: s3Bucket.trim(),
+        accessKeyId: s3AccessKeyId.trim(),
+        secretAccessKey: s3SecretKey,
+        forcePathStyle: s3PathStyle,
+      }).listFolders(path);
     }
     if (prov === "drive") {
       const creds = await credentialManager.getDriveCredentials(section);
       if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-      const target = new DriveSyncTarget(
-        { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken },
-        httpFetch
-      );
-      return target.listFolders(path);
+      return buildDriveTarget({
+        clientId: creds.clientId,
+        clientSecret: creds.clientSecret,
+        refreshToken: creds.refreshToken,
+      }).listFolders(path);
     }
     if (prov === "onedrive") {
       const creds = await credentialManager.getOneDriveCredentials(section);
       if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-      const target = new OneDriveSyncTarget(
+      return buildOneDriveTarget(
         { clientId: creds.clientId || PLAINVA_ONEDRIVE_CLIENT_ID, refreshToken: creds.refreshToken },
-        oneDriveFetch
-      );
-      target.onTokensRefreshed = (_accessToken, refreshToken) => {
-        if (!refreshToken || refreshToken === creds.refreshToken) return;
-        credentialManager
-          .saveOneDriveCredentials(section, { ...creds, refreshToken })
-          .catch((e) => console.error("[Settings] persisting rotated OneDrive token failed", e));
-      };
-      return target.listFolders(path);
+        (refreshToken) =>
+          credentialManager
+            .saveOneDriveCredentials(section, { ...creds, refreshToken })
+            .catch((e) => console.error("[Settings] persisting rotated OneDrive token failed", e))
+      ).listFolders(path);
     }
     const creds = await credentialManager.getDropboxCredentials(section);
     if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-    const target = new DropboxSyncTarget(
+    return buildDropboxTarget(
       { appKey: creds.appKey || PLAINVA_DROPBOX_APP_KEY, refreshToken: creds.refreshToken },
-      httpFetch
-    );
-    target.onTokensRefreshed = (_accessToken, refreshToken) => {
-      if (!refreshToken || refreshToken === creds.refreshToken) return;
-      credentialManager
-        .saveDropboxCredentials(section, { ...creds, refreshToken })
-        .catch((e) => console.error("[Settings] persisting rotated Dropbox token failed", e));
-    };
-    return target.listFolders(path);
+      (refreshToken) =>
+        credentialManager
+          .saveDropboxCredentials(section, { ...creds, refreshToken })
+          .catch((e) => console.error("[Settings] persisting rotated Dropbox token failed", e))
+    ).listFolders(path);
   };
 
   /** Applies a picker result to the matching provider's folder field. */

@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last reviewed: 2026-07-09
+Last reviewed: 2026-07-10
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -9,6 +9,7 @@ Which services work in general (also via WebDAV or the provider's desktop client
 ## Basics
 
 - Setup lives under **Settings → Vault Settings → Cloud Sync**. The **Sync Provider** is chosen per vault: **None (Local only)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** or **S3-compatible storage** — always exactly one per vault.
+- **Set up a new online vault from the start screen**: **Open Online Vault** walks you through the same three steps for every provider — **1. Connect** (sign in or enter credentials), **2. Choose the folder in the cloud**, **3. Choose or create the local folder**. Alternatively you can set up sync for an already-open vault any time under Settings.
 - Local saves are uploaded immediately; Plainva checks for remote changes at the configured **Sync Interval (seconds)**.
 - Offline changes are queued and transferred on the next contact; the status bar shows **Online**/**Offline** and the sync indicator shows the state (**Sync now** on click). During a long or first-time sync the status bar shows the progress as a count (e.g. **Sync 123/540**), so you can see it working through the vault.
 - The first time you connect an online vault, a one-time note reminds you that the initial sync can take a while depending on the vault size — you can keep working while it runs.

@@ -3,6 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, ArrowRight, Folder, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
+import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { credentialManager } from "../services/CredentialManager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfirm } from "../services/appDialogs";
@@ -32,6 +33,7 @@ export const SplashScreen: React.FC = () => {
   const [showWebDavForm, setShowWebDavForm] = useState(false);
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [showOnlineChooser, setShowOnlineChooser] = useState(false);
+  const [onlineSetupProvider, setOnlineSetupProvider] = useState<"drive" | "onedrive" | "dropbox" | "s3" | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [url, setUrl] = useState("");
@@ -86,16 +88,13 @@ export const SplashScreen: React.FC = () => {
   };
 
   /**
-   * Online-vault chooser (maintainer request 2026-07-04): WebDAV connects right
-   * here; the OAuth/key providers pick their local sync folder first — their
-   * setup lives in Settings, which deep-links open with the provider preselected
-   * once the vault has loaded.
+   * All four cloud providers now follow the WebDAV pattern (connect -> pick the
+   * cloud folder -> pick/create the local folder -> open) via OnlineVaultSetup,
+   * instead of the old "local folder first, then deep-link into Settings" flow.
    */
-  const handleOnlineProvider = async (provider: "drive" | "onedrive" | "dropbox" | "s3") => {
-    const localDir = await open({ directory: true, multiple: false, title: t("splash.selectLocalFolderTitle") });
-    if (!localDir || typeof localDir !== "string") return;
-    await openVault(localDir);
-    window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { provider } }));
+  const handleOnlineProvider = (provider: "drive" | "onedrive" | "dropbox" | "s3") => {
+    setShowOnlineChooser(false);
+    setOnlineSetupProvider(provider);
   };
 
   // Honest onboarding (P3.12): OAuth providers without a central app
@@ -181,7 +180,12 @@ export const SplashScreen: React.FC = () => {
           </div>
         )}
 
-        {showCreateChooser ? (
+        {onlineSetupProvider ? (
+          <OnlineVaultSetup
+            provider={onlineSetupProvider}
+            onBack={() => { setOnlineSetupProvider(null); setShowOnlineChooser(true); }}
+          />
+        ) : showCreateChooser ? (
           <>
             <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.createVault")}</h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.createVaultDesc")}</p>

@@ -18,11 +18,15 @@ import { credentialManager } from "./CredentialManager";
  * whitelist DROPBOX_REDIRECT_URI, plan item M-B). A bind failure (port in use)
  * surfaces as a readable error instead of a silent hang.
  */
-export async function runDropboxAuthorization(opts: {
+/**
+ * Runs the OAuth flow and RETURNS the fresh credentials without persisting them
+ * (splash onboarding authorizes before the local vault folder exists). The
+ * vault-bound `runDropboxAuthorization` below wraps this and persists.
+ */
+export async function authorizeDropbox(opts: {
   appKey: string;
-  vaultPath: string;
-}): Promise<void> {
-  const { appKey, vaultPath } = opts;
+}): Promise<{ appKey: string; refreshToken: string }> {
+  const { appKey } = opts;
 
   let port: number;
   try {
@@ -60,10 +64,17 @@ export async function runDropboxAuthorization(opts: {
     );
   }
 
-  const existing = await credentialManager.getDropboxCredentials(vaultPath);
-  await credentialManager.saveDropboxCredentials(vaultPath, {
-    appKey,
-    refreshToken: tokens.refreshToken,
+  return { appKey, refreshToken: tokens.refreshToken };
+}
+
+export async function runDropboxAuthorization(opts: {
+  appKey: string;
+  vaultPath: string;
+}): Promise<void> {
+  const creds = await authorizeDropbox(opts);
+  const existing = await credentialManager.getDropboxCredentials(opts.vaultPath);
+  await credentialManager.saveDropboxCredentials(opts.vaultPath, {
+    ...creds,
     rootPath: existing?.rootPath,
   });
 }

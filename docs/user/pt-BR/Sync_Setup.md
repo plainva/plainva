@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -9,6 +9,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 ## Fundamentos
 
 - A configuração fica em **Configurações → Configurações do vault → Sincronização na nuvem**. O **Provedor de sincronização** é escolhido por vault: **Nenhum (somente local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Armazenamento compatível com S3** — sempre exatamente um por vault.
+- **Configurar um novo vault online a partir da tela inicial**: **Abrir vault online** guia você pelas mesmas três etapas em todos os provedores — **1. Conectar** (fazer login ou informar credenciais), **2. Escolher a pasta na nuvem**, **3. Escolher ou criar a pasta local**. Você também pode configurar a sincronização de um vault já aberto a qualquer momento em Configurações.
 - Salvamentos locais são enviados imediatamente; o Plainva verifica alterações remotas no **Intervalo de sincronização (segundos)** configurado.
 - Alterações offline ficam em uma fila e são transferidas no próximo contato; a barra de status mostra **Online**/**Offline** e o indicador de sincronização mostra o estado (**Sincronizar agora** ao clicar). Durante uma sincronização longa ou a primeira sincronização, a barra de status mostra o progresso como um contador (por exemplo, **Sync 123/540**), para que você veja que ela está avançando pelo vault.
 - Na primeira vez que você conecta um vault online, um aviso único lembra que a sincronização inicial pode demorar um pouco dependendo do tamanho do vault — você pode continuar trabalhando enquanto ela roda.

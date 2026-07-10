@@ -16,12 +16,17 @@ import { credentialManager } from "./CredentialManager";
  * token is stored via CredentialManager (OS keychain, ADR 0005). Throws on any failure so
  * the caller can surface the message.
  */
-export async function runDriveAuthorization(opts: {
+/**
+ * Runs the OAuth flow and RETURNS the fresh credentials without persisting them.
+ * Used by the splash onboarding, which authorizes BEFORE a local vault folder
+ * exists (the token is bound to the folder only after it is chosen). The
+ * vault-bound `runDriveAuthorization` below wraps this and persists.
+ */
+export async function authorizeDrive(opts: {
   clientId: string;
   clientSecret: string;
-  vaultPath: string;
-}): Promise<void> {
-  const { clientId, clientSecret, vaultPath } = opts;
+}): Promise<{ clientId: string; clientSecret: string; refreshToken: string }> {
+  const { clientId, clientSecret } = opts;
 
   // 1. Bind the loopback listener and learn its ephemeral port up front, so the
   //    redirect_uri is fixed before we send the user to Google.
@@ -53,12 +58,19 @@ export async function runDriveAuthorization(opts: {
     );
   }
 
-  // 5. Persist alongside the BYO client (keychain), preserving any existing root folder.
-  const existing = await credentialManager.getDriveCredentials(vaultPath);
-  await credentialManager.saveDriveCredentials(vaultPath, {
-    clientId,
-    clientSecret,
-    refreshToken: tokens.refreshToken,
+  return { clientId, clientSecret, refreshToken: tokens.refreshToken };
+}
+
+export async function runDriveAuthorization(opts: {
+  clientId: string;
+  clientSecret: string;
+  vaultPath: string;
+}): Promise<void> {
+  const creds = await authorizeDrive(opts);
+  // Persist alongside the BYO client (keychain), preserving any existing root folder.
+  const existing = await credentialManager.getDriveCredentials(opts.vaultPath);
+  await credentialManager.saveDriveCredentials(opts.vaultPath, {
+    ...creds,
     rootFolderName: existing?.rootFolderName,
   });
 }

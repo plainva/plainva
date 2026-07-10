@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-09
+Laatst bijgewerkt: 2026-07-10
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -9,6 +9,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 ## Basisprincipes
 
 - Installatie onder **Instellingen → Vault-instellingen → Cloud Sync**. De **Sync-provider** wordt per vault gekozen: **Geen (alleen lokaal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** of **S3-compatibele opslag** — altijd precies één per vault.
+- **Een nieuwe online vault instellen vanaf het startscherm**: **Online vault openen** loodst je voor elke provider door dezelfde drie stappen — **1. Verbinden** (aanmelden of toegangsgegevens invoeren), **2. Map in de cloud kiezen**, **3. Lokale map kiezen of aanmaken**. Je kunt de synchronisatie voor een al geopende vault ook altijd onder Instellingen instellen.
 - Lokale opslagen worden meteen geüpload; op externe wijzigingen controleert Plainva op het ingestelde **Sync-interval (seconden)**.
 - Offline wijzigingen worden verzameld in een wachtrij en overgedragen bij het volgende contact; de statusbalk toont **Online**/**Offline** en de sync-indicator de status (**Nu synchroniseren** bij klik). Bij een lange of eerste synchronisatie toont de statusbalk de voortgang als een teller (bijv. **Sync 123/540**), zodat je ziet dat de vault wordt doorgewerkt.
 - Wanneer je voor het eerst een online vault verbindt, wijst een eenmalige melding je erop dat de eerste synchronisatie afhankelijk van de vaultgrootte even kan duren — je kunt ondertussen gewoon doorwerken.

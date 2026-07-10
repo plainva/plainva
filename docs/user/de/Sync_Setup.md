@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -9,6 +9,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 ## Grundlagen
 
 - Einrichtung unter **Einstellungen → Vault Einstellungen → Cloud Sync**. Der **Sync Provider** wird pro Vault gewählt: **Keiner (Nur lokal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** oder **S3-kompatibler Speicher** — immer genau einer pro Vault.
+- **Neuen Online-Vault vom Startbildschirm einrichten**: **Online-Vault öffnen** führt Dich bei allen Anbietern gleich durch drei Schritte — **1. Verbinden** (Anmeldung bzw. Zugangsdaten eingeben), **2. Ordner in der Cloud wählen**, **3. lokalen Ordner wählen oder erstellen**. Alternativ richtest Du den Sync für einen bereits offenen Vault jederzeit unter Einstellungen ein.
 - Lokale Speicherungen werden sofort hochgeladen; auf Remote-Änderungen prüft Plainva im eingestellten **Sync-Intervall (Sekunden)**.
 - Offline-Änderungen werden in einer Warteschlange gesammelt und beim nächsten Kontakt übertragen; die Statusleiste zeigt **Online**/**Offline** und der Sync-Indikator den Zustand (**Jetzt synchronisieren** per Klick). Bei einem langen oder erstmaligen Sync zeigt die Statusleiste den Fortschritt als Zähler (z. B. **Sync 123/540**), damit Du siehst, dass sie den Vault abarbeitet.
 - Wenn Du zum ersten Mal einen Online-Vault verbindest, weist ein einmaliger Hinweis darauf hin, dass die erste Synchronisierung je nach Vault-Größe etwas dauern kann — Du kannst dabei weiterarbeiten.
