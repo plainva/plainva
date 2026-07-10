@@ -14,6 +14,13 @@ import {
 } from "@plainva/core";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
+import {
+  getActiveVaultEntry,
+  setActiveVault,
+  LOCAL_VAULT_ID,
+  type VaultEntry,
+} from "./vaultRegistry";
+import { stopSync } from "./syncService";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -25,6 +32,8 @@ import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
  */
 
 export interface MobileVault {
+  /** Registry id of this vault ("local" or a connection id). */
+  vaultId: string;
   /** Raw sandbox adapter (listing, binary reads). */
   adapter: CapacitorVaultAdapter;
   /** App-facing adapter: the conflict-aware chain natively, raw on the web. */
@@ -41,6 +50,8 @@ export interface MobileVault {
   markFirstSyncComplete(): void;
   /** Re-indexes pulled paths so tree and search reflect remote changes. */
   reindexPaths(paths: string[]): Promise<void>;
+  /** Closes the per-vault database (used when switching vaults). */
+  dispose(): Promise<void>;
 }
 
 const OKF = (type: string, title: string, body: string) =>
@@ -71,15 +82,33 @@ const isInternal = (path: string) => path.startsWith(".plainva") || path.include
 let bootPromise: Promise<MobileVault> | null = null;
 
 export function getMobileVault(): Promise<MobileVault> {
-  if (!bootPromise) bootPromise = boot();
+  if (!bootPromise) bootPromise = getActiveVaultEntry().then(boot);
   return bootPromise;
 }
 
-async function boot(): Promise<MobileVault> {
-  const adapter = new CapacitorVaultAdapter();
+/**
+ * Activates another registry vault: stops the sync worker, closes the
+ * current per-vault database and reboots. Screens listen for the event and
+ * reset their stacks.
+ */
+export async function switchVault(id: string): Promise<void> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (current?.vaultId === id) return;
+  stopSync();
+  await setActiveVault(id);
+  if (current) await current.dispose().catch(() => {});
+  bootPromise = null;
+  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
+}
+
+async function boot(entry: VaultEntry): Promise<MobileVault> {
+  const isLocal = entry.id === LOCAL_VAULT_ID;
+  // The pre-isolation sandbox keeps its paths; every connection vault gets
+  // its own filesystem root and its own database.
+  const adapter = new CapacitorVaultAdapter(isLocal ? "vault" : `vaults/${entry.id}`);
   await adapter.initialize();
 
-  if ((await adapter.listDir("")).length === 0) {
+  if (isLocal && (await adapter.listDir("")).length === 0) {
     for (const [path, text] of SEEDS) await adapter.writeTextFile(path, text);
   }
 
@@ -103,8 +132,9 @@ async function boot(): Promise<MobileVault> {
   let queryService: VaultQueryService | null;
   let searchAvailable = false;
 
+  let db: CapacitorSqliteAdapter | null = null;
   try {
-    const db = new CapacitorSqliteAdapter("plainva-index");
+    db = new CapacitorSqliteAdapter(isLocal ? "plainva-index" : `plainva-${entry.id}`);
     await db.initialize();
     await initializeSchema(db);
 
@@ -144,9 +174,11 @@ async function boot(): Promise<MobileVault> {
     syncRepo = null;
     indexer = null;
     queryService = null;
+    db = null;
   }
 
   const v: MobileVault = {
+    vaultId: entry.id,
     adapter,
     files,
     backup,
@@ -170,6 +202,9 @@ async function boot(): Promise<MobileVault> {
           /* deleted or transient — the next full pass repairs it */
         }
       }
+    },
+    dispose: async () => {
+      if (db) await db.close().catch(() => {});
     },
   };
   return v;

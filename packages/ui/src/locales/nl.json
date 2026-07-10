@@ -1394,6 +1394,10 @@
     "s3Prefix": "Prefix (optioneel)",
     "syncClientId": "Client-ID",
     "syncClientSecret": "Client-secret (optioneel)",
-    "syncFolder": "Externe map (optioneel)"
+    "syncFolder": "Externe map (optioneel)",
+    "vaults": "Kluizen",
+    "vaultLocal": "Op dit apparaat",
+    "vaultNotConnected": "Deze kluis is niet meer verbonden.",
+    "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie."
   }
 }

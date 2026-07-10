@@ -1404,6 +1404,10 @@
     "s3Prefix": "Prefiks (opcjonalny)",
     "syncClientId": "Identyfikator klienta",
     "syncClientSecret": "Sekret klienta (opcjonalnie)",
-    "syncFolder": "Folder zdalny (opcjonalnie)"
+    "syncFolder": "Folder zdalny (opcjonalnie)",
+    "vaults": "Sejfy",
+    "vaultLocal": "Na tym urządzeniu",
+    "vaultNotConnected": "Ten sejf nie jest już połączony.",
+    "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze."
   }
 }

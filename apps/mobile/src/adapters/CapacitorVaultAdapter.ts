@@ -14,14 +14,7 @@ import {
  * nothing else edits the sandbox (ADR 0011 / mobile plan).
  */
 
-const ROOT = "vault";
-
 const norm = (path: string): string => path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-const full = (path: string): string => {
-  const p = norm(path);
-  return p ? `${ROOT}/${p}` : ROOT;
-};
-
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -39,9 +32,17 @@ function bytesToB64(bytes: Uint8Array): string {
 }
 
 export class CapacitorVaultAdapter implements IVaultAdapter {
+  /** Sandbox root under Directory.Data; per-vault since the isolation rework. */
+  constructor(private readonly root: string = "vault") {}
+
+  private full(path: string): string {
+    const p = norm(path);
+    return p ? `${this.root}/${p}` : this.root;
+  }
+
   async initialize(): Promise<void> {
     try {
-      await Filesystem.mkdir({ path: ROOT, directory: Directory.Data, recursive: true });
+      await Filesystem.mkdir({ path: this.root, directory: Directory.Data, recursive: true });
     } catch {
       /* already exists */
     }
@@ -52,7 +53,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async readTextFile(path: string): Promise<string> {
     try {
       const res = await Filesystem.readFile({
-        path: full(path),
+        path: this.full(path),
         directory: Directory.Data,
         encoding: Encoding.UTF8,
       });
@@ -64,7 +65,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     try {
-      const res = await Filesystem.readFile({ path: full(path), directory: Directory.Data });
+      const res = await Filesystem.readFile({ path: this.full(path), directory: Directory.Data });
       if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
       return b64ToBytes(res.data as string);
     } catch {
@@ -74,7 +75,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async writeTextFile(path: string, content: string): Promise<void> {
     await Filesystem.writeFile({
-      path: full(path),
+      path: this.full(path),
       directory: Directory.Data,
       encoding: Encoding.UTF8,
       data: content,
@@ -84,7 +85,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
     await Filesystem.writeFile({
-      path: full(path),
+      path: this.full(path),
       directory: Directory.Data,
       data: bytesToB64(content),
       recursive: true,
@@ -96,12 +97,12 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     if (!info) throw new VaultFileNotFoundError(path);
     if (info.isDirectory) {
       await Filesystem.rmdir({
-        path: full(path),
+        path: this.full(path),
         directory: Directory.Data,
         recursive: recursive ?? false,
       });
     } else {
-      await Filesystem.deleteFile({ path: full(path), directory: Directory.Data });
+      await Filesystem.deleteFile({ path: this.full(path), directory: Directory.Data });
     }
   }
 
@@ -109,8 +110,8 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     if (!(await this.exists(oldPath))) throw new VaultFileNotFoundError(oldPath);
     if (await this.exists(newPath)) throw new VaultFileExistsError(newPath);
     await Filesystem.rename({
-      from: full(oldPath),
-      to: full(newPath),
+      from: this.full(oldPath),
+      to: this.full(newPath),
       directory: Directory.Data,
       toDirectory: Directory.Data,
     });
@@ -135,7 +136,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   async createDir(path: string): Promise<void> {
     try {
-      await Filesystem.mkdir({ path: full(path), directory: Directory.Data, recursive: true });
+      await Filesystem.mkdir({ path: this.full(path), directory: Directory.Data, recursive: true });
     } catch {
       /* already exists */
     }
@@ -143,7 +144,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
 
   private async statOrNull(path: string): Promise<VaultFileInfo | null> {
     try {
-      const st = await Filesystem.stat({ path: full(path), directory: Directory.Data });
+      const st = await Filesystem.stat({ path: this.full(path), directory: Directory.Data });
       const rel = norm(path);
       return {
         path: rel,
@@ -159,7 +160,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   }
 
   private async walk(rel: string, recursive: boolean, out: VaultFileInfo[]): Promise<void> {
-    const res = await Filesystem.readdir({ path: full(rel), directory: Directory.Data });
+    const res = await Filesystem.readdir({ path: this.full(rel), directory: Directory.Data });
     for (const f of res.files) {
       const childRel = rel ? `${rel}/${f.name}` : f.name;
       const isDir = f.type === "directory";

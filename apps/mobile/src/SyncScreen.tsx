@@ -14,21 +14,34 @@ import {
   type MobileSyncProvider,
 } from "./services/syncService";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
+import { LOCAL_VAULT_ID } from "./services/vaultRegistry";
 import type { MobileVault } from "./services/vaultService";
 
 type ProviderId = MobileSyncProvider["provider"];
 
 const OAUTH_PROVIDERS: ReadonlySet<ProviderId> = new Set(["drive", "onedrive", "dropbox"]);
 
+const PROVIDER_LABELS: Record<ProviderId, string> = {
+  webdav: "WebDAV / Nextcloud",
+  s3: "S3",
+  drive: "Google Drive",
+  onedrive: "OneDrive",
+  dropbox: "Dropbox",
+};
+
 /**
- * Vault & Sync screen (M3): one active provider (desktop XOR rule).
- * WebDAV/Nextcloud and S3 are form-based; Drive/OneDrive/Dropbox run the
+ * Vault & Sync screen (M3/M3.5): connecting from the LOCAL vault creates a
+ * fresh, isolated vault container for that connection (never mixing files
+ * between providers); a connection vault shows status/sync/disconnect
+ * only. WebDAV and S3 are form-based; Drive/OneDrive/Dropbox run the
  * system-browser OAuth flow (oauthService) and connect on redirect.
  */
 export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  const isLocalVault = vault.vaultId === LOCAL_VAULT_ID;
   const [provider, setProvider] = useState<ProviderId>("webdav");
+  const [stored, setStored] = useState<MobileSyncProvider | null>(null);
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
     endpoint: "",
@@ -47,28 +60,16 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
   const connected = status.status !== "off";
 
   useEffect(() => {
-    void getStoredProvider().then((stored) => {
-      if (!stored) return;
-      setProvider(stored.provider);
-      if (stored.provider === "webdav") setWebdav(stored.creds);
-      else if (stored.provider === "s3") setS3({ prefix: "", ...stored.creds });
-      else if (stored.provider === "drive") {
-        setDriveClientId(stored.creds.clientId);
-        setDriveClientSecret(stored.creds.clientSecret ?? "");
-        setRemoteFolder(stored.creds.rootFolderName ?? "");
-      } else if (stored.provider === "onedrive") {
-        setRemoteFolder(stored.creds.rootFolderName ?? "");
-      } else {
-        setRemoteFolder(stored.creds.rootPath ?? "");
-      }
-    });
-  }, []);
+    if (isLocalVault) return;
+    void getStoredProvider(vault.vaultId).then(setStored);
+  }, [vault.vaultId, isLocalVault]);
 
   const connect = () => {
     setBusy(true);
     setError(null);
     if (OAUTH_PROVIDERS.has(provider)) {
-      // Opens the system browser; the redirect handler finishes the connect.
+      // Opens the system browser; the redirect handler finishes the connect
+      // (which creates and activates the new vault).
       void beginOAuth(provider as OAuthProviderId, {
         clientId: driveClientId.trim() || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
@@ -99,7 +100,7 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
 
   const disconnect = () => {
     setBusy(true);
-    void disconnectProvider().finally(() => setBusy(false));
+    void disconnectProvider(vault).finally(() => setBusy(false));
   };
 
   const canConnect =
@@ -134,7 +135,7 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
 
       {!syncPossible(vault) ? (
         <EmptyState icon={<CloudOff size={20} />}>{t("mobile.comingSoon")}</EmptyState>
-      ) : (
+      ) : !isLocalVault ? (
         <div className="m-sync">
           <div className="m-row m-row--static">
             <span className="m-sync-status">
@@ -152,6 +153,24 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
             )}
           </div>
           {status.message && <p className="m-sync-error">{status.message}</p>}
+          {stored ? (
+            <>
+              <div className="m-row m-row--static">
+                <span>{PROVIDER_LABELS[stored.provider]}</span>
+              </div>
+              <div className="m-sync-actions">
+                <Button disabled={busy} onClick={disconnect}>
+                  {t("mobile.syncDisconnect")}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <EmptyState icon={<CloudOff size={20} />}>{t("mobile.vaultNotConnected")}</EmptyState>
+          )}
+        </div>
+      ) : (
+        <div className="m-sync">
+          <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
           {error && <p className="m-sync-error">{error}</p>}
 
           <label className="m-field">
@@ -275,11 +294,6 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
             <Button disabled={busy || !canConnect} onClick={connect} variant="primary">
               {t("mobile.syncConnect")}
             </Button>
-            {connected && (
-              <Button disabled={busy} onClick={disconnect}>
-                {t("mobile.syncDisconnect")}
-              </Button>
-            )}
           </div>
         </div>
       )}

@@ -1399,6 +1399,10 @@
     "s3Prefix": "Préfixe (optionnel)",
     "syncClientId": "ID client",
     "syncClientSecret": "Secret client (optionnel)",
-    "syncFolder": "Dossier distant (optionnel)"
+    "syncFolder": "Dossier distant (optionnel)",
+    "vaults": "Coffres",
+    "vaultLocal": "Sur cet appareil",
+    "vaultNotConnected": "Ce coffre n’est plus connecté.",
+    "syncCreatesVaultHint": "La connexion crée un nouveau coffre séparé pour cet emplacement cloud."
   }
 }

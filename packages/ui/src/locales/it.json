@@ -1399,6 +1399,10 @@
     "s3Prefix": "Prefisso (opzionale)",
     "syncClientId": "ID client",
     "syncClientSecret": "Segreto client (opzionale)",
-    "syncFolder": "Cartella remota (opzionale)"
+    "syncFolder": "Cartella remota (opzionale)",
+    "vaults": "Vault",
+    "vaultLocal": "Su questo dispositivo",
+    "vaultNotConnected": "Questo vault non è più connesso.",
+    "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud."
   }
 }

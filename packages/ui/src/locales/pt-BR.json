@@ -1399,6 +1399,10 @@
     "s3Prefix": "Prefixo (opcional)",
     "syncClientId": "ID do cliente",
     "syncClientSecret": "Segredo do cliente (opcional)",
-    "syncFolder": "Pasta remota (opcional)"
+    "syncFolder": "Pasta remota (opcional)",
+    "vaults": "Cofres",
+    "vaultLocal": "Neste dispositivo",
+    "vaultNotConnected": "Este cofre não está mais conectado.",
+    "syncCreatesVaultHint": "Conectar cria um cofre novo e separado para este local na nuvem."
   }
 }

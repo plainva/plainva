@@ -12,23 +12,27 @@ import {
 } from "@plainva/core";
 import { getPlatformServices } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
-import type { MobileVault } from "./vaultService";
+import { switchVault, type MobileVault } from "./vaultService";
+import { addVault, newVaultId } from "./vaultRegistry";
 
 /**
  * Mobile sync bootstrap (M3), mirroring the desktop wiring: the engine
  * pushes through the conflict-aware chain, the worker pulls through the
  * backup adapter, and every core guard (three-way merge, .CONFLICT,
- * mass-deletion brake) applies unchanged. ONE provider is active at a time
- * (desktop XOR rule). Requires the native SQLite queue, so sync is
- * unavailable on the plain web dev server (same rule as search).
+ * mass-deletion brake) applies unchanged. Requires the native SQLite
+ * queue, so sync is unavailable on the plain web dev server (same rule as
+ * search).
+ *
+ * Isolation rework (M3.5): every connection owns a dedicated vault
+ * container — connecting creates a fresh, EMPTY vault and pulls into it;
+ * nothing from another vault is ever enqueued toward a provider. One
+ * credential slot per vault id.
  *
  * Providers: WebDAV/Nextcloud and S3 (form-based) plus Google Drive,
  * OneDrive and Dropbox (system-browser OAuth via oauthService).
  */
 
-const CRED_KEY = "sync_provider_mobile";
-/** Pre-provider-refactor slot; migrated transparently on first read. */
-const LEGACY_WEBDAV_KEY = "webdav_credentials_mobile";
+const credKeyFor = (vaultId: string) => `sync_provider_mobile_${vaultId}`;
 
 export interface DriveMobileCredentials {
   clientId: string;
@@ -82,13 +86,10 @@ export function getSyncStatus(): SyncState {
   return state;
 }
 
-export async function getStoredProvider(): Promise<MobileSyncProvider | null> {
+export async function getStoredProvider(vaultId: string): Promise<MobileSyncProvider | null> {
   const store = getPlatformServices().credentials;
-  const stored = await store.readSecret<MobileSyncProvider>(CRED_KEY);
-  if (stored && stored.provider) return stored;
-  const legacy = await store.readSecret<WebDavCredentials>(LEGACY_WEBDAV_KEY);
-  if (legacy && legacy.url) return { provider: "webdav", creds: legacy };
-  return null;
+  const stored = await store.readSecret<MobileSyncProvider>(credKeyFor(vaultId));
+  return stored && stored.provider ? stored : null;
 }
 
 export function syncPossible(v: MobileVault): boolean {
@@ -98,30 +99,54 @@ export function syncPossible(v: MobileVault): boolean {
 /** Starts the worker for stored credentials; no-op without credentials/queue. */
 export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
   if (worker || !syncPossible(v)) return;
-  const stored = await getStoredProvider();
+  const stored = await getStoredProvider(v.vaultId);
   if (!stored) {
     v.markFirstSyncComplete();
+    setState({ status: "off", message: null });
     return;
   }
   startWorker(v, stored);
 }
 
-/** Saves the provider, enqueues the local files once and starts the worker. */
-export async function connectProvider(v: MobileVault, p: MobileSyncProvider): Promise<void> {
-  if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
-  const store = getPlatformServices().credentials;
-  await store.writeSecret(CRED_KEY, p);
-  await store.removeSecret(LEGACY_WEBDAV_KEY);
-  await v.syncQueue!.enqueueAllLocalFiles();
-  stopSync();
-  startWorker(v, p);
+/** Human-readable vault name for a fresh connection. */
+function providerVaultName(p: MobileSyncProvider): string {
+  switch (p.provider) {
+    case "webdav": {
+      try {
+        return `WebDAV · ${new URL(p.creds.url).hostname}`;
+      } catch {
+        return "WebDAV";
+      }
+    }
+    case "s3":
+      return `S3 · ${p.creds.bucket}`;
+    case "drive":
+      return `Google Drive · ${p.creds.rootFolderName || "Plainva"}`;
+    case "onedrive":
+      return `OneDrive · ${p.creds.rootFolderName || "Plainva"}`;
+    default:
+      return `Dropbox · ${p.creds.rootPath || "/"}`;
+  }
 }
 
-export async function disconnectProvider(): Promise<void> {
+/**
+ * Creates a fresh, EMPTY vault container for this connection, stores the
+ * credentials under its slot and switches to it — the first cycle pulls
+ * the remote content into the new vault. Files from other vaults are
+ * never enqueued (isolation requirement, maintainer 2026-07-10).
+ */
+export async function connectProvider(v: MobileVault, p: MobileSyncProvider): Promise<void> {
+  if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
+  const id = newVaultId();
+  await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await addVault({ id, name: providerVaultName(p), provider: p.provider });
+  await switchVault(id);
+}
+
+/** Disconnects the ACTIVE vault; its local files stay readable. */
+export async function disconnectProvider(v: MobileVault): Promise<void> {
   stopSync();
-  const store = getPlatformServices().credentials;
-  await store.removeSecret(CRED_KEY);
-  await store.removeSecret(LEGACY_WEBDAV_KEY);
+  await getPlatformServices().credentials.removeSecret(credKeyFor(v.vaultId));
   setState({ status: "off", message: null });
 }
 
@@ -146,11 +171,11 @@ export function stopSync(): void {
   worker = null;
 }
 
-function buildTarget(p: MobileSyncProvider): ISyncTarget {
+function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson).
   const persistRotation = () => {
-    void getPlatformServices().credentials.writeSecret(CRED_KEY, p).catch(() => {});
+    void getPlatformServices().credentials.writeSecret(credKey, p).catch(() => {});
   };
   switch (p.provider) {
     case "s3":
@@ -204,7 +229,7 @@ function buildTarget(p: MobileSyncProvider): ISyncTarget {
 
 function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   v.enableSyncEnqueue();
-  const target = buildTarget(p);
+  const target = buildTarget(p, credKeyFor(v.vaultId));
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).

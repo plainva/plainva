@@ -269,3 +269,19 @@ body {
   gap: 10px;
   margin-top: 4px;
 }
+
+/* M3.5 vault isolation */
+.m-section-label {
+  font-size: var(--text-xs, 0.75rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.m-hint {
+  margin: 0 0 4px;
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--text-muted);
+}
+.m-row:disabled {
+  opacity: 1;
+}

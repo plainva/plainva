@@ -1389,6 +1389,10 @@
     "s3Prefix": "前缀（可选）",
     "syncClientId": "客户端 ID",
     "syncClientSecret": "客户端密钥（可选）",
-    "syncFolder": "远程文件夹（可选）"
+    "syncFolder": "远程文件夹（可选）",
+    "vaults": "仓库",
+    "vaultLocal": "在此设备上",
+    "vaultNotConnected": "此仓库已断开连接。",
+    "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。"
   }
 }

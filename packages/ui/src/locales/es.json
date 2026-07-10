@@ -1399,6 +1399,10 @@
     "s3Prefix": "Prefijo (opcional)",
     "syncClientId": "ID de cliente",
     "syncClientSecret": "Secreto de cliente (opcional)",
-    "syncFolder": "Carpeta remota (opcional)"
+    "syncFolder": "Carpeta remota (opcional)",
+    "vaults": "Bóvedas",
+    "vaultLocal": "En este dispositivo",
+    "vaultNotConnected": "Esta bóveda ya no está conectada.",
+    "syncCreatesVaultHint": "Conectar crea una bóveda nueva y separada para esta ubicación en la nube."
   }
 }

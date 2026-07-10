@@ -15,11 +15,13 @@ import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
+import { listVaults, type VaultEntry } from "./services/vaultRegistry";
+import { switchVault } from "./services/vaultService";
 import { App as CapApp } from "@capacitor/app";
 import { EditorHost } from "./EditorHost";
 import { SyncScreen } from "./SyncScreen";
 import { useSyncExternalStore } from "react";
-import { AlertTriangle, Cloud } from "lucide-react";
+import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
 
 // Tab/stack shell per the mobile UX plan (E1): four tabs plus the center
 // capture action; every tab keeps its own navigation stack; the tab bar
@@ -54,8 +56,24 @@ export default function App() {
       void startSyncIfConfigured(v);
     });
     const onChanged = () => setBump((n) => n + 1);
+    // Vault switch (M3.5 isolation): drop all stacks, reboot the vault and
+    // restart sync for the newly active container.
+    const onSwitched = () => {
+      setVault(null);
+      setStacks({ notes: [], search: [], today: [], more: [] });
+      setActiveTab("more");
+      void getMobileVault().then((v) => {
+        setVault(v);
+        setBump((n) => n + 1);
+        void startSyncIfConfigured(v);
+      });
+    };
     window.addEventListener("m-vault-changed", onChanged);
-    return () => window.removeEventListener("m-vault-changed", onChanged);
+    window.addEventListener("m-vault-switched", onSwitched);
+    return () => {
+      window.removeEventListener("m-vault-changed", onChanged);
+      window.removeEventListener("m-vault-switched", onSwitched);
+    };
   }, []);
 
   // OAuth redirect (M3): the system browser returns via the custom scheme.
@@ -160,7 +178,10 @@ export default function App() {
         ) : activeTab === "today" ? (
           <TodayIntro onOpen={openToday} />
         ) : (
-          <MoreView onOpenSync={() => push("more", { kind: "sync", path: "" })} />
+          <MoreView
+            activeVaultId={vault.vaultId}
+            onOpenSync={() => push("more", { kind: "sync", path: "" })}
+          />
         )}
       </div>
 
@@ -417,8 +438,12 @@ function SyncIndicator() {
   );
 }
 
-function MoreView({ onOpenSync }: { onOpenSync: () => void }) {
+function MoreView({ onOpenSync, activeVaultId }: { onOpenSync: () => void; activeVaultId: string }) {
   const { t } = useTranslation();
+  const [vaults, setVaults] = useState<VaultEntry[]>([]);
+  useEffect(() => {
+    void listVaults().then(setVaults);
+  }, [activeVaultId]);
   const later = [
     t("mobile.sectionBookmarksTags"),
     t("mobile.sectionBases"),
@@ -429,6 +454,21 @@ function MoreView({ onOpenSync }: { onOpenSync: () => void }) {
       <header className="m-header">
         <h1>{t("mobile.tabMore")}</h1>
       </header>
+      <div className="m-row m-row--static">
+        <span className="m-section-label">{t("mobile.vaults")}</span>
+      </div>
+      {vaults.map((v) => (
+        <button
+          className="m-row"
+          disabled={v.id === activeVaultId}
+          key={v.id}
+          onClick={() => void switchVault(v.id)}
+        >
+          <FolderClosed className={v.id === activeVaultId ? "m-accent" : "m-chevron"} size={16} />
+          <span>{v.name || t("mobile.vaultLocal")}</span>
+          {v.id === activeVaultId && <Check className="m-accent" size={16} />}
+        </button>
+      ))}
       <button className="m-row" onClick={onOpenSync}>
         <Cloud className="m-accent" size={16} />
         <span>{t("mobile.sectionVaultSync")}</span>
