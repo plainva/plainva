@@ -16,9 +16,27 @@ interface WebDavHttpNative {
     body?: string;
     bodyBase64?: boolean;
   }): Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>;
+  allowOrigin(options: { origin: string }): Promise<void>;
 }
 
 const WebDavHttp = registerPlugin<WebDavHttpNative>("WebDavHttp");
+
+/**
+ * Registers a USER-CONFIGURED server origin with the native bridge's origin
+ * policy (hardening P4.3, finding M8): fixed provider hosts (Google/MS/
+ * Dropbox/S3-AWS) are baked into the native layer; everything else — a
+ * WebDAV URL, a custom S3 endpoint, deliberately including private-network
+ * targets the user typed in — must be allowed here before the first request.
+ * No-op on the web dev server (the browser fetch has no such gate).
+ */
+export async function allowHttpOrigin(urlOrOrigin: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await WebDavHttp.allowOrigin({ origin: urlOrOrigin });
+  } catch (e) {
+    console.warn("[webdavHttp] allowOrigin failed", e);
+  }
+}
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 mirror of data_extraction_rules.xml (see the rationale there). -->
+<full-backup-content>
+    <include domain="file" path="vault/" />
+    <include domain="sharedpref" path="CapacitorStorage.xml" />
+</full-backup-content>

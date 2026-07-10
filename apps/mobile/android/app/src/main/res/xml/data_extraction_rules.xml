@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup policy (hardening P4.5, finding M6 / decision E7). Android 12+.
+  Listing ANY <include> makes the set exclusive, so everything below is a
+  whitelist:
+    - files/vault/            the LOCAL vault - the system backup is its only
+                              safety net (cloud vaults live under files/vaults/
+                              and are reconstructed by a fresh sync instead)
+    - CapacitorStorage.xml    app settings + the vault registry (small, harmless)
+  Implicitly EXCLUDED this way: the per-vault index databases and sync queues
+  (rebuilt on demand), files/vaults/ cloud containers, the crash-draft area,
+  and plainva_secure.xml - the encrypted credential blobs are useless after a
+  restore anyway (the AndroidKeyStore key never leaves the original device)
+  and secrets do not belong in backups on principle.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="vault/" />
+        <include domain="sharedpref" path="CapacitorStorage.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="vault/" />
+        <include domain="sharedpref" path="CapacitorStorage.xml" />
+    </device-transfer>
+</data-extraction-rules>

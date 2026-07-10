@@ -12,7 +12,7 @@ import {
 } from "@plainva/core";
 import { getPlatformServices } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { webdavFetch } from "../adapters/webdavHttp";
+import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import {
   addVault,
@@ -277,6 +277,11 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
 
 function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   v.enableSyncEnqueue();
+  // Origin policy (P4.3): user-configured servers must be allowed on the
+  // native bridge before requests fly. Fire-and-forget is safe — a request
+  // racing the registration fails ONE cycle and the next one self-heals.
+  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const target = buildTarget(p, credKeyFor(v.vaultId));
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
