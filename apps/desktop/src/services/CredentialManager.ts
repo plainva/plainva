@@ -1,6 +1,7 @@
 import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
+import type { ICredentialStore } from "@plainva/ui";
 
 /**
  * BYO Google Drive credentials as entered/stored on the desktop. clientId/clientSecret
@@ -49,7 +50,7 @@ export interface DropboxStoredCredentials {
  * in the AI harness. The store fallback keeps the app functional regardless; verify the
  * native keychain path before release.
  */
-export class CredentialManager {
+export class CredentialManager implements ICredentialStore {
   // Lazy on purpose: the singleton below is created at module load, and an
   // eager `load()` would fire (and, without Tauri, reject unhandled) for
   // every importer — even sessions that never touch credentials.
@@ -98,7 +99,10 @@ export class CredentialManager {
     await store.save();
   }
 
-  private async readSecret<T>(key: string): Promise<T | null> {
+  // Generic secret primitives — public as the platform-neutral
+  // ICredentialStore surface (ADR 0011); the typed provider methods
+  // below stay the desktop-facing API.
+  public async readSecret<T>(key: string): Promise<T | null> {
     const fromKeychain = await this.keychainGet(key);
     if (fromKeychain !== undefined) {
       if (fromKeychain) return JSON.parse(fromKeychain) as T;
@@ -116,7 +120,7 @@ export class CredentialManager {
     return value || null;
   }
 
-  private async writeSecret<T>(key: string, value: T): Promise<void> {
+  public async writeSecret<T>(key: string, value: T): Promise<void> {
     const ok = await this.keychainSet(key, JSON.stringify(value));
     if (ok) {
       await this.storeDelete(key); // avoid a stale plaintext copy lingering in the store
@@ -127,7 +131,7 @@ export class CredentialManager {
     await store.save();
   }
 
-  private async removeSecret(key: string): Promise<void> {
+  public async removeSecret(key: string): Promise<void> {
     await this.keychainDelete(key);
     await this.storeDelete(key);
   }

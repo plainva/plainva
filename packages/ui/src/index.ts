@@ -30,6 +30,11 @@ export * from "./lib/wordCount";
 // exported only via the "@plainva/ui/i18n" subpath)
 export * from "./services/languages";
 
+// Platform-services contract: shell capabilities injected by the app
+export * from "./platform/settings";
+export * from "./platform/credentials";
+export * from "./platform/services";
+
 // React primitives and shared hooks
 export * from "./components/ui/index";
 export * from "./components/ui/useFixedPopover";

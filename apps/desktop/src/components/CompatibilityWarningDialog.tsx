@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY, SHOW_COMPATIBILITY_WARNING_KEY } from "../contexts/VaultContext";
+import { getSettingsStore } from "../services/settingsStore";
+import { SHOW_COMPATIBILITY_WARNING_KEY } from "../contexts/VaultContext";
 import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
@@ -20,7 +20,7 @@ export function CompatibilityWarningDialog({ onConfirm, onCancel, featureName }:
   const handleConfirm = async () => {
     if (dontShowAgain) {
       try {
-        const store = await Store.load(STORE_KEY);
+        const store = await getSettingsStore();
         await store.set(SHOW_COMPATIBILITY_WARNING_KEY, false);
         await store.save();
       } catch (e) {

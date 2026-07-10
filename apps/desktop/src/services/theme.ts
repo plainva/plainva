@@ -1,5 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY } from "../contexts/VaultContext";
+import { getSettingsStore } from "./settingsStore";
 
 export type ThemeMode = "light" | "dark";
 export type ThemePref = "light" | "dark" | "system";
@@ -238,7 +237,7 @@ export function applyThemeName(name: ThemeName): void {
 
 export async function getStoredThemePref(): Promise<ThemePref> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<ThemePref>("theme");
     return v === "light" || v === "dark" || v === "system" ? v : "system";
   } catch {
@@ -247,7 +246,7 @@ export async function getStoredThemePref(): Promise<ThemePref> {
 }
 
 export async function setStoredThemePref(pref: ThemePref): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   await store.set("theme", pref);
   await store.save();
   await applyStoredTheme();
@@ -255,7 +254,7 @@ export async function setStoredThemePref(pref: ThemePref): Promise<void> {
 
 export async function getStoredThemeName(): Promise<ThemeName> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<string>("themeName");
     return typeof v === "string" && v ? v : DEFAULT_THEME_NAME;
   } catch {
@@ -264,7 +263,7 @@ export async function getStoredThemeName(): Promise<ThemeName> {
 }
 
 export async function setStoredThemeName(name: ThemeName): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   await store.set("themeName", name);
   await store.save();
   await applyStoredTheme();
@@ -273,7 +272,7 @@ export async function setStoredThemeName(name: ThemeName): Promise<void> {
 /** Active variant per theme, e.g. { lcars: "engage" }. */
 export async function getStoredThemeVariants(): Promise<Record<string, string>> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<Record<string, string>>("themeVariants");
     return v && typeof v === "object" ? v : {};
   } catch {
@@ -282,7 +281,7 @@ export async function getStoredThemeVariants(): Promise<Record<string, string>> 
 }
 
 export async function setStoredThemeVariant(themeId: string, variantId: string): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const current = (await store.get<Record<string, string>>("themeVariants")) ?? {};
   await store.set("themeVariants", { ...current, [themeId]: variantId });
   await store.save();
@@ -292,7 +291,7 @@ export async function setStoredThemeVariant(themeId: string, variantId: string):
 /** Ids of easter-egg themes the user has discovered. */
 export async function getUnlockedThemes(): Promise<string[]> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<string[]>("unlockedThemes");
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
   } catch {
@@ -301,7 +300,7 @@ export async function getUnlockedThemes(): Promise<string[]> {
 }
 
 export async function addUnlockedTheme(id: string): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const current = (await store.get<string[]>("unlockedThemes")) ?? [];
   if (!current.includes(id)) {
     await store.set("unlockedThemes", [...current, id]);
@@ -312,7 +311,7 @@ export async function addUnlockedTheme(id: string): Promise<void> {
 /** Collected variant ids per theme, e.g. { lcars: ["make-it-so", "qapla"] }. */
 export async function getUnlockedVariants(): Promise<Record<string, string[]>> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<Record<string, string[]>>("unlockedThemeVariants");
     return v && typeof v === "object" ? v : {};
   } catch {
@@ -322,7 +321,7 @@ export async function getUnlockedVariants(): Promise<Record<string, string[]>> {
 
 /** Adds a collected variant; returns the theme's new collection. */
 export async function addUnlockedVariant(themeId: string, variantId: string): Promise<string[]> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const all = ((await store.get<Record<string, string[]>>("unlockedThemeVariants")) ?? {}) as Record<string, string[]>;
   const list = Array.isArray(all[themeId]) ? all[themeId] : [];
   const next = list.includes(variantId) ? list : [...list, variantId];
@@ -339,7 +338,7 @@ export function visibleThemes(unlocked: string[]): ThemeDef[] {
 /** Activates an easter-egg theme (remembering the previous theme) with the
  * given variant, unlocking both. */
 export async function activateEasterEggTheme(themeId: string, variantId: string): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const current = await getStoredThemeName();
   if (current !== themeId) {
     await store.set(`themeBefore_${themeId}`, current);
@@ -354,7 +353,7 @@ export async function activateEasterEggTheme(themeId: string, variantId: string)
 /** Activates a variant-less easter-egg theme (win95): remembers the previous
  * theme and unlocks + switches — no variant machinery involved. */
 export async function activateEasterEggThemeNoVariant(themeId: string): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const current = await getStoredThemeName();
   if (current !== themeId) {
     await store.set(`themeBefore_${themeId}`, current);
@@ -368,7 +367,7 @@ export async function activateEasterEggThemeNoVariant(themeId: string): Promise<
 export async function deactivateEasterEggTheme(themeId: string): Promise<void> {
   let previous = DEFAULT_THEME_NAME;
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<string>(`themeBefore_${themeId}`);
     if (typeof v === "string" && v && v !== themeId && getThemeDef(v)) previous = v;
   } catch {

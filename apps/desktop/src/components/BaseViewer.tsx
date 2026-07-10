@@ -34,8 +34,8 @@ import { appConfirm } from "../services/appDialogs";
 import { NewItemButton, NewItemFolderDialog } from "./base/NewItemButton";
 import type { ReverseIntent } from "./ColumnSchemaEditor";
 import { activeDocument } from "../services/activeDocument";
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY, SHOW_COMPATIBILITY_WARNING_KEY, extendedDatabasesKey } from "../contexts/VaultContext";
+import { getSettingsStore } from "../services/settingsStore";
+import { SHOW_COMPATIBILITY_WARNING_KEY, extendedDatabasesKey } from "../contexts/VaultContext";
 import { CompatibilityWarningDialog } from "./CompatibilityWarningDialog";
 import { MissingRequirementDialog } from "./MissingRequirementDialog";
 import { HeaderColorPicker } from "./HeaderColorPicker";
@@ -744,7 +744,7 @@ export function BaseViewer({
 
   useEffect(() => {
     let isMounted = true;
-    Store.load(STORE_KEY).then(store => {
+    getSettingsStore().then(store => {
       if (!isMounted) return;
       store.get<boolean>(SHOW_COMPATIBILITY_WARNING_KEY).then(show => {
         if (show !== undefined && show !== null) setShowCompatWarning(show);

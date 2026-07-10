@@ -1,7 +1,6 @@
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import { ensureOkfFrontmatter } from "@plainva/core";
 import {
-  STORE_KEY,
   defaultNoteTypeKey,
   dailyNoteTypeKey,
   DEFAULT_NOTE_TYPE,
@@ -16,14 +15,14 @@ import {
 
 /** Per-vault configured default `type` for new notes (fallback "Note"). */
 export async function getConfiguredNoteType(vaultPath: string): Promise<string> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const value = await store.get<string>(defaultNoteTypeKey(vaultPath));
   return value?.trim() || DEFAULT_NOTE_TYPE;
 }
 
 /** Per-vault configured default `type` for daily notes (fallback "Daily Note"). */
 export async function getConfiguredDailyNoteType(vaultPath: string): Promise<string> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const value = await store.get<string>(dailyNoteTypeKey(vaultPath));
   return value?.trim() || DEFAULT_DAILY_NOTE_TYPE;
 }

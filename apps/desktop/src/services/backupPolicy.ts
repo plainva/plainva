@@ -1,8 +1,8 @@
-import type { Store } from "@tauri-apps/plugin-store";
+import type { ISettingsStore } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { BackupRetentionPolicy, DEFAULT_BACKUP_RETENTION } from "@plainva/core";
 
-/** Same file as STORE_KEY in VaultContext; duplicated here so services do not import the React context module. */
+/** Same file as STORE_KEY in services/settingsStore.ts; duplicated here so this policy module stays free of runtime store imports. */
 export const SETTINGS_STORE_FILE = "plainva-settings.json";
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
@@ -28,7 +28,7 @@ export const ZIP_INTERVAL_MS = 24 * 60 * 60 * 1000;
  */
 export const ZIP_EXCLUDED_DIR_NAMES = [".plainva", ".git", ".trash", "node_modules"];
 
-export async function loadBackupRetentionSettings(store: Store, vaultPath: string): Promise<BackupRetentionPolicy> {
+export async function loadBackupRetentionSettings(store: ISettingsStore, vaultPath: string): Promise<BackupRetentionPolicy> {
   const interval = await store.get<number>(backupSnapshotIntervalKey(vaultPath));
   const maxCount = await store.get<number>(backupMaxCountKey(vaultPath));
   const maxAge = await store.get<number>(backupMaxAgeDaysKey(vaultPath));
@@ -48,7 +48,7 @@ export interface ZipBackupSettings {
   lastRun: number;
 }
 
-export async function loadZipBackupSettings(store: Store, vaultPath: string): Promise<ZipBackupSettings> {
+export async function loadZipBackupSettings(store: ISettingsStore, vaultPath: string): Promise<ZipBackupSettings> {
   const enabled = await store.get<boolean>(backupZipEnabledKey(vaultPath));
   const dest = await store.get<string>(backupZipDestKey(vaultPath));
   const keep = await store.get<number>(backupZipKeepKey(vaultPath));

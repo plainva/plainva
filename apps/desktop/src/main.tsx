@@ -5,7 +5,10 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import App from "./App";
-import { TooltipHost } from "@plainva/ui";
+import { TooltipHost, setPlatformServices } from "@plainva/ui";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { getSettingsStore } from "./services/settingsStore";
+import { credentialManager } from "./services/CredentialManager";
 import { ToastHost } from "./components/ui/ToastHost";
 import { DialogHost } from "./components/ui/DialogHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
@@ -31,6 +34,13 @@ initInputModality();
 initWebviewHardening();
 // Uncaught errors feed the diagnostics export (P4.2, no note content).
 installGlobalDiagnostics();
+// Register the platform capabilities (ADR 0011): shared code in @plainva/ui
+// reaches settings, secrets and URL-opening only through this injected bundle.
+setPlatformServices({
+  loadSettings: getSettingsStore,
+  credentials: credentialManager,
+  openExternal: (url) => openUrl(url),
+});
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.

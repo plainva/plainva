@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, remove } from "@tauri-apps/plugin-fs";
-import type { Store } from "@tauri-apps/plugin-store";
+import type { ISettingsStore } from "@plainva/ui";
 import { format } from "date-fns";
 import {
   DEFAULT_ZIP_KEEP,
@@ -70,7 +70,7 @@ function emitStatus(vaultPath: string, detail: Record<string, unknown> & { state
  * An unreachable destination (NAS offline) returns `{ok:false}` WITHOUT
  * touching lastRun, so the scheduler retries on its next tick.
  */
-export async function runVaultZipBackup(opts: { vaultPath: string; store: Store }): Promise<ZipRunOutcome> {
+export async function runVaultZipBackup(opts: { vaultPath: string; store: ISettingsStore }): Promise<ZipRunOutcome> {
   if (zipRunning) return { ok: false, error: "already-running" };
   zipRunning = true;
   const { vaultPath, store } = opts;

@@ -1,8 +1,7 @@
 import { format } from "date-fns";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
-  STORE_KEY,
   dailyNotesFolderKey,
   dailyNotesFormatKey,
   templateFolderKey,
@@ -24,7 +23,7 @@ export { buildDailyNotePath };
  */
 export async function resolveActiveDailyNoteDate(path: string | null, vaultPath: string): Promise<Date | null> {
   if (!path || !vaultPath) return null;
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "";
   const rawFormat = (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD";
   return parseDailyNoteDate(path, rawFormat, folder);
@@ -40,7 +39,7 @@ export async function listExistingDailyNotes(
   dates: Date[],
   opts: { vaultPath: string; adapter: Pick<DailyNoteAdapter, "exists"> },
 ): Promise<Set<string>> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const folder = (await store.get<string>(dailyNotesFolderKey(opts.vaultPath))) || "";
   const rawFormat = (await store.get<string>(dailyNotesFormatKey(opts.vaultPath))) || "YYYY-MM-DD";
   const out = new Set<string>();
@@ -87,7 +86,7 @@ export interface DailyNoteOptions {
  */
 export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOptions): Promise<string | null> {
   const { vaultPath, adapter, onIndex, confirmCreate, confirmMessage, confirmTitle } = opts;
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "";
   const rawFormat = (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD";
   const tmplFolder = (await store.get<string>(templateFolderKey(vaultPath))) || "Templates";

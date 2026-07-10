@@ -12,7 +12,7 @@ import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { oneDriveFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "../services/settingsStore";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
@@ -85,7 +85,9 @@ interface VaultContextType extends VaultState {
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
-export const STORE_KEY = "plainva-settings.json";
+// Store filename lives with the desktop settings adapter now (ADR 0011);
+// re-exported here because many modules import their store KEYS from this hub.
+export { STORE_KEY } from "../services/settingsStore";
 
 /** Default sync poll interval in seconds, and the lowest value we allow. */
 export const DEFAULT_SYNC_INTERVAL_SECONDS = 15;
@@ -250,7 +252,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Retention (snapshot interval / max count / max age) is per-vault
       // configurable; settings changes are pushed in via updatePolicy without
       // a vault reload (plainva-backup-settings-changed listener below).
-      const retentionStore = await Store.load(STORE_KEY);
+      const retentionStore = await getSettingsStore();
       const retentionPolicy = await loadBackupRetentionSettings(retentionStore, path);
       const backupVaultAdapter = new BackupVaultAdapter(tauriVaultAdapter, {
         policy: retentionPolicy,
@@ -477,7 +479,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         if (target) {
-            const settingsStore = await Store.load(STORE_KEY);
+            const settingsStore = await getSettingsStore();
             // Per-vault interval, falling back to the legacy global value, then the default.
             const perVaultInterval = await settingsStore.get<number>(syncIntervalKey(path));
             const globalInterval = await settingsStore.get<number>("syncIntervalSeconds");
@@ -593,7 +595,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     const initStore = async () => {
       try {
-        const store = await Store.load(STORE_KEY);
+        const store = await getSettingsStore();
         const savedPath = await store.get<string>("lastVaultPath");
         let savedRecents = await store.get<string[]>("recentVaults") || [];
         
@@ -696,7 +698,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const handler = async () => {
       if (!state.vaultPath || !state.backupAdapter) return;
       try {
-        const store = await Store.load(STORE_KEY);
+        const store = await getSettingsStore();
         state.backupAdapter.updatePolicy(await loadBackupRetentionSettings(store, state.vaultPath));
       } catch (e) {
         console.warn("[VaultContext] applying backup settings failed", e);
@@ -735,7 +737,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [state.vaultPath, state.syncWorker]);
 
   const openVault = async (path: string) => {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     await store.set("lastVaultPath", path);
     
     const currentRecents = await store.get<string[]>("recentVaults") || [];
@@ -785,7 +787,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
 
     try {
-      const store = await Store.load(STORE_KEY);
+      const store = await getSettingsStore();
       await store.set("lastVaultPath", null);
       await store.save();
     } catch (e) {
@@ -812,7 +814,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const removeRecentVault = async (path: string) => {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const currentRecents = (await store.get<string[]>("recentVaults")) || [];
     const newRecents = currentRecents.filter(p => p !== path);
     await store.set("recentVaults", newRecents);
@@ -827,7 +829,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const setAutoOpenLastVault = async (value: boolean) => {
     setState(s => ({ ...s, autoOpenLastVault: value }));
     try {
-      const store = await Store.load(STORE_KEY);
+      const store = await getSettingsStore();
       await store.set(AUTO_OPEN_LAST_VAULT_KEY, value);
       await store.save();
     } catch (e) {

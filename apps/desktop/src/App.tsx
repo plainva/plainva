@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
-import { Store } from "@tauri-apps/plugin-store";
-import { useVault, STORE_KEY, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId } from "./contexts/VaultContext";
+import { getSettingsStore } from "./services/settingsStore";
+import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId } from "./contexts/VaultContext";
 import { useDisplaySyncStatus } from "./services/syncStatusStore";
 import type { SyncWorker } from "@plainva/core";
 import { scanVaultOkf } from "./services/okfConversion";
@@ -127,7 +127,7 @@ function App() {
     okfPromptCheckedRef.current = vaultPath;
     (async () => {
       try {
-        const store = await Store.load(STORE_KEY);
+        const store = await getSettingsStore();
         if (await store.get<boolean>(okfPromptDismissedKey(vaultPath))) return;
         const scan = await scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter });
         // One-time explainer (P12) for every vault — new/empty ones included.
@@ -151,7 +151,7 @@ function App() {
       if (!(e as CustomEvent).detail?.isNewConnection || !vaultPath) return;
       void (async () => {
         try {
-          const store = await Store.load(STORE_KEY);
+          const store = await getSettingsStore();
           if (await store.get<boolean>(syncFirstNoticeKey(vaultPath))) return;
           await store.set(syncFirstNoticeKey(vaultPath), true);
           await store.save();

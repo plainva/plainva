@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
-import { STORE_KEY, templateFolderKey } from "../contexts/VaultContext";
+import { templateFolderKey } from "../contexts/VaultContext";
 import { parsePropertyFilter } from "../components/base/filterExpr";
 import { withOkfDefaults } from "./newNote";
 
@@ -150,7 +150,7 @@ export function buildNewItemContent(opts: {
 /** Per-vault configured template folder (same setting the editor's template
  * picker reads; fallback "Templates"). */
 export async function getTemplateFolder(vaultPath: string): Promise<string> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const value = await store.get<string>(templateFolderKey(vaultPath));
   return value?.trim() || "Templates";
 }

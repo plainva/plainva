@@ -1,4 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import {
   scanOkfConformance,
   convertFileToOkf,
@@ -7,7 +7,7 @@ import {
   type OkfConversionOptions,
   type VaultQueryService,
 } from "@plainva/core";
-import { STORE_KEY, templateFolderKey } from "../contexts/VaultContext";
+import { templateFolderKey } from "../contexts/VaultContext";
 
 /**
  * Desktop orchestration of the OKF conversion (Gesamtplan W6): scan the vault
@@ -28,7 +28,7 @@ export async function scanVaultOkf(opts: {
   queryService: VaultQueryService;
   adapter: Pick<OkfConversionAdapter, "readTextFile">;
 }): Promise<OkfScanResult> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   const templateFolder = (await store.get<string>(templateFolderKey(opts.vaultPath))) || "Templates";
   const rows = await opts.queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`

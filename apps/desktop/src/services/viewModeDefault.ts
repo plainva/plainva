@@ -1,5 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY } from "../contexts/VaultContext";
+import { getSettingsStore } from "./settingsStore";
 
 /**
  * Default editor view mode (maintainer request 2026-07-07): which of the three
@@ -28,7 +27,7 @@ const sessionModes = new Map<string, EditorViewMode>();
 
 export async function getStoredDefaultViewMode(): Promise<EditorViewMode> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<EditorViewMode>("defaultViewMode");
     return isEditorViewMode(v) ? v : DEFAULT_VIEW_MODE;
   } catch {
@@ -38,7 +37,7 @@ export async function getStoredDefaultViewMode(): Promise<EditorViewMode> {
 
 export async function setStoredDefaultViewMode(mode: EditorViewMode): Promise<void> {
   cachedDefault = mode;
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   await store.set("defaultViewMode", mode);
   await store.save();
 }

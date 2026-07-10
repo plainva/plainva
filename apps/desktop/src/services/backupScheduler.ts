@@ -1,7 +1,6 @@
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import { IVaultAdapter, VersionHistoryService } from "@plainva/core";
 import {
-  SETTINGS_STORE_FILE,
   ZIP_INTERVAL_MS,
   backupPruneLastRunKey,
   loadBackupRetentionSettings,
@@ -34,7 +33,7 @@ export function startBackupScheduler(opts: { vaultPath: string; adapter: IVaultA
   const zipTick = async (manual = false) => {
     if (stopped) return;
     try {
-      const store = await Store.load(SETTINGS_STORE_FILE);
+      const store = await getSettingsStore();
       const settings = await loadZipBackupSettings(store, vaultPath);
       const due = manual
         ? !isZipRunning() // manual runs bypass the 24h check, never the guard
@@ -50,7 +49,7 @@ export function startBackupScheduler(opts: { vaultPath: string; adapter: IVaultA
   const pruneTick = async () => {
     if (stopped) return;
     try {
-      const store = await Store.load(SETTINGS_STORE_FILE);
+      const store = await getSettingsStore();
       const last = (await store.get<number>(backupPruneLastRunKey(vaultPath))) ?? 0;
       if (Date.now() - last <= PRUNE_INTERVAL_MS) return;
       const { maxAgeDays } = await loadBackupRetentionSettings(store, vaultPath);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "../services/settingsStore";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "../services/toastStore";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -30,7 +30,7 @@ import { DriveSyncTarget, OneDriveSyncTarget, DropboxSyncTarget, S3SyncTarget } 
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { oneDriveFetch } from "../services/authFetch";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, STORE_KEY, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { scanVaultOkf } from "../services/okfConversion";
 import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfInfoModal } from "./OkfInfoModal";
@@ -324,7 +324,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       }
       setConfiguredVaults(set);
       
-      const store = await Store.load(STORE_KEY).catch(() => null);
+      const store = await getSettingsStore().catch(() => null);
       if (store) {
         const showWarn = await store.get<boolean>(SHOW_COMPATIBILITY_WARNING_KEY);
         if (showWarn !== undefined && showWarn !== null) {
@@ -386,7 +386,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       }
 
       // Per-vault sync interval (falls back to the legacy global value, then default).
-      const store = await Store.load(STORE_KEY).catch(() => null);
+      const store = await getSettingsStore().catch(() => null);
       if (store) {
         const perVault = await store.get<number>(syncIntervalKey(section));
         const global = await store.get<number>("syncIntervalSeconds");
@@ -456,7 +456,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     setAppLanguage(lang);
     await changeAppLanguage(lang); // loads the lazy locale chunk first (P2.8)
     try {
-      const store = await Store.load(STORE_KEY);
+      const store = await getSettingsStore();
       await store.set("appLanguage", lang);
       await store.save();
     } catch (e) {
@@ -480,7 +480,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const persistFeature = async (target: string, storeKey: string, value: unknown) => {
     if (target === GENERAL) return;
     try {
-      const store = await Store.load(STORE_KEY);
+      const store = await getSettingsStore();
       await store.set(storeKey, value);
       await store.save();
       if (featuresEventTimer.current) clearTimeout(featuresEventTimer.current);
@@ -498,7 +498,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const persistBackupSetting = async (target: string, storeKey: string, value: unknown) => {
     if (target === GENERAL) return;
     try {
-      const store = await Store.load(STORE_KEY);
+      const store = await getSettingsStore();
       await store.set(storeKey, value);
       await store.save();
       if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-backup-settings-changed"));
@@ -517,7 +517,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       const parsed = parseInt(raw, 10);
       const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : DEFAULT_SYNC_INTERVAL_SECONDS;
       void (async () => {
-        const store = await Store.load(STORE_KEY);
+        const store = await getSettingsStore();
         await store.set(syncIntervalKey(target), seconds);
         await store.save();
         // Reloading the active vault restarts its worker with the new interval.
@@ -1233,7 +1233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={showCompatibilityWarning} onChange={async (e) => {
                           const val = e.target.checked;
                           setShowCompatibilityWarning(val);
-                          const store = await Store.load(STORE_KEY);
+                          const store = await getSettingsStore();
                           await store.set(SHOW_COMPATIBILITY_WARNING_KEY, val);
                           await store.save();
                         }} />

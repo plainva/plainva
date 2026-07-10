@@ -1,8 +1,7 @@
 import { ensureOkfFrontmatter, generateIndexContent, upsertFrontmatterKeys } from "@plainva/core";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "../settingsStore";
 import { readDir } from "@tauri-apps/plugin-fs";
 import {
-  STORE_KEY,
   dailyNotesFolderKey,
   templateFolderKey,
   dailyNoteTemplateKey,
@@ -171,7 +170,7 @@ export async function applyVaultTemplateSettings(
 ): Promise<void> {
   const settings = template?.settings;
   if (!settings) return;
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   if (settings.dailyNotesFolder !== undefined) await store.set(dailyNotesFolderKey(vaultPath), settings.dailyNotesFolder);
   if (settings.templateFolder !== undefined) await store.set(templateFolderKey(vaultPath), settings.templateFolder);
   if (settings.dailyNoteTemplate !== undefined) await store.set(dailyNoteTemplateKey(vaultPath), settings.dailyNoteTemplate);

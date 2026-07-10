@@ -1,5 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY } from "../contexts/VaultContext";
+import { getSettingsStore } from "./settingsStore";
 
 /**
  * UI density (plan Designsprache 2026-07-05, §2.5). "comfortable" is the
@@ -26,7 +25,7 @@ export function applyDensity(density: Density): void {
 
 export async function getStoredDensity(): Promise<Density> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     const v = await store.get<Density>("density");
     return isDensity(v) ? v : DEFAULT_DENSITY;
   } catch {
@@ -35,7 +34,7 @@ export async function getStoredDensity(): Promise<Density> {
 }
 
 export async function setStoredDensity(density: Density): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   await store.set("density", density);
   await store.save();
   applyDensity(density);

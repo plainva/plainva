@@ -1,7 +1,6 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { Store } from "@tauri-apps/plugin-store";
-import { STORE_KEY } from "../contexts/VaultContext";
+import { getSettingsStore } from "./settingsStore";
 import { toast } from "./toastStore";
 import i18n from "@plainva/ui/i18n";
 
@@ -39,7 +38,7 @@ export const AUTO_UPDATE_CHECK_KEY = "autoUpdateCheck";
 
 export async function getAutoUpdateCheck(): Promise<boolean> {
   try {
-    const store = await Store.load(STORE_KEY);
+    const store = await getSettingsStore();
     return (await store.get<boolean>(AUTO_UPDATE_CHECK_KEY)) ?? true;
   } catch {
     return true;
@@ -47,7 +46,7 @@ export async function getAutoUpdateCheck(): Promise<boolean> {
 }
 
 export async function setAutoUpdateCheck(value: boolean): Promise<void> {
-  const store = await Store.load(STORE_KEY);
+  const store = await getSettingsStore();
   await store.set(AUTO_UPDATE_CHECK_KEY, value);
   await store.save();
 }

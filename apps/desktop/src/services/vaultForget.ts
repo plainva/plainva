@@ -1,8 +1,8 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
-import { Store } from "@tauri-apps/plugin-store";
+import { getSettingsStore } from "./settingsStore";
 import { indexDbFileName } from "./indexDbPath";
-import { backupZipDestKey, defaultZipDestination, SETTINGS_STORE_FILE, vaultFolderName } from "./backupPolicy";
+import { backupZipDestKey, defaultZipDestination, vaultFolderName } from "./backupPolicy";
 import { zipNamePattern } from "./vaultZipBackup";
 import { credentialManager } from "./CredentialManager";
 
@@ -67,7 +67,7 @@ export async function forgetVaultData(
   // BEFORE the store purge below deletes it.
   if (opts.deleteZipBackups) {
     await attempt("zip-backups", async () => {
-      const store = await Store.load(SETTINGS_STORE_FILE);
+      const store = await getSettingsStore();
       const custom = ((await store.get<string>(backupZipDestKey(vaultPath))) ?? "").trim();
       const def = await defaultZipDestination(vaultPath);
       // The default destination folder exists exclusively for this vault
@@ -98,7 +98,7 @@ export async function forgetVaultData(
   // Every per-vault settings key — matched by the shared `_<b64(path)>`
   // suffix so future per-vault keys are covered without a registry.
   await attempt("settings", async () => {
-    const store = await Store.load(SETTINGS_STORE_FILE);
+    const store = await getSettingsStore();
     const suffix = perVaultStoreSuffix(vaultPath);
     for (const key of await store.keys()) {
       if (key.endsWith(suffix)) await store.delete(key);
