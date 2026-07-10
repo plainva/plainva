@@ -294,6 +294,19 @@ export class SyncWorker {
     return paths.length;
   }
 
+  /**
+   * Forces the NEXT cycle to run a full listing (dropping the incremental
+   * cursor) and triggers it. A user-facing "sync now" should call THIS: a
+   * bare cursor cycle lists only CHANGES and defers brand-new remote files
+   * to the periodic full listing — on mobile, where the app rarely stays
+   * foregrounded for 20 consecutive cycles, that reads as "new files never
+   * arrive until an app restart" (maintainer report, Pixel 2026-07-10).
+   */
+  public triggerFullListing() {
+    this.cursor = undefined;
+    this.triggerImmediate();
+  }
+
   public triggerImmediate() {
     if (!this.isRunning) {
       console.warn("[SyncWorker] triggerImmediate ignored: worker not running");

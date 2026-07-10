@@ -842,6 +842,23 @@ describe("SyncWorker", () => {
       expect(worker["cursor"]).toBeUndefined(); // next cycle full-lists -> immediate restore
     });
   });
+
+  it("triggerFullListing drops the cursor so the next cycle lists everything", async () => {
+    // Cursor-mode provider: seed a cursor via getStartCursor + full listing.
+    target.getStartCursor = vi.fn().mockResolvedValue("cursor-1");
+    target.pull = vi.fn().mockResolvedValue({ etagMap: new Map() });
+    await worker["runCycle"]();
+    // Steady state: the next cycle pulls INCREMENTALLY with the cursor.
+    await worker["runCycle"]();
+    expect(target.pull).toHaveBeenLastCalledWith("cursor-1");
+
+    // A user-facing "sync now" must see brand-new remote files, which only
+    // a full listing can deliver — triggerFullListing drops the cursor.
+    worker.triggerFullListing();
+    await worker["runCycle"]();
+    // The full-listing branch calls pull() with no argument at all.
+    expect(target.pull.mock.calls.at(-1)).toEqual([]);
+  });
 });
 
 async function sha(text: string): Promise<string> {

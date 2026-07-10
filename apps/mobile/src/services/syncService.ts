@@ -177,7 +177,10 @@ export async function purgeCredentials(vaultId: string): Promise<void> {
 }
 
 export function syncNow(): void {
-  worker?.triggerImmediate();
+  // Full listing, not a bare cursor cycle: brand-new remote files only
+  // arrive through a listing, and on mobile the periodic one (every 20
+  // foreground cycles) practically never comes around (Pixel report).
+  worker?.triggerFullListing();
 }
 
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
