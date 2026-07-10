@@ -1389,6 +1389,13 @@
     "syncNow": "Synchroniser maintenant",
     "syncIdle": "Connecté",
     "syncSyncing": "Synchronisation…",
-    "syncError": "Erreur de sync"
+    "syncError": "Erreur de sync",
+    "syncProvider": "Fournisseur",
+    "s3Endpoint": "Endpoint",
+    "s3Region": "Région",
+    "s3Bucket": "Bucket",
+    "s3AccessKeyId": "Access Key ID",
+    "s3SecretAccessKey": "Secret Access Key",
+    "s3Prefix": "Préfixe (optionnel)"
   }
 }

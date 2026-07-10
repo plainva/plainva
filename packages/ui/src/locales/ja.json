@@ -1379,6 +1379,13 @@
     "syncNow": "今すぐ同期",
     "syncIdle": "接続済み",
     "syncSyncing": "同期中…",
-    "syncError": "同期エラー"
+    "syncError": "同期エラー",
+    "syncProvider": "プロバイダー",
+    "s3Endpoint": "エンドポイント",
+    "s3Region": "リージョン",
+    "s3Bucket": "バケット",
+    "s3AccessKeyId": "アクセスキー ID",
+    "s3SecretAccessKey": "シークレットアクセスキー",
+    "s3Prefix": "プレフィックス（任意）"
   }
 }

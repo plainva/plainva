@@ -1379,6 +1379,13 @@
     "syncNow": "立即同步",
     "syncIdle": "已连接",
     "syncSyncing": "同步中…",
-    "syncError": "同步错误"
+    "syncError": "同步错误",
+    "syncProvider": "服务商",
+    "s3Endpoint": "端点",
+    "s3Region": "区域",
+    "s3Bucket": "存储桶",
+    "s3AccessKeyId": "Access Key ID",
+    "s3SecretAccessKey": "Secret Access Key",
+    "s3Prefix": "前缀（可选）"
   }
 }
