@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Stand: 2026-07-07
+Stand: 2026-07-10
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -83,6 +83,8 @@ Toda nota pode ter um ícone (ao estilo do Notion, acima do título, visível ta
 
 Defina uma **Pasta de modelos** em **Configurações → Configurações do vault → Notas diárias e modelos**. Depois insira modelos com `Ctrl+Alt+T` ou o comando de barra **Inserir modelo**. Os modelos definem por completo o conteúdo dos novos arquivos — inclusive o frontmatter: se um modelo traz seu próprio `type`, o modelo prevalece.
 
+Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos.
+
 ## Notas diárias
 
 **Abrir nota diária** (barra lateral) ou um clique no **Calendário** cria a nota de hoje usando seu formato de data na pasta de notas diárias configurada, opcionalmente a partir de um modelo.
@@ -105,6 +107,11 @@ Defina uma **Pasta de modelos** em **Configurações → Configurações do vaul
 ## Imprimir e salvar como PDF
 
 O menu **⋮** do editor e a paleta de comandos (`Ctrl+P`) têm **Imprimir / Salvar como PDF…**: a impressão sempre usa a visualização de leitura (a partir do modo ao vivo/código-fonte, o Plainva muda para ela primeiro). No diálogo do sistema, você pode escolher "Salvar como PDF" em vez de uma impressora.
+
+## Exportando uma nota
+
+- **Exportar como Markdown…** (menu **⋮** do editor ou paleta de comandos): salva uma cópia da nota em qualquer lugar pelo diálogo do sistema — por exemplo, para entregá-la a outro programa. Anexos vinculados (imagens) não são copiados junto; se a nota fizer referência a algum, o Plainva mostra um aviso curto.
+- **PDF**: use **Imprimir / Salvar como PDF…** (acima) e escolha "Salvar como PDF" no diálogo do sistema.
 
 ## Imagens e anexos
 

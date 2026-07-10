@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-10
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -83,6 +83,8 @@ Chaque note peut porter une icône (façon Notion au-dessus du titre, visible au
 
 Définissez un **Dossier de modèles** sous **Paramètres → Paramètres du vault → Notes quotidiennes & modèles**. Insérez ensuite des modèles via `Ctrl+Alt+T` ou la commande slash **Insérer un modèle**. Les modèles définissent entièrement le contenu des nouveaux fichiers — frontmatter compris : si un modèle apporte son propre `type`, le modèle l'emporte.
 
+La création de modèles se fait depuis n'importe où : la palette de commandes (`Ctrl+P`) propose **Créer un modèle** (un nouveau modèle s'ouvre pour être modifié) et **Enregistrer la note actuelle comme modèle** (copie la note ouverte dans le dossier de modèles). Les modèles sont des fichiers Markdown ordinaires — modifiez-les, renommez-les ou supprimez-les directement dans l'arborescence de fichiers.
+
 ## Notes quotidiennes
 
 **Ouvrir la note quotidienne** (barre latérale) ou un clic dans le **Calendrier** crée la note du jour selon votre format de date dans le dossier de notes quotidiennes configuré, éventuellement à partir d'un modèle.
@@ -105,6 +107,11 @@ Définissez un **Dossier de modèles** sous **Paramètres → Paramètres du vau
 ## Imprimer et enregistrer en PDF
 
 Le menu **⋮** de l'éditeur et la palette de commandes (`Ctrl+P`) proposent **Imprimer / Enregistrer en PDF…** : l'impression utilise toujours la vue de lecture (depuis l'aperçu en direct/source, Plainva y bascule d'abord). Dans la boîte de dialogue système, vous pouvez choisir « Enregistrer en PDF » au lieu d'une imprimante.
+
+## Exporter une note
+
+- **Exporter en Markdown…** (menu **⋮** de l'éditeur ou palette de commandes) : enregistre une copie de la note n'importe où via la boîte de dialogue système — par exemple pour la transmettre à un autre programme. Les pièces jointes liées (images) ne sont pas copiées ; si la note en référence, Plainva affiche un bref avis.
+- **PDF** : utilisez **Imprimer / Enregistrer en PDF…** (ci-dessus) et choisissez « Enregistrer en PDF » dans la boîte de dialogue système.
 
 ## Images et pièces jointes
 

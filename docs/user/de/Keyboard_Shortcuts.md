@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-07-05
+Stand: 2026-07-10
 
 Die wichtigsten Tastenkombinationen im Überblick. In der App zeigt `F1` (oder **Einstellungen → Tastenkombinationen anzeigen**) jederzeit dieselbe Liste. Auf macOS gilt `⌘` statt `Strg`.
 
@@ -13,6 +13,8 @@ Die wichtigsten Tastenkombinationen im Überblick. In der App zeigt `F1` (oder *
 | `Strg+Alt+B` | Linke Seitenleiste ein-/ausblenden |
 | `Strg+Alt+R` | Rechte Seitenleiste ein-/ausblenden |
 | `Strg+,` | Einstellungen öffnen |
+| `Strg+Plus` / `Strg+Minus` | Oberflächen-Zoom vergrößern/verkleinern (80–150 %) |
+| `Strg+0` | Oberflächen-Zoom zurücksetzen |
 | `F1` | Tastenkombinationen anzeigen |
 | `Esc` | Aktion abbrechen (Dialog schließen, Umbenennen abbrechen) |
 

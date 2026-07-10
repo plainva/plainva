@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Stand: 2026-07-05
+Stand: 2026-07-10
 
 Le combinazioni di tasti più importanti in un colpo d'occhio. All'interno dell'app, `F1` (o **Impostazioni → Mostra le scorciatoie da tastiera**) mostra lo stesso elenco in qualsiasi momento. Su macOS, `⌘` sostituisce `Ctrl`.
 
@@ -13,6 +13,8 @@ Le combinazioni di tasti più importanti in un colpo d'occhio. All'interno dell'
 | `Ctrl+Alt+B` | Attiva/disattiva la barra laterale sinistra |
 | `Ctrl+Alt+R` | Attiva/disattiva la barra laterale destra |
 | `Ctrl+,` | Apri le impostazioni |
+| `Ctrl+Plus` / `Ctrl+Minus` | Aumenta/riduci lo zoom dell'interfaccia (80–150 %) |
+| `Ctrl+0` | Ripristina lo zoom dell'interfaccia |
 | `F1` | Mostra le scorciatoie da tastiera |
 | `Esc` | Annulla l'azione (chiudi la finestra, annulla la rinomina) |
 

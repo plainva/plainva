@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last reviewed: 2026-07-07
+Last reviewed: 2026-07-10
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -83,6 +83,8 @@ Every note can carry an icon (Notion-style above the title, also visible in tabs
 
 Set a **Template Folder** under **Settings → Vault Settings → Daily Notes & Templates**. Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins.
 
+Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree.
+
 ## Daily notes
 
 **Open Daily Note** (sidebar) or a click in the **Calendar** creates today's note using your date format in the configured daily notes folder, optionally from a template.
@@ -105,6 +107,11 @@ Set a **Template Folder** under **Settings → Vault Settings → Daily Notes & 
 ## Printing and saving as PDF
 
 The editor's **⋮** menu and the command palette (`Ctrl+P`) have **Print / Save as PDF…**: printing always uses the read view (from live/source, Plainva switches into it first). In the system dialog you can pick "Save as PDF" instead of a printer.
+
+## Exporting a note
+
+- **Export as Markdown…** (editor **⋮** menu or command palette): saves a copy of the note anywhere via the system dialog — for example to hand it to another program. Linked attachments (images) are not copied along; Plainva shows a short notice when the note references any.
+- **PDF**: use **Print / Save as PDF…** (above) and choose "Save as PDF" in the system dialog.
 
 ## Images and attachments
 

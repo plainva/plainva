@@ -37,7 +37,7 @@ Note that the guarantee runs one way: Obsidian can always **open** what Plainva 
 
 Grab the installer for your platform from the [Releases page](https://github.com/plainva/plainva/releases). Updates are delivered in-app (signed, with an opt-out).
 
-Cloud providers: WebDAV/Nextcloud and S3 work out of the box. Google Drive, OneDrive and Dropbox currently require a free app registration of your own ("bring your own client ID") — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
+Cloud providers: WebDAV/Nextcloud, S3, OneDrive and Dropbox work out of the box. Only Google Drive currently requires a free app registration of your own ("bring your own client ID") — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
 
 ## User guide
 

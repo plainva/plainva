@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Stand: 2026-07-05
+Stand: 2026-07-10
 
 Las combinaciones de teclas más importantes de un vistazo. Dentro de la app, `F1` (o **Configuración → Mostrar atajos de teclado**) muestra la misma lista en cualquier momento. En macOS, `⌘` sustituye a `Ctrl`.
 
@@ -13,6 +13,8 @@ Las combinaciones de teclas más importantes de un vistazo. Dentro de la app, `F
 | `Ctrl+Alt+B` | Alternar la barra lateral izquierda |
 | `Ctrl+Alt+R` | Alternar la barra lateral derecha |
 | `Ctrl+,` | Abrir configuración |
+| `Ctrl+Plus` / `Ctrl+Minus` | Acercar/alejar el zoom de la interfaz (80–150 %) |
+| `Ctrl+0` | Restablecer el zoom de la interfaz |
 | `F1` | Mostrar atajos de teclado |
 | `Esc` | Cancelar acción (cerrar diálogo, cancelar renombrado) |
 

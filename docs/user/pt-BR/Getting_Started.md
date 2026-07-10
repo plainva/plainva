@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -66,6 +66,8 @@ No calendário, o botão **Hoje** leva você de volta ao mês atual; clicar no n
 - **Alternar as barras laterais** pelos dois botões da barra de título ou por `Ctrl+Alt+B` (esquerda) / `Ctrl+Alt+R` (direita) — ótimo para escrever com foco. O Plainva lembra o estado.
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — digite e pressione `Enter` para executar (nova nota, nota diária, dividir, barras laterais, **Fazer backup agora** e muito mais).
 - **Densidade**: em **Configurações → Geral**, escolha entre **Confortável** e **Compacto** — Compacto aperta listas, menus e linhas de tabela; o conteúdo das notas não é afetado.
+- **Fonte do conteúdo**: em **Configurações → Geral**, defina o **Tamanho da fonte do conteúdo** (12–24 px) e a **Fonte do conteúdo** (**Padrão do tema**, **Serifada**, **Sem serifa**, **Monoespaçada** ou **Personalizada…** com o nome de qualquer fonte instalada) — isso escala apenas o editor e o modo de leitura; a interface não muda.
+- **Zoom da interface**: redimensiona TODA a interface entre 80 % e 150 % — em **Configurações → Geral** ou por `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` redefine).
 - **Diálogos e avisos sem janelas nativas**: as confirmações aparecem como diálogos do Plainva no estilo do seu tema (ações destrutivas ganham um botão vermelho), avisos curtos como notificações discretas no canto inferior direito — chega de pop-ups do sistema.
 
 ## Veja também

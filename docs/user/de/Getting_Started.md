@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -66,6 +66,8 @@ Im Kalender bringt Dich der **Heute**-Knopf zurück zum aktuellen Monat; ein Kli
 - **Seitenleisten ein-/ausblenden**: über die beiden Knöpfe in der Titelleiste oder `Strg+Alt+B` (links) / `Strg+Alt+R` (rechts) — ideal zum fokussierten Schreiben. Plainva merkt sich den Zustand.
 - **Befehls-Palette**: `Strg+P` öffnet **Befehle** — tippen, mit `Enter` ausführen (Neue Notiz, Tageseintrag, Teilen, Seitenleisten, **Jetzt sichern** u. v. m.).
 - **Kompaktheitsgrad**: Unter **Einstellungen → Allgemein** wählst Du zwischen **Standard** und **Kompakt** — Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert.
+- **Inhalts-Schrift**: Unter **Einstellungen → Allgemein** stellst Du die **Inhalts-Schriftgröße** (12–24 px) und die **Inhalts-Schriftart** ein (Theme-Standard, Serif, Sans-Serif, Monospace oder der Name einer installierten Schriftart) — das skaliert nur Editor und Leseansicht; die Oberfläche bleibt, wie sie ist.
+- **Oberflächen-Zoom**: skaliert die GESAMTE Oberfläche zwischen 80 % und 150 % — unter **Einstellungen → Allgemein** oder per `Strg+Plus`/`Strg+Minus` (`Strg+0` setzt zurück).
 - **Eigene Dialoge & Hinweise**: Bestätigungen erscheinen als Plainva-Dialoge im Stil Deines Themes (destruktive Aktionen mit rotem Knopf), kurze Meldungen als dezente Hinweise unten rechts — keine System-Popups mehr.
 
 ## Siehe auch

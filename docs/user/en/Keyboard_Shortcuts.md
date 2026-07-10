@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-07-05
+Last reviewed: 2026-07-10
 
 The most important key combinations at a glance. Inside the app, `F1` (or **Settings → Show keyboard shortcuts**) shows the same list at any time. On macOS, `⌘` replaces `Ctrl`.
 
@@ -13,6 +13,8 @@ The most important key combinations at a glance. Inside the app, `F1` (or **Sett
 | `Ctrl+Alt+B` | Toggle the left sidebar |
 | `Ctrl+Alt+R` | Toggle the right sidebar |
 | `Ctrl+,` | Open settings |
+| `Ctrl+Plus` / `Ctrl+Minus` | Interface zoom in/out (80–150 %) |
+| `Ctrl+0` | Reset the interface zoom |
 | `F1` | Show keyboard shortcuts |
 | `Esc` | Cancel action (close dialog, cancel renaming) |
 

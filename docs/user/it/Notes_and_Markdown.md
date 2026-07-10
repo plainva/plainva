@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Stand: 2026-07-07
+Stand: 2026-07-10
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -83,6 +83,8 @@ Ogni nota può avere un'icona (in stile Notion sopra il titolo, visibile anche n
 
 Imposta una **Cartella dei modelli** in **Impostazioni → Impostazioni del vault → Note giornaliere e modelli**. Poi inserisci i modelli con `Ctrl+Alt+T` o il comando slash **Inserisci modello**. I modelli definiscono completamente il contenuto dei nuovi file — incluso il frontmatter: se un modello porta un proprio `type`, vince il modello.
 
+Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) offre **Crea nuovo modello** (si apre un modello nuovo pronto per la modifica) e **Salva la nota corrente come modello** (copia la nota aperta nella cartella dei modelli). I modelli sono normali file Markdown — modificali, rinominali o eliminali direttamente nell'albero dei file.
+
 ## Note giornaliere
 
 **Apri nota giornaliera** (barra laterale) o un clic nel **Calendario** crea la nota di oggi usando il tuo formato data nella cartella delle note giornaliere configurata, facoltativamente da un modello.
@@ -105,6 +107,11 @@ Imposta una **Cartella dei modelli** in **Impostazioni → Impostazioni del vaul
 ## Stampa e salvataggio come PDF
 
 Il menu **⋮** dell'editor e la palette dei comandi (`Ctrl+P`) hanno **Stampa / Salva come PDF…**: la stampa usa sempre la vista di lettura (da dal vivo/sorgente, Plainva passa prima a quella). Nella finestra di dialogo di sistema puoi scegliere "Salva come PDF" invece di una stampante.
+
+## Esportare una nota
+
+- **Esporta come Markdown…** (menu **⋮** dell'editor o palette dei comandi): salva una copia della nota in qualsiasi posizione tramite la finestra di dialogo di sistema — ad esempio per consegnarla a un altro programma. Gli allegati collegati (immagini) non vengono copiati insieme; se la nota ne referenzia, Plainva mostra un breve avviso.
+- **PDF**: usa **Stampa / Salva come PDF…** (sopra) e scegli "Salva come PDF" nella finestra di dialogo di sistema.
 
 ## Immagini e allegati
 

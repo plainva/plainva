@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-07-05
+Laatst bijgewerkt: 2026-07-10
 
 De belangrijkste toetscombinaties in één oogopslag. Binnen de app toont `F1` (of **Instellingen → Sneltoetsen tonen**) altijd dezelfde lijst. Op macOS vervangt `⌘` `Ctrl`.
 
@@ -13,6 +13,8 @@ De belangrijkste toetscombinaties in één oogopslag. Binnen de app toont `F1` (
 | `Ctrl+Alt+B` | Linkerzijbalk tonen/verbergen |
 | `Ctrl+Alt+R` | Rechterzijbalk tonen/verbergen |
 | `Ctrl+,` | Instellingen openen |
+| `Ctrl+Plus` / `Ctrl+Minus` | Interfacezoom vergroten/verkleinen (80–150 %) |
+| `Ctrl+0` | Interfacezoom herstellen |
 | `F1` | Sneltoetsen tonen |
 | `Esc` | Actie annuleren (dialoogvenster sluiten, hernoemen annuleren) |
 

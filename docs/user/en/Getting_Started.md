@@ -1,6 +1,6 @@
 # Getting Started
 
-Last reviewed: 2026-07-09
+Last reviewed: 2026-07-10
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -66,6 +66,8 @@ In the calendar, the **Today** button returns to the current month; clicking the
 - **Toggle the sidebars** via the two title-bar buttons or `Ctrl+Alt+B` (left) / `Ctrl+Alt+R` (right) — great for focused writing. Plainva remembers the state.
 - **Command palette**: `Ctrl+P` opens **Commands** — type and hit `Enter` to run (new note, daily note, split, sidebars, **Back up now**, and more).
 - **Density**: under **Settings → General**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
+- **Content font**: under **Settings → General**, set the **Content font size** (12–24 px) and the **Content font** (theme default, serif, sans-serif, monospace or the name of any installed font) — this scales the editor and reading view only; the interface stays as it is.
+- **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → General** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
 - **Native-free dialogs**: confirmations appear as Plainva dialogs styled by your theme (destructive actions get a red button), short notices as subtle toasts in the bottom right — no more system popups.
 
 ## See also

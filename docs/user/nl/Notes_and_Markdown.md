@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-07
+Laatst bijgewerkt: 2026-07-10
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -83,6 +83,8 @@ Elke notitie kan een icoon dragen (Notion-achtig boven de titel, ook zichtbaar i
 
 Stel een **Sjablonenmap** in onder **Instellingen → Vault-instellingen → Dagelijkse notities**. Voeg sjablonen dan in via `Ctrl+Alt+T` of het slash-commando **Sjabloon invoegen**. Sjablonen bepalen de inhoud van nieuwe bestanden volledig — inclusief frontmatter: als een sjabloon een eigen `type` meebrengt, wint het sjabloon.
 
+Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom.
+
 ## Dagelijkse notities
 
 **Dagnotitie openen** (zijbalk) of een klik in de **Kalender** maakt de notitie van vandaag aan volgens je datumformaat in de ingestelde map voor dagelijkse notities, optioneel vanuit een sjabloon.
@@ -105,6 +107,11 @@ Stel een **Sjablonenmap** in onder **Instellingen → Vault-instellingen → Dag
 ## Afdrukken en opslaan als PDF
 
 Het **⋮**-menu van de editor en de opdrachtenpalet (`Ctrl+P`) bevatten **Afdrukken / Opslaan als PDF…**: afdrukken gebruikt altijd de leesweergave (vanuit live/bron schakelt Plainva daar eerst naartoe over). In het systeemdialoogvenster kun je in plaats van een printer "Opslaan als PDF" kiezen.
+
+## Notitie exporteren
+
+- **Exporteren als Markdown…** (**⋮**-menu van de editor of opdrachtenpalet): slaat via het systeemdialoogvenster een kopie van de notitie op naar een locatie naar keuze — bijvoorbeeld om de notitie aan een ander programma te geven. Gekoppelde bijlagen (afbeeldingen) worden niet meegekopieerd; als de notitie daarnaar verwijst, toont Plainva een korte melding.
+- **PDF**: gebruik **Afdrukken / Opslaan als PDF…** (hierboven) en kies in het systeemdialoogvenster "Opslaan als PDF".
 
 ## Afbeeldingen en bijlagen
 

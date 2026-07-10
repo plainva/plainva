@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-07-07
+Stan na: 2026-07-10
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -83,6 +83,8 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 
 Ustaw **Folder szablonów** w **Ustawienia → Ustawienia vaultu → Notatki dzienne i szablony**. Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa.
 
+Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
+
 ## Notatki dzienne
 
 **Otwórz notatkę dzienną** (pasek boczny) lub kliknięcie w **Kalendarzu** tworzy dzisiejszą notatkę zgodnie z Twoim formatem daty, w skonfigurowanym folderze notatek dziennych, opcjonalnie z szablonu.
@@ -105,6 +107,11 @@ Ustaw **Folder szablonów** w **Ustawienia → Ustawienia vaultu → Notatki dzi
 ## Drukowanie i zapisywanie jako PDF
 
 Menu **⋮** edytora oraz paleta poleceń (`Ctrl+P`) zawierają **Drukuj / Zapisz jako PDF…**: drukowanie zawsze korzysta z widoku czytania (z trybu na żywo/źródłowego Plainva najpierw przełącza się do niego). W oknie dialogowym systemu możesz zamiast drukarki wybrać „Zapisz jako PDF".
+
+## Eksportowanie notatki
+
+- **Eksportuj jako Markdown…** (menu **⋮** edytora lub paleta poleceń): zapisuje kopię notatki w dowolnym miejscu za pomocą systemowego okna dialogowego — na przykład, aby przekazać ją innemu programowi. Powiązane załączniki (obrazy) nie są kopiowane razem z notatką; jeśli notatka się do nich odwołuje, Plainva pokazuje krótki komunikat.
+- **PDF**: użyj **Drukuj / Zapisz jako PDF…** (powyżej) i wybierz w oknie dialogowym systemu „Zapisz jako PDF".
 
 ## Obrazy i załączniki
 

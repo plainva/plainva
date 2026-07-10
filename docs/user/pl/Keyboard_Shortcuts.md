@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-07-05
+Stan na: 2026-07-10
 
 Najważniejsze kombinacje klawiszy w jednym miejscu. W aplikacji `F1` (lub **Ustawienia → Pokaż skróty klawiszowe**) w każdej chwili pokazuje tę samą listę. Na macOS `⌘` zastępuje `Ctrl`.
 
@@ -13,6 +13,8 @@ Najważniejsze kombinacje klawiszy w jednym miejscu. W aplikacji `F1` (lub **Ust
 | `Ctrl+Alt+B` | Przełącz lewy pasek boczny |
 | `Ctrl+Alt+R` | Przełącz prawy pasek boczny |
 | `Ctrl+,` | Otwórz ustawienia |
+| `Ctrl+Plus` / `Ctrl+Minus` | Powiększenie interfejsu (80–150 %) |
+| `Ctrl+0` | Resetuj powiększenie interfejsu |
 | `F1` | Pokaż skróty klawiszowe |
 | `Esc` | Anuluj akcję (zamknij okno dialogowe, przerwij zmianę nazwy) |
 

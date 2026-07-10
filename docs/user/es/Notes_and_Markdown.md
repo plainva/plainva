@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Stand: 2026-07-07
+Stand: 2026-07-10
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -83,6 +83,8 @@ Cada nota puede llevar un icono (al estilo Notion, encima del título, también 
 
 Configura una **Carpeta de plantillas** en **Configuración → Configuración del vault → Notas diarias y plantillas**. Después inserta plantillas con `Ctrl+Alt+T` o el comando de barra oblicua **Insertar plantilla**. Las plantillas definen por completo el contenido de los archivos nuevos — incluido el frontmatter: si una plantilla trae su propio `type`, gana la plantilla.
 
+Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`) ofrece **Crear nueva plantilla** (se abre una plantilla nueva para editarla) y **Guardar la nota actual como plantilla** (copia la nota abierta en la carpeta de plantillas). Las plantillas son archivos Markdown normales — edítalas, renómbralas o elimínalas directamente en el árbol de archivos.
+
 ## Notas diarias
 
 **Abrir nota diaria** (barra lateral) o un clic en el **Calendario** crea la nota de hoy usando tu formato de fecha en la carpeta de notas diarias configurada, opcionalmente a partir de una plantilla.
@@ -105,6 +107,11 @@ Configura una **Carpeta de plantillas** en **Configuración → Configuración d
 ## Imprimir y guardar como PDF
 
 El menú **⋮** del editor y la paleta de comandos (`Ctrl+P`) tienen **Imprimir / Guardar como PDF…**: la impresión siempre usa la vista de lectura (desde vista previa en vivo/fuente, Plainva cambia primero a ella). En el diálogo del sistema puedes elegir "Guardar como PDF" en lugar de una impresora.
+
+## Exportar una nota
+
+- **Exportar como Markdown…** (menú **⋮** del editor o paleta de comandos): guarda una copia de la nota donde quieras mediante el diálogo del sistema — por ejemplo, para pasarla a otro programa. Los adjuntos vinculados (imágenes) no se copian junto con ella; Plainva muestra un aviso breve cuando la nota hace referencia a alguno.
+- **PDF**: usa **Imprimir / Guardar como PDF…** (arriba) y elige "Guardar como PDF" en el diálogo del sistema.
 
 ## Imágenes y adjuntos
 

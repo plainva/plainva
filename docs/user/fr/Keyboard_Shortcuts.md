@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-07-05
+Dernière mise à jour : 2026-07-10
 
 Les combinaisons de touches les plus importantes en un coup d'œil. Dans l'application, `F1` (ou **Paramètres → Afficher les raccourcis clavier**) affiche la même liste à tout moment. Sur macOS, `⌘` remplace `Ctrl`.
 
@@ -13,6 +13,8 @@ Les combinaisons de touches les plus importantes en un coup d'œil. Dans l'appli
 | `Ctrl+Alt+B` | Basculer la barre latérale gauche |
 | `Ctrl+Alt+R` | Basculer la barre latérale droite |
 | `Ctrl+,` | Ouvrir les paramètres |
+| `Ctrl+Plus` / `Ctrl+Minus` | Zoom avant/arrière de l'interface (80–150 %) |
+| `Ctrl+0` | Réinitialiser le zoom de l'interface |
 | `F1` | Afficher les raccourcis clavier |
 | `Esc` | Annuler l'action (fermer la boîte de dialogue, annuler le renommage) |
 
