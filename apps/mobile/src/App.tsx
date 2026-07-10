@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Calendar,
@@ -10,8 +10,9 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { EmptyState, TextInput } from "@plainva/ui";
-import { memoryVault } from "./vault/memoryVault";
+import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@plainva/ui";
+import type { SearchResult } from "@plainva/core";
+import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { EditorHost } from "./EditorHost";
 
 // Tab/stack shell per the mobile UX plan (E1): four tabs plus the center
@@ -31,6 +32,7 @@ const todayDailyPath = () => {
 
 export default function App() {
   const { t } = useTranslation();
+  const [vault, setVault] = useState<MobileVault | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("notes");
   const [stacks, setStacks] = useState<Record<TabId, Entry[]>>({
     notes: [],
@@ -40,27 +42,37 @@ export default function App() {
   });
   const [bump, setBump] = useState(0);
 
+  useEffect(() => {
+    void getMobileVault().then(setVault);
+  }, []);
+
+  if (!vault) return <div className="m-app" />;
+
   const stack = stacks[activeTab];
   const top = stack[stack.length - 1];
 
   const push = (tab: TabId, entry: Entry) =>
     setStacks((s) => ({ ...s, [tab]: [...s[tab], entry] }));
-  const pop = (tab: TabId) => setStacks((s) => ({ ...s, [tab]: s[tab].slice(0, -1) }));
+  const pop = (tab: TabId) => {
+    setStacks((s) => ({ ...s, [tab]: s[tab].slice(0, -1) }));
+    setBump((n) => n + 1);
+  };
 
   const openNote = (path: string) => push(activeTab, { kind: "note", path });
 
   const capture = () => {
-    const path = memoryVault.createNote("Inbox", "Note");
-    setActiveTab("notes");
-    push("notes", { kind: "note", path });
-    setBump((n) => n + 1);
+    void vaultOps.createNote(vault, "Inbox", "Note").then((path) => {
+      setActiveTab("notes");
+      push("notes", { kind: "note", path });
+    });
   };
 
   const openToday = () => {
     const { path, title } = todayDailyPath();
-    memoryVault.ensureNote(path, "Daily Note", title);
-    setActiveTab("today");
-    setStacks((s) => ({ ...s, today: [{ kind: "note", path }] }));
+    void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => {
+      setActiveTab("today");
+      setStacks((s) => ({ ...s, today: [{ kind: "note", path }] }));
+    });
   };
 
   const noteOpen = top?.kind === "note";
@@ -69,17 +81,24 @@ export default function App() {
     <div className="m-app">
       <div className="m-screen">
         {top?.kind === "note" ? (
-          <NoteView path={top.path} onBack={() => pop(activeTab)} onOpenNote={openNote} />
+          <NoteView
+            key={top.path}
+            onBack={() => pop(activeTab)}
+            onOpenNote={openNote}
+            path={top.path}
+            vault={vault}
+          />
         ) : activeTab === "notes" ? (
           <BrowseView
+            bump={bump}
             folder={top?.kind === "folder" ? top.path : ""}
-            key={`${top?.path ?? "root"}-${bump}`}
             onBack={top ? () => pop("notes") : undefined}
             onOpenFolder={(path) => push("notes", { kind: "folder", path })}
             onOpenNote={openNote}
+            vault={vault}
           />
         ) : activeTab === "search" ? (
-          <SearchView />
+          <SearchView onOpenNote={openNote} vault={vault} />
         ) : activeTab === "today" ? (
           <TodayIntro onOpen={openToday} />
         ) : (
@@ -88,7 +107,7 @@ export default function App() {
       </div>
 
       {!noteOpen && (
-        <nav className="m-tabbar" aria-label="Tabs">
+        <nav aria-label="Tabs" className="m-tabbar">
           <TabButton
             active={activeTab === "notes"}
             icon={<FileText size={20} />}
@@ -142,19 +161,38 @@ function TabButton({
 }
 
 function BrowseView({
+  vault,
   folder,
+  bump,
   onBack,
   onOpenFolder,
   onOpenNote,
 }: {
+  vault: MobileVault;
   folder: string;
+  bump: number;
   onBack?: () => void;
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
 }) {
   const { t } = useTranslation();
-  const { folders, notes } = useMemo(() => memoryVault.listFolder(folder), [folder]);
-  const recent = useMemo(() => (folder ? [] : memoryVault.recent(2)), [folder]);
+  const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [] });
+  const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
+  useEffect(() => {
+    let stale = false;
+    void vaultOps.listFolder(vault, folder).then((l) => {
+      if (!stale) setListing(l);
+    });
+    if (!folder) {
+      void vaultOps.recent(vault, 2).then((r) => {
+        if (!stale) setRecent(r);
+      });
+    }
+    return () => {
+      stale = true;
+    };
+  }, [vault, folder, bump]);
+
   return (
     <div className="m-page">
       <header className="m-header">
@@ -163,7 +201,7 @@ function BrowseView({
             <ChevronLeft size={20} />
           </button>
         )}
-        <h1>{folder ? folder.split("/").pop() : "Hello Vault"}</h1>
+        <h1>{folder ? folder.split("/").pop() : "Plainva"}</h1>
       </header>
       {recent.length > 0 && (
         <>
@@ -177,7 +215,7 @@ function BrowseView({
           <p className="m-sectionlabel">{t("mobile.folders")}</p>
         </>
       )}
-      {folders.map((name) => (
+      {listing.folders.map((name) => (
         <button
           className="m-row"
           key={name}
@@ -188,7 +226,7 @@ function BrowseView({
           <ChevronRight className="m-chevron" size={16} />
         </button>
       ))}
-      {notes.map((n) => (
+      {listing.notes.map((n) => (
         <button className="m-row" key={n.path} onClick={() => onOpenNote(n.path)}>
           <FileText size={16} />
           <span>{n.title}</span>
@@ -199,15 +237,28 @@ function BrowseView({
 }
 
 function NoteView({
+  vault,
   path,
   onBack,
   onOpenNote,
 }: {
+  vault: MobileVault;
   path: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
 }) {
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
+  const [doc, setDoc] = useState<string | null>(null);
+  useEffect(() => {
+    let stale = false;
+    void vaultOps.read(vault, path).then((text) => {
+      if (!stale) setDoc(text);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, path]);
+
   return (
     <div className="m-page m-page--note">
       <header className="m-header">
@@ -216,14 +267,38 @@ function NoteView({
         </button>
         <h1>{title}</h1>
       </header>
-      <EditorHost onOpenNote={onOpenNote} path={path} />
+      {doc !== null && (
+        <EditorHost initialDoc={doc} onOpenNote={onOpenNote} path={path} vault={vault} />
+      )}
     </div>
   );
 }
 
-function SearchView() {
+function SearchView({
+  vault,
+  onOpenNote,
+}: {
+  vault: MobileVault;
+  onOpenNote: (path: string) => void;
+}) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  const debounced = useDebouncedValue(query, 150);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  useEffect(() => {
+    if (!vault.searchAvailable || !debounced.trim()) {
+      setResults([]);
+      return;
+    }
+    let stale = false;
+    void vaultOps.search(vault, debounced).then((rows) => {
+      if (!stale) setResults(rows);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, debounced]);
+
   return (
     <div className="m-page">
       <header className="m-header">
@@ -231,10 +306,24 @@ function SearchView() {
       </header>
       <TextInput
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("sidebar.searchPlaceholder", { defaultValue: t("mobile.tabSearch") })}
+        placeholder={t("mobile.tabSearch")}
         value={query}
       />
-      <EmptyState icon={<Search size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+      {!vault.searchAvailable ? (
+        <EmptyState icon={<Search size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+      ) : (
+        results.map((r) => (
+          <button className="m-row m-result" key={r.path} onClick={() => onOpenNote(r.path)}>
+            <FileText size={16} />
+            <span>
+              <span className="m-result-title">{r.path.split("/").pop()!.replace(/\.md$/i, "")}</span>
+              {r.snippet ? (
+                <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
+              ) : null}
+            </span>
+          </button>
+        ))
+      )}
     </div>
   );
 }

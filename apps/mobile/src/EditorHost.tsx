@@ -6,18 +6,22 @@ import {
   type EditorSession,
   type EditorSessionDeps,
 } from "@plainva/ui";
-import { memoryVault } from "./vault/memoryVault";
+import { vaultOps, type MobileVault } from "./services/vaultService";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
- * M1 in-memory vault — the "Hello Vault" proof. Same deps-ref pattern as the
- * desktop Editor; the shell capabilities are browser stubs until M2.
+ * sandbox vault (M2). Same deps-ref pattern as the desktop Editor; saves are
+ * write-through plus an incremental index update.
  */
 export function EditorHost({
+  vault,
   path,
+  initialDoc,
   onOpenNote,
 }: {
+  vault: MobileVault;
   path: string;
+  initialDoc: string;
   onOpenNote: (path: string) => void;
 }) {
   const { t } = useTranslation();
@@ -31,8 +35,9 @@ export function EditorHost({
       hostPath: path,
       onOpenPath: (p) => onOpenNote(p),
       openWikiTarget: (target) => {
-        const resolved = memoryVault.resolveWikiTarget(target);
-        if (resolved) onOpenNote(resolved);
+        void vaultOps.resolveWikiTarget(vault, target).then((resolved) => {
+          if (resolved) onOpenNote(resolved);
+        });
       },
       openExternalUrl: (url) => {
         window.open(url, "_blank", "noopener");
@@ -40,13 +45,14 @@ export function EditorHost({
       handlePaste: () => false,
       handleDrop: () => false,
       onDocChanged: (view) => {
-        memoryVault.save(path, view.state.doc.toString());
+        void vaultOps.save(vault, path, view.state.doc.toString());
       },
       onSelectionToolbar: () => {},
       onSelectionStats: () => {},
       onPickIcon: () => {},
       onPickColor: () => {},
-      readBinaryFile: async () => new Uint8Array(),
+      readBinaryFile: (absolutePath) =>
+        vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
       buildNoteEmbedExtension: () => [],
     };
   });
@@ -56,9 +62,9 @@ export function EditorHost({
     if (!parent) return;
     const session = createEditorSession({
       parent,
-      doc: memoryVault.read(path),
+      doc: initialDoc,
       mode: "live",
-      vaultPath: "/",
+      vaultPath: "",
       i18n,
       headerTexts: {
         addIcon: t("docHeader.addIcon"),
@@ -73,6 +79,8 @@ export function EditorHost({
       sessionRef.current = null;
       session.destroy();
     };
+    // initialDoc is the load-time snapshot for THIS path — remount on path only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, t]);
 
   return <div className="m-editor" ref={containerRef} />;

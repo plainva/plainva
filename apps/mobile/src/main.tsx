@@ -6,14 +6,14 @@ import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
 import { setPlatformServices, ToastHost } from "@plainva/ui";
-import { memoryCredentialStore, memorySettingsStore } from "./platform/memoryPlatform";
+import { capacitorCredentialStore, capacitorSettingsStore } from "./platform/capacitorPlatform";
 import App from "./App";
 
 // Register the platform capabilities (ADR 0011) before the first render —
 // shared code reaches settings/secrets/URL-opening only through this bundle.
 setPlatformServices({
-  loadSettings: async () => memorySettingsStore,
-  credentials: memoryCredentialStore,
+  loadSettings: async () => capacitorSettingsStore,
+  credentials: capacitorCredentialStore,
   openExternal: async (url) => {
     window.open(url, "_blank", "noopener");
   },

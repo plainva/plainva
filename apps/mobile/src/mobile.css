@@ -194,3 +194,30 @@ body {
   color: var(--accent-on);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
+
+.m-result span:first-of-type {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.m-result-title {
+  font-weight: 500;
+}
+
+.m-result-snippet {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.m-result-snippet mark {
+  background: var(--highlight-bg);
+  color: inherit;
+  border-radius: 2px;
+}
