@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
+import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";

@@ -10,7 +10,8 @@
     "./i18n": "./src/i18n.ts",
     "./styles/tokens.css": "./src/styles/tokens.css",
     "./styles/ui.css": "./src/styles/ui.css",
-    "./themes/index.css": "./src/themes/index.css"
+    "./themes/index.css": "./src/themes/index.css",
+    "./styles/base-colors.css": "./src/styles/base-colors.css"
   },
   "description": "Shell-independent UI layer shared by the Plainva app shells: pure helpers, view-models and React primitives.",
   "license": "AGPL-3.0-only",

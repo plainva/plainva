@@ -1,11 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
+import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
 import { setPlatformServices, ToastHost } from "@plainva/ui";
+import { initMobileSettings } from "./services/mobileSettings";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import App from "./App";
@@ -20,7 +22,9 @@ setPlatformServices({
   },
 });
 
-void i18nReady.then(() => {
+void i18nReady
+  .then(() => initMobileSettings())
+  .then(() => {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <App />

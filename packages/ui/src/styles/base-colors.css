@@ -1,0 +1,109 @@
+/*
+ * Shared color base (P1 mobile-parity work): the default "Petrol" palette as
+ * light values on :root plus the dark overrides under [data-theme="dark"].
+ * Extracted from apps/desktop/src/App.css so both shells share ONE canonical
+ * palette; the desktop keeps the theme axes documentation there. Axes on
+ * <html>:
+ *   data-theme         — resolved mode ("light" | "dark")
+ *   data-theme-name    — bundled theme id (token sets: themes/*.css)
+ *   data-theme-variant — optional collectible variant (LCARS easter egg)
+ * Components consume ONLY these variables (colors, radii, fonts) — themes can
+ * restyle everything without touching a component.
+ */
+:root {
+  /* Tell the native engine (WebKitGTK) which scheme to render form controls,
+     <select> popups, native text selection and scrollbars in. */
+  color-scheme: light;
+  accent-color: var(--accent-color);
+  --bg-primary: #ffffff;
+  --bg-secondary: #eff5f4;
+  --bg-hover: #e0ecea;
+  --bg-active: rgba(15, 118, 110, 0.15);
+  --text-main: #1b2b29;
+  --text-muted: #5c6b69;
+  --text-faint: #5f6e6b;
+  --accent-color: #0f766e;
+  --accent-color-hover: #115e59;
+  --accent-on: #ffffff;
+  --border-color: #d7e5e3;
+  --border-color-light: #e4eeed;
+  --error-bg: #fbeaea;
+  --error-border: #f1c9c9;
+  --error-text: #b42318;
+
+  --wiki-link-color: var(--accent-color);
+  --overlay-bg: rgba(15, 28, 27, 0.45);
+
+  /* Editor-specific */
+  --selection-bg: rgba(15, 118, 110, 0.16);
+  --active-line-bg: rgba(15, 118, 110, 0.05);
+  --code-bg: #eef4f3;
+  --quote-border: #cdddda;
+  --highlight-bg: #fdf3b8;
+
+  /* Callout palette (Obsidian > [!type]). Single source for editor (live + read)
+     callout borders/tints/icons; consumed via components/callouts.ts. Themes can
+     override these on the data-theme-name axis. */
+  --callout-blue: #3a8ca6;
+  --callout-green: #3fae6a;
+  --callout-amber: #d9a23f;
+  --callout-orange: #d9883f;
+  --callout-red: #d64d4d;
+  --callout-purple: #9d6ddb;
+  --callout-gray: #8a8a8a;
+  --callout-cyan: #2fa39a;
+  --callout-blue-tint: #3a8ca614;
+  --callout-green-tint: #3fae6a14;
+  --callout-amber-tint: #d9a23f14;
+  --callout-orange-tint: #d9883f14;
+  --callout-red-tint: #d64d4d14;
+  --callout-purple-tint: #9d6ddb14;
+  --callout-gray-tint: #8a8a8a14;
+  --callout-cyan-tint: #2fa39a14;
+
+  /* Structure tokens — themes may reshape the app through these (e.g. LCARS
+     pill buttons). Sized steps: xs 4 / sm 6 / md 8 / lg 10 / xl 12 / pill.
+     Geometric radii (perfect circles via 50%, 1-2px micro details) stay literal. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  /* Font split: chrome (sidebars, buttons, titlebar) vs. document content
+     (editor + read view). Both default to the same stack; display-heavy themes
+     (LCARS) restyle only the chrome so long-form text stays readable.
+     --font-family is the legacy alias most components consume. */
+  --font-ui: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-content: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-family: var(--font-ui);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-primary: #0f1c1b;
+  --bg-secondary: #152625;
+  --bg-hover: #213533;
+  --bg-active: rgba(45, 212, 191, 0.2);
+  --text-main: #d7e4e2;
+  --text-muted: #93a5a3;
+  --text-faint: #809390;
+  --accent-color: #2dd4bf;
+  --accent-color-hover: #5eead4;
+  --accent-on: #06302b;
+  --border-color: #2a3c3a;
+  --border-color-light: #233331;
+  --error-bg: #3a1715;
+  --error-border: #5e2420;
+  --error-text: #f3a39b;
+
+  --overlay-bg: rgba(0, 0, 0, 0.55);
+
+  /* Editor-specific */
+  --selection-bg: rgba(45, 212, 191, 0.26);
+  --active-line-bg: rgba(45, 212, 191, 0.07);
+  --code-bg: #1a2c2b;
+  --quote-border: #2f4a47;
+  --highlight-bg: #4d4a1e;
+}
