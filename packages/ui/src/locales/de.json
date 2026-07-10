@@ -1406,6 +1406,16 @@
     "vaultRenamePrompt": "Neuer Vault-Name",
     "vaultDelete": "Vault löschen",
     "vaultDeleteConfirm": "\"{{name}}\" von diesem Gerät löschen? Lokale Dateien, Index und Zugangsdaten werden entfernt; der Cloud-Speicher bleibt unberührt.",
-    "syncResume": "Wieder verbinden"
+    "syncResume": "Wieder verbinden",
+    "editNote": "Bearbeiten",
+    "doneEditing": "Fertig",
+    "editToolbar": "Formatierung",
+    "sheetOpen": "Öffnen",
+    "renamePrompt": "Neuer Name",
+    "deleteNote": "Notiz löschen",
+    "deleteNoteConfirm": "\"{{name}}\" löschen? Bei aktivem Sync wird sie auch in der Cloud gelöscht.",
+    "baseReadOnly": "Datenbanken sind mobil vorerst schreibgeschützt.",
+    "baseNoSource": "Diese Datenbank-Quelle wird mobil noch nicht unterstützt.",
+    "baseName": "Name"
   }
 }

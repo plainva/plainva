@@ -1411,6 +1411,16 @@
     "vaultRenamePrompt": "Nuovo nome del vault",
     "vaultDelete": "Elimina vault",
     "vaultDeleteConfirm": "Eliminare \"{{name}}\" da questo dispositivo? File locali, indice e credenziali verranno rimossi; lo storage cloud resta intatto.",
-    "syncResume": "Riconnetti"
+    "syncResume": "Riconnetti",
+    "editNote": "Modifica",
+    "doneEditing": "Fine",
+    "editToolbar": "Formattazione",
+    "sheetOpen": "Apri",
+    "renamePrompt": "Nuovo nome",
+    "deleteNote": "Elimina nota",
+    "deleteNoteConfirm": "Eliminare \"{{name}}\"? Con la sincronizzazione attiva verrà eliminata anche nel cloud.",
+    "baseReadOnly": "I database sono per ora in sola lettura su mobile.",
+    "baseNoSource": "Questa origine del database non è ancora supportata su mobile.",
+    "baseName": "Nome"
   }
 }

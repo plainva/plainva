@@ -1411,6 +1411,16 @@
     "vaultRenamePrompt": "Novo nome do cofre",
     "vaultDelete": "Excluir cofre",
     "vaultDeleteConfirm": "Excluir \"{{name}}\" deste dispositivo? Arquivos locais, índice e credenciais serão removidos; o armazenamento na nuvem permanece intacto.",
-    "syncResume": "Reconectar"
+    "syncResume": "Reconectar",
+    "editNote": "Editar",
+    "doneEditing": "Concluído",
+    "editToolbar": "Formatação",
+    "sheetOpen": "Abrir",
+    "renamePrompt": "Novo nome",
+    "deleteNote": "Excluir nota",
+    "deleteNoteConfirm": "Excluir \"{{name}}\"? Com a sincronização ativa, ela também será excluída na nuvem.",
+    "baseReadOnly": "Os bancos de dados são somente leitura no celular por enquanto.",
+    "baseNoSource": "Esta fonte de banco de dados ainda não é compatível no celular.",
+    "baseName": "Nome"
   }
 }

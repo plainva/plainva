@@ -1406,6 +1406,16 @@
     "vaultRenamePrompt": "New vault name",
     "vaultDelete": "Delete vault",
     "vaultDeleteConfirm": "Delete \"{{name}}\" from this device? Local files, index and credentials are removed; the cloud storage stays untouched.",
-    "syncResume": "Reconnect"
+    "syncResume": "Reconnect",
+    "editNote": "Edit",
+    "doneEditing": "Done",
+    "editToolbar": "Formatting",
+    "sheetOpen": "Open",
+    "renamePrompt": "New name",
+    "deleteNote": "Delete note",
+    "deleteNoteConfirm": "Delete \"{{name}}\"? With sync active it is deleted in the cloud too.",
+    "baseReadOnly": "Databases are read-only on mobile for now.",
+    "baseNoSource": "This database source is not supported on mobile yet.",
+    "baseName": "Name"
   }
 }

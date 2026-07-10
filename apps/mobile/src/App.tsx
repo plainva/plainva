@@ -1,23 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Database,
   FileText,
   Folder,
   Menu,
+  Pencil,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react";
 import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
-import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus } from "./services/syncService";
+import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
 import { listVaults, type VaultEntry } from "./services/vaultRegistry";
 import { switchVault } from "./services/vaultService";
 import { App as CapApp } from "@capacitor/app";
+import { Dialog } from "@capacitor/dialog";
+import { BaseReadView } from "./BaseReadView";
 import { EditorHost } from "./EditorHost";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -29,15 +34,15 @@ import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
 // hides while a note is open (editor focus).
 
 type TabId = "notes" | "search" | "today" | "more";
-type Entry = { kind: "folder" | "note" | "sync" | "vault"; path: string };
+type Entry = { kind: "folder" | "note" | "sync" | "vault" | "base"; path: string };
 
-const todayDailyPath = () => {
-  const d = new Date();
-  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-  return { path: `Daily/${iso}.md`, title: iso };
-};
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+    2,
+    "0",
+  )}`;
+
+const dailyPathFor = (iso: string) => ({ path: `Daily/${iso}.md`, title: iso });
 
 export default function App() {
   const { t } = useTranslation();
@@ -92,9 +97,20 @@ export default function App() {
     void CapApp.getLaunchUrl().then((r) => {
       if (r?.url) void handleOAuthRedirect(r.url);
     });
+    // Returning to the app pulls a fresh full listing: WebView timers pause
+    // in the background, so without this a user could wait forever for new
+    // remote files (they only arrive through listings).
+    let stateHandle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) syncNow();
+    }).then((h) => {
+      if (removed) void h.remove();
+      else stateHandle = h;
+    });
     return () => {
       removed = true;
       if (handle) void handle.remove();
+      if (stateHandle) void stateHandle.remove();
     };
   }, []);
 
@@ -142,8 +158,8 @@ export default function App() {
     });
   };
 
-  const openToday = () => {
-    const { path, title } = todayDailyPath();
+  const openDaily = (iso: string) => {
+    const { path, title } = dailyPathFor(iso);
     void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => {
       setActiveTab("today");
       setStacks((s) => ({ ...s, today: [{ kind: "note", path }] }));
@@ -163,6 +179,14 @@ export default function App() {
             onBack={() => pop(activeTab)}
             vaultId={top.path}
           />
+        ) : top?.kind === "base" ? (
+          <BaseReadView
+            key={top.path}
+            onBack={() => pop(activeTab)}
+            onOpenNote={openNote}
+            path={top.path}
+            vault={vault}
+          />
         ) : top?.kind === "note" ? (
           <NoteView
             key={top.path}
@@ -176,6 +200,7 @@ export default function App() {
             bump={bump}
             folder={top?.kind === "folder" ? top.path : ""}
             onBack={top ? () => pop("notes") : undefined}
+            onOpenBase={(path) => push("notes", { kind: "base", path })}
             onOpenFolder={(path) => push("notes", { kind: "folder", path })}
             onOpenNote={openNote}
             vault={vault}
@@ -183,7 +208,7 @@ export default function App() {
         ) : activeTab === "search" ? (
           <SearchView onOpenNote={openNote} vault={vault} />
         ) : activeTab === "today" ? (
-          <TodayIntro onOpen={openToday} />
+          <TodayView onOpenDate={openDaily} />
         ) : (
           <MoreView
             activeVaultId={vault.vaultId}
@@ -214,7 +239,7 @@ export default function App() {
             active={activeTab === "today"}
             icon={<Calendar size={20} />}
             label={t("mobile.tabToday")}
-            onClick={openToday}
+            onClick={() => setActiveTab("today")}
           />
           <TabButton
             active={activeTab === "more"}
@@ -247,6 +272,29 @@ function TabButton({
   );
 }
 
+/** Long-press hook for the note sheet (M4/E7): 500 ms hold opens actions. */
+function useLongPress(onLongPress: (path: string, title: string) => void) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedRef = useRef(false);
+  const start = (path: string, title: string) => {
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      onLongPress(path, title);
+    }, 500);
+  };
+  const clear = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+  const clicked = () => {
+    const fired = firedRef.current;
+    firedRef.current = false;
+    return !fired;
+  };
+  return { start, clear, clicked };
+}
+
 function BrowseView({
   vault,
   folder,
@@ -254,6 +302,7 @@ function BrowseView({
   onBack,
   onOpenFolder,
   onOpenNote,
+  onOpenBase,
 }: {
   vault: MobileVault;
   folder: string;
@@ -261,10 +310,13 @@ function BrowseView({
   onBack?: () => void;
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
+  onOpenBase: (path: string) => void;
 }) {
   const { t } = useTranslation();
-  const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [] });
+  const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
+  const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
+  const press = useLongPress((path, title) => setSheet({ path, title }));
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, folder).then((l) => {
@@ -280,6 +332,53 @@ function BrowseView({
     };
   }, [vault, folder, bump]);
 
+  const noteRow = (n: { path: string; title: string }) => (
+    <button
+      className="m-row"
+      key={n.path}
+      onClick={() => {
+        if (press.clicked()) onOpenNote(n.path);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setSheet({ path: n.path, title: n.title });
+      }}
+      onPointerCancel={press.clear}
+      onPointerDown={() => press.start(n.path, n.title)}
+      onPointerLeave={press.clear}
+      onPointerUp={press.clear}
+    >
+      <FileText size={16} />
+      <span>{n.title}</span>
+    </button>
+  );
+
+  const renameNote = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void (async () => {
+      const { value, cancelled } = await Dialog.prompt({
+        title: t("mobile.vaultRename"),
+        message: t("mobile.renamePrompt"),
+        inputText: target.title,
+      });
+      const trimmed = value?.trim();
+      if (cancelled || !trimmed || trimmed === target.title) return;
+      await vaultOps.rename(vault, target.path, trimmed);
+    })();
+  };
+
+  const deleteNote = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void (async () => {
+      const { value } = await Dialog.confirm({
+        title: t("mobile.deleteNote"),
+        message: t("mobile.deleteNoteConfirm", { name: target.title }),
+      });
+      if (!value) return;
+      await vaultOps.remove(vault, target.path);
+    })();
+  };
+
   return (
     <div className="m-page">
       <header className="m-header">
@@ -294,12 +393,7 @@ function BrowseView({
       {recent.length > 0 && (
         <>
           <p className="m-sectionlabel">{t("mobile.recent")}</p>
-          {recent.map((n) => (
-            <button className="m-row" key={n.path} onClick={() => onOpenNote(n.path)}>
-              <FileText size={16} />
-              <span>{n.title}</span>
-            </button>
-          ))}
+          {recent.map(noteRow)}
           <p className="m-sectionlabel">{t("mobile.folders")}</p>
         </>
       )}
@@ -314,12 +408,40 @@ function BrowseView({
           <ChevronRight className="m-chevron" size={16} />
         </button>
       ))}
-      {listing.notes.map((n) => (
-        <button className="m-row" key={n.path} onClick={() => onOpenNote(n.path)}>
-          <FileText size={16} />
-          <span>{n.title}</span>
+      {listing.bases.map((b) => (
+        <button className="m-row" key={b.path} onClick={() => onOpenBase(b.path)}>
+          <Database className="m-accent" size={16} />
+          <span>{b.title}</span>
+          <ChevronRight className="m-chevron" size={16} />
         </button>
       ))}
+      {listing.notes.map(noteRow)}
+
+      {sheet && (
+        <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <p className="m-sheet-title">{sheet.title}</p>
+            <button
+              className="m-row"
+              onClick={() => {
+                setSheet(null);
+                onOpenNote(sheet.path);
+              }}
+            >
+              <FileText size={16} />
+              <span>{t("mobile.sheetOpen")}</span>
+            </button>
+            <button className="m-row" onClick={() => renameNote(sheet)}>
+              <Pencil size={16} />
+              <span>{t("mobile.vaultRename")}</span>
+            </button>
+            <button className="m-row m-danger" onClick={() => deleteNote(sheet)}>
+              <Trash2 size={16} />
+              <span>{t("mobile.deleteNote")}</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -335,8 +457,12 @@ function NoteView({
   onBack: () => void;
   onOpenNote: (path: string) => void;
 }) {
+  const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   const [doc, setDoc] = useState<string | null>(null);
+  // Read-first (M4/E5): notes open rendered and read-only; the pen flips
+  // into editing (and back), which also shows the keyboard toolbar.
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
     let stale = false;
     void vaultOps.read(vault, path).then((text) => {
@@ -354,9 +480,23 @@ function NoteView({
           <ChevronLeft size={20} />
         </button>
         <h1>{title}</h1>
+        <button
+          aria-label={editing ? t("mobile.doneEditing") : t("mobile.editNote")}
+          aria-pressed={editing}
+          className={`m-iconbtn${editing ? " is-active" : ""}`}
+          onClick={() => setEditing((e) => !e)}
+        >
+          {editing ? <Check size={20} /> : <Pencil size={20} />}
+        </button>
       </header>
       {doc !== null && (
-        <EditorHost initialDoc={doc} onOpenNote={onOpenNote} path={path} vault={vault} />
+        <EditorHost
+          editable={editing}
+          initialDoc={doc}
+          onOpenNote={onOpenNote}
+          path={path}
+          vault={vault}
+        />
       )}
     </div>
   );
@@ -416,16 +556,47 @@ function SearchView({
   );
 }
 
-function TodayIntro({ onOpen }: { onOpen: () => void }) {
-  const { t } = useTranslation();
+function TodayView({ onOpenDate }: { onOpenDate: (iso: string) => void }) {
+  const { t, i18n: i18nInstance } = useTranslation();
+  // Date strip (M4/E6): the last weeks plus tomorrow, today preselected.
+  const days: Date[] = [];
+  for (let offset = -27; offset <= 1; offset++) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    days.push(d);
+  }
+  const todayIso = isoOf(new Date());
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Land on today (the strip starts four weeks back).
+    stripRef.current
+      ?.querySelector(".is-today")
+      ?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, []);
+  const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
   return (
     <div className="m-page">
       <header className="m-header">
         <h1>{t("mobile.tabToday")}</h1>
       </header>
-      <button className="m-row" onClick={onOpen}>
+      <div className="m-datestrip" ref={stripRef}>
+        {days.map((d) => {
+          const iso = isoOf(d);
+          return (
+            <button
+              className={`m-datestrip-day${iso === todayIso ? " is-today" : ""}`}
+              key={iso}
+              onClick={() => onOpenDate(iso)}
+            >
+              <span className="m-datestrip-wd">{weekday.format(d)}</span>
+              <span className="m-datestrip-num">{d.getDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button className="m-row" onClick={() => onOpenDate(todayIso)}>
         <Calendar className="m-accent" size={16} />
-        <span>{todayDailyPath().title}</span>
+        <span>{todayIso}</span>
         <ChevronRight className="m-chevron" size={16} />
       </button>
     </div>

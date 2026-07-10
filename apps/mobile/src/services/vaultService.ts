@@ -233,6 +233,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 export interface FolderListing {
   folders: string[];
   notes: Array<{ path: string; title: string }>;
+  /** Read-only databases (M4): .base files in this folder. */
+  bases: Array<{ path: string; title: string }>;
 }
 
 const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "");
@@ -248,7 +250,36 @@ export const vaultOps = {
       .filter((e) => !e.isDirectory && /\.md$/i.test(e.name))
       .map((e) => ({ path: e.path, title: noteTitle(e.path) }))
       .sort((a, b) => a.title.localeCompare(b.title));
-    return { folders, notes };
+    const bases = entries
+      .filter((e) => !e.isDirectory && /\.base$/i.test(e.name))
+      .map((e) => ({ path: e.path, title: e.name.replace(/\.base$/i, "") }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+    return { folders, notes, bases };
+  },
+
+  /** Renames a note within its folder; sync mirrors it via the queueing chain. */
+  async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
+    const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
+    const newPath = `${dir}${newTitle}.md`;
+    if (newPath === oldPath) return oldPath;
+    await v.files.renameItem(oldPath, newPath);
+    if (v.indexer) {
+      await v.indexer.removePathFromIndex(oldPath).catch(() => {});
+      try {
+        await v.indexer.indexFile(await v.adapter.getFileInfo(newPath));
+      } catch {
+        /* next full pass repairs it */
+      }
+    }
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return newPath;
+  },
+
+  /** Deletes a note; with sync active the deletion reaches the cloud too. */
+  async remove(v: MobileVault, path: string): Promise<void> {
+    await v.files.deleteItem(path);
+    if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {

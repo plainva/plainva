@@ -63,6 +63,7 @@ export * from "./components/callouts";
 export * from "./components/documentHeader";
 export * from "./components/editorCompletion";
 export * from "./components/editorSession";
+export * from "./components/editorTouchCommands";
 export * from "./components/editorTriggers";
 export * from "./components/emojiData";
 export * from "./components/foldingExtension";

@@ -26,7 +26,8 @@
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-i18next": "^17.0.8"
+    "react-i18next": "^17.0.8",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",

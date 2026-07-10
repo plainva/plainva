@@ -1411,6 +1411,16 @@
     "vaultRenamePrompt": "Nouveau nom du coffre",
     "vaultDelete": "Supprimer le coffre",
     "vaultDeleteConfirm": "Supprimer « {{name}} » de cet appareil ? Les fichiers locaux, l’index et les identifiants seront supprimés ; le stockage cloud reste intact.",
-    "syncResume": "Reconnecter"
+    "syncResume": "Reconnecter",
+    "editNote": "Modifier",
+    "doneEditing": "Terminé",
+    "editToolbar": "Mise en forme",
+    "sheetOpen": "Ouvrir",
+    "renamePrompt": "Nouveau nom",
+    "deleteNote": "Supprimer la note",
+    "deleteNoteConfirm": "Supprimer « {{name}} » ? Avec la synchronisation active, elle sera aussi supprimée dans le cloud.",
+    "baseReadOnly": "Les bases de données sont pour l’instant en lecture seule sur mobile.",
+    "baseNoSource": "Cette source de base de données n’est pas encore prise en charge sur mobile.",
+    "baseName": "Nom"
   }
 }

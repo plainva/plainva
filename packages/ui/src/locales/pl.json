@@ -1416,6 +1416,16 @@
     "vaultRenamePrompt": "Nowa nazwa sejfu",
     "vaultDelete": "Usuń sejf",
     "vaultDeleteConfirm": "Usunąć „{{name}}\" z tego urządzenia? Pliki lokalne, indeks i dane logowania zostaną usunięte; magazyn w chmurze pozostanie nietknięty.",
-    "syncResume": "Połącz ponownie"
+    "syncResume": "Połącz ponownie",
+    "editNote": "Edytuj",
+    "doneEditing": "Gotowe",
+    "editToolbar": "Formatowanie",
+    "sheetOpen": "Otwórz",
+    "renamePrompt": "Nowa nazwa",
+    "deleteNote": "Usuń notatkę",
+    "deleteNoteConfirm": "Usunąć „{{name}}\"? Przy aktywnej synchronizacji zostanie usunięta także w chmurze.",
+    "baseReadOnly": "Bazy danych są na razie tylko do odczytu na urządzeniach mobilnych.",
+    "baseNoSource": "To źródło bazy danych nie jest jeszcze obsługiwane na urządzeniach mobilnych.",
+    "baseName": "Nazwa"
   }
 }

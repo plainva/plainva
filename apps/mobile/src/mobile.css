@@ -316,3 +316,104 @@ body {
 .m-danger {
   color: var(--danger-color, #b3261e);
 }
+
+/* M4 touch UX */
+.m-edit-toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  z-index: 30;
+}
+.m-edit-toolbar button {
+  background: none;
+  border: 0;
+  padding: 8px;
+  color: var(--text-main);
+  border-radius: var(--radius-sm, 6px);
+}
+.m-edit-toolbar button:active {
+  background: var(--bg-hover);
+}
+.m-page--note .m-editor {
+  padding-bottom: 64px;
+}
+.m-datestrip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 16px 12px;
+  scrollbar-width: none;
+}
+.m-datestrip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 46px;
+  padding: 8px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 10px);
+  background: none;
+  color: var(--text-main);
+  font: inherit;
+}
+.m-datestrip-day.is-today {
+  background: var(--accent-color);
+  color: var(--accent-on, #fff);
+  border-color: var(--accent-color);
+}
+.m-datestrip-wd {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+.m-datestrip-num {
+  font-weight: 600;
+}
+.m-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+}
+.m-sheet {
+  width: 100%;
+  background: var(--bg-primary);
+  border-radius: 16px 16px 0 0;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+}
+.m-sheet-title {
+  margin: 0 16px 8px;
+  font-weight: 600;
+}
+.m-basetable-wrap {
+  overflow-x: auto;
+  padding: 0 16px 16px;
+}
+.m-basetable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.m-basetable th,
+.m-basetable td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-basetable th {
+  color: var(--text-muted);
+  font-weight: 600;
+}

@@ -1411,6 +1411,16 @@
     "vaultRenamePrompt": "Nuevo nombre de la bóveda",
     "vaultDelete": "Eliminar bóveda",
     "vaultDeleteConfirm": "¿Eliminar «{{name}}» de este dispositivo? Se quitarán los archivos locales, el índice y las credenciales; el almacenamiento en la nube no se toca.",
-    "syncResume": "Reconectar"
+    "syncResume": "Reconectar",
+    "editNote": "Editar",
+    "doneEditing": "Listo",
+    "editToolbar": "Formato",
+    "sheetOpen": "Abrir",
+    "renamePrompt": "Nuevo nombre",
+    "deleteNote": "Eliminar nota",
+    "deleteNoteConfirm": "¿Eliminar «{{name}}»? Con la sincronización activa también se elimina en la nube.",
+    "baseReadOnly": "Las bases de datos son de solo lectura en el móvil por ahora.",
+    "baseNoSource": "Esta fuente de base de datos aún no es compatible en el móvil.",
+    "baseName": "Nombre"
   }
 }

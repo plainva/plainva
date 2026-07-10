@@ -1401,6 +1401,16 @@
     "vaultRenamePrompt": "新しい保管庫名",
     "vaultDelete": "保管庫を削除",
     "vaultDeleteConfirm": "「{{name}}」をこの端末から削除しますか？ローカルファイル・インデックス・認証情報が削除されます。クラウド側のデータはそのまま残ります。",
-    "syncResume": "再接続"
+    "syncResume": "再接続",
+    "editNote": "編集",
+    "doneEditing": "完了",
+    "editToolbar": "書式",
+    "sheetOpen": "開く",
+    "renamePrompt": "新しい名前",
+    "deleteNote": "ノートを削除",
+    "deleteNoteConfirm": "「{{name}}」を削除しますか？同期が有効な場合、クラウドからも削除されます。",
+    "baseReadOnly": "データベースはモバイルでは当面読み取り専用です。",
+    "baseNoSource": "このデータベースのソースはモバイルではまだサポートされていません。",
+    "baseName": "名前"
   }
 }

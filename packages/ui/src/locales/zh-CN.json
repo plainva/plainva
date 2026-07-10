@@ -1401,6 +1401,16 @@
     "vaultRenamePrompt": "新的仓库名称",
     "vaultDelete": "删除仓库",
     "vaultDeleteConfirm": "从此设备删除“{{name}}”？本地文件、索引和凭据将被移除；云端存储保持不变。",
-    "syncResume": "重新连接"
+    "syncResume": "重新连接",
+    "editNote": "编辑",
+    "doneEditing": "完成",
+    "editToolbar": "格式",
+    "sheetOpen": "打开",
+    "renamePrompt": "新名称",
+    "deleteNote": "删除笔记",
+    "deleteNoteConfirm": "删除“{{name}}”？同步开启时也会从云端删除。",
+    "baseReadOnly": "数据库在移动端暂为只读。",
+    "baseNoSource": "移动端尚不支持此数据库来源。",
+    "baseName": "名称"
   }
 }
