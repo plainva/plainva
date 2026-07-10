@@ -1416,6 +1416,22 @@
     "deleteNoteConfirm": "\"{{name}}\" verwijderen? Bij actieve synchronisatie wordt deze ook in de cloud verwijderd.",
     "baseReadOnly": "Databases zijn op mobiel voorlopig alleen-lezen.",
     "baseNoSource": "Deze databasebron wordt op mobiel nog niet ondersteund.",
-    "baseName": "Naam"
+    "baseName": "Naam",
+    "settingLanguage": "Taal",
+    "settingLanguageSystem": "Systeemtaal",
+    "settingTheme": "Weergave",
+    "themeSystem": "Systeem",
+    "themeLight": "Licht",
+    "themeDark": "Donker",
+    "settingDefaultView": "Notities openen in",
+    "defaultViewRead": "Leesweergave",
+    "defaultViewEdit": "Bewerkweergave",
+    "settingDailyFolder": "Map voor dagnotities",
+    "onboardingTitle": "Welkom bij Plainva",
+    "onboardingBody": "Je notities zijn pure Markdown-bestanden — privé, draagbaar, van jou.",
+    "onboardingLocal": "Lokaal beginnen",
+    "onboardingLocalDesc": "Notities blijven op dit apparaat. Je kunt altijd een cloud verbinden.",
+    "onboardingCloud": "Cloudkluis verbinden",
+    "onboardingCloudDesc": "Synchroniseer een bestaande kluis vanaf Nextcloud, Drive, OneDrive, Dropbox of S3."
   }
 }

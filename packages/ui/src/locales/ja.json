@@ -1411,6 +1411,22 @@
     "deleteNoteConfirm": "「{{name}}」を削除しますか？同期が有効な場合、クラウドからも削除されます。",
     "baseReadOnly": "データベースはモバイルでは当面読み取り専用です。",
     "baseNoSource": "このデータベースのソースはモバイルではまだサポートされていません。",
-    "baseName": "名前"
+    "baseName": "名前",
+    "settingLanguage": "言語",
+    "settingLanguageSystem": "システムの言語",
+    "settingTheme": "外観",
+    "themeSystem": "システム",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "settingDefaultView": "ノートの開き方",
+    "defaultViewRead": "閲覧ビュー",
+    "defaultViewEdit": "編集ビュー",
+    "settingDailyFolder": "デイリーノートのフォルダ",
+    "onboardingTitle": "Plainva へようこそ",
+    "onboardingBody": "ノートはプレーンな Markdown ファイル。プライベートで、持ち運べて、あなたのものです。",
+    "onboardingLocal": "ローカルで始める",
+    "onboardingLocalDesc": "ノートはこの端末に保存されます。クラウドはいつでも接続できます。",
+    "onboardingCloud": "クラウド保管庫を接続",
+    "onboardingCloudDesc": "Nextcloud・Drive・OneDrive・Dropbox・S3 から既存の保管庫を同期します。"
   }
 }

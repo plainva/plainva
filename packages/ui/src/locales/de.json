@@ -1416,6 +1416,22 @@
     "deleteNoteConfirm": "\"{{name}}\" löschen? Bei aktivem Sync wird sie auch in der Cloud gelöscht.",
     "baseReadOnly": "Datenbanken sind mobil vorerst schreibgeschützt.",
     "baseNoSource": "Diese Datenbank-Quelle wird mobil noch nicht unterstützt.",
-    "baseName": "Name"
+    "baseName": "Name",
+    "settingLanguage": "Sprache",
+    "settingLanguageSystem": "Systemsprache",
+    "settingTheme": "Erscheinungsbild",
+    "themeSystem": "System",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "settingDefaultView": "Notizen öffnen in",
+    "defaultViewRead": "Leseansicht",
+    "defaultViewEdit": "Bearbeitungsansicht",
+    "settingDailyFolder": "Ordner für Daily Notes",
+    "onboardingTitle": "Willkommen bei Plainva",
+    "onboardingBody": "Deine Notizen sind reine Markdown-Dateien — privat, portabel, deine.",
+    "onboardingLocal": "Lokal starten",
+    "onboardingLocalDesc": "Notizen bleiben auf diesem Gerät. Eine Cloud kannst Du jederzeit verbinden.",
+    "onboardingCloud": "Mit Cloud verbinden",
+    "onboardingCloudDesc": "Einen bestehenden Vault von Nextcloud, Drive, OneDrive, Dropbox oder S3 synchronisieren."
   }
 }

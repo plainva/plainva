@@ -1421,6 +1421,22 @@
     "deleteNoteConfirm": "¿Eliminar «{{name}}»? Con la sincronización activa también se elimina en la nube.",
     "baseReadOnly": "Las bases de datos son de solo lectura en el móvil por ahora.",
     "baseNoSource": "Esta fuente de base de datos aún no es compatible en el móvil.",
-    "baseName": "Nombre"
+    "baseName": "Nombre",
+    "settingLanguage": "Idioma",
+    "settingLanguageSystem": "Idioma del sistema",
+    "settingTheme": "Apariencia",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "settingDefaultView": "Abrir notas en",
+    "defaultViewRead": "Vista de lectura",
+    "defaultViewEdit": "Vista de edición",
+    "settingDailyFolder": "Carpeta de notas diarias",
+    "onboardingTitle": "Bienvenido a Plainva",
+    "onboardingBody": "Tus notas son archivos Markdown puros: privados, portátiles, tuyos.",
+    "onboardingLocal": "Empezar en local",
+    "onboardingLocalDesc": "Las notas se quedan en este dispositivo. Puedes conectar una nube cuando quieras.",
+    "onboardingCloud": "Conectar una bóveda en la nube",
+    "onboardingCloudDesc": "Sincroniza una bóveda existente desde Nextcloud, Drive, OneDrive, Dropbox o S3."
   }
 }

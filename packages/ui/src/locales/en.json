@@ -1416,6 +1416,22 @@
     "deleteNoteConfirm": "Delete \"{{name}}\"? With sync active it is deleted in the cloud too.",
     "baseReadOnly": "Databases are read-only on mobile for now.",
     "baseNoSource": "This database source is not supported on mobile yet.",
-    "baseName": "Name"
+    "baseName": "Name",
+    "settingLanguage": "Language",
+    "settingLanguageSystem": "System language",
+    "settingTheme": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "settingDefaultView": "Open notes in",
+    "defaultViewRead": "Reading view",
+    "defaultViewEdit": "Editing view",
+    "settingDailyFolder": "Daily notes folder",
+    "onboardingTitle": "Welcome to Plainva",
+    "onboardingBody": "Your notes are plain Markdown files — private, portable, yours.",
+    "onboardingLocal": "Start locally",
+    "onboardingLocalDesc": "Notes stay on this device. You can connect a cloud any time.",
+    "onboardingCloud": "Connect a cloud vault",
+    "onboardingCloudDesc": "Sync an existing vault from Nextcloud, Drive, OneDrive, Dropbox or S3."
   }
 }

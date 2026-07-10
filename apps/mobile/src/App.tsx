@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
 import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@plainva/ui";
@@ -23,6 +24,8 @@ import { switchVault } from "./services/vaultService";
 import { App as CapApp } from "@capacitor/app";
 import { Dialog } from "@capacitor/dialog";
 import { BaseReadView } from "./BaseReadView";
+import { SettingsScreen } from "./SettingsScreen";
+import { getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
 import { EditorHost } from "./EditorHost";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -34,7 +37,7 @@ import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
 // hides while a note is open (editor focus).
 
 type TabId = "notes" | "search" | "today" | "more";
-type Entry = { kind: "folder" | "note" | "sync" | "vault" | "base"; path: string };
+type Entry = { kind: "folder" | "note" | "sync" | "vault" | "base" | "settings"; path: string };
 
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -42,7 +45,10 @@ const isoOf = (d: Date) =>
     "0",
   )}`;
 
-const dailyPathFor = (iso: string) => ({ path: `Daily/${iso}.md`, title: iso });
+const dailyPathFor = (iso: string) => ({
+  path: `${getMobileSettings().dailyFolder}/${iso}.md`,
+  title: iso,
+});
 
 export default function App() {
   const { t } = useTranslation();
@@ -55,6 +61,7 @@ export default function App() {
     more: [],
   });
   const [bump, setBump] = useState(0);
+  const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
 
   useEffect(() => {
     void getMobileVault().then((v) => {
@@ -168,10 +175,38 @@ export default function App() {
 
   const noteOpen = top?.kind === "note";
 
+  const finishOnboarding = (connectCloud: boolean) => {
+    setOnboarded(true);
+    void updateMobileSettings({ onboarded: true });
+    if (connectCloud) {
+      setActiveTab("more");
+      setStacks((s) => ({ ...s, more: [{ kind: "sync", path: "" }] }));
+    }
+  };
+
+
   return (
     <div className="m-app">
+      {!onboarded && (
+        <div className="m-onboarding">
+          <h1>{t("mobile.onboardingTitle")}</h1>
+          <p className="m-hint">{t("mobile.onboardingBody")}</p>
+          <button className="m-onboarding-card" onClick={() => finishOnboarding(false)}>
+            <FileText className="m-accent" size={22} />
+            <span className="m-onboarding-label">{t("mobile.onboardingLocal")}</span>
+            <span className="m-onboarding-desc">{t("mobile.onboardingLocalDesc")}</span>
+          </button>
+          <button className="m-onboarding-card" onClick={() => finishOnboarding(true)}>
+            <Cloud className="m-accent" size={22} />
+            <span className="m-onboarding-label">{t("mobile.onboardingCloud")}</span>
+            <span className="m-onboarding-desc">{t("mobile.onboardingCloudDesc")}</span>
+          </button>
+        </div>
+      )}
       <div className="m-screen">
-        {top?.kind === "sync" ? (
+        {top?.kind === "settings" ? (
+          <SettingsScreen onBack={() => pop(activeTab)} />
+        ) : top?.kind === "sync" ? (
           <AddVaultScreen onBack={() => pop(activeTab)} vault={vault} />
         ) : top?.kind === "vault" ? (
           <VaultDetailScreen
@@ -213,6 +248,7 @@ export default function App() {
           <MoreView
             activeVaultId={vault.vaultId}
             onAddVault={() => push("more", { kind: "sync", path: "" })}
+            onOpenSettings={() => push("more", { kind: "settings", path: "" })}
             onOpenVault={(id) => push("more", { kind: "vault", path: id })}
           />
         )}
@@ -462,7 +498,7 @@ function NoteView({
   const [doc, setDoc] = useState<string | null>(null);
   // Read-first (M4/E5): notes open rendered and read-only; the pen flips
   // into editing (and back), which also shows the keyboard toolbar.
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
   useEffect(() => {
     let stale = false;
     void vaultOps.read(vault, path).then((text) => {
@@ -620,10 +656,12 @@ function SyncIndicator() {
 function MoreView({
   onAddVault,
   onOpenVault,
+  onOpenSettings,
   activeVaultId,
 }: {
   onAddVault: () => void;
   onOpenVault: (id: string) => void;
+  onOpenSettings: () => void;
   activeVaultId: string;
 }) {
   const { t } = useTranslation();
@@ -634,11 +672,7 @@ function MoreView({
     window.addEventListener("m-vaults-changed", reload);
     return () => window.removeEventListener("m-vaults-changed", reload);
   }, [activeVaultId]);
-  const later = [
-    t("mobile.sectionBookmarksTags"),
-    t("mobile.sectionBases"),
-    t("mobile.sectionSettings"),
-  ];
+  const later = [t("mobile.sectionBookmarksTags"), t("mobile.sectionBases")];
   return (
     <div className="m-page">
       <header className="m-header">
@@ -673,6 +707,11 @@ function MoreView({
       <button className="m-row" onClick={onAddVault}>
         <Cloud className="m-accent" size={16} />
         <span>{t("mobile.vaultAdd")}</span>
+        <ChevronRight className="m-chevron" size={16} />
+      </button>
+      <button className="m-row" onClick={onOpenSettings}>
+        <SettingsIcon className="m-accent" size={16} />
+        <span>{t("mobile.sectionSettings")}</span>
         <ChevronRight className="m-chevron" size={16} />
       </button>
       {later.map((label) => (

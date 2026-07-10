@@ -1421,6 +1421,22 @@
     "deleteNoteConfirm": "Supprimer « {{name}} » ? Avec la synchronisation active, elle sera aussi supprimée dans le cloud.",
     "baseReadOnly": "Les bases de données sont pour l’instant en lecture seule sur mobile.",
     "baseNoSource": "Cette source de base de données n’est pas encore prise en charge sur mobile.",
-    "baseName": "Nom"
+    "baseName": "Nom",
+    "settingLanguage": "Langue",
+    "settingLanguageSystem": "Langue du système",
+    "settingTheme": "Apparence",
+    "themeSystem": "Système",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "settingDefaultView": "Ouvrir les notes en",
+    "defaultViewRead": "Mode lecture",
+    "defaultViewEdit": "Mode édition",
+    "settingDailyFolder": "Dossier des notes quotidiennes",
+    "onboardingTitle": "Bienvenue dans Plainva",
+    "onboardingBody": "Vos notes sont de simples fichiers Markdown — privés, portables, à vous.",
+    "onboardingLocal": "Commencer en local",
+    "onboardingLocalDesc": "Les notes restent sur cet appareil. Vous pourrez connecter un cloud à tout moment.",
+    "onboardingCloud": "Connecter un coffre cloud",
+    "onboardingCloudDesc": "Synchronisez un coffre existant depuis Nextcloud, Drive, OneDrive, Dropbox ou S3."
   }
 }

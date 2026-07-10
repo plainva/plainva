@@ -1411,6 +1411,22 @@
     "deleteNoteConfirm": "删除“{{name}}”？同步开启时也会从云端删除。",
     "baseReadOnly": "数据库在移动端暂为只读。",
     "baseNoSource": "移动端尚不支持此数据库来源。",
-    "baseName": "名称"
+    "baseName": "名称",
+    "settingLanguage": "语言",
+    "settingLanguageSystem": "系统语言",
+    "settingTheme": "外观",
+    "themeSystem": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "settingDefaultView": "笔记打开方式",
+    "defaultViewRead": "阅读视图",
+    "defaultViewEdit": "编辑视图",
+    "settingDailyFolder": "每日笔记文件夹",
+    "onboardingTitle": "欢迎使用 Plainva",
+    "onboardingBody": "你的笔记是纯 Markdown 文件——私密、可移植、属于你。",
+    "onboardingLocal": "从本地开始",
+    "onboardingLocalDesc": "笔记保存在此设备上。你可以随时连接云端。",
+    "onboardingCloud": "连接云端仓库",
+    "onboardingCloudDesc": "从 Nextcloud、Drive、OneDrive、Dropbox 或 S3 同步现有仓库。"
   }
 }

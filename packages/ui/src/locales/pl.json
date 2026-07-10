@@ -1426,6 +1426,22 @@
     "deleteNoteConfirm": "Usunąć „{{name}}\"? Przy aktywnej synchronizacji zostanie usunięta także w chmurze.",
     "baseReadOnly": "Bazy danych są na razie tylko do odczytu na urządzeniach mobilnych.",
     "baseNoSource": "To źródło bazy danych nie jest jeszcze obsługiwane na urządzeniach mobilnych.",
-    "baseName": "Nazwa"
+    "baseName": "Nazwa",
+    "settingLanguage": "Język",
+    "settingLanguageSystem": "Język systemu",
+    "settingTheme": "Wygląd",
+    "themeSystem": "Systemowy",
+    "themeLight": "Jasny",
+    "themeDark": "Ciemny",
+    "settingDefaultView": "Otwieraj notatki w",
+    "defaultViewRead": "Widok do czytania",
+    "defaultViewEdit": "Widok edycji",
+    "settingDailyFolder": "Folder notatek dziennych",
+    "onboardingTitle": "Witaj w Plainva",
+    "onboardingBody": "Twoje notatki to czyste pliki Markdown — prywatne, przenośne, Twoje.",
+    "onboardingLocal": "Zacznij lokalnie",
+    "onboardingLocalDesc": "Notatki pozostają na tym urządzeniu. Chmurę możesz połączyć w każdej chwili.",
+    "onboardingCloud": "Połącz sejf w chmurze",
+    "onboardingCloudDesc": "Synchronizuj istniejący sejf z Nextcloud, Drive, OneDrive, Dropbox lub S3."
   }
 }
