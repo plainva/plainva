@@ -13,18 +13,22 @@ import {
   syncPossible,
   type MobileSyncProvider,
 } from "./services/syncService";
+import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import type { MobileVault } from "./services/vaultService";
+
+type ProviderId = MobileSyncProvider["provider"];
+
+const OAUTH_PROVIDERS: ReadonlySet<ProviderId> = new Set(["drive", "onedrive", "dropbox"]);
 
 /**
  * Vault & Sync screen (M3): one active provider (desktop XOR rule).
- * WebDAV/Nextcloud and S3 are form-based; the OAuth providers
- * (Drive/OneDrive/Dropbox) are still open M3 work and join this select
- * once the @capacitor/browser flow lands.
+ * WebDAV/Nextcloud and S3 are form-based; Drive/OneDrive/Dropbox run the
+ * system-browser OAuth flow (oauthService) and connect on redirect.
  */
 export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
-  const [provider, setProvider] = useState<"webdav" | "s3">("webdav");
+  const [provider, setProvider] = useState<ProviderId>("webdav");
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
     endpoint: "",
@@ -34,6 +38,10 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
     secretAccessKey: "",
     prefix: "",
   });
+  // OAuth extras: folders for all three, BYO client for Google Drive.
+  const [driveClientId, setDriveClientId] = useState("");
+  const [driveClientSecret, setDriveClientSecret] = useState("");
+  const [remoteFolder, setRemoteFolder] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const connected = status.status !== "off";
@@ -43,16 +51,39 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
       if (!stored) return;
       setProvider(stored.provider);
       if (stored.provider === "webdav") setWebdav(stored.creds);
-      else setS3({ prefix: "", ...stored.creds });
+      else if (stored.provider === "s3") setS3({ prefix: "", ...stored.creds });
+      else if (stored.provider === "drive") {
+        setDriveClientId(stored.creds.clientId);
+        setDriveClientSecret(stored.creds.clientSecret ?? "");
+        setRemoteFolder(stored.creds.rootFolderName ?? "");
+      } else if (stored.provider === "onedrive") {
+        setRemoteFolder(stored.creds.rootFolderName ?? "");
+      } else {
+        setRemoteFolder(stored.creds.rootPath ?? "");
+      }
     });
   }, []);
 
   const connect = () => {
+    setBusy(true);
+    setError(null);
+    if (OAUTH_PROVIDERS.has(provider)) {
+      // Opens the system browser; the redirect handler finishes the connect.
+      void beginOAuth(provider as OAuthProviderId, {
+        clientId: driveClientId.trim() || undefined,
+        clientSecret: driveClientSecret.trim() || undefined,
+        rootFolderName: remoteFolder.trim() || undefined,
+        rootPath: remoteFolder.trim() || undefined,
+      })
+        .catch((e) => setError(String(e)))
+        .finally(() => setBusy(false));
+      return;
+    }
     const p: MobileSyncProvider =
       provider === "webdav"
-        ? { provider, creds: { ...webdav, url: webdav.url.trim() } }
+        ? { provider: "webdav", creds: { ...webdav, url: webdav.url.trim() } }
         : {
-            provider,
+            provider: "s3",
             creds: {
               ...s3,
               endpoint: s3.endpoint.trim(),
@@ -61,8 +92,6 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
               prefix: s3.prefix?.trim() || undefined,
             },
           };
-    setBusy(true);
-    setError(null);
     void connectProvider(vault, p)
       .catch((e) => setError(String(e)))
       .finally(() => setBusy(false));
@@ -76,10 +105,14 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
   const canConnect =
     provider === "webdav"
       ? webdav.url.trim().length > 0
-      : s3.endpoint.trim().length > 0 &&
-        s3.bucket.trim().length > 0 &&
-        s3.accessKeyId.length > 0 &&
-        s3.secretAccessKey.length > 0;
+      : provider === "s3"
+        ? s3.endpoint.trim().length > 0 &&
+          s3.bucket.trim().length > 0 &&
+          s3.accessKeyId.length > 0 &&
+          s3.secretAccessKey.length > 0
+        : provider === "drive"
+          ? driveClientId.trim().length > 0
+          : true;
 
   const statusLabel =
     status.status === "syncing"
@@ -123,16 +156,16 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
 
           <label className="m-field">
             <span>{t("mobile.syncProvider")}</span>
-            <SelectField
-              onChange={(e) => setProvider(e.target.value as "webdav" | "s3")}
-              value={provider}
-            >
+            <SelectField onChange={(e) => setProvider(e.target.value as ProviderId)} value={provider}>
               <option value="webdav">WebDAV / Nextcloud</option>
               <option value="s3">S3 (AWS / R2 / MinIO …)</option>
+              <option value="drive">Google Drive</option>
+              <option value="onedrive">OneDrive</option>
+              <option value="dropbox">Dropbox</option>
             </SelectField>
           </label>
 
-          {provider === "webdav" ? (
+          {provider === "webdav" && (
             <>
               <label className="m-field">
                 <span>{t("mobile.syncUrl")}</span>
@@ -158,7 +191,9 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
                 />
               </label>
             </>
-          ) : (
+          )}
+
+          {provider === "s3" && (
             <>
               <label className="m-field">
                 <span>{t("mobile.s3Endpoint")}</span>
@@ -206,6 +241,34 @@ export function SyncScreen({ vault, onBack }: { vault: MobileVault; onBack: () =
                 />
               </label>
             </>
+          )}
+
+          {provider === "drive" && (
+            <>
+              <label className="m-field">
+                <span>{t("mobile.syncClientId")}</span>
+                <TextInput onChange={(e) => setDriveClientId(e.target.value)} value={driveClientId} />
+              </label>
+              <label className="m-field">
+                <span>{t("mobile.syncClientSecret")}</span>
+                <TextInput
+                  onChange={(e) => setDriveClientSecret(e.target.value)}
+                  type="password"
+                  value={driveClientSecret}
+                />
+              </label>
+            </>
+          )}
+
+          {OAUTH_PROVIDERS.has(provider) && (
+            <label className="m-field">
+              <span>{t("mobile.syncFolder")}</span>
+              <TextInput
+                onChange={(e) => setRemoteFolder(e.target.value)}
+                placeholder={provider === "dropbox" ? "/Apps/Plainva" : "Plainva"}
+                value={remoteFolder}
+              />
+            </label>
           )}
 
           <div className="m-sync-actions">

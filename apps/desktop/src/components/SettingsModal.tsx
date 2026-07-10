@@ -22,7 +22,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { runDriveAuthorization } from "../services/driveAuth";
 import { runOneDriveAuthorization } from "../services/oneDriveAuth";
 import { runDropboxAuthorization } from "../services/dropboxAuth";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "../services/providerDefaults";
+import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
 import { GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../services/docsLinks";
 import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";

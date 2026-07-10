@@ -1396,6 +1396,9 @@
     "s3Bucket": "Bucket",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
-    "s3Prefix": "Prefixo (opcional)"
+    "s3Prefix": "Prefixo (opcional)",
+    "syncClientId": "ID do cliente",
+    "syncClientSecret": "Segredo do cliente (opcional)",
+    "syncFolder": "Pasta remota (opcional)"
   }
 }

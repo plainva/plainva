@@ -30,6 +30,10 @@ export * from "./lib/wordCount";
 // exported only via the "@plainva/ui/i18n" subpath)
 export * from "./services/languages";
 
+// Central OAuth app registrations (public client identifiers, shared by
+// the desktop and mobile shells)
+export * from "./services/providerDefaults";
+
 // Platform-services contract: shell capabilities injected by the app
 export * from "./platform/settings";
 export * from "./platform/credentials";

@@ -14,6 +14,7 @@ import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@p
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus } from "./services/syncService";
+import { handleOAuthRedirect } from "./services/oauthService";
 import { App as CapApp } from "@capacitor/app";
 import { EditorHost } from "./EditorHost";
 import { SyncScreen } from "./SyncScreen";
@@ -55,6 +56,27 @@ export default function App() {
     const onChanged = () => setBump((n) => n + 1);
     window.addEventListener("m-vault-changed", onChanged);
     return () => window.removeEventListener("m-vault-changed", onChanged);
+  }, []);
+
+  // OAuth redirect (M3): the system browser returns via the custom scheme.
+  // appUrlOpen covers the warm app; getLaunchUrl covers a cold start where
+  // the redirect itself launched the app.
+  useEffect(() => {
+    let removed = false;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener("appUrlOpen", ({ url }) => {
+      void handleOAuthRedirect(url);
+    }).then((h) => {
+      if (removed) void h.remove();
+      else handle = h;
+    });
+    void CapApp.getLaunchUrl().then((r) => {
+      if (r?.url) void handleOAuthRedirect(r.url);
+    });
+    return () => {
+      removed = true;
+      if (handle) void handle.remove();
+    };
   }, []);
 
   // Android back gesture/button: pop the active tab's stack instead of

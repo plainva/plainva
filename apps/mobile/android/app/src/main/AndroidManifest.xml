@@ -22,6 +22,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- OAuth redirect (M3): the system browser returns to the app via
+                 com.plainva.app://oauth after provider consent. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.plainva.app" />
+            </intent-filter>
+
         </activity>
 
         <provider

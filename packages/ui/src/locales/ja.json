@@ -1386,6 +1386,9 @@
     "s3Bucket": "バケット",
     "s3AccessKeyId": "アクセスキー ID",
     "s3SecretAccessKey": "シークレットアクセスキー",
-    "s3Prefix": "プレフィックス（任意）"
+    "s3Prefix": "プレフィックス（任意）",
+    "syncClientId": "クライアント ID",
+    "syncClientSecret": "クライアントシークレット（任意）",
+    "syncFolder": "リモートフォルダ（任意）"
   }
 }

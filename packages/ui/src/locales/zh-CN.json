@@ -1386,6 +1386,9 @@
     "s3Bucket": "存储桶",
     "s3AccessKeyId": "Access Key ID",
     "s3SecretAccessKey": "Secret Access Key",
-    "s3Prefix": "前缀（可选）"
+    "s3Prefix": "前缀（可选）",
+    "syncClientId": "客户端 ID",
+    "syncClientSecret": "客户端密钥（可选）",
+    "syncFolder": "远程文件夹（可选）"
   }
 }

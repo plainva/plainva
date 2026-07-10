@@ -14,7 +14,7 @@ import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "./PlainvaLogo";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "../services/providerDefaults";
+import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
 import { GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../services/docsLinks";
 import {
   getVaultTemplates,

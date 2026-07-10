@@ -1,4 +1,7 @@
 import {
+  DriveSyncTarget,
+  DropboxSyncTarget,
+  OneDriveSyncTarget,
   S3SyncTarget,
   SyncEngine,
   SyncWorker,
@@ -19,18 +22,40 @@ import type { MobileVault } from "./vaultService";
  * (desktop XOR rule). Requires the native SQLite queue, so sync is
  * unavailable on the plain web dev server (same rule as search).
  *
- * Providers: WebDAV/Nextcloud and S3-compatible storage (form-based).
- * The OAuth providers (Drive/OneDrive/Dropbox) follow via
- * @capacitor/browser + custom-scheme redirect — still open M3 work.
+ * Providers: WebDAV/Nextcloud and S3 (form-based) plus Google Drive,
+ * OneDrive and Dropbox (system-browser OAuth via oauthService).
  */
 
 const CRED_KEY = "sync_provider_mobile";
 /** Pre-provider-refactor slot; migrated transparently on first read. */
 const LEGACY_WEBDAV_KEY = "webdav_credentials_mobile";
 
+export interface DriveMobileCredentials {
+  clientId: string;
+  /** Only for BYO desktop-type clients; Android OAuth clients have none. */
+  clientSecret?: string;
+  refreshToken: string;
+  rootFolderName?: string;
+}
+
+export interface OneDriveMobileCredentials {
+  clientId: string;
+  refreshToken: string;
+  rootFolderName?: string;
+}
+
+export interface DropboxMobileCredentials {
+  appKey: string;
+  refreshToken: string;
+  rootPath?: string;
+}
+
 export type MobileSyncProvider =
   | { provider: "webdav"; creds: WebDavCredentials }
-  | { provider: "s3"; creds: S3Credentials };
+  | { provider: "s3"; creds: S3Credentials }
+  | { provider: "drive"; creds: DriveMobileCredentials }
+  | { provider: "onedrive"; creds: OneDriveMobileCredentials }
+  | { provider: "dropbox"; creds: DropboxMobileCredentials };
 
 export type MobileSyncStatus = "off" | "idle" | "syncing" | "error";
 
@@ -122,8 +147,59 @@ export function stopSync(): void {
 }
 
 function buildTarget(p: MobileSyncProvider): ISyncTarget {
-  if (p.provider === "s3") return new S3SyncTarget(p.creds, webdavFetch);
-  return new WebDavSyncTarget(p.creds, webdavFetch);
+  // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
+  // immediately or the stored token goes stale (desktop lesson).
+  const persistRotation = () => {
+    void getPlatformServices().credentials.writeSecret(CRED_KEY, p).catch(() => {});
+  };
+  switch (p.provider) {
+    case "s3":
+      return new S3SyncTarget(p.creds, webdavFetch);
+    case "drive":
+      return new DriveSyncTarget(
+        {
+          clientId: p.creds.clientId,
+          clientSecret: p.creds.clientSecret ?? "",
+          refreshToken: p.creds.refreshToken,
+          rootFolderName: p.creds.rootFolderName,
+        },
+        webdavFetch,
+      );
+    case "onedrive": {
+      const target = new OneDriveSyncTarget(
+        {
+          clientId: p.creds.clientId,
+          refreshToken: p.creds.refreshToken,
+          rootFolderName: p.creds.rootFolderName,
+        },
+        webdavFetch,
+      );
+      target.onTokensRefreshed = (_accessToken, refreshToken) => {
+        if (!refreshToken || refreshToken === p.creds.refreshToken) return;
+        p.creds.refreshToken = refreshToken;
+        persistRotation();
+      };
+      return target;
+    }
+    case "dropbox": {
+      const target = new DropboxSyncTarget(
+        {
+          appKey: p.creds.appKey,
+          refreshToken: p.creds.refreshToken,
+          rootPath: p.creds.rootPath,
+        },
+        webdavFetch,
+      );
+      target.onTokensRefreshed = (_accessToken, refreshToken) => {
+        if (!refreshToken || refreshToken === p.creds.refreshToken) return;
+        p.creds.refreshToken = refreshToken;
+        persistRotation();
+      };
+      return target;
+    }
+    default:
+      return new WebDavSyncTarget(p.creds, webdavFetch);
+  }
 }
 
 function startWorker(v: MobileVault, p: MobileSyncProvider): void {
