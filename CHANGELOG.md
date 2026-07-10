@@ -7,6 +7,61 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.1.3] — Unreleased
+
+A hardening release driven by the first external user reports (thank you!)
+and a deep review pass: crash-safe file writes, a sturdier sync engine, and
+the most-requested customization options. No format changes; existing vaults
+and `.base` files are untouched.
+
+### Fixed
+
+- **Printing on macOS.** `window.print()` is silently ignored by the macOS
+  WebView, so *Print / Save as PDF* never worked there (#6). macOS now goes
+  through a native print path; Windows and Linux are unchanged.
+- The README no longer claims OneDrive and Dropbox need your own app
+  registration — they work out of the box; only Google Drive is BYO.
+
+### Added
+
+- **Content font size and font family** (Settings → General): scale the
+  editor and reading view from 12–24 px and pick serif, sans-serif, monospace
+  or any installed font — the interface itself stays unchanged (#5).
+- **Interface zoom** (80–150 %): scales the whole window via
+  `Ctrl/Cmd+Plus/Minus`, `Ctrl/Cmd+0` resets (#5).
+- **Export as Markdown…** in the editor menu and command palette saves a copy
+  of the note anywhere; PDF export continues via *Print / Save as PDF* (#6).
+- **Create templates from the command palette**: *Create new template* and
+  *Save current note as template* (#6).
+- **Draft recovery.** While you type, Plainva journals the unsaved buffer;
+  after a crash or failed save, reopening the note offers to restore the
+  draft.
+- **Pending-transfer view** (Settings → Sync) shows what is still queued for
+  the cloud, and a **Rebuild index** button covers stale search/backlinks.
+- **Focus mode** command collapses both sidebars and restores the layout on
+  the next invocation. The right sidebar now remembers its visibility per
+  view (notes, databases, vault map — the map starts collapsed), and the
+  vault map's filters moved into a compact popover with an active-count badge.
+- **Performance metrics** (Settings → About & diagnostics): local
+  median/p95 timings of index, search and typing latency with a JSON export —
+  nothing leaves the device.
+
+### Changed
+
+- **Every note write is atomic now** (temp file + fsync + rename, desktop and
+  Android): a crash, full disk or network-share drop can no longer leave a
+  torn or half-written note.
+- **Sync got tougher**: rate-limit (429) handling with Retry-After across all
+  providers, token refreshes no longer stampede (single-flight; rotated
+  OneDrive/Dropbox tokens are persisted before the cycle continues), and
+  first syncs download several files in parallel within a memory budget while
+  writes stay strictly ordered.
+- Mobile (unreleased test builds): saves go through a coordinator that
+  retries failures and survives leaving the editor; OAuth sign-ins survive
+  Android killing the app mid-consent; the native HTTP bridge only talks to
+  configured servers; Android backups now include the local vault but never
+  credentials or rebuildable indexes.
+
 ## [0.1.2] — 2026-07-10
 
 A maintenance release shaped by daily use against real, cloud-synced vaults:
