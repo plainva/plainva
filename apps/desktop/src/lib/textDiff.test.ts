@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { minimalDocChange } from "./textDiff";
+import { minimalDocChange } from "@plainva/ui";
 
 const apply = (oldText: string, newText: string): string => {
   const change = minimalDocChange(oldText, newText);

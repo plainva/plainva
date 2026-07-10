@@ -4,7 +4,7 @@ import { Check, Lightbulb, X } from "lucide-react";
 import type { GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { appendWikiLink, applyInlineLink, findFirstUnlinkedOccurrence } from "../../services/graphActions";
-import { buildOccurrenceSnippet, type OccurrenceSnippet } from "../../lib/occurrenceSnippet";
+import { buildOccurrenceSnippet, type OccurrenceSnippet } from "@plainva/ui";
 import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useFocusTrap } from "@plainva/ui";
 import { applyTemplatePlaceholders, getTemplateFolder, listTemplates } from "../services/newItemFlow";
 
 interface TemplatePickerModalProps {

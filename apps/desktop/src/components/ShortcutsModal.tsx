@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 
 interface ShortcutsModalProps {
   onClose: () => void;

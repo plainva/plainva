@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "./pathGuard";
 import { toast } from "../services/toastStore";
 import i18n from "../i18n";
-import { createLimiter, type ConcurrencyLimiter } from "../lib/concurrencyLimiter";
+import { createLimiter, type ConcurrencyLimiter } from "@plainva/ui";
 
 /**
  * How many filesystem calls (stat/readDir/exists) may be in flight at once

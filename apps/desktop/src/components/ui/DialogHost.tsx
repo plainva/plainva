@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { settleDialog, useActiveDialog, type DialogRequest } from "../../services/appDialogs";
-import { Modal } from "./Modal";
-import { Button } from "./Button";
-import { TextInput } from "./Field";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
+import { TextInput } from "@plainva/ui";
 
 /**
  * Renders the active appDialog request (plan Designsprache P3/§6) as a themed

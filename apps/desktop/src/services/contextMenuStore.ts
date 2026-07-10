@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { EditableTarget } from "../lib/editableField";
+import type { EditableTarget } from "@plainva/ui";
 
 /**
  * Tiny store for the app's own right-click menu (webview hardening, 2026-07-07).

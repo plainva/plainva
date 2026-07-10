@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush } from "./peekHistory";
+import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush } from "@plainva/ui";
 
 describe("peekHistory", () => {
   it("initializes with a single entry at the cursor", () => {

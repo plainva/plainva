@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 
 /**
  * "Was ist OKF?" explainer (plan UI-UX P12): shown once per vault after

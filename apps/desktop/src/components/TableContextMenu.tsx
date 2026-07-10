@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { MenuSurface, MenuItem, MenuSeparator } from "./ui/Menu";
+import { MenuSurface, MenuItem, MenuSeparator } from "@plainva/ui";
 
 export type TableMenuAction =
   | "row-above"

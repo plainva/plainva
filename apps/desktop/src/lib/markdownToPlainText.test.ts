@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { markdownToPlainText } from "./markdownToPlainText";
+import { markdownToPlainText } from "@plainva/ui";
 
 const CHECKED = "☑"; // ☑
 const UNCHECKED = "☐"; // ☐

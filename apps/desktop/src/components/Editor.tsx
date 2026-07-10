@@ -35,7 +35,7 @@ import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "../services/toastStore";
 import { dirtyStore } from "../services/dirtyStore";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "./ui/Menu";
+import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -46,10 +46,10 @@ import { BlockMenu, type BlockAction } from "./BlockMenu";
 import { blockAt, listBlocks } from "./blockModel";
 import { turnInto, moveBlockAbove, listMarkerStyle } from "./blockTransforms";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "./editorSession";
-import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "../lib/searchJump";
-import { toggleTaskAtIndex } from "../lib/taskToggle";
-import { decideDirtyExternalUpdate } from "../lib/externalUpdateDecision";
-import { parkTreeReveal } from "../lib/treeReveal";
+import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
+import { toggleTaskAtIndex } from "@plainva/ui";
+import { decideDirtyExternalUpdate } from "@plainva/ui";
+import { parkTreeReveal } from "@plainva/ui";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
 // closed and reopened, the NEW editor instance must still wait for a write the

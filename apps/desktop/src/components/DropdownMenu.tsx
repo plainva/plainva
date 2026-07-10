@@ -1,5 +1,5 @@
 import { type ReactNode, type RefObject } from "react";
-import { MenuSurface, MenuItem as UiMenuItem, MenuSeparator } from "./ui/Menu";
+import { MenuSurface, MenuItem as UiMenuItem, MenuSeparator } from "@plainva/ui";
 
 export interface MenuItem {
   id: string;

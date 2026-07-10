@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useFixedPopover } from "../ui/useFixedPopover";
+import { useFixedPopover } from "@plainva/ui";
 import { Plus, ChevronDown, Check, Star, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import type { TemplateItem } from "../../services/newItemFlow";

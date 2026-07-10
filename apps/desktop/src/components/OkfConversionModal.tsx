@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { OkfScanResult, OkfViolationKind } from "@plainva/core";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
-import { TextInput } from "./ui/Field";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
+import { TextInput } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { scanVaultOkf, runOkfConversion, type OkfRunReport } from "../services/okfConversion";
 import { getConfiguredNoteType } from "../services/newNote";

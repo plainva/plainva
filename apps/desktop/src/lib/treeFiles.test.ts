@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sameTreeFiles } from "./treeFiles";
+import { sameTreeFiles } from "@plainva/ui";
 
 describe("sameTreeFiles (autosave-lag fix)", () => {
   it("treats identical lists as equal so a content save skips the tree rebuild", () => {

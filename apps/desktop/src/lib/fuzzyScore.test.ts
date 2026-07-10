@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fuzzyScore, fuzzyFilter } from "./fuzzyScore";
+import { fuzzyScore, fuzzyFilter } from "@plainva/ui";
 
 describe("fuzzyScore (quick switcher, P3.3)", () => {
   it("matches gap subsequences like Obsidian's switcher", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWords } from "./wordCount";
+import { countWords } from "@plainva/ui";
 
 describe("countWords", () => {
   it("counts plain prose", () => {

@@ -24,9 +24,9 @@ import { listIndentPlugin } from "./listIndent";
 import { markdownFolding } from "./foldingExtension";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
-import { minimalDocChange } from "../lib/textDiff";
-import { countWords } from "../lib/wordCount";
-import { markdownToPlainText } from "../lib/markdownToPlainText";
+import { minimalDocChange } from "@plainva/ui";
+import { countWords } from "@plainva/ui";
+import { markdownToPlainText } from "@plainva/ui";
 import type { EditorTriggerDeps } from "./editorTriggers";
 
 /**

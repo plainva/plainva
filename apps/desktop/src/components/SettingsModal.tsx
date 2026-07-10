@@ -41,14 +41,14 @@ import { ThemePickerCards } from "./ThemePickerCards";
 import { Select } from "./Select";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "../i18n";
-import { Modal } from "./ui/Modal";
+import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatDiagnosticsExport } from "../services/diagnosticsLog";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { Button } from "./ui/Button";
+import { Button } from "@plainva/ui";
 
 interface SettingsModalProps {
   onClose: () => void;

@@ -3,10 +3,10 @@ import { VaultQueryService } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { Search, Clock, File as FileIcon, FilePlus, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFocusTrap } from "../hooks/useFocusTrap";
-import { fuzzyFilter } from "../lib/fuzzyScore";
-import { renderSnippetNodes } from "../lib/searchSnippet";
-import { setPendingSearchJump } from "../lib/searchJump";
+import { useFocusTrap } from "@plainva/ui";
+import { fuzzyFilter } from "@plainva/ui";
+import { renderSnippetNodes } from "@plainva/ui";
+import { setPendingSearchJump } from "@plainva/ui";
 import { getConfiguredNoteType, buildNewNoteContent } from "../services/newNote";
 import { toast } from "../services/toastStore";
 

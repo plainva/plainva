@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import { Store } from "@tauri-apps/plugin-store";
 import { STORE_KEY, SHOW_COMPATIBILITY_WARNING_KEY } from "../contexts/VaultContext";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
-import { Checkbox } from "./ui/Checkbox";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
+import { Checkbox } from "@plainva/ui";
 
 interface Props {
   onConfirm: () => void;

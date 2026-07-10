@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { conflictOriginalPath, isConflictCopyPath } from "./conflictFiles";
+import { conflictOriginalPath, isConflictCopyPath } from "@plainva/ui";
 
 describe("conflict copy path mapping (P3.11)", () => {
   it("maps a conflict copy back to its original", () => {

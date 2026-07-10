@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFixedPopover } from "./ui/useFixedPopover";
+import { useFixedPopover } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock,

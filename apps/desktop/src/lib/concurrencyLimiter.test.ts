@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createLimiter } from "./concurrencyLimiter";
+import { createLimiter } from "@plainva/ui";
 
 /** A promise plus its resolver, so tests control exactly when a task finishes. */
 function deferred<T>() {

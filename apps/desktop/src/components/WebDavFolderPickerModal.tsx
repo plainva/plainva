@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Folder, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 
 interface WebDavFolderPickerModalProps {
   initialUrl: string;

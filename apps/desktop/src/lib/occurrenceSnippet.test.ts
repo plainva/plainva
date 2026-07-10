@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOccurrenceSnippet } from "./occurrenceSnippet";
+import { buildOccurrenceSnippet } from "@plainva/ui";
 
 describe("buildOccurrenceSnippet", () => {
   it("returns before/match/after untruncated for short content", () => {

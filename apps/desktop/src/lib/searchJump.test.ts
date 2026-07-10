@@ -6,7 +6,7 @@ import {
   findTextRange,
   selectAndRevealRange,
   setPendingSearchJump,
-} from "./searchJump";
+} from "@plainva/ui";
 
 describe("pending search jump store", () => {
   it("hands the jump out exactly once, and only for the matching path", () => {

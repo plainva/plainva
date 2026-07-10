@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Folder, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 
 /**
  * Provider-agnostic remote-folder picker for the sync settings (2026-07-06):

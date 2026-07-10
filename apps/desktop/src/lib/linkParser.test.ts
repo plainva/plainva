@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findLinkAtOffset, segmentInlineText } from './linkParser';
+import { findLinkAtOffset, segmentInlineText } from '@plainva/ui';
 
 describe('findLinkAtOffset', () => {
   it('should find simple wikilinks', () => {

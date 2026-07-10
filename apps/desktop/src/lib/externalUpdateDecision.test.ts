@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideDirtyExternalUpdate } from "./externalUpdateDecision";
+import { decideDirtyExternalUpdate } from "@plainva/ui";
 
 describe("decideDirtyExternalUpdate", () => {
   it("realigns when the disk already matches the draft (echo of our own push)", () => {

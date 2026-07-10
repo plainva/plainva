@@ -5,7 +5,7 @@ import "./styles/tokens.css";
 import "./styles/ui.css";
 import "./themes/index.css";
 import App from "./App";
-import { TooltipHost } from "./components/ui/Tooltip";
+import { TooltipHost } from "@plainva/ui";
 import { ToastHost } from "./components/ui/ToastHost";
 import { DialogHost } from "./components/ui/DialogHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";

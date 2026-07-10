@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
-import { TextInput, SelectField } from "./ui/Field";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
+import { TextInput, SelectField } from "@plainva/ui";
 
 interface Props {
   viewName: string;

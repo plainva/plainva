@@ -6,7 +6,7 @@ import {
   insertIntoEditable,
   deleteEditableSelection,
   isTextInput,
-} from "./editableField";
+} from "@plainva/ui";
 
 afterEach(() => {
   document.body.innerHTML = "";

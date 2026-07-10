@@ -4,8 +4,8 @@ import { RotateCcw, History } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { formatBytes } from "./VersionHistoryModal";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 
 /**
  * Vault-wide recovery of deleted files (Gesamtplan Backups & Versionierung

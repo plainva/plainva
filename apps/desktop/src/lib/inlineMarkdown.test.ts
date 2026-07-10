@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
+import { parseInlineMarkdown, type InlineNode } from "@plainva/ui";
 
 const text = (t: string): InlineNode => ({ kind: "text", text: t });
 

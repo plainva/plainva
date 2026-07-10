@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Scissors, Copy, ClipboardPaste } from "lucide-react";
-import { MenuSurface, MenuItem } from "./ui/Menu";
+import { MenuSurface, MenuItem } from "@plainva/ui";
 import { useContextMenu, closeContextMenu } from "../services/contextMenuStore";
-import { insertIntoEditable, deleteEditableSelection } from "../lib/editableField";
+import { insertIntoEditable, deleteEditableSelection } from "@plainva/ui";
 import { toast } from "../services/toastStore";
 
 /**

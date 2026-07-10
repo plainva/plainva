@@ -1,4 +1,4 @@
-import { EmptyState } from "../ui/EmptyState";
+import { EmptyState } from "@plainva/ui";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { useCardPointerDrag } from "./useCardPointerDrag";

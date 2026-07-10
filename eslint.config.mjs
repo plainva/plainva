@@ -44,7 +44,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ["apps/desktop/src/**/*.{ts,tsx}", "apps/desktop/vite.config.ts"],
+    files: [
+      "apps/desktop/src/**/*.{ts,tsx}",
+      "apps/desktop/vite.config.ts",
+      // Shared UI layer (ADR 0011): same browser/React rule set as the
+      // desktop sources it was extracted from.
+      "packages/ui/src/**/*.{ts,tsx}",
+    ],
     languageOptions: {
       globals: {
         ...globals.browser,

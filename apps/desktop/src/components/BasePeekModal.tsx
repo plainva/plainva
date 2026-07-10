@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
-import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "../lib/peekHistory";
+import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
 
 // Floating peek window for notes opened from a `.base` view or the graph.

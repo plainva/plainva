@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { MenuItem, MenuSurface } from "../ui/Menu";
+import { MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { toast } from "../../services/toastStore";

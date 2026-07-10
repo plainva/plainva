@@ -1,5 +1,5 @@
 import { openContextMenu } from "./contextMenuStore";
-import { findEditable, selectedText } from "../lib/editableField";
+import { findEditable, selectedText } from "@plainva/ui";
 
 /**
  * Webview hardening (2026-07-07): make the shipped app feel like a native

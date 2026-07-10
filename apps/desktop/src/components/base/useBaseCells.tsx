@@ -8,7 +8,7 @@ import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } fr
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
-import { segmentInlineText } from "../../lib/linkParser";
+import { segmentInlineText } from "@plainva/ui";
 import { parseBaseConfig } from "../../services/baseFormat";
 import { resolveNewItemTarget } from "../../services/baseRelations";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";

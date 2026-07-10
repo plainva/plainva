@@ -1,4 +1,4 @@
-import { EmptyState } from "../ui/EmptyState";
+import { EmptyState } from "@plainva/ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";

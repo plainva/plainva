@@ -2,7 +2,7 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { findLinkAtOffset } from "../lib/linkParser";
+import { findLinkAtOffset } from "@plainva/ui";
 import i18n from "../i18n";
 
 // Removed LinkWidget as we'll use Decoration.mark to allow CSS inheritance

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isValidElement, type ReactNode } from "react";
 import { VaultQueryService } from "@plainva/core";
-import { hasSnippetMark, renderSnippetNodes, stripSnippetMarks } from "./searchSnippet";
+import { hasSnippetMark, renderSnippetNodes, stripSnippetMarks } from "@plainva/ui";
 
 const S = VaultQueryService.SNIPPET_MARK_START;
 const E = VaultQueryService.SNIPPET_MARK_END;

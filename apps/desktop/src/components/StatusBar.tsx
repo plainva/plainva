@@ -5,7 +5,7 @@ import { useVault } from "../contexts/VaultContext";
 import { useDisplaySyncStatus } from "../services/syncStatusStore";
 import { activeDocument, type ActiveDoc, type SelectionStats } from "../services/activeDocument";
 import { computeEmbedInfo } from "../services/embedStats";
-import { countWords } from "../lib/wordCount";
+import { countWords } from "@plainva/ui";
 import { parseMarkdownAst } from "@plainva/core";
 
 interface Stats { words: number; chars: number; blocks: number; }

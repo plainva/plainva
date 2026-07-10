@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useVault } from "../contexts/VaultContext";
-import { conflictOriginalPath } from "../lib/conflictFiles";
+import { conflictOriginalPath } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import { toast } from "../services/toastStore";
 import { requestSaveFlush } from "../services/saveFlush";

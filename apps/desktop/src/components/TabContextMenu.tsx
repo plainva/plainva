@@ -1,7 +1,7 @@
 import { Columns2, History, Rows2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SplitDirection } from "./SplitButton";
-import { MenuSurface, MenuItem, MenuSeparator } from "./ui/Menu";
+import { MenuSurface, MenuItem, MenuSeparator } from "@plainva/ui";
 
 interface Props {
   // Right-click point in viewport coordinates.

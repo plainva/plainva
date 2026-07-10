@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { appConfirm } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { toast } from "../services/toastStore";
-import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "./ui/Menu";
+import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isTextFile, isInternalPath, VaultQueryService } from "@plainva/core";
@@ -13,11 +13,11 @@ import {
   History, ClipboardCopy, Trash2, RefreshCw, ArchiveRestore, ListTree, Check, XCircle,
 } from "lucide-react";
 import { buildNewNoteContent, getConfiguredNoteType } from "../services/newNote";
-import { hasSnippetMark, renderSnippetNodes } from "../lib/searchSnippet";
-import { setPendingSearchJump } from "../lib/searchJump";
-import { useStableHandler } from "../lib/useStableHandler";
-import { sameTreeFiles } from "../lib/treeFiles";
-import { consumePendingTreeReveal } from "../lib/treeReveal";
+import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
+import { setPendingSearchJump } from "@plainva/ui";
+import { useStableHandler } from "@plainva/ui";
+import { sameTreeFiles } from "@plainva/ui";
+import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "./DocIcon";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";

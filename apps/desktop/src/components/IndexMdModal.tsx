@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
-import { SelectField } from "./ui/Field";
-import { Checkbox } from "./ui/Checkbox";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
+import { SelectField } from "@plainva/ui";
+import { Checkbox } from "@plainva/ui";
 import {
   collectFolderIndexInfos,
   generateIndexForFolder,

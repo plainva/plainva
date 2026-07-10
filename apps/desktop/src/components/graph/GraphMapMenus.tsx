@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Copy, Eye, FilePlus2, Link2, Pencil, Pin, PinOff, SquareSplitHorizontal, Trash2 } from "lucide-react";
 import type { VaultQueryService, IVaultAdapter } from "@plainva/core";
-import { MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "../ui/Menu";
+import { MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/ui";
 import { appendWikiLink } from "../../services/graphActions";
 import { findRelationOptions, loadRelationCatalog, writeRelationLink, type RelationOption } from "../../services/graphRelationTargets";
 import { appConfirm } from "../../services/appDialogs";

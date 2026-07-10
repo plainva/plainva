@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import type { VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { MenuItem, MenuLabel, MenuSurface } from "../ui/Menu";
+import { MenuItem, MenuLabel, MenuSurface } from "@plainva/ui";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "../graph/graphEngine";
 import { getGraphState } from "../../services/graphState";
 import { buildBaseGraphScene } from "./baseGraphScene";

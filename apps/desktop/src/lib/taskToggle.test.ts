@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toggleTaskAtIndex } from "./taskToggle";
+import { toggleTaskAtIndex } from "@plainva/ui";
 
 describe("toggleTaskAtIndex (read-mode checkbox toggle, P3.1)", () => {
   it("checks and unchecks by document order", () => {

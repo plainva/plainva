@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, AlertTriangle, GripVertical, ChevronDown, Lock, Type } from "lucide-react";
-import { Modal } from "./ui/Modal";
-import { Button } from "./ui/Button";
+import { Modal } from "@plainva/ui";
+import { Button } from "@plainva/ui";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
 import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "./propertyModel";
