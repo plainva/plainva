@@ -7,6 +7,47 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-07-10
+
+A maintenance release shaped by daily use against real, cloud-synced vaults:
+sync data-safety fixes, a more capable graph, and small editor and file-tree
+conveniences. No format changes; existing vaults and `.base` files are untouched.
+
+### Added
+
+- **Graph gestures and pin mode.** Pan with the middle mouse button or
+  Ctrl/Cmd-drag (even over a node). On the vault map an empty-space drag draws a
+  selection lasso, and dragging a selected node moves the whole selection. A pin
+  needle in all three graph views toggles whether moved positions are remembered
+  (on, the default) or the force layout takes over again (off).
+- **Context-graph suggestions link the matching passage inline**, with a preview
+  of the exact text that will be linked — instead of always appending the link
+  at the end of the note.
+- **"Reveal in file tree"** in the editor's ⋮ menu.
+- **One-click "collapse / expand all folders"** toggle in the sidebar.
+- **"Forget app data"** when removing a vault from the splash screen — clears the
+  per-vault index, settings and stored sync credentials (your files stay).
+
+### Fixed
+
+- **No more spurious `.CONFLICT` files** from a race between autosave and the
+  sync push.
+- **In-app folder deletions now reach the cloud**, with a second confirmation
+  when a deletion would remove a large share of your files.
+- **Abandoning a browser OAuth login no longer freezes the app** (Google Drive,
+  OneDrive, Dropbox); reconnecting works immediately afterward.
+- **The context graph remembers moved node positions**, and the `.base` graph
+  view no longer jumps when you drag a node.
+- **Manually typed `[[links]]` update the graph and backlinks immediately** (no
+  restart), and picking a link suggestion no longer inserts a doubled `]]`.
+- **The first titlebar tab now lines up with the document surface.**
+
+### Changed
+
+- **Internal groundwork for the mobile app** — shared UI primitives, i18n,
+  design tokens/themes and platform-neutral settings/secrets interfaces moved
+  into a new `@plainva/ui` package. No change to desktop behavior.
+
 ## [0.1.1] — 2026-07-09
 
 A follow-up release focused on sync data-safety and performance, from running
