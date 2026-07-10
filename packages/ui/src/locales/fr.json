@@ -1437,6 +1437,24 @@
     "onboardingLocal": "Commencer en local",
     "onboardingLocalDesc": "Les notes restent sur cet appareil. Vous pourrez connecter un cloud à tout moment.",
     "onboardingCloud": "Connecter un coffre cloud",
-    "onboardingCloudDesc": "Synchronisez un coffre existant depuis Nextcloud, Drive, OneDrive, Dropbox ou S3."
+    "onboardingCloudDesc": "Synchronisez un coffre existant depuis Nextcloud, Drive, OneDrive, Dropbox ou S3.",
+    "tags": "Tags",
+    "noTags": "Aucun tag pour l’instant.",
+    "bookmarks": "Signets",
+    "noBookmarks": "Aucun signet pour l’instant.",
+    "bookmarkRemove": "Retirer le signet",
+    "toggleBookmark": "Signet",
+    "newFolder": "Nouveau dossier",
+    "newFolderPrompt": "Nom du nouveau dossier :",
+    "deleteFolder": "Supprimer le dossier",
+    "deleteFolderConfirm": "Supprimer le dossier « {{name}} » et toutes les notes qu’il contient ?",
+    "moveNote": "Déplacer",
+    "moveNoteTo": "Déplacer « {{name}} » vers…",
+    "duplicateNote": "Dupliquer",
+    "vaultRoot": "Racine du coffre",
+    "noteInfo": "Infos de la note",
+    "properties": "Propriétés",
+    "backlinks": "Liens entrants",
+    "noBacklinks": "Aucune autre note ne pointe encore ici."
   }
 }

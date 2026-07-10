@@ -1437,6 +1437,24 @@
     "onboardingLocal": "Inizia in locale",
     "onboardingLocalDesc": "Le note restano su questo dispositivo. Puoi collegare un cloud in qualsiasi momento.",
     "onboardingCloud": "Collega un vault cloud",
-    "onboardingCloudDesc": "Sincronizza un vault esistente da Nextcloud, Drive, OneDrive, Dropbox o S3."
+    "onboardingCloudDesc": "Sincronizza un vault esistente da Nextcloud, Drive, OneDrive, Dropbox o S3.",
+    "tags": "Tag",
+    "noTags": "Ancora nessun tag.",
+    "bookmarks": "Segnalibri",
+    "noBookmarks": "Ancora nessun segnalibro.",
+    "bookmarkRemove": "Rimuovi segnalibro",
+    "toggleBookmark": "Segnalibro",
+    "newFolder": "Nuova cartella",
+    "newFolderPrompt": "Nome della nuova cartella:",
+    "deleteFolder": "Elimina cartella",
+    "deleteFolderConfirm": "Eliminare la cartella “{{name}}” e tutte le note al suo interno?",
+    "moveNote": "Sposta",
+    "moveNoteTo": "Sposta “{{name}}” in…",
+    "duplicateNote": "Duplica",
+    "vaultRoot": "Radice del vault",
+    "noteInfo": "Informazioni sulla nota",
+    "properties": "Proprietà",
+    "backlinks": "Backlink",
+    "noBacklinks": "Nessun’altra nota punta ancora qui."
   }
 }

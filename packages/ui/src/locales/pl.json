@@ -1442,6 +1442,24 @@
     "onboardingLocal": "Zacznij lokalnie",
     "onboardingLocalDesc": "Notatki pozostają na tym urządzeniu. Chmurę możesz połączyć w każdej chwili.",
     "onboardingCloud": "Połącz sejf w chmurze",
-    "onboardingCloudDesc": "Synchronizuj istniejący sejf z Nextcloud, Drive, OneDrive, Dropbox lub S3."
+    "onboardingCloudDesc": "Synchronizuj istniejący sejf z Nextcloud, Drive, OneDrive, Dropbox lub S3.",
+    "tags": "Tagi",
+    "noTags": "Nie ma jeszcze tagów.",
+    "bookmarks": "Zakładki",
+    "noBookmarks": "Nie ma jeszcze zakładek.",
+    "bookmarkRemove": "Usuń zakładkę",
+    "toggleBookmark": "Zakładka",
+    "newFolder": "Nowy folder",
+    "newFolderPrompt": "Nazwa nowego folderu:",
+    "deleteFolder": "Usuń folder",
+    "deleteFolderConfirm": "Usunąć folder „{{name}}” i wszystkie notatki w nim?",
+    "moveNote": "Przenieś",
+    "moveNoteTo": "Przenieś „{{name}}” do…",
+    "duplicateNote": "Duplikuj",
+    "vaultRoot": "Katalog główny vaulta",
+    "noteInfo": "Informacje o notatce",
+    "properties": "Właściwości",
+    "backlinks": "Linki zwrotne",
+    "noBacklinks": "Żadna inna notatka jeszcze tu nie linkuje."
   }
 }

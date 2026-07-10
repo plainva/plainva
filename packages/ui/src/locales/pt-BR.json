@@ -1437,6 +1437,24 @@
     "onboardingLocal": "Começar localmente",
     "onboardingLocalDesc": "As notas ficam neste dispositivo. Você pode conectar uma nuvem quando quiser.",
     "onboardingCloud": "Conectar um cofre na nuvem",
-    "onboardingCloudDesc": "Sincronize um cofre existente do Nextcloud, Drive, OneDrive, Dropbox ou S3."
+    "onboardingCloudDesc": "Sincronize um cofre existente do Nextcloud, Drive, OneDrive, Dropbox ou S3.",
+    "tags": "Tags",
+    "noTags": "Ainda não há tags.",
+    "bookmarks": "Favoritos",
+    "noBookmarks": "Ainda não há favoritos.",
+    "bookmarkRemove": "Remover favorito",
+    "toggleBookmark": "Favorito",
+    "newFolder": "Nova pasta",
+    "newFolderPrompt": "Nome da nova pasta:",
+    "deleteFolder": "Excluir pasta",
+    "deleteFolderConfirm": "Excluir a pasta “{{name}}” e todas as notas dentro dela?",
+    "moveNote": "Mover",
+    "moveNoteTo": "Mover “{{name}}” para…",
+    "duplicateNote": "Duplicar",
+    "vaultRoot": "Raiz do vault",
+    "noteInfo": "Informações da nota",
+    "properties": "Propriedades",
+    "backlinks": "Backlinks",
+    "noBacklinks": "Nenhuma outra nota aponta para cá ainda."
   }
 }

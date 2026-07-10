@@ -365,6 +365,27 @@ body {
   margin: 0 16px 8px;
   font-weight: 600;
 }
+/* P3: sheets can outgrow the viewport (move picker, note info) */
+.m-sheet {
+  max-height: 75vh;
+  overflow-y: auto;
+}
+.m-row--static {
+  cursor: default;
+}
+.m-prop-key {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-prop-val {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
 .m-basetable-wrap {
   overflow-x: auto;
   padding: 0 16px 16px;

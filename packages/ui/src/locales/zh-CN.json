@@ -1427,6 +1427,24 @@
     "onboardingLocal": "从本地开始",
     "onboardingLocalDesc": "笔记保存在此设备上。你可以随时连接云端。",
     "onboardingCloud": "连接云端仓库",
-    "onboardingCloudDesc": "从 Nextcloud、Drive、OneDrive、Dropbox 或 S3 同步现有仓库。"
+    "onboardingCloudDesc": "从 Nextcloud、Drive、OneDrive、Dropbox 或 S3 同步现有仓库。",
+    "tags": "标签",
+    "noTags": "还没有标签。",
+    "bookmarks": "书签",
+    "noBookmarks": "还没有书签。",
+    "bookmarkRemove": "移除书签",
+    "toggleBookmark": "书签",
+    "newFolder": "新建文件夹",
+    "newFolderPrompt": "新文件夹的名称：",
+    "deleteFolder": "删除文件夹",
+    "deleteFolderConfirm": "删除文件夹“{{name}}”及其中的所有笔记？",
+    "moveNote": "移动",
+    "moveNoteTo": "将“{{name}}”移动到…",
+    "duplicateNote": "创建副本",
+    "vaultRoot": "Vault 根目录",
+    "noteInfo": "笔记信息",
+    "properties": "属性",
+    "backlinks": "反向链接",
+    "noBacklinks": "还没有其他笔记链接到这里。"
   }
 }

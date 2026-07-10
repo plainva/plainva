@@ -1427,6 +1427,24 @@
     "onboardingLocal": "ローカルで始める",
     "onboardingLocalDesc": "ノートはこの端末に保存されます。クラウドはいつでも接続できます。",
     "onboardingCloud": "クラウド保管庫を接続",
-    "onboardingCloudDesc": "Nextcloud・Drive・OneDrive・Dropbox・S3 から既存の保管庫を同期します。"
+    "onboardingCloudDesc": "Nextcloud・Drive・OneDrive・Dropbox・S3 から既存の保管庫を同期します。",
+    "tags": "タグ",
+    "noTags": "まだタグがありません。",
+    "bookmarks": "ブックマーク",
+    "noBookmarks": "まだブックマークがありません。",
+    "bookmarkRemove": "ブックマークを削除",
+    "toggleBookmark": "ブックマーク",
+    "newFolder": "新しいフォルダー",
+    "newFolderPrompt": "新しいフォルダーの名前:",
+    "deleteFolder": "フォルダーを削除",
+    "deleteFolderConfirm": "フォルダー「{{name}}」とその中のすべてのノートを削除しますか？",
+    "moveNote": "移動",
+    "moveNoteTo": "「{{name}}」の移動先…",
+    "duplicateNote": "複製",
+    "vaultRoot": "Vault ルート",
+    "noteInfo": "ノート情報",
+    "properties": "プロパティ",
+    "backlinks": "バックリンク",
+    "noBacklinks": "まだ他のノートからのリンクはありません。"
   }
 }

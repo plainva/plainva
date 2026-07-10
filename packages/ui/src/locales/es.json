@@ -1437,6 +1437,24 @@
     "onboardingLocal": "Empezar en local",
     "onboardingLocalDesc": "Las notas se quedan en este dispositivo. Puedes conectar una nube cuando quieras.",
     "onboardingCloud": "Conectar una bóveda en la nube",
-    "onboardingCloudDesc": "Sincroniza una bóveda existente desde Nextcloud, Drive, OneDrive, Dropbox o S3."
+    "onboardingCloudDesc": "Sincroniza una bóveda existente desde Nextcloud, Drive, OneDrive, Dropbox o S3.",
+    "tags": "Etiquetas",
+    "noTags": "Aún no hay etiquetas.",
+    "bookmarks": "Marcadores",
+    "noBookmarks": "Aún no hay marcadores.",
+    "bookmarkRemove": "Quitar marcador",
+    "toggleBookmark": "Marcador",
+    "newFolder": "Nueva carpeta",
+    "newFolderPrompt": "Nombre de la nueva carpeta:",
+    "deleteFolder": "Eliminar carpeta",
+    "deleteFolderConfirm": "¿Eliminar la carpeta «{{name}}» y todas las notas que contiene?",
+    "moveNote": "Mover",
+    "moveNoteTo": "Mover «{{name}}» a…",
+    "duplicateNote": "Duplicar",
+    "vaultRoot": "Raíz del vault",
+    "noteInfo": "Información de la nota",
+    "properties": "Propiedades",
+    "backlinks": "Retroenlaces",
+    "noBacklinks": "Ninguna otra nota enlaza aquí todavía."
   }
 }

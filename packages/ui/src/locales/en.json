@@ -1432,6 +1432,24 @@
     "onboardingLocal": "Start locally",
     "onboardingLocalDesc": "Notes stay on this device. You can connect a cloud any time.",
     "onboardingCloud": "Connect a cloud vault",
-    "onboardingCloudDesc": "Sync an existing vault from Nextcloud, Drive, OneDrive, Dropbox or S3."
+    "onboardingCloudDesc": "Sync an existing vault from Nextcloud, Drive, OneDrive, Dropbox or S3.",
+    "tags": "Tags",
+    "noTags": "No tags yet.",
+    "bookmarks": "Bookmarks",
+    "noBookmarks": "No bookmarks yet.",
+    "bookmarkRemove": "Remove bookmark",
+    "toggleBookmark": "Bookmark",
+    "newFolder": "New folder",
+    "newFolderPrompt": "Name of the new folder:",
+    "deleteFolder": "Delete folder",
+    "deleteFolderConfirm": "Delete the folder \"{{name}}\" and all notes in it?",
+    "moveNote": "Move",
+    "moveNoteTo": "Move \"{{name}}\" to…",
+    "duplicateNote": "Duplicate",
+    "vaultRoot": "Vault root",
+    "noteInfo": "Note info",
+    "properties": "Properties",
+    "backlinks": "Backlinks",
+    "noBacklinks": "No other note links here yet."
   }
 }

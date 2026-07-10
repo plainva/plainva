@@ -1432,6 +1432,24 @@
     "onboardingLocal": "Lokaal beginnen",
     "onboardingLocalDesc": "Notities blijven op dit apparaat. Je kunt altijd een cloud verbinden.",
     "onboardingCloud": "Cloudkluis verbinden",
-    "onboardingCloudDesc": "Synchroniseer een bestaande kluis vanaf Nextcloud, Drive, OneDrive, Dropbox of S3."
+    "onboardingCloudDesc": "Synchroniseer een bestaande kluis vanaf Nextcloud, Drive, OneDrive, Dropbox of S3.",
+    "tags": "Tags",
+    "noTags": "Nog geen tags.",
+    "bookmarks": "Bladwijzers",
+    "noBookmarks": "Nog geen bladwijzers.",
+    "bookmarkRemove": "Bladwijzer verwijderen",
+    "toggleBookmark": "Bladwijzer",
+    "newFolder": "Nieuwe map",
+    "newFolderPrompt": "Naam van de nieuwe map:",
+    "deleteFolder": "Map verwijderen",
+    "deleteFolderConfirm": "De map ‘{{name}}’ en alle notities erin verwijderen?",
+    "moveNote": "Verplaatsen",
+    "moveNoteTo": "‘{{name}}’ verplaatsen naar…",
+    "duplicateNote": "Dupliceren",
+    "vaultRoot": "Vault-hoofdmap",
+    "noteInfo": "Notitie-info",
+    "properties": "Eigenschappen",
+    "backlinks": "Backlinks",
+    "noBacklinks": "Nog geen andere notitie verwijst hierheen."
   }
 }

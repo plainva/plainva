@@ -282,6 +282,88 @@ export const vaultOps = {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
+  /* ---- P3: full file/folder operations (all through the sync chain) ---- */
+
+  async createFolder(v: MobileVault, path: string): Promise<void> {
+    await v.files.createDir(path);
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  },
+
+  /** Folder renames/deletes re-run the full index (children change paths). */
+  async renameFolder(v: MobileVault, oldPath: string, newName: string): Promise<void> {
+    const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
+    const newPath = `${dir}${newName}`;
+    if (newPath === oldPath) return;
+    await v.files.renameItem(oldPath, newPath);
+    if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  },
+
+  async removeFolder(v: MobileVault, path: string): Promise<void> {
+    await v.files.deleteItem(path, true);
+    if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  },
+
+  async moveNote(v: MobileVault, path: string, targetFolder: string): Promise<string> {
+    const name = path.split("/").pop()!;
+    const newPath = targetFolder ? `${targetFolder}/${name}` : name;
+    if (newPath === path) return path;
+    await v.files.renameItem(path, newPath);
+    if (v.indexer) {
+      await v.indexer.removePathFromIndex(path).catch(() => {});
+      try {
+        await v.indexer.indexFile(await v.adapter.getFileInfo(newPath));
+      } catch {
+        /* next full pass repairs it */
+      }
+    }
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return newPath;
+  },
+
+  async duplicateNote(v: MobileVault, path: string): Promise<string> {
+    const text = await v.files.readTextFile(path);
+    const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+    const base = path.split("/").pop()!.replace(/\.md$/i, "");
+    let candidate = `${dir}${base} 2.md`;
+    for (let n = 2; await v.files.exists(candidate); n++) {
+      candidate = `${dir}${base} ${n + 1}.md`;
+    }
+    await v.files.writeTextFile(candidate, text);
+    if (v.indexer) {
+      try {
+        await v.indexer.indexFile(await v.adapter.getFileInfo(candidate));
+      } catch {
+        /* next full pass repairs it */
+      }
+    }
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return candidate;
+  },
+
+  /* ---- P3: bookmarks (device-local, .plainva/bookmarks.json) ---- */
+
+  async getBookmarks(v: MobileVault): Promise<string[]> {
+    try {
+      const raw = await v.adapter.readTextFile(".plainva/bookmarks.json");
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((p) => typeof p === "string") : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async toggleBookmark(v: MobileVault, path: string): Promise<boolean> {
+    const marks = await this.getBookmarks(v);
+    const idx = marks.indexOf(path);
+    if (idx >= 0) marks.splice(idx, 1);
+    else marks.push(path);
+    await v.adapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify(marks, null, 2));
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return idx < 0;
+  },
+
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
     const all = await v.files.listDir("", true);
     return all

@@ -1432,6 +1432,24 @@
     "onboardingLocal": "Lokal starten",
     "onboardingLocalDesc": "Notizen bleiben auf diesem Gerät. Eine Cloud kannst Du jederzeit verbinden.",
     "onboardingCloud": "Mit Cloud verbinden",
-    "onboardingCloudDesc": "Einen bestehenden Vault von Nextcloud, Drive, OneDrive, Dropbox oder S3 synchronisieren."
+    "onboardingCloudDesc": "Einen bestehenden Vault von Nextcloud, Drive, OneDrive, Dropbox oder S3 synchronisieren.",
+    "tags": "Tags",
+    "noTags": "Noch keine Tags.",
+    "bookmarks": "Lesezeichen",
+    "noBookmarks": "Noch keine Lesezeichen.",
+    "bookmarkRemove": "Lesezeichen entfernen",
+    "toggleBookmark": "Lesezeichen",
+    "newFolder": "Neuer Ordner",
+    "newFolderPrompt": "Name des neuen Ordners:",
+    "deleteFolder": "Ordner löschen",
+    "deleteFolderConfirm": "Den Ordner „{{name}}“ und alle Notizen darin löschen?",
+    "moveNote": "Verschieben",
+    "moveNoteTo": "„{{name}}“ verschieben nach …",
+    "duplicateNote": "Duplizieren",
+    "vaultRoot": "Vault-Wurzel",
+    "noteInfo": "Notiz-Infos",
+    "properties": "Eigenschaften",
+    "backlinks": "Backlinks",
+    "noBacklinks": "Noch keine andere Notiz verlinkt hierher."
   }
 }

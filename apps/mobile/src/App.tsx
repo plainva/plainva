@@ -25,19 +25,35 @@ import { App as CapApp } from "@capacitor/app";
 import { Dialog } from "@capacitor/dialog";
 import { BaseReadView } from "./BaseReadView";
 import { SettingsScreen } from "./SettingsScreen";
+import { TagsScreen } from "./TagsScreen";
+import { BookmarksScreen } from "./BookmarksScreen";
 import { getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
 import { EditorHost } from "./EditorHost";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { useSyncExternalStore } from "react";
-import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
+import {
+  AlertTriangle,
+  Bookmark,
+  Check,
+  Cloud,
+  CopyPlus,
+  FolderClosed,
+  FolderInput,
+  FolderPlus,
+  Hash,
+  Info,
+} from "lucide-react";
 
 // Tab/stack shell per the mobile UX plan (E1): four tabs plus the center
 // capture action; every tab keeps its own navigation stack; the tab bar
 // hides while a note is open (editor focus).
 
 type TabId = "notes" | "search" | "today" | "more";
-type Entry = { kind: "folder" | "note" | "sync" | "vault" | "base" | "settings"; path: string };
+type Entry = {
+  kind: "folder" | "note" | "sync" | "vault" | "base" | "settings" | "tags" | "bookmarks";
+  path: string;
+};
 
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -159,7 +175,10 @@ export default function App() {
   const openNote = (path: string) => push(activeTab, { kind: "note", path });
 
   const capture = () => {
-    void vaultOps.createNote(vault, "Inbox", "Note").then((path) => {
+    // Context-aware (P3): capture into the folder the user is looking at.
+    const notesTop = stacks.notes[stacks.notes.length - 1];
+    const folder = activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "Inbox";
+    void vaultOps.createNote(vault, folder, "Note").then((path) => {
       setActiveTab("notes");
       push("notes", { kind: "note", path });
     });
@@ -204,7 +223,18 @@ export default function App() {
         </div>
       )}
       <div className="m-screen">
-        {top?.kind === "settings" ? (
+        {top?.kind === "tags" ? (
+          <TagsScreen
+            key={top.path}
+            onBack={() => pop(activeTab)}
+            onOpenNote={openNote}
+            onOpenTag={(tag) => push(activeTab, { kind: "tags", path: tag })}
+            tag={top.path}
+            vault={vault}
+          />
+        ) : top?.kind === "bookmarks" ? (
+          <BookmarksScreen onBack={() => pop(activeTab)} onOpenNote={openNote} vault={vault} />
+        ) : top?.kind === "settings" ? (
           <SettingsScreen onBack={() => pop(activeTab)} />
         ) : top?.kind === "sync" ? (
           <AddVaultScreen onBack={() => pop(activeTab)} vault={vault} />
@@ -248,7 +278,9 @@ export default function App() {
           <MoreView
             activeVaultId={vault.vaultId}
             onAddVault={() => push("more", { kind: "sync", path: "" })}
+            onOpenBookmarks={() => push("more", { kind: "bookmarks", path: "" })}
             onOpenSettings={() => push("more", { kind: "settings", path: "" })}
+            onOpenTags={() => push("more", { kind: "tags", path: "" })}
             onOpenVault={(id) => push("more", { kind: "vault", path: id })}
           />
         )}
@@ -351,8 +383,13 @@ function BrowseView({
   const { t } = useTranslation();
   const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
-  const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
+  const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean } | null>(
+    null,
+  );
+  const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
+  const [moveFolders, setMoveFolders] = useState<string[]>([]);
   const press = useLongPress((path, title) => setSheet({ path, title }));
+  const folderPress = useLongPress((path, title) => setSheet({ path, title, isFolder: true }));
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, folder).then((l) => {
@@ -389,6 +426,64 @@ function BrowseView({
     </button>
   );
 
+  const createFolder = () => {
+    void (async () => {
+      const { value, cancelled } = await Dialog.prompt({
+        title: t("mobile.newFolder"),
+        message: t("mobile.newFolderPrompt"),
+      });
+      const trimmed = value?.trim();
+      if (cancelled || !trimmed) return;
+      await vaultOps.createFolder(vault, folder ? `${folder}/${trimmed}` : trimmed);
+    })();
+  };
+
+  const renameFolder = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void (async () => {
+      const { value, cancelled } = await Dialog.prompt({
+        title: t("mobile.vaultRename"),
+        message: t("mobile.renamePrompt"),
+        inputText: target.title,
+      });
+      const trimmed = value?.trim();
+      if (cancelled || !trimmed || trimmed === target.title) return;
+      const parent = target.path.split("/").slice(0, -1).join("/");
+      await vaultOps.renameFolder(vault, target.path, parent ? `${parent}/${trimmed}` : trimmed);
+    })();
+  };
+
+  const deleteFolder = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void (async () => {
+      const { value } = await Dialog.confirm({
+        title: t("mobile.deleteFolder"),
+        message: t("mobile.deleteFolderConfirm", { name: target.title }),
+      });
+      if (!value) return;
+      await vaultOps.removeFolder(vault, target.path);
+    })();
+  };
+
+  const startMove = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void (async () => {
+      const folders = vault.queryService ? await vault.queryService.getAllFolders() : [];
+      setMoveFolders(folders);
+      setMovePick(target);
+    })();
+  };
+
+  const duplicateNote = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void vaultOps.duplicateNote(vault, target.path).then((copy) => onOpenNote(copy));
+  };
+
+  const bookmarkNote = (target: { path: string; title: string }) => {
+    setSheet(null);
+    void vaultOps.toggleBookmark(vault, target.path);
+  };
+
   const renameNote = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
@@ -424,6 +519,9 @@ function BrowseView({
           </button>
         )}
         <h1>{folder ? folder.split("/").pop() : "Plainva"}</h1>
+        <button aria-label={t("mobile.newFolder")} className="m-iconbtn" onClick={createFolder}>
+          <FolderPlus size={20} />
+        </button>
         <SyncIndicator />
       </header>
       {recent.length > 0 && (
@@ -433,17 +531,30 @@ function BrowseView({
           <p className="m-sectionlabel">{t("mobile.folders")}</p>
         </>
       )}
-      {listing.folders.map((name) => (
-        <button
-          className="m-row"
-          key={name}
-          onClick={() => onOpenFolder(folder ? `${folder}/${name}` : name)}
-        >
-          <Folder className="m-accent" size={16} />
-          <span>{name}</span>
-          <ChevronRight className="m-chevron" size={16} />
-        </button>
-      ))}
+      {listing.folders.map((name) => {
+        const full = folder ? `${folder}/${name}` : name;
+        return (
+          <button
+            className="m-row"
+            key={name}
+            onClick={() => {
+              if (folderPress.clicked()) onOpenFolder(full);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setSheet({ path: full, title: name, isFolder: true });
+            }}
+            onPointerCancel={folderPress.clear}
+            onPointerDown={() => folderPress.start(full, name)}
+            onPointerLeave={folderPress.clear}
+            onPointerUp={folderPress.clear}
+          >
+            <Folder className="m-accent" size={16} />
+            <span>{name}</span>
+            <ChevronRight className="m-chevron" size={16} />
+          </button>
+        );
+      })}
       {listing.bases.map((b) => (
         <button className="m-row" key={b.path} onClick={() => onOpenBase(b.path)}>
           <Database className="m-accent" size={16} />
@@ -461,20 +572,65 @@ function BrowseView({
               className="m-row"
               onClick={() => {
                 setSheet(null);
-                onOpenNote(sheet.path);
+                if (sheet.isFolder) onOpenFolder(sheet.path);
+                else onOpenNote(sheet.path);
               }}
             >
-              <FileText size={16} />
+              {sheet.isFolder ? <Folder size={16} /> : <FileText size={16} />}
               <span>{t("mobile.sheetOpen")}</span>
             </button>
-            <button className="m-row" onClick={() => renameNote(sheet)}>
+            {!sheet.isFolder && (
+              <>
+                <button className="m-row" onClick={() => startMove(sheet)}>
+                  <FolderInput size={16} />
+                  <span>{t("mobile.moveNote")}</span>
+                </button>
+                <button className="m-row" onClick={() => duplicateNote(sheet)}>
+                  <CopyPlus size={16} />
+                  <span>{t("mobile.duplicateNote")}</span>
+                </button>
+                <button className="m-row" onClick={() => bookmarkNote(sheet)}>
+                  <Bookmark size={16} />
+                  <span>{t("mobile.toggleBookmark")}</span>
+                </button>
+              </>
+            )}
+            <button
+              className="m-row"
+              onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
+            >
               <Pencil size={16} />
               <span>{t("mobile.vaultRename")}</span>
             </button>
-            <button className="m-row m-danger" onClick={() => deleteNote(sheet)}>
+            <button
+              className="m-row m-danger"
+              onClick={() => (sheet.isFolder ? deleteFolder(sheet) : deleteNote(sheet))}
+            >
               <Trash2 size={16} />
-              <span>{t("mobile.deleteNote")}</span>
+              <span>{sheet.isFolder ? t("mobile.deleteFolder") : t("mobile.deleteNote")}</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {movePick && (
+        <div className="m-sheet-backdrop" onClick={() => setMovePick(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <p className="m-sheet-title">{t("mobile.moveNoteTo", { name: movePick.title })}</p>
+            {["", ...moveFolders].map((dest) => (
+              <button
+                className="m-row"
+                key={dest || "/"}
+                onClick={() => {
+                  const target = movePick;
+                  setMovePick(null);
+                  void vaultOps.moveNote(vault, target.path, dest);
+                }}
+              >
+                <Folder className="m-accent" size={16} />
+                <span>{dest || t("mobile.vaultRoot")}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -496,6 +652,11 @@ function NoteView({
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   const [doc, setDoc] = useState<string | null>(null);
+  const [marked, setMarked] = useState(false);
+  const [info, setInfo] = useState<{
+    props: Array<[string, string]>;
+    backlinks: Array<{ path: string; title: string }>;
+  } | null>(null);
   // Read-first (M4/E5): notes open rendered and read-only; the pen flips
   // into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
@@ -504,10 +665,38 @@ function NoteView({
     void vaultOps.read(vault, path).then((text) => {
       if (!stale) setDoc(text);
     });
+    void vaultOps.getBookmarks(vault).then((marks) => {
+      if (!stale) setMarked(marks.includes(path));
+    });
     return () => {
       stale = true;
     };
   }, [vault, path]);
+
+  const openInfo = () => {
+    void (async () => {
+      const q = vault.queryService;
+      const props: Array<[string, string]> = [];
+      const backlinks: Array<{ path: string; title: string }> = [];
+      if (q) {
+        const raw = await q.getFileProperties(path);
+        for (const [k, v] of Object.entries(raw)) {
+          props.push([k, Array.isArray(v) ? v.join(", ") : String(v)]);
+        }
+        const links = await q.getBacklinks(path);
+        const seen = new Set<string>();
+        for (const l of links) {
+          if (seen.has(l.source_path)) continue;
+          seen.add(l.source_path);
+          backlinks.push({
+            path: l.source_path,
+            title: l.source_path.split("/").pop()!.replace(/\.md$/i, ""),
+          });
+        }
+      }
+      setInfo({ props, backlinks });
+    })();
+  };
 
   return (
     <div className="m-page m-page--note">
@@ -516,6 +705,19 @@ function NoteView({
           <ChevronLeft size={20} />
         </button>
         <h1>{title}</h1>
+        <button
+          aria-label={t("mobile.toggleBookmark")}
+          aria-pressed={marked}
+          className={`m-iconbtn${marked ? " is-active" : ""}`}
+          onClick={() =>
+            void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
+          }
+        >
+          <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
+        </button>
+        <button aria-label={t("mobile.noteInfo")} className="m-iconbtn" onClick={openInfo}>
+          <Info size={20} />
+        </button>
         <button
           aria-label={editing ? t("mobile.doneEditing") : t("mobile.editNote")}
           aria-pressed={editing}
@@ -533,6 +735,43 @@ function NoteView({
           path={path}
           vault={vault}
         />
+      )}
+
+      {info && (
+        <div className="m-sheet-backdrop" onClick={() => setInfo(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <p className="m-sheet-title">{t("mobile.noteInfo")}</p>
+            {info.props.length > 0 && (
+              <>
+                <p className="m-sectionlabel">{t("mobile.properties")}</p>
+                {info.props.map(([k, v]) => (
+                  <div className="m-row m-row--static" key={k}>
+                    <span className="m-prop-key">{k}</span>
+                    <span className="m-prop-val">{v}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            <p className="m-sectionlabel">{t("mobile.backlinks")}</p>
+            {info.backlinks.length === 0 ? (
+              <p className="m-hint">{t("mobile.noBacklinks")}</p>
+            ) : (
+              info.backlinks.map((b) => (
+                <button
+                  className="m-row"
+                  key={b.path}
+                  onClick={() => {
+                    setInfo(null);
+                    onOpenNote(b.path);
+                  }}
+                >
+                  <FileText size={16} />
+                  <span>{b.title}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -657,11 +896,15 @@ function MoreView({
   onAddVault,
   onOpenVault,
   onOpenSettings,
+  onOpenTags,
+  onOpenBookmarks,
   activeVaultId,
 }: {
   onAddVault: () => void;
   onOpenVault: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenTags: () => void;
+  onOpenBookmarks: () => void;
   activeVaultId: string;
 }) {
   const { t } = useTranslation();
@@ -672,7 +915,7 @@ function MoreView({
     window.addEventListener("m-vaults-changed", reload);
     return () => window.removeEventListener("m-vaults-changed", reload);
   }, [activeVaultId]);
-  const later = [t("mobile.sectionBookmarksTags"), t("mobile.sectionBases")];
+  const later = [t("mobile.sectionBases")];
   return (
     <div className="m-page">
       <header className="m-header">
@@ -707,6 +950,16 @@ function MoreView({
       <button className="m-row" onClick={onAddVault}>
         <Cloud className="m-accent" size={16} />
         <span>{t("mobile.vaultAdd")}</span>
+        <ChevronRight className="m-chevron" size={16} />
+      </button>
+      <button className="m-row" onClick={onOpenTags}>
+        <Hash className="m-accent" size={16} />
+        <span>{t("mobile.tags")}</span>
+        <ChevronRight className="m-chevron" size={16} />
+      </button>
+      <button className="m-row" onClick={onOpenBookmarks}>
+        <Bookmark className="m-accent" size={16} />
+        <span>{t("mobile.bookmarks")}</span>
         <ChevronRight className="m-chevron" size={16} />
       </button>
       <button className="m-row" onClick={onOpenSettings}>
