@@ -1492,6 +1492,7 @@
     "conflictKeepCopy": "Garder cette copie",
     "conflictKeepOriginal": "Garder la note actuelle",
     "lastSync": "Dernière synchronisation : {{time}}",
-    "baseEmpty": "Aucune entrée ne correspond à cette vue."
+    "baseEmpty": "Aucune entrée ne correspond à cette vue.",
+    "saveRetry": "Échec de l'enregistrement — nouvelle tentative en arrière-plan."
   }
 }

@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // shared WebDAV sync target its PROPFIND/MKCOL/MOVE/COPY methods.
         registerPlugin(WebDavHttpPlugin.class);
         registerPlugin(SecureStorePlugin.class);
+        registerPlugin(AtomicFilePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

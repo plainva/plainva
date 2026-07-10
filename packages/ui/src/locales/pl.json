@@ -1497,6 +1497,7 @@
     "conflictKeepCopy": "Zachowaj tę kopię",
     "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
     "lastSync": "Ostatnia synchronizacja: {{time}}",
-    "baseEmpty": "Żadne wpisy nie pasują do tego widoku."
+    "baseEmpty": "Żadne wpisy nie pasują do tego widoku.",
+    "saveRetry": "Zapis nie powiódł się — ponawianie w tle."
   }
 }

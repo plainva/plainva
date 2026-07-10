@@ -1482,6 +1482,7 @@
     "conflictKeepCopy": "このコピーを採用",
     "conflictKeepOriginal": "現在のノートを維持",
     "lastSync": "最終同期: {{time}}",
-    "baseEmpty": "このビューに一致する項目はありません。"
+    "baseEmpty": "このビューに一致する項目はありません。",
+    "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。"
   }
 }

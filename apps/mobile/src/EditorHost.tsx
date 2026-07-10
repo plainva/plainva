@@ -28,7 +28,7 @@ import {
   type EditorSessionDeps,
 } from "@plainva/ui";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { vaultOps, type MobileVault } from "./services/vaultService";
+import { noteSaver, vaultOps, type MobileVault } from "./services/vaultService";
 import { syncSoon } from "./services/syncService";
 
 /**
@@ -55,10 +55,6 @@ export function EditorHost({
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
   const editableRef = useRef(editable);
-  // Debounced save (desktop parity: not on every keystroke) with an unmount
-  // flush so leaving the note never loses the last edit.
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingTextRef = useRef<string | null>(null);
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -77,16 +73,11 @@ export function EditorHost({
       handlePaste: () => false,
       handleDrop: () => false,
       onDocChanged: (view) => {
-        pendingTextRef.current = view.state.doc.toString();
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(() => {
-          saveTimerRef.current = null;
-          const text = pendingTextRef.current;
-          pendingTextRef.current = null;
-          if (text !== null) {
-            void vaultOps.save(vault, path, text).then(() => syncSoon());
-          }
-        }, 800);
+        // Save coordinator (hardening P2, finding M1): the pending text now
+        // lives OUTSIDE this component — single-flight, latest-write-wins,
+        // retry on failure, flushed on background/vault switch. The old
+        // fire-and-forget dropped the text before the write confirmed.
+        noteSaver.schedule(vault, path, view.state.doc.toString());
       },
       onSelectionToolbar: () => {},
       onSelectionStats: () => {},
@@ -132,15 +123,9 @@ export function EditorHost({
       });
     }
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      const text = pendingTextRef.current;
-      pendingTextRef.current = null;
-      if (text !== null) {
-        void vaultOps.save(vault, path, text).then(() => syncSoon());
-      }
+      // The coordinator already owns the pending text — flush it now; the
+      // write survives this unmount (it is not tied to component lifetime).
+      void noteSaver.flush(path);
       sessionRef.current = null;
       session.destroy();
     };

@@ -1487,6 +1487,7 @@
     "conflictKeepCopy": "Deze kopie behouden",
     "conflictKeepOriginal": "Huidige notitie behouden",
     "lastSync": "Laatst gesynchroniseerd: {{time}}",
-    "baseEmpty": "Geen items komen overeen met deze weergave."
+    "baseEmpty": "Geen items komen overeen met deze weergave.",
+    "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond."
   }
 }

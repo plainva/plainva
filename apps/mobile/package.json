@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "sync": "cap sync"
+    "sync": "cap sync",
+    "test": "vitest run"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.0",
@@ -38,6 +39,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "typescript": "~6.0.3",
     "vite": "^8.1.3",
-    "webdav-server": "^2.6.2"
+    "webdav-server": "^2.6.2",
+    "vitest": "^4.1.10"
   }
 }

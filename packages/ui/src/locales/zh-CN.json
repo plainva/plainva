@@ -1482,6 +1482,7 @@
     "conflictKeepCopy": "保留此副本",
     "conflictKeepOriginal": "保留当前笔记",
     "lastSync": "上次同步：{{time}}",
-    "baseEmpty": "没有符合此视图的条目。"
+    "baseEmpty": "没有符合此视图的条目。",
+    "saveRetry": "保存失败——正在后台重试。"
   }
 }

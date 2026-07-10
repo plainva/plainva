@@ -134,6 +134,9 @@ export default function App() {
     let stateHandle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("appStateChange", ({ isActive }) => {
       if (isActive) syncNow();
+      // Going to the background: Android may kill the process without any
+      // further callback (M1) — flush pending editor saves NOW, best-effort.
+      else void import("./services/vaultService").then(({ noteSaver }) => noteSaver.flushAll()).catch(() => {});
     }).then((h) => {
       if (removed) void h.remove();
       else stateHandle = h;

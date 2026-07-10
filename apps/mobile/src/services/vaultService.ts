@@ -22,7 +22,10 @@ import {
   LOCAL_VAULT_ID,
   type VaultEntry,
 } from "./vaultRegistry";
-import { purgeCredentials, stopSync } from "./syncService";
+import { purgeCredentials, stopSync, syncSoon } from "./syncService";
+import { createSaveCoordinator } from "./saveCoordinator";
+import { toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -96,6 +99,10 @@ export function getMobileVault(): Promise<MobileVault> {
 export async function switchVault(id: string): Promise<void> {
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
   if (current?.vaultId === id) return;
+  // Pending editor saves must land BEFORE the worker stops and the database
+  // closes — and they land in the vault they were typed in (the coordinator
+  // captured that instance per schedule call).
+  await noteSaver.flushAll();
   stopSync();
   await setActiveVault(id);
   if (current) await current.dispose().catch(() => {});
@@ -109,6 +116,7 @@ export async function switchVault(id: string): Promise<void> {
  */
 export async function deleteVault(id: string): Promise<void> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
+  await noteSaver.flushAll();
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
   if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
   try {
@@ -432,3 +440,20 @@ export const vaultOps = {
     return v.queryService.searchFullText(query, 30);
   },
 };
+
+/**
+ * Shared note-save coordinator (hardening P2 mobile, finding M1): owns the
+ * pending text outside any component lifecycle — single-flight per note,
+ * latest-write-wins revisions, retry with backoff, and the text survives
+ * until a write CONFIRMED. EditorHost schedules here; app background and
+ * vault switch/delete flush it. A first failure surfaces one toast; retries
+ * keep running silently in the background.
+ */
+export const noteSaver = createSaveCoordinator<MobileVault>({
+  write: (vault, path, text) => vaultOps.save(vault, path, text),
+  onSaved: () => syncSoon(),
+  onError: (path, err, attempt) => {
+    console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
+    if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
+  },
+});

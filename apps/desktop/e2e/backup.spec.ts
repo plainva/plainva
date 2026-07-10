@@ -119,6 +119,17 @@ test.beforeEach(async ({ page }) => {
           if (content === undefined || content.isDir) throw new Error('File not found');
           return Array.from(new TextEncoder().encode(content));
         }
+        if (cmd === 'register_write_root') {
+          // Atomic-write root handle (hardening P2): the mock id carries the path.
+          return 'mock-root:' + String(args.path).replace(/\/$/, '');
+        }
+        if (cmd === 'write_file_atomic') {
+          const root = String(args.rootId).replace(/^mock-root:/, '');
+          const rel = String(args.relPath).replace(/^\/+/, '');
+          const p = root ? root + '/' + rel : rel;
+          fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          return null;
+        }
         if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
           const rawPath = options?.headers?.path ? decodeURIComponent(options.headers.path) : (args?.path || '');
           const p = rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;

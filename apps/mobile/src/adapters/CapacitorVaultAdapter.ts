@@ -5,6 +5,7 @@ import {
   type IVaultAdapter,
   type VaultFileInfo,
 } from "@plainva/core";
+import { atomicWriteBase64, atomicWriteText } from "../platform/atomicFile";
 
 /**
  * IVaultAdapter over the Capacitor filesystem (M2, sync-first model): the
@@ -73,23 +74,15 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     }
   }
 
+  // Writes share the atomic adapter contract with the desktop (hardening
+  // P2): exclusive temp in the target folder → fsync → rename. A process
+  // kill or full storage can no longer leave a torn or zero-byte note.
   async writeTextFile(path: string, content: string): Promise<void> {
-    await Filesystem.writeFile({
-      path: this.full(path),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-      data: content,
-      recursive: true,
-    });
+    await atomicWriteText(this.full(path), content);
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await Filesystem.writeFile({
-      path: this.full(path),
-      directory: Directory.Data,
-      data: bytesToB64(content),
-      recursive: true,
-    });
+    await atomicWriteBase64(this.full(path), bytesToB64(content));
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
@@ -162,6 +155,11 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   private async walk(rel: string, recursive: boolean, out: VaultFileInfo[]): Promise<void> {
     const res = await Filesystem.readdir({ path: this.full(rel), directory: Directory.Data });
     for (const f of res.files) {
+      // Desktop parity: dot-prefixed children (.plainva internals, atomic
+      // .plainva-tmp-* leftovers after a hard kill) never reach tree/index.
+      // Direct listDir(".plainva/…") calls still work — only CHILD names of
+      // a walked folder are filtered, not the entry path itself.
+      if (!f.name || f.name.startsWith(".")) continue;
       const childRel = rel ? `${rel}/${f.name}` : f.name;
       const isDir = f.type === "directory";
       out.push({
