@@ -427,3 +427,15 @@ body {
   color: var(--text-muted);
   font-size: 0.85rem;
 }
+
+/* P2 editor popovers on small viewports */
+.cm-tooltip.cm-tooltip-autocomplete {
+  max-width: min(88vw, 340px);
+  font-size: 0.9rem;
+}
+.cm-tooltip.cm-tooltip-autocomplete > ul {
+  max-height: 12em;
+}
+.cm-tooltip.cm-tooltip-autocomplete > ul > li {
+  padding: 8px 10px;
+}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import {
   Bold,
+  Camera as CameraIcon,
   CheckSquare,
   Heading,
   Italic,
@@ -24,6 +25,7 @@ import {
   type EditorSession,
   type EditorSessionDeps,
 } from "@plainva/ui";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { vaultOps, type MobileVault } from "./services/vaultService";
 import { syncSoon } from "./services/syncService";
 
@@ -58,7 +60,7 @@ export function EditorHost({
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
-      queryService: null,
+      queryService: vault.queryService,
       vaultContext: null,
       hostPath: path,
       onOpenPath: (p) => onOpenNote(p),
@@ -145,6 +147,39 @@ export function EditorHost({
     if (view) fn(view);
   };
 
+  // P2: camera/gallery photo lands as an attachment in the vault and embeds
+  // at the cursor; the queueing chain syncs it like any other file.
+  const insertPhoto = () => {
+    void (async () => {
+      let photo;
+      try {
+        photo = await Camera.getPhoto({
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Prompt,
+          quality: 85,
+        });
+      } catch {
+        return; // user cancelled the picker
+      }
+      const b64 = photo.base64String;
+      if (!b64) return;
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const name = `Attachments/Foto-${stamp}.${photo.format || "jpeg"}`;
+      await vault.files.writeBinaryFile(name, bytes);
+      run((view) => {
+        const pos = view.state.selection.main.head;
+        view.dispatch({
+          changes: { from: pos, insert: `![[${name}]]` },
+          userEvent: "input",
+        });
+      });
+      syncSoon();
+    })();
+  };
+
   return (
     <>
       <div className="m-editor" ref={containerRef} />
@@ -173,6 +208,9 @@ export function EditorHost({
           </button>
           <button aria-label="Wiki link" onClick={() => run(insertWikiLink)}>
             <Link2 size={18} />
+          </button>
+          <button aria-label="Photo" onClick={insertPhoto}>
+            <CameraIcon size={18} />
           </button>
           <button aria-label="Undo" onClick={() => run(undo)}>
             <Undo2 size={18} />
