@@ -495,6 +495,18 @@ function App() {
       } else if (mod && e.altKey && e.key.toLowerCase() === "r") {
         e.preventDefault();
         setRightCollapsed((c) => !c);
+      } else if (mod && !e.altKey && (e.key === "+" || e.key === "=")) {
+        // UI zoom (issue #5 a11y follow-up). "=" covers US layouts where the
+        // plus sign shares the key; Tauri ships with browser zoom hotkeys
+        // disabled, so these are free.
+        e.preventDefault();
+        void import("./services/uiZoom").then(({ adjustUiZoom }) => adjustUiZoom(1)).catch(() => {});
+      } else if (mod && !e.altKey && e.key === "-") {
+        e.preventDefault();
+        void import("./services/uiZoom").then(({ adjustUiZoom }) => adjustUiZoom(-1)).catch(() => {});
+      } else if (mod && !e.altKey && !e.shiftKey && e.key === "0") {
+        e.preventDefault();
+        void import("./services/uiZoom").then(({ setStoredUiZoom, DEFAULT_UI_ZOOM }) => setStoredUiZoom(DEFAULT_UI_ZOOM)).catch(() => {});
       } else if (mod && e.key === ",") {
         e.preventDefault();
         setShowSettings(true);

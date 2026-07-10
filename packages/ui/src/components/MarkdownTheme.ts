@@ -30,7 +30,9 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-content": {
     caretColor: "var(--text-main)",
-    fontSize: "16px",
+    // User-adjustable content size (issue #5) — services/contentFont.ts
+    // overrides the variable on <html>; 16px is the shipped default.
+    fontSize: "var(--content-font-size, 16px)",
     // Breathing room so editor text doesn't stick to the surrounding panels
     // (live + source mode). See Phase 9 backlog block 1.
     padding: "0.75rem 1.5rem",

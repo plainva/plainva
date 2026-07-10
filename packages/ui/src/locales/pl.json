@@ -196,7 +196,20 @@
     "reportIssue": "Zgłoś problem",
     "reportIssueDesc": "Otwiera nowe zgłoszenie na GitHubie z wypełnionymi danymi wersji (bez zawartości sejfu).",
     "reportIssueAction": "Otwórz zgłoszenie…",
-    "syncErrorHistory": "Ostatnie błędy synchronizacji"
+    "syncErrorHistory": "Ostatnie błędy synchronizacji",
+    "contentFontSize": "Rozmiar czcionki treści",
+    "contentFontSizeDesc": "Rozmiar czcionki edytora i widoku czytania; interfejs pozostaje bez zmian.",
+    "contentFontFamily": "Czcionka treści",
+    "contentFontFamilyDesc": "Czcionka treści notatek. „Domyślna motywu” podąża za wybranym motywem.",
+    "fontTheme": "Domyślna motywu",
+    "fontSerif": "Szeryfowa",
+    "fontSans": "Bezszeryfowa",
+    "fontMono": "O stałej szerokości",
+    "fontCustom": "Niestandardowa…",
+    "fontCustomPlaceholder": "Nazwa zainstalowanej czcionki",
+    "uiZoom": "Powiększenie interfejsu",
+    "uiZoomDesc": "Skaluje cały interfejs. Także przez Ctrl/Cmd + Plus/Minus; 0 przywraca.",
+    "uiZoomDefault": "Domyślne"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",

@@ -78,6 +78,10 @@
   --font-ui: Inter, Avenir, Helvetica, Arial, sans-serif;
   --font-content: Inter, Avenir, Helvetica, Arial, sans-serif;
   --font-family: var(--font-ui);
+  /* Content font size (editor + read view). User-adjustable in the settings
+     (issue #5, a11y) — services/contentFont.ts overrides it on <html>.
+     Chrome text does NOT follow it; UI scaling is the shell zoom's job. */
+  --content-font-size: 16px;
 }
 
 [data-theme="dark"] {

@@ -196,7 +196,20 @@
     "reportIssue": "Probleem melden",
     "reportIssueDesc": "Opent een nieuwe GitHub-issue met vooraf ingevulde versiegegevens (zonder kluisinhoud).",
     "reportIssueAction": "Issue openen…",
-    "syncErrorHistory": "Recente synchronisatiefouten"
+    "syncErrorHistory": "Recente synchronisatiefouten",
+    "contentFontSize": "Lettergrootte van inhoud",
+    "contentFontSizeDesc": "Lettergrootte van editor en leesweergave; de interface blijft ongewijzigd.",
+    "contentFontFamily": "Lettertype van inhoud",
+    "contentFontFamilyDesc": "Lettertype van de notitie-inhoud. “Themastandaard” volgt het gekozen thema.",
+    "fontTheme": "Themastandaard",
+    "fontSerif": "Serif",
+    "fontSans": "Sans-serif",
+    "fontMono": "Monospace",
+    "fontCustom": "Aangepast…",
+    "fontCustomPlaceholder": "Naam van een geïnstalleerd lettertype",
+    "uiZoom": "Interfacezoom",
+    "uiZoomDesc": "Schaalt de hele interface. Ook via Ctrl/Cmd + Plus/Min; 0 herstelt.",
+    "uiZoomDefault": "Standaard"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",

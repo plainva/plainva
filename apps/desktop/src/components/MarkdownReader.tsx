@@ -329,7 +329,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   if (embedDepth > 2) return <div style={{ color: 'var(--text-muted)', padding: '0.5rem' }}>Max embed depth reached</div>;
 
   return (
-    <div className="markdown-reader" style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: '16px', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
+    <div className="markdown-reader" style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
           ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, mathPlugins.remark as never]

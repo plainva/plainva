@@ -196,7 +196,20 @@
     "reportIssue": "Report a problem",
     "reportIssueDesc": "Opens a new GitHub issue with prefilled version details (no vault content).",
     "reportIssueAction": "Open issue…",
-    "syncErrorHistory": "Recent sync errors"
+    "syncErrorHistory": "Recent sync errors",
+    "contentFontSize": "Content font size",
+    "contentFontSizeDesc": "Font size of the editor and reading view; the interface itself is unaffected.",
+    "contentFontFamily": "Content font",
+    "contentFontFamilyDesc": "Font of the note content. “Theme default” follows the selected theme.",
+    "fontTheme": "Theme default",
+    "fontSerif": "Serif",
+    "fontSans": "Sans-serif",
+    "fontMono": "Monospace",
+    "fontCustom": "Custom…",
+    "fontCustomPlaceholder": "Name of an installed font",
+    "uiZoom": "Interface zoom",
+    "uiZoomDesc": "Scales the entire interface. Also via Ctrl/Cmd + Plus/Minus; 0 resets.",
+    "uiZoomDefault": "Default"
   },
   "editor": {
     "fileNotFound": "File not found",

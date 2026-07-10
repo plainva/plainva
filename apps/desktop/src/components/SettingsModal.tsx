@@ -41,6 +41,8 @@ import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
+import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type ContentFontSettings, type ContentFontFamily } from "../services/contentFont";
+import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM, MIN_UI_ZOOM, MAX_UI_ZOOM, UI_ZOOM_STEP } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
@@ -107,6 +109,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
   const [defaultViewMode, setDefaultViewMode] = useState<EditorViewMode>(DEFAULT_VIEW_MODE);
   useEffect(() => { getStoredDefaultViewMode().then(setDefaultViewMode).catch(() => {}); }, []);
+  const [contentFont, setContentFont] = useState<ContentFontSettings>({ size: DEFAULT_CONTENT_FONT_SIZE, family: "theme", customName: "" });
+  useEffect(() => { getStoredContentFont().then(setContentFont).catch(() => {}); }, []);
+  const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
+  useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
   const [themeName, setThemeName] = useState<string>(() => document.documentElement.getAttribute("data-theme-name") || "petrol");
   const [intervalSec, setIntervalSec] = useState(String(DEFAULT_SYNC_INTERVAL_SECONDS));
@@ -1206,6 +1212,89 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                               { value: "live", label: t("editor.livePreview") },
                               { value: "source", label: t("editor.sourceMode") },
                             ]}
+                          />
+                        </div>
+                      </SettingRow>
+
+                      <SettingRow
+                        label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
+                        desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
+                      >
+                        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px" }}>
+                          <input
+                            type="range"
+                            min={MIN_CONTENT_FONT_SIZE}
+                            max={MAX_CONTENT_FONT_SIZE}
+                            step={1}
+                            value={contentFont.size}
+                            aria-label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
+                            onChange={(e) => {
+                              const next = { ...contentFont, size: Number(e.target.value) };
+                              setContentFont(next);
+                              void setStoredContentFont(next);
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <span style={{ minWidth: "44px", textAlign: "right", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            {contentFont.size} px
+                          </span>
+                        </div>
+                      </SettingRow>
+
+                      <SettingRow
+                        label={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
+                        desc={t("settings.contentFontFamilyDesc", { defaultValue: "Schriftart des Notiz-Inhalts. „Theme-Standard“ folgt dem gewählten Theme." })}
+                      >
+                        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <Select
+                            ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
+                            value={contentFont.family}
+                            onChange={(v) => {
+                              const next = { ...contentFont, family: v as ContentFontFamily };
+                              setContentFont(next);
+                              void setStoredContentFont(next);
+                            }}
+                            options={[
+                              { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
+                              { value: "serif", label: t("settings.fontSerif", { defaultValue: "Serif" }) },
+                              { value: "sans", label: t("settings.fontSans", { defaultValue: "Sans-Serif" }) },
+                              { value: "mono", label: t("settings.fontMono", { defaultValue: "Monospace" }) },
+                              { value: "custom", label: t("settings.fontCustom", { defaultValue: "Benutzerdefiniert…" }) },
+                            ]}
+                          />
+                          {contentFont.family === "custom" && (
+                            <input
+                              autoComplete="off"
+                              value={contentFont.customName}
+                              placeholder={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
+                              onChange={(e) => {
+                                const next = { ...contentFont, customName: e.target.value };
+                                setContentFont(next);
+                                void setStoredContentFont(next);
+                              }}
+                              style={{ ...inputStyle, width: "100%" }}
+                            />
+                          )}
+                        </div>
+                      </SettingRow>
+
+                      <SettingRow
+                        label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
+                        desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
+                      >
+                        <div style={{ width: "100%" }}>
+                          <Select
+                            ariaLabel={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
+                            value={String(uiZoom)}
+                            onChange={(v) => {
+                              const z = Number(v);
+                              setUiZoom(z);
+                              void setStoredUiZoom(z);
+                            }}
+                            options={Array.from(
+                              { length: (MAX_UI_ZOOM - MIN_UI_ZOOM) / UI_ZOOM_STEP + 1 },
+                              (_, i) => MIN_UI_ZOOM + i * UI_ZOOM_STEP
+                            ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
                           />
                         </div>
                       </SettingRow>

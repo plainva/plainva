@@ -196,7 +196,20 @@
     "reportIssue": "Informar de un problema",
     "reportIssueDesc": "Abre una nueva incidencia de GitHub con los datos de versión rellenados (sin contenido del vault).",
     "reportIssueAction": "Abrir incidencia…",
-    "syncErrorHistory": "Errores de sincronización recientes"
+    "syncErrorHistory": "Errores de sincronización recientes",
+    "contentFontSize": "Tamaño de fuente del contenido",
+    "contentFontSizeDesc": "Tamaño de fuente del editor y la vista de lectura; la interfaz no cambia.",
+    "contentFontFamily": "Fuente del contenido",
+    "contentFontFamilyDesc": "Fuente del contenido de las notas. «Predeterminada del tema» sigue el tema elegido.",
+    "fontTheme": "Predeterminada del tema",
+    "fontSerif": "Serif",
+    "fontSans": "Sans-serif",
+    "fontMono": "Monoespaciada",
+    "fontCustom": "Personalizada…",
+    "fontCustomPlaceholder": "Nombre de una fuente instalada",
+    "uiZoom": "Zoom de la interfaz",
+    "uiZoomDesc": "Escala toda la interfaz. También con Ctrl/Cmd + Más/Menos; 0 restablece.",
+    "uiZoomDefault": "Predeterminado"
   },
   "editor": {
     "fileNotFound": "Archivo no encontrado",

@@ -196,7 +196,20 @@
     "reportIssue": "問題を報告",
     "reportIssueDesc": "バージョン情報が入力された新しい GitHub Issue を開きます（ボールトの内容は含まれません）。",
     "reportIssueAction": "Issue を開く…",
-    "syncErrorHistory": "最近の同期エラー"
+    "syncErrorHistory": "最近の同期エラー",
+    "contentFontSize": "本文の文字サイズ",
+    "contentFontSizeDesc": "エディターと閲覧ビューの文字サイズ。UI 自体は変わりません。",
+    "contentFontFamily": "本文のフォント",
+    "contentFontFamilyDesc": "ノート本文のフォント。「テーマ標準」は選択中のテーマに従います。",
+    "fontTheme": "テーマ標準",
+    "fontSerif": "セリフ",
+    "fontSans": "サンセリフ",
+    "fontMono": "等幅",
+    "fontCustom": "カスタム…",
+    "fontCustomPlaceholder": "インストール済みフォント名",
+    "uiZoom": "UI ズーム",
+    "uiZoomDesc": "UI 全体を拡大縮小します。Ctrl/Cmd + プラス/マイナスでも操作可、0 でリセット。",
+    "uiZoomDefault": "標準"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",

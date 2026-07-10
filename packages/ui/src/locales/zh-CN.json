@@ -196,7 +196,20 @@
     "reportIssue": "报告问题",
     "reportIssueDesc": "打开一个新的 GitHub Issue，并预填版本信息（不含仓库内容）。",
     "reportIssueAction": "打开 Issue…",
-    "syncErrorHistory": "最近的同步错误"
+    "syncErrorHistory": "最近的同步错误",
+    "contentFontSize": "内容字号",
+    "contentFontSizeDesc": "编辑器和阅读视图的字号；界面本身不受影响。",
+    "contentFontFamily": "内容字体",
+    "contentFontFamilyDesc": "笔记内容的字体。“主题默认”跟随所选主题。",
+    "fontTheme": "主题默认",
+    "fontSerif": "衬线",
+    "fontSans": "无衬线",
+    "fontMono": "等宽",
+    "fontCustom": "自定义…",
+    "fontCustomPlaceholder": "已安装字体的名称",
+    "uiZoom": "界面缩放",
+    "uiZoomDesc": "缩放整个界面。也可用 Ctrl/Cmd + 加/减；0 重置。",
+    "uiZoomDefault": "默认"
   },
   "editor": {
     "fileNotFound": "未找到文件",

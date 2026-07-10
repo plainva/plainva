@@ -12,6 +12,7 @@
     "core:window:allow-is-maximized",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
+    "core:webview:allow-set-zoom",
     "dialog:default",
     "store:default",
     "opener:default",

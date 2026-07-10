@@ -196,7 +196,20 @@
     "reportIssue": "Signaler un problème",
     "reportIssueDesc": "Ouvre un nouveau ticket GitHub avec les informations de version préremplies (sans contenu du coffre).",
     "reportIssueAction": "Ouvrir un ticket…",
-    "syncErrorHistory": "Dernières erreurs de synchronisation"
+    "syncErrorHistory": "Dernières erreurs de synchronisation",
+    "contentFontSize": "Taille de police du contenu",
+    "contentFontSizeDesc": "Taille de police de l'éditeur et du mode lecture ; l'interface reste inchangée.",
+    "contentFontFamily": "Police du contenu",
+    "contentFontFamilyDesc": "Police du contenu des notes. « Défaut du thème » suit le thème choisi.",
+    "fontTheme": "Défaut du thème",
+    "fontSerif": "Serif",
+    "fontSans": "Sans-serif",
+    "fontMono": "Monospace",
+    "fontCustom": "Personnalisée…",
+    "fontCustomPlaceholder": "Nom d'une police installée",
+    "uiZoom": "Zoom de l'interface",
+    "uiZoomDesc": "Met à l'échelle toute l'interface. Aussi via Ctrl/Cmd + Plus/Moins ; 0 réinitialise.",
+    "uiZoomDefault": "Défaut"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",
