@@ -26,9 +26,21 @@ import { getMobileVault } from "./vaultService";
  *    redirect URI  com.plainva.app://oauth
  *  - Google Drive stays BYO: create an ANDROID OAuth client (package
  *    com.plainva.app + signing SHA-1); Android clients have no secret.
+ *    A desktop-type client id cannot work here (it only allows loopback
+ *    redirects — Google answers "invalid_request").
  */
 
 export const OAUTH_REDIRECT_URI = "com.plainva.app://oauth";
+/**
+ * Google rejects the "://host" form for installed-app custom schemes
+ * (error 400 invalid_request, seen live on the Pixel). Android clients
+ * expect the documented single-slash form "<scheme>:/<path>". The
+ * manifest intent-filter matches on the scheme alone, so both URIs land
+ * in the app.
+ */
+export const DRIVE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
+/** Every redirect we can receive starts with our scheme. */
+const REDIRECT_SCHEME_PREFIX = "com.plainva.app:";
 
 export type OAuthProviderId = "drive" | "onedrive" | "dropbox";
 
@@ -68,7 +80,7 @@ export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras)
           })
         : buildAuthUrl({
             clientId: extras.clientId ?? "",
-            redirectUri: OAUTH_REDIRECT_URI,
+            redirectUri: DRIVE_REDIRECT_URI,
             codeChallenge: pkce.codeChallenge,
             state,
           });
@@ -77,7 +89,7 @@ export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras)
 
 /** Handles an incoming app URL; returns true when it was an OAuth redirect. */
 export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
-  if (!urlStr.startsWith(OAUTH_REDIRECT_URI)) return false;
+  if (!urlStr.startsWith(REDIRECT_SCHEME_PREFIX)) return false;
   const flow = pending;
   pending = null;
   void Browser.close().catch(() => {});
@@ -128,7 +140,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           clientSecret: flow.extras.clientSecret ?? "",
           code,
           codeVerifier: flow.verifier,
-          redirectUri: OAUTH_REDIRECT_URI,
+          redirectUri: DRIVE_REDIRECT_URI,
         },
         webdavFetch,
       );
