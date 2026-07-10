@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Plainva</string>
+    <string name="title_activity_main">Plainva</string>
+    <string name="package_name">com.plainva.app</string>
+    <string name="custom_url_scheme">com.plainva.app</string>
+</resources>

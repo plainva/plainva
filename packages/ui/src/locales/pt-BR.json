@@ -1367,5 +1367,19 @@
     "resolvedToast": "Conflito resolvido.",
     "resolveAction": "Resolver conflito…",
     "notAConflictFile": "Este arquivo não é uma cópia de conflito."
+  },
+  "mobile": {
+    "tabNotes": "Notas",
+    "tabSearch": "Busca",
+    "tabToday": "Hoje",
+    "tabMore": "Mais",
+    "recent": "Recentes",
+    "folders": "Pastas",
+    "comingSoon": "Chega em uma etapa posterior.",
+    "newNote": "Nova nota",
+    "sectionVaultSync": "Vault & Sync",
+    "sectionBookmarksTags": "Favoritos & Tags",
+    "sectionBases": "Bancos de dados",
+    "sectionSettings": "Configurações"
   }
 }

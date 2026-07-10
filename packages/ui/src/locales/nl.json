@@ -1362,5 +1362,19 @@
     "resolvedToast": "Conflict opgelost.",
     "resolveAction": "Conflict oplossen…",
     "notAConflictFile": "Dit bestand is geen conflictkopie."
+  },
+  "mobile": {
+    "tabNotes": "Notities",
+    "tabSearch": "Zoeken",
+    "tabToday": "Vandaag",
+    "tabMore": "Meer",
+    "recent": "Recent",
+    "folders": "Mappen",
+    "comingSoon": "Volgt in een latere stap.",
+    "newNote": "Nieuwe notitie",
+    "sectionVaultSync": "Vault & Sync",
+    "sectionBookmarksTags": "Bladwijzers & Tags",
+    "sectionBases": "Databases",
+    "sectionSettings": "Instellingen"
   }
 }

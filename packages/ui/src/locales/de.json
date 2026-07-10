@@ -1362,5 +1362,19 @@
     "resolvedToast": "Konflikt aufgelöst.",
     "resolveAction": "Konflikt lösen…",
     "notAConflictFile": "Diese Datei ist keine Konfliktkopie."
+  },
+  "mobile": {
+    "tabNotes": "Notizen",
+    "tabSearch": "Suche",
+    "tabToday": "Heute",
+    "tabMore": "Mehr",
+    "recent": "Zuletzt",
+    "folders": "Ordner",
+    "comingSoon": "Folgt in einem späteren Schritt.",
+    "newNote": "Neue Notiz",
+    "sectionVaultSync": "Vault & Sync",
+    "sectionBookmarksTags": "Lesezeichen & Tags",
+    "sectionBases": "Datenbanken",
+    "sectionSettings": "Einstellungen"
   }
 }

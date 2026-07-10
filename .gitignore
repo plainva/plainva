@@ -46,3 +46,4 @@ packages/core/test-benchmark-vault/
 # so fresh clones on other machines never track them)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+.claude/launch.json

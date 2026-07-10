@@ -1,0 +1,196 @@
+/*
+ * Mobile shell styles (M1). Spacing/typography/radius come from the shared
+ * tokens (@plainva/ui styles/tokens.css); the COLOR base below is a
+ * temporary copy of the desktop petrol light defaults — apps/desktop/src/
+ * App.css still owns the canonical :root palette. Extracting that color
+ * base (light + dark) into @plainva/ui is a planned follow-up; until then
+ * the mobile shell renders light-only.
+ */
+:root {
+  color-scheme: light;
+  accent-color: var(--accent-color);
+  --bg-primary: #ffffff;
+  --bg-secondary: #eff5f4;
+  --bg-hover: #e0ecea;
+  --bg-active: rgba(15, 118, 110, 0.15);
+  --text-main: #1b2b29;
+  --text-muted: #5c6b69;
+  --text-faint: #5f6e6b;
+  --accent-color: #0f766e;
+  --accent-color-hover: #115e59;
+  --accent-on: #ffffff;
+  --border-color: #d7e5e3;
+  --border-color-light: #e4eeed;
+  --error-bg: #fbeaea;
+  --error-border: #f1c9c9;
+  --error-text: #b42318;
+  --wiki-link-color: var(--accent-color);
+  --overlay-bg: rgba(15, 28, 27, 0.45);
+  --selection-bg: rgba(15, 118, 110, 0.16);
+  --active-line-bg: rgba(15, 118, 110, 0.05);
+  --code-bg: #eef4f3;
+  --quote-border: #cdddda;
+  --highlight-bg: #fdf3b8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-ui, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.m-app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.m-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.m-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+}
+
+.m-page--note {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+.m-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+}
+
+.m-header h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.m-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-main);
+}
+
+.m-sectionlabel {
+  margin: 12px 2px 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.m-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 6px;
+  border: none;
+  border-bottom: 1px solid var(--border-color-light);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.m-row--static {
+  justify-content: space-between;
+}
+
+.m-row span:first-of-type {
+  flex: 1;
+}
+
+.m-accent {
+  color: var(--accent-color);
+}
+
+.m-chevron {
+  color: var(--text-muted);
+}
+
+.m-soon {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.m-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.m-editor .cm-editor {
+  height: 100%;
+}
+
+.m-editor .cm-scroller {
+  overflow: auto;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.m-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+
+.m-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  padding: 2px 8px;
+}
+
+.m-tab.is-active {
+  color: var(--accent-color);
+}
+
+.m-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin-top: -22px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-color);
+  color: var(--accent-on);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}

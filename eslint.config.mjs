@@ -16,6 +16,9 @@ export default tseslint.config(
       // Generated Playwright output (traces are minified bundles, not source).
       "**/test-results/**",
       "**/playwright-report/**",
+      // Capacitor native projects (generated shells, not our source).
+      "apps/mobile/android/**",
+      "apps/mobile/ios/**",
     ],
   },
   js.configs.recommended,
@@ -50,6 +53,10 @@ export default tseslint.config(
       // Shared UI layer (ADR 0011): same browser/React rule set as the
       // desktop sources it was extracted from.
       "packages/ui/src/**/*.{ts,tsx}",
+      // Mobile shell (M1): same browser/React rule set.
+      "apps/mobile/src/**/*.{ts,tsx}",
+      "apps/mobile/vite.config.ts",
+      "apps/mobile/capacitor.config.ts",
     ],
     languageOptions: {
       globals: {

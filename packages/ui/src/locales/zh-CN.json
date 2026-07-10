@@ -1357,5 +1357,19 @@
     "resolvedToast": "冲突已解决。",
     "resolveAction": "解决冲突…",
     "notAConflictFile": "此文件不是冲突副本。"
+  },
+  "mobile": {
+    "tabNotes": "笔记",
+    "tabSearch": "搜索",
+    "tabToday": "今天",
+    "tabMore": "更多",
+    "recent": "最近",
+    "folders": "文件夹",
+    "comingSoon": "将在后续步骤中提供。",
+    "newNote": "新笔记",
+    "sectionVaultSync": "Vault 与同步",
+    "sectionBookmarksTags": "书签与标签",
+    "sectionBases": "数据库",
+    "sectionSettings": "设置"
   }
 }
