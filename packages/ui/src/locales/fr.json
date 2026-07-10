@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Conflit de synchronisation : votre version a été conservée comme copie de conflit. Ce fichier affiche désormais l'état de l'autre côté.",
     "conflictOpenCopy": "Ouvrir la copie de conflit",
     "fileImportFailed": "Le fichier « {{name}} » n'a pas pu être importé.",
-    "print": "Imprimer / Enregistrer en PDF…"
+    "print": "Imprimer / Enregistrer en PDF…",
+    "exportMarkdown": "Exporter en Markdown…",
+    "exportAttachmentsHint": "Les pièces jointes liées (images, etc.) ne sont pas exportées — uniquement le fichier Markdown.",
+    "exportFailed": "Échec de l'export.",
+    "saveAsTemplate": "Enregistrer la note actuelle comme modèle",
+    "templateSaved": "Enregistrée comme modèle : {{name}}"
   },
   "tabMenu": {
     "title": "Actions de l'onglet",

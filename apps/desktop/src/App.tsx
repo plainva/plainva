@@ -1147,6 +1147,36 @@ function App() {
             switchVault: () => { void closeVault(); },
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
             canPrint: () => activeDocument.get().kind === "markdown",
+            exportActiveMarkdown: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void import("./services/exportNote")
+                .then(({ exportNoteAsMarkdown }) => exportNoteAsMarkdown(vaultAdapter, p))
+                .catch((e) => { console.error("[App] markdown export failed", e); toast.error(t("editor.exportFailed")); });
+            },
+            createTemplate: () => {
+              if (!vaultAdapter || !vaultPath) return;
+              void import("./services/templateActions")
+                .then(async ({ createNewTemplate }) => {
+                  const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
+                  if (!path) return;
+                  indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+                  openInFocusedPane(path, true);
+                })
+                .catch((e) => console.error("[App] creating a template failed", e));
+            },
+            saveActiveAsTemplate: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter || !vaultPath) return;
+              void import("./services/templateActions")
+                .then(async ({ saveNoteAsTemplate }) => {
+                  const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
+                  if (!saved) return;
+                  indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+                  toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
+                })
+                .catch((e) => console.error("[App] saving note as template failed", e));
+            },
           })}
         />
       )}

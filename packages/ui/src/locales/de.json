@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Sync-Konflikt: Deine Version wurde als Konfliktkopie gesichert. Diese Datei zeigt jetzt den Stand der anderen Seite.",
     "conflictOpenCopy": "Konfliktkopie öffnen",
     "fileImportFailed": "Datei '{{name}}' konnte nicht übernommen werden.",
-    "print": "Drucken / Als PDF…"
+    "print": "Drucken / Als PDF…",
+    "exportMarkdown": "Als Markdown exportieren…",
+    "exportAttachmentsHint": "Verknüpfte Anhänge (Bilder etc.) werden nicht mitexportiert — nur die Markdown-Datei.",
+    "exportFailed": "Export fehlgeschlagen.",
+    "saveAsTemplate": "Aktuelle Notiz als Vorlage speichern",
+    "templateSaved": "Als Vorlage gespeichert: {{name}}"
   },
   "tabMenu": {
     "title": "Tab-Aktionen",

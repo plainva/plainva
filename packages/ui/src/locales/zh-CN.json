@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "同步冲突：你的版本已保留为冲突副本。此文件现在显示另一端的内容。",
     "conflictOpenCopy": "打开冲突副本",
     "fileImportFailed": "无法导入文件“{{name}}”。",
-    "print": "打印 / 另存为 PDF…"
+    "print": "打印 / 另存为 PDF…",
+    "exportMarkdown": "导出为 Markdown…",
+    "exportAttachmentsHint": "链接的附件（图片等）不会随之导出——仅导出 Markdown 文件。",
+    "exportFailed": "导出失败。",
+    "saveAsTemplate": "将当前笔记保存为模板",
+    "templateSaved": "已保存为模板：{{name}}"
   },
   "tabMenu": {
     "title": "标签页操作",

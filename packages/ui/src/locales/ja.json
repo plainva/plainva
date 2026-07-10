@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "同期の競合：あなたのバージョンは競合コピーとして保存されました。このファイルは現在、もう一方の内容を表示しています。",
     "conflictOpenCopy": "競合コピーを開く",
     "fileImportFailed": "ファイル「{{name}}」を取り込めませんでした。",
-    "print": "印刷 / PDF として保存…"
+    "print": "印刷 / PDF として保存…",
+    "exportMarkdown": "Markdown としてエクスポート…",
+    "exportAttachmentsHint": "リンクされた添付ファイル（画像など）はエクスポートされません — Markdown ファイルのみです。",
+    "exportFailed": "エクスポートに失敗しました。",
+    "saveAsTemplate": "現在のノートをテンプレートとして保存",
+    "templateSaved": "テンプレートとして保存しました: {{name}}"
   },
   "tabMenu": {
     "title": "タブの操作",

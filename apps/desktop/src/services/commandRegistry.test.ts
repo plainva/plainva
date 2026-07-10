@@ -22,6 +22,9 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     switchVault: vi.fn(),
     printActive: vi.fn(),
     canPrint: () => true,
+    exportActiveMarkdown: vi.fn(),
+    createTemplate: vi.fn(),
+    saveActiveAsTemplate: vi.fn(),
     ...overrides,
   };
 }
@@ -54,6 +57,24 @@ describe("commandRegistry", () => {
     expect(visible.map((c) => c.id)).toContain("print");
     cmds.find((c) => c.id === "print")!.run();
     expect(d.printActive).toHaveBeenCalled();
+  });
+
+  it("offers export + template commands and gates the note-scoped ones on canPrint (issue #6)", () => {
+    const d = deps();
+    const cmds = buildAppCommands(d);
+    cmds.find((c) => c.id === "export-markdown")!.run();
+    expect(d.exportActiveMarkdown).toHaveBeenCalled();
+    cmds.find((c) => c.id === "template-new")!.run();
+    expect(d.createTemplate).toHaveBeenCalled();
+    cmds.find((c) => c.id === "template-from-note")!.run();
+    expect(d.saveActiveAsTemplate).toHaveBeenCalled();
+
+    const noDoc = filterCommands(buildAppCommands(deps({ canPrint: () => false })), "", (c) => c.titleDefault);
+    const ids = noDoc.map((c) => c.id);
+    expect(ids).not.toContain("export-markdown");
+    expect(ids).not.toContain("template-from-note");
+    // Creating a fresh template needs no active note — it stays available.
+    expect(ids).toContain("template-new");
   });
 
   it("filters by localized title, case-insensitive", () => {

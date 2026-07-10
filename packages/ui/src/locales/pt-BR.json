@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Conflito de sincronização: sua versão foi preservada como cópia de conflito. Este arquivo agora mostra o estado do outro lado.",
     "conflictOpenCopy": "Abrir cópia de conflito",
     "fileImportFailed": "Não foi possível importar o arquivo '{{name}}'.",
-    "print": "Imprimir / Salvar como PDF…"
+    "print": "Imprimir / Salvar como PDF…",
+    "exportMarkdown": "Exportar como Markdown…",
+    "exportAttachmentsHint": "Anexos vinculados (imagens etc.) não são exportados — apenas o arquivo Markdown.",
+    "exportFailed": "Falha na exportação.",
+    "saveAsTemplate": "Salvar a nota atual como modelo",
+    "templateSaved": "Salva como modelo: {{name}}"
   },
   "tabMenu": {
     "title": "Ações da aba",

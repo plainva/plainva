@@ -39,6 +39,12 @@ export interface CommandDeps {
   printActive: () => void;
   /** True when the active document is a markdown note (print target). */
   canPrint: () => boolean;
+  /** Exports the active note as a standalone .md copy (issue #6). */
+  exportActiveMarkdown: () => void;
+  /** Creates a fresh template in the vault's template folder (issue #6). */
+  createTemplate: () => void;
+  /** Copies the active note into the template folder (issue #6 follow-up). */
+  saveActiveAsTemplate: () => void;
 }
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
@@ -49,6 +55,8 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "daily-note", titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", run: d.openDailyNote },
     { id: "open-file", titleKey: "editor.openFile", titleDefault: "Datei öffnen", hint: "Mod+O", run: d.openQuickSwitcher },
     { id: "insert-template", titleKey: "shortcuts.insertTemplate", titleDefault: "Vorlage einfügen", hint: "Mod+Alt+T", run: d.openTemplatePicker },
+    { id: "template-new", titleKey: "database.createTemplate", titleDefault: "Neue Vorlage erstellen", run: d.createTemplate },
+    { id: "template-from-note", titleKey: "editor.saveAsTemplate", titleDefault: "Aktuelle Notiz als Vorlage speichern", run: d.saveActiveAsTemplate, isAvailable: () => d.canPrint() },
     { id: "open-graph", titleKey: "graph.open", titleDefault: "Graph öffnen", hint: "Mod+Shift+G", run: d.openGraph },
     { id: "split-vertical", titleKey: "shortcuts.splitVertical", titleDefault: "Editor rechts teilen", hint: "Mod+Alt+V", run: () => d.split("vertical") },
     { id: "split-horizontal", titleKey: "shortcuts.splitHorizontal", titleDefault: "Editor unten teilen", hint: "Mod+Alt+S", run: () => d.split("horizontal") },
@@ -65,6 +73,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
       isAvailable: () => !!d.activePath(),
     },
     { id: "print", titleKey: "editor.print", titleDefault: "Drucken / Als PDF…", run: d.printActive, isAvailable: () => d.canPrint() },
+    { id: "export-markdown", titleKey: "editor.exportMarkdown", titleDefault: "Als Markdown exportieren…", run: d.exportActiveMarkdown, isAvailable: () => d.canPrint() },
     { id: "backup-now", titleKey: "settings.backupNow", titleDefault: "Jetzt sichern", run: d.backupNow },
     { id: "update-indexes", titleKey: "indexMd.updateAllAction", titleDefault: "Alle index.md aktualisieren", run: d.updateAllIndexes },
     { id: "switch-vault", titleKey: "sidebar.switchVault", titleDefault: "Vault wechseln", run: d.switchVault },

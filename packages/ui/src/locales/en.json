@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Sync conflict: your version was preserved as a conflict copy. This file now shows the other side's state.",
     "conflictOpenCopy": "Open conflict copy",
     "fileImportFailed": "File '{{name}}' could not be imported.",
-    "print": "Print / Save as PDF…"
+    "print": "Print / Save as PDF…",
+    "exportMarkdown": "Export as Markdown…",
+    "exportAttachmentsHint": "Linked attachments (images etc.) are not exported — only the Markdown file.",
+    "exportFailed": "Export failed.",
+    "saveAsTemplate": "Save current note as template",
+    "templateSaved": "Saved as template: {{name}}"
   },
   "tabMenu": {
     "title": "Tab actions",

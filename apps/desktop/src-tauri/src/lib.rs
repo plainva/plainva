@@ -297,6 +297,18 @@ async fn oauth_token_request(url: String, body: String) -> Result<TokenHttpRespo
     Ok(TokenHttpResponse { status, body })
 }
 
+/// Opens the native print dialog for the main webview.
+///
+/// WKWebView on macOS silently ignores the in-page `window.print()` (user
+/// report, GitHub issue #6), so the frontend routes macOS through this
+/// native path; Windows/Linux keep `window.print()`, which WebView2 and
+/// WebKitGTK honor (wry's native print is macOS-only anyway). Deliberately
+/// synchronous: AppKit print UI must run on the main thread.
+#[tauri::command]
+fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    webview_window.print().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -320,6 +332,7 @@ pub fn run() {
             oauth_loopback_wait,
             oauth_token_request,
             move_to_trash,
+            print_webview,
             backup::create_vault_zip
         ])
         .run(tauri::generate_context!())

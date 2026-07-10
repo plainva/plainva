@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Synchronisatieconflict: jouw versie is bewaard als conflictkopie. Dit bestand toont nu de staat van de andere kant.",
     "conflictOpenCopy": "Conflictkopie openen",
     "fileImportFailed": "Bestand '{{name}}' kon niet worden geïmporteerd.",
-    "print": "Afdrukken / Opslaan als PDF…"
+    "print": "Afdrukken / Opslaan als PDF…",
+    "exportMarkdown": "Exporteren als Markdown…",
+    "exportAttachmentsHint": "Gekoppelde bijlagen (afbeeldingen enz.) worden niet geëxporteerd — alleen het Markdown-bestand.",
+    "exportFailed": "Exporteren mislukt.",
+    "saveAsTemplate": "Huidige notitie opslaan als sjabloon",
+    "templateSaved": "Opgeslagen als sjabloon: {{name}}"
   },
   "tabMenu": {
     "title": "Tabbladacties",

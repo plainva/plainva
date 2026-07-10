@@ -377,7 +377,12 @@
     "conflictBannerNoPath": "Konflikt synchronizacji: Twoja wersja została zachowana jako kopia konfliktu. Ten plik pokazuje teraz stan drugiej strony.",
     "conflictOpenCopy": "Otwórz kopię konfliktu",
     "fileImportFailed": "Nie udało się zaimportować pliku '{{name}}'.",
-    "print": "Drukuj / Zapisz jako PDF…"
+    "print": "Drukuj / Zapisz jako PDF…",
+    "exportMarkdown": "Eksportuj jako Markdown…",
+    "exportAttachmentsHint": "Powiązane załączniki (obrazy itp.) nie są eksportowane — tylko plik Markdown.",
+    "exportFailed": "Eksport nie powiódł się.",
+    "saveAsTemplate": "Zapisz bieżącą notatkę jako szablon",
+    "templateSaved": "Zapisano jako szablon: {{name}}"
   },
   "tabMenu": {
     "title": "Akcje karty",

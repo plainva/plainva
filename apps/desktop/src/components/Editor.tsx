@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -421,7 +421,7 @@ export const Editor: React.FC<{
   const handleMenuPrint = () => {
     const printNow = () => {
       const reader = readScrollRef.current?.querySelector<HTMLElement>(".markdown-reader");
-      if (reader) printElement(reader);
+      if (reader) void printElement(reader);
     };
     if (viewMode === "read") {
       printNow();
@@ -430,6 +430,14 @@ export const Editor: React.FC<{
     setViewMode("read");
     // Two frames: one for React to commit, one for the reader to lay out.
     requestAnimationFrame(() => requestAnimationFrame(printNow));
+  };
+
+  // "Export as Markdown…" (issue #6): saved-state copy via the OS save dialog.
+  const handleMenuExportMarkdown = () => {
+    if (!activePath || !vaultAdapter) return;
+    void import("../services/exportNote")
+      .then(({ exportNoteAsMarkdown }) => exportNoteAsMarkdown(vaultAdapter, activePath))
+      .catch((e) => { console.error("[Editor] markdown export failed", e); toast.error(t("editor.exportFailed")); });
   };
 
   const openExternalUrl = (url: string) => {
@@ -1520,6 +1528,9 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<Printer size={15} />} onSelect={handleMenuPrint}>
                 {t("editor.print")}
+              </MenuItem>
+              <MenuItem icon={<FileDown size={15} />} onSelect={handleMenuExportMarkdown}>
+                {t("editor.exportMarkdown", "Als Markdown exportieren…")}
               </MenuItem>
               {onDelete && (
                 <>

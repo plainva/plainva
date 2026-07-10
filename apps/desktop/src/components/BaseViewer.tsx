@@ -697,22 +697,9 @@ export function BaseViewer({
   const createTemplate = async () => {
     if (!vaultAdapter || !vaultPath) return;
     try {
-      const folder = await getTemplateFolder(vaultPath);
-      try {
-        await vaultAdapter.createDir(folder);
-      } catch {
-        if (!(await vaultAdapter.exists(folder).catch(() => false))) return;
-      }
-      const stem = t("database.newTemplateName", "Neue Vorlage");
-      let name = stem;
-      let n = 2;
-      while (await vaultAdapter.exists(`${folder}/${name}.md`).catch(() => false)) name = `${stem} ${n++}`;
-      const path = `${folder}/${name}.md`;
-      const { buildNewNoteContent } = await import("../services/newNote");
-      // Seed a `# {{title}}` heading so the template isn't blank AND notes
-      // created from it inherit their file name as the H1 (like non-template
-      // notes) — {{title}} is interpolated by the new-item flow at creation.
-      await vaultAdapter.writeTextFile(path, buildNewNoteContent(await getConfiguredNoteType(vaultPath), "{{title}}"));
+      const { createNewTemplate } = await import("../services/templateActions");
+      const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
+      if (!path) return;
       indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
       onOpenPath?.(path, true);
     } catch (e) {
