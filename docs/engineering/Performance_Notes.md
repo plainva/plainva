@@ -49,6 +49,32 @@ Deterministically seeded (comparable runs): ~sqrt(n) folders, OKF frontmatter, ~
 - **Editor mirror**: documents > 512 KB mirror the React `content` state every 2 s instead of every 150 ms (`doc.toString()` allocations). Deliberate deviation from the plan wording "metadata only": the full text is still mirrored, just less often.
 - **TreeNodeView memoized** (follow-up 2026-07-06, P2.12): `React.memo` + identity-stable handlers (`lib/useStableHandler.ts`) — context menu/session state renders of the FileTree no longer run through every visible tree row.
 
+## Harness baseline — core paths on node:sqlite (2026-07-11, hardening P1)
+
+Measured with the rebuilt `packages/core/scripts/benchmark.ts` (the previous
+better-sqlite3 version could not even install under pnpm 10 and had silently
+become dead code). Median over 5 runs (3 for the heavy profiles), local SSD,
+Node without any Tauri IPC — so these are LOWER bounds for the native app:
+they cover the indexer, FTS and merge logic, **not** IPC, the SQL plugin,
+WebView rendering, watcher behavior or network vaults (the in-app perf panel
+under "About & diagnostics" covers those on real installs).
+
+| Measurement | 1k small | 5k small | 5k linked |
+|---|---|---|---|
+| Full index (cold) | 3.4 s | 20.7 s | 40.0 s |
+| Full index (warm, no changes) | 46 ms | 265 ms | 303 ms |
+| Incremental (1 changed file) | 9 ms | 13 ms | 16 ms |
+| FTS search (worst of 3 terms) | 1.9 ms | 8.8 ms | 2.2 ms |
+
+Readings: warm starts, incremental indexing and search are FAR inside their
+budgets — the warm-index work (fix D) and the FTS design carry. The COLD full
+index is the one hot spot: 5k stays under the 60 s budget but not "well
+below", and link-heavy vaults double the cost — **the Rust bulk-insert
+command (real transaction) is the designated next lever if the 20k profile or
+native runs breach the budget.** 5k-large/20k runs: JSON outputs live in the
+maintainer workspace scratchpad; re-run via
+`pnpm --filter @plainva/core run benchmark -- --files 20000 --runs 3`.
+
 ## Native measurements (maintainer, to be added)
 
 | Measurement point | 1k | 5k | 20k | Date/Build |

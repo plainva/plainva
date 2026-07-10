@@ -494,3 +494,12 @@ option {
   body[data-printing] { background: var(--bg-primary); }
   .pv-print-host .markdown-reader { max-width: none !important; padding: 0 !important; }
 }
+
+/* Large-tree rendering (hardening P5.2): skip layout/paint for off-screen
+   file-tree rows via CSS containment - the DOM stays complete (selection,
+   drag & drop, inline rename and the test suite are untouched), only
+   off-viewport rows stop costing layout. contain-intrinsic-height keeps
+   the scrollbar stable for skipped rows. Base TABLE rows cannot use this
+   (content-visibility is ignored on table-row boxes) - real windowing for
+   .base tables stays a follow-up gated on native profiling. */
+[data-tree-path] { content-visibility: auto; contain-intrinsic-height: auto 26px; }
