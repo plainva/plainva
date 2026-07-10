@@ -220,7 +220,11 @@
     "syncQueueDesc": "Shows what is still waiting to reach the cloud (oldest first).",
     "syncQueueEmpty": "Nothing pending — everything transferred.",
     "syncQueueCount": "{{n}} operation(s) pending:",
-    "syncQueueRetries": "attempt {{n}}"
+    "syncQueueRetries": "attempt {{n}}",
+    "rebuildIndex": "Search index",
+    "rebuildIndexDesc": "Rebuilds this vault's search index from scratch — helps when search, backlinks or databases look stale.",
+    "rebuildIndexAction": "Rebuild index",
+    "rebuildIndexRunning": "Running…"
   },
   "editor": {
     "fileNotFound": "File not found",
@@ -884,7 +888,8 @@
     "connectedTo": "Connected to {{provider}}",
     "cloudFolderLabel": "Folder in the cloud",
     "cloudFolderRoot": "{{root}} (root)",
-    "pickLocalAndOpen": "Choose local folder and open"
+    "pickLocalAndOpen": "Choose local folder and open",
+    "recommended": "Recommended to start"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -899,7 +904,8 @@
     "cancelAction": "Cancel action (close dialog, cancel renaming)",
     "close": "Close",
     "toggleLeftSidebar": "Toggle left sidebar",
-    "toggleRightSidebar": "Toggle right sidebar"
+    "toggleRightSidebar": "Toggle right sidebar",
+    "toggleFocusMode": "Toggle focus mode"
   },
   "calendar": {
     "prevMonth": "Previous month",
@@ -1377,7 +1383,8 @@
     "baseShowIncoming": "Incoming relations",
     "baseShowIncomingTip": "Also show notes from other databases whose relation points at entries in this view (e.g. a project's tasks)",
     "baseColorByTip": "Color nodes by the value of a select property",
-    "baseSizeByTip": "Scale node size by the value of a number property"
+    "baseSizeByTip": "Scale node size by the value of a number property",
+    "filters": "Filters"
   },
   "ribbon": {
     "aria": "Action rail"

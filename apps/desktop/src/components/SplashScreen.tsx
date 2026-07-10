@@ -200,7 +200,12 @@ export const SplashScreen: React.FC = () => {
               >
                 <FilePlus2 size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.emptyVault")}</div>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    {t("splash.emptyVault")}
+                    <span style={{ fontSize: "0.68rem", fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-pill)", background: "var(--accent-color)", color: "var(--accent-on)" }}>
+                      {t("splash.recommended", { defaultValue: "Empfohlen für den Einstieg" })}
+                    </span>
+                  </div>
                   <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.emptyVaultDesc")}</div>
                 </div>
               </button>

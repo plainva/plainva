@@ -220,7 +220,11 @@
     "syncQueueDesc": "Mostra ciò che attende ancora di raggiungere il cloud (prima i più vecchi).",
     "syncQueueEmpty": "Niente in sospeso — tutto trasferito.",
     "syncQueueCount": "{{n}} operazione/i in sospeso:",
-    "syncQueueRetries": "tentativo {{n}}"
+    "syncQueueRetries": "tentativo {{n}}",
+    "rebuildIndex": "Indice di ricerca",
+    "rebuildIndexDesc": "Ricostruisce da zero l'indice di ricerca di questo vault — utile se ricerca, backlink o database sembrano obsoleti.",
+    "rebuildIndexAction": "Ricostruisci indice",
+    "rebuildIndexRunning": "In corso…"
   },
   "editor": {
     "fileNotFound": "File non trovato",
@@ -886,7 +890,8 @@
     "connectedTo": "Connesso a {{provider}}",
     "cloudFolderLabel": "Cartella nel cloud",
     "cloudFolderRoot": "{{root}} (radice)",
-    "pickLocalAndOpen": "Scegli la cartella locale e apri"
+    "pickLocalAndOpen": "Scegli la cartella locale e apri",
+    "recommended": "Consigliato per iniziare"
   },
   "shortcuts": {
     "title": "Scorciatoie da tastiera",
@@ -901,7 +906,8 @@
     "cancelAction": "Annulla l'azione (chiudi la finestra, annulla la rinomina)",
     "close": "Chiudi",
     "toggleLeftSidebar": "Attiva/disattiva barra laterale sinistra",
-    "toggleRightSidebar": "Attiva/disattiva barra laterale destra"
+    "toggleRightSidebar": "Attiva/disattiva barra laterale destra",
+    "toggleFocusMode": "Attiva/disattiva modalità focus"
   },
   "calendar": {
     "prevMonth": "Mese precedente",
@@ -1382,7 +1388,8 @@
     "baseShowIncoming": "Relazioni in entrata",
     "baseShowIncomingTip": "Mostra anche note di altri database la cui relazione punta a voci di questa vista (ad es. le attività di un progetto)",
     "baseColorByTip": "Colora i nodi in base al valore di una proprietà di selezione",
-    "baseSizeByTip": "Scala la dimensione dei nodi in base a una proprietà numerica"
+    "baseSizeByTip": "Scala la dimensione dei nodi in base a una proprietà numerica",
+    "filters": "Filtri"
   },
   "ribbon": {
     "aria": "Barra delle azioni"

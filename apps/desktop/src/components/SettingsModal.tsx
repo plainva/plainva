@@ -97,7 +97,8 @@ const ByoBadgeRow: React.FC<{ guidePage: string }> = ({ guidePage }) => {
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker } = useVault();
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault } = useVault();
+  const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const initialProviderRef = useRef<string | null>(initialProvider ?? null);
   const { t, i18n } = useTranslation();
@@ -1697,6 +1698,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         </div>
                       )}
                     </>
+                  )}
+
+                  {section === vaultPath && (
+                    <SettingRow
+                      label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}
+                      desc={t("settings.rebuildIndexDesc", { defaultValue: "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken." })}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={reindexRunning}
+                        onClick={() => {
+                          setReindexRunning(true);
+                          void refreshVault()
+                            .catch((e) => console.error("[Settings] reindex failed", e))
+                            .finally(() => setReindexRunning(false));
+                        }}
+                      >
+                        {reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("settings.rebuildIndexAction", { defaultValue: "Index neu aufbauen" })}
+                      </Button>
+                    </SettingRow>
                   )}
 
                   <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />

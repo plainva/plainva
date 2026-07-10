@@ -220,7 +220,11 @@
     "syncQueueDesc": "Mostra o que ainda aguarda para chegar à nuvem (mais antigo primeiro).",
     "syncQueueEmpty": "Nada pendente — tudo transferido.",
     "syncQueueCount": "{{n}} operação(ões) pendente(s):",
-    "syncQueueRetries": "tentativa {{n}}"
+    "syncQueueRetries": "tentativa {{n}}",
+    "rebuildIndex": "Índice de busca",
+    "rebuildIndexDesc": "Reconstrói do zero o índice de busca deste vault — útil se a busca, os backlinks ou os bancos parecem desatualizados.",
+    "rebuildIndexAction": "Reconstruir índice",
+    "rebuildIndexRunning": "Em andamento…"
   },
   "editor": {
     "fileNotFound": "Arquivo não encontrado",
@@ -886,7 +890,8 @@
     "connectedTo": "Conectado a {{provider}}",
     "cloudFolderLabel": "Pasta na nuvem",
     "cloudFolderRoot": "{{root}} (raiz)",
-    "pickLocalAndOpen": "Escolher pasta local e abrir"
+    "pickLocalAndOpen": "Escolher pasta local e abrir",
+    "recommended": "Recomendado para começar"
   },
   "shortcuts": {
     "title": "Atalhos de teclado",
@@ -901,7 +906,8 @@
     "cancelAction": "Cancelar ação (fechar diálogo, cancelar renomeação)",
     "close": "Fechar",
     "toggleLeftSidebar": "Alternar barra lateral esquerda",
-    "toggleRightSidebar": "Alternar barra lateral direita"
+    "toggleRightSidebar": "Alternar barra lateral direita",
+    "toggleFocusMode": "Alternar modo de foco"
   },
   "calendar": {
     "prevMonth": "Mês anterior",
@@ -1382,7 +1388,8 @@
     "baseShowIncoming": "Relações de entrada",
     "baseShowIncomingTip": "Mostrar também notas de outros bancos de dados cuja relação aponta para entradas desta visão (por ex., as tarefas de um projeto)",
     "baseColorByTip": "Colorir os nós pelo valor de uma propriedade de seleção",
-    "baseSizeByTip": "Dimensionar os nós pelo valor de uma propriedade numérica"
+    "baseSizeByTip": "Dimensionar os nós pelo valor de uma propriedade numérica",
+    "filters": "Filtros"
   },
   "ribbon": {
     "aria": "Barra de ações"

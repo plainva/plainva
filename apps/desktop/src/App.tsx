@@ -222,6 +222,20 @@ function App() {
   // buttons and Mod+Alt+B / Mod+Alt+R (Mod+B stays bold in the editor).
   const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem("plainva-left-sidebar-collapsed") === "1");
   const [rightCollapsed, setRightCollapsed] = useState(() => localStorage.getItem("plainva-right-sidebar-collapsed") === "1");
+  // Right-sidebar visibility is remembered PER VIEW KIND (hardening P7.2):
+  // the vault map defaults to collapsed (canvas wants the space), notes and
+  // bases keep their own last choice. The legacy global key is the fallback.
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" =>
+    p === GRAPH_TAB_PATH ? "graph" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph"): boolean => {
+    const v = localStorage.getItem(`plainva-right-collapsed-${kind}`);
+    if (v !== null) return v === "1";
+    if (kind === "graph") return true;
+    return localStorage.getItem("plainva-right-sidebar-collapsed") === "1";
+  };
+  // Focus mode (P7.4): one command collapses BOTH sidebars; invoking it again
+  // restores the layout from before. Transient — nothing is persisted.
+  const [focusReturn, setFocusReturn] = useState<{ left: boolean; right: boolean } | null>(null);
   const [tabMenu, setTabMenu] = useState<{ paneIndex: number; tabIndex: number; x: number; y: number } | null>(null);
 
   // Panes/tabs/active-file layout + per-vault persistence live in usePaneLayout (plan D1);
@@ -238,8 +252,38 @@ function App() {
     vaultPath,
     validatePath,
     onOpenPath: (p) => setRecentPaths((prev) => [p, ...prev.filter((x) => x !== p)].slice(0, 20)),
+    // (P7.2 continues below the hook: the per-kind right-sidebar apply effect
+    // needs activePath, which this hook provides.)
     onRequestPick: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
   });
+
+  // Apply the remembered right-sidebar visibility of the newly active view
+  // kind (P7.2). Toggling stores per kind; this only APPLIES on kind change.
+  const activeTabKind = tabKindOf(activePath);
+  useEffect(() => {
+    setRightCollapsed(rightCollapsedFor(activeTabKind));
+  }, [activeTabKind]);
+
+  const toggleRightSidebar = useCallback(() => {
+    setRightCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem(`plainva-right-collapsed-${activeTabKind}`, next ? "1" : "0");
+      return next;
+    });
+  }, [activeTabKind]);
+
+  const toggleFocusMode = useCallback(() => {
+    if (!leftCollapsed || !rightCollapsed) {
+      setFocusReturn({ left: leftCollapsed, right: rightCollapsed });
+      setLeftCollapsed(true);
+      setRightCollapsed(true);
+    } else {
+      const prev = focusReturn ?? { left: false, right: false };
+      setLeftCollapsed(prev.left);
+      setRightCollapsed(prev.right);
+      setFocusReturn(null);
+    }
+  }, [leftCollapsed, rightCollapsed, focusReturn]);
 
   // Load recent paths
   useEffect(() => {
@@ -494,7 +538,7 @@ function App() {
         setLeftCollapsed((c) => !c);
       } else if (mod && e.altKey && e.key.toLowerCase() === "r") {
         e.preventDefault();
-        setRightCollapsed((c) => !c);
+        toggleRightSidebar();
       } else if (mod && !e.altKey && (e.key === "+" || e.key === "=")) {
         // UI zoom (issue #5 a11y follow-up). "=" covers US layouts where the
         // plus sign shares the key; Tauri ships with browser zoom hotkeys
@@ -517,7 +561,7 @@ function App() {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openInFocusedPane]);
+  }, [vaultPath, splitEditor, openInFocusedPane, toggleRightSidebar]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -543,7 +587,6 @@ function App() {
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);
   useEffect(() => { localStorage.setItem("plainva-right-sidebar-width", String(rightSidebarWidth)); }, [rightSidebarWidth]);
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-collapsed", leftCollapsed ? "1" : "0"); }, [leftCollapsed]);
-  useEffect(() => { localStorage.setItem("plainva-right-sidebar-collapsed", rightCollapsed ? "1" : "0"); }, [rightCollapsed]);
 
   // Drag-to-resize for the left/right sidebars (clamped to SIDEBAR_MIN..MAX).
   const startSidebarResize = (side: "left" | "right") => (e: ReactMouseEvent) => {
@@ -712,7 +755,7 @@ function App() {
         leftCollapsed={leftCollapsed}
         rightCollapsed={rightCollapsed}
         onToggleLeftSidebar={() => setLeftCollapsed((c) => !c)}
-        onToggleRightSidebar={() => setRightCollapsed((c) => !c)}
+        onToggleRightSidebar={toggleRightSidebar}
       />
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <AppRibbon
@@ -1154,7 +1197,8 @@ function App() {
             openGraph: () => openInFocusedPane(GRAPH_TAB_PATH, true),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
-            toggleRightSidebar: () => setRightCollapsed((c) => !c),
+            toggleRightSidebar: () => toggleRightSidebar(),
+            toggleFocusMode,
             toggleTheme: () => { void toggleLightDark(); },
             themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
             openSettings: () => setShowSettings(true),

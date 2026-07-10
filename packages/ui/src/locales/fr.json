@@ -220,7 +220,11 @@
     "syncQueueDesc": "Montre ce qui attend encore d'atteindre le cloud (plus ancien d'abord).",
     "syncQueueEmpty": "Rien en attente — tout est transféré.",
     "syncQueueCount": "{{n}} opération(s) en attente :",
-    "syncQueueRetries": "tentative {{n}}"
+    "syncQueueRetries": "tentative {{n}}",
+    "rebuildIndex": "Index de recherche",
+    "rebuildIndexDesc": "Reconstruit entièrement l'index de recherche de ce coffre — utile si la recherche, les rétroliens ou les bases semblent obsolètes.",
+    "rebuildIndexAction": "Reconstruire l'index",
+    "rebuildIndexRunning": "En cours…"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",
@@ -886,7 +890,8 @@
     "connectedTo": "Connecté à {{provider}}",
     "cloudFolderLabel": "Dossier dans le cloud",
     "cloudFolderRoot": "{{root}} (racine)",
-    "pickLocalAndOpen": "Choisir le dossier local et ouvrir"
+    "pickLocalAndOpen": "Choisir le dossier local et ouvrir",
+    "recommended": "Recommandé pour débuter"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
@@ -901,7 +906,8 @@
     "cancelAction": "Annuler l'action (fermer la boîte de dialogue, annuler le renommage)",
     "close": "Fermer",
     "toggleLeftSidebar": "Basculer la barre latérale gauche",
-    "toggleRightSidebar": "Basculer la barre latérale droite"
+    "toggleRightSidebar": "Basculer la barre latérale droite",
+    "toggleFocusMode": "Basculer le mode focus"
   },
   "calendar": {
     "prevMonth": "Mois précédent",
@@ -1382,7 +1388,8 @@
     "baseShowIncoming": "Relations entrantes",
     "baseShowIncomingTip": "Afficher aussi les notes d'autres bases dont une relation vise des entrées de cette vue (p. ex. les tâches d'un projet)",
     "baseColorByTip": "Colorer les nœuds selon la valeur d'une propriété de sélection",
-    "baseSizeByTip": "Dimensionner les nœuds selon la valeur d'une propriété numérique"
+    "baseSizeByTip": "Dimensionner les nœuds selon la valeur d'une propriété numérique",
+    "filters": "Filtres"
   },
   "ribbon": {
     "aria": "Barre d'actions"

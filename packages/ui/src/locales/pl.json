@@ -220,7 +220,11 @@
     "syncQueueDesc": "Pokazuje, co jeszcze czeka na przesłanie do chmury (najstarsze najpierw).",
     "syncQueueEmpty": "Nic nie oczekuje — wszystko przesłane.",
     "syncQueueCount": "Oczekujące operacje: {{n}}",
-    "syncQueueRetries": "próba {{n}}"
+    "syncQueueRetries": "próba {{n}}",
+    "rebuildIndex": "Indeks wyszukiwania",
+    "rebuildIndexDesc": "Odbudowuje od zera indeks wyszukiwania tego sejfu — pomaga, gdy wyszukiwanie, backlinki lub bazy wyglądają na nieaktualne.",
+    "rebuildIndexAction": "Odbuduj indeks",
+    "rebuildIndexRunning": "Trwa…"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",
@@ -888,7 +892,8 @@
     "connectedTo": "Połączono z {{provider}}",
     "cloudFolderLabel": "Folder w chmurze",
     "cloudFolderRoot": "{{root}} (katalog główny)",
-    "pickLocalAndOpen": "Wybierz folder lokalny i otwórz"
+    "pickLocalAndOpen": "Wybierz folder lokalny i otwórz",
+    "recommended": "Polecane na start"
   },
   "shortcuts": {
     "title": "Skróty klawiszowe",
@@ -903,7 +908,8 @@
     "cancelAction": "Anuluj akcję (zamknij okno dialogowe, przerwij zmianę nazwy)",
     "close": "Zamknij",
     "toggleLeftSidebar": "Przełącz lewy panel boczny",
-    "toggleRightSidebar": "Przełącz prawy panel boczny"
+    "toggleRightSidebar": "Przełącz prawy panel boczny",
+    "toggleFocusMode": "Przełącz tryb skupienia"
   },
   "calendar": {
     "prevMonth": "Poprzedni miesiąc",
@@ -1387,7 +1393,8 @@
     "baseShowIncoming": "Relacje przychodzące",
     "baseShowIncomingTip": "Pokaż też notatki z innych baz danych, których relacja wskazuje wpisy w tym widoku (np. zadania projektu)",
     "baseColorByTip": "Koloruj węzły według wartości właściwości wyboru",
-    "baseSizeByTip": "Skaluj rozmiar węzłów według właściwości liczbowej"
+    "baseSizeByTip": "Skaluj rozmiar węzłów według właściwości liczbowej",
+    "filters": "Filtry"
   },
   "ribbon": {
     "aria": "Pasek akcji"

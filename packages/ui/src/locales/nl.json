@@ -220,7 +220,11 @@
     "syncQueueDesc": "Toont wat nog naar de cloud moet (oudste eerst).",
     "syncQueueEmpty": "Niets in de wachtrij — alles overgedragen.",
     "syncQueueCount": "{{n}} bewerking(en) in de wachtrij:",
-    "syncQueueRetries": "poging {{n}}"
+    "syncQueueRetries": "poging {{n}}",
+    "rebuildIndex": "Zoekindex",
+    "rebuildIndexDesc": "Bouwt de zoekindex van deze vault volledig opnieuw op — handig als zoeken, backlinks of databases verouderd lijken.",
+    "rebuildIndexAction": "Index opnieuw opbouwen",
+    "rebuildIndexRunning": "Bezig…"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",
@@ -884,7 +888,8 @@
     "connectedTo": "Verbonden met {{provider}}",
     "cloudFolderLabel": "Map in de cloud",
     "cloudFolderRoot": "{{root}} (hoofdmap)",
-    "pickLocalAndOpen": "Lokale map kiezen en openen"
+    "pickLocalAndOpen": "Lokale map kiezen en openen",
+    "recommended": "Aanbevolen om te starten"
   },
   "shortcuts": {
     "title": "Sneltoetsen",
@@ -899,7 +904,8 @@
     "cancelAction": "Actie annuleren (dialoog sluiten, hernoemen annuleren)",
     "close": "Sluiten",
     "toggleLeftSidebar": "Linkerzijbalk tonen/verbergen",
-    "toggleRightSidebar": "Rechterzijbalk tonen/verbergen"
+    "toggleRightSidebar": "Rechterzijbalk tonen/verbergen",
+    "toggleFocusMode": "Focusmodus wisselen"
   },
   "calendar": {
     "prevMonth": "Vorige maand",
@@ -1377,7 +1383,8 @@
     "baseShowIncoming": "Inkomende relaties",
     "baseShowIncomingTip": "Toon ook notities uit andere databases waarvan een relatie naar items in deze weergave wijst (bijv. de taken van een project)",
     "baseColorByTip": "Knopen kleuren op de waarde van een keuze-eigenschap",
-    "baseSizeByTip": "Knoopgrootte schalen op de waarde van een numerieke eigenschap"
+    "baseSizeByTip": "Knoopgrootte schalen op de waarde van een numerieke eigenschap",
+    "filters": "Filters"
   },
   "ribbon": {
     "aria": "Actiebalk"

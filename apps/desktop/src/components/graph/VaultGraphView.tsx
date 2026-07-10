@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Crosshair, Eraser, Flame, History, Maximize2, Waypoints, X } from "lucide-react";
+import { Crosshair, Eraser, Flame, History, Maximize2, SlidersHorizontal, Waypoints, X } from "lucide-react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
@@ -61,6 +61,17 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const [query, setQuery] = useState("");
   const [okfType, setOkfType] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
+  // Facet popover (P7.1): filters moved off the always-visible bar.
+  const [showFilters, setShowFilters] = useState(false);
+  const filterPopRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!showFilters) return;
+    const onDown = (e: PointerEvent) => {
+      if (!filterPopRef.current?.contains(e.target as Node)) setShowFilters(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [showFilters]);
   const [tagPaths, setTagPaths] = useState<Set<string> | null>(null);
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(new Set(DEFAULT_EDGE_KINDS));
   const [focus, setFocus] = useState<{ seed: string; depth: number } | null>(null);
@@ -567,6 +578,10 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     { kind: "property", label: t("graph.kindRelations", { defaultValue: "Relationen" }) },
     { kind: "embed", label: t("graph.kindEmbeds", { defaultValue: "Embeds" }) },
   ];
+  // Badge on the collapsed popover button: type filter, tag filter, and any
+  // disabled edge kind each count as one active filter.
+  const activeFilterCount =
+    (okfType ? 1 : 0) + (tag ? 1 : 0) + (kindToggles.some(({ kind }) => !edgeKinds.has(kind)) ? 1 : 0);
 
   const toggleKind = (kind: GraphEdgeKind) => {
     setEdgeKinds((prev) => {
@@ -601,24 +616,46 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           data-testid="graph-map-search"
           style={{ width: 180 }}
         />
-        <select className="pv-field pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
-          <option value="">{t("graph.allTypes", { defaultValue: "Alle Typen" })}</option>
-          {okfTypes.map((ty) => (
-            <option key={ty} value={ty}>{ty}</option>
-          ))}
-        </select>
-        <select className="pv-field pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
-          <option value="">{t("graph.allTags", { defaultValue: "Alle Tags" })}</option>
-          {allTags.map((tg) => (
-            <option key={tg} value={tg}>#{tg}</option>
-          ))}
-        </select>
-        {kindToggles.map(({ kind, label }) => (
-          <label key={kind} className="pv-checkrow" style={{ gap: "var(--space-1)", fontSize: "var(--text-sm)" }}>
-            <input type="checkbox" className="pv-check" checked={edgeKinds.has(kind)} onChange={() => toggleKind(kind)} />
-            {label}
-          </label>
-        ))}
+        {/* Facets live in a compact popover now (hardening P7.1) — the two
+            always-visible filter rows ate map space; the badge shows how many
+            filters are active while the popover is closed. */}
+        <span ref={filterPopRef} style={{ position: "relative" }}>
+          <button
+            className={`pv-btn pv-btn--sm ${showFilters || activeFilterCount > 0 ? "pv-btn--primary" : "pv-btn--ghost"}`}
+            onClick={() => setShowFilters((s) => !s)}
+            aria-expanded={showFilters}
+            data-testid="graph-filter-btn"
+          >
+            <SlidersHorizontal size={14} />
+            {t("graph.filters", { defaultValue: "Filter" })}
+            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
+          {showFilters && (
+            <div
+              className="pv-popover"
+              style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-2)", minWidth: 250 }}
+            >
+              <select className="pv-field pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
+                <option value="">{t("graph.allTypes", { defaultValue: "Alle Typen" })}</option>
+                {okfTypes.map((ty) => (
+                  <option key={ty} value={ty}>{ty}</option>
+                ))}
+              </select>
+              <select className="pv-field pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
+                <option value="">{t("graph.allTags", { defaultValue: "Alle Tags" })}</option>
+                {allTags.map((tg) => (
+                  <option key={tg} value={tg}>#{tg}</option>
+                ))}
+              </select>
+              {kindToggles.map(({ kind, label }) => (
+                <label key={kind} className="pv-checkrow" style={{ gap: "var(--space-1)", fontSize: "var(--text-sm)" }}>
+                  <input type="checkbox" className="pv-check" checked={edgeKinds.has(kind)} onChange={() => toggleKind(kind)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
+        </span>
         <span style={{ flex: 1 }} />
         {focus ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-sm)", color: "var(--accent-color)" }}>

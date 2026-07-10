@@ -11,6 +11,7 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     split: vi.fn(),
     toggleLeftSidebar: vi.fn(),
     toggleRightSidebar: vi.fn(),
+    toggleFocusMode: vi.fn(),
     toggleTheme: vi.fn(),
     themeTogglePinned: () => false,
     openSettings: vi.fn(),

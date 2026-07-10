@@ -220,7 +220,11 @@
     "syncQueueDesc": "显示尚未同步到云端的内容（最旧的在前）。",
     "syncQueueEmpty": "没有待传输项——全部已同步。",
     "syncQueueCount": "{{n}} 个操作待处理：",
-    "syncQueueRetries": "第 {{n}} 次尝试"
+    "syncQueueRetries": "第 {{n}} 次尝试",
+    "rebuildIndex": "搜索索引",
+    "rebuildIndexDesc": "从头重建此 Vault 的搜索索引——当搜索、反向链接或数据库显得过时时很有用。",
+    "rebuildIndexAction": "重建索引",
+    "rebuildIndexRunning": "进行中…"
   },
   "editor": {
     "fileNotFound": "未找到文件",
@@ -882,7 +886,8 @@
     "connectedTo": "已连接到{{provider}}",
     "cloudFolderLabel": "云端文件夹",
     "cloudFolderRoot": "{{root}}（根目录）",
-    "pickLocalAndOpen": "选择本地文件夹并打开"
+    "pickLocalAndOpen": "选择本地文件夹并打开",
+    "recommended": "推荐入门选择"
   },
   "shortcuts": {
     "title": "快捷键",
@@ -897,7 +902,8 @@
     "cancelAction": "取消操作（关闭对话框、取消重命名）",
     "close": "关闭",
     "toggleLeftSidebar": "切换左侧边栏",
-    "toggleRightSidebar": "切换右侧边栏"
+    "toggleRightSidebar": "切换右侧边栏",
+    "toggleFocusMode": "切换专注模式"
   },
   "calendar": {
     "prevMonth": "上个月",
@@ -1372,7 +1378,8 @@
     "baseShowIncoming": "传入关联",
     "baseShowIncomingTip": "同时显示其他数据库中、关联指向此视图条目的笔记（例如某个项目的任务）",
     "baseColorByTip": "按选择属性的值为节点着色",
-    "baseSizeByTip": "按数字属性的值缩放节点大小"
+    "baseSizeByTip": "按数字属性的值缩放节点大小",
+    "filters": "筛选"
   },
   "ribbon": {
     "aria": "操作栏"

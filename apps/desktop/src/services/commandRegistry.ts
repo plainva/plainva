@@ -26,6 +26,8 @@ export interface CommandDeps {
   split: (direction: "vertical" | "horizontal") => void;
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
+  /** Collapses both sidebars; invoking again restores the previous layout (P7.4). */
+  toggleFocusMode: () => void;
   toggleTheme: () => void;
   themeTogglePinned: () => boolean;
   openSettings: () => void;
@@ -62,6 +64,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "split-horizontal", titleKey: "shortcuts.splitHorizontal", titleDefault: "Editor unten teilen", hint: "Mod+Alt+S", run: () => d.split("horizontal") },
     { id: "toggle-left-sidebar", titleKey: "shortcuts.toggleLeftSidebar", titleDefault: "Linke Seitenleiste umschalten", hint: "Mod+Alt+B", run: d.toggleLeftSidebar },
     { id: "toggle-right-sidebar", titleKey: "shortcuts.toggleRightSidebar", titleDefault: "Rechte Seitenleiste umschalten", hint: "Mod+Alt+R", run: d.toggleRightSidebar },
+    { id: "focus-mode", titleKey: "shortcuts.toggleFocusMode", titleDefault: "Fokus-Modus umschalten", run: d.toggleFocusMode },
     { id: "toggle-theme", titleKey: "titlebar.toggleTheme", titleDefault: "Hell/Dunkel umschalten", run: d.toggleTheme, isAvailable: () => !d.themeTogglePinned() },
     { id: "open-settings", titleKey: "shortcuts.openSettings", titleDefault: "Einstellungen öffnen", hint: "Mod+,", run: d.openSettings },
     { id: "show-shortcuts", titleKey: "shortcuts.showShortcuts", titleDefault: "Tastaturkürzel anzeigen", hint: "F1", run: d.openShortcuts },

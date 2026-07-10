@@ -220,7 +220,11 @@
     "syncQueueDesc": "Zeigt, was noch zur Cloud übertragen wird (älteste zuerst).",
     "syncQueueEmpty": "Nichts ausstehend — alles übertragen.",
     "syncQueueCount": "{{n}} Operation(en) ausstehend:",
-    "syncQueueRetries": "Versuch {{n}}"
+    "syncQueueRetries": "Versuch {{n}}",
+    "rebuildIndex": "Suchindex",
+    "rebuildIndexDesc": "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken.",
+    "rebuildIndexAction": "Index neu aufbauen",
+    "rebuildIndexRunning": "Läuft…"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",
@@ -884,7 +888,8 @@
     "connectedTo": "Mit {{provider}} verbunden",
     "cloudFolderLabel": "Ordner in der Cloud",
     "cloudFolderRoot": "{{root}} (Hauptverzeichnis)",
-    "pickLocalAndOpen": "Lokalen Ordner wählen und öffnen"
+    "pickLocalAndOpen": "Lokalen Ordner wählen und öffnen",
+    "recommended": "Empfohlen für den Einstieg"
   },
   "shortcuts": {
     "title": "Tastenkombinationen",
@@ -899,7 +904,8 @@
     "cancelAction": "Aktion abbrechen (Dialog schließen, Umbenennen abbrechen)",
     "close": "Schließen",
     "toggleLeftSidebar": "Linke Seitenleiste umschalten",
-    "toggleRightSidebar": "Rechte Seitenleiste umschalten"
+    "toggleRightSidebar": "Rechte Seitenleiste umschalten",
+    "toggleFocusMode": "Fokus-Modus umschalten"
   },
   "calendar": {
     "prevMonth": "Vorheriger Monat",
@@ -1377,7 +1383,8 @@
     "baseShowIncoming": "Eingehende Relationen",
     "baseShowIncomingTip": "Auch Notizen aus anderen Datenbanken zeigen, deren Relation auf Einträge dieser Ansicht verweist (z. B. die Aufgaben eines Projekts)",
     "baseColorByTip": "Knoten nach dem Wert einer Auswahl-Eigenschaft einfärben",
-    "baseSizeByTip": "Knotengröße nach dem Wert einer Zahlen-Eigenschaft skalieren"
+    "baseSizeByTip": "Knotengröße nach dem Wert einer Zahlen-Eigenschaft skalieren",
+    "filters": "Filter"
   },
   "ribbon": {
     "aria": "Aktionsleiste"
