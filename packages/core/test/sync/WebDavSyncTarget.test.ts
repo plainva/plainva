@@ -40,6 +40,33 @@ describe("WebDavSyncTarget", () => {
     expect(res).toEqual({ etag: "abcdef" });
   });
 
+  it("creates missing parent collections and retries when PUT answers 404", async () => {
+    // Some servers answer 404 (not the RFC's 409) when the parent collection
+    // is missing — the maintainer's Nextcloud does. Expect MKCOL + retry.
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404, statusText: "Not Found" });
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 201, statusText: "Created" });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "ETag": '"retry"' })
+    });
+
+    const res = await target.push({
+      id: 1,
+      file_path: "folder/test.md",
+      operation: "write",
+      content: new Uint8Array([1]),
+      retry_count: 0,
+      next_retry_at: 0,
+      queued_at: 0
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch.mock.calls[1][0]).toBe("https://cloud.example.com/remote.php/webdav/folder/");
+    expect(mockFetch.mock.calls[1][1].method).toBe("MKCOL");
+    expect(mockFetch.mock.calls[2][1].method).toBe("PUT");
+    expect(res).toEqual({ etag: "retry" });
+  });
+
   it("should ignore .CONFLICT files on push", async () => {
     await target.push({
       id: 2,

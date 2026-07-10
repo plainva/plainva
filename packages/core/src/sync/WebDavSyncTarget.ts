@@ -128,7 +128,11 @@ export class WebDavSyncTarget implements ISyncTarget {
       });
 
       if (!res.ok) {
-        if (res.status === 409) {
+        // RFC 4918 answers a PUT into a missing collection with 409, but real
+        // servers (some Nextcloud/Apache setups) answer 404 instead — seen on
+        // the maintainer's Nextcloud during the mobile roundtrip. A failing
+        // PUT path can only mean a missing parent: create it and retry once.
+        if (res.status === 409 || res.status === 404) {
             await this.ensureDir(op.file_path);
             const retryRes = await this.request("PUT", url, {
                 headers: this.headers,
