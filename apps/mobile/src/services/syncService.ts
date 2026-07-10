@@ -79,6 +79,18 @@ export function syncNow(): void {
   worker?.triggerImmediate();
 }
 
+let kickTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Debounced push kick after local edits — no waiting for the 30 s tick. */
+export function syncSoon(): void {
+  if (!worker) return;
+  if (kickTimer) clearTimeout(kickTimer);
+  kickTimer = setTimeout(() => {
+    kickTimer = null;
+    worker?.triggerImmediate();
+  }, 2000);
+}
+
 export function stopSync(): void {
   worker?.stop();
   worker = null;

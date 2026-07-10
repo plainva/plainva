@@ -14,6 +14,7 @@ import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@p
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus } from "./services/syncService";
+import { App as CapApp } from "@capacitor/app";
 import { EditorHost } from "./EditorHost";
 import { SyncScreen } from "./SyncScreen";
 import { useSyncExternalStore } from "react";
@@ -55,6 +56,29 @@ export default function App() {
     window.addEventListener("m-vault-changed", onChanged);
     return () => window.removeEventListener("m-vault-changed", onChanged);
   }, []);
+
+  // Android back gesture/button: pop the active tab's stack instead of
+  // closing the app; minimize only from a tab root (platform convention).
+  useEffect(() => {
+    let removed = false;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener("backButton", () => {
+      const st = stacks[activeTab];
+      if (st.length > 0) {
+        setStacks((s) => ({ ...s, [activeTab]: s[activeTab].slice(0, -1) }));
+        setBump((n) => n + 1);
+      } else {
+        void CapApp.minimizeApp();
+      }
+    }).then((h) => {
+      if (removed) void h.remove();
+      else handle = h;
+    });
+    return () => {
+      removed = true;
+      if (handle) void handle.remove();
+    };
+  });
 
   if (!vault) return <div className="m-app" />;
 

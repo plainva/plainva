@@ -7,6 +7,7 @@ import {
   type EditorSessionDeps,
 } from "@plainva/ui";
 import { vaultOps, type MobileVault } from "./services/vaultService";
+import { syncSoon } from "./services/syncService";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -27,6 +28,10 @@ export function EditorHost({
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
+  // Debounced save (desktop parity: not on every keystroke) with an unmount
+  // flush so leaving the note never loses the last edit.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTextRef = useRef<string | null>(null);
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -45,7 +50,16 @@ export function EditorHost({
       handlePaste: () => false,
       handleDrop: () => false,
       onDocChanged: (view) => {
-        void vaultOps.save(vault, path, view.state.doc.toString());
+        pendingTextRef.current = view.state.doc.toString();
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveTimerRef.current = null;
+          const text = pendingTextRef.current;
+          pendingTextRef.current = null;
+          if (text !== null) {
+            void vaultOps.save(vault, path, text).then(() => syncSoon());
+          }
+        }, 800);
       },
       onSelectionToolbar: () => {},
       onSelectionStats: () => {},
@@ -76,6 +90,15 @@ export function EditorHost({
     });
     sessionRef.current = session;
     return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const text = pendingTextRef.current;
+      pendingTextRef.current = null;
+      if (text !== null) {
+        void vaultOps.save(vault, path, text).then(() => syncSoon());
+      }
       sessionRef.current = null;
       session.destroy();
     };
