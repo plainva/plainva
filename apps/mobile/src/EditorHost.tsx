@@ -15,8 +15,10 @@ import {
   Undo2,
 } from "lucide-react";
 import {
+  consumePendingSearchJump,
   createEditorSession,
   cycleHeading,
+  findFirstMatch,
   insertWikiLink,
   redo,
   toggleInlineMark,
@@ -115,6 +117,20 @@ export function EditorHost({
     });
     sessionRef.current = session;
     session.view.contentDOM.setAttribute("contenteditable", editableRef.current ? "true" : "false");
+    // Search jump (P4): a parked jump from the search tab selects and
+    // reveals the first occurrence once the session exists (rAF so the
+    // first layout pass has happened before scrolling).
+    const jump = consumePendingSearchJump(path);
+    if (jump) {
+      requestAnimationFrame(() => {
+        const view = sessionRef.current?.view;
+        if (!view) return;
+        const m = findFirstMatch(view.state.doc.toString(), jump.term);
+        if (m) {
+          view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
+        }
+      });
+    }
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);

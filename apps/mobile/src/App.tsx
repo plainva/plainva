@@ -14,7 +14,15 @@ import {
   Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
-import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue, isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
+import {
+  EmptyState,
+  TextInput,
+  renderSnippetNodes,
+  useDebouncedValue,
+  isConflictCopyPath,
+  conflictOriginalPath,
+  setPendingSearchJump,
+} from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
@@ -854,6 +862,16 @@ function NoteView({
   );
 }
 
+/** First plain search term (no operators/exclusions) — the jump target. */
+const jumpTermOf = (q: string): string => {
+  for (const tok of q.trim().split(/\s+/)) {
+    const low = tok.toLowerCase();
+    if (!tok || tok.startsWith("-") || low.startsWith("path:") || low.startsWith("tag:")) continue;
+    return tok.replace(/^"+|"+$/g, "");
+  }
+  return "";
+};
+
 function SearchView({
   vault,
   onOpenNote,
@@ -879,6 +897,38 @@ function SearchView({
     };
   }, [vault, debounced]);
 
+  // Grouping (P4, desktop parity): a SNIPPET_MARK sentinel in the highlighted
+  // title means the file NAME matched; everything else is a content hit.
+  // The sentinel is char(1) — constructed, never typed literally.
+  const mark = String.fromCharCode(1);
+  const nameHits = results.filter((r) => r.titleHighlighted?.includes(mark));
+  const nameSet = new Set(nameHits.map((r) => r.path));
+  const contentHits = results.filter((r) => !nameSet.has(r.path));
+
+  const openResult = (r: SearchResult) => {
+    // Park the jump BEFORE opening: the editor may not be mounted yet.
+    const term = jumpTermOf(debounced);
+    if (term) setPendingSearchJump({ path: r.path, term });
+    onOpenNote(r.path);
+  };
+
+  const resultRow = (r: SearchResult) => (
+    <button className="m-row m-result" key={r.path} onClick={() => openResult(r)}>
+      <FileText size={16} />
+      <span>
+        <span className="m-result-title">
+          {r.titleHighlighted?.includes(mark)
+            ? renderSnippetNodes(r.titleHighlighted)
+            : r.path.split("/").pop()!.replace(/\.md$/i, "")}
+        </span>
+        {r.snippet ? (
+          <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
+        ) : null}
+      </span>
+    </button>
+  );
+
+  const bothGroups = nameHits.length > 0 && contentHits.length > 0;
   return (
     <div className="m-page">
       <header className="m-header">
@@ -892,17 +942,12 @@ function SearchView({
       {!vault.searchAvailable ? (
         <EmptyState icon={<Search size={20} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : (
-        results.map((r) => (
-          <button className="m-row m-result" key={r.path} onClick={() => onOpenNote(r.path)}>
-            <FileText size={16} />
-            <span>
-              <span className="m-result-title">{r.path.split("/").pop()!.replace(/\.md$/i, "")}</span>
-              {r.snippet ? (
-                <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
-              ) : null}
-            </span>
-          </button>
-        ))
+        <>
+          {bothGroups && <p className="m-sectionlabel">{t("sidebar.matchesName")}</p>}
+          {nameHits.map(resultRow)}
+          {bothGroups && <p className="m-sectionlabel">{t("sidebar.matchesContent")}</p>}
+          {contentHits.map(resultRow)}
+        </>
       )}
     </div>
   );
