@@ -59,20 +59,27 @@ they cover the indexer, FTS and merge logic, **not** IPC, the SQL plugin,
 WebView rendering, watcher behavior or network vaults (the in-app perf panel
 under "About & diagnostics" covers those on real installs).
 
-| Measurement | 1k small | 5k small | 5k linked |
-|---|---|---|---|
-| Full index (cold) | 3.4 s | 20.7 s | 40.0 s |
-| Full index (warm, no changes) | 46 ms | 265 ms | 303 ms |
-| Incremental (1 changed file) | 9 ms | 13 ms | 16 ms |
-| FTS search (worst of 3 terms) | 1.9 ms | 8.8 ms | 2.2 ms |
+| Measurement | 1k small | 5k small | 5k linked | 5k large | 20k small |
+|---|---|---|---|---|---|
+| Full index (cold) | 3.4 s | 20.7 s | 40.0 s | 903 s | 151 s |
+| Full index (warm, no changes) | 46 ms | 265 ms | 303 ms | 343 ms | 984 ms |
+| Incremental (1 changed file) | 9 ms | 13 ms | 16 ms | 346 ms | 17 ms |
+| FTS search (worst of 3 terms) | 1.9 ms | 8.8 ms | 2.2 ms | 644 ms | 36 ms |
 
-Readings: warm starts, incremental indexing and search are FAR inside their
-budgets — the warm-index work (fix D) and the FTS design carry. The COLD full
-index is the one hot spot: 5k stays under the 60 s budget but not "well
-below", and link-heavy vaults double the cost — **the Rust bulk-insert
-command (real transaction) is the designated next lever if the 20k profile or
-native runs breach the budget.** 5k-large/20k runs: JSON outputs live in the
-maintainer workspace scratchpad; re-run via
+Readings: warm starts, incremental indexing and search stay FAR inside their
+budgets at every realistic profile — the warm-index work (fix D) and the FTS
+design carry (20k warm start is under 1 s). The COLD full index is the hot
+spot, and the heavy profiles settle the open question: **20k breaches the
+60 s budget outright (151 s), so the Rust bulk-insert command (real SQL
+transaction instead of the JS mutex) is now a REQUIRED follow-up, no longer
+just designated.** The `large` profile (5k deliberately huge notes) is an
+extreme stress case, not a realistic vault: cold indexing balloons to ~15 min
+(FTS insert cost scales with content bytes), a single changed huge file costs
+~350 ms to re-index (async after save — acceptable), and the PHRASE search
+"quick brown" hits 644 ms (term searches stay ≤5 ms). If real vaults with
+many megabyte-sized notes show up, phrase-search cost and per-file FTS
+chunking join the bulk-insert follow-up. JSON outputs live in the maintainer
+workspace scratchpad; re-run via
 `pnpm --filter @plainva/core run benchmark -- --files 20000 --runs 3`.
 
 ## Native measurements (maintainer, to be added)
