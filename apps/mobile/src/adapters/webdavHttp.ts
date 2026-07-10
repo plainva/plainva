@@ -54,6 +54,17 @@ const nativeFetch: typeof fetch = async (input, init) => {
   } else if (raw instanceof ArrayBuffer) {
     body = bytesToB64(new Uint8Array(raw));
     bodyBase64 = true;
+  } else if (typeof Blob !== "undefined" && raw instanceof Blob) {
+    // Drive's multipart upload builds a Blob (metadata + bytes) — without
+    // this branch every NEW file push to Drive failed while folder
+    // creation (JSON) worked.
+    body = bytesToB64(new Uint8Array(await raw.arrayBuffer()));
+    bodyBase64 = true;
+  } else if (ArrayBuffer.isView(raw)) {
+    body = bytesToB64(new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength));
+    bodyBase64 = true;
+  } else if (raw instanceof URLSearchParams) {
+    body = raw.toString();
   } else if (raw != null) {
     throw new Error("unsupported request body type for native WebDAV fetch");
   }
