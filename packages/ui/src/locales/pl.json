@@ -1408,6 +1408,14 @@
     "vaults": "Sejfy",
     "vaultLocal": "Na tym urządzeniu",
     "vaultNotConnected": "Ten sejf nie jest już połączony.",
-    "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze."
+    "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze.",
+    "vaultAdd": "Połącz sejf w chmurze",
+    "vaultDetails": "Szczegóły sejfu",
+    "vaultUse": "Użyj tego sejfu",
+    "vaultRename": "Zmień nazwę",
+    "vaultRenamePrompt": "Nowa nazwa sejfu",
+    "vaultDelete": "Usuń sejf",
+    "vaultDeleteConfirm": "Usunąć „{{name}}\" z tego urządzenia? Pliki lokalne, indeks i dane logowania zostaną usunięte; magazyn w chmurze pozostanie nietknięty.",
+    "syncResume": "Połącz ponownie"
   }
 }

@@ -1403,6 +1403,14 @@
     "vaults": "Coffres",
     "vaultLocal": "Sur cet appareil",
     "vaultNotConnected": "Ce coffre n’est plus connecté.",
-    "syncCreatesVaultHint": "La connexion crée un nouveau coffre séparé pour cet emplacement cloud."
+    "syncCreatesVaultHint": "La connexion crée un nouveau coffre séparé pour cet emplacement cloud.",
+    "vaultAdd": "Connecter un coffre cloud",
+    "vaultDetails": "Détails du coffre",
+    "vaultUse": "Utiliser ce coffre",
+    "vaultRename": "Renommer",
+    "vaultRenamePrompt": "Nouveau nom du coffre",
+    "vaultDelete": "Supprimer le coffre",
+    "vaultDeleteConfirm": "Supprimer « {{name}} » de cet appareil ? Les fichiers locaux, l’index et les identifiants seront supprimés ; le stockage cloud reste intact.",
+    "syncResume": "Reconnecter"
   }
 }

@@ -285,3 +285,34 @@ body {
 .m-row:disabled {
   opacity: 1;
 }
+
+/* M3.6 vault management */
+.m-row--split {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+.m-row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 4px 14px 16px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.m-row--split .m-iconbtn {
+  align-self: center;
+  margin-right: 8px;
+}
+.m-sync-actions--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+.m-danger {
+  color: var(--danger-color, #b3261e);
+}

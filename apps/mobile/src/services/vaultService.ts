@@ -14,13 +14,15 @@ import {
 } from "@plainva/core";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   getActiveVaultEntry,
+  removeVault,
   setActiveVault,
   LOCAL_VAULT_ID,
   type VaultEntry,
 } from "./vaultRegistry";
-import { stopSync } from "./syncService";
+import { purgeCredentials, stopSync } from "./syncService";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -99,6 +101,24 @@ export async function switchVault(id: string): Promise<void> {
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
+}
+
+/**
+ * Deletes a connection vault: device-local container, index database,
+ * credential slot and registry entry. The cloud storage is never touched.
+ */
+export async function deleteVault(id: string): Promise<void> {
+  if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
+  try {
+    await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
+  } catch {
+    /* container may not exist (never synced) */
+  }
+  await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
+  await purgeCredentials(id).catch(() => {});
+  await removeVault(id);
 }
 
 async function boot(entry: VaultEntry): Promise<MobileVault> {

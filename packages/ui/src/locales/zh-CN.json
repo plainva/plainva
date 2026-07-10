@@ -1393,6 +1393,14 @@
     "vaults": "仓库",
     "vaultLocal": "在此设备上",
     "vaultNotConnected": "此仓库已断开连接。",
-    "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。"
+    "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。",
+    "vaultAdd": "连接云端仓库",
+    "vaultDetails": "仓库详情",
+    "vaultUse": "使用此仓库",
+    "vaultRename": "重命名",
+    "vaultRenamePrompt": "新的仓库名称",
+    "vaultDelete": "删除仓库",
+    "vaultDeleteConfirm": "从此设备删除“{{name}}”？本地文件、索引和凭据将被移除；云端存储保持不变。",
+    "syncResume": "重新连接"
   }
 }

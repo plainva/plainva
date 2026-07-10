@@ -16,6 +16,8 @@ export interface VaultEntry {
   /** Display name; empty for the local vault (the UI localizes that). */
   name: string;
   provider?: string;
+  /** Sync paused ("disconnected" in the UI); credentials stay stored. */
+  paused?: boolean;
 }
 
 interface RegistryState {
@@ -82,6 +84,31 @@ export async function setActiveVault(id: string): Promise<void> {
   const reg = await loadRegistry();
   if (!reg.vaults.some((v) => v.id === id)) throw new Error(`unknown vault: ${id}`);
   await persist({ ...reg, activeId: id });
+}
+
+export async function getVaultEntry(id: string): Promise<VaultEntry | null> {
+  const reg = await loadRegistry();
+  return reg.vaults.find((v) => v.id === id) ?? null;
+}
+
+export async function updateVault(id: string, patch: Partial<Omit<VaultEntry, "id">>): Promise<void> {
+  const reg = await loadRegistry();
+  await persist({
+    ...reg,
+    vaults: reg.vaults.map((v) => (v.id === id ? { ...v, ...patch } : v)),
+  });
+  window.dispatchEvent(new CustomEvent("m-vaults-changed"));
+}
+
+/** Removes the registry entry only — the caller tears down container/slot. */
+export async function removeVault(id: string): Promise<void> {
+  if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be removed");
+  const reg = await loadRegistry();
+  await persist({
+    activeId: reg.activeId === id ? LOCAL_VAULT_ID : reg.activeId,
+    vaults: reg.vaults.filter((v) => v.id !== id),
+  });
+  window.dispatchEvent(new CustomEvent("m-vaults-changed"));
 }
 
 export function newVaultId(): string {

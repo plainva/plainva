@@ -1398,6 +1398,14 @@
     "vaults": "Vaults",
     "vaultLocal": "Auf diesem Gerät",
     "vaultNotConnected": "Dieser Vault ist nicht mehr verbunden.",
-    "syncCreatesVaultHint": "Verbinden legt einen neuen, getrennten Vault für diesen Cloud-Speicherort an."
+    "syncCreatesVaultHint": "Verbinden legt einen neuen, getrennten Vault für diesen Cloud-Speicherort an.",
+    "vaultAdd": "Mit Cloud verbinden",
+    "vaultDetails": "Vault-Details",
+    "vaultUse": "Diesen Vault verwenden",
+    "vaultRename": "Umbenennen",
+    "vaultRenamePrompt": "Neuer Vault-Name",
+    "vaultDelete": "Vault löschen",
+    "vaultDeleteConfirm": "\"{{name}}\" von diesem Gerät löschen? Lokale Dateien, Index und Zugangsdaten werden entfernt; der Cloud-Speicher bleibt unberührt.",
+    "syncResume": "Wieder verbinden"
   }
 }

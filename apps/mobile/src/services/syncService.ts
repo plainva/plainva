@@ -12,8 +12,14 @@ import {
 } from "@plainva/core";
 import { getPlatformServices } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { switchVault, type MobileVault } from "./vaultService";
-import { addVault, newVaultId } from "./vaultRegistry";
+import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
+import {
+  addVault,
+  getActiveVaultEntry,
+  getVaultEntry,
+  newVaultId,
+  updateVault,
+} from "./vaultRegistry";
 
 /**
  * Mobile sync bootstrap (M3), mirroring the desktop wiring: the engine
@@ -99,7 +105,8 @@ export function syncPossible(v: MobileVault): boolean {
 /** Starts the worker for stored credentials; no-op without credentials/queue. */
 export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
   if (worker || !syncPossible(v)) return;
-  const stored = await getStoredProvider(v.vaultId);
+  const entry = await getVaultEntry(v.vaultId);
+  const stored = entry?.paused ? null : await getStoredProvider(v.vaultId);
   if (!stored) {
     v.markFirstSyncComplete();
     setState({ status: "off", message: null });
@@ -143,11 +150,30 @@ export async function connectProvider(v: MobileVault, p: MobileSyncProvider): Pr
   await switchVault(id);
 }
 
-/** Disconnects the ACTIVE vault; its local files stay readable. */
-export async function disconnectProvider(v: MobileVault): Promise<void> {
-  stopSync();
-  await getPlatformServices().credentials.removeSecret(credKeyFor(v.vaultId));
-  setState({ status: "off", message: null });
+/**
+ * Pauses sync for a vault ("Trennen"): the worker stops but the stored
+ * credentials stay, so resuming is one tap (no re-auth). Pausing a
+ * non-active vault leaves the running worker alone.
+ */
+export async function pauseProvider(vaultId: string): Promise<void> {
+  await updateVault(vaultId, { paused: true });
+  if ((await getActiveVaultEntry()).id === vaultId) {
+    stopSync();
+    setState({ status: "off", message: null });
+  }
+}
+
+/** Resumes a paused vault; restarts the worker when it is the active one. */
+export async function resumeProvider(vaultId: string): Promise<void> {
+  await updateVault(vaultId, { paused: false });
+  if ((await getActiveVaultEntry()).id === vaultId) {
+    await startSyncIfConfigured(await getMobileVault());
+  }
+}
+
+/** Final credential cleanup when a vault is deleted. */
+export async function purgeCredentials(vaultId: string): Promise<void> {
+  await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId));
 }
 
 export function syncNow(): void {
@@ -246,12 +272,17 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   };
   w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-    // MVP dialog: native confirm; Cancel takes the safe restore branch.
-    const ok = window.confirm(
-      `${pendingDeletes}/${syncedTotal} synced files are queued for REMOTE deletion. Delete them in the cloud? Cancel restores them from the remote.`,
-    );
-    if (ok) w.approveMassDeletion();
-    else void w.discardMassDeletion();
+    // MVP dialog via the Dialog plugin (window.confirm silently returns
+    // false in the Capacitor 8 WebView); Cancel takes the safe restore
+    // branch.
+    void import("@capacitor/dialog").then(async ({ Dialog }) => {
+      const { value } = await Dialog.confirm({
+        title: "Sync",
+        message: `${pendingDeletes}/${syncedTotal} synced files are queued for REMOTE deletion. Delete them in the cloud? Cancel restores them from the remote.`,
+      });
+      if (value) w.approveMassDeletion();
+      else void w.discardMassDeletion();
+    });
   };
   worker = w;
   setState({ status: "idle", message: null });

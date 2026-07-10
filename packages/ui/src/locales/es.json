@@ -1403,6 +1403,14 @@
     "vaults": "Bóvedas",
     "vaultLocal": "En este dispositivo",
     "vaultNotConnected": "Esta bóveda ya no está conectada.",
-    "syncCreatesVaultHint": "Conectar crea una bóveda nueva y separada para esta ubicación en la nube."
+    "syncCreatesVaultHint": "Conectar crea una bóveda nueva y separada para esta ubicación en la nube.",
+    "vaultAdd": "Conectar una bóveda en la nube",
+    "vaultDetails": "Detalles de la bóveda",
+    "vaultUse": "Usar esta bóveda",
+    "vaultRename": "Cambiar nombre",
+    "vaultRenamePrompt": "Nuevo nombre de la bóveda",
+    "vaultDelete": "Eliminar bóveda",
+    "vaultDeleteConfirm": "¿Eliminar «{{name}}» de este dispositivo? Se quitarán los archivos locales, el índice y las credenciales; el almacenamiento en la nube no se toca.",
+    "syncResume": "Reconectar"
   }
 }

@@ -1398,6 +1398,14 @@
     "vaults": "Kluizen",
     "vaultLocal": "Op dit apparaat",
     "vaultNotConnected": "Deze kluis is niet meer verbonden.",
-    "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie."
+    "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie.",
+    "vaultAdd": "Cloudkluis verbinden",
+    "vaultDetails": "Kluisdetails",
+    "vaultUse": "Deze kluis gebruiken",
+    "vaultRename": "Naam wijzigen",
+    "vaultRenamePrompt": "Nieuwe kluisnaam",
+    "vaultDelete": "Kluis verwijderen",
+    "vaultDeleteConfirm": "\"{{name}}\" van dit apparaat verwijderen? Lokale bestanden, index en inloggegevens worden verwijderd; de cloudopslag blijft onaangeroerd.",
+    "syncResume": "Opnieuw verbinden"
   }
 }

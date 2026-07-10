@@ -19,7 +19,8 @@ import { listVaults, type VaultEntry } from "./services/vaultRegistry";
 import { switchVault } from "./services/vaultService";
 import { App as CapApp } from "@capacitor/app";
 import { EditorHost } from "./EditorHost";
-import { SyncScreen } from "./SyncScreen";
+import { AddVaultScreen } from "./AddVaultScreen";
+import { VaultDetailScreen } from "./VaultDetailScreen";
 import { useSyncExternalStore } from "react";
 import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
 
@@ -28,7 +29,7 @@ import { AlertTriangle, Check, Cloud, FolderClosed } from "lucide-react";
 // hides while a note is open (editor focus).
 
 type TabId = "notes" | "search" | "today" | "more";
-type Entry = { kind: "folder" | "note" | "sync"; path: string };
+type Entry = { kind: "folder" | "note" | "sync" | "vault"; path: string };
 
 const todayDailyPath = () => {
   const d = new Date();
@@ -155,7 +156,13 @@ export default function App() {
     <div className="m-app">
       <div className="m-screen">
         {top?.kind === "sync" ? (
-          <SyncScreen onBack={() => pop(activeTab)} vault={vault} />
+          <AddVaultScreen onBack={() => pop(activeTab)} vault={vault} />
+        ) : top?.kind === "vault" ? (
+          <VaultDetailScreen
+            activeVault={vault}
+            onBack={() => pop(activeTab)}
+            vaultId={top.path}
+          />
         ) : top?.kind === "note" ? (
           <NoteView
             key={top.path}
@@ -180,7 +187,8 @@ export default function App() {
         ) : (
           <MoreView
             activeVaultId={vault.vaultId}
-            onOpenSync={() => push("more", { kind: "sync", path: "" })}
+            onAddVault={() => push("more", { kind: "sync", path: "" })}
+            onOpenVault={(id) => push("more", { kind: "vault", path: id })}
           />
         )}
       </div>
@@ -438,11 +446,22 @@ function SyncIndicator() {
   );
 }
 
-function MoreView({ onOpenSync, activeVaultId }: { onOpenSync: () => void; activeVaultId: string }) {
+function MoreView({
+  onAddVault,
+  onOpenVault,
+  activeVaultId,
+}: {
+  onAddVault: () => void;
+  onOpenVault: (id: string) => void;
+  activeVaultId: string;
+}) {
   const { t } = useTranslation();
   const [vaults, setVaults] = useState<VaultEntry[]>([]);
   useEffect(() => {
-    void listVaults().then(setVaults);
+    const reload = () => void listVaults().then(setVaults);
+    reload();
+    window.addEventListener("m-vaults-changed", reload);
+    return () => window.removeEventListener("m-vaults-changed", reload);
   }, [activeVaultId]);
   const later = [
     t("mobile.sectionBookmarksTags"),
@@ -457,21 +476,32 @@ function MoreView({ onOpenSync, activeVaultId }: { onOpenSync: () => void; activ
       <div className="m-row m-row--static">
         <span className="m-section-label">{t("mobile.vaults")}</span>
       </div>
-      {vaults.map((v) => (
-        <button
-          className="m-row"
-          disabled={v.id === activeVaultId}
-          key={v.id}
-          onClick={() => void switchVault(v.id)}
-        >
-          <FolderClosed className={v.id === activeVaultId ? "m-accent" : "m-chevron"} size={16} />
-          <span>{v.name || t("mobile.vaultLocal")}</span>
-          {v.id === activeVaultId && <Check className="m-accent" size={16} />}
-        </button>
-      ))}
-      <button className="m-row" onClick={onOpenSync}>
+      {vaults.map((v) => {
+        const active = v.id === activeVaultId;
+        return (
+          <div className="m-row m-row--split" key={v.id}>
+            <button
+              className="m-row-main"
+              disabled={active}
+              onClick={() => void switchVault(v.id)}
+            >
+              <FolderClosed className={active ? "m-accent" : "m-chevron"} size={16} />
+              <span>{v.name || t("mobile.vaultLocal")}</span>
+              {active && <Check className="m-accent" size={16} />}
+            </button>
+            <button
+              aria-label={t("mobile.vaultDetails")}
+              className="m-iconbtn"
+              onClick={() => onOpenVault(v.id)}
+            >
+              <ChevronRight className="m-chevron" size={18} />
+            </button>
+          </div>
+        );
+      })}
+      <button className="m-row" onClick={onAddVault}>
         <Cloud className="m-accent" size={16} />
-        <span>{t("mobile.sectionVaultSync")}</span>
+        <span>{t("mobile.vaultAdd")}</span>
         <ChevronRight className="m-chevron" size={16} />
       </button>
       {later.map((label) => (

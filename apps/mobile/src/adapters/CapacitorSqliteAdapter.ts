@@ -19,6 +19,11 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
 
   constructor(private readonly dbName: string) {}
 
+  /** Removes a per-vault database file (vault deletion). Best effort. */
+  static async deleteDatabase(dbName: string): Promise<void> {
+    await CapacitorSQLite.deleteDatabase({ database: dbName });
+  }
+
   async initialize(): Promise<void> {
     const consistency = await this.sqlite.checkConnectionsConsistency();
     const existing = await this.sqlite.isConnection(this.dbName, false);

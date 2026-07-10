@@ -1403,6 +1403,14 @@
     "vaults": "Cofres",
     "vaultLocal": "Neste dispositivo",
     "vaultNotConnected": "Este cofre não está mais conectado.",
-    "syncCreatesVaultHint": "Conectar cria um cofre novo e separado para este local na nuvem."
+    "syncCreatesVaultHint": "Conectar cria um cofre novo e separado para este local na nuvem.",
+    "vaultAdd": "Conectar um cofre na nuvem",
+    "vaultDetails": "Detalhes do cofre",
+    "vaultUse": "Usar este cofre",
+    "vaultRename": "Renomear",
+    "vaultRenamePrompt": "Novo nome do cofre",
+    "vaultDelete": "Excluir cofre",
+    "vaultDeleteConfirm": "Excluir \"{{name}}\" deste dispositivo? Arquivos locais, índice e credenciais serão removidos; o armazenamento na nuvem permanece intacto.",
+    "syncResume": "Reconectar"
   }
 }

@@ -1403,6 +1403,14 @@
     "vaults": "Vault",
     "vaultLocal": "Su questo dispositivo",
     "vaultNotConnected": "Questo vault non è più connesso.",
-    "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud."
+    "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud.",
+    "vaultAdd": "Collega un vault cloud",
+    "vaultDetails": "Dettagli del vault",
+    "vaultUse": "Usa questo vault",
+    "vaultRename": "Rinomina",
+    "vaultRenamePrompt": "Nuovo nome del vault",
+    "vaultDelete": "Elimina vault",
+    "vaultDeleteConfirm": "Eliminare \"{{name}}\" da questo dispositivo? File locali, indice e credenziali verranno rimossi; lo storage cloud resta intatto.",
+    "syncResume": "Riconnetti"
   }
 }

@@ -1393,6 +1393,14 @@
     "vaults": "保管庫",
     "vaultLocal": "この端末上",
     "vaultNotConnected": "この保管庫は接続されていません。",
-    "syncCreatesVaultHint": "接続すると、このクラウドの場所専用の新しい保管庫が作成されます。"
+    "syncCreatesVaultHint": "接続すると、このクラウドの場所専用の新しい保管庫が作成されます。",
+    "vaultAdd": "クラウド保管庫を接続",
+    "vaultDetails": "保管庫の詳細",
+    "vaultUse": "この保管庫を使う",
+    "vaultRename": "名前を変更",
+    "vaultRenamePrompt": "新しい保管庫名",
+    "vaultDelete": "保管庫を削除",
+    "vaultDeleteConfirm": "「{{name}}」をこの端末から削除しますか？ローカルファイル・インデックス・認証情報が削除されます。クラウド側のデータはそのまま残ります。",
+    "syncResume": "再接続"
   }
 }
