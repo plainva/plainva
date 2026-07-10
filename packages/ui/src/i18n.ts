@@ -56,4 +56,17 @@ export async function changeAppLanguage(code: string): Promise<void> {
   await i18n.changeLanguage(resolved);
 }
 
+/**
+ * Test-only helper: loads every bundled locale eagerly. Vitest setups await
+ * this so synchronous renders never show raw keys; the app itself only ever
+ * loads the active language plus the English fallback.
+ */
+export async function loadAllLanguages(): Promise<void> {
+  await Promise.all(
+    Object.keys(localeLoaders).map((path) =>
+      loadLanguage(path.replace("./locales/", "").replace(".json", "")),
+    ),
+  );
+}
+
 export default i18n;

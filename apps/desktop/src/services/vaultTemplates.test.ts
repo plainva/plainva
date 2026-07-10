@@ -6,7 +6,7 @@ import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
 } from "./vaultTemplates";
-import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "./languages";
+import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "@plainva/ui";
 import { dailyNotesFolderKey, templateFolderKey, dailyNoteTemplateKey } from "../contexts/VaultContext";
 
 // The store mock also provides the bare `load` export, which the transitively

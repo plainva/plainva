@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import "../../i18n";
+import "@plainva/ui/i18n";
 import { DialogHost } from "./DialogHost";
 import { ToastHost } from "./ToastHost";
 import { appConfirm, appMessage, appPrompt, dialogStore } from "../../services/appDialogs";

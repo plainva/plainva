@@ -3,7 +3,7 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@
 import { toast } from "../services/toastStore";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { findLinkAtOffset } from "@plainva/ui";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 
 // Removed LinkWidget as we'll use Decoration.mark to allow CSS inheritance
 

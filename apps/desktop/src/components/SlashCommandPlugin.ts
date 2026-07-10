@@ -7,7 +7,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/view";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 import { renderSlashIcon, renderSlashDescription } from "./SlashCommandIcons";
 
 // The editor's `/` command menu (Notion-style). Each entry maps a readable name

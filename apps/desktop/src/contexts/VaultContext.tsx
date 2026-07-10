@@ -6,7 +6,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "../services/toastStore";
 import { appConfirm } from "../services/appDialogs";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -607,7 +607,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const savedLanguage = await store.get<string>("appLanguage");
         if (savedLanguage) {
           // Loads the bundle on demand first — locales are lazy chunks (P2.8).
-          import("../i18n").then(({ changeAppLanguage }) => {
+          import("@plainva/ui/i18n").then(({ changeAppLanguage }) => {
             changeAppLanguage(savedLanguage).catch(console.error);
           });
         }

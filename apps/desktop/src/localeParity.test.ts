@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "../services/languages";
+import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "@plainva/ui";
 
 // Locale parity guard (plan Base-Erweiterungen W1/P8; generalized for N languages
 // in plan Sprachen 2026-07-04): every i18n key used in the source must exist in
@@ -17,8 +17,10 @@ import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "../services/languages";
 // least the categories reported by Intl.PluralRules must be present (supersets
 // are allowed, so files stay valid across ICU versions).
 
-const LOCALES_DIR = dirname(fileURLToPath(import.meta.url));
-const SRC_ROOT = join(LOCALES_DIR, "..");
+const SRC = dirname(fileURLToPath(import.meta.url));
+const LOCALES_DIR = join(SRC, "../../../packages/ui/src/locales");
+// t() usage lives in the desktop app AND the shared UI package.
+const SCAN_ROOTS = [SRC, join(SRC, "../../../packages/ui/src")];
 
 const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"] as const;
 const PLURAL_RE = new RegExp(`_(${PLURAL_SUFFIXES.join("|")})$`);
@@ -46,9 +48,11 @@ function collectSourceFiles(dir: string, out: string[] = []): string[] {
 function collectUsedKeys(): Set<string> {
   const keys = new Set<string>();
   const re = /\bt\(\s*["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
-  for (const file of collectSourceFiles(SRC_ROOT)) {
-    const text = readFileSync(file, "utf8");
-    for (const m of text.matchAll(re)) keys.add(m[1]);
+  for (const root of SCAN_ROOTS) {
+    for (const file of collectSourceFiles(root)) {
+      const text = readFileSync(file, "utf8");
+      for (const m of text.matchAll(re)) keys.add(m[1]);
+    }
   }
   return keys;
 }

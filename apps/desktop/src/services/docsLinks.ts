@@ -1,5 +1,5 @@
-import i18n from "../i18n";
-import { matchAppLanguage } from "./languages";
+import i18n from "@plainva/ui/i18n";
+import { matchAppLanguage } from "@plainva/ui";
 
 /**
  * Deep links into the user guide on GitHub (P3.12): the handbook ships in all

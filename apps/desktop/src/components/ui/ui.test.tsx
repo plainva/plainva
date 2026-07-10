@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, createRef, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import "../../i18n";
+import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
 import { IconButton } from "@plainva/ui";
 import { TextInput, SelectField, TextArea } from "@plainva/ui";

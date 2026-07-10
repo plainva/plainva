@@ -3,12 +3,12 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { APP_LANGUAGES } from '../src/services/languages';
+import { APP_LANGUAGES } from '../../../packages/ui/src/services/languages';
 
 // Load locales via fs (Playwright's ESM loader lacks Vite's JSON import support);
 // the expected UI strings come straight from the shipped JSONs so the test tracks
 // the real translations instead of hard-coded words.
-const LOCALES = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'locales');
+const LOCALES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'ui', 'src', 'locales');
 const loadLocale = (code: string): any => JSON.parse(readFileSync(join(LOCALES, `${code}.json`), 'utf8'));
 const en = loadLocale('en');
 const fr = loadLocale('fr');

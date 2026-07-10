@@ -3,7 +3,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { Store } from "@tauri-apps/plugin-store";
 import { STORE_KEY } from "../contexts/VaultContext";
 import { toast } from "./toastStore";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 
 /**
  * The app-update service (P3.8): ALL updater-plugin access lives here — the

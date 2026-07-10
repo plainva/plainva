@@ -4,7 +4,7 @@ import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "./pathGuard";
 import { toast } from "../services/toastStore";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 import { createLimiter, type ConcurrencyLimiter } from "@plainva/ui";
 
 /**

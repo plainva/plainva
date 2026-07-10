@@ -1,7 +1,7 @@
 import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { keymap } from "@codemirror/view";
 import { Prec, EditorState } from "@codemirror/state";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 
 // In-editor find & replace (#10). CodeMirror ships the panel + commands; we add
 // it explicitly (panel at the top), wire the keymap (Ctrl/Cmd-F opens it; the

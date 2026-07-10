@@ -4,7 +4,7 @@ import {
   Completion,
   pickedCompletion,
 } from "@codemirror/autocomplete";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 
 // The editor's `@` mention menu (Notion-style). Typing `@` opens a menu that
 // blends two kinds of entries:

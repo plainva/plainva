@@ -1,6 +1,6 @@
 import { CompletionContext, CompletionResult, Completion, pickedCompletion } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
-import i18n from "../i18n";
+import i18n from "@plainva/ui/i18n";
 import { searchEmoji } from "./emojiData";
 
 // `[[` note-link and `#` tag autocomplete (#10), combined into the editor's

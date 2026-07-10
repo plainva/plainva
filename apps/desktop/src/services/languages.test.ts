@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { APP_LANGUAGES, DEFAULT_LANGUAGE, matchAppLanguage } from "./languages";
+import { APP_LANGUAGES, DEFAULT_LANGUAGE, matchAppLanguage } from "@plainva/ui";
 
 describe("app language registry (Gesamtplan Sprachen 2026-07-04)", () => {
   it("carries unique, well-formed BCP-47 codes and native names", () => {

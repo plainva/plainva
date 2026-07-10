@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import "../i18n";
+import "@plainva/ui/i18n";
 import { ColumnSchemaEditor } from "./ColumnSchemaEditor";
 import type { ColumnSchema } from "../services/baseSchema";
 

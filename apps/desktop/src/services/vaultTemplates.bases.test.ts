@@ -3,7 +3,7 @@ import * as yaml from "yaml";
 import { getVaultTemplates } from "./vaultTemplates";
 import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
 import { resolveNewItemTarget, sourceFolderOfConfig } from "./baseRelations";
-import { APP_LANGUAGES } from "./languages";
+import { APP_LANGUAGES } from "@plainva/ui";
 
 // CredentialManager (transitively imported via VaultContext) calls store.load()
 // at module scope; without a mock that hits `window` in the node environment.

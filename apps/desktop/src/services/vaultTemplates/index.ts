@@ -9,7 +9,7 @@ import {
   DEFAULT_NOTE_TYPE,
 } from "../../contexts/VaultContext";
 import { serializeBaseConfig } from "../baseFormat";
-import { matchAppLanguage } from "../languages";
+import { matchAppLanguage } from "@plainva/ui";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 import { templates as templatesDe } from "./templates.de";
 import { templates as templatesEn } from "./templates.en";

@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { i18nReady } from "./i18n";
-import "./styles/tokens.css";
-import "./styles/ui.css";
-import "./themes/index.css";
+import { i18nReady } from "@plainva/ui/i18n";
+import "@plainva/ui/styles/tokens.css";
+import "@plainva/ui/styles/ui.css";
+import "@plainva/ui/themes/index.css";
 import App from "./App";
 import { TooltipHost } from "@plainva/ui";
 import { ToastHost } from "./components/ui/ToastHost";

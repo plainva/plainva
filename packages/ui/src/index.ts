@@ -26,6 +26,10 @@ export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
 export * from "./lib/wordCount";
 
+// App-language registry (the i18n singleton itself is a side-effect module,
+// exported only via the "@plainva/ui/i18n" subpath)
+export * from "./services/languages";
+
 // React primitives and shared hooks
 export * from "./components/ui/index";
 export * from "./components/ui/useFixedPopover";
