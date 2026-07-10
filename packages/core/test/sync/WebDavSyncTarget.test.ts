@@ -211,4 +211,71 @@ describe("WebDavSyncTarget", () => {
       await expect(target.pull()).rejects.toThrow(/unparseable/i);
     });
   });
+
+  it("falls back to a depth-1 walk when the server rejects infinite depth", async () => {
+    // RFC 4918 servers may answer 403 to Depth: infinity (Apache mod_dav,
+    // webdav-server). The fallback must list nested files via Depth: 1.
+    const rootXml = `<d:multistatus xmlns:d="DAV:">
+        <d:response>
+          <d:href>/remote.php/webdav/</d:href>
+          <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/remote.php/webdav/root.md</d:href>
+          <d:propstat><d:prop><d:getetag>"r1"</d:getetag></d:prop></d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/remote.php/webdav/Sub/</d:href>
+          <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/remote.php/webdav/.plainva/</d:href>
+          <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+        </d:response>
+      </d:multistatus>`;
+    const subXml = `<d:multistatus xmlns:d="DAV:">
+        <d:response>
+          <d:href>/remote.php/webdav/Sub/</d:href>
+          <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/remote.php/webdav/Sub/deep.md</d:href>
+          <d:propstat><d:prop><d:getetag>"d1"</d:getetag></d:prop></d:propstat>
+        </d:response>
+      </d:multistatus>`;
+
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 403, statusText: "Forbidden" });
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => rootXml });
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => subXml });
+
+    const pullRes = await target.pull();
+
+    expect(pullRes.etagMap.get("root.md")).toBe("r1");
+    expect(pullRes.etagMap.get("Sub/deep.md")).toBe("d1");
+    expect(pullRes.etagMap.size).toBe(2);
+    // First call asked for infinity, the walk asks with Depth: 1 and never
+    // descends into device-local folders like .plainva.
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch.mock.calls[0][1].headers["Depth"]).toBe("infinity");
+    expect(mockFetch.mock.calls[1][1].headers["Depth"]).toBe("1");
+    expect(mockFetch.mock.calls[2][0]).toContain("/Sub");
+    expect(mockFetch.mock.calls[2][1].headers["Depth"]).toBe("1");
+  });
+
+  it("reduces absolute hrefs in multistatus responses to vault paths", async () => {
+    // RFC 4918 permits absolute URIs in <href> (webdav-server does this).
+    const mockXml = `<d:multistatus xmlns:d="DAV:">
+        <d:response>
+          <d:href>https://cloud.example.com/remote.php/webdav/Sub/Note%20A.md</d:href>
+          <d:propstat><d:prop><d:getetag>"a1"</d:getetag></d:prop></d:propstat>
+        </d:response>
+      </d:multistatus>`;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => mockXml });
+
+    const pullRes = await target.pull();
+
+    expect(pullRes.etagMap.get("Sub/Note A.md")).toBe("a1");
+    expect(pullRes.etagMap.size).toBe(1);
+  });
 });

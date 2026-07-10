@@ -202,38 +202,25 @@ export class WebDavSyncTarget implements ISyncTarget {
       }
     });
 
-    if (!res.ok) {
-        if (res.status === 404) {
-            return { etagMap: new Map() };
-        }
-        throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
-    }
-
-    const xml = await res.text();
-    const etagMap = new Map<string, string>();
-
-    // Real XML parsing instead of the former regex scan: namespace prefixes
-    // (d:/D:/oc:), CDATA sections, XML entities (&amp; in file names!) and
-    // multi-line <response> blocks are all server-dependent. A missed entry
-    // here would feed the worker's "mirror remote deletions" path — the one
-    // place where a parsing bug could turn into a local delete.
     let responses: WebDavResponse[];
-    try {
-      responses = parseMultistatus(xml);
-    } catch (err) {
-      throw new Error(`WebDAV PROPFIND returned unparseable XML: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    if (res.ok) {
+      responses = this.parseListing(await res.text());
+    } else if (res.status === 404) {
+      return { etagMap: new Map() };
+    } else if (res.status === 403) {
+      // RFC 4918 allows servers to refuse infinite-depth PROPFIND (Apache
+      // mod_dav, webdav-server, ...; Nextcloud permits it). Fall back to a
+      // breadth-first walk with Depth: 1 — same listing, one request per
+      // collection.
+      responses = await this.listByDepthOne();
+    } else {
+      throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
     }
 
-    const basePath = new URL(this.creds.url).pathname;
+    const etagMap = new Map<string, string>();
     for (const resp of responses) {
       if (resp.isCollection || !resp.href || resp.etag === undefined) continue;
-
-      let href = decodeURI(resp.href);
-      if (href.startsWith(basePath)) {
-        href = href.substring(basePath.length);
-      }
-      if (href.startsWith("/")) href = href.substring(1);
-
+      const href = this.relativeHref(resp.href);
       if (!href.includes(".CONFLICT")) {
         etagMap.set(href, resp.etag.replace(/"/g, ""));
       }
@@ -241,6 +228,77 @@ export class WebDavSyncTarget implements ISyncTarget {
 
     console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s)`);
     return { etagMap };
+  }
+
+  // Real XML parsing instead of the former regex scan: namespace prefixes
+  // (d:/D:/oc:), CDATA sections, XML entities (&amp; in file names!) and
+  // multi-line <response> blocks are all server-dependent. A missed entry
+  // here would feed the worker's "mirror remote deletions" path — the one
+  // place where a parsing bug could turn into a local delete.
+  private parseListing(xml: string): WebDavResponse[] {
+    try {
+      return parseMultistatus(xml);
+    } catch (err) {
+      throw new Error(`WebDAV PROPFIND returned unparseable XML: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
+  }
+
+  /** Vault-relative path (no leading slash) for a multistatus href. */
+  private relativeHref(rawHref: string): string {
+    let href = rawHref;
+    // RFC 4918 allows absolute URIs in <href> (webdav-server does this;
+    // Nextcloud sends paths) — reduce to the path part first.
+    if (/^https?:\/\//i.test(href)) {
+      try {
+        href = new URL(href).pathname;
+      } catch {
+        /* keep the raw value */
+      }
+    }
+    href = decodeURI(href);
+    const basePath = new URL(this.creds.url).pathname;
+    if (href.startsWith(basePath)) {
+      href = href.substring(basePath.length);
+    }
+    if (href.startsWith("/")) href = href.substring(1);
+    return href;
+  }
+
+  /** Device-local folders never worth walking (the worker skips their files anyway). */
+  private static readonly SKIPPED_COLLECTIONS = new Set([".plainva", ".git", ".trash", ".obsidian", "node_modules"]);
+
+  private async listByDepthOne(): Promise<WebDavResponse[]> {
+    const out: WebDavResponse[] = [];
+    const queue: string[] = [""];
+    while (queue.length > 0) {
+      const rel = queue.shift()!;
+      const url = rel ? this.urlForPath(rel) : this.creds.url;
+      const res = await this.request("PROPFIND", url, {
+        headers: {
+          ...this.headers,
+          "Depth": "1"
+        }
+      });
+      if (!res.ok) {
+        if (res.status === 404) continue;
+        throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+      }
+      for (const resp of this.parseListing(await res.text())) {
+        if (!resp.href) continue;
+        if (!resp.isCollection) {
+          out.push(resp);
+          continue;
+        }
+        // A Depth: 1 answer lists the collection itself first — only true
+        // children go back into the queue.
+        const childRel = this.relativeHref(resp.href).replace(/\/+$/, "");
+        if (!childRel || childRel === rel) continue;
+        const name = childRel.split("/").pop() ?? childRel;
+        if (WebDavSyncTarget.SKIPPED_COLLECTIONS.has(name)) continue;
+        queue.push(childRel);
+      }
+    }
+    return out;
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {
