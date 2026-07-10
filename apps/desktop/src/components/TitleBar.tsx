@@ -74,6 +74,18 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
     border: "none", background: "transparent", color: "var(--titlebar-fg-muted)", borderRadius: "var(--radius-sm)", cursor: "pointer",
   };
 
+  // The chrome left of the tabs must span everything left of the document
+  // surface so the first tab lines up with the editor's left edge. Below the
+  // title bar sit, in order: the ribbon rail (42px), the sidebar (leftWidth)
+  // and — while it's open — its 5px resize handle. The sidebar-toggle button
+  // (28 + 2px margin = 30px) renders between the brand zone and the tabs, so
+  // the brand zone covers the remainder. (Ribbon/handle/toggle widths are
+  // defined in AppRibbon.tsx and App.tsx.)
+  const RIBBON_WIDTH = 42;
+  const RESIZE_HANDLE_WIDTH = leftCollapsed ? 0 : 5;
+  const TOGGLE_WIDTH = onToggleLeftSidebar ? 30 : 0;
+  const brandZoneWidth = leftWidth + RIBBON_WIDTH + RESIZE_HANDLE_WIDTH - TOGGLE_WIDTH;
+
   return (
     <header
       data-tauri-drag-region
@@ -83,10 +95,11 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
         paddingRight: 6, userSelect: "none",
       }}
     >
-      {/* Brand zone spans the left-sidebar width so the tabs begin exactly at the
-          sidebar/document boundary (+5 = the sidebar resize handle). On macOS the
-          leading inset clears the native traffic lights. */}
-      <div data-tauri-drag-region style={{ width: leftWidth + 5, flexShrink: 0, display: "flex", alignItems: "center", gap: 9, paddingLeft: isMac ? 78 : 12, paddingRight: 8, boxSizing: "border-box", overflow: "hidden" }}>
+      {/* Brand zone spans the ribbon + left sidebar (+ resize handle) so, after
+          the sidebar-toggle button, the tabs begin exactly at the sidebar/
+          document boundary. On macOS the leading inset clears the native
+          traffic lights. */}
+      <div data-tauri-drag-region style={{ width: brandZoneWidth, flexShrink: 0, display: "flex", alignItems: "center", gap: 9, paddingLeft: isMac ? 78 : 12, paddingRight: 8, boxSizing: "border-box", overflow: "hidden" }}>
         {/* Buttons don't carry data-tauri-drag-region, so quick clicks here never
             start a window drag or a double-click maximize. cursor stays default —
             the 5-click easter egg should not advertise itself. */}
