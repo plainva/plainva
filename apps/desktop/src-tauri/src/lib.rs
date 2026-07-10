@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod atomic_write;
 mod backup;
 
 // OS keychain bridge (ADR 0005, phase 5.1 A6).
@@ -324,6 +325,7 @@ pub fn run() {
             listener: Mutex::new(None),
             cancel: Mutex::new(None),
         })
+        .manage(atomic_write::WriteRoots::default())
         .invoke_handler(tauri::generate_handler![
             keychain_set,
             keychain_get,
@@ -333,6 +335,8 @@ pub fn run() {
             oauth_token_request,
             move_to_trash,
             print_webview,
+            atomic_write::register_write_root,
+            atomic_write::write_file_atomic,
             backup::create_vault_zip
         ])
         .run(tauri::generate_context!())

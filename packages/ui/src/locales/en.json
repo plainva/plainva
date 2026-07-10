@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Linked attachments (images etc.) are not exported — only the Markdown file.",
     "exportFailed": "Export failed.",
     "saveAsTemplate": "Save current note as template",
-    "templateSaved": "Saved as template: {{name}}"
+    "templateSaved": "Saved as template: {{name}}",
+    "draftBanner": "Found an unsaved draft (from {{time}}). Restore it?",
+    "draftRestore": "Restore draft",
+    "draftDiscard": "Discard draft"
   },
   "tabMenu": {
     "title": "Tab actions",

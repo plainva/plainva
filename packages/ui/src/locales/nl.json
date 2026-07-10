@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Gekoppelde bijlagen (afbeeldingen enz.) worden niet geëxporteerd — alleen het Markdown-bestand.",
     "exportFailed": "Exporteren mislukt.",
     "saveAsTemplate": "Huidige notitie opslaan als sjabloon",
-    "templateSaved": "Opgeslagen als sjabloon: {{name}}"
+    "templateSaved": "Opgeslagen als sjabloon: {{name}}",
+    "draftBanner": "Niet-opgeslagen concept gevonden (van {{time}}). Herstellen?",
+    "draftRestore": "Concept herstellen",
+    "draftDiscard": "Concept verwijderen"
   },
   "tabMenu": {
     "title": "Tabbladacties",

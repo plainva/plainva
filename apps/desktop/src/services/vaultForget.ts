@@ -95,6 +95,13 @@ export async function forgetVaultData(
     }
   });
 
+  // Crash-recovery draft journal (P2.4) — note text snapshots live in
+  // app-data and must not survive "forget app data".
+  await attempt("draft-journal", async () => {
+    const { removeVaultDrafts } = await import("./draftJournal");
+    await removeVaultDrafts(vaultPath);
+  });
+
   // Every per-vault settings key — matched by the shared `_<b64(path)>`
   // suffix so future per-vault keys are covered without a registry.
   await attempt("settings", async () => {

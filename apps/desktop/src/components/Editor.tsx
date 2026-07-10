@@ -276,6 +276,11 @@ export const Editor: React.FC<{
   // file on disk now holds the OTHER side. Shown as a persistent banner (a
   // transient toast is too easy to miss for a "your text lives elsewhere now").
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string } | null>(null);
+  // Crash/draft recovery (P2.4): a journal snapshot survived that never made
+  // it to disk — offered in a banner, applied only on explicit user action.
+  const [draftOffer, setDraftOffer] = useState<{ text: string; savedAt: number } | null>(null);
+  const draftRevisionRef = useRef(0);
+  const draftTimerRef = useRef<number | null>(null);
   // The CodeMirror session lives OUTSIDE React (P1/P2, Gesamtplan
   // Editor-Stabilitaet 2026-07-05): one instance per open file, mounted into
   // this container; React re-renders never touch or reconfigure it.
@@ -303,6 +308,9 @@ export const Editor: React.FC<{
     // loading editor waits for the chain — a tab switch mid-write can neither
     // race two writes nor read the pre-write content back.
     const previous = pendingWrites.get(path);
+    // Draft snapshots taken AFTER this point must survive the journal clear
+    // below — fix the covered revision before any awaiting happens.
+    const revAtSave = draftRevisionRef.current;
     const run = (async () => {
       if (previous) {
         try { await previous; } catch { /* the previous failure was already reported */ }
@@ -360,6 +368,13 @@ export const Editor: React.FC<{
         if (savedOrSafelyPreserved) {
           isDirtyRef.current = false;
           dirtyStore.set(path, false);
+          // The buffer is on disk (or preserved as .CONFLICT) — the journal
+          // entry up to the covered revision has served its purpose.
+          if (vaultPath) {
+            void import("../services/draftJournal")
+              .then(({ clearDraft }) => clearDraft(vaultPath, path, revAtSave))
+              .catch(() => {});
+          }
         }
       }
     })();
@@ -379,6 +394,22 @@ export const Editor: React.FC<{
       saveTimeoutRef.current = null;
       void persistText(getText());
     }, 1000); // 1s debounce
+    // Draft journal (P2.4): snapshot the dirty buffer BEFORE the save fires
+    // (400 ms < 1 s) so a hard crash between keystroke and save loses at most
+    // the last snapshot window. A successful save clears the entry up to the
+    // revision it covered; newer snapshots survive (latest wins).
+    if (vaultPath) {
+      if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
+      const draftVault = vaultPath;
+      const draftPath = activePath;
+      draftTimerRef.current = window.setTimeout(() => {
+        draftTimerRef.current = null;
+        const rev = ++draftRevisionRef.current;
+        void import("../services/draftJournal")
+          .then(({ recordDraft }) => recordDraft(draftVault, draftPath, getText(), rev))
+          .catch(() => {});
+      }, 400);
+    }
   };
 
   // Session callback: a real (non-external) edit happened in the view.
@@ -1111,6 +1142,8 @@ export const Editor: React.FC<{
     lastPersistedRef.current = null;
     setIsLoading(true);
     setConflictInfo(null);
+    setDraftOffer(null);
+    if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
     // Wait for an in-flight write to this file (P1.7) — loading mid-write
     // would show the pre-write content and re-save it over the newer text.
     const inFlight = pendingWrites.get(activePath);
@@ -1127,6 +1160,18 @@ export const Editor: React.FC<{
         if (vaultAdapter.acknowledgeExternalUpdate) {
           vaultAdapter.acknowledgeExternalUpdate(activePath).catch(console.error);
         }
+        // Crash/draft recovery (P2.4): a surviving journal snapshot that
+        // differs from the disk state means an edit never made it to disk
+        // (crash or failed save) — offer it in a banner, never auto-apply.
+        if (vaultPath) {
+          const normalized = text.replace(/\r\n/g, '\n');
+          void import("../services/draftJournal").then(async ({ readDraft }) => {
+            const draft = await readDraft(vaultPath, activePath);
+            if (isMounted && draft && draft.text !== normalized) {
+              setDraftOffer({ text: draft.text, savedAt: draft.savedAt });
+            }
+          }).catch(() => {});
+        }
       }
     }).catch(e => {
       console.error("Failed to load file content:", e);
@@ -1138,7 +1183,7 @@ export const Editor: React.FC<{
     });
 
     return () => { isMounted = false; };
-  }, [vaultAdapter, activePath]);
+  }, [vaultAdapter, activePath, vaultPath]);
 
   // Listen for external updates
   useEffect(() => {
@@ -1570,6 +1615,47 @@ export const Editor: React.FC<{
           )}
           <button type="button" className="pv-btn-secondary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => setConflictInfo(null)}>
             {t("common.dismiss")}
+          </button>
+        </div>
+      )}
+
+      {draftOffer && (
+        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "0.8rem" }}>
+          <span style={{ flex: 1, minWidth: 180 }}>
+            {t("editor.draftBanner", { time: new Date(draftOffer.savedAt).toLocaleString() })}
+          </span>
+          <button
+            type="button"
+            className="pv-btn-secondary"
+            style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+            onClick={() => {
+              const offer = draftOffer;
+              setDraftOffer(null);
+              const view = sessionRef.current?.view;
+              if (view) {
+                // A plain user-visible edit: dirty + autosave + undoable.
+                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: offer.text } });
+              } else {
+                applyNonViewEdit(offer.text);
+              }
+            }}
+          >
+            {t("editor.draftRestore")}
+          </button>
+          <button
+            type="button"
+            className="pv-btn-secondary"
+            style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+            onClick={() => {
+              setDraftOffer(null);
+              if (activePath && vaultPath) {
+                void import("../services/draftJournal")
+                  .then(({ clearDraft }) => clearDraft(vaultPath, activePath, Infinity))
+                  .catch(() => {});
+              }
+            }}
+          >
+            {t("editor.draftDiscard")}
           </button>
         </div>
       )}

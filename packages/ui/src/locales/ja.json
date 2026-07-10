@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "リンクされた添付ファイル（画像など）はエクスポートされません — Markdown ファイルのみです。",
     "exportFailed": "エクスポートに失敗しました。",
     "saveAsTemplate": "現在のノートをテンプレートとして保存",
-    "templateSaved": "テンプレートとして保存しました: {{name}}"
+    "templateSaved": "テンプレートとして保存しました: {{name}}",
+    "draftBanner": "未保存の下書きが見つかりました（{{time}}）。復元しますか？",
+    "draftRestore": "下書きを復元",
+    "draftDiscard": "下書きを破棄"
   },
   "tabMenu": {
     "title": "タブの操作",

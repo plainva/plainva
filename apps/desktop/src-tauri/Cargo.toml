@@ -41,6 +41,9 @@ walkdir = "2.5.0"
 # sends NO Origin header, unlike the webview fetch (Azure AADSTS90023). tauri-plugin-http
 # already pulls reqwest 0.12; the rustls-tls feature keeps it OpenSSL-free cross-platform.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# Binary payloads for write_file_atomic travel as base64 strings over the IPC
+# (a JSON number-array would be ~4x the size; raw bodies don't mix with params).
+base64 = "0.22"
 
 [dev-dependencies]
 tempfile = "3.27.0"

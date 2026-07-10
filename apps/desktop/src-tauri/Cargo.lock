@@ -3267,6 +3267,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 name = "plainva-desktop"
 version = "0.1.2"
 dependencies = [
+ "base64 0.22.1",
  "keyring",
  "reqwest 0.12.28",
  "serde",

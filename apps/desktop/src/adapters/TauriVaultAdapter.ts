@@ -1,5 +1,5 @@
 import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError } from "@plainva/core";
-import { readTextFile, writeTextFile, readFile, writeFile, readDir, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { readTextFile, readFile, readDir, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "@plainva/ui";
@@ -18,6 +18,17 @@ const LIST_CONCURRENCY = 8;
 
 type FsLimiter = ConcurrencyLimiter;
 
+/** Uint8Array → base64 for the atomic-write IPC (chunked: no stack overflow
+ *  on multi-MB images, and a JSON number-array would be ~4x the size). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 export class TauriVaultAdapter implements IVaultAdapter {
   constructor(public readonly rootPath: string) {}
 
@@ -27,6 +38,19 @@ export class TauriVaultAdapter implements IVaultAdapter {
   private normalizedRoot(): Promise<string> {
     if (!this.normalizedRootPromise) this.normalizedRootPromise = normalize(this.rootPath);
     return this.normalizedRootPromise;
+  }
+
+  /** Opaque write-root handle for the atomic write command (hardening P2).
+   *  Registered lazily and cached; Rust owns path validation from here on. */
+  private rootIdPromise: Promise<string> | null = null;
+  private rootId(): Promise<string> {
+    if (!this.rootIdPromise) {
+      this.rootIdPromise = invoke<string>("register_write_root", { path: this.rootPath }).catch((e) => {
+        this.rootIdPromise = null; // retry on the next write (e.g. root created later)
+        throw e;
+      });
+    }
+    return this.rootIdPromise;
   }
 
   async initialize(): Promise<void> {
@@ -56,15 +80,18 @@ export class TauriVaultAdapter implements IVaultAdapter {
     return readTextFile(absPath);
   }
 
+  // Writes go through the native atomic command (hardening P2): exclusive
+  // temp in the target folder → fsync → rename. A crash, full disk or a
+  // network-share drop can no longer leave a torn or zero-byte note. Also
+  // ONE IPC round-trip instead of the former exists+mkdir+write triple —
+  // the command creates parent folders and validates the relative path.
   async writeTextFile(path: string, content: string): Promise<void> {
-    const absPath = await this.getAbsolutePath(path);
-    const parts = absPath.split(sep());
-    parts.pop();
-    const parentDir = parts.join(sep());
-    if (!(await exists(parentDir))) {
-      await mkdir(parentDir, { recursive: true });
-    }
-    await writeTextFile(absPath, content);
+    await invoke("write_file_atomic", {
+      rootId: await this.rootId(),
+      relPath: path,
+      contents: content,
+      encoding: "utf8",
+    });
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
@@ -74,14 +101,12 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    const absPath = await this.getAbsolutePath(path);
-    const parts = absPath.split(sep());
-    parts.pop();
-    const parentDir = parts.join(sep());
-    if (!(await exists(parentDir))) {
-      await mkdir(parentDir, { recursive: true });
-    }
-    await writeFile(absPath, content);
+    await invoke("write_file_atomic", {
+      rootId: await this.rootId(),
+      relPath: path,
+      contents: bytesToBase64(content),
+      encoding: "base64",
+    });
   }
 
 

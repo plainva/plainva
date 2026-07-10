@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Verknüpfte Anhänge (Bilder etc.) werden nicht mitexportiert — nur die Markdown-Datei.",
     "exportFailed": "Export fehlgeschlagen.",
     "saveAsTemplate": "Aktuelle Notiz als Vorlage speichern",
-    "templateSaved": "Als Vorlage gespeichert: {{name}}"
+    "templateSaved": "Als Vorlage gespeichert: {{name}}",
+    "draftBanner": "Nicht gespeicherter Entwurf gefunden (Stand {{time}}). Wiederherstellen?",
+    "draftRestore": "Entwurf wiederherstellen",
+    "draftDiscard": "Entwurf verwerfen"
   },
   "tabMenu": {
     "title": "Tab-Aktionen",

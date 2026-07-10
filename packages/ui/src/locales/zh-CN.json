@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "链接的附件（图片等）不会随之导出——仅导出 Markdown 文件。",
     "exportFailed": "导出失败。",
     "saveAsTemplate": "将当前笔记保存为模板",
-    "templateSaved": "已保存为模板：{{name}}"
+    "templateSaved": "已保存为模板：{{name}}",
+    "draftBanner": "发现未保存的草稿（{{time}}）。要恢复吗？",
+    "draftRestore": "恢复草稿",
+    "draftDiscard": "丢弃草稿"
   },
   "tabMenu": {
     "title": "标签页操作",

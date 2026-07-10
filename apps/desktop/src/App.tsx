@@ -519,6 +519,13 @@ function App() {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [vaultPath, splitEditor, openInFocusedPane]);
 
+  // Draft-journal retention (P2.4): prune crash-recovery snapshots older
+  // than the retention window once per vault open (best-effort).
+  useEffect(() => {
+    if (!vaultPath) return;
+    void import("./services/draftJournal").then(({ pruneDrafts }) => pruneDrafts(vaultPath)).catch(() => {});
+  }, [vaultPath]);
+
   // "Reveal in file tree" (editor ⋮, folder links, templates folder) must be
   // able to un-collapse the left sidebar and switch to the files tab — the
   // tree itself may be unmounted when the event fires; it then consumes the

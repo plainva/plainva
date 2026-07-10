@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Les pièces jointes liées (images, etc.) ne sont pas exportées — uniquement le fichier Markdown.",
     "exportFailed": "Échec de l'export.",
     "saveAsTemplate": "Enregistrer la note actuelle comme modèle",
-    "templateSaved": "Enregistrée comme modèle : {{name}}"
+    "templateSaved": "Enregistrée comme modèle : {{name}}",
+    "draftBanner": "Brouillon non enregistré trouvé (du {{time}}). Le restaurer ?",
+    "draftRestore": "Restaurer le brouillon",
+    "draftDiscard": "Ignorer le brouillon"
   },
   "tabMenu": {
     "title": "Actions de l'onglet",

@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Gli allegati collegati (immagini ecc.) non vengono esportati — solo il file Markdown.",
     "exportFailed": "Esportazione non riuscita.",
     "saveAsTemplate": "Salva la nota corrente come modello",
-    "templateSaved": "Salvata come modello: {{name}}"
+    "templateSaved": "Salvata come modello: {{name}}",
+    "draftBanner": "Trovata una bozza non salvata (del {{time}}). Ripristinarla?",
+    "draftRestore": "Ripristina bozza",
+    "draftDiscard": "Scarta bozza"
   },
   "tabMenu": {
     "title": "Azioni scheda",

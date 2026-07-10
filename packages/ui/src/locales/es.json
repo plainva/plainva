@@ -395,7 +395,10 @@
     "exportAttachmentsHint": "Los adjuntos vinculados (imágenes, etc.) no se exportan; solo el archivo Markdown.",
     "exportFailed": "Error al exportar.",
     "saveAsTemplate": "Guardar la nota actual como plantilla",
-    "templateSaved": "Guardada como plantilla: {{name}}"
+    "templateSaved": "Guardada como plantilla: {{name}}",
+    "draftBanner": "Se encontró un borrador sin guardar (de {{time}}). ¿Restaurarlo?",
+    "draftRestore": "Restaurar borrador",
+    "draftDiscard": "Descartar borrador"
   },
   "tabMenu": {
     "title": "Acciones de pestaña",
