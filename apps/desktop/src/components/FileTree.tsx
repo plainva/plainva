@@ -19,7 +19,7 @@ import { useStableHandler } from "@plainva/ui";
 import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
-import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
+import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
 import { generateIndexForFolder } from "../services/indexMd";
 import { isImagePath } from "@plainva/ui";
@@ -129,7 +129,7 @@ const TreeNodeView: React.FC<{
     const attachment = node.mode === "attachment" && !isBase;
     let displayName = node.title || node.name;
     // Remove .md/.base extension for display (attachments keep their extension).
-    if (!attachment) displayName = displayName.replace(/\.(md|base)$/i, "");
+    if (!attachment) displayName = stripNoteExtension(displayName);
     const conflict = isConflictPath(node.path!);
     const pending = pendingPaths.has(node.path!);
 

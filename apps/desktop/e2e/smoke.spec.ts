@@ -506,6 +506,31 @@ test('Editor menu: reveal in file tree re-expands the folder and selects the not
   await expect(aside.locator('[data-tree-path="Tief/Drin.md"]')).toBeVisible();
 });
 
+// --- Bookmarks list mirrors a file-tree row: name without extension + icon (2026-07-10) ---
+test('Bookmarks: entries drop the .md extension and show an icon, like the file tree', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/MeineNotiz.md': '# MeineNotiz\n',
+      '/test-vault/.plainva/bookmarks.json': JSON.stringify({ items: [{ type: 'file', path: 'MeineNotiz.md' }] }),
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Reference — a file-tree row: the display name without the .md extension and an icon.
+  const treeRow = aside.locator('[data-tree-path="MeineNotiz.md"]');
+  await expect(treeRow).toContainText('MeineNotiz');
+  await expect(treeRow.locator('svg')).toBeVisible();
+
+  // Bookmarks tab: same shape now (previously the raw "MeineNotiz.md" and no icon).
+  await aside.getByRole('tab', { name: /Lesezeichen|Bookmarks/ }).click();
+  const bmRow = aside.getByRole('button', { name: 'MeineNotiz' });
+  await expect(bmRow).toBeVisible();
+  await expect(aside.getByText('MeineNotiz.md')).toHaveCount(0);
+  await expect(bmRow.locator('svg')).toBeVisible();
+});
+
 // --- Images open in the in-app viewer instead of the OS app (UI-UX P10) ---
 test('File tree: clicking an image opens the in-app image viewer', async ({ page }) => {
   await page.addInitScript(() => {

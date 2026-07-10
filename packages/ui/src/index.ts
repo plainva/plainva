@@ -13,6 +13,7 @@ export * from "./lib/fuzzyScore";
 export * from "./lib/inlineMarkdown";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToPlainText";
+export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";
 export * from "./lib/searchJump";

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import type React from "react";
+import { noteDisplayName } from "@plainva/ui";
 
 /**
  * Shared helpers for the two tab strips (the title-bar strip when unsplit and the
@@ -22,7 +23,7 @@ import type React from "react";
  *  localized label where they have i18n access (plan Graph D1). */
 export function tabLabel(path: string): string {
   if (path === "plainva://graph") return "Graph";
-  return path.split(/[/\\]/).pop()?.replace(/\.(md|base)$/i, "") || "Untitled";
+  return noteDisplayName(path) || "Untitled";
 }
 
 export interface TabDropTarget { paneIndex: number; tabIndex: number; side: "before" | "after"; }

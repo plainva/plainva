@@ -389,6 +389,26 @@ export class VaultQueryService {
   }
 
   /**
+   * Path -> title + mode for every indexed file, straight from the index (no
+   * file reads). Powers the bookmarks list, which only stores paths yet must
+   * show the same display name as the file tree: `title` is the frontmatter
+   * `title` or, by default, the file name, and `mode` distinguishes
+   * attachments so they keep their extension.
+   */
+  async getDocumentTitles(): Promise<Map<string, { title: string; mode: string }>> {
+    const rows = await this.db.query<{ path: string; title: string | null; mode: string | null }>(
+      `SELECT path, title, mode FROM files`,
+      [],
+    );
+    const titles = new Map<string, { title: string; mode: string }>();
+    for (const row of rows) {
+      if (!row.path) continue;
+      titles.set(row.path, { title: row.title ?? "", mode: row.mode ?? "" });
+    }
+    return titles;
+  }
+
+  /**
    * Retrieves the distinct values used for a given frontmatter property, most-used
    * first. Powers select/status suggestions in the Properties panel: when no `.base`
    * schema curates a property's options, Plainva discovers them from actual usage

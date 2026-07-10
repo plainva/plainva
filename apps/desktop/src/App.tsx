@@ -18,6 +18,7 @@ import { isImagePath } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
+import { BookmarksList } from "./components/BookmarksList";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 import { GRAPH_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
@@ -828,23 +829,12 @@ function App() {
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
           ) : (
             <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
-              {bookmarks.filter((b) => b.toLowerCase().includes(leftQueryDebounced.toLowerCase())).length === 0 ? (
-                <div style={{ color: 'var(--text-muted)', padding: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>{t("sidebar.noBookmarks", { defaultValue: "Keine Lesezeichen" })}</div>
-              ) : (
-                bookmarks.filter((b) => b.toLowerCase().includes(leftQueryDebounced.toLowerCase())).map(b => (
-                  <button
-                    key={b}
-                    onClick={() => openInFocusedPane(b)}
-                    style={{
-                      width: '100%', textAlign: 'left', padding: '0.5rem', background: activePath === b ? 'var(--bg-hover)' : 'transparent',
-                      border: 'none', color: 'var(--text-main)', cursor: 'pointer', borderRadius: "var(--radius-xs)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}
-                    title={b}
-                  >
-                    {b.split(/[/\\]/).pop()}
-                  </button>
-                ))
-              )}
+              <BookmarksList
+                bookmarks={bookmarks}
+                query={leftQueryDebounced}
+                activePath={activePath}
+                onOpen={openInFocusedPane}
+              />
             </div>
           )}
         </div>
