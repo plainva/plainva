@@ -1420,7 +1420,6 @@
     "deleteNote": "Elimina nota",
     "deleteNoteConfirm": "Eliminare \"{{name}}\"? Con la sincronizzazione attiva verrà eliminata anche nel cloud.",
     "baseReadOnly": "I database sono per ora in sola lettura su mobile.",
-    "baseNoSource": "Questa origine del database non è ancora supportata su mobile.",
     "baseName": "Nome",
     "settingLanguage": "Lingua",
     "settingLanguageSystem": "Lingua di sistema",
@@ -1462,6 +1461,7 @@
     "conflictOpenCopy": "Vedi la copia in conflitto",
     "conflictKeepCopy": "Mantieni questa copia",
     "conflictKeepOriginal": "Mantieni la nota attuale",
-    "lastSync": "Ultima sincronizzazione: {{time}}"
+    "lastSync": "Ultima sincronizzazione: {{time}}",
+    "baseEmpty": "Nessuna voce corrisponde a questa vista."
   }
 }

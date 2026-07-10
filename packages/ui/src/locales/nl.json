@@ -1415,7 +1415,6 @@
     "deleteNote": "Notitie verwijderen",
     "deleteNoteConfirm": "\"{{name}}\" verwijderen? Bij actieve synchronisatie wordt deze ook in de cloud verwijderd.",
     "baseReadOnly": "Databases zijn op mobiel voorlopig alleen-lezen.",
-    "baseNoSource": "Deze databasebron wordt op mobiel nog niet ondersteund.",
     "baseName": "Naam",
     "settingLanguage": "Taal",
     "settingLanguageSystem": "Systeemtaal",
@@ -1457,6 +1456,7 @@
     "conflictOpenCopy": "Conflictkopie bekijken",
     "conflictKeepCopy": "Deze kopie behouden",
     "conflictKeepOriginal": "Huidige notitie behouden",
-    "lastSync": "Laatst gesynchroniseerd: {{time}}"
+    "lastSync": "Laatst gesynchroniseerd: {{time}}",
+    "baseEmpty": "Geen items komen overeen met deze weergave."
   }
 }

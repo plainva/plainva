@@ -1425,7 +1425,6 @@
     "deleteNote": "Usuń notatkę",
     "deleteNoteConfirm": "Usunąć „{{name}}\"? Przy aktywnej synchronizacji zostanie usunięta także w chmurze.",
     "baseReadOnly": "Bazy danych są na razie tylko do odczytu na urządzeniach mobilnych.",
-    "baseNoSource": "To źródło bazy danych nie jest jeszcze obsługiwane na urządzeniach mobilnych.",
     "baseName": "Nazwa",
     "settingLanguage": "Język",
     "settingLanguageSystem": "Język systemu",
@@ -1467,6 +1466,7 @@
     "conflictOpenCopy": "Zobacz kopię konfliktu",
     "conflictKeepCopy": "Zachowaj tę kopię",
     "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
-    "lastSync": "Ostatnia synchronizacja: {{time}}"
+    "lastSync": "Ostatnia synchronizacja: {{time}}",
+    "baseEmpty": "Żadne wpisy nie pasują do tego widoku."
   }
 }

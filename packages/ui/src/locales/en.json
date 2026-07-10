@@ -1415,7 +1415,6 @@
     "deleteNote": "Delete note",
     "deleteNoteConfirm": "Delete \"{{name}}\"? With sync active it is deleted in the cloud too.",
     "baseReadOnly": "Databases are read-only on mobile for now.",
-    "baseNoSource": "This database source is not supported on mobile yet.",
     "baseName": "Name",
     "settingLanguage": "Language",
     "settingLanguageSystem": "System language",
@@ -1457,6 +1456,7 @@
     "conflictOpenCopy": "View the conflict copy",
     "conflictKeepCopy": "Keep this copy",
     "conflictKeepOriginal": "Keep the current note",
-    "lastSync": "Last synced: {{time}}"
+    "lastSync": "Last synced: {{time}}",
+    "baseEmpty": "No entries match this view."
   }
 }

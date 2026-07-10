@@ -1420,7 +1420,6 @@
     "deleteNote": "Excluir nota",
     "deleteNoteConfirm": "Excluir \"{{name}}\"? Com a sincronização ativa, ela também será excluída na nuvem.",
     "baseReadOnly": "Os bancos de dados são somente leitura no celular por enquanto.",
-    "baseNoSource": "Esta fonte de banco de dados ainda não é compatível no celular.",
     "baseName": "Nome",
     "settingLanguage": "Idioma",
     "settingLanguageSystem": "Idioma do sistema",
@@ -1462,6 +1461,7 @@
     "conflictOpenCopy": "Ver a cópia em conflito",
     "conflictKeepCopy": "Manter esta cópia",
     "conflictKeepOriginal": "Manter a nota atual",
-    "lastSync": "Última sincronização: {{time}}"
+    "lastSync": "Última sincronização: {{time}}",
+    "baseEmpty": "Nenhuma entrada corresponde a esta visão."
   }
 }

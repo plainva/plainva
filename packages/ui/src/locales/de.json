@@ -1415,7 +1415,6 @@
     "deleteNote": "Notiz löschen",
     "deleteNoteConfirm": "\"{{name}}\" löschen? Bei aktivem Sync wird sie auch in der Cloud gelöscht.",
     "baseReadOnly": "Datenbanken sind mobil vorerst schreibgeschützt.",
-    "baseNoSource": "Diese Datenbank-Quelle wird mobil noch nicht unterstützt.",
     "baseName": "Name",
     "settingLanguage": "Sprache",
     "settingLanguageSystem": "Systemsprache",
@@ -1457,6 +1456,7 @@
     "conflictOpenCopy": "Konfliktkopie ansehen",
     "conflictKeepCopy": "Diese Kopie übernehmen",
     "conflictKeepOriginal": "Aktuelle Notiz behalten",
-    "lastSync": "Zuletzt synchronisiert: {{time}}"
+    "lastSync": "Zuletzt synchronisiert: {{time}}",
+    "baseEmpty": "Keine Einträge in dieser Ansicht."
   }
 }

@@ -1,41 +1,64 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { parse as parseYaml } from "yaml";
-import { ChevronLeft, Database } from "lucide-react";
+import { ChevronLeft, Database, FileText } from "lucide-react";
 import { EmptyState } from "@plainva/ui";
 import { vaultOps, type MobileVault } from "./services/vaultService";
 
 /**
- * Read-only .base rendering for mobile (M4/E8): folder-sourced databases
- * show as a simple table — row = note, columns = the first view's order
- * (frontmatter values as text). Editing, filters and the other view types
- * stay desktop-only for now; tapping a row opens the note.
+ * Read-only .base rendering for mobile (M4/E8, extended in P6): the shared
+ * core query (`queryDatabaseFiles`) evaluates sources (folder AND tag),
+ * per-view filters, filter groups and sort rules exactly like the desktop —
+ * this view only renders the resulting rows. Table is the default; `list`
+ * and `cards` render natively, everything else (board/calendar/timeline/
+ * graph) falls back to the table. Editing stays desktop-only; tapping a row
+ * opens the note.
  */
 
-interface BaseRow {
-  path: string;
-  title: string;
-  values: Record<string, string>;
+interface BaseView {
+  name?: string;
+  type?: string;
+  order?: string[];
+  filters?: unknown;
+  sort?: unknown;
+  plainva?: { render?: string };
 }
 
-const MAX_COLUMNS = 4;
+interface BaseYaml {
+  filters?: unknown;
+  views?: BaseView[];
+}
 
-function frontmatterOf(text: string): Record<string, unknown> {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
-  if (!m) return {};
-  try {
-    const parsed = parseYaml(m[1]);
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
+type Row = Record<string, unknown>;
+
+const MAX_TABLE_COLUMNS = 4;
+const MAX_CARD_PROPS = 3;
+
+/** Normalizes a filters value (string | {and}|{or}|{not}) into AND entries. */
+function andEntriesOf(f: unknown): unknown[] {
+  if (f == null) return [];
+  if (typeof f === "string") return [f];
+  if (typeof f === "object" && Array.isArray((f as { and?: unknown[] }).and)) {
+    return (f as { and: unknown[] }).and;
   }
+  return [f]; // an {or}/{not} root stays one nested entry
 }
 
-const cellText = (v: unknown): string => {
+/** Wiki-link display text: `[[target|alias]]` -> alias, `[[target]]` -> target. */
+function wikiDisplay(s: string): string {
+  const m = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(s.trim());
+  return m ? (m[2] ?? m[1]) : s;
+}
+
+function cellText(v: unknown): string {
   if (v == null) return "";
+  if (v === true) return "☑"; // checked box
+  if (v === false) return "☐"; // empty box
   if (Array.isArray(v)) return v.map((x) => cellText(x)).join(", ");
-  return String(v).replace(/^\[\[(.*)\]\]$/, "$1");
-};
+  return wikiDisplay(String(v));
+}
+
+const columnLabel = (key: string): string => key.charAt(0).toUpperCase() + key.slice(1);
 
 export function BaseReadView({
   vault,
@@ -50,56 +73,137 @@ export function BaseReadView({
 }) {
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.base$/i, "");
-  const [columns, setColumns] = useState<string[]>([]);
-  const [rows, setRows] = useState<BaseRow[] | null>(null);
-  const [noSource, setNoSource] = useState(false);
+  const [cfg, setCfg] = useState<BaseYaml | null>(null);
+  const [viewIndex, setViewIndex] = useState(0);
+  const [rows, setRows] = useState<Row[] | null>(null);
 
+  // Load and parse the .base once per path.
   useEffect(() => {
     let stale = false;
-    void (async () => {
-      const raw = await vaultOps.read(vault, path);
-      // Folder source ("file.folder == \"X\""): the one source kind the
-      // mobile MVP renders. Tag/filter-only bases fall back to a hint.
-      const folderMatch = /file\.folder\s*==\s*"([^"]+)"/.exec(raw);
-      if (!folderMatch) {
-        if (!stale) {
-          setNoSource(true);
-          setRows([]);
-        }
-        return;
-      }
-      const folder = folderMatch[1];
-      let order: string[] = [];
+    setCfg(null);
+    setRows(null);
+    setViewIndex(0);
+    void vaultOps.read(vault, path).then((raw) => {
+      if (stale) return;
       try {
-        const cfg = parseYaml(raw) as {
-          views?: Array<{ order?: string[] }>;
-        };
-        order = (cfg?.views?.[0]?.order ?? [])
-          .map((key) => key.replace(/^note\./, ""))
-          .filter((key) => key !== "file.name" && !key.startsWith("file."));
+        const parsed = parseYaml(raw) as BaseYaml;
+        setCfg(parsed && typeof parsed === "object" ? parsed : {});
       } catch {
-        /* unparseable extras — table still renders with the name column */
+        setCfg({});
       }
-      const cols = order.slice(0, MAX_COLUMNS);
-      const listing = await vaultOps.listFolder(vault, folder);
-      const out: BaseRow[] = [];
-      for (const note of listing.notes) {
-        if (/^(index|log)\.md$/i.test(note.path.split("/").pop()!)) continue;
-        const text = await vaultOps.read(vault, note.path).catch(() => "");
-        const fm = frontmatterOf(text);
-        const values: Record<string, string> = {};
-        for (const c of cols) values[c] = cellText(fm[c]);
-        out.push({ path: note.path, title: note.title, values });
-      }
-      if (!stale) {
-        setColumns(cols);
-        setRows(out);
-      }
-    })();
+    });
     return () => {
       stale = true;
     };
   }, [vault, path]);
+
+  const views = useMemo(() => cfg?.views ?? [], [cfg]);
+  const view: BaseView = views[viewIndex] ?? {};
+
+  // Query the active view through the shared core evaluator: base-global
+  // source filters AND the view's own filter rules (per-view filters,
+  // desktop parity), sorted by the view's sort rules.
+  useEffect(() => {
+    if (!cfg) return;
+    const q = vault.queryService;
+    if (!q) {
+      setRows([]);
+      return;
+    }
+    let stale = false;
+    const viewEntries = andEntriesOf(view.filters);
+    const rootFilters = cfg.filters as { or?: unknown[] } | string | undefined;
+    const filters =
+      viewEntries.length === 0 &&
+      rootFilters &&
+      typeof rootFilters === "object" &&
+      Array.isArray(rootFilters.or)
+        ? rootFilters // pure or-root passes through for the SQL pushdown
+        : { and: [...andEntriesOf(cfg.filters), ...viewEntries] };
+    void q
+      .queryDatabaseFiles({ filters, views: [view] })
+      .then((result: Row[]) => {
+        if (!stale) setRows(result);
+      })
+      .catch(() => {
+        if (!stale) setRows([]);
+      });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault, cfg, viewIndex]);
+
+  const columns = useMemo(
+    () =>
+      (view.order ?? [])
+        .map((key) => key.replace(/^note\./, ""))
+        .filter((key) => key !== "file.name" && !key.startsWith("file.")),
+    [view],
+  );
+
+  const render = view.plainva?.render ?? view.type ?? "table";
+  const rowTitle = (r: Row) => String(r["file.name"] ?? "");
+  const rowPath = (r: Row) => String(r["file.path"] ?? "");
+
+  const renderCards = () => (
+    <div className="m-basecards">
+      {rows!.map((r) => (
+        <button className="m-basecard" key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
+          <span className="m-basecard-title">{rowTitle(r)}</span>
+          {columns.slice(0, MAX_CARD_PROPS).map((c) =>
+            cellText(r[c]) ? (
+              <span className="m-basecard-prop" key={c}>
+                <span className="m-prop-key">{columnLabel(c)}</span> {cellText(r[c])}
+              </span>
+            ) : null,
+          )}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderList = () => (
+    <>
+      {rows!.map((r) => (
+        <button className="m-row" key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
+          <FileText size={16} />
+          <span>{rowTitle(r)}</span>
+          {columns[0] && cellText(r[columns[0]]) ? (
+            <span className="m-soon">{cellText(r[columns[0]])}</span>
+          ) : null}
+        </button>
+      ))}
+    </>
+  );
+
+  const renderTable = () => {
+    const cols = columns.slice(0, MAX_TABLE_COLUMNS);
+    return (
+      <div className="m-basetable-wrap">
+        <table className="m-basetable">
+          <thead>
+            <tr>
+              <th>{t("mobile.baseName")}</th>
+              {cols.map((c) => (
+                <th key={c}>{columnLabel(c)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows!.map((r) => (
+              <tr key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
+                <td>{rowTitle(r)}</td>
+                {cols.map((c) => (
+                  <td key={c}>{cellText(r[c])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="m-page">
@@ -110,31 +214,29 @@ export function BaseReadView({
         <h1>{title}</h1>
       </header>
       <p className="m-hint">{t("mobile.baseReadOnly")}</p>
-      {rows === null ? null : noSource ? (
-        <EmptyState icon={<Database size={20} />}>{t("mobile.baseNoSource")}</EmptyState>
-      ) : (
-        <div className="m-basetable-wrap">
-          <table className="m-basetable">
-            <thead>
-              <tr>
-                <th>{t("mobile.baseName")}</th>
-                {columns.map((c) => (
-                  <th key={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.path} onClick={() => onOpenNote(r.path)}>
-                  <td>{r.title}</td>
-                  {columns.map((c) => (
-                    <td key={c}>{r.values[c]}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {views.length > 1 && (
+        <div className="m-viewpills">
+          {views.map((v, i) => (
+            <button
+              className={`m-viewpill${i === viewIndex ? " is-active" : ""}`}
+              key={`${v.name ?? ""}-${i}`}
+              onClick={() => setViewIndex(i)}
+            >
+              {v.name || v.type || String(i + 1)}
+            </button>
+          ))}
         </div>
+      )}
+      {rows === null ? null : !vault.queryService ? (
+        <EmptyState icon={<Database size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+      ) : rows.length === 0 ? (
+        <EmptyState icon={<Database size={20} />}>{t("mobile.baseEmpty")}</EmptyState>
+      ) : render === "cards" || render === "card" || render === "gallery" ? (
+        renderCards()
+      ) : render === "list" ? (
+        renderList()
+      ) : (
+        renderTable()
       )}
     </div>
   );

@@ -1410,7 +1410,6 @@
     "deleteNote": "ノートを削除",
     "deleteNoteConfirm": "「{{name}}」を削除しますか？同期が有効な場合、クラウドからも削除されます。",
     "baseReadOnly": "データベースはモバイルでは当面読み取り専用です。",
-    "baseNoSource": "このデータベースのソースはモバイルではまだサポートされていません。",
     "baseName": "名前",
     "settingLanguage": "言語",
     "settingLanguageSystem": "システムの言語",
@@ -1452,6 +1451,7 @@
     "conflictOpenCopy": "競合コピーを表示",
     "conflictKeepCopy": "このコピーを採用",
     "conflictKeepOriginal": "現在のノートを維持",
-    "lastSync": "最終同期: {{time}}"
+    "lastSync": "最終同期: {{time}}",
+    "baseEmpty": "このビューに一致する項目はありません。"
   }
 }

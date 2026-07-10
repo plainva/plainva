@@ -1410,7 +1410,6 @@
     "deleteNote": "删除笔记",
     "deleteNoteConfirm": "删除“{{name}}”？同步开启时也会从云端删除。",
     "baseReadOnly": "数据库在移动端暂为只读。",
-    "baseNoSource": "移动端尚不支持此数据库来源。",
     "baseName": "名称",
     "settingLanguage": "语言",
     "settingLanguageSystem": "系统语言",
@@ -1452,6 +1451,7 @@
     "conflictOpenCopy": "查看冲突副本",
     "conflictKeepCopy": "保留此副本",
     "conflictKeepOriginal": "保留当前笔记",
-    "lastSync": "上次同步：{{time}}"
+    "lastSync": "上次同步：{{time}}",
+    "baseEmpty": "没有符合此视图的条目。"
   }
 }
