@@ -1380,6 +1380,15 @@
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Signets & Tags",
     "sectionBases": "Bases de données",
-    "sectionSettings": "Paramètres"
+    "sectionSettings": "Paramètres",
+    "syncUrl": "URL du serveur",
+    "syncUser": "Nom d'utilisateur",
+    "syncPassword": "Mot de passe",
+    "syncConnect": "Connecter",
+    "syncDisconnect": "Déconnecter",
+    "syncNow": "Synchroniser maintenant",
+    "syncIdle": "Connecté",
+    "syncSyncing": "Synchronisation…",
+    "syncError": "Erreur de sync"
   }
 }

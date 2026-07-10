@@ -221,3 +221,45 @@ body {
   color: inherit;
   border-radius: 2px;
 }
+
+.m-headicon {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.m-error {
+  color: var(--error-text);
+}
+
+.m-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.m-sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.m-sync-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--error-text);
+}
+
+.m-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.m-sync-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}

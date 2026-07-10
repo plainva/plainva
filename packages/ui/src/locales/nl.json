@@ -1375,6 +1375,15 @@
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Bladwijzers & Tags",
     "sectionBases": "Databases",
-    "sectionSettings": "Instellingen"
+    "sectionSettings": "Instellingen",
+    "syncUrl": "Server-URL",
+    "syncUser": "Gebruikersnaam",
+    "syncPassword": "Wachtwoord",
+    "syncConnect": "Verbinden",
+    "syncDisconnect": "Verbreken",
+    "syncNow": "Nu synchroniseren",
+    "syncIdle": "Verbonden",
+    "syncSyncing": "Synchroniseren…",
+    "syncError": "Syncfout"
   }
 }

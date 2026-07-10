@@ -47,3 +47,4 @@ packages/core/test-benchmark-vault/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/launch.json
+apps/mobile/.webdav-data/

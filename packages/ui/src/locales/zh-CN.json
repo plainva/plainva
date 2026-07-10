@@ -1370,6 +1370,15 @@
     "sectionVaultSync": "Vault 与同步",
     "sectionBookmarksTags": "书签与标签",
     "sectionBases": "数据库",
-    "sectionSettings": "设置"
+    "sectionSettings": "设置",
+    "syncUrl": "服务器 URL",
+    "syncUser": "用户名",
+    "syncPassword": "密码",
+    "syncConnect": "连接",
+    "syncDisconnect": "断开",
+    "syncNow": "立即同步",
+    "syncIdle": "已连接",
+    "syncSyncing": "同步中…",
+    "syncError": "同步错误"
   }
 }

@@ -47,6 +47,15 @@ export default tseslint.config(
     },
   },
   {
+    // Dev tool scripts run under Node (e.g. the mobile WebDAV test server).
+    files: ["apps/*/scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: [
       "apps/desktop/src/**/*.{ts,tsx}",
       "apps/desktop/vite.config.ts",

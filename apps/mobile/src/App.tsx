@@ -13,14 +13,18 @@ import {
 import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
+import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus } from "./services/syncService";
 import { EditorHost } from "./EditorHost";
+import { SyncScreen } from "./SyncScreen";
+import { useSyncExternalStore } from "react";
+import { AlertTriangle, Cloud } from "lucide-react";
 
 // Tab/stack shell per the mobile UX plan (E1): four tabs plus the center
 // capture action; every tab keeps its own navigation stack; the tab bar
 // hides while a note is open (editor focus).
 
 type TabId = "notes" | "search" | "today" | "more";
-type Entry = { kind: "folder" | "note"; path: string };
+type Entry = { kind: "folder" | "note" | "sync"; path: string };
 
 const todayDailyPath = () => {
   const d = new Date();
@@ -43,7 +47,13 @@ export default function App() {
   const [bump, setBump] = useState(0);
 
   useEffect(() => {
-    void getMobileVault().then(setVault);
+    void getMobileVault().then((v) => {
+      setVault(v);
+      void startSyncIfConfigured(v);
+    });
+    const onChanged = () => setBump((n) => n + 1);
+    window.addEventListener("m-vault-changed", onChanged);
+    return () => window.removeEventListener("m-vault-changed", onChanged);
   }, []);
 
   if (!vault) return <div className="m-app" />;
@@ -80,7 +90,9 @@ export default function App() {
   return (
     <div className="m-app">
       <div className="m-screen">
-        {top?.kind === "note" ? (
+        {top?.kind === "sync" ? (
+          <SyncScreen onBack={() => pop(activeTab)} vault={vault} />
+        ) : top?.kind === "note" ? (
           <NoteView
             key={top.path}
             onBack={() => pop(activeTab)}
@@ -102,7 +114,7 @@ export default function App() {
         ) : activeTab === "today" ? (
           <TodayIntro onOpen={openToday} />
         ) : (
-          <MoreView />
+          <MoreView onOpenSync={() => push("more", { kind: "sync", path: "" })} />
         )}
       </div>
 
@@ -202,6 +214,7 @@ function BrowseView({
           </button>
         )}
         <h1>{folder ? folder.split("/").pop() : "Plainva"}</h1>
+        <SyncIndicator />
       </header>
       {recent.length > 0 && (
         <>
@@ -344,10 +357,23 @@ function TodayIntro({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-function MoreView() {
+function SyncIndicator() {
+  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  if (status.status === "off") return null;
+  return (
+    <span className="m-headicon">
+      {status.status === "error" ? (
+        <AlertTriangle className="m-error" size={16} />
+      ) : (
+        <Cloud className={status.status === "syncing" ? "m-chevron" : "m-accent"} size={16} />
+      )}
+    </span>
+  );
+}
+
+function MoreView({ onOpenSync }: { onOpenSync: () => void }) {
   const { t } = useTranslation();
-  const sections = [
-    t("mobile.sectionVaultSync"),
+  const later = [
     t("mobile.sectionBookmarksTags"),
     t("mobile.sectionBases"),
     t("mobile.sectionSettings"),
@@ -357,7 +383,12 @@ function MoreView() {
       <header className="m-header">
         <h1>{t("mobile.tabMore")}</h1>
       </header>
-      {sections.map((label) => (
+      <button className="m-row" onClick={onOpenSync}>
+        <Cloud className="m-accent" size={16} />
+        <span>{t("mobile.sectionVaultSync")}</span>
+        <ChevronRight className="m-chevron" size={16} />
+      </button>
+      {later.map((label) => (
         <div className="m-row m-row--static" key={label}>
           <span>{label}</span>
           <span className="m-soon">{t("mobile.comingSoon")}</span>

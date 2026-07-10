@@ -1370,6 +1370,15 @@
     "sectionVaultSync": "Vault と同期",
     "sectionBookmarksTags": "ブックマークとタグ",
     "sectionBases": "データベース",
-    "sectionSettings": "設定"
+    "sectionSettings": "設定",
+    "syncUrl": "サーバー URL",
+    "syncUser": "ユーザー名",
+    "syncPassword": "パスワード",
+    "syncConnect": "接続",
+    "syncDisconnect": "切断",
+    "syncNow": "今すぐ同期",
+    "syncIdle": "接続済み",
+    "syncSyncing": "同期中…",
+    "syncError": "同期エラー"
   }
 }
