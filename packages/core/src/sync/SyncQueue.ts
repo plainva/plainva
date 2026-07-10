@@ -195,6 +195,36 @@ export class SyncQueue {
   }
 
   /**
+   * Paths with a queued DELETE or RENAME (P3.3): the pull's download
+   * prefetcher must not even START a speculative download for a file the user
+   * is deleting/renaming — reconcile skips them anyway (no resurrection).
+   */
+  async getPendingStructuralPaths(): Promise<string[]> {
+    const rows = await this.db.query<{ file_path: string }>(
+      `SELECT file_path FROM offline_queue WHERE operation IN ('delete', 'rename')`
+    );
+    return rows.map((r) => r.file_path);
+  }
+
+  /**
+   * Read-only queue snapshot for the UI (P3.4 "queue visibility"): total
+   * count plus the oldest `limit` operations — including backed-off and
+   * manual-intervention entries, which is exactly what a user debugging a
+   * stuck sync needs to see.
+   */
+  async listAllPending(
+    limit: number
+  ): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }> {
+    const totalRow = await this.db.query<{ n: number }>(`SELECT COUNT(*) as n FROM offline_queue`);
+    const items = await this.db.query<{ operation: string; file_path: string; retry_count: number }>(
+      `SELECT operation, file_path, COALESCE(retry_count, 0) as retry_count
+         FROM offline_queue ORDER BY queued_at ASC, id ASC LIMIT ?`,
+      [limit]
+    );
+    return { total: totalRow[0]?.n ?? 0, items };
+  }
+
+  /**
    * Discards ALL queued DELETE operations and returns their paths. Used by the
    * mass-deletion guard's "restore from remote" choice: the caller additionally
    * clears the paths' sync_state so the next full listing re-downloads the files

@@ -215,7 +215,12 @@
     "perfMetricsRefresh": "Tonen/vernieuwen",
     "perfMetricsExport": "Exporteren als JSON…",
     "perfMetricPoint": "Meetpunt",
-    "perfMetricsEmpty": "Nog geen metingen in deze sessie."
+    "perfMetricsEmpty": "Nog geen metingen in deze sessie.",
+    "syncQueue": "Wachtende overdrachten",
+    "syncQueueDesc": "Toont wat nog naar de cloud moet (oudste eerst).",
+    "syncQueueEmpty": "Niets in de wachtrij — alles overgedragen.",
+    "syncQueueCount": "{{n}} bewerking(en) in de wachtrij:",
+    "syncQueueRetries": "poging {{n}}"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",

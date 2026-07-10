@@ -97,7 +97,8 @@ const ByoBadgeRow: React.FC<{ guidePage: string }> = ({ guidePage }) => {
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault } = useVault();
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker } = useVault();
+  const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const initialProviderRef = useRef<string | null>(initialProvider ?? null);
   const { t, i18n } = useTranslation();
 
@@ -1642,6 +1643,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}>
                         <input type="number" min={MIN_SYNC_INTERVAL_SECONDS} value={intervalSec} onChange={(e) => handleIntervalChange(e.target.value)} onBlur={normalizeIntervalDisplay} style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
                       </SettingRow>
+                      {section === vaultPath && syncWorker && (
+                        <SettingRow
+                          label={t("settings.syncQueue", { defaultValue: "Ausstehende Übertragungen" })}
+                          desc={t("settings.syncQueueDesc", { defaultValue: "Zeigt, was noch zur Cloud übertragen wird (älteste zuerst)." })}
+                        >
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              void syncWorker
+                                .listPendingOperations(20)
+                                .then((snap) => setSyncQueueSnapshot(snap))
+                                .catch(() => setSyncQueueSnapshot({ total: 0, items: [] }));
+                            }}
+                          >
+                            {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
+                          </Button>
+                        </SettingRow>
+                      )}
+                      {section === vaultPath && syncQueueSnapshot && (
+                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                          {syncQueueSnapshot.total === 0
+                            ? t("settings.syncQueueEmpty", { defaultValue: "Nichts ausstehend — alles übertragen." })
+                            : (
+                              <>
+                                <div style={{ marginBottom: "0.3rem" }}>
+                                  {t("settings.syncQueueCount", { defaultValue: "{{n}} Operation(en) ausstehend:", n: syncQueueSnapshot.total })}
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
+                                  {syncQueueSnapshot.items.map((it, i) => (
+                                    <div key={`${it.file_path}-${i}`} style={{ overflowWrap: "anywhere" }}>
+                                      <span style={{ color: "var(--text-faint)" }}>{it.operation}</span>{" "}
+                                      {it.file_path}
+                                      {it.retry_count > 0 ? ` (${t("settings.syncQueueRetries", { defaultValue: "Versuch {{n}}", n: it.retry_count + 1 })})` : ""}
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                        </div>
+                      )}
                       {section === vaultPath && syncStatusStore.getErrorHistory().length > 0 && (
                         <div style={{ marginTop: "0.75rem" }}>
                           <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>

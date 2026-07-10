@@ -1,6 +1,7 @@
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
+import { fetchWithRetry } from "./httpRetry.js";
 
 /**
  * BYO Google Drive credentials. The user supplies their own OAuth "Desktop app"
@@ -98,7 +99,7 @@ export class DriveSyncTarget implements ISyncTarget {
   private folderToId = new Map<string, string>();
 
   /** Optional hook so the app can persist a refreshed access token. */
-  public onTokenRefreshed?: (accessToken: string, expiresInSec?: number) => void;
+  public onTokenRefreshed?: (accessToken: string, expiresInSec?: number) => void | Promise<void>;
 
   constructor(
     private creds: DriveCredentials,
@@ -156,7 +157,13 @@ export class DriveSyncTarget implements ISyncTarget {
       ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const res = await this.request(method, url, { ...init, headers });
+    // Rate-limit/backoff handling (P3.2): 429 retries for every kind (the
+    // server did not execute), 5xx/network only for reads — a failed write
+    // keeps flowing through the queue's retry-next-cycle semantics.
+    const res = await fetchWithRetry(
+      () => this.request(method, url, { ...init, headers }),
+      method === "GET" ? "read" : "write"
+    );
     if (res.status === 401 && !isRetry) {
       await this.refreshAccessToken();
       return this.authedFetch(method, url, init, true);
@@ -164,23 +171,40 @@ export class DriveSyncTarget implements ISyncTarget {
     return res;
   }
 
-  private async refreshAccessToken(): Promise<void> {
+  /** Single-flight guard (P3.1): N parallel 401s must not stampede N refreshes. */
+  private refreshInFlight: Promise<void> | null = null;
+
+  private refreshAccessToken(): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    this.refreshInFlight = this.doRefreshAccessToken().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
+  private async doRefreshAccessToken(): Promise<void> {
     const body = new URLSearchParams({
       client_id: this.creds.clientId,
       client_secret: this.creds.clientSecret,
       refresh_token: this.creds.refreshToken,
       grant_type: "refresh_token",
     });
-    const res = await this.request("POST", TOKEN_ENDPOINT, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    });
+    const res = await fetchWithRetry(
+      () =>
+        this.request("POST", TOKEN_ENDPOINT, {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        }),
+      "read" // token POST is idempotent for a non-rotating Google refresh token
+    );
     if (!res.ok) {
       throw new Error(`Drive token refresh failed: ${res.status} ${res.statusText}`);
     }
     const json = (await res.json()) as { access_token: string; expires_in?: number };
     this.accessToken = json.access_token;
-    if (this.onTokenRefreshed) this.onTokenRefreshed(json.access_token, json.expires_in);
+    // Awaited (P3.1b): the cycle must not proceed on a token whose persistence
+    // silently failed — a lost rotation locks the next app start out of sync.
+    if (this.onTokenRefreshed) await this.onTokenRefreshed(json.access_token, json.expires_in);
   }
 
   private async getRootFolderId(): Promise<string> {

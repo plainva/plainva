@@ -92,7 +92,13 @@ public class SecureStorePlugin extends Plugin {
             byte[] blob = new byte[iv.length + ct.length];
             System.arraycopy(iv, 0, blob, 0, iv.length);
             System.arraycopy(ct, 0, blob, iv.length, ct.length);
-            prefs().edit().putString(k, Base64.encodeToString(blob, Base64.NO_WRAP)).apply();
+            // commit(), not apply() (P3.1b, finding M7): apply() persists
+            // asynchronously and NEVER reports failure — a lost rotated
+            // OneDrive/Dropbox refresh token locks the next app start out of
+            // sync. Plugin methods run off the UI thread, so the synchronous
+            // write is safe, and the JS caller awaits a REAL result.
+            boolean persisted = prefs().edit().putString(k, Base64.encodeToString(blob, Base64.NO_WRAP)).commit();
+            if (!persisted) { call.reject("secure store write failed"); return; }
             call.resolve();
         } catch (Exception e) {
             call.reject("encrypt failed: " + e.getMessage());
@@ -103,7 +109,8 @@ public class SecureStorePlugin extends Plugin {
     public void remove(PluginCall call) {
         String k = call.getString("key");
         if (k == null) { call.reject("key required"); return; }
-        prefs().edit().remove(k).apply();
+        boolean persisted = prefs().edit().remove(k).commit();
+        if (!persisted) { call.reject("secure store remove failed"); return; }
         call.resolve();
     }
 }

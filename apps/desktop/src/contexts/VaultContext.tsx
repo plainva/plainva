@@ -240,7 +240,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       syncStatusStore.reset();
 
       if (state.syncWorker) {
-        state.syncWorker.stop();
+        // Drain, don't just stop (P3.4): the old worker may still be mid-cycle
+        // writing into the very DB file the reload below re-opens/migrates.
+        await state.syncWorker.stopAndDrain();
       }
 
       if (currentAbortSignal.aborted) return;

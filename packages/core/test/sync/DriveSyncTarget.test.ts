@@ -192,6 +192,37 @@ describe("DriveSyncTarget", () => {
     expect(new TextDecoder().decode(bytes!)).toBe("ok");
   });
 
+  it("single-flights concurrent token refreshes (P3.1) and AWAITS the rotation callback (P3.1b)", async () => {
+    let tokenPosts = 0;
+    let expired401s = 2; // BOTH parallel requests hit an expired token first
+    const { target } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "POST" && u.includes("oauth2.googleapis.com/token")) {
+        tokenPosts++;
+        await new Promise((r) => setTimeout(r, 20)); // both callers wait on ONE refresh
+        return res({ access_token: "fresh-token", expires_in: 3600 });
+      }
+      if (init.method === "GET" && expired401s > 0 && init.headers?.Authorization !== "Bearer fresh-token") {
+        expired401s--;
+        return res({}, { status: 401 });
+      }
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("alt=media")) return res(new TextEncoder().encode("ok"));
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+    let persisted = 0;
+    target.onTokenRefreshed = async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      persisted++;
+    };
+    const [a, b] = await Promise.all([target.download("a.md"), target.download("b.md")]);
+    expect(new TextDecoder().decode(a!)).toBe("ok");
+    expect(new TextDecoder().decode(b!)).toBe("ok");
+    expect(tokenPosts).toBe(1); // no refresh stampede
+    expect(persisted).toBe(1); // and the persistence callback completed before use
+  });
+
   it("never pushes or downloads .CONFLICT files", async () => {
     const { target, fetchFn } = makeTarget(async () => { throw new Error("should not fetch"); });
     const pushed = await target.push({

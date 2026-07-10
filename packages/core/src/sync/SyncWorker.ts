@@ -109,6 +109,92 @@ const MAX_CONSECUTIVE_PULL_FAILURES = 3;
 const MASS_DELETE_MIN = 10;
 const MASS_DELETE_SHARE = 0.2;
 
+/**
+ * Download prefetch defaults (hardening P3.3). Only the network `download()`
+ * is overlapped — write + merge + sync_state + the failure counters stay
+ * strictly sequential in listing order, which keeps the WAL single-writer,
+ * the breaker semantics and the cursor rules untouched. The BYTE budget
+ * (counting actually buffered bytes, so no listing sizes are needed) caps
+ * memory when a batch of large attachments arrives; the mobile shell passes
+ * smaller values.
+ */
+const DEFAULT_DOWNLOAD_CONCURRENCY = 4;
+const DEFAULT_DOWNLOAD_BUFFER_BYTES = 32 * 1024 * 1024;
+
+export interface SyncWorkerOptions {
+  downloadConcurrency?: number;
+  downloadBufferBytes?: number;
+}
+
+/**
+ * Overlaps target.download() calls for an ordered list of paths while the
+ * caller consumes results strictly in order. New downloads start only while
+ * (a) fewer than `concurrency` are in flight AND (b) the bytes already
+ * buffered (downloaded but not yet consumed) stay under `maxBufferedBytes`.
+ * Failures are delivered on consumption — exactly where the sequential code
+ * expects them (guardPullStep).
+ */
+class DownloadPrefetcher {
+  private queueIdx = 0;
+  private inFlight = new Map<string, Promise<Uint8Array | null>>();
+  private buffered = new Map<string, { bytes: Uint8Array | null } | { error: unknown }>();
+  private bufferedBytes = 0;
+
+  constructor(
+    private readonly download: (path: string) => Promise<Uint8Array | null>,
+    private readonly order: string[],
+    private readonly concurrency: number,
+    private readonly maxBufferedBytes: number
+  ) {
+    this.pump();
+  }
+
+  private pump(): void {
+    while (
+      this.queueIdx < this.order.length &&
+      this.inFlight.size < this.concurrency &&
+      this.bufferedBytes < this.maxBufferedBytes
+    ) {
+      const path = this.order[this.queueIdx++];
+      const p = this.download(path).then(
+        (bytes) => {
+          this.inFlight.delete(path);
+          this.buffered.set(path, { bytes });
+          this.bufferedBytes += bytes?.length ?? 0;
+          this.pump();
+          return bytes;
+        },
+        (error) => {
+          this.inFlight.delete(path);
+          this.buffered.set(path, { error });
+          this.pump();
+          return null;
+        }
+      );
+      this.inFlight.set(path, p);
+    }
+  }
+
+  /** Consumes the result for `path` (starts an on-demand download if needed). */
+  async get(path: string): Promise<Uint8Array | null> {
+    if (!this.buffered.has(path) && !this.inFlight.has(path)) {
+      // Not part of the prefetch order (or already consumed) — plain download.
+      return this.download(path);
+    }
+    if (this.inFlight.has(path)) await this.inFlight.get(path)!.catch(() => {});
+    const entry = this.buffered.get(path);
+    this.buffered.delete(path);
+    if (entry && "bytes" in entry) {
+      this.bufferedBytes -= entry.bytes?.length ?? 0;
+      this.pump();
+      return entry.bytes;
+    }
+    this.pump();
+    if (entry && "error" in entry) throw entry.error;
+    return null;
+  }
+}
+
 export class SyncWorker {
   private timeoutId: any;
   private isRunning = false;
@@ -199,7 +285,8 @@ export class SyncWorker {
      */
     private readonly vault: IVaultAdapter,
     private readonly queue: SyncQueue,
-    private readonly intervalMs: number = 60000
+    private readonly intervalMs: number = 60000,
+    private readonly options: SyncWorkerOptions = {}
   ) {}
 
   private setStatus(status: SyncStatus, error?: string) {
@@ -344,20 +431,51 @@ export class SyncWorker {
   private async executeCycle() {
     if (!this.isRunning || this.isSyncing) return;
     this.isSyncing = true;
-    try {
-      await this.runCycle();
-    } finally {
-      this.isSyncing = false;
-      if (this.isRunning) {
-        if (this.pendingSyncRequest) {
-          this.pendingSyncRequest = false;
-          // Schedule immediately instead of next interval
-          this.timeoutId = setTimeout(() => this.executeCycle(), 0);
-        } else {
-          this.scheduleNext();
+    const cycle = (async () => {
+      try {
+        await this.runCycle();
+      } finally {
+        this.isSyncing = false;
+        if (this.isRunning) {
+          if (this.pendingSyncRequest) {
+            this.pendingSyncRequest = false;
+            // Schedule immediately instead of next interval
+            this.timeoutId = setTimeout(() => this.executeCycle(), 0);
+          } else {
+            this.scheduleNext();
+          }
         }
       }
+    })();
+    this.currentCycle = cycle;
+    try {
+      await cycle;
+    } finally {
+      if (this.currentCycle === cycle) this.currentCycle = null;
     }
+  }
+
+  /** The in-flight cycle promise, for stopAndDrain (hardening P3.4). */
+  private currentCycle: Promise<void> | null = null;
+
+  /**
+   * Stops the worker AND waits for a running cycle to finish (hardening
+   * P3.4, mobile finding M4): callers that close or delete the database /
+   * vault container right after stopping (vault switch, vault delete, app
+   * teardown) must not race a cycle that is still downloading or writing.
+   * `stop()` alone only prevents FUTURE cycles.
+   */
+  public async stopAndDrain(): Promise<void> {
+    this.stop();
+    const cycle = this.currentCycle;
+    if (cycle) await cycle.catch(() => {});
+  }
+
+  /** Read-only queue snapshot for the settings UI (P3.4 queue visibility). */
+  public listPendingOperations(
+    limit = 20
+  ): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }> {
+    return this.queue.listAllPending(limit);
   }
 
   private conflictPathFor(path: string): string {
@@ -481,7 +599,8 @@ export class SyncWorker {
     remoteEtag: string,
     state: SyncState | null,
     now: number,
-    changedPaths: string[]
+    changedPaths: string[],
+    download?: () => Promise<Uint8Array | null>
   ): Promise<void> {
     // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
     // and rewriting a file the user is deleting/renaming would resurrect it.
@@ -499,7 +618,7 @@ export class SyncWorker {
       return;
     }
 
-    const contentBytes = await this.target.download(path);
+    const contentBytes = await (download ? download() : this.target.download(path));
     if (!contentBytes) return;
 
     // Binary files (images, PDFs, …) must never be decoded to text and merged —
@@ -678,6 +797,27 @@ export class SyncWorker {
       // progress count either: "Sync x/y" should reflect real vault files, not thousands
       // of mirrored backup snapshots. Count only the reconcilable entries.
       const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
+      // Overlap the network downloads for the files this cycle will actually
+      // reconcile (P3.3): everything AFTER the download — merge, writes,
+      // sync_state, the failure counters — stays strictly sequential below.
+      const structuralPending = new Set(await this.queue.getPendingStructuralPaths());
+      const reconcileOrder: string[] = [];
+      for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
+        if (isLocalOnlyPath(path)) continue;
+        // No speculative download for a file with a queued delete/rename —
+        // reconcile skips those (live-checked below), so downloading would be
+        // wasted bandwidth at best and a resurrection vector at worst.
+        if (structuralPending.has(path)) continue;
+        const s = stateMap.get(path) ?? null;
+        if (s && s.remote_etag === remoteEtag) continue;
+        reconcileOrder.push(path);
+      }
+      const prefetcher = new DownloadPrefetcher(
+        (p) => this.target.download(p),
+        reconcileOrder,
+        Math.max(1, this.options.downloadConcurrency ?? DEFAULT_DOWNLOAD_CONCURRENCY),
+        Math.max(1024 * 1024, this.options.downloadBufferBytes ?? DEFAULT_DOWNLOAD_BUFFER_BYTES)
+      );
       let pullIdx = 0;
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (!this.isRunning) break;
@@ -693,7 +833,7 @@ export class SyncWorker {
         if (state && state.remote_etag === remoteEtag) continue;
 
         await guardPullStep(path, () =>
-          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths)
+          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
         );
       }
 

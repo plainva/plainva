@@ -204,11 +204,26 @@ export function stopSync(): void {
   worker = null;
 }
 
+/**
+ * Stops the worker AND waits for a running cycle (P3.4, finding M4): vault
+ * switch/delete close or remove the per-vault database right after — a cycle
+ * still downloading/writing must finish (or abort) first.
+ */
+export async function stopSyncAndDrain(): Promise<void> {
+  const w = worker;
+  worker = null;
+  if (w) await w.stopAndDrain();
+}
+
 function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
-  // immediately or the stored token goes stale (desktop lesson).
-  const persistRotation = () => {
-    void getPlatformServices().credentials.writeSecret(credKey, p).catch(() => {});
+  // immediately or the stored token goes stale (desktop lesson). AWAITED and
+  // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
+  // silently failed would lock the next app start out of sync — better to
+  // surface it as a cycle error now (the in-memory token still works this
+  // session, and the next refresh retries the persistence).
+  const persistRotation = async () => {
+    await getPlatformServices().credentials.writeSecret(credKey, p);
   };
   switch (p.provider) {
     case "s3":
@@ -232,10 +247,10 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
         },
         webdavFetch,
       );
-      target.onTokensRefreshed = (_accessToken, refreshToken) => {
+      target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
         p.creds.refreshToken = refreshToken;
-        persistRotation();
+        await persistRotation();
       };
       return target;
     }
@@ -248,10 +263,10 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
         },
         webdavFetch,
       );
-      target.onTokensRefreshed = (_accessToken, refreshToken) => {
+      target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
         p.creds.refreshToken = refreshToken;
-        persistRotation();
+        await persistRotation();
       };
       return target;
     }
@@ -266,7 +281,12 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, 30_000);
+  // Smaller download windows than the desktop (P3.3): phones have tighter
+  // memory budgets, and a batch of large attachments must not balloon RAM.
+  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, 30_000, {
+    downloadConcurrency: 2,
+    downloadBufferBytes: 8 * 1024 * 1024,
+  });
   w.onStatusChange = (status, errorMsg) => {
     setState({ status, message: errorMsg ?? null });
   };

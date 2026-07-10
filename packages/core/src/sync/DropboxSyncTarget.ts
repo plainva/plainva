@@ -1,5 +1,6 @@
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
+import { fetchWithRetry } from "./httpRetry.js";
 import { refreshDropboxAccessToken } from "./DropboxAuth.js";
 
 /**
@@ -66,7 +67,7 @@ export class DropboxSyncTarget implements ISyncTarget {
   private accessToken?: string;
 
   /** Fired after a successful token refresh (persistence hook, rotation-safe). */
-  public onTokensRefreshed?: (accessToken: string, refreshToken?: string, expiresInSec?: number) => void;
+  public onTokensRefreshed?: (accessToken: string, refreshToken?: string, expiresInSec?: number) => void | Promise<void>;
 
   private readonly simpleUploadLimit: number;
   private readonly uploadChunk: number;
@@ -130,7 +131,22 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
   }
 
-  private async refreshAccessToken(): Promise<void> {
+  /**
+   * Single-flight guard (P3.1). CRITICAL for Dropbox: the refresh token
+   * ROTATES — two concurrent refreshes race for the one valid token, and the
+   * loser can invalidate the winner's replacement.
+   */
+  private refreshInFlight: Promise<void> | null = null;
+
+  private refreshAccessToken(): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    this.refreshInFlight = this.doRefreshAccessToken().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
+  private async doRefreshAccessToken(): Promise<void> {
     const result = await refreshDropboxAccessToken(
       { appKey: this.creds.appKey, refreshToken: this.creds.refreshToken },
       this.fetchFn
@@ -140,9 +156,19 @@ export class DropboxSyncTarget implements ISyncTarget {
       this.creds.refreshToken = result.refreshToken;
     }
     if (this.onTokensRefreshed) {
-      this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
+      // Awaited (P3.1b): a ROTATED refresh token that fails to persist locks
+      // the next app start out of sync — surface that as a cycle error now.
+      await this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
     }
   }
+
+  /** Every Dropbox call is a POST — classify read vs. write by endpoint path. */
+  private static readonly READ_ENDPOINTS = [
+    "files/list_folder",
+    "files/get_latest_cursor",
+    "files/download",
+    "files/get_metadata",
+  ];
 
   private async authedFetch(url: string, init: RequestInit, isRetry = false): Promise<Response> {
     if (!this.accessToken) {
@@ -152,7 +178,9 @@ export class DropboxSyncTarget implements ISyncTarget {
       ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const res = await this.request("POST", url, { ...init, headers });
+    const kind = DropboxSyncTarget.READ_ENDPOINTS.some((p) => url.includes(`/${p}`)) ? "read" : "write";
+    // Rate-limit handling (P3.2): Dropbox throttles with 429 + Retry-After.
+    const res = await fetchWithRetry(() => this.request("POST", url, { ...init, headers }), kind);
     if (res.status === 401 && !isRetry) {
       await this.refreshAccessToken();
       return this.authedFetch(url, init, true);

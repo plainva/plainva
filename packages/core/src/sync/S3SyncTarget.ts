@@ -1,6 +1,7 @@
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
+import { fetchWithRetry } from "./httpRetry.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 
 /**
@@ -167,10 +168,17 @@ export class S3SyncTarget implements ISyncTarget {
       },
       now: this.nowFn(),
     });
-    return this.request(method, this.urlFor(canonicalUri, opts.queryParams), {
-      headers: { ...headers, ...(opts.unsignedHeaders ?? {}) },
-      body: opts.body ? ((opts.body as unknown) as BodyInit) : undefined,
-    });
+    // Rate-limit/backoff (P3.2): GETs (listing, download) retry on 429/5xx/
+    // network; writes only on 429. Replaying the same SigV4 signature is fine
+    // within its validity window — retry delays cap far below it.
+    return fetchWithRetry(
+      () =>
+        this.request(method, this.urlFor(canonicalUri, opts.queryParams), {
+          headers: { ...headers, ...(opts.unsignedHeaders ?? {}) },
+          body: opts.body ? ((opts.body as unknown) as BodyInit) : undefined,
+        }),
+      method === "GET" ? "read" : "write"
+    );
   }
 
   /** One ListObjectsV2 page for a raw (un-encoded) key prefix. */

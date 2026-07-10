@@ -215,7 +215,12 @@
     "perfMetricsRefresh": "表示/更新",
     "perfMetricsExport": "JSON としてエクスポート…",
     "perfMetricPoint": "計測ポイント",
-    "perfMetricsEmpty": "このセッションの計測データはまだありません。"
+    "perfMetricsEmpty": "このセッションの計測データはまだありません。",
+    "syncQueue": "保留中の転送",
+    "syncQueueDesc": "クラウドへの反映を待っている操作を表示します（古い順）。",
+    "syncQueueEmpty": "保留はありません — すべて転送済みです。",
+    "syncQueueCount": "{{n}} 件の操作が保留中:",
+    "syncQueueRetries": "試行 {{n}} 回目"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",

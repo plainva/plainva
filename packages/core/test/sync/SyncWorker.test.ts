@@ -52,6 +52,7 @@ describe("SyncWorker", () => {
       resetStuckOperations: vi.fn().mockResolvedValue(undefined),
       hasPendingOperation: vi.fn().mockResolvedValue(false),
       hasPendingStructuralOp: vi.fn().mockResolvedValue(false),
+      getPendingStructuralPaths: vi.fn().mockResolvedValue([]),
       getPendingDeletePaths: vi.fn().mockResolvedValue([]),
       discardPendingDeletes: vi.fn().mockResolvedValue([])
     };
@@ -290,6 +291,9 @@ describe("SyncWorker", () => {
       remote_etag: "etag-old", // differs -> would reconcile if not for the pending delete
     }]]));
     queue.hasPendingStructuralOp.mockResolvedValueOnce(true);
+    // The prefetcher consults the batch query (P3.3): the same pending
+    // delete/rename must also keep the SPECULATIVE download from starting.
+    queue.getPendingStructuralPaths.mockResolvedValueOnce(["gone.md"]);
 
     await worker.runCycle();
 
@@ -649,10 +653,39 @@ describe("SyncWorker", () => {
 
       await worker.runCycle();
 
-      expect(target.download).toHaveBeenCalledTimes(3); // breaker: outage, not per-file poison
+      // Breaker semantics: the cycle aborts after 3 CONSUMED consecutive
+      // failures (outage, not per-file poison). The prefetcher may have
+      // STARTED more speculative downloads than were consumed — the abort is
+      // observable through the backoff/cursor/status, not the start count.
+      expect(target.download.mock.calls.length).toBeGreaterThanOrEqual(3);
       expect(worker["cursor"]).toBeUndefined();          // catch resets -> full-listing self-heal
       expect(worker["consecutiveFailures"]).toBe(1);     // backoff engaged
       expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+    });
+
+    it("prefetches downloads but PROCESSES files strictly in listing order (P3.3)", async () => {
+      const order = ["a.md", "b.md", "c.md", "d.md"];
+      target.pull.mockResolvedValueOnce({
+        etagMap: new Map(order.map((p, i) => [p, `e${i}`])),
+      });
+      // First download resolves LAST — with naive parallel processing d.md
+      // would finish first; the worker must still write in listing order.
+      const resolvers = new Map<string, (b: Uint8Array) => void>();
+      target.download.mockImplementation(
+        (p: string) =>
+          new Promise<Uint8Array>((resolve) => {
+            resolvers.set(p, resolve);
+            if (p !== "a.md") resolve(new TextEncoder().encode(`content ${p}`));
+          })
+      );
+      const cycle = worker.runCycle();
+      // Let the prefetcher start, then release the slow head-of-line file.
+      await new Promise((r) => setTimeout(r, 10));
+      resolvers.get("a.md")?.(new TextEncoder().encode("content a.md"));
+      await cycle;
+
+      const writtenOrder = vault.writeTextFile.mock.calls.map((c: any[]) => c[0]);
+      expect(writtenOrder).toEqual(order);
     });
 
     it("keeps the incremental cursor for replay when a file failed", async () => {

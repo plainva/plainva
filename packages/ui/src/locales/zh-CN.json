@@ -215,7 +215,12 @@
     "perfMetricsRefresh": "显示/刷新",
     "perfMetricsExport": "导出为 JSON…",
     "perfMetricPoint": "测量点",
-    "perfMetricsEmpty": "本次会话还没有测量数据。"
+    "perfMetricsEmpty": "本次会话还没有测量数据。",
+    "syncQueue": "待传输项",
+    "syncQueueDesc": "显示尚未同步到云端的内容（最旧的在前）。",
+    "syncQueueEmpty": "没有待传输项——全部已同步。",
+    "syncQueueCount": "{{n}} 个操作待处理：",
+    "syncQueueRetries": "第 {{n}} 次尝试"
   },
   "editor": {
     "fileNotFound": "未找到文件",

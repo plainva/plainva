@@ -22,7 +22,7 @@ import {
   LOCAL_VAULT_ID,
   type VaultEntry,
 } from "./vaultRegistry";
-import { purgeCredentials, stopSync, syncSoon } from "./syncService";
+import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -103,7 +103,9 @@ export async function switchVault(id: string): Promise<void> {
   // closes — and they land in the vault they were typed in (the coordinator
   // captured that instance per schedule call).
   await noteSaver.flushAll();
-  stopSync();
+  // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
+  // writing must finish before dispose() closes the per-vault database.
+  await stopSyncAndDrain();
   await setActiveVault(id);
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;

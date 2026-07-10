@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { fetchWithRetry } from "./httpRetry.js";
 
 export interface WebDavCredentials {
   url: string;
@@ -91,6 +92,13 @@ export class WebDavSyncTarget implements ISyncTarget {
    * kicks in instead of freezing the worker.
    */
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
+    // Rate-limit/backoff (P3.2): PROPFIND/GET (listing, download) retry on
+    // 429/5xx/network; every mutating verb only on 429 (server did not run it).
+    const kind = method === "PROPFIND" || method === "GET" ? "read" : "write";
+    return fetchWithRetry(() => this.singleRequest(method, url, init), kind);
+  }
+
+  private async singleRequest(method: string, url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {

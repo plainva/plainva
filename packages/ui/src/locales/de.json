@@ -215,7 +215,12 @@
     "perfMetricsRefresh": "Anzeigen/Aktualisieren",
     "perfMetricsExport": "Als JSON exportieren…",
     "perfMetricPoint": "Messpunkt",
-    "perfMetricsEmpty": "Noch keine Messwerte in dieser Sitzung."
+    "perfMetricsEmpty": "Noch keine Messwerte in dieser Sitzung.",
+    "syncQueue": "Ausstehende Übertragungen",
+    "syncQueueDesc": "Zeigt, was noch zur Cloud übertragen wird (älteste zuerst).",
+    "syncQueueEmpty": "Nichts ausstehend — alles übertragen.",
+    "syncQueueCount": "{{n}} Operation(en) ausstehend:",
+    "syncQueueRetries": "Versuch {{n}}"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",

@@ -1,6 +1,7 @@
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
+import { fetchWithRetry } from "./httpRetry.js";
 import { refreshOneDriveAccessToken } from "./OneDriveAuth.js";
 
 /**
@@ -63,7 +64,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
   private accessToken?: string;
 
   /** Fired whenever a token refresh succeeded (rotation-aware persistence hook). */
-  public onTokensRefreshed?: (accessToken: string, refreshToken?: string, expiresInSec?: number) => void;
+  public onTokensRefreshed?: (accessToken: string, refreshToken?: string, expiresInSec?: number) => void | Promise<void>;
 
   constructor(
     private creds: OneDriveCredentials,
@@ -119,7 +120,22 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
   }
 
-  private async refreshAccessToken(): Promise<void> {
+  /**
+   * Single-flight guard (P3.1). CRITICAL for Microsoft: the refresh token
+   * ROTATES — two concurrent refreshes race for the one valid token, and the
+   * loser can invalidate the winner's replacement.
+   */
+  private refreshInFlight: Promise<void> | null = null;
+
+  private refreshAccessToken(): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    this.refreshInFlight = this.doRefreshAccessToken().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
+  private async doRefreshAccessToken(): Promise<void> {
     const result = await refreshOneDriveAccessToken(
       { clientId: this.creds.clientId, refreshToken: this.creds.refreshToken },
       this.fetchFn
@@ -129,7 +145,9 @@ export class OneDriveSyncTarget implements ISyncTarget {
       this.creds.refreshToken = result.refreshToken;
     }
     if (this.onTokensRefreshed) {
-      this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
+      // Awaited (P3.1b): a ROTATED refresh token that fails to persist locks
+      // the next app start out of sync — surface that as a cycle error now.
+      await this.onTokensRefreshed(result.accessToken, result.refreshToken, result.expiresIn);
     }
   }
 
@@ -147,7 +165,11 @@ export class OneDriveSyncTarget implements ISyncTarget {
       ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const res = await this.request(method, url, { ...init, headers });
+    // Rate-limit handling (P3.2): Graph throttles with 429 + Retry-After.
+    const res = await fetchWithRetry(
+      () => this.request(method, url, { ...init, headers }),
+      method === "GET" ? "read" : "write"
+    );
     if (res.status === 401 && !isRetry) {
       await this.refreshAccessToken();
       return this.authedFetch(method, url, init, true);
