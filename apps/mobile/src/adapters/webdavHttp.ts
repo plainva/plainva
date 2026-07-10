@@ -3,9 +3,9 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 /**
  * fetch over the native WebDavHttp plugin (M3). CapacitorHttp cannot send
  * WebDAV methods (HttpURLConnection rejects PROPFIND & friends), so the
- * shared sync targets get this OkHttp-backed fetch natively and the plain
- * browser fetch on the web dev server. Android only until the iOS shell is
- * built (M-iOS) — the plugin is registered in MainActivity.
+ * shared sync targets get this natively backed fetch and the plain browser
+ * fetch on the web dev server. Android registers the OkHttp plugin in
+ * MainActivity; iOS the URLSession twin in MainViewController (P7).
  */
 
 interface WebDavHttpNative {

@@ -5,7 +5,7 @@ import { capacitorCredentialStore } from "./capacitorPlatform";
 
 /**
  * Keystore-hardened ICredentialStore (M3): natively the SecureStore plugin
- * (AndroidKeyStore AES/GCM; iOS Keychain once that shell exists) with a
+ * (AndroidKeyStore AES/GCM on Android, the Keychain on iOS since P7) with a
  * one-time transparent migration of legacy Preferences secrets. The plain
  * web dev server keeps the Preferences fallback — same trust level as the
  * desktop's store fallback.
