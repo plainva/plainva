@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import {
   ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { SplitButton } from "./SplitButton";
-import { imageMimeType, isEditableImage, loadImageBlob, saveCanvasToVault } from "../services/imageFiles";
+import { imageMimeType, isEditableImage, loadImageBlob, saveCanvasToVault } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { copyCandidate } from "./fileTreeModel";
 import {

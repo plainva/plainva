@@ -1,6 +1,5 @@
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
-import { readFile } from "@tauri-apps/plugin-fs";
 import { imageMimeType } from "../services/imageFiles";
 import { resolveVaultRelative } from "../adapters/pathGuard";
 
@@ -15,15 +14,18 @@ type ImageSource =
   | { kind: "direct"; url: string }
   | { kind: "vault"; absolutePath: string };
 
+/** Shell file access, injected by the app (ADR 0011) — no direct fs plugin here. */
+export type ReadBinaryFn = (absolutePath: string) => Promise<Uint8Array>;
+
 // One object URL per absolute path for the app's lifetime: images repeat
 // across rebuilds (every cursor line change), and revoking per-widget would
 // flash. Failed loads are retried on the next build.
 const blobUrlCache = new Map<string, Promise<string | null>>();
 
-function blobUrlFor(absolutePath: string): Promise<string | null> {
+function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<string | null> {
   let pending = blobUrlCache.get(absolutePath);
   if (!pending) {
-    pending = readFile(absolutePath)
+    pending = readBinary(absolutePath)
       .then((bytes) => URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: imageMimeType(absolutePath) })))
       .catch(() => null);
     blobUrlCache.set(absolutePath, pending);
@@ -35,7 +37,7 @@ function blobUrlFor(absolutePath: string): Promise<string | null> {
 }
 
 class ImageWidget extends WidgetType {
-  constructor(readonly source: ImageSource, readonly key: string) { super(); }
+  constructor(readonly source: ImageSource, readonly key: string, readonly readBinary: ReadBinaryFn) { super(); }
 
   eq(other: ImageWidget) {
     return this.key === other.key;
@@ -57,7 +59,7 @@ class ImageWidget extends WidgetType {
     if (this.source.kind === "direct") {
       img.src = this.source.url;
     } else {
-      void blobUrlFor(this.source.absolutePath).then((url) => {
+      void blobUrlFor(this.source.absolutePath, this.readBinary).then((url) => {
         if (url && img.isConnected !== false) img.src = url;
       });
     }
@@ -79,7 +81,7 @@ function resolveImageSource(src: string, vaultRoot: string): ImageSource | null 
   return { kind: "vault", absolutePath: `${root}/${rel}` };
 }
 
-export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean) {
+export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readBinary: ReadBinaryFn) {
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -139,7 +141,7 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean) {
               }
             }
 
-            const widget = new ImageWidget(source, source.kind === "direct" ? source.url : source.absolutePath);
+            const widget = new ImageWidget(source, source.kind === "direct" ? source.url : source.absolutePath, readBinary);
             if (!hideSyntax || isFocused) {
               // Cursor is here or source mode: show text AND image below it
               const dec = Decoration.widget({ widget, side: 1 });

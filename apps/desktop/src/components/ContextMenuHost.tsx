@@ -3,7 +3,7 @@ import { Scissors, Copy, ClipboardPaste } from "lucide-react";
 import { MenuSurface, MenuItem } from "@plainva/ui";
 import { useContextMenu, closeContextMenu } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection } from "@plainva/ui";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 
 /**
  * The app's own right-click menu (webview hardening, 2026-07-07). The native

@@ -1,9 +1,9 @@
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { findLinkAtOffset } from "@plainva/ui";
-import i18n from "@plainva/ui/i18n";
+import { getPlatformServices } from "../platform/services";
+import { findLinkAtOffset } from "../lib/linkParser";
+import i18n from "../i18n";
 
 // Removed LinkWidget as we'll use Decoration.mark to allow CSS inheritance
 
@@ -200,7 +200,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
                 return true;
               } else if (link.type === 'markdown') {
                 if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
-                   openUrl(link.target).catch((err) => {
+                   getPlatformServices().openExternal(link.target).catch((err) => {
                      toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
                    });
                 } else {
@@ -209,7 +209,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
                 event.preventDefault();
                 return true;
               } else if (link.type === 'url') {
-                openUrl(link.target).catch((err) => {
+                getPlatformServices().openExternal(link.target).catch((err) => {
                   toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
                 });
                 event.preventDefault();

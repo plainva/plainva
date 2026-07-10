@@ -8,7 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { useVault } from "../contexts/VaultContext";
 import { conflictOriginalPath } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { requestSaveFlush } from "../services/saveFlush";
 
 /**

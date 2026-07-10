@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getSlashCommands, filterSlashCommands } from "./SlashCommandPlugin";
+import { getSlashCommands, filterSlashCommands } from "@plainva/ui";
 
 const EXPECTED_TYPES = [
   // Grundlagen

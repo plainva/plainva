@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getSettingsStore } from "../services/settingsStore";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { mkdir } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { Cloud, Folder, Settings2, Keyboard } from "lucide-react";
@@ -46,7 +46,7 @@ import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } fro
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
-import { formatDiagnosticsExport } from "../services/diagnosticsLog";
+import { formatDiagnosticsExport } from "@plainva/ui";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { Button } from "@plainva/ui";
 

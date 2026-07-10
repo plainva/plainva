@@ -18,13 +18,13 @@ import {
   insertColumn,
   deleteColumn,
   setColumnAlign,
-} from "./tableModel";
+} from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
-import { docIconValue } from "./DocIcon";
+import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
-import { frontmatterBlockOf, plainvaMetaFromBlock } from "../services/docMeta";
+import { frontmatterBlockOf, plainvaMetaFromBlock } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
 import { BasePicker } from "./BasePicker";
 import { createInlineBase, folderOf, baseEmbedText } from "../services/inlineBase";
@@ -32,9 +32,11 @@ import { generateIndexForFolder } from "../services/indexMd";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
 import { appConfirm, appPrompt } from "../services/appDialogs";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { readFile } from "@tauri-apps/plugin-fs";
+import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
@@ -43,9 +45,9 @@ import { requestSaveFlush } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { SelectionToolbar, type FormatAction } from "./SelectionToolbar";
 import { BlockMenu, type BlockAction } from "./BlockMenu";
-import { blockAt, listBlocks } from "./blockModel";
+import { blockAt, listBlocks } from "@plainva/ui";
 import { turnInto, moveBlockAbove, listMarkerStyle } from "./blockTransforms";
-import { createEditorSession, type EditorSession, type EditorSessionDeps } from "./editorSession";
+import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
@@ -1327,6 +1329,9 @@ export const Editor: React.FC<{
       onSelectionStats: (stats) => { if (ownsGlobalStats && isActivePane) activeDocument.setSelectionStats(stats); },
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
+      // Shell capabilities injected into the shared session (ADR 0011).
+      readBinaryFile: (absolutePath) => readFile(absolutePath),
+      buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
     };
   });
 

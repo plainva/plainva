@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { CompletionContext, Completion } from "@codemirror/autocomplete";
-import { closersToConsume, wikiLinkCompletionSource, embedCompletionSource, tagCompletionSource, emojiColonCompletionSource } from "./editorTriggers";
+import { closersToConsume, wikiLinkCompletionSource, embedCompletionSource, tagCompletionSource, emojiColonCompletionSource } from "@plainva/ui";
 
 function ctx(doc: string, pos = doc.length) {
   return new CompletionContext(EditorState.create({ doc }), pos, false);

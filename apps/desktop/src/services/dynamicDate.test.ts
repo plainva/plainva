@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatRelativeDate, DATE_TOKEN_RE } from "./dynamicDate";
+import { formatRelativeDate, DATE_TOKEN_RE } from "@plainva/ui";
 
 const NOW = new Date(2026, 5, 30); // 2026-06-30 (local)
 

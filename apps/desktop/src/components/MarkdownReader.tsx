@@ -3,20 +3,20 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { resolveVaultRelative } from '../adapters/pathGuard';
-import { loadImageBlob } from '../services/imageFiles';
-import { toast } from '../services/toastStore';
+import { resolveVaultRelative } from '@plainva/ui';
+import { loadImageBlob } from '@plainva/ui';
+import { toast } from '@plainva/ui';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
-import { calloutColor, calloutColorKey, calloutTint, calloutIconPath, parseCalloutMarker } from './callouts';
+import { calloutColor, calloutColorKey, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';
 import { slugify } from '../services/outline';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
-import { formatRelativeDate, DATE_TOKEN_RE } from '../services/dynamicDate';
+import { formatRelativeDate, DATE_TOKEN_RE } from '@plainva/ui';
 import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
-import { DocIcon, isRenderableDocIcon } from './DocIcon';
+import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 
 interface MarkdownReaderProps {

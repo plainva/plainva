@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
-import { toast } from "../../services/toastStore";
+import { toast } from "@plainva/ui";
 import { applyMentionLink, createConnectedNote } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";

@@ -29,7 +29,7 @@ import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "../services/embedScope";
 import { writeRelationLink } from "../services/graphRelationTargets";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import { NewItemButton, NewItemFolderDialog } from "./base/NewItemButton";
 import type { ReverseIntent } from "./ColumnSchemaEditor";

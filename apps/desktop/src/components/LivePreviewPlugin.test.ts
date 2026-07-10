@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
-import { frontmatterStateField, frontmatterProtectPlugin } from "./LivePreviewPlugin";
+import { frontmatterStateField, frontmatterProtectPlugin } from "@plainva/ui";
 
 const FM_DOC = "---\ntitle: Test\ntags: [a]\n---\nBody line\n";
 // End of the protected range: just past the closing fence's trailing newline.

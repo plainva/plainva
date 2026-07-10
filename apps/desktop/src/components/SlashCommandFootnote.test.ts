@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { getSlashCommands } from "./SlashCommandPlugin";
+import { getSlashCommands } from "@plainva/ui";
 
 type ApplyFn = (view: EditorView, completion: unknown, from: number, to: number) => void;
 

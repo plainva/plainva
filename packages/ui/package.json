@@ -19,11 +19,25 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/search": "6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
+    "@lezer/highlight": "^1.2.3",
     "@plainva/core": "workspace:*",
+    "@uiw/codemirror-extensions-basic-setup": "^4.25.10",
     "i18next": "^26.3.4",
+    "katex": "^0.17.0",
+    "lucide": "^1.23.0",
     "lucide-react": "^1.23.0",
+    "mermaid": "^11.16.0",
     "react": "^19.2.7",
-    "react-i18next": "^17.0.8"
+    "react-i18next": "^17.0.8",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

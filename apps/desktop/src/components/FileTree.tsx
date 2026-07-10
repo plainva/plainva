@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { appConfirm } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
@@ -19,10 +19,10 @@ import { useStableHandler } from "@plainva/ui";
 import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
-import { DocIcon, isRenderableDocIcon } from "./DocIcon";
+import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
 import { generateIndexForFolder } from "../services/indexMd";
-import { isImagePath } from "../services/imageFiles";
+import { isImagePath } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { serializeBaseConfig } from "../services/baseFormat";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened

@@ -1,7 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
-import { HEADING_SIZES } from "@plainva/ui";
+import { HEADING_SIZES } from "../lib/typography";
 import { Prec } from "@codemirror/state";
 import { CALLOUT_COLOR_KEYS, colorForKey, calloutTint } from "./callouts";
 

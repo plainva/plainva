@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { isListMarkerLine, listIndentStyle, listDepthAt } from "./listIndent";
+import { isListMarkerLine, listIndentStyle, listDepthAt } from "@plainva/ui";
 
 describe("isListMarkerLine", () => {
   it("recognizes bullet and ordered markers, nested or not", () => {

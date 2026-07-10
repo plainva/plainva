@@ -1,7 +1,7 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getSettingsStore } from "./settingsStore";
-import { toast } from "./toastStore";
+import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**

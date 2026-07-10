@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
 import { GRAPH_TAB_PATH } from "./graph/virtualPaths";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
-import { DocIcon, isRenderableDocIcon } from "./DocIcon";
+import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
 
 interface Props {

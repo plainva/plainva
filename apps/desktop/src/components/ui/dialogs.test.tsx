@@ -4,9 +4,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { DialogHost } from "./DialogHost";
-import { ToastHost } from "./ToastHost";
+import { ToastHost } from "@plainva/ui";
 import { appConfirm, appMessage, appPrompt, dialogStore } from "../../services/appDialogs";
-import { toast } from "../../services/toastStore";
+import { toast } from "@plainva/ui";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

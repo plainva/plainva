@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LUCIDE_ICONS, LUCIDE_ICON_MAP, searchLucideIcons } from "./lucideIconData";
+import { LUCIDE_ICONS, LUCIDE_ICON_MAP, searchLucideIcons } from "@plainva/ui";
 
 describe("lucideIconData", () => {
   it("has unique kebab-case names within the curated size range", () => {

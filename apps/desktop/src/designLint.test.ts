@@ -24,7 +24,9 @@ import { fileURLToPath } from "node:url";
  */
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
-const COMPONENTS = join(SRC, "components");
+// Desktop components + the extracted shared editor layer (ADR 0011); budget
+// keys keep their original "components/..." form across both roots.
+const COMPONENT_ROOTS = [join(SRC, "components"), join(SRC, "../../../packages/ui/src/components")];
 
 const RULES: Record<string, RegExp> = {
   radiusPx: /border-?[rR]adius:\s*["'`]?\d/g,
@@ -92,10 +94,12 @@ function countFile(source: string): Counts {
 
 function scan(): Record<string, Counts> {
   const actual: Record<string, Counts> = {};
-  for (const file of walk(COMPONENTS)) {
-    const rel = relative(SRC, file).replace(/\\/g, "/");
-    const counts = countFile(readFileSync(file, "utf8"));
-    if (Object.keys(counts).length) actual[rel] = counts;
+  for (const root of COMPONENT_ROOTS) {
+    for (const file of walk(root)) {
+      const rel = "components/" + relative(root, file).replace(/\\/g, "/");
+      const counts = countFile(readFileSync(file, "utf8"));
+      if (Object.keys(counts).length) actual[rel] = counts;
+    }
   }
   const appCss = readFileSync(join(SRC, "App.css"), "utf8");
   const cssRadius = (appCss.match(/border-radius:\s*\d/g) || []).length;

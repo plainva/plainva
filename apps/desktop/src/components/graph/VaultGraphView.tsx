@@ -8,7 +8,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
-import { toast } from "../../services/toastStore";
+import { toast } from "@plainva/ui";
 import { renameFileWithLinkUpdates } from "../../services/renameNote";
 import { createConnectedNote, removeLinksTo } from "../../services/graphActions";
 import { loadGraphCached } from "../../services/graphCache";

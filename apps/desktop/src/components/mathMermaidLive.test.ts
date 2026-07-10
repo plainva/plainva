@@ -10,7 +10,7 @@ vi.mock("../services/mermaidRender", () => ({
   renderMermaidDiagram: () => Promise.resolve({ svg: "<svg data-testid='mmd'></svg>" }),
 }));
 
-import { createEditorSession, type EditorSession, type EditorSessionDeps } from "./editorSession";
+import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 
 // Live-preview math + mermaid widgets (Nachfass 2026-07-06). The session host
 // wires mathInlinePlugin/mathMermaidBlockField in LIVE mode only; these tests
@@ -34,6 +34,8 @@ function deps(): EditorSessionDeps {
     onSelectionStats: () => {},
     onPickIcon: () => {},
     onPickColor: () => {},
+    readBinaryFile: async () => new Uint8Array(),
+    buildNoteEmbedExtension: () => [],
   };
 }
 

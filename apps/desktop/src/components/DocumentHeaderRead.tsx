@@ -1,6 +1,6 @@
 import React from "react";
 import type { PlainvaDocMeta } from "@plainva/core";
-import { DocIcon } from "./DocIcon";
+import { DocIcon } from "@plainva/ui";
 
 /**
  * Read-mode document header: full-width color stripe + document icon above the

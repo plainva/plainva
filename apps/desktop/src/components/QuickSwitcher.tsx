@@ -8,7 +8,7 @@ import { fuzzyFilter } from "@plainva/ui";
 import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { getConfiguredNoteType, buildNewNoteContent } from "../services/newNote";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 

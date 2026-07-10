@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
-import { listBlocks, blockAt } from "./blockModel";
+import { listBlocks, blockAt } from "@plainva/ui";
 
 function st(doc: string) {
   const s = EditorState.create({ doc, extensions: [markdown()] });

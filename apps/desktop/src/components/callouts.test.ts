@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calloutIconPath, calloutColor } from "./callouts";
+import { calloutIconPath, calloutColor } from "@plainva/ui";
 
 describe("calloutIconPath", () => {
   it("returns icon markup for canonical types", () => {

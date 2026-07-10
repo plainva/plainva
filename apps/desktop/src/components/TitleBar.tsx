@@ -7,7 +7,7 @@ import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
-import { DocIcon, isRenderableDocIcon } from "./DocIcon";
+import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
 
 interface TitleBarProps {

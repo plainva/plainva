@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EMOJI_CATEGORIES, searchEmoji } from "./emojiData";
+import { EMOJI_CATEGORIES, searchEmoji } from "@plainva/ui";
 
 describe("EMOJI_CATEGORIES", () => {
   it("has all 8 category ids, unique and non-empty", () => {

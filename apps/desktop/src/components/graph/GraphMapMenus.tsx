@@ -6,7 +6,7 @@ import { MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/ui";
 import { appendWikiLink } from "../../services/graphActions";
 import { findRelationOptions, loadRelationCatalog, writeRelationLink, type RelationOption } from "../../services/graphRelationTargets";
 import { appConfirm } from "../../services/appDialogs";
-import { toast } from "../../services/toastStore";
+import { toast } from "@plainva/ui";
 
 /**
  * Context menus + the connect-gesture popover of the vault map (P6). All

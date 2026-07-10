@@ -2,8 +2,8 @@ import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsEr
 import { readTextFile, writeTextFile, readFile, writeFile, readDir, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
-import { isWithinRoot } from "./pathGuard";
-import { toast } from "../services/toastStore";
+import { isWithinRoot } from "@plainva/ui";
+import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { createLimiter, type ConcurrencyLimiter } from "@plainva/ui";
 

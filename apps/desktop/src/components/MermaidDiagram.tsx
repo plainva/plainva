@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { renderMermaidDiagram, getRenderedMermaid } from "../services/mermaidRender";
+import { renderMermaidDiagram, getRenderedMermaid } from "@plainva/ui";
 
 /**
  * Renders a ```mermaid code block in read mode (P3.5). Rendering (lazy

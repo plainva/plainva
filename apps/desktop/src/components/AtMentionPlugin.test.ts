@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { CompletionContext } from "@codemirror/autocomplete";
-import { atMentionCompletionSource } from "./AtMentionPlugin";
+import { atMentionCompletionSource } from "@plainva/ui";
 
 function ctx(doc: string, pos = doc.length) {
   const state = EditorState.create({ doc });

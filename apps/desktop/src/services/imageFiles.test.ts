@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEditableImage, isImagePath, saveCanvasToVault } from "./imageFiles";
+import { isEditableImage, isImagePath, saveCanvasToVault } from "@plainva/ui";
 
 describe("image dispatch", () => {
   it("recognizes image extensions case-insensitively", () => {

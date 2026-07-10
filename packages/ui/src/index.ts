@@ -38,4 +38,39 @@ export * from "./platform/services";
 // React primitives and shared hooks
 export * from "./components/ui/index";
 export * from "./components/ui/useFixedPopover";
+export * from "./components/ui/ToastHost";
 export * from "./hooks/useFocusTrap";
+
+// Editor layer (M0.4): the CodeMirror session and its portable plugins.
+// Shell capabilities (file access, note embeds, URL opening) arrive through
+// EditorSessionDeps / PlatformServices — never through direct shell imports.
+export * from "./adapters/pathGuard";
+export * from "./components/AtMentionPlugin";
+export * from "./components/DocIcon";
+export * from "./components/ImagePreviewPlugin";
+export * from "./components/LivePreviewPlugin";
+export * from "./components/MarkdownTheme";
+export * from "./components/SlashCommandIcons";
+export * from "./components/SlashCommandPlugin";
+export * from "./components/WikiLinkPlugin";
+export * from "./components/blockHandles";
+export * from "./components/blockModel";
+export * from "./components/callouts";
+export * from "./components/documentHeader";
+export * from "./components/editorCompletion";
+export * from "./components/editorSession";
+export * from "./components/editorTriggers";
+export * from "./components/emojiData";
+export * from "./components/foldingExtension";
+export * from "./components/listIndent";
+export * from "./components/listKeymap";
+export * from "./components/lucideIconData";
+export * from "./components/mathMermaidLive";
+export * from "./components/searchSetup";
+export * from "./components/tableModel";
+export * from "./services/diagnosticsLog";
+export * from "./services/docMeta";
+export * from "./services/dynamicDate";
+export * from "./services/imageFiles";
+export * from "./services/mermaidRender";
+export * from "./services/toastStore";

@@ -9,7 +9,7 @@ import { TooltipHost, setPlatformServices } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getSettingsStore } from "./services/settingsStore";
 import { credentialManager } from "./services/CredentialManager";
-import { ToastHost } from "./components/ui/ToastHost";
+import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
 import { VaultProvider } from "./contexts/VaultContext";
@@ -18,7 +18,7 @@ import { initDensity } from "./services/density";
 import { initDefaultViewMode } from "./services/viewModeDefault";
 import { initInputModality } from "./services/inputModality";
 import { initWebviewHardening } from "./services/webviewHardening";
-import { installGlobalDiagnostics } from "./services/diagnosticsLog";
+import { installGlobalDiagnostics } from "@plainva/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Apply the persisted (or system) color theme before first paint.

@@ -14,7 +14,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { isImagePath } from "./services/imageFiles";
+import { isImagePath } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -39,7 +39,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appMessage } from "./services/appDialogs";
 import { confirmDeletion } from "./services/deleteConfirm";
-import { toast } from "./services/toastStore";
+import { toast } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";

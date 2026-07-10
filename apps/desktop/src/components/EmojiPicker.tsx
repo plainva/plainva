@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { EMOJI_CATEGORIES, searchEmoji } from "./emojiData";
-import type { EmojiCategoryId, EmojiEntry } from "./emojiData";
-import { searchLucideIcons, LUCIDE_ICONS } from "./lucideIconData";
-import { DocIcon } from "./DocIcon";
+import { EMOJI_CATEGORIES, searchEmoji } from "@plainva/ui";
+import type { EmojiCategoryId, EmojiEntry } from "@plainva/ui";
+import { searchLucideIcons, LUCIDE_ICONS } from "@plainva/ui";
+import { DocIcon } from "@plainva/ui";
 import { ACCENT_PALETTE } from "./palette";
 
 export interface EmojiPickerLabels {

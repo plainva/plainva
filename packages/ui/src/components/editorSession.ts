@@ -16,7 +16,6 @@ import {
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin } from "./WikiLinkPlugin";
-import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -24,9 +23,9 @@ import { listIndentPlugin } from "./listIndent";
 import { markdownFolding } from "./foldingExtension";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
-import { minimalDocChange } from "@plainva/ui";
-import { countWords } from "@plainva/ui";
-import { markdownToPlainText } from "@plainva/ui";
+import { minimalDocChange } from "../lib/textDiff";
+import { countWords } from "../lib/wordCount";
+import { markdownToPlainText } from "../lib/markdownToPlainText";
 import type { EditorTriggerDeps } from "./editorTriggers";
 
 /**
@@ -51,12 +50,29 @@ import type { EditorTriggerDeps } from "./editorTriggers";
 export type EditorSessionMode = "live" | "source";
 
 /** Mutable host bindings; the host refreshes `current` on every React render. */
+/**
+ * Context handed to the app shell's embed extension (notes/bases rendered
+ * inside the editor). Built by the session; the shell's embed plugin
+ * (desktop: NoteEmbedPlugin) consumes it — the session itself never
+ * imports app modules (ADR 0011).
+ */
+export interface EmbedHostContext {
+  i18n: I18nInstance;
+  readonly vaultContext: unknown;
+  readonly hostPath: string | undefined;
+  onOpenPath: (path: string, newTab: boolean) => void;
+}
+
 export interface EditorSessionDeps {
   queryService: ReturnType<EditorTriggerDeps["getQueryService"]>;
   /** Context snapshot for embedded notes/bases — read lazily at widget build time. */
   vaultContext: unknown;
   /** Path of the note being edited — the host for any base embedded in it. */
   hostPath?: string;
+  /** Reads a binary file for inline image previews (shell file access). */
+  readBinaryFile: (absolutePath: string) => Promise<Uint8Array>;
+  /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
+  buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
   onOpenPath?: (path: string, newTab: boolean) => void;
   openWikiTarget: (linkText: string, newTab: boolean) => void;
   openExternalUrl: (url: string) => void;
@@ -143,8 +159,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
           ]
         : [],
       markdownDecorationPlugin(isLive),
-      imagePreviewPlugin(cfg.vaultPath, isLive),
-      noteEmbedPlugin(embedContextProps, isLive),
+      imagePreviewPlugin(cfg.vaultPath, isLive, (path) => deps.current.readBinaryFile(path)),
+      deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab) => deps.current.openWikiTarget(target, newTab), isLive),
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on
       // screen, so copying the raw doc slice pastes Markdown noise. Strip it on

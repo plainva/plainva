@@ -3,9 +3,9 @@ import { Range, StateField, EditorState, Extension, EditorSelection, Facet } fro
 import { syntaxTree } from "@codemirror/language";
 import { parseCalloutMarker, calloutColorKey, calloutColor, calloutIconPath } from "./callouts";
 import { parseMarkdownTable, serializeTable, setCell, type TableModel, type TableAlign } from "./tableModel";
-import { renderInlineMarkdown, type InlineLinkHandlers } from "@plainva/ui";
+import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
-import i18n from "@plainva/ui/i18n";
+import i18n from "../i18n";
 
 const HIDE = Decoration.replace({});
 

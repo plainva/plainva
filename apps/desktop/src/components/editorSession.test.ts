@@ -8,8 +8,8 @@ vi.mock("../services/CredentialManager", () => ({ credentialManager: {} }));
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
 import { undoDepth } from "@codemirror/commands";
 import type { i18n as I18nInstance } from "i18next";
-import { createEditorSession, type EditorSession, type EditorSessionDeps } from "./editorSession";
-import { tableLinkHandlers } from "./LivePreviewPlugin";
+import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
+import { tableLinkHandlers } from "@plainva/ui";
 
 /**
  * Session-level regression tests for the editor-stability plan (2026-07-05).
@@ -75,6 +75,8 @@ function baseDeps(): EditorSessionDeps {
     onSelectionStats: vi.fn(),
     onPickIcon: vi.fn(),
     onPickColor: vi.fn(),
+    readBinaryFile: async () => new Uint8Array(),
+    buildNoteEmbedExtension: () => [],
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseListLine, continueList } from "./listKeymap";
+import { parseListLine, continueList } from "@plainva/ui";
 
 describe("parseListLine", () => {
   it("parses unordered items", () => {

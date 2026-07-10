@@ -10,7 +10,7 @@ import { Checkbox } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultData } from "../services/vaultForget";
-import { toast } from "../services/toastStore";
+import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "./PlainvaLogo";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";

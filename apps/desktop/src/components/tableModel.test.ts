@@ -10,7 +10,7 @@ import {
   insertColumn,
   deleteColumn,
   setColumnAlign,
-} from "./tableModel";
+} from "@plainva/ui";
 
 const sample = () =>
   parseMarkdownTable("| H1 | H2 |\n| :-- | --: |\n| a | b |\n| c | d |")!;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { frontmatterBlockOf, plainvaMetaFromContent } from "./docMeta";
+import { frontmatterBlockOf, plainvaMetaFromContent } from "@plainva/ui";
 
 describe("frontmatterBlockOf", () => {
   it("extracts the leading block", () => {

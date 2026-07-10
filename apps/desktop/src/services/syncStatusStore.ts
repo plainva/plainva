@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SyncStatus, SyncProgress } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
-import { logDiagnostic } from "./diagnosticsLog";
+import { logDiagnostic } from "@plainva/ui";
 
 /**
  * Sync status as a tiny external store (Gesamtplan Editor-Stabilitaet

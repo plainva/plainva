@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isWithinRoot, resolveVaultRelative } from "./pathGuard";
+import { isWithinRoot, resolveVaultRelative } from "@plainva/ui";
 
 describe("isWithinRoot (vault path traversal guard)", () => {
   it("accepts a path equal to the root", () => {
