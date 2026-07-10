@@ -1455,6 +1455,13 @@
     "noteInfo": "Informazioni sulla nota",
     "properties": "Proprietà",
     "backlinks": "Backlink",
-    "noBacklinks": "Nessun’altra nota punta ancora qui."
+    "noBacklinks": "Nessun’altra nota punta ancora qui.",
+    "conflictsBanner": "Conflitti di sincronizzazione: {{n}}",
+    "conflictResolve": "Risolvi conflitto di sincronizzazione",
+    "conflictHint": "Esistono due versioni di questa nota. I backup conservano ogni versione: nulla va perso definitivamente.",
+    "conflictOpenCopy": "Vedi la copia in conflitto",
+    "conflictKeepCopy": "Mantieni questa copia",
+    "conflictKeepOriginal": "Mantieni la nota attuale",
+    "lastSync": "Ultima sincronizzazione: {{time}}"
   }
 }

@@ -1450,6 +1450,13 @@
     "noteInfo": "Note info",
     "properties": "Properties",
     "backlinks": "Backlinks",
-    "noBacklinks": "No other note links here yet."
+    "noBacklinks": "No other note links here yet.",
+    "conflictsBanner": "Sync conflicts: {{n}}",
+    "conflictResolve": "Resolve sync conflict",
+    "conflictHint": "Two versions of this note exist. Backups keep every version, so nothing is lost for good.",
+    "conflictOpenCopy": "View the conflict copy",
+    "conflictKeepCopy": "Keep this copy",
+    "conflictKeepOriginal": "Keep the current note",
+    "lastSync": "Last synced: {{time}}"
   }
 }

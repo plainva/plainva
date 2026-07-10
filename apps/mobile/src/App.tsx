@@ -14,7 +14,7 @@ import {
   Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
-import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue } from "@plainva/ui";
+import { EmptyState, TextInput, renderSnippetNodes, useDebouncedValue, isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
@@ -388,6 +388,10 @@ function BrowseView({
   );
   const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
   const [moveFolders, setMoveFolders] = useState<string[]>([]);
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
+    null,
+  );
   const press = useLongPress((path, title) => setSheet({ path, title }));
   const folderPress = useLongPress((path, title) => setSheet({ path, title, isFolder: true }));
   useEffect(() => {
@@ -399,18 +403,31 @@ function BrowseView({
       void vaultOps.recent(vault, 2).then((r) => {
         if (!stale) setRecent(r);
       });
+      // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
+      if (vault.queryService) {
+        void vault.queryService.listNotes().then((rows) => {
+          if (!stale) setConflicts(rows.map((r) => r.path).filter(isConflictCopyPath));
+        });
+      }
     }
     return () => {
       stale = true;
     };
   }, [vault, folder, bump]);
 
-  const noteRow = (n: { path: string; title: string }) => (
+  const noteRow = (n: { path: string; title: string }) => {
+    const conflict = isConflictCopyPath(n.path);
+    return (
     <button
       className="m-row"
       key={n.path}
       onClick={() => {
-        if (press.clicked()) onOpenNote(n.path);
+        if (!press.clicked()) return;
+        if (conflict) {
+          setConflictSheet({ path: n.path, original: conflictOriginalPath(n.path) ?? n.path });
+        } else {
+          onOpenNote(n.path);
+        }
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -421,10 +438,28 @@ function BrowseView({
       onPointerLeave={press.clear}
       onPointerUp={press.clear}
     >
-      <FileText size={16} />
+      {conflict ? <AlertTriangle className="m-warn" size={16} /> : <FileText size={16} />}
       <span>{n.title}</span>
     </button>
-  );
+    );
+  };
+
+  // Conflict resolution (P5): both branches drop exactly one version, but
+  // every write/delete goes through the backup adapter, so nothing is lost
+  // for good. "Keep this copy" promotes the conflict text into the note.
+  const resolveConflict = (keepCopy: boolean) => {
+    const target = conflictSheet;
+    if (!target) return;
+    setConflictSheet(null);
+    void (async () => {
+      if (keepCopy) {
+        const text = await vaultOps.read(vault, target.path);
+        await vaultOps.save(vault, target.original, text);
+      }
+      await vaultOps.remove(vault, target.path);
+      setConflicts((c) => c.filter((p) => p !== target.path));
+    })();
+  };
 
   const createFolder = () => {
     void (async () => {
@@ -524,6 +559,20 @@ function BrowseView({
         </button>
         <SyncIndicator />
       </header>
+      {!folder && conflicts.length > 0 && (
+        <button
+          className="m-conflictbanner"
+          onClick={() =>
+            setConflictSheet({
+              path: conflicts[0],
+              original: conflictOriginalPath(conflicts[0]) ?? conflicts[0],
+            })
+          }
+        >
+          <AlertTriangle size={16} />
+          <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
+        </button>
+      )}
       {recent.length > 0 && (
         <>
           <p className="m-sectionlabel">{t("mobile.recent")}</p>
@@ -608,6 +657,34 @@ function BrowseView({
             >
               <Trash2 size={16} />
               <span>{sheet.isFolder ? t("mobile.deleteFolder") : t("mobile.deleteNote")}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {conflictSheet && (
+        <div className="m-sheet-backdrop" onClick={() => setConflictSheet(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
+            <p className="m-hint">{t("mobile.conflictHint")}</p>
+            <button
+              className="m-row"
+              onClick={() => {
+                const p = conflictSheet.path;
+                setConflictSheet(null);
+                onOpenNote(p);
+              }}
+            >
+              <FileText size={16} />
+              <span>{t("mobile.conflictOpenCopy")}</span>
+            </button>
+            <button className="m-row" onClick={() => resolveConflict(true)}>
+              <Check size={16} />
+              <span>{t("mobile.conflictKeepCopy")}</span>
+            </button>
+            <button className="m-row" onClick={() => resolveConflict(false)}>
+              <Trash2 size={16} />
+              <span>{t("mobile.conflictKeepOriginal")}</span>
             </button>
           </div>
         </div>

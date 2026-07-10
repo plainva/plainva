@@ -184,7 +184,19 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       },
     });
     queryService = new VaultQueryService(db);
-    await indexer.indexVaultFull();
+    // Warm index (P5): a vault that was indexed before boots straight from
+    // the database — the full pass runs in the background and refreshes the
+    // UI when done. A cold/empty index still blocks so the tree is never
+    // empty on first open.
+    const warm = ((await db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM files"))?.n ?? 0) > 0;
+    if (warm) {
+      void indexer
+        .indexVaultFull()
+        .then(() => window.dispatchEvent(new CustomEvent("m-vault-changed")))
+        .catch(() => {});
+    } else {
+      await indexer.indexVaultFull();
+    }
     searchAvailable = true;
   } catch (err) {
     console.warn("[mobile] index unavailable (expected on the plain web dev server)", err);

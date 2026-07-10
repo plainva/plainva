@@ -1450,6 +1450,13 @@
     "noteInfo": "Notitie-info",
     "properties": "Eigenschappen",
     "backlinks": "Backlinks",
-    "noBacklinks": "Nog geen andere notitie verwijst hierheen."
+    "noBacklinks": "Nog geen andere notitie verwijst hierheen.",
+    "conflictsBanner": "Synchronisatieconflicten: {{n}}",
+    "conflictResolve": "Synchronisatieconflict oplossen",
+    "conflictHint": "Er bestaan twee versies van deze notitie. Back-ups bewaren elke versie, dus niets gaat definitief verloren.",
+    "conflictOpenCopy": "Conflictkopie bekijken",
+    "conflictKeepCopy": "Deze kopie behouden",
+    "conflictKeepOriginal": "Huidige notitie behouden",
+    "lastSync": "Laatst gesynchroniseerd: {{time}}"
   }
 }

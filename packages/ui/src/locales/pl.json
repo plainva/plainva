@@ -1460,6 +1460,13 @@
     "noteInfo": "Informacje o notatce",
     "properties": "Właściwości",
     "backlinks": "Linki zwrotne",
-    "noBacklinks": "Żadna inna notatka jeszcze tu nie linkuje."
+    "noBacklinks": "Żadna inna notatka jeszcze tu nie linkuje.",
+    "conflictsBanner": "Konflikty synchronizacji: {{n}}",
+    "conflictResolve": "Rozwiąż konflikt synchronizacji",
+    "conflictHint": "Istnieją dwie wersje tej notatki. Kopie zapasowe zachowują każdą wersję — nic nie ginie bezpowrotnie.",
+    "conflictOpenCopy": "Zobacz kopię konfliktu",
+    "conflictKeepCopy": "Zachowaj tę kopię",
+    "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
+    "lastSync": "Ostatnia synchronizacja: {{time}}"
   }
 }

@@ -1445,6 +1445,13 @@
     "noteInfo": "笔记信息",
     "properties": "属性",
     "backlinks": "反向链接",
-    "noBacklinks": "还没有其他笔记链接到这里。"
+    "noBacklinks": "还没有其他笔记链接到这里。",
+    "conflictsBanner": "同步冲突：{{n}}",
+    "conflictResolve": "解决同步冲突",
+    "conflictHint": "此笔记存在两个版本。备份会保留每个版本，不会永久丢失任何内容。",
+    "conflictOpenCopy": "查看冲突副本",
+    "conflictKeepCopy": "保留此副本",
+    "conflictKeepOriginal": "保留当前笔记",
+    "lastSync": "上次同步：{{time}}"
   }
 }

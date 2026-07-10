@@ -11,6 +11,7 @@ import {
   type WebDavCredentials,
 } from "@plainva/core";
 import { getPlatformServices } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import {
@@ -72,14 +73,17 @@ export type MobileSyncStatus = "off" | "idle" | "syncing" | "error";
 interface SyncState {
   status: MobileSyncStatus;
   message: string | null;
+  /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
+  lastSyncAt: number | null;
 }
 
-let state: SyncState = { status: "off", message: null };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null };
 const listeners = new Set<() => void>();
 let worker: SyncWorker | null = null;
 
-function setState(next: SyncState): void {
-  state = next;
+function setState(next: { status: MobileSyncStatus; message: string | null }): void {
+  const finished = state.status === "syncing" && next.status === "idle";
+  state = { ...next, lastSyncAt: finished ? Date.now() : state.lastSyncAt };
   for (const l of listeners) l();
 }
 
@@ -275,13 +279,15 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   };
   w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-    // MVP dialog via the Dialog plugin (window.confirm silently returns
+    // Native dialog via the Dialog plugin (window.confirm silently returns
     // false in the Capacitor 8 WebView); Cancel takes the safe restore
-    // branch.
+    // branch. Localized with the shared sync.massDelete* strings (P5).
     void import("@capacitor/dialog").then(async ({ Dialog }) => {
       const { value } = await Dialog.confirm({
-        title: "Sync",
-        message: `${pendingDeletes}/${syncedTotal} synced files are queued for REMOTE deletion. Delete them in the cloud? Cancel restores them from the remote.`,
+        title: i18n.t("sync.massDeleteTitle"),
+        message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
+        okButtonTitle: i18n.t("sync.massDeleteConfirm"),
+        cancelButtonTitle: i18n.t("sync.massDeleteRestore"),
       });
       if (value) w.approveMassDeletion();
       else void w.discardMassDeletion();

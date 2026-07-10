@@ -1450,6 +1450,13 @@
     "noteInfo": "Notiz-Infos",
     "properties": "Eigenschaften",
     "backlinks": "Backlinks",
-    "noBacklinks": "Noch keine andere Notiz verlinkt hierher."
+    "noBacklinks": "Noch keine andere Notiz verlinkt hierher.",
+    "conflictsBanner": "Sync-Konflikte: {{n}}",
+    "conflictResolve": "Sync-Konflikt lösen",
+    "conflictHint": "Von dieser Notiz existieren zwei Versionen. Backups bewahren jede Version — nichts geht endgültig verloren.",
+    "conflictOpenCopy": "Konfliktkopie ansehen",
+    "conflictKeepCopy": "Diese Kopie übernehmen",
+    "conflictKeepOriginal": "Aktuelle Notiz behalten",
+    "lastSync": "Zuletzt synchronisiert: {{time}}"
   }
 }

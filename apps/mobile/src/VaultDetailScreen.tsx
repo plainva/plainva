@@ -130,6 +130,16 @@ export function VaultDetailScreen({
           </div>
         )}
         {isActive && status.message && <p className="m-sync-error">{status.message}</p>}
+        {isActive && status.lastSyncAt !== null && (
+          <p className="m-hint">
+            {t("mobile.lastSync", {
+              time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            })}
+          </p>
+        )}
 
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (

@@ -386,6 +386,24 @@ body {
   text-overflow: ellipsis;
   text-align: right;
 }
+/* P5: sync conflict surfaces */
+.m-warn {
+  color: var(--warning-text);
+}
+.m-conflictbanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 8px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--warning-border);
+  border-radius: 10px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 0.9rem;
+  text-align: left;
+}
 .m-basetable-wrap {
   overflow-x: auto;
   padding: 0 16px 16px;

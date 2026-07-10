@@ -1445,6 +1445,13 @@
     "noteInfo": "ノート情報",
     "properties": "プロパティ",
     "backlinks": "バックリンク",
-    "noBacklinks": "まだ他のノートからのリンクはありません。"
+    "noBacklinks": "まだ他のノートからのリンクはありません。",
+    "conflictsBanner": "同期の競合: {{n}}",
+    "conflictResolve": "同期の競合を解決",
+    "conflictHint": "このノートには 2 つのバージョンがあります。バックアップがすべてのバージョンを保持するため、完全に失われることはありません。",
+    "conflictOpenCopy": "競合コピーを表示",
+    "conflictKeepCopy": "このコピーを採用",
+    "conflictKeepOriginal": "現在のノートを維持",
+    "lastSync": "最終同期: {{time}}"
   }
 }
