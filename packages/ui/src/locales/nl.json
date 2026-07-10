@@ -209,7 +209,13 @@
     "fontCustomPlaceholder": "Naam van een geïnstalleerd lettertype",
     "uiZoom": "Interfacezoom",
     "uiZoomDesc": "Schaalt de hele interface. Ook via Ctrl/Cmd + Plus/Min; 0 herstelt.",
-    "uiZoomDefault": "Standaard"
+    "uiZoomDefault": "Standaard",
+    "perfMetrics": "Prestatiemetingen",
+    "perfMetricsDesc": "Lokale meetpunten van deze sessie (mediaan/p95 in ms) — verlaten het apparaat nooit.",
+    "perfMetricsRefresh": "Tonen/vernieuwen",
+    "perfMetricsExport": "Exporteren als JSON…",
+    "perfMetricPoint": "Meetpunt",
+    "perfMetricsEmpty": "Nog geen metingen in deze sessie."
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",

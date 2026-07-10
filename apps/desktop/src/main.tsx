@@ -41,6 +41,9 @@ initInputModality();
 initWebviewHardening();
 // Uncaught errors feed the diagnostics export (P4.2, no note content).
 installGlobalDiagnostics();
+// Local perf sampling (hardening P1.1): typing keystroke→frame latency for
+// the "About & diagnostics" table — on-device only, never transmitted.
+void import("./services/perfMetrics").then(({ installTypingLatencySampler }) => installTypingLatencySampler());
 // Register the platform capabilities (ADR 0011): shared code in @plainva/ui
 // reaches settings, secrets and URL-opening only through this injected bundle.
 setPlatformServices({

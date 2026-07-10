@@ -272,6 +272,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     return () => { alive = false; };
   }, [queryService]);
 
+  const [perfStats, setPerfStats] = useState<import("../services/perfMetrics").PerfStat[] | null>(null);
+  const refreshPerfStats = async () => {
+    const { perfStats: read } = await import("../services/perfMetrics");
+    setPerfStats(read());
+  };
+  const handleExportPerfMetrics = async () => {
+    try {
+      const { perfExportJson } = await import("../services/perfMetrics");
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const target = await save({ defaultPath: "plainva-perf.json", filters: [{ name: "JSON", extensions: ["json"] }] });
+      if (!target) return;
+      await writeTextFile(target, perfExportJson());
+      toast.success(t("settings.diagnosticsExported"));
+    } catch (e) {
+      console.error("[Settings] perf export failed", e);
+    }
+  };
+
   const handleExportDiagnostics = async () => {
     try {
       const { save } = await import("@tauri-apps/plugin-dialog");
@@ -1360,6 +1379,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         >
                           <span />
                         </SettingRow>
+                      )}
+                      <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <Button variant="secondary" size="sm" onClick={() => { void refreshPerfStats(); }}>
+                            {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => { void handleExportPerfMetrics(); }}>
+                            {t("settings.perfMetricsExport", { defaultValue: "Als JSON exportieren…" })}
+                          </Button>
+                        </div>
+                      </SettingRow>
+                      {perfStats && perfStats.length > 0 && (
+                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: "left", padding: "2px 8px 2px 0" }}>{t("settings.perfMetricPoint", { defaultValue: "Messpunkt" })}</th>
+                                <th style={{ textAlign: "right", padding: "2px 8px" }}>n</th>
+                                <th style={{ textAlign: "right", padding: "2px 8px" }}>Median</th>
+                                <th style={{ textAlign: "right", padding: "2px 8px" }}>p95</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {perfStats.map((s) => (
+                                <tr key={s.name}>
+                                  <td style={{ padding: "2px 8px 2px 0" }}>{s.name}</td>
+                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.count}</td>
+                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.medianMs} ms</td>
+                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.p95Ms} ms</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {perfStats && perfStats.length === 0 && (
+                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                          {t("settings.perfMetricsEmpty", { defaultValue: "Noch keine Messwerte in dieser Sitzung." })}
+                        </div>
                       )}
                       <SettingRow label={t("settings.reportIssue")} desc={t("settings.reportIssueDesc")}>
                         <Button variant="secondary" size="sm" onClick={() => { void handleReportIssue(); }}>

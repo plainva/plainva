@@ -402,7 +402,8 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // Fresh/empty index: block with progress so the tree isn't empty. Every file is
         // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
         // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        await indexer.indexVaultFull();
+        const { perfMeasure } = await import("../services/perfMetrics");
+        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull());
         reportInitialProgress = false;
         deferInitialEnqueue = false;
       }

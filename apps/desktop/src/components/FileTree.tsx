@@ -408,7 +408,8 @@ export const FileTree: React.FC<{
           if (!cancelled) setFiles((prev) => (sameTreeFiles(prev, allFiles) ? prev : allFiles));
         } else {
           // FTS5 search — prefix matching + snippets/title highlight (P1/P2).
-          const results = await queryService.searchFullText(effectiveQuery);
+          const { perfMeasure } = await import("../services/perfMetrics");
+          const results = await perfMeasure("sidebar search", () => queryService.searchFullText(effectiveQuery));
           if (!cancelled) {
             setFiles(results.map(r => ({
               path: r.path,

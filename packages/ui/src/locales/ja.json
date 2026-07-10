@@ -209,7 +209,13 @@
     "fontCustomPlaceholder": "インストール済みフォント名",
     "uiZoom": "UI ズーム",
     "uiZoomDesc": "UI 全体を拡大縮小します。Ctrl/Cmd + プラス/マイナスでも操作可、0 でリセット。",
-    "uiZoomDefault": "標準"
+    "uiZoomDefault": "標準",
+    "perfMetrics": "パフォーマンス計測",
+    "perfMetricsDesc": "このセッションのローカル計測ポイント（中央値/p95、ミリ秒）。端末の外へは送信されません。",
+    "perfMetricsRefresh": "表示/更新",
+    "perfMetricsExport": "JSON としてエクスポート…",
+    "perfMetricPoint": "計測ポイント",
+    "perfMetricsEmpty": "このセッションの計測データはまだありません。"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",

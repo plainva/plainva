@@ -209,7 +209,13 @@
     "fontCustomPlaceholder": "Name of an installed font",
     "uiZoom": "Interface zoom",
     "uiZoomDesc": "Scales the entire interface. Also via Ctrl/Cmd + Plus/Minus; 0 resets.",
-    "uiZoomDefault": "Default"
+    "uiZoomDefault": "Default",
+    "perfMetrics": "Performance metrics",
+    "perfMetricsDesc": "Local measurement points of this session (median/p95 in ms) — they never leave the device.",
+    "perfMetricsRefresh": "Show/refresh",
+    "perfMetricsExport": "Export as JSON…",
+    "perfMetricPoint": "Measurement point",
+    "perfMetricsEmpty": "No measurements in this session yet."
   },
   "editor": {
     "fileNotFound": "File not found",

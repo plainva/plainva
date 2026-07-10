@@ -309,7 +309,9 @@ export function BaseViewer({
     const views = Array.isArray(cfg?.views) ? cfg.views : [];
     const active = views[idx] || views[0] || {};
     const merged = { ...cfg, filters: combineFilters(cfg?.filters, active?.filters), views: [active] };
-    return queryService.queryDatabaseFiles(merged);
+    return import("../services/perfMetrics").then(({ perfMeasure }) =>
+      perfMeasure("base query", () => queryService.queryDatabaseFiles(merged))
+    );
   };
 
   // Re-query when the index changes (P9): counterpart edits — reverse-column

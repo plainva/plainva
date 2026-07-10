@@ -209,7 +209,13 @@
     "fontCustomPlaceholder": "Nombre de una fuente instalada",
     "uiZoom": "Zoom de la interfaz",
     "uiZoomDesc": "Escala toda la interfaz. También con Ctrl/Cmd + Más/Menos; 0 restablece.",
-    "uiZoomDefault": "Predeterminado"
+    "uiZoomDefault": "Predeterminado",
+    "perfMetrics": "Métricas de rendimiento",
+    "perfMetricsDesc": "Puntos de medición locales de esta sesión (mediana/p95 en ms); nunca salen del dispositivo.",
+    "perfMetricsRefresh": "Mostrar/actualizar",
+    "perfMetricsExport": "Exportar como JSON…",
+    "perfMetricPoint": "Punto de medición",
+    "perfMetricsEmpty": "Aún no hay mediciones en esta sesión."
   },
   "editor": {
     "fileNotFound": "Archivo no encontrado",

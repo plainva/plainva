@@ -209,7 +209,13 @@
     "fontCustomPlaceholder": "已安装字体的名称",
     "uiZoom": "界面缩放",
     "uiZoomDesc": "缩放整个界面。也可用 Ctrl/Cmd + 加/减；0 重置。",
-    "uiZoomDefault": "默认"
+    "uiZoomDefault": "默认",
+    "perfMetrics": "性能指标",
+    "perfMetricsDesc": "本次会话的本地测量点（中位数/p95，毫秒）——绝不离开设备。",
+    "perfMetricsRefresh": "显示/刷新",
+    "perfMetricsExport": "导出为 JSON…",
+    "perfMetricPoint": "测量点",
+    "perfMetricsEmpty": "本次会话还没有测量数据。"
   },
   "editor": {
     "fileNotFound": "未找到文件",
