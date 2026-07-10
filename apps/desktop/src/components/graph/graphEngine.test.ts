@@ -189,15 +189,78 @@ describe("graphEngine", () => {
     expect(scene.getNodePositions().get("center.md")).toEqual({ x: 150, y: 140 });
   });
 
-  it("selects nodes inside a shift-lasso", () => {
+  it("selects nodes inside a lasso when lassoOnEmptyDrag is enabled", () => {
+    scene.destroy();
+    scene = createGraphScene(canvas, depsRef, { lassoOnEmptyDrag: true });
+    scene.setData(NODES, EDGES);
     const onLassoSelect = vi.fn();
     depsRef.current = { ...deps, onLassoSelect };
-    pointer(canvas, "pointerdown", { clientX: 50, clientY: 50, shiftKey: true });
+    // Empty-area left-drag (no modifier) draws the lasso now.
+    pointer(canvas, "pointerdown", { clientX: 50, clientY: 50 });
     pointer(canvas, "pointermove", { clientX: 220, clientY: 220 });
     pointer(canvas, "pointerup", { clientX: 220, clientY: 220 });
     expect(onLassoSelect).toHaveBeenCalledTimes(1);
     const ids = onLassoSelect.mock.calls[0][0] as string[];
     expect(ids.sort()).toEqual(["center.md", "near.md"]);
+  });
+
+  it("pans with the middle button and with Ctrl+left, even over a node", () => {
+    // Middle-button drag over empty space pans.
+    pointer(canvas, "pointerdown", { clientX: 500, clientY: 500, button: 1 });
+    pointer(canvas, "pointermove", { clientX: 520, clientY: 480, button: 1 });
+    pointer(canvas, "pointerup", { clientX: 520, clientY: 480, button: 1 });
+    expect(scene.getTransform()).toMatchObject({ x: 20, y: -20 });
+
+    // Ctrl+left starting on a node pans instead of moving the node.
+    scene.setTransform({ x: 0, y: 0, k: 1 });
+    const before = scene.getNodePositions().get("center.md");
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100, ctrlKey: true });
+    pointer(canvas, "pointermove", { clientX: 140, clientY: 100, ctrlKey: true });
+    pointer(canvas, "pointerup", { clientX: 140, clientY: 100, ctrlKey: true });
+    expect(scene.getTransform()).toMatchObject({ x: 40, y: 0 });
+    expect(scene.getNodePositions().get("center.md")).toEqual(before);
+  });
+
+  it("keeps a Ctrl+click without drag on a node as a click, not a pan", () => {
+    const onNodeClick = vi.fn();
+    depsRef.current = { ...deps, onNodeClick };
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100, ctrlKey: true });
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 100, ctrlKey: true });
+    expect(onNodeClick).toHaveBeenCalledTimes(1);
+    expect(onNodeClick.mock.calls[0][0]).toBe("center.md");
+    expect(onNodeClick.mock.calls[0][1].ctrl).toBe(true);
+  });
+
+  it("moves the whole selection when dragging a selected node and reports every move", () => {
+    const onNodesDragEnd = vi.fn();
+    const onNodeDragEnd = vi.fn();
+    depsRef.current = { ...deps, onNodesDragEnd, onNodeDragEnd };
+    scene.setSelection(["center.md", "right.md"]);
+    // Drag center.md by (50, 20); right.md shifts by the same world delta.
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100 });
+    pointer(canvas, "pointermove", { clientX: 150, clientY: 120 });
+    pointer(canvas, "pointerup", { clientX: 150, clientY: 120 });
+    expect(onNodeDragEnd).not.toHaveBeenCalled();
+    expect(onNodesDragEnd).toHaveBeenCalledTimes(1);
+    const moves = onNodesDragEnd.mock.calls[0][0] as { id: string; x: number; y: number }[];
+    const byId = Object.fromEntries(moves.map((m) => [m.id, m]));
+    expect(byId["center.md"]).toEqual({ id: "center.md", x: 150, y: 120 });
+    expect(byId["right.md"]).toEqual({ id: "right.md", x: 350, y: 120 });
+    expect(scene.getNodePositions().get("right.md")).toEqual({ x: 350, y: 120 });
+  });
+
+  it("drags a single unselected node without moving the current selection", () => {
+    const onNodesDragEnd = vi.fn();
+    const onNodeDragEnd = vi.fn();
+    depsRef.current = { ...deps, onNodesDragEnd, onNodeDragEnd };
+    scene.setSelection(["right.md", "below.md"]); // center.md is NOT selected
+    const rightBefore = scene.getNodePositions().get("right.md");
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100 }); // center.md
+    pointer(canvas, "pointermove", { clientX: 130, clientY: 100 });
+    pointer(canvas, "pointerup", { clientX: 130, clientY: 100 });
+    expect(onNodesDragEnd).not.toHaveBeenCalled();
+    expect(onNodeDragEnd).toHaveBeenCalledWith("center.md", 130, 100);
+    expect(scene.getNodePositions().get("right.md")).toEqual(rightBefore);
   });
 
   it("pans on background drag and zooms around the wheel position", () => {

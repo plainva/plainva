@@ -9,6 +9,7 @@ import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
 import { buildContextScene, sceneHasContent, scenePathOf, type ContextData } from "./contextScene";
+import { PinModeToggle } from "./PinModeToggle";
 
 /**
  * Context graph (sidebar section, TheBrain pattern): the active note in the
@@ -54,6 +55,8 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
   // Pins are keyed per active note — the context graph's content IS that note's
   // neighborhood, so each note remembers its own hand-arranged layout.
   const pinContext = activePath ? `context:${activePath}` : "";
+  const [pinMode, setPinModeState] = useState(true);
+  const [pinsTick, setPinsTick] = useState(0);
 
   // ---- data ----------------------------------------------------------------
 
@@ -146,7 +149,9 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
   // and the view never re-fits mid-arrangement.
   const sceneModel = useMemo(
     () => (data && activePath ? buildContextScene(data, activePath, graphState?.getPins(pinContext) ?? {}) : null),
-    [data, activePath, graphState, pinContext]
+    // pinsTick re-runs after clearing this note's pins (pin mode toggled off).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, activePath, graphState, pinContext, pinsTick]
   );
   const hasConnections = sceneHasContent(sceneModel);
 
@@ -168,7 +173,7 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
       onNodeDragEnd: (id, x, y) => {
         // The focus note is always re-centered on rebuild; overflow markers
         // ("+N", index-less folder chains) are not real notes — pin neither.
-        if (!graphState || id === activePath || scenePathOf(id) === null) return;
+        if (!graphState || !pinMode || id === activePath || scenePathOf(id) === null) return;
         graphState.setPin(pinContext, id, { x, y });
         // Show the pin dot immediately without rebuilding/re-fitting the scene;
         // the position itself is already held by the engine for this session.
@@ -182,6 +187,18 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
   // drop. Navigating between notes keeps the section mounted, so the debounce
   // fires normally there.
   useEffect(() => () => void graphState?.flush(), [graphState]);
+
+  // Sync the pin mode for the active note (load is idempotent).
+  useEffect(() => {
+    if (!graphState || !pinContext) return;
+    let alive = true;
+    void graphState.load().then(() => {
+      if (alive) setPinModeState(graphState.getPinMode(pinContext));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [graphState, pinContext]);
 
   // The scene is created ONLY while the canvas is actually mounted AND visible
   // (hasConnections → the canvas renders display:block, never display:none).
@@ -256,6 +273,19 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
     [graphState]
   );
 
+  const togglePinMode = useCallback(() => {
+    setPinModeState((prev) => {
+      const next = !prev;
+      graphState?.setPinMode(pinContext, next);
+      if (!next) {
+        // Turning the mode off discards this note's saved arrangement.
+        graphState?.clearPins(pinContext);
+        setPinsTick((n) => n + 1);
+      }
+      return next;
+    });
+  }, [graphState, pinContext]);
+
   // ---- render ----------------------------------------------------------------
 
   if (!activePath || !/\.md$/i.test(activePath)) {
@@ -270,14 +300,17 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
       {hasConnections ? (
         // Mounted only when visible — never display:none (see the scene effect).
-        <canvas
-          ref={canvasRef}
-          tabIndex={0}
-          role="application"
-          aria-label={t("graph.contextAria", { defaultValue: "Kontext-Graph der aktiven Notiz" })}
-          data-testid="graph-context-canvas"
-          style={{ width: "100%", height: CANVAS_HEIGHT, display: "block", borderRadius: "var(--radius-md)", background: "var(--bg-primary)", outline: "none" }}
-        />
+        <div style={{ position: "relative" }}>
+          <canvas
+            ref={canvasRef}
+            tabIndex={0}
+            role="application"
+            aria-label={t("graph.contextAria", { defaultValue: "Kontext-Graph der aktiven Notiz" })}
+            data-testid="graph-context-canvas"
+            style={{ width: "100%", height: CANVAS_HEIGHT, display: "block", borderRadius: "var(--radius-md)", background: "var(--bg-primary)", outline: "none" }}
+          />
+          <PinModeToggle active={pinMode} onToggle={togglePinMode} />
+        </div>
       ) : (
         <div style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", padding: "var(--space-2) 0" }}>
           {t("graph.noConnections", { defaultValue: "Noch keine Verbindungen — verlinke diese Notiz oder nimm einen Vorschlag an." })}

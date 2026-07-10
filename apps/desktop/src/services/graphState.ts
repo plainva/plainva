@@ -18,6 +18,12 @@ export interface GraphPin {
 interface GraphStateFile {
   version: 1;
   pins: Record<string, Record<string, GraphPin>>;
+  /**
+   * Per-context pin mode. Absent/true = ON (dragging a node remembers its
+   * position, the historical behavior); false = OFF (drags are ephemeral).
+   * Only explicit OFF is stored, so the default stays ON for every context.
+   */
+  pinModes?: Record<string, boolean>;
   dismissedSuggestions: string[];
   /** Last active vault-map overlay mode ("normal" | "heatmap" | "replay"). */
   mapMode?: string;
@@ -53,6 +59,12 @@ export class GraphStateStore {
         this.state = {
           version: 1,
           pins: typeof parsed.pins === "object" && parsed.pins !== null ? (parsed.pins as GraphStateFile["pins"]) : {},
+          pinModes:
+            typeof parsed.pinModes === "object" && parsed.pinModes !== null
+              ? (Object.fromEntries(
+                  Object.entries(parsed.pinModes).filter(([, v]) => typeof v === "boolean")
+                ) as GraphStateFile["pinModes"])
+              : undefined,
           dismissedSuggestions: Array.isArray(parsed.dismissedSuggestions)
             ? parsed.dismissedSuggestions.filter((s): s is string => typeof s === "string")
             : [],
@@ -114,6 +126,27 @@ export class GraphStateStore {
 
   clearPins(context: string): void {
     delete this.state.pins[context];
+    this.persistSoon();
+    this.emit();
+  }
+
+  /** Pin mode for a context. Default ON: drags are remembered. */
+  getPinMode(context: string): boolean {
+    return this.state.pinModes?.[context] ?? true;
+  }
+
+  /** OFF is stored explicitly; turning back ON drops the entry so the file
+   *  keeps only real deviations from the default. */
+  setPinMode(context: string, on: boolean): void {
+    if (on) {
+      if (this.state.pinModes) {
+        delete this.state.pinModes[context];
+        if (Object.keys(this.state.pinModes).length === 0) delete this.state.pinModes;
+      }
+    } else {
+      if (!this.state.pinModes) this.state.pinModes = {};
+      this.state.pinModes[context] = false;
+    }
     this.persistSoon();
     this.emit();
   }

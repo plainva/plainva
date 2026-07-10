@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 El grafo de Plainva es una herramienta de trabajo, no un póster: te muestra dónde estás, qué está conectado, qué falta — y puedes actuar directamente sobre ello. Hay UN único motor de grafo con tres caras.
 
@@ -10,12 +10,12 @@ Abre la sección **Grafo** en la barra lateral derecha. Muestra la nota activa e
 
 - Al hacer clic en un nodo se abre la nota (el foco gira contigo).
 - Ctrl/Cmd+clic abre en un panel dividido, el clic central en una pestaña nueva.
-- Arrastra un nodo a otro lugar y queda anclado (punto pequeño), guardado por nota — al volver a abrir esa nota, tu disposición reaparece. La nota activa siempre permanece en el centro.
+- Arrastra un nodo a otro lugar y queda anclado (punto pequeño), guardado por nota — al volver a abrir esa nota, tu disposición reaparece. La nota activa siempre permanece en el centro. El **icono de anclaje** de la esquina superior derecha activa y desactiva el recordado; al desactivarlo se descarta la disposición guardada de esta nota.
 - Debajo aparecen hasta tres **sugerencias**: notas que mencionan tu nota activa (pero no la enlazan), que suelen enlazarse junto a ella, que comparten un vecindario similar o que comparten una etiqueta rara. Donde el título aparece como texto en la nota que estás editando, la sugerencia muestra una **vista previa del pasaje** que se enlazaría; **Enlazar** convierte exactamente ese pasaje en un enlace wiki (como `[[Destino|texto]]` cuando el texto visible difiere del destino). Si no hay ningún pasaje coincidente, el enlace se añade al final de la nota (la vista previa lo indica). **Descartar sugerencia** recuerda tu decisión.
 
 ## Mapa del vault (su propia pestaña)
 
-Abre el mapa con **Ctrl/Cmd+Shift+G**, mediante el icono de grafo en la **barra de acciones** en el extremo izquierdo, o desde la paleta de comandos (**Abrir grafo**). Se abre en su propia pestaña. En lugar de una maraña, ves tu estructura real de carpetas como burbujas — haz doble clic en una burbuja para desplegar sus notas, **Contraer todas las carpetas** vuelve atrás. La disposición es determinista: el mismo mapa se ve igual cada vez que lo abres. Arrastra un nodo y queda anclado (punto pequeño); **Restablecer disposición** borra todos los anclajes. Los anclajes se guardan por dispositivo.
+Abre el mapa con **Ctrl/Cmd+Shift+G**, mediante el icono de grafo en la **barra de acciones** en el extremo izquierdo, o desde la paleta de comandos (**Abrir grafo**). Se abre en su propia pestaña. En lugar de una maraña, ves tu estructura real de carpetas como burbujas — haz doble clic en una burbuja para desplegar sus notas, **Contraer todas las carpetas** vuelve atrás. La disposición es determinista: el mismo mapa se ve igual cada vez que lo abres. **Desplaza el mapa** con el botón central del ratón o Ctrl/Cmd+arrastrar, y haz **zoom** con la rueda del ratón. Arrastra un nodo y queda anclado (punto pequeño). En la esquina superior derecha, el **icono de anclaje** activa y desactiva el recordado: desactívalo y se descarta la disposición guardada de esta vista, y vuelve la disposición automática (lo mismo que **Restablecer disposición** en el menú del clic derecho). Los anclajes se guardan por dispositivo.
 
 Herramientas en la barra de encabezado:
 
@@ -31,7 +31,7 @@ Trabajando en el mapa:
 - Clic derecho en un nodo: Abrir, Vista rápida, Abrir en división, **Nueva nota conectada**, Renombrar (con actualización de enlaces en todo el vault), Marcador, Eliminar.
 - Clic derecho en un espacio vacío: **Nueva nota**, Restablecer disposición, **Exportar como PNG/SVG**.
 - Al hacer clic en un haz de aristas entre carpetas se listan los enlaces individuales; al pasar el cursor sobre una arista se muestra la frase en la que vive el enlace.
-- Mayús+arrastrar selecciona varias notas (pie de página: marcador/eliminar la selección).
+- **Arrastrar sobre un espacio vacío** dibuja un rectángulo de selección y marca varias notas (Mayús+arrastrar amplía una selección existente); arrastra después uno de los nodos marcados y todos se moverán juntos. El pie de página ofrece marcador/eliminar para la selección.
 
 ## Limpieza
 

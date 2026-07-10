@@ -1219,6 +1219,8 @@
     "noResults": "Geen opdracht gevonden"
   },
   "graph": {
+    "pinModeOn": "Posities worden onthouden — klik om te verwerpen",
+    "pinModeOff": "Posities worden niet onthouden — klik om te onthouden",
     "noActiveNote": "Geen notitie geopend.",
     "contextAria": "Contextgraaf van de actieve notitie",
     "noConnections": "Nog geen verbindingen — koppel deze notitie of accepteer een suggestie.",

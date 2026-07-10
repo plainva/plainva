@@ -1217,6 +1217,8 @@
     "noResults": "未找到命令"
   },
   "graph": {
+    "pinModeOn": "记住位置 — 点击以放弃",
+    "pinModeOff": "不记住位置 — 点击以记住",
     "noActiveNote": "未打开笔记。",
     "contextAria": "当前笔记的上下文关系图",
     "noConnections": "还没有连接——为这条笔记添加链接或采纳建议。",

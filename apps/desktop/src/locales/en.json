@@ -1219,6 +1219,8 @@
     "noResults": "No matching command"
   },
   "graph": {
+    "pinModeOn": "Positions are remembered — click to discard",
+    "pinModeOff": "Positions are not remembered — click to remember",
     "noActiveNote": "No note open.",
     "contextAria": "Context graph of the active note",
     "noConnections": "No connections yet — link this note or accept a suggestion.",

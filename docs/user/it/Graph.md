@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -10,12 +10,12 @@ Apri la sezione **Grafo** nella barra laterale destra. Mostra la nota attiva al 
 
 - Cliccare su un nodo apre la nota (il focus ruota con te).
 - Ctrl/Cmd+clic apre in una divisione, il clic centrale in una nuova scheda.
-- Trascina un nodo altrove e resta fissato (piccolo punto), memorizzato per nota — riapri quella nota e ritrovi il tuo layout. La nota attiva resta sempre al centro.
+- Trascina un nodo altrove e resta fissato (piccolo punto), memorizzato per nota — riapri quella nota e ritrovi il tuo layout. La nota attiva resta sempre al centro. L'**icona di fissaggio** in alto a destra attiva e disattiva la memorizzazione; disattivandola, il layout memorizzato di questa nota viene eliminato.
 - Sotto, compaiono fino a tre **suggerimenti**: note che menzionano la tua nota attiva (ma non la collegano), sono spesso collegate insieme a essa, condividono un vicinato simile o condividono un tag raro. Se il titolo compare come testo nella nota attiva, il suggerimento mostra un'**anteprima del passaggio** che verrebbe collegato; **Collega** trasforma esattamente quel passaggio in un wiki-link (come `[[Destinazione|testo]]` quando il testo visibile differisce dalla destinazione). Se non esiste un passaggio corrispondente, il link viene aggiunto alla fine della nota (l'anteprima lo indica). **Ignora suggerimento** ricorda la tua decisione.
 
 ## Mappa del vault (scheda dedicata)
 
-Apri la mappa con **Ctrl/Cmd+Shift+G**, tramite l'icona del grafo nella **barra delle azioni** all'estrema sinistra, oppure tramite la palette dei comandi (**Apri grafo**). Si apre in una scheda dedicata. Invece di una matassa, vedi la tua struttura di cartelle reale come bolle — doppio clic su una bolla per aprire le sue note, **Comprimi tutte le cartelle** torna indietro. Il layout è deterministico: la stessa mappa appare uguale ogni volta che la apri. Trascina un nodo e resta fissato (piccolo punto); **Reimposta layout** cancella tutti i fissaggi. I fissaggi sono memorizzati per dispositivo.
+Apri la mappa con **Ctrl/Cmd+Shift+G**, tramite l'icona del grafo nella **barra delle azioni** all'estrema sinistra, oppure tramite la palette dei comandi (**Apri grafo**). Si apre in una scheda dedicata. Invece di una matassa, vedi la tua struttura di cartelle reale come bolle — doppio clic su una bolla per aprire le sue note, **Comprimi tutte le cartelle** torna indietro. Il layout è deterministico: la stessa mappa appare uguale ogni volta che la apri. **Sposta la mappa** con il tasto centrale del mouse o Ctrl/Cmd+trascina, e fai **zoom** con la rotellina del mouse. Trascina un nodo e resta fissato (piccolo punto). In alto a destra, l'**icona di fissaggio** attiva e disattiva la memorizzazione: disattivandola, il layout memorizzato di questa vista viene eliminato e torna il layout automatico (lo stesso effetto di **Reimposta layout** nel menu del clic destro). I fissaggi sono memorizzati per dispositivo.
 
 Strumenti nella barra dell'intestazione:
 
@@ -31,7 +31,7 @@ Lavorare sulla mappa:
 - Clic destro su un nodo: Apri, Anteprima, Apri nella divisione, **Nuova nota collegata**, Rinomina (con aggiornamento dei link in tutto il vault), Segnalibro, Elimina.
 - Clic destro su uno spazio vuoto: **Nuova nota**, Reimposta layout, **Esporta come PNG/SVG**.
 - Cliccare su un fascio di archi tra cartelle elenca i singoli link; passare il mouse su un arco mostra la frase in cui vive il link.
-- Shift+trascina seleziona più note (piè di pagina: segnalibro/elimina la selezione).
+- **Trascinare su uno spazio vuoto** apre un rettangolo di selezione e contrassegna più note (Shift+trascina estende una selezione esistente); trascinando poi uno dei nodi contrassegnati, si spostano tutti insieme. Il piè di pagina offre segnalibro/elimina per la selezione.
 
 ## Pulizia
 

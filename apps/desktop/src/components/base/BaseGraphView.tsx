@@ -8,6 +8,7 @@ import { createGraphScene, type GraphEngineDeps, type GraphScene } from "../grap
 import { getGraphState } from "../../services/graphState";
 import { buildBaseGraphScene } from "./baseGraphScene";
 import { columnLabel } from "./baseViewerShared";
+import { PinModeToggle } from "../graph/PinModeToggle";
 
 /**
  * `.base` view type "graph" (P8, decision E7 — the USP: Obsidian's Bases has
@@ -49,6 +50,8 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
   const [edgePopover, setEdgePopover] = useState<{ x: number; y: number; source: string; target: string; label?: string } | null>(null);
   const graphState = vaultAdapter ? getGraphState(vaultAdapter) : null;
   const pinContext = `base:${dbConfig?._path ?? dbConfig?.name ?? "?"}#${activeView?.name ?? ""}`;
+  const [pinMode, setPinModeState] = useState(true);
+  const [pinsTick, setPinsTick] = useState(0);
 
   const edgeKeys: string[] = useMemo(
     () => (Array.isArray(activeView?.graphEdges) && activeView.graphEdges.length > 0 ? activeView.graphEdges : relationKeys),
@@ -75,6 +78,21 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
     };
   }, [graphService, dbData]);
 
+  // Load the pin store (idempotent) so getPinMode/getPins reflect disk, then
+  // sync the mode for this base/view context and let the scene pick up pins.
+  useEffect(() => {
+    if (!graphState) return;
+    let alive = true;
+    void graphState.load().then(() => {
+      if (!alive) return;
+      setPinModeState(graphState.getPinMode(pinContext));
+      setPinsTick((n) => n + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [graphState, pinContext]);
+
   const sceneModel = useMemo(() => {
     if (!graph) return null;
     return buildBaseGraphScene({
@@ -91,7 +109,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
       labelForKey: (k) => columnLabel(k, t, dbConfig),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, dbData, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, graphState, pinContext]);
+  }, [graph, dbData, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, graphState, pinContext, pinsTick]);
 
   useLayoutEffect(() => {
     depsRef.current = {
@@ -102,6 +120,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
       },
       onNodeActivate: (id) => onOpenNote(id),
       onNodeDragEnd: (id, x, y) => {
+        if (!pinMode) return; // OFF: ephemeral, keep the session position only
         graphState?.setPin(pinContext, id, { x, y });
         // Persist only; the engine keeps the dragged position this session and
         // the next rebuild applies the pin. Not forcing a rebuild here avoids
@@ -154,6 +173,19 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
   };
 
   const label = (key: string) => columnLabel(key, t, dbConfig);
+
+  const togglePinMode = () => {
+    setPinModeState((prev) => {
+      const next = !prev;
+      graphState?.setPinMode(pinContext, next);
+      if (!next) {
+        // Turning the mode off discards this view's saved layout.
+        graphState?.clearPins(pinContext);
+        setPinsTick((n) => n + 1);
+      }
+      return next;
+    });
+  };
 
   // Incoming cross-DB relations (report 2026-07-07): available regardless of
   // whether this base has its own relation columns — the counterparts live in
@@ -234,7 +266,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
           </label>
         )}
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
         <canvas
           ref={canvasRef}
           tabIndex={0}
@@ -243,6 +275,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
           data-testid="base-graph-canvas"
           style={{ width: "100%", height: "100%", display: "block", outline: "none" }}
         />
+        <PinModeToggle active={pinMode} onToggle={togglePinMode} />
       </div>
       {edgePopover && (
         <MenuSurface open onClose={() => setEdgePopover(null)} at={{ x: edgePopover.x, y: edgePopover.y }} minWidth={220} ariaLabel={t("graph.edgeMenu", { defaultValue: "Verknüpfungs-Aktionen" })}>

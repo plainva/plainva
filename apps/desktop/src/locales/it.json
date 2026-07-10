@@ -1221,6 +1221,8 @@
     "noResults": "Nessun comando trovato"
   },
   "graph": {
+    "pinModeOn": "Le posizioni vengono memorizzate — clicca per scartarle",
+    "pinModeOff": "Le posizioni non vengono memorizzate — clicca per memorizzarle",
     "noActiveNote": "Nessuna nota aperta.",
     "contextAria": "Grafo contestuale della nota attiva",
     "noConnections": "Ancora nessuna connessione: collega questa nota o accetta un suggerimento.",

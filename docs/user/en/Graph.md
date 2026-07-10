@@ -1,6 +1,6 @@
 # Graph
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -10,12 +10,12 @@ Open the **Graph** section in the right sidebar. It shows the active note in the
 
 - Clicking a node opens the note (the focus rotates with you).
 - Ctrl/Cmd+click opens in a split, middle-click in a new tab.
-- Drag a node elsewhere and it stays put (small dot), remembered per note — reopen that note and your arrangement is back. The active note always stays in the center.
+- Drag a node elsewhere and it stays put (small dot), remembered per note — reopen that note and your arrangement is back. The active note always stays in the center. The **pin needle** at the top right toggles remembering on and off; turning it off discards this note's remembered arrangement.
 - Below it, up to three **suggestions** appear: notes that mention your active note (but do not link it), are often linked together with it, share a similar neighborhood, or share a rare tag. Where the title occurs as text in the note being edited, the suggestion shows a **preview of the passage** that would be linked; **Link** turns exactly that passage into a wiki link (as `[[Target|text]]` when the visible text differs from the target). If there is no matching passage, the link is appended at the end of the note (the preview says so). **Dismiss suggestion** remembers your decision.
 
 ## Vault map (its own tab)
 
-Open the map with **Ctrl/Cmd+Shift+G**, via the graph icon in the **action rail** on the far left, or via the command palette (**Open graph**). It opens in its own tab. Instead of a hairball you see your real folder structure as bubbles — double-click a bubble to unfold its notes, **Collapse all folders** goes back. The layout is deterministic: the same map looks the same every time you open it. Drag a node and it stays pinned (small dot); **Reset layout** clears all pins. Pins are stored per device.
+Open the map with **Ctrl/Cmd+Shift+G**, via the graph icon in the **action rail** on the far left, or via the command palette (**Open graph**). It opens in its own tab. Instead of a hairball you see your real folder structure as bubbles — double-click a bubble to unfold its notes, **Collapse all folders** goes back. The layout is deterministic: the same map looks the same every time you open it. **Pan the map** with the middle mouse button or Ctrl/Cmd+drag, and **zoom** with the mouse wheel. Drag a node and it stays pinned (small dot). At the top right, the **pin needle** toggles remembering on and off: turn it off and this view's remembered arrangement is discarded and the automatic layout returns (the same as **Reset layout** in the right-click menu). Pins are stored per device.
 
 Tools in the header bar:
 
@@ -31,7 +31,7 @@ Working on the map:
 - Right-click a node: Open, Peek, Open in split, **New connected note**, Rename (with vault-wide link updates), Bookmark, Delete.
 - Right-click empty space: **New note**, Reset layout, **Export as PNG/SVG**.
 - Clicking an edge bundle between folders lists the individual links; hovering an edge shows the sentence the link lives in.
-- Shift+drag selects multiple notes (footer: bookmark/delete the selection).
+- **Dragging on empty space** draws a selection rectangle and marks multiple notes (Shift+drag extends an existing selection); drag one of the marked nodes afterwards and they all move together. The footer offers bookmark/delete for the selection.
 
 ## Cleaning up
 

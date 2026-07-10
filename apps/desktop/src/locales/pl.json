@@ -1223,6 +1223,8 @@
     "noResults": "Nie znaleziono polecenia"
   },
   "graph": {
+    "pinModeOn": "Pozycje są zapamiętywane — kliknij, aby odrzucić",
+    "pinModeOff": "Pozycje nie są zapamiętywane — kliknij, aby zapamiętać",
     "noActiveNote": "Nie otwarto notatki.",
     "contextAria": "Graf kontekstowy aktywnej notatki",
     "noConnections": "Brak połączeń — połącz tę notatkę lub zaakceptuj sugestię.",

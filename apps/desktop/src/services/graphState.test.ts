@@ -70,6 +70,40 @@ describe("graphState", () => {
     expect(after.pins).toEqual({});
   });
 
+  it("remembers per-context pin mode, defaults on, and drops it when re-enabled", async () => {
+    const adapter = fakeAdapter();
+    const store = new GraphStateStore(adapter);
+    await store.load();
+    expect(store.getPinMode("vault")).toBe(true); // default ON
+
+    store.setPinMode("vault", false);
+    expect(store.getPinMode("vault")).toBe(false);
+    await vi.advanceTimersByTimeAsync(900);
+    expect(JSON.parse(adapter.written[".plainva/graph.json"]).pinModes).toEqual({ vault: false });
+
+    store.setPinMode("vault", true);
+    expect(store.getPinMode("vault")).toBe(true);
+    await vi.advanceTimersByTimeAsync(900);
+    expect(JSON.parse(adapter.written[".plainva/graph.json"]).pinModes).toBeUndefined();
+
+    const loaded = new GraphStateStore(
+      fakeAdapter(JSON.stringify({ version: 1, pins: {}, dismissedSuggestions: [], pinModes: { "base:x#v": false } }))
+    );
+    await loaded.load();
+    expect(loaded.getPinMode("base:x#v")).toBe(false);
+    expect(loaded.getPinMode("other")).toBe(true);
+  });
+
+  it("clearPins removes exactly one context and leaves the others", async () => {
+    const store = new GraphStateStore(fakeAdapter());
+    await store.load();
+    store.setPin("vault", "a.md", { x: 1, y: 2 });
+    store.setPin("context:x.md", "b.md", { x: 3, y: 4 });
+    store.clearPins("vault");
+    expect(store.getPins("vault")).toEqual({});
+    expect(store.getPins("context:x.md")).toEqual({ "b.md": { x: 3, y: 4 } });
+  });
+
   it("flush writes immediately and getGraphState caches per adapter", async () => {
     const adapter = fakeAdapter();
     const store = getGraphState(adapter);

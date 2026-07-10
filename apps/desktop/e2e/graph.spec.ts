@@ -241,6 +241,29 @@ test('vault map opens via shortcut with stats, canvas menu creates a note', asyn
     .toBe(true);
 });
 
+test('empty-area drag lassoes multiple nodes; the pin needle toggles the mode', async ({ page }) => {
+  await openVault(page);
+  await openVaultMap(page);
+  await expect(page.getByTestId('graph-stat-notes')).toContainText('4');
+
+  // New gesture model: an empty left-drag draws a selection lasso (panning is
+  // on middle button / Ctrl now). Real mouse input so pointer capture works;
+  // zoomToFit keeps nodes >= 40px from the edges, so the corners are empty.
+  const box = (await page.getByTestId('graph-map-canvas').boundingBox())!;
+  await page.mouse.move(box.x + 8, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 8, box.y + box.height - 8, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.getByTestId('graph-bulk-bar')).toBeVisible();
+
+  // The discreet pin needle starts ON and flips to OFF on click (which also
+  // clears this view's pins so the force layout returns).
+  const pin = page.getByTestId('graph-pin-toggle');
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('cleanup panel scans mentions and links one into the source note', async ({ page }) => {
   await openVault(page);
   await openVaultMap(page);

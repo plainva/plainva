@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-07-09
+Stand: 2026-07-10
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -10,12 +10,12 @@ Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du
 
 - Klick auf einen Knoten öffnet die Notiz (der Fokus wandert mit).
 - Strg/Cmd+Klick öffnet im Split, Mittelklick in einem neuen Tab.
-- Ziehst Du einen Knoten an eine andere Stelle, bleibt er dort (kleiner Punkt) und wird pro Notiz gemerkt — beim nächsten Öffnen dieser Notiz findest Du Deine Anordnung wieder. Die aktive Notiz bleibt in der Mitte.
+- Ziehst Du einen Knoten an eine andere Stelle, bleibt er dort (kleiner Punkt) und wird pro Notiz gemerkt — beim nächsten Öffnen dieser Notiz findest Du Deine Anordnung wieder. Die aktive Notiz bleibt in der Mitte. Die **Pin-Nadel** oben rechts schaltet das Merken an und aus; schaltest Du es aus, wird die gemerkte Anordnung dieser Notiz verworfen.
 - Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. Kommt der Titel als Text in der betroffenen Notiz vor, zeigt der Vorschlag eine **Vorschau der Textstelle**, die verlinkt würde; **Verlinken** verwandelt genau diese Stelle in einen Wiki-Link (als `[[Ziel|Text]]`, wenn der sichtbare Text vom Ziel abweicht). Gibt es keine passende Stelle, wird der Link am Ende der Notiz angehängt (die Vorschau weist darauf hin). **Vorschlag verwerfen** merkt sich die Entscheidung.
 
 ## Vault-Karte (eigener Tab)
 
-Öffne die Karte mit **Strg/Cmd+Umschalt+G**, über das Graph-Symbol in der **Aktionsleiste** ganz links oder über die Befehls-Palette (**Graph öffnen**). Sie öffnet sich in einem eigenen Tab. Statt eines Wollknäuels siehst Du Deine echte Ordnerstruktur als Blasen — ein Doppelklick auf eine Blase entfaltet ihre Notizen, **Alle Ordner einklappen** kehrt zurück. Das Layout ist deterministisch: Dieselbe Karte sieht bei jedem Öffnen gleich aus. Verschiebst Du einen Knoten, bleibt er gepinnt (kleiner Punkt); **Layout zurücksetzen** löst alle Pins. Pins werden pro Gerät gespeichert.
+Öffne die Karte mit **Strg/Cmd+Umschalt+G**, über das Graph-Symbol in der **Aktionsleiste** ganz links oder über die Befehls-Palette (**Graph öffnen**). Sie öffnet sich in einem eigenen Tab. Statt eines Wollknäuels siehst Du Deine echte Ordnerstruktur als Blasen — ein Doppelklick auf eine Blase entfaltet ihre Notizen, **Alle Ordner einklappen** kehrt zurück. Das Layout ist deterministisch: Dieselbe Karte sieht bei jedem Öffnen gleich aus. **Verschiebe die Karte** mit der mittleren Maustaste oder Strg/Cmd+Ziehen, **zoome** mit dem Mausrad. Verschiebst Du einen Knoten, bleibt er gepinnt (kleiner Punkt). Oben rechts schaltet die **Pin-Nadel** das Merken an und aus: Schaltest Du es aus, wird die gemerkte Anordnung dieser Ansicht verworfen und das automatische Layout kehrt zurück (dasselbe bewirkt **Layout zurücksetzen** im Rechtsklickmenü). Pins werden pro Gerät gespeichert.
 
 Werkzeuge in der Kopfleiste:
 
@@ -31,7 +31,7 @@ Arbeiten auf der Karte:
 - Rechtsklick auf einen Knoten: Öffnen, Peek, Im Split öffnen, **Neue verbundene Notiz**, Umbenennen (mit vault-weitem Link-Update), Lesezeichen, Löschen.
 - Rechtsklick auf freie Fläche: **Neue Notiz**, Layout zurücksetzen, **Als PNG/SVG exportieren**.
 - Klick auf ein Kanten-Bündel zwischen Ordnern listet die einzelnen Verknüpfungen; beim Überfahren einer Kante zeigt ein Tooltip den Satz, in dem der Link steht.
-- Umschalt+Ziehen wählt mehrere Notizen aus (Fußzeile: Lesezeichen/Löschen für die Auswahl).
+- **Ziehen auf freier Fläche** spannt ein Auswahlrechteck auf und markiert mehrere Notizen (Umschalt+Ziehen erweitert eine bestehende Auswahl); ziehst Du danach einen der markierten Knoten, verschieben sich alle gemeinsam. Die Fußzeile bietet Lesezeichen/Löschen für die Auswahl.
 
 ## Aufräumen
 

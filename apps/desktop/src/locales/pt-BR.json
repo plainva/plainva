@@ -1221,6 +1221,8 @@
     "noResults": "Nenhum comando encontrado"
   },
   "graph": {
+    "pinModeOn": "As posições são lembradas — clique para descartar",
+    "pinModeOff": "As posições não são lembradas — clique para lembrar",
     "noActiveNote": "Nenhuma nota aberta.",
     "contextAria": "Grafo de contexto da nota ativa",
     "noConnections": "Ainda não há conexões — vincule esta nota ou aceite uma sugestão.",

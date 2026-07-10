@@ -18,6 +18,7 @@ import { getGraphState } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
 import { hashSeed } from "./graphLayout";
 import { CleanupPanel } from "./CleanupPanel";
+import { PinModeToggle } from "./PinModeToggle";
 import { GraphCanvasMenu, GraphConnectMenu, GraphEdgeMenu, GraphFolderMenu, GraphNodeMenu, type CanvasMenuState, type ConnectDropState, type EdgeMenuState, type FolderMenuState, type NodeMenuState } from "./GraphMapMenus";
 import {
   buildVaultMapScene,
@@ -68,6 +69,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const [heatmapNow, setHeatmapNow] = useState(0);
   const [replayCutoff, setReplayCutoff] = useState<number>(0);
   const [pinsTick, setPinsTick] = useState(0);
+  const [pinMode, setPinModeState] = useState(true);
   const [bundlePopover, setBundlePopover] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
   const [nodeMenu, setNodeMenu] = useState<NodeMenuState | null>(null);
@@ -95,6 +97,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     (async () => {
       try {
         await graphState?.load();
+        if (alive && graphState) setPinModeState(graphState.getPinMode(PIN_CONTEXT));
         // Shared version-keyed cache with the context sidebar (P2.6).
         const graph = await loadGraphCached(graphService, fileTreeVersion, { includeAttachments: false });
         const [overview, icons, dates, orphans] = await Promise.all([
@@ -288,7 +291,13 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         setConnectDrop({ source, target, x: (rect?.left ?? 0) + 80, y: (rect?.top ?? 0) + 80 });
       },
       onNodeDragEnd: (id, x, y) => {
+        if (!pinMode) return; // OFF: keep the session position, don't persist it
         graphState?.setPin(PIN_CONTEXT, id, { x, y });
+        setPinsTick((n) => n + 1);
+      },
+      onNodesDragEnd: (moves) => {
+        if (!pinMode) return;
+        for (const m of moves) graphState?.setPin(PIN_CONTEXT, m.id, { x: m.x, y: m.y });
         setPinsTick((n) => n + 1);
       },
       onLassoSelect: (ids, additive) => {
@@ -312,7 +321,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const scene = createGraphScene(canvas, depsRef);
+    const scene = createGraphScene(canvas, depsRef, { lassoOnEmptyDrag: true });
     sceneRef.current = scene;
     // Some host environments swallow native contextmenu on canvas (observed
     // in the E2E harness): a plain right-button pointerup is the fallback
@@ -507,6 +516,19 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     [t]
   );
 
+  const togglePinMode = useCallback(() => {
+    setPinModeState((prev) => {
+      const next = !prev;
+      graphState?.setPinMode(PIN_CONTEXT, next);
+      if (!next) {
+        // Turning the mode off discards this view's saved layout.
+        graphState?.clearPins(PIN_CONTEXT);
+        setPinsTick((n) => n + 1);
+      }
+      return next;
+    });
+  }, [graphState]);
+
   // Persist the overlay mode (device-local convenience).
   useEffect(() => {
     graphState?.setMapMode(overlayMode);
@@ -691,6 +713,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             data-testid="graph-map-canvas"
             style={{ width: "100%", height: "100%", display: "block", outline: "none" }}
           />
+          <PinModeToggle active={pinMode} onToggle={togglePinMode} />
           {edgeTip && (
             <div
               role="tooltip"

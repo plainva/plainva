@@ -1219,6 +1219,8 @@
     "noResults": "Kein Befehl gefunden"
   },
   "graph": {
+    "pinModeOn": "Positionen werden gemerkt — klicken zum Verwerfen",
+    "pinModeOff": "Positionen werden nicht gemerkt — klicken zum Merken",
     "noActiveNote": "Keine Notiz geöffnet.",
     "contextAria": "Kontext-Graph der aktiven Notiz",
     "noConnections": "Noch keine Verbindungen — verlinke diese Notiz oder nimm einen Vorschlag an.",

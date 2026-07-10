@@ -23,8 +23,10 @@ export interface GraphEngineDeps {
   onEdgeHover?(id: string | null, clientX?: number, clientY?: number): void;
   onCanvasContext?(clientX: number, clientY: number, worldX: number, worldY: number): void;
   onBackgroundClick?(): void;
-  /** Node drag finished on empty space -> new (pinned) position. */
+  /** Single node drag finished on empty space -> new (pinned) position. */
   onNodeDragEnd?(id: string, x: number, y: number): void;
+  /** A multi-node group drag finished -> new positions for all moved nodes. */
+  onNodesDragEnd?(moves: { id: string; x: number; y: number }[]): void;
   /** Node drag finished ON another node -> connect gesture (P6). */
   onNodeDropOnNode?(sourceId: string, targetId: string): void;
   onLassoSelect?(ids: string[], additive: boolean): void;
@@ -33,6 +35,16 @@ export interface GraphEngineDeps {
   onFocusChange?(id: string | null): void;
   onZoomChange?(k: number): void;
   reducedMotion?(): boolean;
+}
+
+export interface GraphEngineOptions {
+  /**
+   * When true, a left-drag starting on empty space draws a selection lasso and
+   * panning moves to the middle button or Ctrl/Cmd+drag (the vault map). When
+   * false (default) an empty left-drag pans — the views without multi-selection
+   * (base graph, context graph) keep that behavior.
+   */
+  lassoOnEmptyDrag?: boolean;
 }
 
 interface RenderNode extends SceneNode {
@@ -72,7 +84,8 @@ export interface GraphScene {
 
 export function createGraphScene(
   canvas: HTMLCanvasElement,
-  depsRef: { current: GraphEngineDeps }
+  depsRef: { current: GraphEngineDeps },
+  options: GraphEngineOptions = {}
 ): GraphScene {
   const ctx = canvas.getContext("2d");
   let nodes: RenderNode[] = [];
@@ -540,6 +553,8 @@ export function createGraphScene(
     nodeId?: string;
     nodeStartX?: number;
     nodeStartY?: number;
+    /** Group drag: start positions of every selected node (incl. nodeId). */
+    groupStart?: Map<string, { x: number; y: number }>;
     moved: boolean;
     overNode?: string | null;
     additive?: boolean;
@@ -554,44 +569,41 @@ export function createGraphScene(
     canvas.setPointerCapture?.(ev.pointerId);
     const world = clientToWorld(ev.clientX, ev.clientY);
     const hit = nodeAt(world.x, world.y);
-    if (hit && ev.button === 0 && !ev.shiftKey) {
-      drag = {
-        pointerId: ev.pointerId,
-        mode: "node",
-        startClientX: ev.clientX,
-        startClientY: ev.clientY,
-        startTransformX: transform.x,
-        startTransformY: transform.y,
-        nodeId: hit.id,
-        nodeStartX: hit.x,
-        nodeStartY: hit.y,
-        moved: false,
-        overNode: null,
-      };
-    } else if (!hit && ev.shiftKey && ev.button === 0) {
-      drag = {
-        pointerId: ev.pointerId,
-        mode: "lasso",
-        startClientX: ev.clientX,
-        startClientY: ev.clientY,
-        startTransformX: transform.x,
-        startTransformY: transform.y,
-        moved: false,
-        additive: ev.ctrlKey || ev.metaKey,
-      };
+    const panModifier = ev.ctrlKey || ev.metaKey;
+    const common = {
+      pointerId: ev.pointerId,
+      startClientX: ev.clientX,
+      startClientY: ev.clientY,
+      startTransformX: transform.x,
+      startTransformY: transform.y,
+      moved: false,
+    };
+    if (ev.button === 1 || (panModifier && ev.button === 0)) {
+      // Pan: middle button or Ctrl/Cmd+left — always, even over a node. A
+      // Ctrl/Cmd click WITHOUT movement keeps its click semantics (see up).
+      drag = { ...common, mode: "pan", nodeId: hit?.id };
+    } else if (hit && ev.button === 0) {
+      // Node drag. If the node is part of a multi-selection, move the group;
+      // pin the start position of every selected node so the delta is exact.
+      const groupStart =
+        selection.has(hit.id) && selection.size > 1
+          ? new Map(
+              [...selection].map((id) => {
+                const n = nodeById.get(id);
+                return [id, { x: n ? n.x : hit.x, y: n ? n.y : hit.y }] as const;
+              })
+            )
+          : undefined;
+      drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null };
+    } else if (!hit && ev.button === 0 && options.lassoOnEmptyDrag) {
+      // Empty-area left-drag = lasso selection (views with multi-selection).
+      drag = { ...common, mode: "lasso", additive: ev.shiftKey };
       lasso = { x0: world.x, y0: world.y, x1: world.x, y1: world.y };
     } else {
-      drag = {
-        pointerId: ev.pointerId,
-        mode: "pan",
-        startClientX: ev.clientX,
-        startClientY: ev.clientY,
-        startTransformX: transform.x,
-        startTransformY: transform.y,
-        nodeId: hit?.id,
-        moved: false,
-      };
+      // Empty-area drag without the lasso opt-in = pan.
+      drag = { ...common, mode: "pan", nodeId: hit?.id };
     }
+    canvas.style.cursor = drag.mode === "pan" ? "grabbing" : drag.mode === "lasso" ? "crosshair" : "";
   }
 
   function onPointerMove(ev: PointerEvent): void {
@@ -627,15 +639,32 @@ export function createGraphScene(
       transform = { ...transform, x: drag.startTransformX + dx, y: drag.startTransformY + dy };
       requestRender();
     } else if (drag.mode === "node" && drag.moved) {
-      const n = nodeById.get(drag.nodeId!);
-      if (n) {
-        n.x = drag.nodeStartX! + dx / transform.k;
-        n.y = drag.nodeStartY! + dy / transform.k;
-        n.cx = n.x;
-        n.cy = n.y;
-        const over = nodeAt(world.x, world.y);
-        drag.overNode = over && over.id !== n.id ? over.id : null;
+      const dxWorld = dx / transform.k;
+      const dyWorld = dy / transform.k;
+      if (drag.groupStart) {
+        // Group move: shift every selected node by the same world delta; no
+        // connect gesture while moving a group.
+        for (const [id, start] of drag.groupStart) {
+          const gn = nodeById.get(id);
+          if (!gn) continue;
+          gn.x = start.x + dxWorld;
+          gn.y = start.y + dyWorld;
+          gn.cx = gn.x;
+          gn.cy = gn.y;
+        }
+        drag.overNode = null;
         requestRender();
+      } else {
+        const n = nodeById.get(drag.nodeId!);
+        if (n) {
+          n.x = drag.nodeStartX! + dxWorld;
+          n.y = drag.nodeStartY! + dyWorld;
+          n.cx = n.x;
+          n.cy = n.y;
+          const over = nodeAt(world.x, world.y);
+          drag.overNode = over && over.id !== n.id ? over.id : null;
+          requestRender();
+        }
       }
     } else if (drag.mode === "lasso" && lasso) {
       lasso.x1 = world.x;
@@ -649,8 +678,17 @@ export function createGraphScene(
     drag = null;
     if (!d) return;
     canvas.releasePointerCapture?.(ev.pointerId);
+    canvas.style.cursor = "";
 
     if (d.mode === "lasso" && lasso) {
+      if (!d.moved) {
+        // A plain click on empty space clears selection/popovers rather than
+        // running a zero-area lasso.
+        lasso = null;
+        requestRender();
+        depsRef.current.onBackgroundClick?.();
+        return;
+      }
       const [minX, maxX] = [Math.min(lasso.x0, lasso.x1), Math.max(lasso.x0, lasso.x1)];
       const [minY, maxY] = [Math.min(lasso.y0, lasso.y1), Math.max(lasso.y0, lasso.y1)];
       const ids = nodes
@@ -684,6 +722,17 @@ export function createGraphScene(
         rebuildIndex();
         return;
       }
+      if (d.groupStart) {
+        // Group move finished — report every moved node's new position.
+        rebuildIndex();
+        const moves: { id: string; x: number; y: number }[] = [];
+        for (const id of d.groupStart.keys()) {
+          const gn = nodeById.get(id);
+          if (gn) moves.push({ id, x: gn.x, y: gn.y });
+        }
+        depsRef.current.onNodesDragEnd?.(moves);
+        return;
+      }
       if (d.overNode && d.overNode !== n.id) {
         // Connect gesture: restore the dragged node's original spot.
         n.x = d.nodeStartX!;
@@ -702,11 +751,13 @@ export function createGraphScene(
 
     // Pan without movement = click.
     if (d.mode === "pan" && !d.moved) {
-      if (d.nodeId && ev.button === 1) {
+      if (d.nodeId && (ev.button === 1 || ev.ctrlKey || ev.metaKey)) {
+        // Middle-click / Ctrl+Cmd-click on a node keeps its click semantics
+        // (new tab, open in split) even though those start a pan gesture.
         depsRef.current.onNodeClick?.(d.nodeId, {
           ctrl: ev.ctrlKey || ev.metaKey,
           shift: ev.shiftKey,
-          middle: true,
+          middle: ev.button === 1,
           clientX: ev.clientX,
           clientY: ev.clientY,
         });

@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-07-09
+Dernière mise à jour : 2026-07-10
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -10,12 +10,12 @@ Ouvrez la section **Graphe** dans la barre latérale droite. Elle affiche la not
 
 - Cliquer sur un nœud ouvre la note (le focus tourne avec vous).
 - Ctrl/Cmd+clic ouvre dans un split, le clic central dans un nouvel onglet.
-- Faites glisser un nœud ailleurs et il reste épinglé (petit point), mémorisé par note — rouvrez cette note et retrouvez votre disposition. La note active reste toujours au centre.
+- Faites glisser un nœud ailleurs et il reste épinglé (petit point), mémorisé par note — rouvrez cette note et retrouvez votre disposition. La note active reste toujours au centre. L'**aiguille d'épingle** en haut à droite active ou désactive la mémorisation ; la désactiver efface la disposition mémorisée de cette note.
 - En dessous apparaissent jusqu'à trois **suggestions** : des notes qui mentionnent votre note active (sans la lier), sont souvent liées ensemble avec elle, partagent un voisinage commun ou partagent un tag rare. Lorsque le titre apparaît sous forme de texte dans la note en cours d'édition, la suggestion affiche un **aperçu du passage** qui serait lié ; **Lier** transforme exactement ce passage en lien wiki (sous la forme `[[Cible|texte]]` lorsque le texte visible diffère de la cible). S'il n'y a pas de passage correspondant, le lien est ajouté à la fin de la note (l'aperçu l'indique). **Ignorer la suggestion** mémorise votre décision.
 
 ## Carte du coffre (son propre onglet)
 
-Ouvrez la carte avec **Ctrl/Cmd+Shift+G**, via l'icône de graphe dans la **barre d'actions** tout à gauche, ou via la palette de commandes (**Ouvrir le graphe**). Elle s'ouvre dans son propre onglet. Au lieu d'un enchevêtrement, vous voyez votre véritable structure de dossiers sous forme de bulles — double-cliquez sur une bulle pour déplier ses notes, **Replier tous les dossiers** revient en arrière. La disposition est déterministe : la même carte a toujours le même aspect à chaque ouverture. Faites glisser un nœud et il reste épinglé (petit point) ; **Réinitialiser la disposition** efface toutes les épingles. Les épingles sont stockées par appareil.
+Ouvrez la carte avec **Ctrl/Cmd+Shift+G**, via l'icône de graphe dans la **barre d'actions** tout à gauche, ou via la palette de commandes (**Ouvrir le graphe**). Elle s'ouvre dans son propre onglet. Au lieu d'un enchevêtrement, vous voyez votre véritable structure de dossiers sous forme de bulles — double-cliquez sur une bulle pour déplier ses notes, **Replier tous les dossiers** revient en arrière. La disposition est déterministe : la même carte a toujours le même aspect à chaque ouverture. **Déplacez la carte** avec le bouton central de la souris ou Ctrl/Cmd+glisser, et **zoomez** avec la molette de la souris. Faites glisser un nœud et il reste épinglé (petit point). En haut à droite, l'**aiguille d'épingle** active ou désactive la mémorisation : la désactiver efface la disposition mémorisée de cette carte et fait revenir la disposition automatique (comme **Réinitialiser la disposition** dans le menu du clic droit). Les épingles sont stockées par appareil.
 
 Outils dans la barre d'en-tête :
 
@@ -31,7 +31,7 @@ Travailler sur la carte :
 - Clic droit sur un nœud : Ouvrir, Aperçu, Ouvrir dans le split, **Nouvelle note liée**, Renommer (avec mise à jour des liens dans tout le coffre), Signet, Supprimer.
 - Clic droit sur un espace vide : **Nouvelle note**, Réinitialiser la disposition, **Exporter en PNG/SVG**.
 - Cliquer sur un faisceau d'arêtes entre des dossiers liste les liens individuels ; survoler une arête montre la phrase où vit le lien.
-- Maj+glisser sélectionne plusieurs notes (pied de page : mettre un signet/supprimer la sélection).
+- **Glisser sur un espace vide** trace un rectangle de sélection et marque plusieurs notes (Maj+glisser étend une sélection existante) ; faites ensuite glisser un des nœuds marqués et ils se déplacent tous ensemble. Le pied de page propose signet/suppression pour la sélection.
 
 ## Nettoyage
 

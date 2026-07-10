@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-07-09
+Laatst bijgewerkt: 2026-07-10
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -10,12 +10,12 @@ Open de sectie **Graaf** in de rechterzijbalk. Deze toont de actieve notitie in 
 
 - Klikken op een node opent de notitie (de focus draait mee).
 - Ctrl/Cmd+klik opent in een split, middelklik in een nieuw tabblad.
-- Sleep je een node naar een andere plek, dan blijft hij daar vastgezet (klein puntje) en wordt dat per notitie onthouden — open je die notitie opnieuw, dan is je indeling er weer. De actieve notitie blijft altijd in het midden.
+- Sleep je een node naar een andere plek, dan blijft hij daar vastgezet (klein puntje) en wordt dat per notitie onthouden — open je die notitie opnieuw, dan is je indeling er weer. De actieve notitie blijft altijd in het midden. De **vastzetnaald** rechtsboven schakelt het onthouden aan en uit; schakel je die uit, dan wordt de onthouden indeling van deze notitie verworpen.
 - Daaronder verschijnen tot drie **suggesties**: notities die je actieve notitie noemen (maar er niet naar linken), er vaak samen mee worden gelinkt, een vergelijkbare buurt delen of een zeldzame tag delen. Staat de titel als tekst in de notitie die je bewerkt, dan toont de suggestie een **voorbeeld van het fragment** dat gelinkt zou worden; **Koppelen** maakt precies dat fragment tot een wiki-link (als `[[Doel|tekst]]` wanneer de zichtbare tekst van het doel afwijkt). Is er geen overeenkomend fragment, dan wordt de link aan het einde van de notitie toegevoegd (het voorbeeld geeft dat aan). **Suggestie negeren** onthoudt je keuze.
 
 ## Vault-kaart (eigen tabblad)
 
-Open de kaart met **Ctrl/Cmd+Shift+G**, via het graaf-icoon in de **actiebalk** helemaal links, of via het opdrachtenpalet (**Graaf openen**). Ze opent in een eigen tabblad. In plaats van een kluwen zie je je echte mapstructuur als bubbels — dubbelklik op een bubbel om de bijbehorende notities uit te vouwen, **Alle mappen invouwen** gaat terug. De lay-out is deterministisch: dezelfde kaart ziet er elke keer dat je hem opent hetzelfde uit. Sleep je een node, dan blijft hij vastgezet (klein puntje); **Lay-out herstellen** verwijdert alle vastzettingen. Vastzettingen worden per apparaat opgeslagen.
+Open de kaart met **Ctrl/Cmd+Shift+G**, via het graaf-icoon in de **actiebalk** helemaal links, of via het opdrachtenpalet (**Graaf openen**). Ze opent in een eigen tabblad. In plaats van een kluwen zie je je echte mapstructuur als bubbels — dubbelklik op een bubbel om de bijbehorende notities uit te vouwen, **Alle mappen invouwen** gaat terug. De lay-out is deterministisch: dezelfde kaart ziet er elke keer dat je hem opent hetzelfde uit. **Verschuif de kaart** met de middelste muisknop of Ctrl/Cmd+slepen, en **zoom** met het muiswiel. Sleep je een node, dan blijft hij vastgezet (klein puntje). Rechtsboven schakelt de **vastzetnaald** het onthouden aan en uit: schakel je die uit, dan wordt de onthouden indeling van deze weergave verworpen en komt de automatische lay-out terug (hetzelfde als **Lay-out herstellen** in het rechtsklikmenu). Vastzettingen worden per apparaat opgeslagen.
 
 Hulpmiddelen in de kopbalk:
 
@@ -31,7 +31,7 @@ Werken op de kaart:
 - Rechtsklik op een node: **Openen**, **Peek**, **In split openen**, **Nieuwe gekoppelde notitie**, **Hernoemen** (met vault-brede linkupdates), **Bladwijzer wisselen**, **Verwijderen**.
 - Rechtsklik op lege ruimte: **Nieuwe notitie**, **Lay-out herstellen**, **Exporteren als PNG/SVG**.
 - Klikken op een edge-bundel tussen mappen toont de afzonderlijke links; hoveren over een edge toont de zin waarin de link staat.
-- Shift+slepen selecteert meerdere notities (voettekst: bladwijzer/verwijder de selectie).
+- **Slepen op lege ruimte** spant een selectierechthoek op en markeert meerdere notities (Shift+slepen breidt een bestaande selectie uit); sleep je daarna een van de gemarkeerde nodes, dan verplaatsen ze zich allemaal samen. De voettekst biedt bladwijzer/verwijderen voor de selectie.
 
 ## Opruimen
 
