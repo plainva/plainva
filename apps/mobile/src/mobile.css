@@ -33,6 +33,12 @@
   --highlight-bg: #fdf3b8;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {

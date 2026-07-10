@@ -6,14 +6,9 @@ const config: CapacitorConfig = {
   appId: "com.plainva.app",
   appName: "Plainva",
   webDir: "dist",
-  plugins: {
-    // Route window.fetch through the native HTTP stack (M3): the shared sync
-    // targets receive plain fetch and run CORS-free against any WebDAV/cloud
-    // endpoint. On the plain web dev server fetch stays the browser's own.
-    CapacitorHttp: {
-      enabled: true,
-    },
-  },
+  // NOTE: CapacitorHttp's fetch patch is intentionally NOT enabled — it sits
+  // on HttpURLConnection, which rejects WebDAV methods (PROPFIND & friends).
+  // Sync uses the local OkHttp plugin instead (adapters/webdavHttp.ts).
 };
 
 export default config;

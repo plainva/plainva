@@ -5,6 +5,7 @@ import {
   type WebDavCredentials,
 } from "@plainva/core";
 import { getPlatformServices } from "@plainva/ui";
+import { webdavFetch } from "../adapters/webdavHttp";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -85,7 +86,7 @@ export function stopSync(): void {
 
 function startWorker(v: MobileVault, creds: WebDavCredentials): void {
   v.enableSyncEnqueue();
-  const target = new WebDavSyncTarget(creds, window.fetch.bind(window));
+  const target = new WebDavSyncTarget(creds, webdavFetch);
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
