@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2, X } from "lucide-react";
-import { mConfirm, mPrompt } from "../../services/mobileDialogs";
+import { ArrowDown, ArrowUp, ArrowUpDown, Folder, Hash, Plus, Trash2, X } from "lucide-react";
+import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { FolderPickerSheet } from "../../components/FolderPickerSheet";
+import type { MobileVault } from "../../services/vaultService";
 import {
   addTopFilterRule,
+  buildSourceClause,
   buildUIFilterModel,
+  isSourceCondition,
   parsePropertyFilter,
+  parseSourceClause,
   removeFilterEntry,
   serializePropertyFilter,
   updateTopFilterRule,
@@ -30,6 +35,7 @@ export function BaseConfigSheet({
   viewIndex,
   columnsPool,
   columnLabel,
+  vault,
   onMutate,
   onSelectView,
   onClose,
@@ -39,6 +45,7 @@ export function BaseConfigSheet({
   /** Every known property (schema + observed), bare names without file.*. */
   columnsPool: string[];
   columnLabel: (col: string) => string;
+  vault: MobileVault;
   /** Clone-mutate-save: the callback owns persistence + re-query. */
   onMutate: (mutate: (cfg: any) => void) => void;
   onSelectView: (idx: number) => void;
@@ -48,6 +55,41 @@ export function BaseConfigSheet({
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
+  // Data-source editing (R3.7): folder/tag clauses in filters.and/or —
+  // identical contract to the desktop's source editor (base-global).
+  const [pickSourceFolder, setPickSourceFolder] = useState<"and" | "or" | null>(null);
+
+  const sourceList = (logic: "and" | "or"): any[] =>
+    Array.isArray(config?.filters?.[logic]) ? config.filters[logic] : [];
+  const sourcesOf = (logic: "and" | "or") =>
+    sourceList(logic)
+      .map((clause, idx) => ({ clause, idx }))
+      .filter((c): c is { clause: string; idx: number } => isSourceCondition(c.clause));
+
+  const addSource = (logic: "and" | "or", clause: string) =>
+    onMutate((cfg) => {
+      if (!cfg.filters) cfg.filters = {};
+      if (!Array.isArray(cfg.filters[logic])) cfg.filters[logic] = [];
+      if (!cfg.filters[logic].includes(clause)) cfg.filters[logic].push(clause);
+    });
+
+  const removeSourceAt = (logic: "and" | "or", idx: number) =>
+    onMutate((cfg) => {
+      cfg.filters[logic].splice(idx, 1);
+    });
+
+  const addTagSource = (logic: "and" | "or") => {
+    void (async () => {
+      const rows = vault.queryService ? await vault.queryService.getAllTags() : [];
+      const tags = rows.map((r: { tag: string }) => r.tag);
+      if (tags.length === 0) return;
+      const picked = await mSelect({
+        title: t("database.tag"),
+        options: tags.map((tag: string) => ({ value: tag, label: `#${tag}` })),
+      });
+      if (picked !== null) addSource(logic, buildSourceClause("tag", picked));
+    })();
+  };
 
   const viewTypeLabel = (type: string) =>
     t(
@@ -161,6 +203,51 @@ export function BaseConfigSheet({
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="m-sheet-grip" />
         <p className="m-sheet-title">{t("database.configure")}</p>
+
+        {/* Data source (base-global, desktop contract: filters.and/or) */}
+        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sourceConfig")}</p>
+        {sourcesOf("and").length + sourcesOf("or").length === 0 && (
+          <p className="m-hint m-hint--inset">{t("database.noSources")}</p>
+        )}
+        {(["and", "or"] as const).map((logic) => (
+          <div key={logic}>
+            <p className="m-hint m-hint--inset">
+              {t(logic === "and" ? "database.matchAll" : "database.matchAny")}
+            </p>
+            {sourcesOf(logic).map(({ clause, idx }) => {
+              const parsed = parseSourceClause(clause);
+              const label = parsed?.type === "tag" ? t("database.tag") : t("database.folder");
+              let display = parsed?.value ?? clause;
+              if (parsed?.type === "tag" && !display.startsWith("#")) display = `#${display}`;
+              if (parsed?.type === "folder" && display === "/") display = `/ (${t("database.rootFolder")})`;
+              return (
+                <div className="m-row m-row--split" key={`${logic}-${idx}`}>
+                  <span className="m-row-main m-row--static">
+                    {parsed?.type === "tag" ? <Hash size={18} /> : <Folder size={18} />}
+                    <span>
+                      {label}: {display}
+                    </span>
+                  </span>
+                  <button
+                    aria-label={t("common.delete")}
+                    className="m-iconbtn"
+                    onClick={() => removeSourceAt(logic, idx)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              );
+            })}
+            <div className="m-config-actions">
+              <button className="m-chip" onClick={() => setPickSourceFolder(logic)}>
+                + {t("database.folder")}
+              </button>
+              <button className="m-chip" onClick={() => addTagSource(logic)}>
+                + {t("database.tag")}
+              </button>
+            </div>
+          </div>
+        ))}
 
         {/* Views */}
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewOptions")}</p>
@@ -413,6 +500,18 @@ export function BaseConfigSheet({
           ))}
         </div>
       </div>
+
+      {pickSourceFolder && (
+        <FolderPickerSheet
+          onClose={() => setPickSourceFolder(null)}
+          onPick={(path) => {
+            // The desktop stores the vault root as "/".
+            addSource(pickSourceFolder, buildSourceClause("folder", path || "/"));
+          }}
+          title={t("database.folder")}
+          vault={vault}
+        />
+      )}
     </div>
   );
 }

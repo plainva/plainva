@@ -552,6 +552,7 @@ export function BaseScreen({
           onClose={() => setShowConfig(false)}
           onMutate={mutateConfig}
           onSelectView={setViewIndex}
+          vault={vault}
           viewIndex={viewIndex}
         />
       )}
