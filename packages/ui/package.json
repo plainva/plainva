@@ -31,6 +31,7 @@
     "@lezer/highlight": "^1.2.3",
     "@plainva/core": "workspace:*",
     "@uiw/codemirror-extensions-basic-setup": "^4.25.10",
+    "date-fns": "^4.4.0",
     "i18next": "^26.3.4",
     "katex": "^0.17.0",
     "lucide": "^1.23.0",

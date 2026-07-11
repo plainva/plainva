@@ -115,6 +115,7 @@ class BlockHandlesView {
     this.layer = document.createElement("div");
     this.layer.className = "cm-block-handle-layer";
     this.layer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;pointer-events:none;z-index:5;";
+    if (!view.state.facet(EditorView.editable)) this.layer.style.display = "none";
     view.dom.appendChild(this.layer);
     view.scrollDOM.addEventListener("scroll", this.onScroll, { passive: true });
     this.schedule();
@@ -126,13 +127,19 @@ class BlockHandlesView {
     // Also re-measure on async parse progress: listBlocks() reads the syntax
     // tree, so grips computed from a stale tree would sit at pre-reflow
     // positions until the next edit/scroll (Jitter, P5). An editable-facet
-    // flip (mobile read/edit toggle) shows/hides the grips.
+    // flip (mobile read/edit toggle) shows/hides the grips — the layer hides
+    // immediately, the re-measure refreshes positions.
+    const editableChanged =
+      u.state.facet(EditorView.editable) !== u.startState.facet(EditorView.editable);
+    if (editableChanged) {
+      this.layer.style.display = u.state.facet(EditorView.editable) ? "" : "none";
+    }
     if (
       u.docChanged ||
       u.viewportChanged ||
       u.geometryChanged ||
       syntaxTree(u.startState) !== syntaxTree(u.state) ||
-      u.state.facet(EditorView.editable) !== u.startState.facet(EditorView.editable)
+      editableChanged
     ) {
       this.schedule();
     }

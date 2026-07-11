@@ -1,91 +1,99 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSyncExternalStore } from "react";
 import {
+  AlertTriangle,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Database,
+  Cloud,
   FileText,
-  Folder,
-  Menu,
-  Pencil,
+  FolderPlus,
+  MoreVertical,
   Plus,
   Search,
-  Settings as SettingsIcon,
-  Trash2,
+  StickyNote,
 } from "lucide-react";
-import {
-  EmptyState,
-  TextInput,
-  renderSnippetNodes,
-  useDebouncedValue,
-  isConflictCopyPath,
-  conflictOriginalPath,
-  setPendingSearchJump,
-} from "@plainva/ui";
-import type { SearchResult } from "@plainva/core";
-import { vaultOps, getMobileVault, type FolderListing, type MobileVault } from "./services/vaultService";
+import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
-import { listVaults, type VaultEntry } from "./services/vaultRegistry";
-import { switchVault } from "./services/vaultService";
 import { App as CapApp } from "@capacitor/app";
-import { Dialog } from "@capacitor/dialog";
 import { BaseReadView } from "./BaseReadView";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
 import { getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
-import { EditorHost } from "./EditorHost";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
-import { useSyncExternalStore } from "react";
-import {
-  AlertTriangle,
-  Bookmark,
-  Check,
-  Cloud,
-  CopyPlus,
-  FolderClosed,
-  FolderInput,
-  FolderPlus,
-  Hash,
-  Info,
-} from "lucide-react";
+import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
+import { NoteScreen } from "./screens/NoteScreen";
+import { SearchScreen } from "./screens/SearchScreen";
+import { TodayScreen } from "./screens/TodayScreen";
+import { CalendarScreen } from "./screens/CalendarScreen";
+import { DatabasesScreen } from "./screens/DatabasesScreen";
+import { MoreScreen } from "./screens/MoreScreen";
+import { sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./navigation";
+import { useLongPress } from "./lib/useLongPress";
+import { isoOf } from "./lib/dates";
 
-// Tab/stack shell per the mobile UX plan (E1): four tabs plus the center
-// capture action; every tab keeps its own navigation stack; the tab bar
-// hides while a note is open (editor focus).
+// Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
+// user-chosen screens around the fixed ＋ (M3 navigation bar); search and
+// the More menu live in the top app bar. Every tab keeps its own stack; the
+// bar hides while a note is open (editor focus).
 
-type TabId = "notes" | "search" | "today" | "more";
 type Entry = {
-  kind: "folder" | "note" | "sync" | "vault" | "base" | "settings" | "tags" | "bookmarks";
+  kind:
+    | "folder"
+    | "note"
+    | "sync"
+    | "vault"
+    | "base"
+    | "settings"
+    | "tags"
+    | "bookmarks"
+    | "search"
+    | "more"
+    | "today"
+    | "calendar"
+    | "databases";
   path: string;
 };
 
-const isoOf = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
-    2,
-    "0",
-  )}`;
+const EMPTY_STACKS = (): Record<TabScreenId, Entry[]> => ({
+  notes: [],
+  today: [],
+  tags: [],
+  bookmarks: [],
+  calendar: [],
+  databases: [],
+});
 
 const dailyPathFor = (iso: string) => ({
   path: `${getMobileSettings().dailyFolder}/${iso}.md`,
   title: iso,
 });
 
+/** Pool-screen id -> pushable stack entry (More menu, R2.5). */
+const SCREEN_ENTRY: Record<TabScreenId, Entry> = {
+  notes: { kind: "folder", path: "" },
+  today: { kind: "today", path: "" },
+  tags: { kind: "tags", path: "" },
+  bookmarks: { kind: "bookmarks", path: "" },
+  calendar: { kind: "calendar", path: "" },
+  databases: { kind: "databases", path: "" },
+};
+
 export default function App() {
   const { t } = useTranslation();
   const [vault, setVault] = useState<MobileVault | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("notes");
-  const [stacks, setStacks] = useState<Record<TabId, Entry[]>>({
-    notes: [],
-    search: [],
-    today: [],
-    more: [],
-  });
+  const [slots, setSlots] = useState<TabScreenId[]>(() =>
+    sanitizeTabSlots(getMobileSettings().tabSlots),
+  );
+  const [activeTab, setActiveTab] = useState<TabScreenId>(slots[0]);
+  const [stacks, setStacks] = useState<Record<TabScreenId, Entry[]>>(EMPTY_STACKS);
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
+  const [quickCreate, setQuickCreate] = useState(false);
+  // ＋: tap captures, long-press opens the quick-create sheet (R3).
+  const fabPress = useLongPress<undefined>(() => setQuickCreate(true));
 
   useEffect(() => {
     void getMobileVault().then((v) => {
@@ -97,19 +105,26 @@ export default function App() {
     // restart sync for the newly active container.
     const onSwitched = () => {
       setVault(null);
-      setStacks({ notes: [], search: [], today: [], more: [] });
-      setActiveTab("more");
+      setStacks(EMPTY_STACKS());
       void getMobileVault().then((v) => {
         setVault(v);
         setBump((n) => n + 1);
         void startSyncIfConfigured(v);
       });
     };
+    // Live settings (R2.2): re-read the tab slots when settings change.
+    const onSettings = () => {
+      const next = sanitizeTabSlots(getMobileSettings().tabSlots);
+      setSlots((prev) => (prev.join() === next.join() ? prev : next));
+      setActiveTab((tab) => (next.includes(tab) ? tab : next[0]));
+    };
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
+    window.addEventListener("m-settings-changed", onSettings);
     return () => {
       window.removeEventListener("m-vault-changed", onChanged);
       window.removeEventListener("m-vault-switched", onSwitched);
+      window.removeEventListener("m-settings-changed", onSettings);
     };
   }, []);
 
@@ -176,31 +191,35 @@ export default function App() {
   const stack = stacks[activeTab];
   const top = stack[stack.length - 1];
 
-  const push = (tab: TabId, entry: Entry) =>
+  const push = (tab: TabScreenId, entry: Entry) =>
     setStacks((s) => ({ ...s, [tab]: [...s[tab], entry] }));
-  const pop = (tab: TabId) => {
+  const pop = (tab: TabScreenId) => {
     setStacks((s) => ({ ...s, [tab]: s[tab].slice(0, -1) }));
     setBump((n) => n + 1);
   };
 
   const openNote = (path: string) => push(activeTab, { kind: "note", path });
+  const openBase = (path: string) => push(activeTab, { kind: "base", path });
+
+  /** The folder the user is looking at (capture + new-folder context). */
+  const browseFolder = () => {
+    const notesTop = stacks.notes[stacks.notes.length - 1];
+    return activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "";
+  };
 
   const capture = () => {
     // Context-aware (P3): capture into the folder the user is looking at.
-    const notesTop = stacks.notes[stacks.notes.length - 1];
-    const folder = activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "Inbox";
+    const folder = browseFolder() || "Inbox";
     void vaultOps.createNote(vault, folder, "Note").then((path) => {
-      setActiveTab("notes");
-      push("notes", { kind: "note", path });
+      if (slots.includes("notes")) setActiveTab("notes");
+      push(slots.includes("notes") ? "notes" : activeTab, { kind: "note", path });
     });
   };
 
   const openDaily = (iso: string) => {
     const { path, title } = dailyPathFor(iso);
-    void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => {
-      setActiveTab("today");
-      setStacks((s) => ({ ...s, today: [{ kind: "note", path }] }));
-    });
+    // Push into the active stack: back returns to Today/Calendar (R2).
+    void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => openNote(path));
   };
 
   const noteOpen = top?.kind === "note";
@@ -208,12 +227,15 @@ export default function App() {
   const finishOnboarding = (connectCloud: boolean) => {
     setOnboarded(true);
     void updateMobileSettings({ onboarded: true });
-    if (connectCloud) {
-      setActiveTab("more");
-      setStacks((s) => ({ ...s, more: [{ kind: "sync", path: "" }] }));
-    }
+    if (connectCloud) push(activeTab, { kind: "sync", path: "" });
   };
 
+  const quickNewFolder = () => {
+    setQuickCreate(false);
+    createFolderPrompt(vault, browseFolder(), t);
+  };
+
+  const activeDef = TAB_POOL.find((p) => p.id === activeTab)!;
 
   return (
     <div className="m-app">
@@ -233,6 +255,39 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {!top && (
+        <header className="m-topbar">
+          <h1>{activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
+          <span className="m-headactions">
+            {activeTab === "notes" && (
+              <button
+                aria-label={t("mobile.newFolder")}
+                className="m-iconbtn"
+                onClick={() => createFolderPrompt(vault, "", t)}
+              >
+                <FolderPlus size={22} />
+              </button>
+            )}
+            <button
+              aria-label={t("mobile.tabSearch")}
+              className="m-iconbtn"
+              onClick={() => push(activeTab, { kind: "search", path: "" })}
+            >
+              <Search size={22} />
+            </button>
+            <button
+              aria-label={t("mobile.tabMore")}
+              className="m-iconbtn"
+              onClick={() => push(activeTab, { kind: "more", path: "" })}
+            >
+              <MoreVertical size={22} />
+            </button>
+            <SyncIndicator />
+          </span>
+        </header>
+      )}
+
       <div className="m-screen">
         {top?.kind === "tags" ? (
           <TagsScreen
@@ -264,742 +319,149 @@ export default function App() {
             vault={vault}
           />
         ) : top?.kind === "note" ? (
-          <NoteView
+          <NoteScreen
             key={top.path}
             onBack={() => pop(activeTab)}
             onOpenNote={openNote}
             path={top.path}
             vault={vault}
           />
-        ) : activeTab === "notes" ? (
-          <BrowseView
+        ) : top?.kind === "search" ? (
+          <SearchScreen onBack={() => pop(activeTab)} onOpenNote={openNote} vault={vault} />
+        ) : top?.kind === "more" ? (
+          <MoreScreen
+            activeVaultId={vault.vaultId}
+            onAddVault={() => push(activeTab, { kind: "sync", path: "" })}
+            onBack={() => pop(activeTab)}
+            onOpenScreen={(id) => push(activeTab, SCREEN_ENTRY[id])}
+            onOpenSettings={() => push(activeTab, { kind: "settings", path: "" })}
+            onOpenVault={(id) => push(activeTab, { kind: "vault", path: id })}
+          />
+        ) : top?.kind === "today" ? (
+          <TodayScreen onBack={() => pop(activeTab)} onOpenDate={openDaily} />
+        ) : top?.kind === "calendar" ? (
+          <CalendarScreen bump={bump} onBack={() => pop(activeTab)} onOpenDate={openDaily} vault={vault} />
+        ) : top?.kind === "databases" ? (
+          <DatabasesScreen bump={bump} onBack={() => pop(activeTab)} onOpenBase={openBase} vault={vault} />
+        ) : top?.kind === "folder" ? (
+          <BrowseScreen
             bump={bump}
-            folder={top?.kind === "folder" ? top.path : ""}
-            onBack={top ? () => pop("notes") : undefined}
-            onOpenBase={(path) => push("notes", { kind: "base", path })}
+            folder={top.path}
+            onBack={() => pop(activeTab)}
+            onOpenBase={openBase}
+            onOpenFolder={(path) => push(activeTab, { kind: "folder", path })}
+            onOpenNote={openNote}
+            vault={vault}
+          />
+        ) : activeTab === "notes" ? (
+          <BrowseScreen
+            bump={bump}
+            folder=""
+            onOpenBase={openBase}
             onOpenFolder={(path) => push("notes", { kind: "folder", path })}
             onOpenNote={openNote}
             vault={vault}
           />
-        ) : activeTab === "search" ? (
-          <SearchView onOpenNote={openNote} vault={vault} />
         ) : activeTab === "today" ? (
-          <TodayView onOpenDate={openDaily} />
-        ) : (
-          <MoreView
-            activeVaultId={vault.vaultId}
-            onAddVault={() => push("more", { kind: "sync", path: "" })}
-            onOpenBookmarks={() => push("more", { kind: "bookmarks", path: "" })}
-            onOpenSettings={() => push("more", { kind: "settings", path: "" })}
-            onOpenTags={() => push("more", { kind: "tags", path: "" })}
-            onOpenVault={(id) => push("more", { kind: "vault", path: id })}
+          <TodayScreen onOpenDate={openDaily} />
+        ) : activeTab === "tags" ? (
+          <TagsScreen
+            onOpenNote={openNote}
+            onOpenTag={(tag) => push("tags", { kind: "tags", path: tag })}
+            tag=""
+            vault={vault}
           />
+        ) : activeTab === "bookmarks" ? (
+          <BookmarksScreen onOpenNote={openNote} vault={vault} />
+        ) : activeTab === "calendar" ? (
+          <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
+        ) : (
+          <DatabasesScreen bump={bump} onOpenBase={openBase} vault={vault} />
         )}
       </div>
 
       {!noteOpen && (
         <nav aria-label="Tabs" className="m-tabbar">
-          <TabButton
-            active={activeTab === "notes"}
-            icon={<FileText size={20} />}
-            label={t("mobile.tabNotes")}
-            onClick={() => setActiveTab("notes")}
-          />
-          <TabButton
-            active={activeTab === "search"}
-            icon={<Search size={20} />}
-            label={t("mobile.tabSearch")}
-            onClick={() => setActiveTab("search")}
-          />
-          <button aria-label={t("mobile.newNote")} className="m-fab" onClick={capture}>
-            <Plus size={22} />
+          {slots.slice(0, 2).map((id) => (
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={activeTab === id} onClick={() => setActiveTab(id)} />
+          ))}
+          <button
+            aria-label={t("mobile.newNote")}
+            className="m-fab"
+            onClick={() => {
+              if (fabPress.clicked()) capture();
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setQuickCreate(true);
+            }}
+            onPointerCancel={fabPress.clear}
+            onPointerDown={() => fabPress.start(undefined)}
+            onPointerLeave={fabPress.clear}
+            onPointerUp={fabPress.clear}
+          >
+            <Plus size={24} />
           </button>
-          <TabButton
-            active={activeTab === "today"}
-            icon={<Calendar size={20} />}
-            label={t("mobile.tabToday")}
-            onClick={() => setActiveTab("today")}
-          />
-          <TabButton
-            active={activeTab === "more"}
-            icon={<Menu size={20} />}
-            label={t("mobile.tabMore")}
-            onClick={() => setActiveTab("more")}
-          />
+          {slots.slice(2).map((id) => (
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={activeTab === id} onClick={() => setActiveTab(id)} />
+          ))}
         </nav>
+      )}
+
+      {quickCreate && (
+        <div className="m-sheet-backdrop" onClick={() => setQuickCreate(false)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="m-sheet-grip" />
+            <p className="m-sheet-title">{t("mobile.quickCreate")}</p>
+            <button
+              className="m-row"
+              onClick={() => {
+                setQuickCreate(false);
+                capture();
+              }}
+            >
+              <StickyNote size={18} />
+              <span>{t("mobile.newNote")}</span>
+            </button>
+            <button
+              className="m-row"
+              onClick={() => {
+                setQuickCreate(false);
+                openDaily(isoOf(new Date()));
+              }}
+            >
+              <Calendar size={18} />
+              <span>{t("mobile.newDaily")}</span>
+            </button>
+            <button className="m-row" onClick={quickNewFolder}>
+              <FolderPlus size={18} />
+              <span>{t("mobile.newFolder")}</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
 function TabButton({
+  def,
   active,
-  icon,
-  label,
   onClick,
 }: {
+  def: (typeof TAB_POOL)[number];
   active: boolean;
-  icon: React.ReactNode;
-  label: string;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
+  const Icon = def.icon;
   return (
     <button className={`m-tab${active ? " is-active" : ""}`} onClick={onClick}>
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-/** Long-press hook for the note sheet (M4/E7): 500 ms hold opens actions. */
-function useLongPress(onLongPress: (path: string, title: string) => void) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firedRef = useRef(false);
-  const start = (path: string, title: string) => {
-    firedRef.current = false;
-    timerRef.current = setTimeout(() => {
-      firedRef.current = true;
-      onLongPress(path, title);
-    }, 500);
-  };
-  const clear = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-  };
-  const clicked = () => {
-    const fired = firedRef.current;
-    firedRef.current = false;
-    return !fired;
-  };
-  return { start, clear, clicked };
-}
-
-function BrowseView({
-  vault,
-  folder,
-  bump,
-  onBack,
-  onOpenFolder,
-  onOpenNote,
-  onOpenBase,
-}: {
-  vault: MobileVault;
-  folder: string;
-  bump: number;
-  onBack?: () => void;
-  onOpenFolder: (path: string) => void;
-  onOpenNote: (path: string) => void;
-  onOpenBase: (path: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
-  const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
-  const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean } | null>(
-    null,
-  );
-  const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
-  const [moveFolders, setMoveFolders] = useState<string[]>([]);
-  const [conflicts, setConflicts] = useState<string[]>([]);
-  const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
-    null,
-  );
-  const press = useLongPress((path, title) => setSheet({ path, title }));
-  const folderPress = useLongPress((path, title) => setSheet({ path, title, isFolder: true }));
-  useEffect(() => {
-    let stale = false;
-    void vaultOps.listFolder(vault, folder).then((l) => {
-      if (!stale) setListing(l);
-    });
-    if (!folder) {
-      void vaultOps.recent(vault, 2).then((r) => {
-        if (!stale) setRecent(r);
-      });
-      // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
-      if (vault.queryService) {
-        void vault.queryService.listNotes().then((rows) => {
-          if (!stale) setConflicts(rows.map((r) => r.path).filter(isConflictCopyPath));
-        });
-      }
-    }
-    return () => {
-      stale = true;
-    };
-  }, [vault, folder, bump]);
-
-  const noteRow = (n: { path: string; title: string }) => {
-    const conflict = isConflictCopyPath(n.path);
-    return (
-    <button
-      className="m-row"
-      key={n.path}
-      onClick={() => {
-        if (!press.clicked()) return;
-        if (conflict) {
-          setConflictSheet({ path: n.path, original: conflictOriginalPath(n.path) ?? n.path });
-        } else {
-          onOpenNote(n.path);
-        }
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setSheet({ path: n.path, title: n.title });
-      }}
-      onPointerCancel={press.clear}
-      onPointerDown={() => press.start(n.path, n.title)}
-      onPointerLeave={press.clear}
-      onPointerUp={press.clear}
-    >
-      {conflict ? <AlertTriangle className="m-warn" size={16} /> : <FileText size={16} />}
-      <span>{n.title}</span>
-    </button>
-    );
-  };
-
-  // Conflict resolution (P5): both branches drop exactly one version, but
-  // every write/delete goes through the backup adapter, so nothing is lost
-  // for good. "Keep this copy" promotes the conflict text into the note.
-  const resolveConflict = (keepCopy: boolean) => {
-    const target = conflictSheet;
-    if (!target) return;
-    setConflictSheet(null);
-    void (async () => {
-      if (keepCopy) {
-        const text = await vaultOps.read(vault, target.path);
-        await vaultOps.save(vault, target.original, text);
-      }
-      await vaultOps.remove(vault, target.path);
-      setConflicts((c) => c.filter((p) => p !== target.path));
-    })();
-  };
-
-  const createFolder = () => {
-    void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
-        title: t("mobile.newFolder"),
-        message: t("mobile.newFolderPrompt"),
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed) return;
-      await vaultOps.createFolder(vault, folder ? `${folder}/${trimmed}` : trimmed);
-    })();
-  };
-
-  const renameFolder = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
-        title: t("mobile.vaultRename"),
-        message: t("mobile.renamePrompt"),
-        inputText: target.title,
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed || trimmed === target.title) return;
-      const parent = target.path.split("/").slice(0, -1).join("/");
-      await vaultOps.renameFolder(vault, target.path, parent ? `${parent}/${trimmed}` : trimmed);
-    })();
-  };
-
-  const deleteFolder = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value } = await Dialog.confirm({
-        title: t("mobile.deleteFolder"),
-        message: t("mobile.deleteFolderConfirm", { name: target.title }),
-      });
-      if (!value) return;
-      await vaultOps.removeFolder(vault, target.path);
-    })();
-  };
-
-  const startMove = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const folders = vault.queryService ? await vault.queryService.getAllFolders() : [];
-      setMoveFolders(folders);
-      setMovePick(target);
-    })();
-  };
-
-  const duplicateNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void vaultOps.duplicateNote(vault, target.path).then((copy) => onOpenNote(copy));
-  };
-
-  const bookmarkNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void vaultOps.toggleBookmark(vault, target.path);
-  };
-
-  const renameNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
-        title: t("mobile.vaultRename"),
-        message: t("mobile.renamePrompt"),
-        inputText: target.title,
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed || trimmed === target.title) return;
-      await vaultOps.rename(vault, target.path, trimmed);
-    })();
-  };
-
-  const deleteNote = (target: { path: string; title: string }) => {
-    setSheet(null);
-    void (async () => {
-      const { value } = await Dialog.confirm({
-        title: t("mobile.deleteNote"),
-        message: t("mobile.deleteNoteConfirm", { name: target.title }),
-      });
-      if (!value) return;
-      await vaultOps.remove(vault, target.path);
-    })();
-  };
-
-  return (
-    <div className="m-page">
-      <header className="m-header">
-        {onBack && (
-          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
-            <ChevronLeft size={20} />
-          </button>
-        )}
-        <h1>{folder ? folder.split("/").pop() : "Plainva"}</h1>
-        <button aria-label={t("mobile.newFolder")} className="m-iconbtn" onClick={createFolder}>
-          <FolderPlus size={20} />
-        </button>
-        <SyncIndicator />
-      </header>
-      {!folder && conflicts.length > 0 && (
-        <button
-          className="m-conflictbanner"
-          onClick={() =>
-            setConflictSheet({
-              path: conflicts[0],
-              original: conflictOriginalPath(conflicts[0]) ?? conflicts[0],
-            })
-          }
-        >
-          <AlertTriangle size={16} />
-          <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
-        </button>
-      )}
-      {recent.length > 0 && (
-        <>
-          <p className="m-sectionlabel">{t("mobile.recent")}</p>
-          {recent.map(noteRow)}
-          <p className="m-sectionlabel">{t("mobile.folders")}</p>
-        </>
-      )}
-      {listing.folders.map((name) => {
-        const full = folder ? `${folder}/${name}` : name;
-        return (
-          <button
-            className="m-row"
-            key={name}
-            onClick={() => {
-              if (folderPress.clicked()) onOpenFolder(full);
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setSheet({ path: full, title: name, isFolder: true });
-            }}
-            onPointerCancel={folderPress.clear}
-            onPointerDown={() => folderPress.start(full, name)}
-            onPointerLeave={folderPress.clear}
-            onPointerUp={folderPress.clear}
-          >
-            <Folder className="m-accent" size={16} />
-            <span>{name}</span>
-            <ChevronRight className="m-chevron" size={16} />
-          </button>
-        );
-      })}
-      {listing.bases.map((b) => (
-        <button className="m-row" key={b.path} onClick={() => onOpenBase(b.path)}>
-          <Database className="m-accent" size={16} />
-          <span>{b.title}</span>
-          <ChevronRight className="m-chevron" size={16} />
-        </button>
-      ))}
-      {listing.notes.map(noteRow)}
-
-      {sheet && (
-        <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <p className="m-sheet-title">{sheet.title}</p>
-            <button
-              className="m-row"
-              onClick={() => {
-                setSheet(null);
-                if (sheet.isFolder) onOpenFolder(sheet.path);
-                else onOpenNote(sheet.path);
-              }}
-            >
-              {sheet.isFolder ? <Folder size={16} /> : <FileText size={16} />}
-              <span>{t("mobile.sheetOpen")}</span>
-            </button>
-            {!sheet.isFolder && (
-              <>
-                <button className="m-row" onClick={() => startMove(sheet)}>
-                  <FolderInput size={16} />
-                  <span>{t("mobile.moveNote")}</span>
-                </button>
-                <button className="m-row" onClick={() => duplicateNote(sheet)}>
-                  <CopyPlus size={16} />
-                  <span>{t("mobile.duplicateNote")}</span>
-                </button>
-                <button className="m-row" onClick={() => bookmarkNote(sheet)}>
-                  <Bookmark size={16} />
-                  <span>{t("mobile.toggleBookmark")}</span>
-                </button>
-              </>
-            )}
-            <button
-              className="m-row"
-              onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
-            >
-              <Pencil size={16} />
-              <span>{t("mobile.vaultRename")}</span>
-            </button>
-            <button
-              className="m-row m-danger"
-              onClick={() => (sheet.isFolder ? deleteFolder(sheet) : deleteNote(sheet))}
-            >
-              <Trash2 size={16} />
-              <span>{sheet.isFolder ? t("mobile.deleteFolder") : t("mobile.deleteNote")}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {conflictSheet && (
-        <div className="m-sheet-backdrop" onClick={() => setConflictSheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
-            <p className="m-hint">{t("mobile.conflictHint")}</p>
-            <button
-              className="m-row"
-              onClick={() => {
-                const p = conflictSheet.path;
-                setConflictSheet(null);
-                onOpenNote(p);
-              }}
-            >
-              <FileText size={16} />
-              <span>{t("mobile.conflictOpenCopy")}</span>
-            </button>
-            <button className="m-row" onClick={() => resolveConflict(true)}>
-              <Check size={16} />
-              <span>{t("mobile.conflictKeepCopy")}</span>
-            </button>
-            <button className="m-row" onClick={() => resolveConflict(false)}>
-              <Trash2 size={16} />
-              <span>{t("mobile.conflictKeepOriginal")}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {movePick && (
-        <div className="m-sheet-backdrop" onClick={() => setMovePick(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <p className="m-sheet-title">{t("mobile.moveNoteTo", { name: movePick.title })}</p>
-            {["", ...moveFolders].map((dest) => (
-              <button
-                className="m-row"
-                key={dest || "/"}
-                onClick={() => {
-                  const target = movePick;
-                  setMovePick(null);
-                  void vaultOps.moveNote(vault, target.path, dest);
-                }}
-              >
-                <Folder className="m-accent" size={16} />
-                <span>{dest || t("mobile.vaultRoot")}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NoteView({
-  vault,
-  path,
-  onBack,
-  onOpenNote,
-}: {
-  vault: MobileVault;
-  path: string;
-  onBack: () => void;
-  onOpenNote: (path: string) => void;
-}) {
-  const { t } = useTranslation();
-  const title = path.split("/").pop()!.replace(/\.md$/i, "");
-  const [doc, setDoc] = useState<string | null>(null);
-  const [marked, setMarked] = useState(false);
-  const [info, setInfo] = useState<{
-    props: Array<[string, string]>;
-    backlinks: Array<{ path: string; title: string }>;
-  } | null>(null);
-  // Read-first (M4/E5): notes open rendered and read-only; the pen flips
-  // into editing (and back), which also shows the keyboard toolbar.
-  const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
-  useEffect(() => {
-    let stale = false;
-    void vaultOps.read(vault, path).then((text) => {
-      if (!stale) setDoc(text);
-    });
-    void vaultOps.getBookmarks(vault).then((marks) => {
-      if (!stale) setMarked(marks.includes(path));
-    });
-    return () => {
-      stale = true;
-    };
-  }, [vault, path]);
-
-  const openInfo = () => {
-    void (async () => {
-      const q = vault.queryService;
-      const props: Array<[string, string]> = [];
-      const backlinks: Array<{ path: string; title: string }> = [];
-      if (q) {
-        const raw = await q.getFileProperties(path);
-        for (const [k, v] of Object.entries(raw)) {
-          props.push([k, Array.isArray(v) ? v.join(", ") : String(v)]);
-        }
-        const links = await q.getBacklinks(path);
-        const seen = new Set<string>();
-        for (const l of links) {
-          if (seen.has(l.source_path)) continue;
-          seen.add(l.source_path);
-          backlinks.push({
-            path: l.source_path,
-            title: l.source_path.split("/").pop()!.replace(/\.md$/i, ""),
-          });
-        }
-      }
-      setInfo({ props, backlinks });
-    })();
-  };
-
-  return (
-    <div className="m-page m-page--note">
-      <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
-          <ChevronLeft size={20} />
-        </button>
-        <h1>{title}</h1>
-        <button
-          aria-label={t("mobile.toggleBookmark")}
-          aria-pressed={marked}
-          className={`m-iconbtn${marked ? " is-active" : ""}`}
-          onClick={() =>
-            void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
-          }
-        >
-          <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
-        </button>
-        <button aria-label={t("mobile.noteInfo")} className="m-iconbtn" onClick={openInfo}>
-          <Info size={20} />
-        </button>
-        <button
-          aria-label={editing ? t("mobile.doneEditing") : t("mobile.editNote")}
-          aria-pressed={editing}
-          className={`m-iconbtn${editing ? " is-active" : ""}`}
-          onClick={() => setEditing((e) => !e)}
-        >
-          {editing ? <Check size={20} /> : <Pencil size={20} />}
-        </button>
-      </header>
-      {doc !== null && (
-        <EditorHost
-          editable={editing}
-          initialDoc={doc}
-          onOpenNote={onOpenNote}
-          path={path}
-          vault={vault}
-        />
-      )}
-
-      {info && (
-        <div className="m-sheet-backdrop" onClick={() => setInfo(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <p className="m-sheet-title">{t("mobile.noteInfo")}</p>
-            {info.props.length > 0 && (
-              <>
-                <p className="m-sectionlabel">{t("mobile.properties")}</p>
-                {info.props.map(([k, v]) => (
-                  <div className="m-row m-row--static" key={k}>
-                    <span className="m-prop-key">{k}</span>
-                    <span className="m-prop-val">{v}</span>
-                  </div>
-                ))}
-              </>
-            )}
-            <p className="m-sectionlabel">{t("mobile.backlinks")}</p>
-            {info.backlinks.length === 0 ? (
-              <p className="m-hint">{t("mobile.noBacklinks")}</p>
-            ) : (
-              info.backlinks.map((b) => (
-                <button
-                  className="m-row"
-                  key={b.path}
-                  onClick={() => {
-                    setInfo(null);
-                    onOpenNote(b.path);
-                  }}
-                >
-                  <FileText size={16} />
-                  <span>{b.title}</span>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** First plain search term (no operators/exclusions) — the jump target. */
-const jumpTermOf = (q: string): string => {
-  for (const tok of q.trim().split(/\s+/)) {
-    const low = tok.toLowerCase();
-    if (!tok || tok.startsWith("-") || low.startsWith("path:") || low.startsWith("tag:")) continue;
-    return tok.replace(/^"+|"+$/g, "");
-  }
-  return "";
-};
-
-function SearchView({
-  vault,
-  onOpenNote,
-}: {
-  vault: MobileVault;
-  onOpenNote: (path: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [query, setQuery] = useState("");
-  const debounced = useDebouncedValue(query, 150);
-  const [results, setResults] = useState<SearchResult[]>([]);
-  useEffect(() => {
-    if (!vault.searchAvailable || !debounced.trim()) {
-      setResults([]);
-      return;
-    }
-    let stale = false;
-    void vaultOps.search(vault, debounced).then((rows) => {
-      if (!stale) setResults(rows);
-    });
-    return () => {
-      stale = true;
-    };
-  }, [vault, debounced]);
-
-  // Grouping (P4, desktop parity): a SNIPPET_MARK sentinel in the highlighted
-  // title means the file NAME matched; everything else is a content hit.
-  // The sentinel is char(1) — constructed, never typed literally.
-  const mark = String.fromCharCode(1);
-  const nameHits = results.filter((r) => r.titleHighlighted?.includes(mark));
-  const nameSet = new Set(nameHits.map((r) => r.path));
-  const contentHits = results.filter((r) => !nameSet.has(r.path));
-
-  const openResult = (r: SearchResult) => {
-    // Park the jump BEFORE opening: the editor may not be mounted yet.
-    const term = jumpTermOf(debounced);
-    if (term) setPendingSearchJump({ path: r.path, term });
-    onOpenNote(r.path);
-  };
-
-  const resultRow = (r: SearchResult) => (
-    <button className="m-row m-result" key={r.path} onClick={() => openResult(r)}>
-      <FileText size={16} />
-      <span>
-        <span className="m-result-title">
-          {r.titleHighlighted?.includes(mark)
-            ? renderSnippetNodes(r.titleHighlighted)
-            : r.path.split("/").pop()!.replace(/\.md$/i, "")}
-        </span>
-        {r.snippet ? (
-          <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
-        ) : null}
+      <span className="m-tab-pill">
+        <Icon size={20} />
       </span>
+      <span className="m-tab-label">{t(def.labelKey)}</span>
     </button>
-  );
-
-  const bothGroups = nameHits.length > 0 && contentHits.length > 0;
-  return (
-    <div className="m-page">
-      <header className="m-header">
-        <h1>{t("mobile.tabSearch")}</h1>
-      </header>
-      <TextInput
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("mobile.tabSearch")}
-        value={query}
-      />
-      {!vault.searchAvailable ? (
-        <EmptyState icon={<Search size={20} />}>{t("mobile.comingSoon")}</EmptyState>
-      ) : (
-        <>
-          {bothGroups && <p className="m-sectionlabel">{t("sidebar.matchesName")}</p>}
-          {nameHits.map(resultRow)}
-          {bothGroups && <p className="m-sectionlabel">{t("sidebar.matchesContent")}</p>}
-          {contentHits.map(resultRow)}
-        </>
-      )}
-    </div>
-  );
-}
-
-function TodayView({ onOpenDate }: { onOpenDate: (iso: string) => void }) {
-  const { t, i18n: i18nInstance } = useTranslation();
-  // Date strip (M4/E6): the last weeks plus tomorrow, today preselected.
-  const days: Date[] = [];
-  for (let offset = -27; offset <= 1; offset++) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    days.push(d);
-  }
-  const todayIso = isoOf(new Date());
-  const stripRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // Land on today (the strip starts four weeks back).
-    stripRef.current
-      ?.querySelector(".is-today")
-      ?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, []);
-  const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
-  return (
-    <div className="m-page">
-      <header className="m-header">
-        <h1>{t("mobile.tabToday")}</h1>
-      </header>
-      <div className="m-datestrip" ref={stripRef}>
-        {days.map((d) => {
-          const iso = isoOf(d);
-          return (
-            <button
-              className={`m-datestrip-day${iso === todayIso ? " is-today" : ""}`}
-              key={iso}
-              onClick={() => onOpenDate(iso)}
-            >
-              <span className="m-datestrip-wd">{weekday.format(d)}</span>
-              <span className="m-datestrip-num">{d.getDate()}</span>
-            </button>
-          );
-        })}
-      </div>
-      <button className="m-row" onClick={() => onOpenDate(todayIso)}>
-        <Calendar className="m-accent" size={16} />
-        <span>{todayIso}</span>
-        <ChevronRight className="m-chevron" size={16} />
-      </button>
-    </div>
   );
 }
 
@@ -1014,90 +476,5 @@ function SyncIndicator() {
         <Cloud className={status.status === "syncing" ? "m-chevron" : "m-accent"} size={16} />
       )}
     </span>
-  );
-}
-
-function MoreView({
-  onAddVault,
-  onOpenVault,
-  onOpenSettings,
-  onOpenTags,
-  onOpenBookmarks,
-  activeVaultId,
-}: {
-  onAddVault: () => void;
-  onOpenVault: (id: string) => void;
-  onOpenSettings: () => void;
-  onOpenTags: () => void;
-  onOpenBookmarks: () => void;
-  activeVaultId: string;
-}) {
-  const { t } = useTranslation();
-  const [vaults, setVaults] = useState<VaultEntry[]>([]);
-  useEffect(() => {
-    const reload = () => void listVaults().then(setVaults);
-    reload();
-    window.addEventListener("m-vaults-changed", reload);
-    return () => window.removeEventListener("m-vaults-changed", reload);
-  }, [activeVaultId]);
-  const later = [t("mobile.sectionBases")];
-  return (
-    <div className="m-page">
-      <header className="m-header">
-        <h1>{t("mobile.tabMore")}</h1>
-      </header>
-      <div className="m-row m-row--static">
-        <span className="m-section-label">{t("mobile.vaults")}</span>
-      </div>
-      {vaults.map((v) => {
-        const active = v.id === activeVaultId;
-        return (
-          <div className="m-row m-row--split" key={v.id}>
-            <button
-              className="m-row-main"
-              disabled={active}
-              onClick={() => void switchVault(v.id)}
-            >
-              <FolderClosed className={active ? "m-accent" : "m-chevron"} size={16} />
-              <span>{v.name || t("mobile.vaultLocal")}</span>
-              {active && <Check className="m-accent" size={16} />}
-            </button>
-            <button
-              aria-label={t("mobile.vaultDetails")}
-              className="m-iconbtn"
-              onClick={() => onOpenVault(v.id)}
-            >
-              <ChevronRight className="m-chevron" size={18} />
-            </button>
-          </div>
-        );
-      })}
-      <button className="m-row" onClick={onAddVault}>
-        <Cloud className="m-accent" size={16} />
-        <span>{t("mobile.vaultAdd")}</span>
-        <ChevronRight className="m-chevron" size={16} />
-      </button>
-      <button className="m-row" onClick={onOpenTags}>
-        <Hash className="m-accent" size={16} />
-        <span>{t("mobile.tags")}</span>
-        <ChevronRight className="m-chevron" size={16} />
-      </button>
-      <button className="m-row" onClick={onOpenBookmarks}>
-        <Bookmark className="m-accent" size={16} />
-        <span>{t("mobile.bookmarks")}</span>
-        <ChevronRight className="m-chevron" size={16} />
-      </button>
-      <button className="m-row" onClick={onOpenSettings}>
-        <SettingsIcon className="m-accent" size={16} />
-        <span>{t("mobile.sectionSettings")}</span>
-        <ChevronRight className="m-chevron" size={16} />
-      </button>
-      {later.map((label) => (
-        <div className="m-row m-row--static" key={label}>
-          <span>{label}</span>
-          <span className="m-soon">{t("mobile.comingSoon")}</span>
-        </div>
-      ))}
-    </div>
   );
 }

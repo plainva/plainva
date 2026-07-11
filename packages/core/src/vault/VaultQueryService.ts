@@ -176,6 +176,17 @@ export class VaultQueryService {
     return rows.filter((r) => !!r.path).map((r) => ({ path: r.path, title: r.title || r.path }));
   }
 
+  /** Every .base database in the vault (mobile databases hub, R2.4). */
+  async listBases(): Promise<{ path: string; title: string }[]> {
+    const rows = await this.db.query<{ path: string; title: string | null }>(
+      `SELECT path, title FROM files WHERE path LIKE '%.base' ORDER BY path`,
+      [],
+    );
+    return rows
+      .filter((r) => !!r.path)
+      .map((r) => ({ path: r.path, title: r.title || r.path.split("/").pop()!.replace(/\.base$/i, "") }));
+  }
+
   /**
    * Resolves a wikilink-style target (note title or vault path, case-insensitive)
    * to a vault path the way the editor resolves links. Returns null on no match.

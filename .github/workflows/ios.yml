@@ -145,6 +145,15 @@ jobs:
             <string>app-store-connect</string>
             <key>destination</key>
             <string>upload</string>
+            <key>teamID</key>
+            <string>M3FGXPBLFZ</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.plainva.app</key>
+              <string>Plainva App Store</string>
+            </dict>
           </dict>
           </plist>
           PLIST

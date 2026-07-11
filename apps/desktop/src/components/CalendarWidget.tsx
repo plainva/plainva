@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CalendarCheck, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { localIsoKey } from "../services/dailyNotePath";
-import { buildMonthCells, isoWeeksForCells, startOfMonth } from "./calendarGrid";
+import { buildMonthCells, isoWeeksForCells, startOfMonth } from "@plainva/ui";
 
 interface CalendarWidgetProps {
   onSelectDate: (date: Date) => void;

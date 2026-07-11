@@ -11,7 +11,8 @@ export function BookmarksScreen({
   onOpenNote,
 }: {
   vault: MobileVault;
-  onBack: () => void;
+  /** Absent when rendered as a tab root — the app shell owns the top bar. */
+  onBack?: () => void;
   onOpenNote: (path: string) => void;
 }) {
   const { t } = useTranslation();
@@ -22,12 +23,14 @@ export function BookmarksScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
-          <ChevronLeft size={20} />
-        </button>
-        <h1>{t("mobile.bookmarks")}</h1>
-      </header>
+      {onBack && (
+        <header className="m-header">
+          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+            <ChevronLeft size={22} />
+          </button>
+          <h1>{t("mobile.bookmarks")}</h1>
+        </header>
+      )}
       {marks.length === 0 ? (
         <EmptyState icon={<Bookmark size={20} />}>{t("mobile.noBookmarks")}</EmptyState>
       ) : (

@@ -1421,7 +1421,6 @@
     "newNote": "新規ノート",
     "sectionVaultSync": "Vault と同期",
     "sectionBookmarksTags": "ブックマークとタグ",
-    "sectionBases": "データベース",
     "sectionSettings": "設定",
     "syncUrl": "サーバー URL",
     "syncUser": "ユーザー名",
@@ -1505,6 +1504,13 @@
     "conflictKeepOriginal": "現在のノートを維持",
     "lastSync": "最終同期: {{time}}",
     "baseEmpty": "このビューに一致する項目はありません。",
-    "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。"
+    "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。",
+    "tabDatabases": "データベース",
+    "tabCalendar": "カレンダー",
+    "databasesEmpty": "データベースはまだありません。.base ファイルを作成して始めましょう。",
+    "settingTabs": "タブバー",
+    "settingTabsHint": "下部バーに表示するセクションを最大 {{max}} 個選べます。すべては「その他」からも利用できます。",
+    "quickCreate": "新規作成",
+    "newDaily": "新しいデイリーノート"
   }
 }

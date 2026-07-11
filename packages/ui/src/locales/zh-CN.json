@@ -1421,7 +1421,6 @@
     "newNote": "新笔记",
     "sectionVaultSync": "Vault 与同步",
     "sectionBookmarksTags": "书签与标签",
-    "sectionBases": "数据库",
     "sectionSettings": "设置",
     "syncUrl": "服务器 URL",
     "syncUser": "用户名",
@@ -1505,6 +1504,13 @@
     "conflictKeepOriginal": "保留当前笔记",
     "lastSync": "上次同步：{{time}}",
     "baseEmpty": "没有符合此视图的条目。",
-    "saveRetry": "保存失败——正在后台重试。"
+    "saveRetry": "保存失败——正在后台重试。",
+    "tabDatabases": "数据库",
+    "tabCalendar": "日历",
+    "databasesEmpty": "还没有数据库。创建一个 .base 文件即可开始。",
+    "settingTabs": "标签栏",
+    "settingTabsHint": "为底部栏选择最多 {{max}} 个板块；所有内容仍可在“更多”中访问。",
+    "quickCreate": "新建",
+    "newDaily": "新建每日笔记"
   }
 }

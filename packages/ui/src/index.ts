@@ -5,6 +5,7 @@
 // enforces the import ban.
 
 // Pure helpers and view-models
+export * from "./lib/calendarGrid";
 export * from "./lib/concurrencyLimiter";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";

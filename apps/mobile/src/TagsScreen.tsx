@@ -17,7 +17,8 @@ export function TagsScreen({
 }: {
   vault: MobileVault;
   tag: string;
-  onBack: () => void;
+  /** Absent when rendered as a tab root — the app shell owns the top bar. */
+  onBack?: () => void;
   onOpenTag: (tag: string) => void;
   onOpenNote: (path: string) => void;
 }) {
@@ -44,12 +45,14 @@ export function TagsScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
-          <ChevronLeft size={20} />
-        </button>
-        <h1>{tag ? `#${tag}` : t("mobile.tags")}</h1>
-      </header>
+      {onBack && (
+        <header className="m-header">
+          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+            <ChevronLeft size={22} />
+          </button>
+          <h1>{tag ? `#${tag}` : t("mobile.tags")}</h1>
+        </header>
+      )}
       {tag ? (
         files.map((f) => (
           <button className="m-row" key={f.path} onClick={() => onOpenNote(f.path)}>

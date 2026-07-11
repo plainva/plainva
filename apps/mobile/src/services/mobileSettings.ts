@@ -18,6 +18,8 @@ interface MobileSettings {
   language: string;
   /** First-start onboarding shown and answered. */
   onboarded: boolean;
+  /** Bottom-bar screens (R2.2), sanitized by navigation.sanitizeTabSlots. */
+  tabSlots: string[];
 }
 
 const KEY = "mobile-settings";
@@ -28,6 +30,7 @@ const DEFAULTS: MobileSettings = {
   dailyFolder: "Daily",
   language: "",
   onboarded: false,
+  tabSlots: ["notes", "today", "tags", "bookmarks"],
 };
 
 let cache: MobileSettings = { ...DEFAULTS };
@@ -68,6 +71,8 @@ export async function updateMobileSettings(patch: Partial<MobileSettings>): Prom
     const target = patch.language || navigator.language;
     await changeAppLanguage(target).catch(() => {});
   }
+  // The app shell re-reads tab slots (and other live settings) on this.
+  window.dispatchEvent(new CustomEvent("m-settings-changed"));
   const store = await getPlatformServices().loadSettings();
   await store.set(KEY, cache);
   await store.save();

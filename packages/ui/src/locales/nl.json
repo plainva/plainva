@@ -1426,7 +1426,6 @@
     "newNote": "Nieuwe notitie",
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Bladwijzers & Tags",
-    "sectionBases": "Databases",
     "sectionSettings": "Instellingen",
     "syncUrl": "Server-URL",
     "syncUser": "Gebruikersnaam",
@@ -1510,6 +1509,13 @@
     "conflictKeepOriginal": "Huidige notitie behouden",
     "lastSync": "Laatst gesynchroniseerd: {{time}}",
     "baseEmpty": "Geen items komen overeen met deze weergave.",
-    "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond."
+    "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond.",
+    "tabDatabases": "Databases",
+    "tabCalendar": "Kalender",
+    "databasesEmpty": "Nog geen databases. Maak een .base-bestand om te beginnen.",
+    "settingTabs": "Tabbladbalk",
+    "settingTabsHint": "Kies maximaal {{max}} onderdelen voor de balk onderaan; alles blijft bereikbaar via ‘Meer’.",
+    "quickCreate": "Nieuw maken",
+    "newDaily": "Nieuwe dagnotitie"
   }
 }

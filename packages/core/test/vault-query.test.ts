@@ -401,6 +401,21 @@ describe("VaultQueryService", () => {
     expect(db.queries[0].query).toContain("LIKE '%.base'");
   });
 
+  it("lists bases with titles falling back to the basename (mobile hub)", async () => {
+    db.mockedResults.push([
+      { path: "projects.base", title: "Projekte" },
+      { path: "sub/reading.base", title: null },
+      { path: "", title: "ghost" },
+    ]);
+    const bases = await queryService.listBases();
+    expect(bases).toEqual([
+      { path: "projects.base", title: "Projekte" },
+      { path: "sub/reading.base", title: "reading" },
+    ]);
+    expect(db.queries[0].query).toContain("LIKE '%.base'");
+    expect(db.queries[0].query).toContain("ORDER BY path");
+  });
+
   it("lists notes with a title fallback and excludes attachments/.base in SQL", async () => {
     db.mockedResults.push([
       { path: "a.md", title: "A" },

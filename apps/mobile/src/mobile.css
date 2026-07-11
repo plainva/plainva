@@ -1,7 +1,10 @@
 /*
- * Mobile shell styles. Colors/radii/fonts come from the shared base
- * (@plainva/ui styles/base-colors.css, light + dark via data-theme on
- * <html>) plus the shared tokens; this file carries only mobile layout.
+ * Mobile shell styles — Material Design 3 form language (R2, maintainer
+ * direction 2026-07-11: "orientiere Dich an der Material-Design-Sprache").
+ * Colors come from the shared base (@plainva/ui styles/base-colors.css,
+ * light + dark via data-theme on <html>); this file maps them onto M3
+ * roles and carries the mobile layout: top app bar, navigation bar with
+ * pill indicators, FAB, bottom sheets with a drag handle, state layers.
  */
 
 *,
@@ -16,12 +19,32 @@ body,
   height: 100%;
 }
 
+:root {
+  /* M3 color roles mapped onto the shared Plainva palette. */
+  --m-surface: var(--bg-primary);
+  --m-surface-container: var(--bg-secondary);
+  --m-surface-container-high: var(--bg-hover);
+  --m-primary: var(--accent-color);
+  --m-on-primary: var(--accent-on, #fff);
+  --m-outline: var(--border-color);
+  --m-secondary-container: var(--bg-active);
+  --m-on-secondary-container: var(--text-main);
+  --m-state-pressed: var(--bg-active);
+}
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --m-secondary-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
+    --m-state-pressed: color-mix(in srgb, var(--text-main) 10%, transparent);
+  }
+}
+
 body {
   margin: 0;
-  background: var(--bg-primary);
+  background: var(--m-surface);
   color: var(--text-main);
-  font-family: var(--font-ui, system-ui, sans-serif);
+  font-family: var(--font-ui, Roboto, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .m-app {
@@ -41,7 +64,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+  padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
 }
 
 .m-page--note {
@@ -51,55 +74,111 @@ body {
   padding-bottom: 0;
 }
 
+/* ---- Top app bar (M3 small app bar; the shell renders it on tab roots,
+   pushed screens carry their own back header with the same metrics) ---- */
+
+.m-topbar,
 .m-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+  gap: 4px;
+  min-height: 64px;
+  padding: calc(6px + env(safe-area-inset-top)) 8px 6px;
+  background: var(--m-surface);
 }
 
+.m-topbar {
+  padding-left: 16px;
+  padding-right: 10px;
+}
+
+.m-topbar h1,
 .m-header h1 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.375rem; /* M3 title-large */
+  font-weight: 500;
+  line-height: 1.2;
   margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-header {
+  margin: 0 -16px;
+}
+
+.m-page--note .m-header {
+  margin: 0;
+}
+
+.m-headactions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
 }
 
 .m-iconbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: none;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: 999px;
   background: transparent;
   color: var(--text-main);
 }
+.m-iconbtn:active {
+  background: var(--m-state-pressed);
+}
+.m-iconbtn:disabled {
+  opacity: 0.38;
+}
+.m-iconbtn.is-active {
+  color: var(--m-primary);
+}
 
 .m-sectionlabel {
-  margin: 12px 2px 4px;
+  margin: 14px 2px 4px;
   font-size: 0.72rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
+.m-sectionlabel--inset {
+  margin-left: 16px;
+}
+
+/* ---- List items (M3 one-line list: 52px, state layer, no hard rules) ---- */
 
 .m-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   width: 100%;
-  padding: 12px 6px;
+  min-height: 52px;
+  padding: 8px 8px;
   border: none;
-  border-bottom: 1px solid var(--border-color-light);
+  border-radius: 12px;
   background: transparent;
   color: var(--text-main);
   font-size: 0.95rem;
   text-align: left;
 }
+.m-row:active {
+  background: var(--m-state-pressed);
+}
 
 .m-row--static {
   justify-content: space-between;
+  cursor: default;
+}
+.m-row--static:active {
+  background: transparent;
 }
 
 .m-row span:first-of-type {
@@ -107,7 +186,7 @@ body {
 }
 
 .m-accent {
-  color: var(--accent-color);
+  color: var(--m-primary);
 }
 
 .m-chevron {
@@ -133,43 +212,99 @@ body {
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
+/* ---- Navigation bar (M3): 80px, icon in a pill indicator, label below ---- */
+
 .m-tabbar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-around;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  background: var(--m-surface-container);
+  padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
 }
 
 .m-tab {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.65rem;
-  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0 4px;
+  min-width: 56px;
+}
+
+.m-tab-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 30px;
+  border-radius: 999px;
+  transition: background 120ms ease;
 }
 
 .m-tab.is-active {
-  color: var(--accent-color);
+  color: var(--text-main);
 }
+.m-tab.is-active .m-tab-pill {
+  background: var(--m-secondary-container);
+  color: var(--m-primary);
+}
+
+.m-tab-label {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- FAB (M3 primary FAB, fixed center slot of the bar) ---- */
 
 .m-fab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  margin-top: -22px;
+  width: 56px;
+  height: 56px;
+  margin-top: -26px;
   border: none;
-  border-radius: 50%;
-  background: var(--accent-color);
-  color: var(--accent-on);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  border-radius: 16px;
+  background: var(--m-primary);
+  color: var(--m-on-primary);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 8px 3px rgba(0, 0, 0, 0.15);
+  touch-action: none;
+}
+.m-fab:active {
+  filter: brightness(1.08);
+}
+
+/* ---- Search ---- */
+
+.m-header--search {
+  gap: 8px;
+}
+
+.m-searchfield {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  padding: 0 18px;
+  font: inherit;
+  font-size: 0.95rem;
+  background: var(--m-surface-container);
+  color: var(--text-main);
+}
+.m-searchfield:focus {
+  outline: 2px solid var(--m-primary);
+  outline-offset: -2px;
 }
 
 .m-result span:first-of-type {
@@ -200,13 +335,16 @@ body {
 }
 
 .m-headicon {
-  margin-left: auto;
   display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
 }
 
 .m-error {
   color: var(--error-text);
 }
+
+/* ---- Sync / vault forms ---- */
 
 .m-sync {
   display: flex;
@@ -235,6 +373,12 @@ body {
   color: var(--text-muted);
 }
 
+.m-field input,
+.m-field select {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
 .m-sync-actions {
   display: flex;
   gap: 10px;
@@ -253,6 +397,9 @@ body {
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
 }
+.m-hint--inset {
+  margin: 0 16px 6px;
+}
 .m-row:disabled {
   opacity: 1;
 }
@@ -268,17 +415,24 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 4px 14px 16px;
+  gap: 14px;
+  min-height: 52px;
+  padding: 8px 4px 8px 8px;
   background: none;
   border: 0;
+  border-radius: 12px;
   font: inherit;
   color: inherit;
   text-align: left;
 }
+.m-row-main:active {
+  background: var(--m-state-pressed);
+}
+.m-row-main span:first-of-type {
+  flex: 1;
+}
 .m-row--split .m-iconbtn {
   align-self: center;
-  margin-right: 8px;
 }
 .m-sync-actions--column {
   flex-direction: column;
@@ -286,6 +440,20 @@ body {
 }
 .m-danger {
   color: var(--danger-color, #b3261e);
+}
+
+/* Tab-bar layout picker (R2.2): selection dot at the row's end. */
+.m-slotmark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid var(--m-outline);
+}
+.m-slotmark.is-on {
+  border-color: var(--m-primary);
+  background: var(--m-primary);
+  box-shadow: inset 0 0 0 3px var(--m-surface);
 }
 
 /* M4 touch UX */
@@ -298,28 +466,28 @@ body {
   justify-content: space-around;
   align-items: center;
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+  background: var(--m-surface-container);
+  border-top: 1px solid var(--border-color-light);
   z-index: 30;
 }
 .m-edit-toolbar button {
   background: none;
   border: 0;
-  padding: 8px;
+  padding: 10px;
   color: var(--text-main);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: 999px;
 }
 .m-edit-toolbar button:active {
-  background: var(--bg-hover);
+  background: var(--m-state-pressed);
 }
 .m-page--note .m-editor {
   padding-bottom: 64px;
 }
 .m-datestrip {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 8px 16px 12px;
+  padding: 8px 2px 12px;
   scrollbar-width: none;
 }
 .m-datestrip-day {
@@ -327,18 +495,17 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-width: 46px;
-  padding: 8px 6px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md, 10px);
-  background: none;
+  min-width: 48px;
+  padding: 10px 6px;
+  border: none;
+  border-radius: 14px;
+  background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
 }
 .m-datestrip-day.is-today {
-  background: var(--accent-color);
-  color: var(--accent-on, #fff);
-  border-color: var(--accent-color);
+  background: var(--m-primary);
+  color: var(--m-on-primary);
 }
 .m-datestrip-wd {
   font-size: 0.7rem;
@@ -347,31 +514,36 @@ body {
 .m-datestrip-num {
   font-weight: 600;
 }
+
+/* ---- Bottom sheets (M3: 28px top radius + drag handle) ---- */
+
 .m-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 40;
   display: flex;
   align-items: flex-end;
 }
 .m-sheet {
   width: 100%;
-  background: var(--bg-primary);
-  border-radius: 16px 16px 0 0;
-  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
-}
-.m-sheet-title {
-  margin: 0 16px 8px;
-  font-weight: 600;
-}
-/* P3: sheets can outgrow the viewport (move picker, note info) */
-.m-sheet {
-  max-height: 75vh;
+  background: var(--m-surface);
+  border-radius: 28px 28px 0 0;
+  padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
+  max-height: 78vh;
   overflow-y: auto;
 }
-.m-row--static {
-  cursor: default;
+.m-sheet-grip {
+  width: 32px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--m-outline);
+  margin: 6px auto 10px;
+}
+.m-sheet-title {
+  margin: 0 8px 8px;
+  font-weight: 600;
+  font-size: 1rem;
 }
 .m-prop-key {
   color: var(--text-muted);
@@ -394,11 +566,11 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: calc(100% - 32px);
-  margin: 8px 16px;
-  padding: 10px 12px;
-  border: 1px solid var(--warning-border);
-  border-radius: 10px;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
   background: var(--warning-bg);
   color: var(--warning-text);
   font-size: 0.9rem;
@@ -407,41 +579,47 @@ body {
 /* P6: base view switcher + cards/list renders */
 .m-viewpills {
   display: flex;
-  gap: 6px;
-  padding: 0 16px 10px;
+  gap: 8px;
+  padding: 0 0 10px;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 .m-viewpill {
-  padding: 5px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: var(--bg-primary);
-  color: var(--text-muted);
+  padding: 7px 14px;
+  border: 1px solid var(--m-outline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-main);
   font-size: 0.85rem;
   white-space: nowrap;
 }
 .m-viewpill.is-active {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: var(--accent-on, #fff);
+  background: var(--m-secondary-container);
+  border-color: transparent;
+  color: var(--m-primary);
+  font-weight: 600;
 }
 .m-basecards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  padding: 0 16px 16px;
+  padding: 0 0 16px;
 }
 .m-basecard {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 12px;
-  border: 1px solid var(--border-color);
+  padding: 14px;
+  border: none;
   border-radius: 12px;
-  background: var(--bg-primary);
+  background: var(--m-surface-container);
+  color: var(--text-main);
   text-align: left;
   overflow: hidden;
+}
+.m-basecard:active {
+  background: var(--m-surface-container-high);
 }
 .m-basecard-title {
   font-weight: 600;
@@ -457,7 +635,7 @@ body {
 }
 .m-basetable-wrap {
   overflow-x: auto;
-  padding: 0 16px 16px;
+  padding: 0 0 16px;
 }
 .m-basetable {
   border-collapse: collapse;
@@ -467,8 +645,8 @@ body {
 .m-basetable th,
 .m-basetable td {
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border-color-light);
   white-space: nowrap;
   max-width: 40vw;
   overflow: hidden;
@@ -479,12 +657,87 @@ body {
   font-weight: 600;
 }
 
+/* ---- Calendar screen (R2.3) ---- */
+
+.m-cal-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+}
+.m-cal-month {
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.m-cal-today {
+  border: 1px solid var(--m-outline);
+  background: transparent;
+  color: var(--m-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.m-cal-today:active {
+  background: var(--m-state-pressed);
+}
+.m-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.m-cal-wd {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  padding: 4px 0 6px;
+}
+.m-cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.m-cal-day:active {
+  background: var(--m-state-pressed);
+}
+.m-cal-day.is-outside {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+.m-cal-day.is-today {
+  background: var(--m-primary);
+  color: var(--m-on-primary);
+}
+.m-cal-dot {
+  position: absolute;
+  bottom: 15%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: transparent;
+}
+.m-cal-day.has-daily .m-cal-dot {
+  background: currentColor;
+}
+
 /* P1 onboarding */
 .m-onboarding {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--bg-primary);
+  background: var(--m-surface);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -499,16 +752,16 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 16px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg, 10px);
-  background: var(--bg-secondary);
+  padding: 18px;
+  border: none;
+  border-radius: 16px;
+  background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
   text-align: left;
 }
 .m-onboarding-card:active {
-  background: var(--bg-hover);
+  background: var(--m-surface-container-high);
 }
 .m-onboarding-label {
   font-weight: 600;
@@ -535,16 +788,17 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 4px 0 12px;
+  padding: 4px 8px 12px;
 }
 .m-chip {
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border: 1px solid var(--m-outline);
+  background: transparent;
   color: var(--text-main);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 9px 13px;
   font-size: 0.85rem;
 }
 .m-chip:active {
-  background: var(--bg-active);
+  background: var(--m-secondary-container);
+  border-color: transparent;
 }

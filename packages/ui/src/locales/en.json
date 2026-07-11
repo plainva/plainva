@@ -1426,7 +1426,6 @@
     "newNote": "New note",
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Bookmarks & Tags",
-    "sectionBases": "Databases",
     "sectionSettings": "Settings",
     "syncUrl": "Server URL",
     "syncUser": "Username",
@@ -1510,6 +1509,13 @@
     "conflictKeepOriginal": "Keep the current note",
     "lastSync": "Last synced: {{time}}",
     "baseEmpty": "No entries match this view.",
-    "saveRetry": "Saving failed — retrying in the background."
+    "saveRetry": "Saving failed — retrying in the background.",
+    "tabDatabases": "Databases",
+    "tabCalendar": "Calendar",
+    "databasesEmpty": "No databases yet. Create a .base file to get started.",
+    "settingTabs": "Tab bar",
+    "settingTabsHint": "Pick up to {{max}} sections for the bottom bar; everything stays available under More.",
+    "quickCreate": "Create new",
+    "newDaily": "New daily note"
   }
 }

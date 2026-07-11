@@ -1436,7 +1436,6 @@
     "newNote": "Nowa notatka",
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Zakładki & Tagi",
-    "sectionBases": "Bazy danych",
     "sectionSettings": "Ustawienia",
     "syncUrl": "Adres serwera",
     "syncUser": "Nazwa użytkownika",
@@ -1520,6 +1519,13 @@
     "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
     "lastSync": "Ostatnia synchronizacja: {{time}}",
     "baseEmpty": "Żadne wpisy nie pasują do tego widoku.",
-    "saveRetry": "Zapis nie powiódł się — ponawianie w tle."
+    "saveRetry": "Zapis nie powiódł się — ponawianie w tle.",
+    "tabDatabases": "Bazy danych",
+    "tabCalendar": "Kalendarz",
+    "databasesEmpty": "Brak baz danych. Utwórz plik .base, aby zacząć.",
+    "settingTabs": "Pasek kart",
+    "settingTabsHint": "Wybierz maksymalnie {{max}} sekcje dla dolnego paska; wszystko pozostaje dostępne w „Więcej”.",
+    "quickCreate": "Utwórz nowy",
+    "newDaily": "Nowa notatka dzienna"
   }
 }

@@ -1431,7 +1431,6 @@
     "newNote": "Nuova nota",
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Segnalibri & Tag",
-    "sectionBases": "Database",
     "sectionSettings": "Impostazioni",
     "syncUrl": "URL del server",
     "syncUser": "Nome utente",
@@ -1515,6 +1514,13 @@
     "conflictKeepOriginal": "Mantieni la nota attuale",
     "lastSync": "Ultima sincronizzazione: {{time}}",
     "baseEmpty": "Nessuna voce corrisponde a questa vista.",
-    "saveRetry": "Salvataggio non riuscito — nuovo tentativo in background."
+    "saveRetry": "Salvataggio non riuscito — nuovo tentativo in background.",
+    "tabDatabases": "Database",
+    "tabCalendar": "Calendario",
+    "databasesEmpty": "Ancora nessun database. Crea un file .base per iniziare.",
+    "settingTabs": "Barra delle schede",
+    "settingTabsHint": "Scegli fino a {{max}} sezioni per la barra inferiore; tutto resta disponibile in “Altro”.",
+    "quickCreate": "Crea nuovo",
+    "newDaily": "Nuova nota giornaliera"
   }
 }

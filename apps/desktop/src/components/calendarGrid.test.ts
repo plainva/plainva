@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthCells, isoWeeksForCells } from "./calendarGrid";
+import { buildMonthCells, isoWeeksForCells } from "@plainva/ui";
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

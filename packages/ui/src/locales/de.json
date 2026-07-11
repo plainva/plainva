@@ -1426,7 +1426,6 @@
     "newNote": "Neue Notiz",
     "sectionVaultSync": "Vault & Sync",
     "sectionBookmarksTags": "Lesezeichen & Tags",
-    "sectionBases": "Datenbanken",
     "sectionSettings": "Einstellungen",
     "syncUrl": "Server-URL",
     "syncUser": "Benutzername",
@@ -1510,6 +1509,13 @@
     "conflictKeepOriginal": "Aktuelle Notiz behalten",
     "lastSync": "Zuletzt synchronisiert: {{time}}",
     "baseEmpty": "Keine Einträge in dieser Ansicht.",
-    "saveRetry": "Speichern fehlgeschlagen — neuer Versuch läuft im Hintergrund."
+    "saveRetry": "Speichern fehlgeschlagen — neuer Versuch läuft im Hintergrund.",
+    "tabDatabases": "Datenbanken",
+    "tabCalendar": "Kalender",
+    "databasesEmpty": "Noch keine Datenbanken. Erstelle eine .base-Datei, um zu starten.",
+    "settingTabs": "Tab-Leiste",
+    "settingTabsHint": "Wähle bis zu {{max}} Bereiche für die untere Leiste; über „Mehr“ bleibt alles erreichbar.",
+    "quickCreate": "Neu erstellen",
+    "newDaily": "Neue Tagesnotiz"
   }
 }
