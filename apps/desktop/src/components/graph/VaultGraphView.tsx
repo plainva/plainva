@@ -816,7 +816,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         )}
         <span style={{ flex: 1 }} />
         <button
-          style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "var(--text-xs)", padding: 0 }}
+          className="pv-linkbtn"
           onClick={() => setShowCleanup(true)}
           data-testid="graph-stat-orphans"
         >

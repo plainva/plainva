@@ -144,6 +144,7 @@ const TreeNodeView: React.FC<{
         onClick={(e) => { if (isRenaming) return; onItemClick(node.path!, false, e); }}
         onAuxClick={(e) => { if (!isRenaming) onItemAuxClick(node.path!, false, e); }}
         onContextMenu={(e) => onContextMenu(node.path, false, e)}
+        className="pv-rowhover"
         style={{
           padding: `var(--tree-row-pad-y) 8px var(--tree-row-pad-y) ${paddingLeft}px`,
           cursor: "pointer",
@@ -152,7 +153,7 @@ const TreeNodeView: React.FC<{
           alignItems: "center",
           gap: "6px",
           fontSize: "var(--tree-row-font)",
-          background: isSelected || activePath === node.path ? "var(--bg-active)" : "transparent",
+          background: isSelected || activePath === node.path ? "var(--bg-active)" : undefined,
           color: conflict ? "var(--error-text)" : "var(--text-main)",
           fontWeight: activePath === node.path ? 600 : 400,
           boxShadow: activePath === node.path ? "inset 3px 0 0 var(--accent-color)" : undefined,
@@ -182,7 +183,8 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+              className="pv-field"
+              style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
           </form>
@@ -207,6 +209,7 @@ const TreeNodeView: React.FC<{
       onDrop={(e) => onDrop(e, node.path!)}
     >
       <div
+        className="pv-rowhover"
         draggable={true}
         data-tree-path={node.path}
         onDragStart={(e) => onDragStart(e, node.path!)}
@@ -223,10 +226,8 @@ const TreeNodeView: React.FC<{
           fontSize: "var(--tree-row-font)",
           color: "var(--text-main)",
           fontWeight: 500,
-          background: isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : "transparent",
+          background: isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : undefined,
         }}
-        onMouseOver={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-hover)"; }}
-        onMouseOut={e => e.currentTarget.style.background = isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : "transparent"}
       >
         {isOpen ? <ChevronDown size={14} style={{ opacity: 0.5 }} /> : <ChevronRight size={14} style={{ opacity: 0.5 }} />}
         <Folder size={14} style={{ opacity: 0.7, color: "var(--text-muted)" }} />
@@ -239,7 +240,8 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+              className="pv-field"
+              style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
           </form>
@@ -302,7 +304,8 @@ const TreeNodeView: React.FC<{
                     }
                   }}
                   placeholder={newItemPlaceholder(newItemParams.type, t)}
-                  style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                  className="pv-field"
+                  style={{ flex: 1, minWidth: 0 }}
                 />
                 {newItemError && <div className="pv-inline-error">{newItemError}</div>}
               </div>
@@ -1066,6 +1069,7 @@ export const FileTree: React.FC<{
           }}
           onAuxClick={(e) => { if (!isRenaming) handleItemAuxClick(file.path, false, e); }}
           onContextMenu={(e) => openContextMenu(file.path, false, e)}
+          className="pv-rowhover"
           style={{
             padding: "5px 8px",
             cursor: "pointer",
@@ -1074,7 +1078,7 @@ export const FileTree: React.FC<{
             alignItems: "flex-start",
             gap: "8px",
             fontSize: "0.9rem",
-            background: selection.has(file.path) || activePath === file.path ? "var(--bg-active)" : "transparent",
+            background: selection.has(file.path) || activePath === file.path ? "var(--bg-active)" : undefined,
             color: conflict ? "var(--error-text)" : "var(--text-main)",
             fontWeight: activePath === file.path ? 600 : 400,
             boxShadow: activePath === file.path ? "inset 3px 0 0 var(--accent-color)" : undefined,
@@ -1098,7 +1102,8 @@ export const FileTree: React.FC<{
                 onChange={e => updateRenamingName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
                 onBlur={() => handleRenameSubmit()}
-                style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                className="pv-field"
+                style={{ flex: 1, minWidth: 0 }}
               />
               {renamingError && <div className="pv-inline-error">{renamingError}</div>}
             </form>
@@ -1228,7 +1233,8 @@ export const FileTree: React.FC<{
                   }
                 }}
                 placeholder={newItemPlaceholder(newItemParams.type, t)}
-                style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                className="pv-field"
+                style={{ flex: 1, minWidth: 0 }}
               />
               {newItemError && <div className="pv-inline-error">{newItemError}</div>}
             </div>

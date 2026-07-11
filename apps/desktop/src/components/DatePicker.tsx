@@ -140,9 +140,9 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
         >
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", padding: "4px" }}><ChevronLeft size={16} /></button>
+            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronLeft size={16} /></button>
             <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{format(currentMonth, "MMMM yyyy", { locale: de })}</div>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", padding: "4px" }}><ChevronRight size={16} /></button>
+            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronRight size={16} /></button>
           </div>
 
           {/* Weekday Labels */}
@@ -159,9 +159,10 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
                 <button
                   key={day.toISOString()}
                   onClick={() => handleDayClick(day)}
+                  className="pv-rowhover"
                   style={{
                     padding: "6px 0",
-                    background: isSelected ? "var(--accent-color)" : "transparent",
+                    background: isSelected ? "var(--accent-color)" : undefined,
                     color: isSelected ? "var(--accent-on)" : (isCurrentMonth ? "var(--text-main)" : "var(--text-faint)"),
                     border: "none",
                     borderRadius: "var(--radius-xs)",
@@ -169,8 +170,6 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
                     fontSize: "0.85rem",
                     fontWeight: isSelected ? 600 : 400
                   }}
-                  onMouseOver={e => { if(!isSelected) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseOut={e => { if(!isSelected) e.currentTarget.style.background = "transparent"; }}
                 >
                   {format(day, "d")}
                 </button>
@@ -182,19 +181,12 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
           {includeTime && (
             <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
               <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>{t("editor.time", "Uhrzeit")}</span>
-              <input 
-                type="time" 
-                value={timeStr} 
+              <input
+                type="time"
+                value={timeStr}
                 onChange={e => setTimeStr(e.target.value)}
-                style={{ 
-                  padding: "4px", 
-                  borderRadius: "var(--radius-xs)", 
-                  border: "1px solid var(--border-color)", 
-                  background: "var(--bg-secondary)", 
-                  color: "var(--text-main)", 
-                  outline: "none",
-                  cursor: "text"
-                }}
+                className="pv-field"
+                style={{ width: "auto" }}
               />
             </div>
           )}
@@ -202,18 +194,9 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
           {/* Confirm Button */}
           {includeTime && (
             <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "flex-end" }}>
-              <button 
+              <button
                 onClick={handleConfirm}
-                style={{ 
-                  padding: "6px 12px", 
-                  borderRadius: "var(--radius-xs)",
-                  background: "var(--accent-color)",
-                  color: "var(--accent-on)",
-                  border: "none",
-                  cursor: "pointer", 
-                  fontSize: "0.8rem", 
-                  fontWeight: 600
-                }}
+                className="pv-btn pv-btn--primary"
               >
                 {t("common.confirm", "Bestätigen")}
               </button>

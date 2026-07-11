@@ -33,15 +33,6 @@ interface Props {
   onBack: () => void;
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: "0.75rem",
-  borderRadius: "var(--radius-md)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)",
-  color: "var(--text-main)",
-  width: "100%",
-};
-
 const providerLabelKey: Record<Provider, string> = {
   drive: "settings.providerDrive",
   onedrive: "settings.providerOneDrive",
@@ -191,52 +182,52 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
             {provider === "drive" && (
               <>
                 <Field label={t("settings.clientId")}>
-                  <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" style={inputStyle} />
+                  <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" className="pv-field" />
                 </Field>
                 <Field label={t("settings.clientSecret")}>
-                  <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} style={inputStyle} />
+                  <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} className="pv-field" />
                 </Field>
               </>
             )}
             {provider === "onedrive" && !PLAINVA_ONEDRIVE_CLIENT_ID && (
               <Field label={t("settings.clientId")}>
-                <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" style={inputStyle} />
+                <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="pv-field" />
               </Field>
             )}
             {provider === "dropbox" && !PLAINVA_DROPBOX_APP_KEY && (
               <Field label={t("settings.appKey")}>
-                <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} style={inputStyle} />
+                <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} className="pv-field" />
               </Field>
             )}
             {provider === "s3" && (
               <>
                 <Field label={t("settings.s3Endpoint")}>
-                  <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" style={inputStyle} />
+                  <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" className="pv-field" />
                 </Field>
                 <Field label={t("settings.s3Bucket")}>
-                  <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} style={inputStyle} />
+                  <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="pv-field" />
                 </Field>
                 <Field label={t("settings.s3Region")}>
-                  <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" style={inputStyle} />
+                  <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" className="pv-field" />
                 </Field>
                 <Field label={t("settings.s3AccessKeyId")}>
-                  <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} style={inputStyle} />
+                  <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} className="pv-field" />
                 </Field>
                 <Field label={t("settings.s3SecretAccessKey")}>
-                  <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} style={inputStyle} />
+                  <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="pv-field" />
                 </Field>
                 <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem" }}>
-                  <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} style={{ width: 18, height: 18, accentColor: "var(--accent-color)" }} />
+                  <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} className="pv-check" />
                   {t("settings.s3PathStyle")}
                 </label>
               </>
             )}
             <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
-              <button onClick={onBack} disabled={busy} style={{ flex: 1, padding: "0.75rem", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer" }}>
+              <button onClick={onBack} disabled={busy} className="pv-btn pv-btn--secondary pv-btn--lg" style={{ flex: 1 }}>
                 {t("splash.back")}
               </button>
               <button onClick={handleConnect} disabled={busy || !canConnect}
-                style={{ flex: 1, padding: "0.75rem", background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-md)", color: "var(--accent-on)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", opacity: (busy || !canConnect) ? 0.5 : 1 }}>
+                className="pv-btn pv-btn--primary pv-btn--lg" style={{ flex: 1 }}>
                 {busy ? t("splash.connecting") : provider === "s3" ? t("splash.continue") : t("splash.connect")} <ArrowRight size={16} />
               </button>
             </div>
@@ -256,16 +247,16 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
                 </div>
               </div>
               <button onClick={() => setPickerOpen(true)} disabled={busy}
-                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.75rem", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer", fontSize: "0.85rem" }}>
+                className="pv-btn pv-btn--secondary pv-btn--sm" style={{ flexShrink: 0 }}>
                 <Cloud size={15} /> {t("settings.browseFolders")}
               </button>
             </div>
 
             <button onClick={handlePickLocalAndOpen} disabled={busy}
-              style={{ padding: "0.75rem", background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-md)", color: "var(--accent-on)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", opacity: busy ? 0.5 : 1, fontWeight: 700 }}>
+              className="pv-btn pv-btn--primary pv-btn--lg">
               <FolderOpen size={16} /> {t("splash.pickLocalAndOpen")}
             </button>
-            <button onClick={onBack} disabled={busy} style={{ padding: "0.6rem", background: "transparent", border: "none", borderRadius: "var(--radius-md)", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem" }}>
+            <button onClick={onBack} disabled={busy} className="pv-btn pv-btn--ghost">
               {t("common.cancel")}
             </button>
           </>

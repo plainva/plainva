@@ -70,6 +70,10 @@ Then the sync connection itself is broken — often because the sign-in expired 
 
 Plainva is a desktop app, not a web page. Reload keys (F5, Ctrl+R) are disabled on purpose — a reload would throw away your open tabs and unsaved edits. The WebView's built-in right-click menu is hidden too; right-clicking selected text still offers **Copy**, and the file tree, tabs and tables keep their own right-click menus.
 
+### Why don't I see any animations?
+
+Plainva honors your system's "reduce motion" setting. If transitions and effects are missing (buttons, menus and highlights don't move), animations are turned off in your operating system. On **Windows**: Settings → Accessibility → Visual effects → turn **Animation effects** on. On **macOS**: System Settings → Accessibility → Display → turn **Reduce motion** off.
+
 ### How do I change the language?
 
 **Settings → App → Appearance → Language** (currently German and English).

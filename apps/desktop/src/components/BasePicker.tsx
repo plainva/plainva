@@ -55,12 +55,6 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
     };
   }, [onClose]);
 
-  const rowStyle: React.CSSProperties = {
-    display: "flex", alignItems: "center", gap: "10px", width: "100%", textAlign: "left",
-    padding: "8px 12px", border: "none", background: "transparent", color: "var(--text-main)",
-    cursor: "pointer", borderRadius: "var(--radius-sm)", fontSize: "14px",
-  };
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh" }}>
       <div
@@ -75,19 +69,26 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("editor.basePickerSearch", { defaultValue: "Datenbank suchen…" })}
           aria-label={t("editor.basePickerSearch", { defaultValue: "Datenbank suchen…" })}
-          style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", border: "none", borderBottom: "1px solid var(--border-color)", background: "transparent", color: "var(--text-main)", fontSize: "15px", outline: "none" }}
+          className="pv-field"
         />
         <div style={{ maxHeight: "50vh", overflowY: "auto", padding: "6px" }}>
-          <button type="button" onClick={onCreate} style={{ ...rowStyle, color: "var(--accent-color)", fontWeight: 500 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-active)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <button
+            type="button"
+            onClick={onCreate}
+            className="pv-btn pv-btn--ghost"
+            style={{ display: "flex", width: "100%", justifyContent: "flex-start", gap: "10px" }}
+          >
             <Plus size={16} />
             {t("editor.basePickerCreate", { defaultValue: "Neue Datenbank erstellen & einbetten" })}
           </button>
           {rows.map((r) => (
-            <button key={r.path} type="button" onClick={() => onPick(r.path)} style={rowStyle}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-active)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+            <button
+              key={r.path}
+              type="button"
+              onClick={() => onPick(r.path)}
+              className="pv-btn pv-btn--ghost"
+              style={{ display: "flex", width: "100%", justifyContent: "flex-start", gap: "10px" }}
+            >
               <Database size={16} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {(r.title || r.path).replace(/\.base$/i, "")}

@@ -28,16 +28,17 @@ This document is the binding contract for all visible UI in `apps/desktop`. It c
 
 ## Radius roles
 
-The scale (`--radius-xs` 4 / `sm` 6 / `md` 8 / `lg` 10 / `xl` 12 / `pill`) stays; the ROLE is binding:
+Plainva UI 2.0 (M3 Expressive) widened the scale one notch: `--radius-xs` 4 / `sm` 8 / `md` 12 / `lg` 16 / `xl` 20 / `pill`. The ROLE is binding:
 
 | Role | Token |
 |---|---|
-| Controls (buttons, inputs, selects, menu items, tabs, tree rows) | `--radius-sm` |
-| Floating menus/popovers/pickers AND cards (board/gallery/list/empty state) | `--radius-md` |
-| Modals and peek | `--radius-xl` |
-| Chips, switches, counter badges | `--radius-pill` |
+| Controls (buttons, inputs, selects, menu items, tabs, tree rows) | `--radius-md` |
+| Floating menus/popovers/pickers | `--radius-md` |
+| Cards and panes (board/gallery/list/empty state) and FAB | `--radius-lg` |
+| Modals, peek and bottom sheets | `--radius-xl` |
+| Chips, switches, segmented controls, counter badges | `--radius-pill` |
 
-Mnemonic: *small & floating = md, dialog = xl, control = sm, round = pill.* Geometric radii (50 % for circles, 1-2px micro details) remain literal — documented in the token comment of App.css.
+Mnemonic: *control & floating = md, card = lg, dialog/sheet = xl, round = pill.* LCARS/Win95 pin the whole scale (pills / 0), so the bump reaches only themes that want soft shape. Geometric radii (50 % for circles, 1-2px micro details) remain literal — documented in the token comment of `packages/ui/src/styles/base-colors.css`.
 
 ## Status colors
 

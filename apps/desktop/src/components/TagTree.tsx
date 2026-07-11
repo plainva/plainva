@@ -111,17 +111,16 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     
     return (
       <div key={node.fullTag}>
-        <div 
-          style={{ 
-            display: 'flex', alignItems: 'center', padding: '4px 8px', 
+        <div
+          className="pv-rowhover"
+          style={{
+            display: 'flex', alignItems: 'center', padding: '4px 8px',
             paddingLeft: `${level * 12 + 8}px`,
             cursor: 'pointer',
-            backgroundColor: isSelected ? 'var(--bg-active)' : 'transparent',
+            backgroundColor: isSelected ? 'var(--bg-active)' : undefined,
             color: isSelected ? 'var(--text-main)' : 'var(--text-muted)'
           }}
           onClick={() => setSelectedTag(node.fullTag)}
-          onMouseEnter={e => !isSelected && (e.currentTarget.style.background = 'var(--bg-hover)')}
-          onMouseLeave={e => !isSelected && (e.currentTarget.style.background = 'transparent')}
         >
           <div 
             style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -180,6 +179,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
               filesForTag.map(file => (
                 <div
                   key={file.path}
+                  className="pv-rowhover"
                   onClick={(e) => onSelectPath(file.path, e.ctrlKey || e.metaKey)}
                   style={{
                     padding: '6px 8px',
@@ -189,8 +189,6 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
                     gap: '6px',
                     borderRadius: "var(--radius-xs)"
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <FileText size={14} color="var(--accent-color)" />
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

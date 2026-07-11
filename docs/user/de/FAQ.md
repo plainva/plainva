@@ -70,6 +70,10 @@ Dann ist die Sync-Verbindung selbst gestört — häufig, weil die Anmeldung abg
 
 Plainva ist eine Desktop-App, keine Webseite. Neu-laden-Tasten (F5, Strg+R) sind bewusst deaktiviert — ein Neuladen würde Deine offenen Tabs und ungespeicherten Änderungen verwerfen. Das eingebaute Rechtsklick-Menü der WebView ist ebenfalls ausgeblendet; ein Rechtsklick auf markierten Text bietet weiterhin **Kopieren**, und Dateibaum, Tabs und Tabellen behalten ihre eigenen Rechtsklick-Menüs.
 
+### Warum sehe ich keine Animationen?
+
+Plainva respektiert die System-Einstellung „Animationen reduzieren". Wenn Übergänge und Effekte fehlen (Buttons, Menüs und Hervorhebungen bewegen sich nicht), sind in Deinem Betriebssystem die Animationen abgeschaltet. Unter **Windows**: Einstellungen → Barrierefreiheit → Visuelle Effekte → **Animationseffekte** einschalten. Unter **macOS**: Systemeinstellungen → Bedienungshilfen → Anzeige → **Bewegung reduzieren** ausschalten.
+
 ### Wie ändere ich die Sprache?
 
 **Einstellungen → App → Erscheinungsbild → Sprache** (derzeit Deutsch und Englisch).

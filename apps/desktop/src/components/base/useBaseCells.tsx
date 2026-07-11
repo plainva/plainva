@@ -580,11 +580,11 @@ export function useBaseCells({
         <input
           autoFocus
           type={input === 'number' ? 'number' : 'text'}
+          className="pv-field"
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={() => handleCellSave(path, col, editValue)}
           onKeyDown={e => { if (e.key === 'Enter') handleCellSave(path, col, editValue); if (e.key === 'Escape') setEditingCell(null); }}
-          style={{ width: '100%', padding: '4px', border: '1px solid var(--accent-color)', borderRadius: "var(--radius-xs)", background: 'var(--bg-primary)', color: 'var(--text-main)', outline: 'none' }}
           onClick={e => e.stopPropagation()}
           onDoubleClick={e => e.stopPropagation()}
         />

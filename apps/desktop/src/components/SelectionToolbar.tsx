@@ -53,20 +53,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
           title={it.label}
           aria-label={it.label}
           onClick={() => onAction(it.a)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "30px",
-            height: "30px",
-            border: "none",
-            background: "transparent",
-            color: "var(--text-main)",
-            cursor: "pointer",
-            borderRadius: "var(--radius-sm)",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-active)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          className="pv-iconbtn"
         >
           {it.icon}
         </button>

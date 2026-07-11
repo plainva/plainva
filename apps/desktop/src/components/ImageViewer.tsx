@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
@@ -19,12 +19,6 @@ import {
 type Tool = "select" | "crop" | "pen" | "arrow" | "rect" | "text";
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
-
-const toolbarBtn = (active?: boolean): CSSProperties => ({
-  display: "flex", alignItems: "center", justifyContent: "center", padding: "5px",
-  background: active ? "var(--bg-active)" : "transparent", border: "none", borderRadius: "var(--radius-sm)",
-  cursor: "pointer", color: active ? "var(--accent-color)" : "var(--text-muted)",
-});
 
 /**
  * In-app viewer + simple canvas editor for vault images (plan UI-UX-Paket P10).
@@ -323,26 +317,48 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-primary)" }}>
       {/* Toolbar */}
       <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
-        <button type="button" style={toolbarBtn()} onClick={() => zoomBy(-1)} title={t("imageViewer.zoomOut")} aria-label={t("imageViewer.zoomOut")}><ZoomOut size={15} /></button>
+        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(-1)} title={t("imageViewer.zoomOut")} aria-label={t("imageViewer.zoomOut")}><ZoomOut size={15} /></button>
         <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", minWidth: 40, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
           {zoom === "fit" ? t("imageViewer.zoomFit") : `${Math.round(zoom * 100)}%`}
         </span>
-        <button type="button" style={toolbarBtn()} onClick={() => zoomBy(1)} title={t("imageViewer.zoomIn")} aria-label={t("imageViewer.zoomIn")}><ZoomIn size={15} /></button>
-        <button type="button" style={toolbarBtn(zoom === "fit")} onClick={() => setZoom("fit")} title={t("imageViewer.zoomFit")} aria-label={t("imageViewer.zoomFit")}><Maximize size={15} /></button>
-        <button type="button" style={{ ...toolbarBtn(zoom === 1), fontSize: "0.75rem", fontWeight: 600 }} onClick={() => setZoom(1)} title={t("imageViewer.zoomActual")} aria-label={t("imageViewer.zoomActual")}>1:1</button>
+        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(1)} title={t("imageViewer.zoomIn")} aria-label={t("imageViewer.zoomIn")}><ZoomIn size={15} /></button>
+        <button
+          type="button"
+          className="pv-iconbtn"
+          onClick={() => setZoom("fit")}
+          title={t("imageViewer.zoomFit")}
+          aria-label={t("imageViewer.zoomFit")}
+          style={{ background: zoom === "fit" ? "var(--bg-active)" : "transparent", color: zoom === "fit" ? "var(--accent-color)" : "var(--text-muted)" }}
+        ><Maximize size={15} /></button>
+        <button
+          type="button"
+          className="pv-btn pv-btn--ghost"
+          onClick={() => setZoom(1)}
+          title={t("imageViewer.zoomActual")}
+          aria-label={t("imageViewer.zoomActual")}
+          style={{ background: zoom === 1 ? "var(--bg-active)" : "transparent", color: zoom === 1 ? "var(--accent-color)" : "var(--text-muted)" }}
+        >1:1</button>
 
         {editing && (
           <>
             <div style={{ width: 1, alignSelf: "stretch", background: "var(--border-color)", margin: "0 4px" }} />
             {drawTools.map((d) => (
-              <button key={d.id} type="button" style={toolbarBtn(tool === d.id)} onClick={() => setTool(d.id)} title={d.label} aria-label={d.label}>{d.icon}</button>
+              <button
+                key={d.id}
+                type="button"
+                className="pv-iconbtn"
+                onClick={() => setTool(d.id)}
+                title={d.label}
+                aria-label={d.label}
+                style={{ background: tool === d.id ? "var(--bg-active)" : "transparent", color: tool === d.id ? "var(--accent-color)" : "var(--text-muted)" }}
+              >{d.icon}</button>
             ))}
             <div style={{ width: 1, alignSelf: "stretch", background: "var(--border-color)", margin: "0 4px" }} />
-            <button type="button" style={toolbarBtn()} onClick={() => addOp({ kind: "rotate90", dir: -1 })} title={t("imageViewer.rotateLeft")} aria-label={t("imageViewer.rotateLeft")}><RotateCcw size={15} /></button>
-            <button type="button" style={toolbarBtn()} onClick={() => addOp({ kind: "rotate90", dir: 1 })} title={t("imageViewer.rotateRight")} aria-label={t("imageViewer.rotateRight")}><RotateCw size={15} /></button>
-            <button type="button" style={toolbarBtn()} onClick={() => addOp({ kind: "flip", axis: "h" })} title={t("imageViewer.flipH")} aria-label={t("imageViewer.flipH")}><FlipHorizontal2 size={15} /></button>
-            <button type="button" style={toolbarBtn()} onClick={() => addOp({ kind: "flip", axis: "v" })} title={t("imageViewer.flipV")} aria-label={t("imageViewer.flipV")}><FlipVertical2 size={15} /></button>
-            <button type="button" style={toolbarBtn()} onClick={startResize} title={t("imageViewer.resize")} aria-label={t("imageViewer.resize")}><Scaling size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: -1 })} title={t("imageViewer.rotateLeft")} aria-label={t("imageViewer.rotateLeft")}><RotateCcw size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: 1 })} title={t("imageViewer.rotateRight")} aria-label={t("imageViewer.rotateRight")}><RotateCw size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "h" })} title={t("imageViewer.flipH")} aria-label={t("imageViewer.flipH")}><FlipHorizontal2 size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "v" })} title={t("imageViewer.flipV")} aria-label={t("imageViewer.flipV")}><FlipVertical2 size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={startResize} title={t("imageViewer.resize")} aria-label={t("imageViewer.resize")}><Scaling size={15} /></button>
             <input
               type="color"
               value={color}
@@ -356,12 +372,13 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
               onChange={(e) => setStrokeWidth(Number(e.target.value))}
               title={t("imageViewer.strokeWidth")}
               aria-label={t("imageViewer.strokeWidth")}
-              style={{ height: 26, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-main)", fontSize: "0.78rem" }}
+              className="pv-field pv-field--select"
+              style={{ height: 26 }}
             >
               {[2, 4, 6, 10].map((w) => <option key={w} value={w}>{w} px</option>)}
             </select>
-            <button type="button" style={{ ...toolbarBtn(), opacity: state.ops.length ? 1 : 0.4 }} onClick={() => setState((s) => undoOp(s))} title={t("imageViewer.undo")} aria-label={t("imageViewer.undo")}><Undo2 size={15} /></button>
-            <button type="button" style={{ ...toolbarBtn(), opacity: state.redo.length ? 1 : 0.4 }} onClick={() => setState((s) => redoOp(s))} title={t("imageViewer.redo")} aria-label={t("imageViewer.redo")}><Redo2 size={15} /></button>
+            <button type="button" className="pv-iconbtn" style={{ opacity: state.ops.length ? 1 : 0.4 }} onClick={() => setState((s) => undoOp(s))} title={t("imageViewer.undo")} aria-label={t("imageViewer.undo")}><Undo2 size={15} /></button>
+            <button type="button" className="pv-iconbtn" style={{ opacity: state.redo.length ? 1 : 0.4 }} onClick={() => setState((s) => redoOp(s))} title={t("imageViewer.redo")} aria-label={t("imageViewer.redo")}><Redo2 size={15} /></button>
           </>
         )}
 
@@ -378,12 +395,12 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
               <button type="button" className="pv-btn-secondary" onClick={() => { setEditing(true); setTool("pen"); }}>{t("imageViewer.edit")}</button>
             )}
             {onToggleBookmark && (
-              <button type="button" style={toolbarBtn()} onClick={onToggleBookmark} title={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")} aria-label={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")}>
+              <button type="button" className="pv-iconbtn" onClick={onToggleBookmark} title={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")} aria-label={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")}>
                 <Bookmark size={15} fill={isBookmarked ? "currentColor" : "none"} />
               </button>
             )}
             {onDelete && (
-              <button type="button" style={toolbarBtn()} onClick={onDelete} title={t("common.delete")} aria-label={t("common.delete")}><Trash2 size={15} /></button>
+              <button type="button" className="pv-iconbtn" onClick={onDelete} title={t("common.delete")} aria-label={t("common.delete")}><Trash2 size={15} /></button>
             )}
             <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
           </>
@@ -424,18 +441,13 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
                   if (e.key === "Escape") setTextDraft(null);
                 }}
                 onBlur={commitText}
+                className="pv-field"
                 style={{
                   position: "absolute",
                   left: `${(textDraft.at.x / currentSize.width) * 100}%`,
                   top: `${(textDraft.at.y / currentSize.height) * 100}%`,
+                  width: "auto",
                   minWidth: 120,
-                  background: "var(--bg-primary)",
-                  color: "var(--text-main)",
-                  border: "1px solid var(--accent-color)",
-                  borderRadius: "var(--radius-xs)",
-                  padding: "2px 6px",
-                  fontSize: "0.9rem",
-                  outline: "none",
                 }}
               />
             )}

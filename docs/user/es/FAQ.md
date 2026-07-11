@@ -70,6 +70,10 @@ Entonces la propia conexión de sincronización está rota — a menudo porque e
 
 Plainva es una aplicación de escritorio, no una página web. Las teclas de recarga (F5, Ctrl+R) están desactivadas a propósito: una recarga descartaría tus pestañas abiertas y los cambios sin guardar. El menú contextual integrado de la WebView también está oculto; al hacer clic derecho sobre texto seleccionado sigue apareciendo **Copiar**, y el árbol de archivos, las pestañas y las tablas conservan sus propios menús contextuales.
 
+### ¿Por qué no veo animaciones?
+
+Plainva respeta el ajuste "reducir movimiento" de tu sistema. Si faltan las transiciones y los efectos (los botones, menús y resaltados no se mueven), las animaciones están desactivadas en tu sistema operativo. En **Windows**: Configuración → Accesibilidad → Efectos visuales → activa **Efectos de animación**. En **macOS**: Ajustes del Sistema → Accesibilidad → Pantalla → desactiva **Reducir movimiento**.
+
 ### ¿Cómo cambio el idioma?
 
 **Configuración → App → Apariencia → Idioma** (actualmente alemán e inglés).

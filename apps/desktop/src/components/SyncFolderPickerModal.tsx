@@ -104,9 +104,8 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
             {segments.length > 0 && (
               <div
                 onClick={() => void load(segments.slice(0, -1))}
+                className="pv-rowhover"
                 style={rowStyle}
-                onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <CornerLeftUp size={16} color="var(--text-muted)" />
                 <span style={{ color: "var(--text-muted)" }}>{t("webDavPicker.goUp")}</span>
@@ -118,9 +117,8 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
                 <li
                   key={name}
                   onClick={() => void load([...segments, name])}
+                  className="pv-rowhover"
                   style={rowStyle}
-                  onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                  onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <Folder size={16} color="var(--accent-color)" />
                   {name}

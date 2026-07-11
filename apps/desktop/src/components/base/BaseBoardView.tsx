@@ -251,7 +251,7 @@ export function BaseBoardView({
         {/* Relation groups mirror the linked notes — a "new group" would be a new
             note, which the relation editors already offer; hide the button. */}
         {isRelationGroup ? null : !addingGroup ? (
-          <button onClick={() => setAddingGroup(true)} style={{ flexShrink: 0, padding: "0.5rem 1rem", background: "var(--bg-secondary)", border: "1px dashed var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer", width: "200px", fontWeight: 600, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <button onClick={() => setAddingGroup(true)} className="pv-btn pv-btn--secondary" style={{ flexShrink: 0, width: "200px" }}>
             <Plus size={14} /> {t("database.newGroup", "Neue Gruppe")}
           </button>
         ) : (

@@ -344,7 +344,8 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
                   <button
                     onClick={() => onOpenPath(other)}
-                    style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", fontSize: "var(--text-sm)", padding: 0 }}
+                    className="pv-linkbtn"
+                    style={{ flex: 1, minWidth: 0 }}
                   >
                     <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{otherTitle}</span>
                     <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)" }}>{reasonLabel}</span>

@@ -58,11 +58,6 @@ interface SettingsModalProps {
 
 const GENERAL = "general";
 
-const inputStyle: React.CSSProperties = {
-  padding: "0.5rem", borderRadius: "var(--radius-xs)", border: "1px solid var(--border-color)",
-  background: "var(--bg-secondary)", color: "var(--text-main)",
-};
-
 const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
 const SettingRow: React.FC<{ label: string; desc?: string; children: React.ReactNode }> = ({ label, desc, children }) => (
@@ -1368,7 +1363,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                                 setContentFont(next);
                                 void setStoredContentFont(next);
                               }}
-                              style={{ ...inputStyle, width: "100%" }}
+                              className="pv-field" style={{ width: "100%" }}
                             />
                           )}
                         </div>
@@ -1401,14 +1396,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           <button
                             onClick={checkForUpdates}
                             disabled={isUpdating}
-                            style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: isUpdating ? "not-allowed" : "pointer" }}
+                            className="pv-btn pv-btn--secondary" style={{ cursor: isUpdating ? "not-allowed" : "pointer" }}
                           >
                             {t("settings.checkUpdates", "Nach Updates suchen")}
                           </button>
                           {updateAvailable && !isUpdating && (
                             <button
                               onClick={installUpdate}
-                              style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}
+                              className="pv-btn pv-btn--primary"
                             >
                               {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
                             </button>
@@ -1523,7 +1518,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                       <span>{t("sync.none")}</span>
                       {activeProvider !== "none" && (
-                        <button onClick={handleDisableSync} style={{ alignSelf: "flex-start", padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("sync.disconnect")}</button>
+                        <button onClick={handleDisableSync} className="pv-btn pv-btn--danger-soft" style={{ alignSelf: "flex-start" }}>{t("sync.disconnect")}</button>
                       )}
                     </div>
                   )}
@@ -1531,18 +1526,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   {provider === "webdav" && (
                     <>
                       <SettingRow label={t("settings.serverUrl")}>
-                        <input autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.username")}>
-                        <input autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.password")}>
-                        <input type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setShowPicker(true)} disabled={saving || !url || !user || !pass} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.browseServer")}</button>
-                        <button onClick={handleSaveVault} disabled={saving} style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.save")}</button>
-                        <button onClick={handleDisconnect} style={{ padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.disconnect")}</button>
+                        <button onClick={() => setShowPicker(true)} disabled={saving || !url || !user || !pass} className="pv-btn pv-btn--secondary">{t("settings.browseServer")}</button>
+                        <button onClick={handleSaveVault} disabled={saving} className="pv-btn pv-btn--primary">{t("settings.save")}</button>
+                        <button onClick={handleDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
                       </div>
                     </>
                   )}
@@ -1554,19 +1549,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       </div>
                       <ByoBadgeRow guidePage={GDRIVE_BYO_GUIDE} />
                       <SettingRow label={t("settings.clientId")}>
-                        <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.clientSecret")}>
-                        <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.driveFolder")} desc={t("settings.driveFolderDesc")}>
-                        <input autoComplete="off" value={driveFolderName} onChange={(e) => setDriveFolderName(e.target.value)} placeholder="Plainva" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={driveFolderName} onChange={(e) => setDriveFolderName(e.target.value)} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("drive")} disabled={driveSaving || !driveConnected} title={!driveConnected ? t("settings.pickerConnectFirst") : undefined} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeDrive} disabled={driveSaving || !driveClientId || !driveClientSecret} style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{driveConnected ? t("settings.reconnectGoogle") : t("settings.connectGoogle")}</button>
-                        <button onClick={handleSaveDrive} disabled={driveSaving} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.save")}</button>
-                        <button onClick={handleDisconnectDrive} style={{ padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.disconnect")}</button>
+                        <button onClick={() => setSyncPicker("drive")} disabled={driveSaving || !driveConnected} title={!driveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                        <button onClick={handleAuthorizeDrive} disabled={driveSaving || !driveClientId || !driveClientSecret} className="pv-btn pv-btn--primary">{driveConnected ? t("settings.reconnectGoogle") : t("settings.connectGoogle")}</button>
+                        <button onClick={handleSaveDrive} disabled={driveSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
+                        <button onClick={handleDisconnectDrive} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
                       </div>
                       <span style={{ fontSize: "0.8rem", color: driveError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
                         {driveSaving
@@ -1588,19 +1583,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       {!PLAINVA_ONEDRIVE_CLIENT_ID && <ByoBadgeRow guidePage={ONEDRIVE_DROPBOX_BYO_GUIDE} />}
                       {!PLAINVA_ONEDRIVE_CLIENT_ID || oneDriveShowId ? (
                         <SettingRow label={t("settings.clientId")} desc={t("settings.oneDriveClientIdDesc")}>
-                          <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" style={{ ...inputStyle, width: "100%" }} />
+                          <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="pv-field" style={{ width: "100%" }} />
                         </SettingRow>
                       ) : (
-                        <button type="button" onClick={() => setOneDriveShowId(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: "0.4rem 0", color: "var(--accent-color)", cursor: "pointer", fontSize: "0.8rem", textAlign: "left" }}>{t("settings.useOwnAppId")}</button>
+                        <button type="button" onClick={() => setOneDriveShowId(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
                       )}
                       <SettingRow label={t("settings.oneDriveFolder")} desc={t("settings.oneDriveFolderDesc")}>
-                        <input autoComplete="off" value={oneDriveFolderName} onChange={(e) => setOneDriveFolderName(e.target.value)} placeholder="Plainva" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={oneDriveFolderName} onChange={(e) => setOneDriveFolderName(e.target.value)} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("onedrive")} disabled={oneDriveSaving || !oneDriveConnected} title={!oneDriveConnected ? t("settings.pickerConnectFirst") : undefined} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeOneDrive} disabled={oneDriveSaving || !(oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID)} style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{oneDriveConnected ? t("settings.reconnectOneDrive") : t("settings.connectOneDrive")}</button>
-                        <button onClick={handleSaveOneDrive} disabled={oneDriveSaving} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.save")}</button>
-                        <button onClick={handleDisconnectOneDrive} style={{ padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.disconnect")}</button>
+                        <button onClick={() => setSyncPicker("onedrive")} disabled={oneDriveSaving || !oneDriveConnected} title={!oneDriveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                        <button onClick={handleAuthorizeOneDrive} disabled={oneDriveSaving || !(oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID)} className="pv-btn pv-btn--primary">{oneDriveConnected ? t("settings.reconnectOneDrive") : t("settings.connectOneDrive")}</button>
+                        <button onClick={handleSaveOneDrive} disabled={oneDriveSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
+                        <button onClick={handleDisconnectOneDrive} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
                       </div>
                       <span style={{ fontSize: "0.8rem", color: oneDriveError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
                         {oneDriveSaving
@@ -1622,19 +1617,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       {!PLAINVA_DROPBOX_APP_KEY && <ByoBadgeRow guidePage={ONEDRIVE_DROPBOX_BYO_GUIDE} />}
                       {!PLAINVA_DROPBOX_APP_KEY || dropboxShowKey ? (
                         <SettingRow label={t("settings.appKey")} desc={t("settings.dropboxAppKeyDesc")}>
-                          <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                          <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                         </SettingRow>
                       ) : (
-                        <button type="button" onClick={() => setDropboxShowKey(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: "0.4rem 0", color: "var(--accent-color)", cursor: "pointer", fontSize: "0.8rem", textAlign: "left" }}>{t("settings.useOwnAppId")}</button>
+                        <button type="button" onClick={() => setDropboxShowKey(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
                       )}
                       <SettingRow label={t("settings.dropboxRootPath")} desc={t("settings.dropboxRootPathDesc")}>
-                        <input autoComplete="off" value={dropboxRootPath} onChange={(e) => setDropboxRootPath(e.target.value)} placeholder="/Plainva" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={dropboxRootPath} onChange={(e) => setDropboxRootPath(e.target.value)} placeholder="/Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("dropbox")} disabled={dropboxSaving || !dropboxConnected} title={!dropboxConnected ? t("settings.pickerConnectFirst") : undefined} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeDropbox} disabled={dropboxSaving || !(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY)} style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{dropboxConnected ? t("settings.reconnectDropbox") : t("settings.connectDropbox")}</button>
-                        <button onClick={handleSaveDropbox} disabled={dropboxSaving} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.save")}</button>
-                        <button onClick={handleDisconnectDropbox} style={{ padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.disconnect")}</button>
+                        <button onClick={() => setSyncPicker("dropbox")} disabled={dropboxSaving || !dropboxConnected} title={!dropboxConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                        <button onClick={handleAuthorizeDropbox} disabled={dropboxSaving || !(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY)} className="pv-btn pv-btn--primary">{dropboxConnected ? t("settings.reconnectDropbox") : t("settings.connectDropbox")}</button>
+                        <button onClick={handleSaveDropbox} disabled={dropboxSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
+                        <button onClick={handleDisconnectDropbox} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
                       </div>
                       <span style={{ fontSize: "0.8rem", color: dropboxError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
                         {dropboxSaving
@@ -1654,30 +1649,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         {t("settings.s3Desc")}
                       </div>
                       <SettingRow label={t("settings.s3Endpoint")} desc={t("settings.s3EndpointDesc")}>
-                        <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3Bucket")}>
-                        <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3Region")} desc={t("settings.s3RegionDesc")}>
-                        <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3AccessKeyId")}>
-                        <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3SecretAccessKey")}>
-                        <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+                        <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3Prefix")} desc={t("settings.s3PrefixDesc")}>
-                        <input autoComplete="off" value={s3Prefix} onChange={(e) => setS3Prefix(e.target.value)} placeholder="vault" style={{ ...inputStyle, width: "100%" }} />
+                        <input autoComplete="off" value={s3Prefix} onChange={(e) => setS3Prefix(e.target.value)} placeholder="vault" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.s3PathStyle")} desc={t("settings.s3PathStyleDesc")}>
                         <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} style={{ width: "18px", height: "18px", accentColor: "var(--accent-color)" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("s3")} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} style={{ padding: "0.5rem 1rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.browseFolders")}</button>
-                        <button onClick={handleSaveS3} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.save")}</button>
-                        <button onClick={handleDisconnectS3} style={{ padding: "0.5rem 1rem", background: "var(--error-bg)", border: "1px solid var(--error-border)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}>{t("settings.disconnect")}</button>
+                        <button onClick={() => setSyncPicker("s3")} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                        <button onClick={handleSaveS3} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} className="pv-btn pv-btn--primary">{t("settings.save")}</button>
+                        <button onClick={handleDisconnectS3} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
                       </div>
                     </>
                   )}
@@ -1686,7 +1681,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <>
                       <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
                       <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}>
-                        <input type="number" min={MIN_SYNC_INTERVAL_SECONDS} value={intervalSec} onChange={(e) => handleIntervalChange(e.target.value)} onBlur={normalizeIntervalDisplay} style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+                        <input type="number" min={MIN_SYNC_INTERVAL_SECONDS} value={intervalSec} onChange={(e) => handleIntervalChange(e.target.value)} onBlur={normalizeIntervalDisplay} className="pv-field" style={{ flex: 1, minWidth: 0 }} />
                       </SettingRow>
                       {section === vaultPath && syncWorker && (
                         <SettingRow
@@ -1750,7 +1745,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
                   <SettingRow label={t("settings.dailyNotesFolder")}>
                     <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-                      <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+                      <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
                       <IconButton
                         label={t("settings.browseFolders")}
                         data-testid="browse-daily-folder"
@@ -1763,12 +1758,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
-                    <input autoComplete="off" value={dailyNotesFormat} onChange={(e) => { const v = e.target.value.replace(/[./\\]/g, '-'); setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }} placeholder="YYYY-MM-DD" style={{ ...inputStyle, width: "100%" }} />
+                    <input autoComplete="off" value={dailyNotesFormat} onChange={(e) => { const v = e.target.value.replace(/[./\\]/g, '-'); setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
                   </SettingRow>
 
                   <SettingRow label={t("settings.templateFolder")}>
                     <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-                      <input autoComplete="off" value={templateFolder} onChange={(e) => { setTemplateFolder(e.target.value); void persistFeature(section, templateFolderKey(section), e.target.value); }} placeholder="Templates/" style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+                      <input autoComplete="off" value={templateFolder} onChange={(e) => { setTemplateFolder(e.target.value); void persistFeature(section, templateFolderKey(section), e.target.value); }} placeholder="Templates/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
                       <IconButton
                         label={t("settings.browseFolders")}
                         data-testid="browse-template-folder"
@@ -1781,17 +1776,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNotesTemplate")}>
-                    <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" style={{ ...inputStyle, width: "100%" }} />
+                    <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
                   </SettingRow>
 
                   <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.okfHeading")}</h5>
 
                   <SettingRow label={t("settings.defaultNoteType")} desc={t("settings.defaultNoteTypeDesc")}>
-                    <input autoComplete="off" value={defaultNoteType} onChange={(e) => { setDefaultNoteType(e.target.value); void persistFeature(section, defaultNoteTypeKey(section), e.target.value.trim() || DEFAULT_NOTE_TYPE); }} placeholder={DEFAULT_NOTE_TYPE} style={{ ...inputStyle, width: "100%" }} />
+                    <input autoComplete="off" value={defaultNoteType} onChange={(e) => { setDefaultNoteType(e.target.value); void persistFeature(section, defaultNoteTypeKey(section), e.target.value.trim() || DEFAULT_NOTE_TYPE); }} placeholder={DEFAULT_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNoteType")} desc={t("settings.dailyNoteTypeDesc")}>
-                    <input autoComplete="off" value={dailyNoteType} onChange={(e) => { setDailyNoteType(e.target.value); void persistFeature(section, dailyNoteTypeKey(section), e.target.value.trim() || DEFAULT_DAILY_NOTE_TYPE); }} placeholder={DEFAULT_DAILY_NOTE_TYPE} style={{ ...inputStyle, width: "100%" }} />
+                    <input autoComplete="off" value={dailyNoteType} onChange={(e) => { setDailyNoteType(e.target.value); void persistFeature(section, dailyNoteTypeKey(section), e.target.value.trim() || DEFAULT_DAILY_NOTE_TYPE); }} placeholder={DEFAULT_DAILY_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
                   </SettingRow>
 
                   {section === vaultPath && (
@@ -1803,7 +1798,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         >
                           <button
                             onClick={() => setShowOkfWizard(true)}
-                            style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}
+                            className="pv-btn pv-btn--primary"
                           >
                             {t("settings.okfConversionButton")}
                           </button>
@@ -1812,7 +1807,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       <SettingRow label={t("okfInfo.settingsButton")} desc={t("okfInfo.settingsDesc")}>
                         <button
                           onClick={() => setShowOkfInfo(true)}
-                          style={{ ...inputStyle, cursor: "pointer" }}
+                          className="pv-btn pv-btn--secondary"
                         >
                           {t("okfInfo.settingsButton")}
                         </button>
@@ -1821,13 +1816,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                           <button
                             onClick={() => setShowIndexManager(true)}
-                            style={{ ...inputStyle, cursor: "pointer" }}
+                            className="pv-btn pv-btn--secondary"
                           >
                             {t("settings.okfIndexButton")}
                           </button>
                           <button
                             onClick={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
-                            style={{ ...inputStyle, cursor: "pointer" }}
+                            className="pv-btn pv-btn--secondary"
                           >
                             {t("indexMd.updateAllAction")}
                           </button>
@@ -1865,14 +1860,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                             void persistBackupSetting(section, backupZipDestKey(section), picked);
                           }
                         }}
-                        style={{ ...inputStyle, cursor: "pointer" }}
+                        className="pv-btn pv-btn--secondary"
                       >
                         {t("settings.backupZipChoose")}
                       </button>
                       {zipDest && (
                         <button
                           onClick={() => { setZipDest(""); void persistBackupSetting(section, backupZipDestKey(section), ""); }}
-                          style={{ ...inputStyle, cursor: "pointer" }}
+                          className="pv-btn pv-btn--secondary"
                         >
                           {t("settings.backupZipDefault")}
                         </button>
@@ -1890,7 +1885,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                             toast.error(String(e));
                           }
                         }}
-                        style={{ ...inputStyle, cursor: "pointer" }}
+                        className="pv-btn pv-btn--secondary"
                       >
                         {t("settings.backupZipOpen")}
                       </button>
@@ -1908,7 +1903,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         const n = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || DEFAULT_ZIP_KEEP));
                         void persistBackupSetting(section, backupZipKeepKey(section), n);
                       }}
-                      style={{ ...inputStyle, width: "90px" }}
+                      className="pv-field" style={{ width: "90px" }}
                     />
                   </SettingRow>
 
@@ -1929,7 +1924,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         data-testid="backup-now"
                         disabled={zipStatus.state === "running"}
                         onClick={() => window.dispatchEvent(new CustomEvent("plainva-backup-now", { detail: { vaultPath: section } }))}
-                        style={{ padding: "0.5rem 1rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer", opacity: zipStatus.state === "running" ? 0.6 : 1 }}
+                        className="pv-btn pv-btn--primary" style={{ opacity: zipStatus.state === "running" ? 0.6 : 1 }}
                       >
                         {t("settings.backupNowButton")}
                       </button>
@@ -1964,7 +1959,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         const n = Math.min(1000, Math.max(5, parseInt(e.target.value, 10) || DEFAULT_BACKUP_RETENTION.maxBackupsPerFile));
                         void persistBackupSetting(section, backupMaxCountKey(section), n);
                       }}
-                      style={{ ...inputStyle, width: "90px" }}
+                      className="pv-field" style={{ width: "90px" }}
                     />
                   </SettingRow>
 
@@ -2013,7 +2008,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <button
                           data-testid="settings-deleted-files"
                           onClick={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
-                          style={{ ...inputStyle, cursor: "pointer" }}
+                          className="pv-btn pv-btn--secondary"
                         >
                           {t("settings.deletedFilesButton")}
                         </button>

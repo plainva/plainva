@@ -20,22 +20,28 @@ body,
 }
 
 :root {
-  /* M3 color roles mapped onto the shared Plainva palette. */
-  --m-surface: var(--bg-primary);
-  --m-surface-container: var(--bg-secondary);
-  --m-surface-container-high: var(--bg-hover);
+  /* M3 color roles mapped onto the shared Plainva UI 2.0 token families, so
+     mobile inherits the tonal surface-container hierarchy, the accent container
+     and the state layers — and every bundled theme flows through unchanged. */
+  --m-surface: var(--surface);
+  --m-surface-container: var(--surface-container);
+  --m-surface-container-high: var(--surface-container-high);
   --m-primary: var(--accent-color);
   --m-on-primary: var(--accent-on, #fff);
   --m-outline: var(--border-color);
-  --m-secondary-container: var(--bg-active);
-  --m-on-secondary-container: var(--text-main);
-  --m-state-pressed: var(--bg-active);
-}
-@supports (background: color-mix(in srgb, red 50%, blue)) {
-  :root {
-    --m-secondary-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
-    --m-state-pressed: color-mix(in srgb, var(--text-main) 10%, transparent);
-  }
+  --m-secondary-container: var(--accent-container);
+  --m-on-secondary-container: var(--on-accent-container);
+  --m-state-pressed: var(--state-press);
+
+  /* Danger role + the mobile radius scale as central roles — every value is
+     adjustable in one place (and a theme can override them wholesale). Mobile
+     keeps M3's slightly larger radii than the desktop control scale. */
+  --m-danger: var(--error-text);
+  --m-on-danger: #fff;
+  --m-radius-xs: 2px;
+  --m-radius-chip: 10px;
+  --m-radius-card: 14px;
+  --m-radius-sheet: 28px;
 }
 
 body {
@@ -88,6 +94,11 @@ body {
   min-height: 64px;
   padding: calc(6px + env(safe-area-inset-top)) 8px 6px;
   background: var(--m-surface);
+  /* Subtle M3 elevation: the bar sits gently above the scrolling content.
+     position+z-index so the shadow paints over the page below it. */
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.12);
 }
 
 .m-topbar {
@@ -130,7 +141,7 @@ body {
   width: 44px;
   height: 44px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-main);
 }
@@ -166,7 +177,7 @@ body {
   min-height: 52px;
   padding: 8px 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-main);
   font-size: 0.95rem;
@@ -246,8 +257,8 @@ body {
   justify-content: center;
   width: 56px;
   height: 30px;
-  border-radius: 999px;
-  transition: background 120ms ease;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-2) var(--ease-effects);
 }
 
 .m-tab.is-active {
@@ -275,16 +286,20 @@ body {
   height: 56px;
   margin-top: -26px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--m-primary);
   color: var(--m-on-primary);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.3),
     0 4px 8px 3px rgba(0, 0, 0, 0.15);
   touch-action: none;
+  transition:
+    transform var(--dur-1) var(--ease-spatial),
+    filter var(--dur-1) var(--ease-effects);
 }
 .m-fab:active {
   filter: brightness(1.08);
+  transform: scale(0.94);
 }
 
 /* ---- Search ---- */
@@ -298,7 +313,7 @@ body {
   min-width: 0;
   height: 44px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 18px;
   font: inherit;
   font-size: 0.95rem;
@@ -334,7 +349,7 @@ body {
 .m-result-snippet mark {
   background: var(--highlight-bg);
   color: inherit;
-  border-radius: 2px;
+  border-radius: var(--m-radius-xs);
 }
 
 .m-headicon {
@@ -379,7 +394,7 @@ body {
 .m-field input,
 .m-field select {
   min-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--m-radius-chip);
 }
 
 .m-field-row {
@@ -433,7 +448,7 @@ body {
   padding: 8px 4px 8px 8px;
   background: none;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font: inherit;
   color: inherit;
   text-align: left;
@@ -452,7 +467,7 @@ body {
   align-items: stretch;
 }
 .m-danger {
-  color: var(--danger-color, #b3261e);
+  color: var(--m-danger);
 }
 
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
@@ -460,7 +475,7 @@ body {
   flex: 0 0 auto;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 2px solid var(--m-outline);
 }
 .m-slotmark.is-on {
@@ -513,7 +528,7 @@ body {
   width: 26px;
   height: 26px;
   margin-bottom: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 3px solid var(--m-secondary-container);
   border-top-color: var(--m-primary);
   background: var(--m-surface);
@@ -537,7 +552,7 @@ body {
   border: 0;
   padding: 10px;
   color: var(--text-main);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .m-edit-toolbar button:active {
   background: var(--m-state-pressed);
@@ -560,7 +575,7 @@ body {
   min-width: 48px;
   padding: 10px 6px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--m-radius-card);
   background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
@@ -591,6 +606,11 @@ body {
   z-index: 40;
   display: flex;
   align-items: flex-end;
+  animation: m-sheet-fade var(--dur-2) var(--ease-effects);
+}
+@keyframes m-sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 /* Dialog sheets (mobileDialogs) stack above content sheets. */
 .m-sheet-backdrop--dialog {
@@ -609,7 +629,7 @@ body {
   min-height: 40px;
   padding: 8px 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--m-primary);
   font: inherit;
@@ -639,21 +659,26 @@ body {
   color: var(--m-on-secondary-container);
 }
 .m-btn--danger {
-  background: var(--danger-color, #b3261e);
-  color: #fff;
+  background: var(--m-danger);
+  color: var(--m-on-danger);
 }
 .m-sheet {
   width: 100%;
   background: var(--m-surface);
-  border-radius: 28px 28px 0 0;
+  border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0;
   padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
   max-height: 78vh;
   overflow-y: auto;
+  animation: m-sheet-up var(--dur-3) var(--ease-spatial);
+}
+@keyframes m-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 .m-sheet-grip {
   width: 32px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-outline);
   margin: 6px auto 10px;
 }
@@ -687,7 +712,7 @@ body {
   margin: 8px 0;
   padding: 12px 14px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--m-radius-card);
   background: var(--warning-bg);
   color: var(--warning-text);
   font-size: 0.9rem;
@@ -704,7 +729,7 @@ body {
 .m-viewpill {
   padding: 7px 14px;
   border: 1px solid var(--m-outline);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-size: 0.85rem;
@@ -729,7 +754,7 @@ body {
   gap: 4px;
   padding: 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--m-surface-container);
   color: var(--text-main);
   text-align: left;
@@ -795,7 +820,7 @@ body {
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 12px;
 }
 .m-cal-today:active {
@@ -820,7 +845,7 @@ body {
   justify-content: center;
   aspect-ratio: 1;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-main);
   font: inherit;
@@ -842,7 +867,7 @@ body {
   bottom: 15%;
   width: 5px;
   height: 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
 }
 .m-cal-day.has-daily .m-cal-dot {
@@ -871,7 +896,7 @@ body {
   gap: 6px;
   padding: 18px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
@@ -911,7 +936,7 @@ body {
   border: 1px solid var(--m-outline);
   background: transparent;
   color: var(--text-main);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 9px 13px;
   font-size: 0.85rem;
 }
@@ -935,7 +960,7 @@ body {
 .m-board-col {
   flex: 0 0 240px;
   background: var(--m-surface-container);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -956,7 +981,7 @@ body {
 .m-board-count {
   background: var(--m-secondary-container);
   color: var(--m-on-secondary-container);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-size: 0.7rem;
 }
@@ -980,7 +1005,7 @@ body {
   border: 1px solid var(--m-outline);
   background: transparent;
   color: var(--text-main);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 5px 12px;
   font-size: 0.8rem;
   max-width: 45vw;
@@ -996,7 +1021,7 @@ body {
   flex: 0 0 auto;
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-primary);
 }
 .m-sheet-inputrow {
@@ -1010,7 +1035,7 @@ body {
   width: calc(100% - 16px);
   margin: 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-primary);
   color: var(--m-on-primary);
   font: inherit;
@@ -1025,7 +1050,7 @@ body {
 .m-filterrule {
   margin: 4px 8px 10px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--m-surface-container);
 }
 .m-filterrule-head {

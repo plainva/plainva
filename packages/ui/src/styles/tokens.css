@@ -63,7 +63,16 @@
   /* Motion. */
   --dur-1: 120ms;
   --dur-2: 180ms;
+  --dur-3: 260ms; /* larger spatial moves (sheets, container transforms) */
   --ease-1: cubic-bezier(0.2, 0, 0, 1);
+  /* M3 Expressive spring easings: spatial may overshoot slightly, effects don't.
+     Consumed in later phases; reduced-motion collapses the durations below. */
+  --ease-spatial: cubic-bezier(0.34, 1.26, 0.64, 1);
+  --ease-effects: var(--ease-1);
+  /* Subtle shape-morph on press + emphasis type roles (chrome only, on --font-ui). */
+  --shape-press: 2px;
+  --text-display: 2rem;
+  --text-headline: 1.375rem;
 
   /* Focus ring — soft accent, sits OUTSIDE the control and follows its
      border-radius (outline does since Chromium 94). Themes may harden it
@@ -175,4 +184,20 @@
   --text-sm: 0.6875rem;
   --text-ui: 0.75rem;
   --text-md: 0.8125rem;
+}
+
+/*
+ * Reduced motion — collapse all chrome durations so token-sourced transitions
+ * become effectively instant. This is the --motion-scheme mechanism: motion is
+ * chrome-only (content never animates), and a theme can pin the same "none"
+ * scheme (Win95, E-Ink) by overriding these durations on its data-theme-name
+ * selector. Every animation MUST source its duration from these tokens.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0.01ms;
+    --dur-2: 0.01ms;
+    --dur-3: 0.01ms;
+    --ease-spatial: linear;
+  }
 }

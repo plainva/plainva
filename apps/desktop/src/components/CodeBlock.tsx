@@ -22,7 +22,8 @@ export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lan
           onClick={copy}
           title={t("editor.copy", { defaultValue: "Kopieren" })}
           aria-label={t("editor.copy", { defaultValue: "Kopieren" })}
-          style={{ display: "flex", alignItems: "center", gap: 4, background: "transparent", border: "none", color: copied ? "var(--accent-color)" : "var(--text-muted)", cursor: "pointer", fontSize: "1em" }}
+          className="pv-btn pv-btn--ghost pv-btn--sm"
+          style={copied ? { color: "var(--accent-color)" } : undefined}
         >
           {copied ? <Check size={13} /> : <Copy size={13} />}
           {copied ? t("editor.copied", { defaultValue: "Kopiert" }) : t("editor.copy", { defaultValue: "Kopieren" })}

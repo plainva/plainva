@@ -192,27 +192,27 @@ export const BASE_VIEWER_STYLES = `
   .base-col-resize { opacity: 0; }
   th:hover .base-col-resize { opacity: 1; background: linear-gradient(to right, transparent, var(--border-color)); }
   .base-col-resize:hover { background: var(--accent-color) !important; opacity: 0.5; }
-  .base-inline-editor { display: flex; flex-direction: column; gap: 4px; min-width: 170px; max-width: 280px; background: var(--bg-primary); border: 1px solid var(--accent-color); border-radius: var(--radius-sm); padding: 6px; box-shadow: var(--shadow-2); }
+  .base-inline-editor { display: flex; flex-direction: column; gap: 4px; min-width: 170px; max-width: 280px; background: var(--bg-primary); border: 1px solid var(--accent-color); border-radius: var(--radius-md); padding: 6px; box-shadow: var(--shadow-2); }
   .base-inline-chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .base-inline-select, .base-inline-input { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background: var(--bg-secondary); color: var(--text-main); font-size: var(--text-sm); outline: none; }
   .base-inline-results { display: flex; flex-direction: column; max-height: 160px; overflow-y: auto; }
   .base-inline-result { text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 4px 6px; border-radius: var(--radius-xs); font-size: var(--text-sm); }
-  .base-inline-result:hover { background: var(--bg-hover); }
+  .base-inline-result:hover { background: var(--state-hover); }
   .base-inline-create { color: var(--accent-color); }
   .base-inline-create:disabled { opacity: 0.6; cursor: progress; }
   .base-subitem-toggle { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; flex-shrink: 0; background: none; border: none; border-radius: var(--radius-xs); cursor: pointer; color: var(--text-muted); padding: 0; }
-  .base-subitem-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
+  .base-subitem-toggle:hover { background: var(--state-hover); color: var(--text-main); }
   .base-subitem-badge { flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 0 6px; line-height: 1.5; }
   .base-period-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-  .base-nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; }
-  .base-nav-btn:hover { background: var(--bg-hover); }
-  .base-today-btn { padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; font-size: var(--text-sm); }
-  .base-today-btn:hover { background: var(--bg-hover); }
+  .base-nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; }
+  .base-nav-btn:hover { background: var(--state-hover); }
+  .base-today-btn { padding: 4px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; font-size: var(--text-sm); }
+  .base-today-btn:hover { background: var(--state-hover); }
   .base-config-panel { flex: 0 1 360px; min-width: 280px; max-width: 460px; border-left: 1px solid var(--border-color); background: var(--bg-secondary); overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem; }
   .base-cfg-head { display: flex; align-items: center; justify-content: space-between; }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
-  .base-cfg-close:hover { background: var(--bg-hover); }
+  .base-cfg-close:hover { background: var(--state-hover); }
   .base-cfg-section { display: flex; flex-direction: column; gap: 4px; }
   .base-config-panel > .base-cfg-section + .base-cfg-section { border-top: 1px solid var(--border-color); padding-top: 0.9rem; }
   .base-cfg-title { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -231,29 +231,30 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-row-drop { box-shadow: inset 0 2px 0 var(--accent-color); }
   .base-cfg-grip { display: flex; cursor: grab; touch-action: none; color: var(--text-muted); flex-shrink: 0; }
   .base-cfg-grip:active { cursor: grabbing; }
-  .base-cfg-dirbtn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); color: var(--text-main); cursor: pointer; font-size: var(--text-xs); flex-shrink: 0; white-space: nowrap; }
-  .base-cfg-dirbtn:hover { background: var(--bg-hover); }
+  .base-cfg-dirbtn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-main); cursor: pointer; font-size: var(--text-xs); flex-shrink: 0; white-space: nowrap; }
+  .base-cfg-dirbtn:hover { background: var(--state-hover); }
   .base-cfg-addrow { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; background: transparent; border: none; border-radius: var(--radius-xs); color: var(--text-muted); cursor: pointer; font-size: var(--text-sm); text-align: left; align-self: flex-start; }
-  .base-cfg-addrow:hover { background: var(--bg-hover); color: var(--text-main); }
+  .base-cfg-addrow:hover { background: var(--state-hover); color: var(--text-main); }
   .base-cfg-addrow:disabled { opacity: 0.4; cursor: default; }
-  .base-cfg-seg { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; }
+  .base-cfg-seg { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; }
   .base-cfg-seg button { background: transparent; border: none; padding: 2px 8px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; }
   .base-cfg-seg button.active { background: var(--bg-active); color: var(--text-main); font-weight: 600; }
   .base-cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-muted); }
-  .base-view-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: 0.25rem; }
-  .base-view-tab { position: relative; display: flex; align-items: center; border-radius: var(--radius-sm); }
-  .base-view-tab.active { background: var(--bg-secondary); }
+  .base-view-tabs { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: 0.25rem; padding: 3px; background: var(--surface-container); border-radius: var(--radius-pill); }
+  .base-view-tab { position: relative; display: flex; align-items: center; border-radius: var(--radius-pill); }
+  .base-view-tab.active { background: var(--surface); box-shadow: var(--shadow-1); }
   .base-view-tab.drop { box-shadow: inset 2px 0 0 var(--accent-color); }
-  .base-view-tab-btn { display: flex; align-items: center; gap: 5px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-sm); font-size: var(--text-ui); max-width: 180px; }
-  .base-view-tab.active .base-view-tab-btn { color: var(--text-main); font-weight: 600; }
+  .base-view-tab-btn { display: flex; align-items: center; gap: 5px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--text-ui); max-width: 180px; }
+  .base-view-tab:not(.active) .base-view-tab-btn:hover { color: var(--text-main); }
+  .base-view-tab.active .base-view-tab-btn { color: var(--accent-color); font-weight: 600; }
   .base-view-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px 4px 2px 0; }
-  .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 6px; border-radius: var(--radius-sm); }
-  .base-view-add:hover { background: var(--bg-secondary); color: var(--text-main); }
+  .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--accent-color); display: flex; padding: 2px 6px 2px 0; }
+  .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-pill); }
+  .base-view-add:hover { background: var(--state-hover); color: var(--text-main); }
   .base-menu-backdrop { position: fixed; inset: 0; z-index: 59; }
-  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 60; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
+  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 60; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
   .base-view-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 6px 8px; border-radius: var(--radius-xs); font-size: var(--text-ui); }
-  .base-view-menu button:hover { background: var(--bg-hover); }
+  .base-view-menu button:hover { background: var(--state-hover); }
   .base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
   .base-view-menu button.danger { color: var(--error-text); }
 `;

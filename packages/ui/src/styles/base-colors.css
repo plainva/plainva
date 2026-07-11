@@ -62,13 +62,16 @@
   --callout-cyan-tint: #2fa39a14;
 
   /* Structure tokens — themes may reshape the app through these (e.g. LCARS
-     pill buttons). Sized steps: xs 4 / sm 6 / md 8 / lg 10 / xl 12 / pill.
+     pill buttons). Sized steps (Plainva UI 2.0 / M3 Expressive, one notch more
+     generous): xs 4 / sm 8 / md 12 / lg 16 / xl 20 / pill. Role mapping in
+     docs/engineering/Design_Language.md. LCARS/Win95 pin the whole scale, so the
+     bump reaches only the themes that want soft shape.
      Geometric radii (perfect circles via 50%, 1-2px micro details) stay literal. */
   --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-pill: 999px;
 
   /* Font split: chrome (sidebars, buttons, titlebar) vs. document content
@@ -82,6 +85,25 @@
      (issue #5, a11y) — services/contentFont.ts overrides it on <html>.
      Chrome text does NOT follow it; UI scaling is the shell zoom's job. */
   --content-font-size: 16px;
+
+  /* --- Plainva UI 2.0 (M3 Expressive) — additive; no consumers yet in P0. --- */
+  /* Tonal surface-container hierarchy: elevation by tone. Derived per theme from
+     bg + text so every theme (light AND dark) adapts without its own override. */
+  --surface: var(--bg-primary);
+  --surface-container-low: color-mix(in srgb, var(--text-main) 3%, var(--bg-primary));
+  --surface-container: color-mix(in srgb, var(--text-main) 6%, var(--bg-primary));
+  --surface-container-high: color-mix(in srgb, var(--text-main) 9%, var(--bg-primary));
+  --surface-container-highest: color-mix(in srgb, var(--text-main) 12%, var(--bg-primary));
+  /* Tonal accent container (active/selected fills: nav pill, tree selection). */
+  --accent-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
+  --on-accent-container: var(--accent-color);
+  /* State layers (translucent overlays; consumed as cheap opacity/pseudo). */
+  --state-hover: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  --state-focus: color-mix(in srgb, var(--accent-color) 12%, transparent);
+  --state-press: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  /* Scroll-edge treatment (fade + faint shadow at overflow boundaries). */
+  --edge-scrim: linear-gradient(to top, rgba(18, 38, 34, 0.16), rgba(18, 38, 34, 0.04) 35%, transparent 72%);
+  --edge-shadow: 0 -1px 6px rgba(20, 40, 36, 0.06);
 }
 
 [data-theme="dark"] {
@@ -110,4 +132,9 @@
   --code-bg: #1a2c2b;
   --quote-border: #2f4a47;
   --highlight-bg: #4d4a1e;
+
+  /* UI 2.0: stronger scroll-edge shadow on dark grounds (surface-container,
+     accent-container and state layers auto-adapt via color-mix above). */
+  --edge-scrim: linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.14) 35%, transparent 72%);
+  --edge-shadow: 0 -1px 8px rgba(0, 0, 0, 0.4);
 }

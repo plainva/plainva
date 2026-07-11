@@ -727,11 +727,8 @@ function App() {
 
         <button
           onClick={closeVault}
-          style={{
-            marginTop: '2rem', padding: '0.75rem 1.5rem',
-            background: 'var(--error-bg)', color: 'var(--error-text)', border: 'none',
-            borderRadius: "var(--radius-sm)", cursor: 'pointer', fontWeight: 500
-          }}
+          className="pv-btn pv-btn--danger-soft"
+          style={{ marginTop: '2rem' }}
         >
           {t("splash.cancelLoad")}
         </button>
@@ -794,7 +791,8 @@ function App() {
               }}
               placeholder={t('fileTree.search')}
               aria-label={t('fileTree.search')}
-              style={{ width: '100%', height: 34, padding: leftQuery ? '0 34px 0 32px' : '0 10px 0 32px', borderRadius: "var(--radius-md)", border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem', outline: 'none' }}
+              className="pv-field"
+              style={{ width: '100%', height: 34, padding: leftQuery ? '0 34px 0 32px' : '0 10px 0 32px', boxSizing: 'border-box' }}
             />
             {leftQuery !== '' && (
               <button
@@ -802,9 +800,8 @@ function App() {
                 onClick={clearLeftQuery}
                 title={t('sidebar.clearSearch')}
                 aria-label={t('sidebar.clearSearch')}
-                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, padding: 0, background: 'transparent', border: 'none', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', cursor: 'pointer' }}
-                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-main)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                className="pv-iconbtn"
+                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, padding: 0 }}
               >
                 <X size={14} />
               </button>
@@ -812,12 +809,11 @@ function App() {
           </div>
           {/* New ▾ split button */}
           <div style={{ position: 'relative' }}>
-            <div style={{ display: 'flex', width: '100%', height: 38, background: 'var(--accent-color)', color: 'var(--accent-on)', borderRadius: "var(--radius-md)", overflow: 'hidden' }}>
+            <div className="pv-splitbtn" style={{ display: 'flex', width: '100%' }}>
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'file' } }))}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'transparent', color: 'inherit', border: 'none', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600 }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'var(--accent-color-hover)')}
-                onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                className="pv-btn pv-btn--primary"
+                style={{ flex: 1, height: 38, gap: 8 }}
               >
                 <Plus size={16} />{t('sidebar.new', { defaultValue: 'Neu' })}
               </button>
@@ -827,9 +823,8 @@ function App() {
                 aria-expanded={showNewMenu}
                 aria-label={t('sidebar.newMore', { defaultValue: 'Weitere Optionen' })}
                 onClick={() => setShowNewMenu((s) => !s)}
-                style={{ width: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'inherit', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.22)', cursor: 'pointer' }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'var(--accent-color-hover)')}
-                onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                className="pv-btn pv-btn--primary"
+                style={{ width: 34, height: 38, padding: 0, borderLeft: '1px solid rgba(255,255,255,0.22)' }}
               >
                 <ChevronDown size={15} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
               </button>
@@ -862,9 +857,8 @@ function App() {
                   aria-label={label}
                   title={label}
                   onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
-                  style={{ flex: 1, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: active ? 'var(--bg-active)' : 'transparent', border: 'none', color: active ? 'var(--accent-color)' : 'var(--text-muted)', borderRadius: "var(--radius-md)", cursor: 'pointer' }}
-                  onMouseOver={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                  onMouseOut={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                  className="pv-btn pv-btn--ghost"
+                  style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--bg-active)' : undefined, color: active ? 'var(--accent-color)' : undefined }}
                 >
                   <Icon size={16} />
                 </button>
@@ -873,7 +867,7 @@ function App() {
           </div>
           {leftSidebarTab === 'files' && (
             <button
-              className="pv-icon-btn"
+              className="pv-iconbtn"
               aria-label={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
               data-tip={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
               onClick={() => window.dispatchEvent(new CustomEvent('plainva-tree-toggle-all'))}
@@ -912,45 +906,24 @@ function App() {
           {/* Vault Switcher */}
           <div style={{ position: "relative", width: "100%", marginTop: "auto" }}>
             {showVaultMenu && (
-              <div style={{
-                position: "absolute", bottom: "100%", left: 0, width: "100%",
-                background: "var(--bg-primary)", border: "1px solid var(--border-color)",
-                borderRadius: "var(--radius-sm)", marginBottom: "0.25rem", zIndex: 10,
-                boxShadow: "0 -4px 12px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column"
-              }}>
-                <div style={{ padding: "0.5rem", borderBottom: "1px solid var(--border-color)", fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  {t("sidebar.recentVaults")}
-                </div>
+              <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: 10 }}>
+                <div className="pv-menu-label">{t("sidebar.recentVaults")}</div>
                 {recentVaults.filter(p => p !== vaultPath).slice(0, 5).map(path => (
                   <button
                     key={path}
                     onClick={() => { setShowVaultMenu(false); openVault(path); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem',
-                      background: 'transparent', border: 'none', borderBottom: "1px solid var(--border-color-light)",
-                      color: 'var(--text-main)', cursor: 'pointer', textAlign: "left", width: "100%"
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    className="pv-menu-item"
                   >
                     <Folder size={14} color="var(--accent-color)" />
-                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {path.split(/[/\\]/).pop() || path}
-                    </div>
+                    <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
                   </button>
                 ))}
                 <button
                   onClick={() => { setShowVaultMenu(false); closeVault(); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem',
-                    background: 'transparent', border: 'none', color: 'var(--text-main)',
-                    cursor: 'pointer', textAlign: "left", width: "100%"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  className="pv-menu-item"
                 >
                   <Settings size={14} />
-                  <span>{t("sidebar.switchVault")}</span>
+                  <span className="pv-menu-text">{t("sidebar.switchVault")}</span>
                 </button>
               </div>
             )}

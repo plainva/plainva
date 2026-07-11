@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFixedPopover } from "@plainva/ui";
 import { Plus, ChevronDown, Check, Star, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
@@ -60,23 +60,13 @@ export function NewItemButton({
     return () => { alive = false; };
   }, [open, loadTemplates]);
 
-  const itemStyle: React.CSSProperties = {
-    width: "100%", display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0.5rem",
-    background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer",
-    textAlign: "left", borderRadius: "var(--radius-xs)", fontSize: "0.85rem",
-  };
-  const hover = {
-    onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.background = "var(--bg-hover)"; },
-    onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.background = "transparent"; },
-  };
-
   // One row per template choice (null = without template). The check marks the
   // base's current default; the star sets/clears it without creating anything.
   const templateRow = (path: string | null, title: string) => {
     const isDefault = defaultTemplate === path;
     return (
       <div key={path ?? "__none__"} style={{ display: "flex", alignItems: "center" }}>
-        <button type="button" style={{ ...itemStyle, flex: 1, minWidth: 0 }} {...hover}
+        <button type="button" className="pv-menu-item" style={{ flex: 1, minWidth: 0 }}
           onClick={() => { setOpen(false); onCreate(path); }}
           title={t("database.createWithTemplate", { title, defaultValue: "Neues Element mit „{{title}}“ anlegen" })}
         >
@@ -139,12 +129,12 @@ export function NewItemButton({
               </div>
             )}
             <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
-            <button type="button" style={itemStyle} {...hover} onClick={() => { setOpen(false); onCreateTemplate(); }}>
+            <button type="button" className="pv-menu-item" onClick={() => { setOpen(false); onCreateTemplate(); }}>
               <FilePlus2 size={14} style={{ flexShrink: 0 }} />
               {t("database.createTemplate", { defaultValue: "Neue Vorlage erstellen" })}
             </button>
             {onOpenTemplatesFolder && (
-              <button type="button" style={itemStyle} {...hover}
+              <button type="button" className="pv-menu-item"
                 onClick={() => { setOpen(false); onOpenTemplatesFolder(); }}
                 title={t("database.openTemplatesFolder", { defaultValue: "Vorlagen-Ordner im Dateibaum öffnen (bearbeiten, umbenennen, löschen)" })}
               >
@@ -153,7 +143,7 @@ export function NewItemButton({
               </button>
             )}
             <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
-            <button type="button" style={{ ...itemStyle, flexDirection: "column", alignItems: "flex-start", gap: 2 }} {...hover} onClick={() => { setOpen(false); onChangeFolder(); }}>
+            <button type="button" className="pv-menu-item" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }} onClick={() => { setOpen(false); onChangeFolder(); }}>
               <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <FolderCog size={14} style={{ flexShrink: 0 }} />
                 {t("database.changeNewItemFolder", { defaultValue: "Ablage-Ordner ändern…" })}

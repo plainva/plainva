@@ -70,6 +70,10 @@ Dan is de sync-verbinding zelf verstoord — vaak omdat de aanmelding is verlope
 
 Plainva is een desktop-app, geen webpagina. Herlaadtoetsen (F5, Ctrl+R) zijn met opzet uitgeschakeld — herladen zou je open tabbladen en niet-opgeslagen wijzigingen weggooien. Het ingebouwde rechtsklikmenu van de WebView is ook verborgen; rechtsklikken op geselecteerde tekst biedt nog steeds **Kopiëren**, en de bestandsboom, tabbladen en tabellen behouden hun eigen rechtsklikmenu's.
 
+### Waarom zie ik geen animaties?
+
+Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen en effecten ontbreken (knoppen, menu's en markeringen bewegen niet), staan animaties uit in je besturingssysteem. Onder **Windows**: Instellingen → Toegankelijkheid → Visuele effecten → zet **Animatie-effecten** aan. Onder **macOS**: Systeeminstellingen → Toegankelijkheid → Beeldscherm → zet **Beweging verminderen** uit.
+
 ### Hoe verander ik de taal?
 
 **Instellingen → App → Weergave → Taal** (momenteel Duits en Engels).

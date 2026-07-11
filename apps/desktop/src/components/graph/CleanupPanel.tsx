@@ -201,7 +201,11 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
           ) : (
             orphans.map((o) => (
               <div key={o.path} style={rowStyle} data-testid="graph-cleanup-orphan">
-                <button style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: 0, fontSize: "var(--text-sm)" }} onClick={() => onOpenPath(o.path)}>
+                <button
+                  className="pv-linkbtn"
+                  style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  onClick={() => onOpenPath(o.path)}
+                >
                   {o.title}
                 </button>
                 <button className="pv-btn pv-btn--ghost pv-btn--sm" style={actionStyle} onClick={() => void deleteOrphan(o.path)}>
@@ -216,7 +220,11 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
           ) : (
             broken.map((b, i) => (
               <div key={`${b.sourcePath}-${i}`} style={{ ...rowStyle, flexWrap: "wrap" }} data-testid="graph-cleanup-broken">
-                <button style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", padding: 0, fontSize: "var(--text-sm)" }} onClick={() => onOpenPath(b.sourcePath)}>
+                <button
+                  className="pv-linkbtn"
+                  style={{ flex: 1, minWidth: 0 }}
+                  onClick={() => onOpenPath(b.sourcePath)}
+                >
                   <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>[[{b.targetRaw}]]</span>
                   <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.sourcePath}</span>
                 </button>
@@ -242,7 +250,11 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
             )}
             {mentions.map((m, i) => (
               <div key={`${m.source}-${m.target}-${i}`} style={{ ...rowStyle, flexWrap: "wrap" }} data-testid="graph-cleanup-mention">
-                <button style={{ flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-main)", padding: 0, fontSize: "var(--text-sm)" }} onClick={() => onOpenPath(m.source)}>
+                <button
+                  className="pv-linkbtn"
+                  style={{ flex: 1, minWidth: 0 }}
+                  onClick={() => onOpenPath(m.source)}
+                >
                   <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>„{m.term}“</span>
                   <span style={{ display: "block", color: "var(--text-faint)", fontSize: "var(--text-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.source}</span>
                 </button>
