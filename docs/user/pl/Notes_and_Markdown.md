@@ -81,7 +81,7 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 
 ## Szablony
 
-Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura**. Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa.
+Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta). Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa.
 
 Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
 

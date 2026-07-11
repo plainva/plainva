@@ -50,7 +50,7 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 
 ## Notes quotidiennes
 
-**Ouvrir la note quotidienne** (ou un clic sur une date dans le **Calendrier** à droite) ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Vault → Contenu et structure**.
+**Ouvrir la note quotidienne** (ou un clic sur une date dans le **Calendrier** à droite) ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault).
 
 Dans le calendrier, le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
 

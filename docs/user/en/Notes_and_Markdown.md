@@ -81,7 +81,7 @@ Every note can carry an icon (Notion-style above the title, also visible in tabs
 
 ## Templates
 
-Set a **Template Folder** under **Settings → Vault → Content & structure**. Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins.
+Set a **Template Folder** under **Settings → Vault → Content & structure** (**Choose folder…** next to the field lets you pick the folder right inside the vault). Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins.
 
 Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree.
 

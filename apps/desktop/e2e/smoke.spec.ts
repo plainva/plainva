@@ -1058,6 +1058,36 @@ test('Settings two-worlds nav: vault dropdown switches the vault; cross-world cl
   await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toHaveCount(0);
 });
 
+test('Vault folder picker: browsing fills the daily-notes and template folder fields', async ({ page }) => {
+  // Two real folders in the vault (the picker hides dot folders like .plainva).
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Tagebuch'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Vorlagen'] = { isDir: true };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  // Daily-notes folder: browse → navigate into "Tagebuch" → use this folder.
+  await page.getByTestId('browse-daily-folder').click();
+  const picker = page.getByRole('dialog', { name: /Vault Ordner auswählen|Select Vault Folder/ });
+  await expect(picker).toBeVisible();
+  await expect(picker.getByText('.plainva')).toHaveCount(0);
+  await picker.getByText('Tagebuch', { exact: true }).click();
+  await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Tagebuch');
+
+  // Template folder: same picker, second field.
+  await page.getByTestId('browse-template-folder').click();
+  await picker.getByText('Vorlagen', { exact: true }).click();
+  await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
+  await expect(page.getByPlaceholder('Templates/')).toHaveValue('Vorlagen');
+});
+
 test('Settings nav: clicking a late anchor highlights it even when it cannot scroll to the top', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });

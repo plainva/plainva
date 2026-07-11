@@ -50,7 +50,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 
 ## Notatki dzienne
 
-**Otwórz notatkę dzienną** (lub kliknięcie daty w **Kalendarzu** po prawej) otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Vault → Treść i struktura**.
+**Otwórz notatkę dzienną** (lub kliknięcie daty w **Kalendarzu** po prawej) otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta).
 
 W kalendarzu przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
 

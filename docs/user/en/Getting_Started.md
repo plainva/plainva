@@ -50,7 +50,7 @@ You can also toggle between **Readable width** and **Full width**.
 
 ## Daily notes
 
-**Open Daily Note** (or clicking a date in the **Calendar** on the right) opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault → Content & structure**.
+**Open Daily Note** (or clicking a date in the **Calendar** on the right) opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault → Content & structure** (**Choose folder…** next to the field lets you pick the folder right inside the vault).
 
 In the calendar, the **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
 

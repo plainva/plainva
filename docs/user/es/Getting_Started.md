@@ -50,7 +50,7 @@ También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 
 ## Notas diarias
 
-**Abrir nota diaria** (o hacer clic en una fecha en el **Calendario** de la derecha) abre o crea la nota de hoy. Configura la carpeta base, el formato de fecha y una plantilla opcional en **Configuración → Vault → Contenido y estructura**.
+**Abrir nota diaria** (o hacer clic en una fecha en el **Calendario** de la derecha) abre o crea la nota de hoy. Configura la carpeta base, el formato de fecha y una plantilla opcional en **Configuración → Vault → Contenido y estructura** (**Elegir carpeta…** junto al campo permite elegir la carpeta directamente en el vault).
 
 En el calendario, el botón **Hoy** te devuelve al mes actual; al hacer clic en el nombre del mes se abre un selector rápido de mes y año. Ahí también puedes activar **Mostrar números de semana** para añadir una columna de semana ISO — el ajuste se recuerda.
 

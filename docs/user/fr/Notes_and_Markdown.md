@@ -81,7 +81,7 @@ Chaque note peut porter une icône (façon Notion au-dessus du titre, visible au
 
 ## Modèles
 
-Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu et structure**. Insérez ensuite des modèles via `Ctrl+Alt+T` ou la commande slash **Insérer un modèle**. Les modèles définissent entièrement le contenu des nouveaux fichiers — frontmatter compris : si un modèle apporte son propre `type`, le modèle l'emporte.
+Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault). Insérez ensuite des modèles via `Ctrl+Alt+T` ou la commande slash **Insérer un modèle**. Les modèles définissent entièrement le contenu des nouveaux fichiers — frontmatter compris : si un modèle apporte son propre `type`, le modèle l'emporte.
 
 La création de modèles se fait depuis n'importe où : la palette de commandes (`Ctrl+P`) propose **Créer un modèle** (un nouveau modèle s'ouvre pour être modifié) et **Enregistrer la note actuelle comme modèle** (copie la note ouverte dans le dossier de modèles). Les modèles sont des fichiers Markdown ordinaires — modifiez-les, renommez-les ou supprimez-les directement dans l'arborescence de fichiers.
 

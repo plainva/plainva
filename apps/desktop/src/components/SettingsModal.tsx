@@ -48,7 +48,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatDiagnosticsExport } from "@plainva/ui";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { Button } from "@plainva/ui";
+import { Button, IconButton } from "@plainva/ui";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -129,6 +129,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // Remote-folder picker for the cloud providers (2026-07-06) — which provider
   // form requested it; null = closed. WebDAV keeps its own modal above.
   const [syncPicker, setSyncPicker] = useState<"drive" | "onedrive" | "dropbox" | "s3" | null>(null);
+  // In-vault folder picker for the daily-notes and template folders (2026-07-11):
+  // reuses the sync picker UI with a listing that walks the OPEN vault, so the
+  // browse buttons are gated to the active vault like the other vault actions.
+  const [vaultFolderPicker, setVaultFolderPicker] = useState<"daily" | "templates" | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [configuredVaults, setConfiguredVaults] = useState<Set<string>>(new Set());
 
@@ -532,6 +536,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     } catch (e) {
       console.error("Failed to save backup setting", e);
     }
+  };
+
+  /** Child folder names one level below `path` in the OPEN vault (dot folders
+   *  like .plainva/.git stay hidden — they are never a sensible pick). */
+  const listVaultFolders = async (path: string): Promise<string[]> => {
+    if (!vaultAdapter) return [];
+    const entries = await vaultAdapter.listDir(path);
+    return entries
+      .filter((e) => e.isDirectory && !e.name.startsWith("."))
+      .map((e) => e.name)
+      .sort((a, b) => a.localeCompare(b));
   };
 
   const handleIntervalChange = (raw: string) => {
@@ -1734,7 +1749,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <h5 style={{ margin: "0.5rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.features")}</h5>
 
                   <SettingRow label={t("settings.dailyNotesFolder")}>
-                    <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" style={{ ...inputStyle, width: "100%" }} />
+                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+                      <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+                      <IconButton
+                        label={t("settings.browseFolders")}
+                        data-testid="browse-daily-folder"
+                        disabled={section !== vaultPath}
+                        onClick={() => setVaultFolderPicker("daily")}
+                      >
+                        <Folder size={14} />
+                      </IconButton>
+                    </div>
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
@@ -1742,7 +1767,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingRow>
 
                   <SettingRow label={t("settings.templateFolder")}>
-                    <input autoComplete="off" value={templateFolder} onChange={(e) => { setTemplateFolder(e.target.value); void persistFeature(section, templateFolderKey(section), e.target.value); }} placeholder="Templates/" style={{ ...inputStyle, width: "100%" }} />
+                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+                      <input autoComplete="off" value={templateFolder} onChange={(e) => { setTemplateFolder(e.target.value); void persistFeature(section, templateFolderKey(section), e.target.value); }} placeholder="Templates/" style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+                      <IconButton
+                        label={t("settings.browseFolders")}
+                        data-testid="browse-template-folder"
+                        disabled={section !== vaultPath}
+                        onClick={() => setVaultFolderPicker("templates")}
+                      >
+                        <Folder size={14} />
+                      </IconButton>
+                    </div>
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNotesTemplate")}>
@@ -2028,6 +2063,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           listFolders={(p) => listSyncFolders(syncPicker, p)}
           onSelect={(picked) => { applySyncPickerResult(syncPicker, picked); setSyncPicker(null); }}
           onCancel={() => setSyncPicker(null)}
+        />
+      )}
+      {vaultFolderPicker && (
+        <SyncFolderPickerModal
+          // The vault root is a legitimate pick for both fields ("" = root).
+          allowRoot
+          rootLabel={basename(section)}
+          listFolders={listVaultFolders}
+          onSelect={(picked) => {
+            if (vaultFolderPicker === "daily") {
+              setDailyNotesFolder(picked);
+              void persistFeature(section, dailyNotesFolderKey(section), picked);
+            } else {
+              setTemplateFolder(picked);
+              void persistFeature(section, templateFolderKey(section), picked);
+            }
+            setVaultFolderPicker(null);
+          }}
+          onCancel={() => setVaultFolderPicker(null)}
         />
       )}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}

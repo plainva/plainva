@@ -50,7 +50,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 
 ## Note giornaliere
 
-**Apri nota giornaliera** (o un clic su una data nel **Calendario** a destra) apre o crea la nota di oggi. Configura la cartella base, il formato della data e un modello opzionale in **Impostazioni → Vault → Contenuto e struttura**.
+**Apri nota giornaliera** (o un clic su una data nel **Calendario** a destra) apre o crea la nota di oggi. Configura la cartella base, il formato della data e un modello opzionale in **Impostazioni → Vault → Contenuto e struttura** (**Scegli cartella…** accanto al campo permette di scegliere la cartella direttamente nel vault).
 
 Nel calendario, il pulsante **Oggi** torna al mese corrente; un clic sull'etichetta del mese apre un selettore rapido di mese/anno. Lì puoi anche attivare **Mostra i numeri di settimana** per aggiungere una colonna con la settimana ISO — l'impostazione viene ricordata.
 

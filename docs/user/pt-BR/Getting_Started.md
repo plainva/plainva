@@ -50,7 +50,7 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 
 ## Notas diárias
 
-**Abrir nota diária** (ou clicar em uma data no **Calendário** à direita) abre ou cria a nota de hoje. Configure a pasta base, o formato de data e um modelo opcional em **Configurações → Vault → Conteúdo e estrutura**.
+**Abrir nota diária** (ou clicar em uma data no **Calendário** à direita) abre ou cria a nota de hoje. Configure a pasta base, o formato de data e um modelo opcional em **Configurações → Vault → Conteúdo e estrutura** (**Escolher pasta…** ao lado do campo permite escolher a pasta diretamente no vault).
 
 No calendário, o botão **Hoje** leva você de volta ao mês atual; clicar no nome do mês abre um seletor rápido de mês/ano. Lá você também pode ativar **Mostrar números da semana** para adicionar uma coluna com a semana ISO — a configuração é lembrada.
 
