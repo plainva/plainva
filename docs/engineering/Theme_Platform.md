@@ -21,7 +21,7 @@ Base tokens (Petrol) live in `apps/desktop/src/App.css` on `:root` (light) + `[d
 - Colors: `--bg-primary/secondary/hover/active`, `--text-main/muted/faint`, `--accent-color/-hover`, `--accent-on`, `--border-color/-light`, `--error-*`, `--overlay-bg`
 - Editor/read: `--selection-bg`, `--active-line-bg`, `--code-bg`, `--quote-border`, `--highlight-bg`
 - Callouts: `--callout-<key>` + `--callout-<key>-tint` (8 types)
-- Structure: `--radius-xs/sm/md/lg/xl/pill` (scale 4/6/8/10/12/999 px; components NEVER use hardcoded radii anymore — migration 2026-07-04, ~230 spots)
+- Structure: `--radius-xs/sm/md/lg/xl/pill` (Plainva UI 2.0 scale 4/8/12/16/20/999 px — widened one notch for the M3-Expressive look; components NEVER use hardcoded radii, migration 2026-07-04, ~230 spots)
 - Font split: `--font-ui` (chrome: title bar, sidebars, buttons, menus) vs. `--font-content` (editor + reading view); `--font-family` remains an alias for `--font-ui`
 
 ## Creating a new theme
@@ -62,3 +62,16 @@ Antonio (SIL OFL 1.1) ships as a variable-font woff2 under `apps/desktop/src/ass
 ## New token families (design language 2026-07-05)
 
 Since the design-language master plan (P1), additional themeable families exist in `apps/desktop/src/styles/tokens.css`: spacing scale `--space-1..8`, type scale `--text-xs/sm/ui/md/lg`, control heights `--control-sm/md/lg`, density roles `--pad-row-y`/`--pad-cell` (plus the `[data-density="compact"]` block), elevation `--shadow-1/2/3`, z layers `--z-popover/modal/menu/dialog/toast/tooltip`, motion `--dur-1/2` + `--ease-1`, status colors `--warning/success/info-*`, the chip palette `--chip-0..7-*`/`--chip-tag-*`/`--chip-link-*`, and the accent palette `--palette-1..10` (TS source: `components/palette.ts`, values are frontmatter DATA). Black themes (Midnight, LCARS, Phosphor) set the shadows to `none` and separate via border instead. The ui/ primitives (`.pv-btn`, `.pv-iconbtn`, `.pv-field`, `.pv-menu*`, `.pv-overlay`/`.pv-modal*`, `.pv-palette*`, `.pv-toast*`, `.pv-tooltip`, `.pv-empty`) are the stable docking points for theme-scoped structural rules — LCARS uses them for pills, elbow modals, console fields and the section color blocks (stage 2, E5). Rules and roles: `docs/engineering/Design_Language.md`.
+
+## Plainva UI 2.0 families (M3 Expressive, 2026-07-11)
+
+The redesign (plan `docs/planning/Gesamtplan_Redesign_M3_Expressive_2026-07-11.md`, maintainer workspace) adds token families to `packages/ui/src/styles/base-colors.css` and `tokens.css`, so both shells (desktop + mobile) inherit them:
+
+- **Surface-container hierarchy** `--surface`, `--surface-container-low/high/highest` — tonal elevation. Derived per theme via `color-mix()` from `--bg-primary`/`--text-main`, so every theme adapts (light AND dark) without an override; special themes may still pin them.
+- **Accent container** `--accent-container`, `--on-accent-container` — tonal active/selected fills (nav pill, tree selection).
+- **State layers** `--state-hover/focus/press` — translucent overlays, consumed as cheap opacity/pseudo-element (never a per-row box-shadow).
+- **Scroll-edge** `--edge-scrim`, `--edge-shadow` — fade + faint shadow at overflow boundaries (the splash-list case).
+- **Motion** `--dur-3`, `--ease-spatial` (may overshoot), `--ease-effects`; `@media (prefers-reduced-motion: reduce)` collapses the durations — the `--motion-scheme` mechanism. Every animation MUST source its duration from these tokens; a "none" theme (Win95, E-Ink) pins the durations to ~0. Motion is chrome-only; content never animates.
+- **Emphasis type** `--text-display`, `--text-headline` — on `--font-ui` (no new webfont), for splash/empty-state/screen titles.
+
+Black themes (Midnight, LCARS, Phosphor) keep `--shadow-*: none` and express elevation/edge via colour frames, tonal lightening or glow. Per-theme tuning of these families is a dedicated audit as surfaces begin consuming them (later phases).
