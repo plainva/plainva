@@ -458,6 +458,7 @@
     "tags": "Tags",
     "bookmarks": "Signets",
     "noBookmarks": "Aucun signet",
+    "recent": "Ouverts récemment",
     "recentVaults": "Vaults récents",
     "vaults": "Vaults",
     "switchVault": "Changer de vault",

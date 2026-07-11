@@ -317,6 +317,18 @@ const TreeNodeView: React.FC<{
   );
 });
 
+/** Per-vault persisted expanded-folder set, so the tree keeps its shape across
+ *  sidebar tab switches (Files/Tags/Bookmarks) and app restarts. */
+function loadExpanded(vaultPath: string | null | undefined): Set<string> {
+  if (!vaultPath) return new Set();
+  try {
+    const raw = localStorage.getItem(`plainva-expanded-${vaultPath}`);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 export const FileTree: React.FC<{
   onSelect: (path: string, newTab: boolean) => void;
   onCloseTabsByPrefix?: (prefix: string) => void;
@@ -355,7 +367,18 @@ export const FileTree: React.FC<{
   const cancelRenaming = useStableHandler(() => { setRenamingItemParams(null); setRenamingError(null); });
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => loadExpanded(vaultPath));
+  const persistExpanded = useStableHandler((set: Set<string>) => {
+    if (!vaultPath) return;
+    try {
+      localStorage.setItem(`plainva-expanded-${vaultPath}`, JSON.stringify([...set]));
+    } catch {
+      /* storage blocked/full — the tree still works, it just won't be remembered */
+    }
+  });
+  // Reload when the vault changes (the tree can stay mounted across a vault
+  // switch; the lazy init above only covers the first mount / a remount).
+  useEffect(() => { setExpandedFolders(loadExpanded(vaultPath)); }, [vaultPath]);
   // Explorer-style selection (P7/P9): plain click selects, Ctrl/Meta toggles,
   // Shift ranges over the visible rows; the anchor is the last plain target.
   const [selection, setSelection] = useState<Set<string>>(new Set());
@@ -519,6 +542,7 @@ export const FileTree: React.FC<{
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
+      persistExpanded(next);
       return next;
     });
   };
@@ -638,7 +662,11 @@ export const FileTree: React.FC<{
       setSelectionAnchor(null);
       return;
     }
-    setExpandedFolders((prev) => new Set([...prev, ...ancestorsOf(path), path]));
+    setExpandedFolders((prev) => {
+      const next = new Set([...prev, ...ancestorsOf(path), path]);
+      persistExpanded(next);
+      return next;
+    });
     setSelection(new Set([path]));
     setSelectionAnchor(path);
     // Double rAF: the first frame fires before React committed the expanded
@@ -668,11 +696,15 @@ export const FileTree: React.FC<{
   // collapse everything, else expand every folder (collectFolderPaths memo).
   useEffect(() => {
     const onToggleAll = () => {
-      setExpandedFolders((prev) => (prev.size > 0 ? new Set() : new Set(folderPaths)));
+      setExpandedFolders((prev) => {
+        const next = prev.size > 0 ? new Set<string>() : new Set(folderPaths);
+        persistExpanded(next);
+        return next;
+      });
     };
     window.addEventListener("plainva-tree-toggle-all", onToggleAll);
     return () => window.removeEventListener("plainva-tree-toggle-all", onToggleAll);
-  }, [folderPaths]);
+  }, [folderPaths, persistExpanded]);
 
   useEffect(() => {
     onExpandedStateChange?.(expandedFolders.size > 0);
