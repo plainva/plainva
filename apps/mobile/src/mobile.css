@@ -20,22 +20,18 @@ body,
 }
 
 :root {
-  /* M3 color roles mapped onto the shared Plainva palette. */
-  --m-surface: var(--bg-primary);
-  --m-surface-container: var(--bg-secondary);
-  --m-surface-container-high: var(--bg-hover);
+  /* M3 color roles mapped onto the shared Plainva UI 2.0 token families, so
+     mobile inherits the tonal surface-container hierarchy, the accent container
+     and the state layers — and every bundled theme flows through unchanged. */
+  --m-surface: var(--surface);
+  --m-surface-container: var(--surface-container);
+  --m-surface-container-high: var(--surface-container-high);
   --m-primary: var(--accent-color);
   --m-on-primary: var(--accent-on, #fff);
   --m-outline: var(--border-color);
-  --m-secondary-container: var(--bg-active);
-  --m-on-secondary-container: var(--text-main);
-  --m-state-pressed: var(--bg-active);
-}
-@supports (background: color-mix(in srgb, red 50%, blue)) {
-  :root {
-    --m-secondary-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
-    --m-state-pressed: color-mix(in srgb, var(--text-main) 10%, transparent);
-  }
+  --m-secondary-container: var(--accent-container);
+  --m-on-secondary-container: var(--on-accent-container);
+  --m-state-pressed: var(--state-press);
 }
 
 body {
@@ -247,7 +243,7 @@ body {
   width: 56px;
   height: 30px;
   border-radius: 999px;
-  transition: background 120ms ease;
+  transition: background var(--dur-2) var(--ease-effects);
 }
 
 .m-tab.is-active {
@@ -282,9 +278,13 @@ body {
     0 1px 3px rgba(0, 0, 0, 0.3),
     0 4px 8px 3px rgba(0, 0, 0, 0.15);
   touch-action: none;
+  transition:
+    transform var(--dur-1) var(--ease-spatial),
+    filter var(--dur-1) var(--ease-effects);
 }
 .m-fab:active {
   filter: brightness(1.08);
+  transform: scale(0.94);
 }
 
 /* ---- Search ---- */
@@ -591,6 +591,11 @@ body {
   z-index: 40;
   display: flex;
   align-items: flex-end;
+  animation: m-sheet-fade var(--dur-2) var(--ease-effects);
+}
+@keyframes m-sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 /* Dialog sheets (mobileDialogs) stack above content sheets. */
 .m-sheet-backdrop--dialog {
@@ -649,6 +654,11 @@ body {
   padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
   max-height: 78vh;
   overflow-y: auto;
+  animation: m-sheet-up var(--dur-3) var(--ease-spatial);
+}
+@keyframes m-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 .m-sheet-grip {
   width: 32px;
