@@ -18,6 +18,7 @@ import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } fr
 import { handleOAuthRedirect } from "./services/oauthService";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt } from "./services/mobileDialogs";
+import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { createDatabase } from "./services/baseOps";
 import { SettingsScreen } from "./SettingsScreen";
@@ -82,6 +83,7 @@ export default function App() {
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
+  const [fromTemplate, setFromTemplate] = useState(false);
   // ＋: tap captures, long-press opens the quick-create sheet (R3).
   const fabPress = useLongPress<undefined>(() => setQuickCreate(true));
   // The Android back listener registers once; it reads the live state here.
@@ -225,6 +227,23 @@ export default function App() {
   const quickNewFolder = () => {
     setQuickCreate(false);
     createFolderPrompt(vault, browseFolder(), t);
+  };
+
+  // New note from a template (R3.4): pick a template, name the note, land in
+  // the editor — full template text, placeholders interpolated (vaultOps).
+  const quickNewFromTemplate = (item: { path: string; title: string }) => {
+    void (async () => {
+      const raw = await vaultOps.read(vault, item.path);
+      const { value, cancelled } = await mPrompt({
+        title: t("mobile.newFromTemplate"),
+        initial: item.title,
+      });
+      const name = value?.trim().replace(/[\\/]/g, "-");
+      if (cancelled || !name) return;
+      const folder = browseFolder() || "Inbox";
+      const path = await vaultOps.createNoteFromTemplate(vault, folder, name, raw);
+      setNav((s) => pushCapturedNote(s, slots, path));
+    })();
   };
 
   // New database (R4.5): name prompt, stored in the folder the user is
@@ -435,6 +454,16 @@ export default function App() {
               className="m-row"
               onClick={() => {
                 setQuickCreate(false);
+                setFromTemplate(true);
+              }}
+            >
+              <StickyNote size={18} />
+              <span>{t("mobile.newFromTemplate")}</span>
+            </button>
+            <button
+              className="m-row"
+              onClick={() => {
+                setQuickCreate(false);
                 openDaily(isoOf(new Date()));
               }}
             >
@@ -451,6 +480,15 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {fromTemplate && (
+        <TemplatePickSheet
+          onClose={() => setFromTemplate(false)}
+          onPick={quickNewFromTemplate}
+          title={t("mobile.newFromTemplate")}
+          vault={vault}
+        />
       )}
     </div>
   );

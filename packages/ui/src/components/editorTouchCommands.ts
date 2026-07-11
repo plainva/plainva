@@ -1,3 +1,4 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { undo, redo } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -88,6 +89,23 @@ export function cycleHeading(view: EditorView): void {
     userEvent: "input",
   });
   view.focus();
+}
+
+/**
+ * Toolbar entry to the slash menu (R3.4 — typing "/" is clumsy on touch
+ * keyboards): inserts a "/" at the caret and opens the completion popup the
+ * SlashCommandPlugin serves. Typed insertion alone would not trigger it —
+ * completion only auto-opens on real input events.
+ */
+export function openSlashMenu(view: EditorView): void {
+  const pos = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: pos, insert: "/" },
+    selection: EditorSelection.cursor(pos + 1),
+    userEvent: "input",
+  });
+  view.focus();
+  setTimeout(() => startCompletion(view), 0);
 }
 
 /** Wraps the selection in a wiki link ([[selection]]) or inserts [[]]. */

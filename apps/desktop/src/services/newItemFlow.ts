@@ -1,8 +1,7 @@
-import { format } from "date-fns";
 import { getSettingsStore } from "./settingsStore";
 import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { templateFolderKey } from "../contexts/VaultContext";
-import { parsePropertyFilter } from "@plainva/ui";
+import { applyTemplatePlaceholders, parsePropertyFilter } from "@plainva/ui";
 import { withOkfDefaults } from "./newNote";
 
 /**
@@ -13,22 +12,10 @@ import { withOkfDefaults } from "./newNote";
  * baseRelations.resolveNewItemTarget (shared with the relation picker).
  */
 
-export interface TemplateItem {
-  path: string;
-  title: string;
-}
-
-// Item naming moved to @plainva/ui (R4) — shared with the mobile shell.
-export { baseStemOf, nextItemName } from "@plainva/ui";
-
-/** Template placeholders ({{date}}, {{time}}, {{title}}) — shared with the
- * editor's template picker so both interpolate identically. */
-export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
-  return content
-    .replace(/{{date}}/g, format(now, "yyyy-MM-dd"))
-    .replace(/{{time}}/g, format(now, "HH:mm"))
-    .replace(/{{title}}/g, title);
-}
+// Item naming moved to @plainva/ui (R4), template listing/placeholders in
+// R3 — both shared with the mobile shell.
+export { baseStemOf, nextItemName, applyTemplatePlaceholders, listTemplates } from "@plainva/ui";
+export type { TemplateItem } from "@plainva/ui";
 
 /**
  * Pre-fill values from the base's simple AND-filters so a new item is not
@@ -131,29 +118,3 @@ export async function getTemplateFolder(vaultPath: string): Promise<string> {
   return value?.trim() || "Templates";
 }
 
-type TemplateListAdapter = {
-  exists(path: string): Promise<boolean>;
-  listDir(path: string): Promise<Array<{ path: string; isDirectory: boolean }>>;
-};
-
-/** OKF reserved note names — folder infrastructure, never a fill-in template. */
-const RESERVED_TEMPLATE_NAME = /^(?:index|log)\.md$/i;
-
-/** All .md files of the template folder, sorted by title. Reserved OKF notes
- * (index.md/log.md — a managed folder index can live in the template folder)
- * are never offered as templates. */
-export async function listTemplates(adapter: TemplateListAdapter, folder: string): Promise<TemplateItem[]> {
-  const items: TemplateItem[] = [];
-  try {
-    if (!(await adapter.exists(folder))) return items;
-    for (const f of await adapter.listDir(folder)) {
-      const base = f.path.split(/[/\\]/).pop() ?? "";
-      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base)) {
-        items.push({ path: f.path, title: base.replace(/\.md$/i, "") || f.path });
-      }
-    }
-  } catch (e) {
-    console.warn("[newItemFlow] listing templates failed", folder, e);
-  }
-  return items.sort((a, b) => a.title.localeCompare(b.title));
-}

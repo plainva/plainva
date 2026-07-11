@@ -245,6 +245,7 @@
     "slashCheckbox": "チェックボックス",
     "slashBulletList": "箇条書きリスト",
     "slashTemplate": "テンプレートを挿入",
+    "slashTemplateDesc": "カーソル位置にテンプレートの内容を挿入します",
     "slashText": "テキスト",
     "slashH1": "見出し1",
     "slashH2": "見出し2",
@@ -1514,6 +1515,10 @@
     "newDaily": "新しいデイリーノート",
     "newDatabase": "新しいデータベース",
     "newDatabasePrompt": "新しいデータベースの名前",
-    "baseGraphFallback": "グラフビューはデスクトップ版で利用できます。ここでは表として表示されます。"
+    "baseGraphFallback": "グラフビューはデスクトップ版で利用できます。ここでは表として表示されます。",
+    "newFromTemplate": "テンプレートから…",
+    "tableRows": "行",
+    "tableCols": "列",
+    "insert": "挿入"
   }
 }

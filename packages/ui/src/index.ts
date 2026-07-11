@@ -39,6 +39,7 @@ export * from "./base/filterExpr";
 export * from "./base/newItemNaming";
 export * from "./base/propertyModel";
 export * from "./base/renameProperty";
+export * from "./base/templateFiles";
 
 // App-language registry (the i18n singleton itself is a side-effect module,
 // exported only via the "@plainva/ui/i18n" subpath)

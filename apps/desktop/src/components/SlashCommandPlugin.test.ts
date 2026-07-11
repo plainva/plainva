@@ -4,7 +4,7 @@ import { getSlashCommands, filterSlashCommands } from "@plainva/ui";
 const EXPECTED_TYPES = [
   // Grundlagen
   "text", "h1", "h2", "h3", "h4", "h5", "h6",
-  "ul", "ol", "task", "quote", "code", "table", "hr", "math", "mermaid",
+  "ul", "ol", "task", "quote", "code", "table", "hr", "template", "math", "mermaid",
   // Text formatieren
   "bold", "italic", "strike", "inlinecode", "highlight", "footnote", "emoji",
   // Verknüpfen & Einbetten

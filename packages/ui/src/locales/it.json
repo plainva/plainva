@@ -245,6 +245,7 @@
     "slashCheckbox": "Casella di controllo",
     "slashBulletList": "Elenco puntato",
     "slashTemplate": "Inserisci modello",
+    "slashTemplateDesc": "Inserisce il contenuto di un modello nella posizione di scrittura",
     "slashText": "Testo",
     "slashH1": "Titolo 1",
     "slashH2": "Titolo 2",
@@ -1524,6 +1525,10 @@
     "newDaily": "Nuova nota giornaliera",
     "newDatabase": "Nuovo database",
     "newDatabasePrompt": "Nome del nuovo database",
-    "baseGraphFallback": "La vista grafo è disponibile su desktop; qui viene mostrata come tabella."
+    "baseGraphFallback": "La vista grafo è disponibile su desktop; qui viene mostrata come tabella.",
+    "newFromTemplate": "Da modello…",
+    "tableRows": "Righe",
+    "tableCols": "Colonne",
+    "insert": "Inserisci"
   }
 }

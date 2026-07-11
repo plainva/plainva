@@ -245,6 +245,7 @@
     "slashCheckbox": "复选框",
     "slashBulletList": "无序列表",
     "slashTemplate": "插入模板",
+    "slashTemplateDesc": "在光标处插入模板内容",
     "slashText": "文本",
     "slashH1": "一级标题",
     "slashH2": "二级标题",
@@ -1514,6 +1515,10 @@
     "newDaily": "新建每日笔记",
     "newDatabase": "新建数据库",
     "newDatabasePrompt": "新数据库的名称",
-    "baseGraphFallback": "图谱视图在桌面版可用；此处以表格显示。"
+    "baseGraphFallback": "图谱视图在桌面版可用；此处以表格显示。",
+    "newFromTemplate": "从模板…",
+    "tableRows": "行",
+    "tableCols": "列",
+    "insert": "插入"
   }
 }

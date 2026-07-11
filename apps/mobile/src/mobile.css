@@ -466,12 +466,28 @@ body {
   right: 0;
   bottom: 0;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
+  /* R3.4: the bar outgrew narrow phones — it scrolls horizontally now. */
+  overflow-x: auto;
+  scrollbar-width: none;
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   background: var(--m-surface-container);
   border-top: 1px solid var(--border-color-light);
   z-index: 30;
+}
+.m-edit-toolbar button {
+  flex: 0 0 auto;
+}
+.m-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.m-stepper-num {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
 }
 .m-edit-toolbar button {
   background: none;

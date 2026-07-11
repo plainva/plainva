@@ -245,6 +245,7 @@
     "slashCheckbox": "Checkbox",
     "slashBulletList": "Bullet List",
     "slashTemplate": "Insert Template",
+    "slashTemplateDesc": "Insert a template's content at the caret",
     "slashText": "Text",
     "slashH1": "Heading 1",
     "slashH2": "Heading 2",
@@ -1519,6 +1520,10 @@
     "newDaily": "New daily note",
     "newDatabase": "New database",
     "newDatabasePrompt": "Name of the new database",
-    "baseGraphFallback": "The graph view is available on desktop; shown here as a table."
+    "baseGraphFallback": "The graph view is available on desktop; shown here as a table.",
+    "newFromTemplate": "From template…",
+    "tableRows": "Rows",
+    "tableCols": "Columns",
+    "insert": "Insert"
   }
 }

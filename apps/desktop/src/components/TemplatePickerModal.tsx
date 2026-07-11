@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFocusTrap } from "@plainva/ui";
-import { applyTemplatePlaceholders, getTemplateFolder, listTemplates } from "../services/newItemFlow";
+import { templateInsertText, useFocusTrap } from "@plainva/ui";
+import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
+import { activeDocument } from "../services/activeDocument";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -59,8 +60,11 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
     if (!vaultAdapter) return;
     try {
       const raw = await vaultAdapter.readTextFile(templatePath);
-      // No active-file title available here — {{title}} interpolates to "".
-      const content = applyTemplatePlaceholders(raw, "");
+      // Inserting INTO a note: strip the template's frontmatter (inert
+      // mid-document) and interpolate {{title}} with the hosting note's name.
+      const activePath = activeDocument.get().path;
+      const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
+      const content = templateInsertText(raw, title);
       window.dispatchEvent(new CustomEvent("plainva-insert-text", { detail: { text: content } }));
       onClose();
     } catch (e) {

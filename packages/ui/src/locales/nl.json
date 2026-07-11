@@ -245,6 +245,7 @@
     "slashCheckbox": "Selectievakje",
     "slashBulletList": "Opsomming",
     "slashTemplate": "Sjabloon invoegen",
+    "slashTemplateDesc": "Voegt de inhoud van een sjabloon in op de cursorpositie",
     "slashText": "Tekst",
     "slashH1": "Kop 1",
     "slashH2": "Kop 2",
@@ -1519,6 +1520,10 @@
     "newDaily": "Nieuwe dagnotitie",
     "newDatabase": "Nieuwe database",
     "newDatabasePrompt": "Naam van de nieuwe database",
-    "baseGraphFallback": "De grafiekweergave is beschikbaar op desktop; hier weergegeven als tabel."
+    "baseGraphFallback": "De grafiekweergave is beschikbaar op desktop; hier weergegeven als tabel.",
+    "newFromTemplate": "Vanuit sjabloon…",
+    "tableRows": "Rijen",
+    "tableCols": "Kolommen",
+    "insert": "Invoegen"
   }
 }

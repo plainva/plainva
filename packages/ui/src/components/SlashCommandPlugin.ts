@@ -123,6 +123,10 @@ function clearAndEmit(eventName: string): ApplyFn {
 }
 const openBasePicker = clearAndEmit("plainva-open-base-picker");
 const createInlineBase = clearAndEmit("plainva-create-inline-base");
+// Insert template (R3.4, maintainer request): the desktop opens its template
+// picker, the mobile shell a selection sheet — both strip the template's
+// frontmatter and interpolate {{title}}/{{date}}/{{time}} via templateFiles.
+const openTemplateInsert = clearAndEmit("plainva-open-template-picker");
 
 // Footnote (P3.6): insert the next free numeric reference at the caret and
 // append its definition at the end of the document; the caret jumps into the
@@ -181,6 +185,7 @@ const DEFS: SlashDef[] = [
   { key: "code", labelKey: "editor.slashCode", descKey: "editor.slashCodeDesc", section: "basics", hint: "```", keywords: ["code", "codeblock", "code-block", "snippet", "pre"], apply: wrap("```\n", "\n```", 4) },
   { key: "table", labelKey: "editor.slashTable", descKey: "editor.slashTableDesc", section: "basics", hint: "table", keywords: ["table", "tabelle", "grid", "spalten"], apply: openTablePicker },
   { key: "hr", labelKey: "editor.slashHr", descKey: "editor.slashHrDesc", section: "basics", hint: "---", keywords: ["hr", "divider", "trennlinie", "trenner", "rule", "horizontal", "linie"], apply: "---" },
+  { key: "template", labelKey: "editor.slashTemplate", descKey: "editor.slashTemplateDesc", section: "basics", hint: "template", keywords: ["template", "vorlage", "muster", "snippet", "boilerplate"], apply: openTemplateInsert },
   // Math + Mermaid (Part 2): insert the fenced/`$$` scaffold with the caret on
   // the empty middle line, so the user never has to remember the exact syntax.
   // The live/read renderers (mathMermaidLive, MarkdownReader) take over once the

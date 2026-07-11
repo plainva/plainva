@@ -81,7 +81,7 @@ Toda nota pode ter um ícone (ao estilo do Notion, acima do título, visível ta
 
 ## Modelos
 
-Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e estrutura** (**Escolher pasta…** ao lado do campo permite escolher a pasta diretamente no vault). Depois insira modelos com `Ctrl+Alt+T` ou o comando de barra **Inserir modelo**. Os modelos definem por completo o conteúdo dos novos arquivos — inclusive o frontmatter: se um modelo traz seu próprio `type`, o modelo prevalece.
+Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e estrutura** (**Escolher pasta…** ao lado do campo permite escolher a pasta diretamente no vault). Depois insira modelos com `Ctrl+Alt+T` ou o comando de barra **Inserir modelo**. Os modelos definem por completo o conteúdo dos novos arquivos — inclusive o frontmatter: se um modelo traz seu próprio `type`, o modelo prevalece. Ao inserir em uma nota existente, o frontmatter do modelo é omitido — apenas o conteúdo é inserido.
 
 Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos.
 

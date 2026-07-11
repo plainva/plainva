@@ -245,6 +245,7 @@
     "slashCheckbox": "Casilla de verificación",
     "slashBulletList": "Lista de viñetas",
     "slashTemplate": "Insertar plantilla",
+    "slashTemplateDesc": "Inserta el contenido de una plantilla en el cursor",
     "slashText": "Texto",
     "slashH1": "Encabezado 1",
     "slashH2": "Encabezado 2",
@@ -1524,6 +1525,10 @@
     "newDaily": "Nueva nota diaria",
     "newDatabase": "Nueva base de datos",
     "newDatabasePrompt": "Nombre de la nueva base de datos",
-    "baseGraphFallback": "La vista de grafo está disponible en el escritorio; aquí se muestra como tabla."
+    "baseGraphFallback": "La vista de grafo está disponible en el escritorio; aquí se muestra como tabla.",
+    "newFromTemplate": "Desde plantilla…",
+    "tableRows": "Filas",
+    "tableCols": "Columnas",
+    "insert": "Insertar"
   }
 }

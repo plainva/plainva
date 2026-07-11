@@ -14,6 +14,11 @@ interface MobileSettings {
   themeMode: ThemeMode;
   defaultView: DefaultView;
   dailyFolder: string;
+  /** ＋-capture target when no folder is open (R3.6). */
+  inboxFolder: string;
+  /** Where "insert template" / "new from template" look for .md templates
+   * (R3.4; same default as the desktop's per-vault setting). */
+  templateFolder: string;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -28,6 +33,8 @@ const DEFAULTS: MobileSettings = {
   themeMode: "system",
   defaultView: "read",
   dailyFolder: "Daily",
+  inboxFolder: "Inbox",
+  templateFolder: "Templates",
   language: "",
   onboarded: false,
   tabSlots: ["notes", "today", "tags", "bookmarks"],

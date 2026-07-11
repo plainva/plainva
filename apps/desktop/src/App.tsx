@@ -507,6 +507,14 @@ function App() {
     scheduleStartupUpdateCheck();
   }, []);
 
+  // Slash command "insert template" (mobile round 3): the shared plugin
+  // fires this event; it opens the same picker as Mod+Alt+T / the palette.
+  useEffect(() => {
+    const open = () => setShowTemplatePicker(true);
+    window.addEventListener("plainva-open-template-picker", open);
+    return () => window.removeEventListener("plainva-open-template-picker", open);
+  }, []);
+
   useEffect(() => {
     if (!vaultPath) return;
     const handleGlobalKeyDown = (e: KeyboardEvent) => {

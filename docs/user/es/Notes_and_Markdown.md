@@ -81,7 +81,7 @@ Cada nota puede llevar un icono (al estilo Notion, encima del título, también 
 
 ## Plantillas
 
-Configura una **Carpeta de plantillas** en **Configuración → Vault → Contenido y estructura** (**Elegir carpeta…** junto al campo permite elegir la carpeta directamente en el vault). Después inserta plantillas con `Ctrl+Alt+T` o el comando de barra oblicua **Insertar plantilla**. Las plantillas definen por completo el contenido de los archivos nuevos — incluido el frontmatter: si una plantilla trae su propio `type`, gana la plantilla.
+Configura una **Carpeta de plantillas** en **Configuración → Vault → Contenido y estructura** (**Elegir carpeta…** junto al campo permite elegir la carpeta directamente en el vault). Después inserta plantillas con `Ctrl+Alt+T` o el comando de barra oblicua **Insertar plantilla**. Las plantillas definen por completo el contenido de los archivos nuevos — incluido el frontmatter: si una plantilla trae su propio `type`, gana la plantilla. Al insertar en una nota existente, el frontmatter de la plantilla se omite: solo se inserta el contenido.
 
 Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`) ofrece **Crear nueva plantilla** (se abre una plantilla nueva para editarla) y **Guardar la nota actual como plantilla** (copia la nota abierta en la carpeta de plantillas). Las plantillas son archivos Markdown normales — edítalas, renómbralas o elimínalas directamente en el árbol de archivos.
 

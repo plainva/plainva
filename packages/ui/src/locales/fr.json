@@ -245,6 +245,7 @@
     "slashCheckbox": "Case à cocher",
     "slashBulletList": "Liste à puces",
     "slashTemplate": "Insérer un modèle",
+    "slashTemplateDesc": "Insère le contenu d'un modèle à la position d'écriture",
     "slashText": "Texte",
     "slashH1": "Titre 1",
     "slashH2": "Titre 2",
@@ -1524,6 +1525,10 @@
     "newDaily": "Nouvelle note quotidienne",
     "newDatabase": "Nouvelle base de données",
     "newDatabasePrompt": "Nom de la nouvelle base de données",
-    "baseGraphFallback": "La vue graphe est disponible sur ordinateur ; affichée ici sous forme de tableau."
+    "baseGraphFallback": "La vue graphe est disponible sur ordinateur ; affichée ici sous forme de tableau.",
+    "newFromTemplate": "À partir d'un modèle…",
+    "tableRows": "Lignes",
+    "tableCols": "Colonnes",
+    "insert": "Insérer"
   }
 }

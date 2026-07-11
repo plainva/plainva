@@ -24,7 +24,7 @@ import {
 } from "./vaultRegistry";
 import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
-import { toast } from "@plainva/ui";
+import { applyTemplatePlaceholders, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -420,6 +420,30 @@ export const vaultOps = {
         return path;
       }
     }
+  },
+
+  /**
+   * New note from a template (R3.4): the full template text with the
+   * placeholders interpolated against the chosen title; a template without
+   * frontmatter gets the OKF header so every created note stays conformant.
+   * Name collisions count up ("Name 2", "Name 3", …).
+   */
+  async createNoteFromTemplate(
+    v: MobileVault,
+    folder: string,
+    title: string,
+    templateRaw: string,
+  ): Promise<string> {
+    let name = title;
+    let n = 2;
+    while (await v.files.exists(`${folder}/${name}.md`)) name = `${title} ${n++}`;
+    const interpolated = applyTemplatePlaceholders(templateRaw, name);
+    const content = /^---\r?\n/.test(interpolated)
+      ? interpolated
+      : `---\ntype: Note\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+    const path = `${folder}/${name}.md`;
+    await this.save(v, path, content);
+    return path;
   },
 
   async ensureNote(v: MobileVault, path: string, type: string, title: string): Promise<string> {

@@ -245,6 +245,7 @@
     "slashCheckbox": "Pole wyboru",
     "slashBulletList": "Lista punktowana",
     "slashTemplate": "Wstaw szablon",
+    "slashTemplateDesc": "Wstawia zawartość szablonu w miejscu kursora",
     "slashText": "Tekst",
     "slashH1": "Nagłówek 1",
     "slashH2": "Nagłówek 2",
@@ -1529,6 +1530,10 @@
     "newDaily": "Nowa notatka dzienna",
     "newDatabase": "Nowa baza danych",
     "newDatabasePrompt": "Nazwa nowej bazy danych",
-    "baseGraphFallback": "Widok grafu jest dostępny na komputerze; tutaj wyświetlany jako tabela."
+    "baseGraphFallback": "Widok grafu jest dostępny na komputerze; tutaj wyświetlany jako tabela.",
+    "newFromTemplate": "Z szablonu…",
+    "tableRows": "Wiersze",
+    "tableCols": "Kolumny",
+    "insert": "Wstaw"
   }
 }
