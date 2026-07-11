@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSyncExternalStore } from "react";
 import {
@@ -33,41 +33,29 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { MoreScreen } from "./screens/MoreScreen";
-import { sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./navigation";
+import {
+  backStep,
+  initialNavState,
+  navTop,
+  popTop,
+  pushCapturedNote,
+  pushEntry,
+  sanitizeTabSlots,
+  tapTab,
+  TAB_POOL,
+  type NavEntry,
+  type NavState,
+  type TabScreenId,
+} from "./navigation";
 import { useLongPress } from "./lib/useLongPress";
 import { isoOf } from "./lib/dates";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
 // the More menu live in the top app bar. Every tab keeps its own stack; the
-// bar hides while a note is open (editor focus).
-
-type Entry = {
-  kind:
-    | "folder"
-    | "note"
-    | "sync"
-    | "vault"
-    | "base"
-    | "settings"
-    | "tags"
-    | "bookmarks"
-    | "search"
-    | "more"
-    | "today"
-    | "calendar"
-    | "databases";
-  path: string;
-};
-
-const EMPTY_STACKS = (): Record<TabScreenId, Entry[]> => ({
-  notes: [],
-  today: [],
-  tags: [],
-  bookmarks: [],
-  calendar: [],
-  databases: [],
-});
+// bar hides while a note is open (editor focus). R3.1 moved app-wide screens
+// (search/More/settings/vault) into an overlay stack ABOVE the tabs — any
+// bottom-bar tap dismisses them, tapping the active tab returns to its root.
 
 const dailyPathFor = (iso: string) => ({
   path: `${getMobileSettings().dailyFolder}/${iso}.md`,
@@ -75,7 +63,7 @@ const dailyPathFor = (iso: string) => ({
 });
 
 /** Pool-screen id -> pushable stack entry (More menu, R2.5). */
-const SCREEN_ENTRY: Record<TabScreenId, Entry> = {
+const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   notes: { kind: "folder", path: "" },
   today: { kind: "today", path: "" },
   tags: { kind: "tags", path: "" },
@@ -90,13 +78,15 @@ export default function App() {
   const [slots, setSlots] = useState<TabScreenId[]>(() =>
     sanitizeTabSlots(getMobileSettings().tabSlots),
   );
-  const [activeTab, setActiveTab] = useState<TabScreenId>(slots[0]);
-  const [stacks, setStacks] = useState<Record<TabScreenId, Entry[]>>(EMPTY_STACKS);
+  const [nav, setNav] = useState<NavState>(() => initialNavState(slots[0]));
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
   // ＋: tap captures, long-press opens the quick-create sheet (R3).
   const fabPress = useLongPress<undefined>(() => setQuickCreate(true));
+  // The Android back listener registers once; it reads the live state here.
+  const navRef = useRef(nav);
+  navRef.current = nav;
 
   useEffect(() => {
     void getMobileVault().then((v) => {
@@ -104,11 +94,11 @@ export default function App() {
       void startSyncIfConfigured(v);
     });
     const onChanged = () => setBump((n) => n + 1);
-    // Vault switch (M3.5 isolation): drop all stacks, reboot the vault and
-    // restart sync for the newly active container.
+    // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
+    // reboot the vault and restart sync for the newly active container.
     const onSwitched = () => {
       setVault(null);
-      setStacks(EMPTY_STACKS());
+      setNav((s) => initialNavState(s.activeTab));
       void getMobileVault().then((v) => {
         setVault(v);
         setBump((n) => n + 1);
@@ -119,7 +109,7 @@ export default function App() {
     const onSettings = () => {
       const next = sanitizeTabSlots(getMobileSettings().tabSlots);
       setSlots((prev) => (prev.join() === next.join() ? prev : next));
-      setActiveTab((tab) => (next.includes(tab) ? tab : next[0]));
+      setNav((s) => (next.includes(s.activeTab) ? s : { ...s, activeTab: next[0] }));
     };
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
@@ -166,18 +156,18 @@ export default function App() {
     };
   }, []);
 
-  // Android back gesture/button: pop the active tab's stack instead of
-  // closing the app; minimize only from a tab root (platform convention).
+  // Android back gesture/button: overlay first, then the active tab's stack;
+  // minimize only from a tab root (platform convention).
   useEffect(() => {
     let removed = false;
     let handle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("backButton", () => {
-      const st = stacks[activeTab];
-      if (st.length > 0) {
-        setStacks((s) => ({ ...s, [activeTab]: s[activeTab].slice(0, -1) }));
-        setBump((n) => n + 1);
-      } else {
+      const { next, minimize } = backStep(navRef.current);
+      if (minimize) {
         void CapApp.minimizeApp();
+      } else {
+        setNav(next);
+        setBump((n) => n + 1);
       }
     }).then((h) => {
       if (removed) void h.remove();
@@ -187,41 +177,38 @@ export default function App() {
       removed = true;
       if (handle) void handle.remove();
     };
-  });
+  }, []);
 
   if (!vault) return <div className="m-app" />;
 
-  const stack = stacks[activeTab];
-  const top = stack[stack.length - 1];
+  const top = navTop(nav);
 
-  const push = (tab: TabScreenId, entry: Entry) =>
-    setStacks((s) => ({ ...s, [tab]: [...s[tab], entry] }));
-  const pop = (tab: TabScreenId) => {
-    setStacks((s) => ({ ...s, [tab]: s[tab].slice(0, -1) }));
+  const push = (entry: NavEntry) => setNav((s) => pushEntry(s, entry));
+  const pop = () => {
+    setNav(popTop);
     setBump((n) => n + 1);
   };
 
-  const openNote = (path: string) => push(activeTab, { kind: "note", path });
-  const openBase = (path: string) => push(activeTab, { kind: "base", path });
+  const openNote = (path: string) => push({ kind: "note", path });
+  const openBase = (path: string) => push({ kind: "base", path });
 
   /** The folder the user is looking at (capture + new-folder context). */
   const browseFolder = () => {
-    const notesTop = stacks.notes[stacks.notes.length - 1];
-    return activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "";
+    const notesTop = nav.stacks.notes[nav.stacks.notes.length - 1];
+    return nav.activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "";
   };
 
   const capture = () => {
     // Context-aware (P3): capture into the folder the user is looking at.
     const folder = browseFolder() || "Inbox";
     void vaultOps.createNote(vault, folder, "Note").then((path) => {
-      if (slots.includes("notes")) setActiveTab("notes");
-      push(slots.includes("notes") ? "notes" : activeTab, { kind: "note", path });
+      setNav((s) => pushCapturedNote(s, slots, path));
     });
   };
 
   const openDaily = (iso: string) => {
     const { path, title } = dailyPathFor(iso);
-    // Push into the active stack: back returns to Today/Calendar (R2).
+    // Push into the current context: back returns to Today/Calendar (R2).
     void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => openNote(path));
   };
 
@@ -230,7 +217,7 @@ export default function App() {
   const finishOnboarding = (connectCloud: boolean) => {
     setOnboarded(true);
     void updateMobileSettings({ onboarded: true });
-    if (connectCloud) push(activeTab, { kind: "sync", path: "" });
+    if (connectCloud) push({ kind: "sync", path: "" });
   };
 
   const quickNewFolder = () => {
@@ -250,11 +237,11 @@ export default function App() {
       const name = value?.trim().replace(/[\\/]/g, "-");
       if (cancelled || !name) return;
       const path = await createDatabase(vault, browseFolder(), name, t("database.viewTable"));
-      push(activeTab, { kind: "base", path });
+      push({ kind: "base", path });
     })();
   };
 
-  const activeDef = TAB_POOL.find((p) => p.id === activeTab)!;
+  const activeDef = TAB_POOL.find((p) => p.id === nav.activeTab)!;
 
   return (
     <div className="m-app">
@@ -277,9 +264,9 @@ export default function App() {
 
       {!top && (
         <header className="m-topbar">
-          <h1>{activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
+          <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
           <span className="m-headactions">
-            {activeTab === "notes" && (
+            {nav.activeTab === "notes" && (
               <button
                 aria-label={t("mobile.newFolder")}
                 className="m-iconbtn"
@@ -291,14 +278,14 @@ export default function App() {
             <button
               aria-label={t("mobile.tabSearch")}
               className="m-iconbtn"
-              onClick={() => push(activeTab, { kind: "search", path: "" })}
+              onClick={() => push({ kind: "search", path: "" })}
             >
               <Search size={22} />
             </button>
             <button
               aria-label={t("mobile.tabMore")}
               className="m-iconbtn"
-              onClick={() => push(activeTab, { kind: "more", path: "" })}
+              onClick={() => push({ kind: "more", path: "" })}
             >
               <MoreVertical size={22} />
             </button>
@@ -311,28 +298,28 @@ export default function App() {
         {top?.kind === "tags" ? (
           <TagsScreen
             key={top.path}
-            onBack={() => pop(activeTab)}
+            onBack={pop}
             onOpenNote={openNote}
-            onOpenTag={(tag) => push(activeTab, { kind: "tags", path: tag })}
+            onOpenTag={(tag) => push({ kind: "tags", path: tag })}
             tag={top.path}
             vault={vault}
           />
         ) : top?.kind === "bookmarks" ? (
-          <BookmarksScreen onBack={() => pop(activeTab)} onOpenNote={openNote} vault={vault} />
+          <BookmarksScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "settings" ? (
-          <SettingsScreen onBack={() => pop(activeTab)} />
+          <SettingsScreen onBack={pop} />
         ) : top?.kind === "sync" ? (
-          <AddVaultScreen onBack={() => pop(activeTab)} vault={vault} />
+          <AddVaultScreen onBack={pop} vault={vault} />
         ) : top?.kind === "vault" ? (
           <VaultDetailScreen
             activeVault={vault}
-            onBack={() => pop(activeTab)}
+            onBack={pop}
             vaultId={top.path}
           />
         ) : top?.kind === "base" ? (
           <BaseScreen
             key={top.path}
-            onBack={() => pop(activeTab)}
+            onBack={pop}
             onOpenNote={openNote}
             path={top.path}
             vault={vault}
@@ -340,59 +327,59 @@ export default function App() {
         ) : top?.kind === "note" ? (
           <NoteScreen
             key={top.path}
-            onBack={() => pop(activeTab)}
+            onBack={pop}
             onOpenNote={openNote}
             path={top.path}
             vault={vault}
           />
         ) : top?.kind === "search" ? (
-          <SearchScreen onBack={() => pop(activeTab)} onOpenNote={openNote} vault={vault} />
+          <SearchScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "more" ? (
           <MoreScreen
             activeVaultId={vault.vaultId}
-            onAddVault={() => push(activeTab, { kind: "sync", path: "" })}
-            onBack={() => pop(activeTab)}
-            onOpenScreen={(id) => push(activeTab, SCREEN_ENTRY[id])}
-            onOpenSettings={() => push(activeTab, { kind: "settings", path: "" })}
-            onOpenVault={(id) => push(activeTab, { kind: "vault", path: id })}
+            onAddVault={() => push({ kind: "sync", path: "" })}
+            onBack={pop}
+            onOpenScreen={(id) => push(SCREEN_ENTRY[id])}
+            onOpenSettings={() => push({ kind: "settings", path: "" })}
+            onOpenVault={(id) => push({ kind: "vault", path: id })}
           />
         ) : top?.kind === "today" ? (
-          <TodayScreen onBack={() => pop(activeTab)} onOpenDate={openDaily} />
+          <TodayScreen onBack={pop} onOpenDate={openDaily} />
         ) : top?.kind === "calendar" ? (
-          <CalendarScreen bump={bump} onBack={() => pop(activeTab)} onOpenDate={openDaily} vault={vault} />
+          <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} vault={vault} />
         ) : top?.kind === "databases" ? (
-          <DatabasesScreen bump={bump} onBack={() => pop(activeTab)} onOpenBase={openBase} vault={vault} />
+          <DatabasesScreen bump={bump} onBack={pop} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "folder" ? (
           <BrowseScreen
             bump={bump}
             folder={top.path}
-            onBack={() => pop(activeTab)}
+            onBack={pop}
             onOpenBase={openBase}
-            onOpenFolder={(path) => push(activeTab, { kind: "folder", path })}
+            onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenNote={openNote}
             vault={vault}
           />
-        ) : activeTab === "notes" ? (
+        ) : nav.activeTab === "notes" ? (
           <BrowseScreen
             bump={bump}
             folder=""
             onOpenBase={openBase}
-            onOpenFolder={(path) => push("notes", { kind: "folder", path })}
+            onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenNote={openNote}
             vault={vault}
           />
-        ) : activeTab === "today" ? (
+        ) : nav.activeTab === "today" ? (
           <TodayScreen onOpenDate={openDaily} />
-        ) : activeTab === "tags" ? (
+        ) : nav.activeTab === "tags" ? (
           <TagsScreen
             onOpenNote={openNote}
-            onOpenTag={(tag) => push("tags", { kind: "tags", path: tag })}
+            onOpenTag={(tag) => push({ kind: "tags", path: tag })}
             tag=""
             vault={vault}
           />
-        ) : activeTab === "bookmarks" ? (
+        ) : nav.activeTab === "bookmarks" ? (
           <BookmarksScreen onOpenNote={openNote} vault={vault} />
-        ) : activeTab === "calendar" ? (
+        ) : nav.activeTab === "calendar" ? (
           <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
         ) : (
           <DatabasesScreen bump={bump} onOpenBase={openBase} vault={vault} />
@@ -402,7 +389,7 @@ export default function App() {
       {!noteOpen && (
         <nav aria-label="Tabs" className="m-tabbar">
           {slots.slice(0, 2).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={activeTab === id} onClick={() => setActiveTab(id)} />
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => setNav((s) => tapTab(s, id))} />
           ))}
           <button
             aria-label={t("mobile.newNote")}
@@ -422,7 +409,7 @@ export default function App() {
             <Plus size={24} />
           </button>
           {slots.slice(2).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={activeTab === id} onClick={() => setActiveTab(id)} />
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => setNav((s) => tapTab(s, id))} />
           ))}
         </nav>
       )}
