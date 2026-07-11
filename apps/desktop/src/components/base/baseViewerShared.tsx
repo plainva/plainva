@@ -240,16 +240,17 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-seg button { background: transparent; border: none; padding: 2px 8px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; }
   .base-cfg-seg button.active { background: var(--bg-active); color: var(--text-main); font-weight: 600; }
   .base-cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-muted); }
-  .base-view-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: 0.25rem; }
-  .base-view-tab { position: relative; display: flex; align-items: center; border-radius: var(--radius-sm); }
-  .base-view-tab.active { background: var(--bg-secondary); }
+  .base-view-tabs { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: 0.25rem; padding: 3px; background: var(--surface-container); border-radius: var(--radius-pill); }
+  .base-view-tab { position: relative; display: flex; align-items: center; border-radius: var(--radius-pill); }
+  .base-view-tab.active { background: var(--surface); box-shadow: var(--shadow-1); }
   .base-view-tab.drop { box-shadow: inset 2px 0 0 var(--accent-color); }
-  .base-view-tab-btn { display: flex; align-items: center; gap: 5px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-sm); font-size: var(--text-ui); max-width: 180px; }
-  .base-view-tab.active .base-view-tab-btn { color: var(--text-main); font-weight: 600; }
+  .base-view-tab-btn { display: flex; align-items: center; gap: 5px; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--text-ui); max-width: 180px; }
+  .base-view-tab:not(.active) .base-view-tab-btn:hover { color: var(--text-main); }
+  .base-view-tab.active .base-view-tab-btn { color: var(--accent-color); font-weight: 600; }
   .base-view-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px 4px 2px 0; }
-  .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 6px; border-radius: var(--radius-sm); }
-  .base-view-add:hover { background: var(--bg-secondary); color: var(--text-main); }
+  .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--accent-color); display: flex; padding: 2px 6px 2px 0; }
+  .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-pill); }
+  .base-view-add:hover { background: var(--state-hover); color: var(--text-main); }
   .base-menu-backdrop { position: fixed; inset: 0; z-index: 59; }
   .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 60; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
   .base-view-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 6px 8px; border-radius: var(--radius-xs); font-size: var(--text-ui); }
