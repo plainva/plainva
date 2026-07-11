@@ -325,14 +325,14 @@ export const SplashScreen: React.FC = () => {
         ) : !showWebDavForm ? (
           <>
             {recentVaults.length > 0 && (
-              <div style={{ background: "var(--surface-container)", borderRadius: "var(--radius-lg)", padding: "10px 10px 4px", marginBottom: "20px" }}>
+              <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "10px 10px 6px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
                 <div className={listOverflow ? "pv-scroll-edge is-overflow" : "pv-scroll-edge"}>
                 <div
                   ref={listScrollRef}
                   onScroll={(e) => { const el = e.currentTarget; setListOverflow(el.scrollTop + el.clientHeight < el.scrollHeight - 2); }}
                   className="custom-scrollbar"
-                  style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "256px", overflowY: "auto", paddingRight: "10px" }}
+                  style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "190px", overflowY: "auto", paddingRight: "10px" }}
                 >
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
@@ -372,10 +372,10 @@ export const SplashScreen: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
               <button
                 onClick={selectVault}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-lg)", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-sm)", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer" }}
                 onMouseOver={(e) => (e.currentTarget.style.background = "var(--accent-color-hover)")}
                 onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-color)")}
               >
@@ -384,18 +384,18 @@ export const SplashScreen: React.FC = () => {
 
               <button
                 onClick={() => setShowOnlineChooser(true)}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "transparent", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-lg)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-container)", color: "var(--on-accent-container)", border: "none", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
+                onMouseOver={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary))")}
+                onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-container)")}
               >
                 <Cloud size={16} />{t("splash.openOnlineVault")}
               </button>
 
               <button
                 onClick={() => { setCreateError(null); setShowCreateChooser(true); }}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "transparent", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-lg)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-container)", color: "var(--on-accent-container)", border: "none", borderRadius: "var(--radius-sm) var(--radius-sm) var(--radius-lg) var(--radius-lg)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
+                onMouseOver={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary))")}
+                onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-container)")}
               >
                 <Plus size={16} />{t("splash.createVault", { defaultValue: "Neuen Vault erstellen" })}
               </button>

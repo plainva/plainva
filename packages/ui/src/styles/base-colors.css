@@ -102,7 +102,7 @@
   --state-focus: color-mix(in srgb, var(--accent-color) 12%, transparent);
   --state-press: color-mix(in srgb, var(--accent-color) 16%, transparent);
   /* Scroll-edge treatment (fade + faint shadow at overflow boundaries). */
-  --edge-scrim: linear-gradient(to top, var(--surface-container), transparent);
+  --edge-scrim: linear-gradient(to top, rgba(18, 38, 34, 0.16), rgba(18, 38, 34, 0.04) 35%, transparent 72%);
   --edge-shadow: 0 -1px 6px rgba(20, 40, 36, 0.06);
 }
 
@@ -135,5 +135,6 @@
 
   /* UI 2.0: stronger scroll-edge shadow on dark grounds (surface-container,
      accent-container and state layers auto-adapt via color-mix above). */
+  --edge-scrim: linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.14) 35%, transparent 72%);
   --edge-shadow: 0 -1px 8px rgba(0, 0, 0, 0.4);
 }

@@ -513,7 +513,6 @@
   pointer-events: none;
   opacity: 0;
   background: var(--edge-scrim);
-  box-shadow: var(--edge-shadow);
   transition: opacity var(--dur-1) var(--ease-1);
 }
 /* The consumer toggles .is-overflow (via a scroll handler) so the fade only
