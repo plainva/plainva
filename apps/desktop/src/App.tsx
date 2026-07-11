@@ -19,7 +19,6 @@ import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type Fi
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
 import { BookmarksList } from "./components/BookmarksList";
-import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 import { GRAPH_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
@@ -879,22 +878,17 @@ function App() {
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
-            <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-              <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={openInFocusedPane} />
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <FileTree
-                  activePath={activePath}
-                  onSelect={openInFocusedPane}
-                  onExpandedStateChange={setTreeHasExpanded}
-                  onCloseTabsByPrefix={closeTabsByPrefix}
-                  onRenameTabPrefix={renameTabPrefix}
-                  externalQuery={leftQueryDebounced}
-                  onOpenInSplit={openPathInSplit}
-                  isBookmarked={(p) => bookmarks.includes(p)}
-                  onToggleBookmarkPath={toggleBookmark}
-                />
-              </div>
-            </div>
+            <FileTree
+              activePath={activePath}
+              onSelect={openInFocusedPane}
+              onExpandedStateChange={setTreeHasExpanded}
+              onCloseTabsByPrefix={closeTabsByPrefix}
+              onRenameTabPrefix={renameTabPrefix}
+              externalQuery={leftQueryDebounced}
+              onOpenInSplit={openPathInSplit}
+              isBookmarked={(p) => bookmarks.includes(p)}
+              onToggleBookmarkPath={toggleBookmark}
+            />
           ) : leftSidebarTab === "tags" ? (
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
           ) : (
