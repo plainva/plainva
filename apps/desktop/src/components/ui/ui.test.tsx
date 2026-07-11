@@ -4,6 +4,7 @@ import { act, createRef, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
+import { Fab, Segmented } from "@plainva/ui";
 import { IconButton } from "@plainva/ui";
 import { TextInput, SelectField, TextArea } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
@@ -54,6 +55,11 @@ describe("Button", () => {
     const btn = container.querySelector("button")!;
     expect(btn.className).toContain("pv-btn--danger");
     expect(btn.className).toContain("pv-btn--sm");
+  });
+
+  it("supports the UI 2.0 tonal variant", () => {
+    render(<Button variant="tonal">Verbinden</Button>);
+    expect(container.querySelector("button")!.className).toContain("pv-btn--tonal");
   });
 });
 
@@ -112,6 +118,54 @@ describe("EmptyState", () => {
     const region = container.querySelector("[role=status]")!;
     expect(region.textContent).toContain("Keine Einträge");
     expect(region.querySelector("button")).toBeTruthy();
+  });
+
+  it("renders the optional emphasis title (UI 2.0)", () => {
+    render(<EmptyState title="Nichts hier">Lege etwas an</EmptyState>);
+    const t = container.querySelector(".pv-empty-title");
+    expect(t?.textContent).toBe("Nichts hier");
+    expect(container.querySelector(".pv-empty-msg")!.textContent).toBe("Lege etwas an");
+  });
+});
+
+describe("Fab", () => {
+  it("renders a round FAB by default and an extended pill with a label", () => {
+    render(<Fab icon={<span>+</span>} aria-label="Neu" />);
+    const fab = container.querySelector("button.pv-fab")!;
+    expect(fab.getAttribute("type")).toBe("button");
+    expect(fab.className).not.toContain("pv-fab--extended");
+    expect(fab.getAttribute("aria-label")).toBe("Neu");
+
+    render(<Fab icon={<span>+</span>} label="Neue Notiz" />);
+    const ext = container.querySelector("button.pv-fab")!;
+    expect(ext.className).toContain("pv-fab--extended");
+    expect(ext.querySelector(".pv-fab-label")!.textContent).toBe("Neue Notiz");
+  });
+});
+
+describe("Segmented", () => {
+  it("renders a radiogroup, marks the active option and fires onChange", () => {
+    const onChange = vi.fn();
+    render(
+      <Segmented
+        ariaLabel="Ansicht"
+        value="table"
+        onChange={onChange}
+        options={[
+          { value: "table", label: "Tabelle" },
+          { value: "board", label: "Board" },
+        ]}
+      />
+    );
+    const group = container.querySelector("[role=radiogroup]")!;
+    expect(group.getAttribute("aria-label")).toBe("Ansicht");
+    const radios = container.querySelectorAll<HTMLButtonElement>("[role=radio]");
+    expect(radios).toHaveLength(2);
+    expect(radios[0].getAttribute("aria-checked")).toBe("true");
+    expect(radios[0].className).toContain("is-active");
+    expect(radios[1].getAttribute("aria-checked")).toBe("false");
+    act(() => radios[1].click());
+    expect(onChange).toHaveBeenCalledWith("board");
   });
 });
 

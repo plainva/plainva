@@ -1,12 +1,13 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cx } from "./cx";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "tonal";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual role — primary (accent CTA), secondary (bordered, default),
-   * ghost (borderless), danger (destructive confirm). */
+  /** Visual role — primary (accent CTA), tonal (accent-container fill, medium
+   * emphasis), secondary (bordered, default), ghost (borderless), danger
+   * (destructive confirm). */
   variant?: ButtonVariant;
   size?: ButtonSize;
   /** Optional leading icon (lucide element). */

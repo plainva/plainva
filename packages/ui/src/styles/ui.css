@@ -3,7 +3,7 @@
  * themes (especially LCARS/Phosphor) can restyle every control via scoped
  * rules — components/ui/* render these classes and keep inline styles for
  * positioning only. Token-pure: values come from styles/tokens.css + App.css.
- * Radius roles: controls sm · menus/cards md · modals xl · chips pill.
+ * Radius roles (UI 2.0): controls/menus md · cards lg · modals/sheets xl · chips pill.
  */
 
 /* ---------------------------------------------------------------- buttons */
@@ -33,10 +33,14 @@
 .pv-btn--lg { height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-md); }
 .pv-btn--primary { background: var(--accent-color); color: var(--accent-on); font-weight: 600; }
 .pv-btn--primary:hover:not(:disabled) { background: var(--accent-color-hover); }
+/* Tonal (UI 2.0): accent-container fill, medium emphasis between primary and secondary. */
+.pv-btn--tonal { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+.pv-btn--tonal:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary)); }
 .pv-btn--secondary { border-color: var(--border-color); }
-.pv-btn--secondary:hover:not(:disabled) { background: var(--bg-hover); }
+.pv-btn--secondary:hover:not(:disabled) { background: var(--state-hover); }
 .pv-btn--ghost { color: var(--text-muted); }
-.pv-btn--ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-main); }
+.pv-btn--ghost:hover:not(:disabled) { background: var(--state-hover); color: var(--text-main); }
+.pv-btn--ghost:active:not(:disabled) { background: var(--state-press); }
 .pv-btn--danger { background: var(--error-text); color: var(--error-bg); font-weight: 600; }
 .pv-btn--danger:hover:not(:disabled) { filter: brightness(0.94); }
 .pv-btn-ic { display: inline-flex; flex-shrink: 0; }
@@ -72,7 +76,8 @@
   flex-shrink: 0;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-iconbtn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-main); }
+.pv-iconbtn:hover:not(:disabled) { background: var(--state-hover); color: var(--text-main); }
+.pv-iconbtn:active:not(:disabled) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
 .pv-iconbtn--sm { width: var(--control-sm); height: var(--control-sm); }
 
@@ -183,7 +188,8 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.pv-menu-item:hover:not(:disabled), .pv-menu-item:focus-visible { background: var(--bg-hover); }
+.pv-menu-item:hover:not(:disabled), .pv-menu-item:focus-visible { background: var(--state-hover); }
+.pv-menu-item:active:not(:disabled) { background: var(--state-press); }
 .pv-menu-item:disabled { opacity: 0.45; cursor: default; }
 .pv-menu-item--danger, .pv-menu-item--danger .pv-menu-ic { color: var(--error-text); }
 .pv-menu-ic { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
@@ -419,4 +425,93 @@
    container paddings; per-theme WebView2 tuning may refine them (plan P5). */
 .markdown-reader .embedded-note--base { margin-inline: -2rem; }
 .cm-note-embed .embedded-note--base { margin-left: -6px; }
+
+/* ------------------------------------------------- UI 2.0 (M3 Expressive) */
+/* Emphasis title in empty states (headline type role). */
+.pv-empty-title {
+  font-size: var(--text-headline);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+/* Floating action button — round by default, extended pill with a label. The
+   rounded square (--radius-lg) reads as a tool, not a toy; themes pin the shape
+   (LCARS quarter-round, Win95 bevel). */
+.pv-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--accent-color);
+  color: var(--accent-on);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+  transition:
+    transform var(--dur-1) var(--ease-spatial),
+    box-shadow var(--dur-1) var(--ease-1),
+    background var(--dur-1) var(--ease-1);
+}
+.pv-fab:hover:not(:disabled) { background: var(--accent-color-hover); box-shadow: var(--shadow-2); }
+.pv-fab:active:not(:disabled) { transform: scale(0.96); }
+.pv-fab:disabled { opacity: 0.5; cursor: default; }
+.pv-fab--extended { width: auto; padding: 0 var(--space-5); }
+.pv-fab-ic { display: inline-flex; flex-shrink: 0; }
+.pv-fab-label { font-family: var(--font-ui); font-size: var(--text-md); font-weight: 600; white-space: nowrap; }
+
+/* Segmented control — one pill track; the active segment lifts onto the surface. */
+.pv-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-container);
+  border-radius: var(--radius-pill);
+}
+.pv-seg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: calc(var(--control-md) - 6px);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
+}
+.pv-seg-item:hover:not(.is-active) { background: var(--state-hover); color: var(--text-main); }
+.pv-seg-item.is-active {
+  background: var(--surface);
+  color: var(--accent-color);
+  font-weight: 600;
+  box-shadow: var(--shadow-1);
+}
+.pv-segmented--sm .pv-seg-item { height: calc(var(--control-sm) - 4px); padding: 0 var(--space-2); font-size: var(--text-sm); }
+.pv-seg-ic { display: inline-flex; flex-shrink: 0; }
+
+/* Scroll-edge — wrap a scrolling region so its lower overflow fades under the
+   chrome below (splash list, sidebars, palettes). The scroller is the child;
+   the fade + faint shadow are token-driven, so every theme paints them (Petrol
+   gradient, Win95 bevel line, LCARS hairline). */
+.pv-scroll-edge { position: relative; }
+.pv-scroll-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  pointer-events: none;
+  background: var(--edge-scrim);
+  box-shadow: var(--edge-shadow);
+}
 
