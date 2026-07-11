@@ -159,9 +159,10 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
                 <button
                   key={day.toISOString()}
                   onClick={() => handleDayClick(day)}
+                  className="pv-rowhover"
                   style={{
                     padding: "6px 0",
-                    background: isSelected ? "var(--accent-color)" : "transparent",
+                    background: isSelected ? "var(--accent-color)" : undefined,
                     color: isSelected ? "var(--accent-on)" : (isCurrentMonth ? "var(--text-main)" : "var(--text-faint)"),
                     border: "none",
                     borderRadius: "var(--radius-xs)",
@@ -169,8 +170,6 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
                     fontSize: "0.85rem",
                     fontWeight: isSelected ? 600 : 400
                   }}
-                  onMouseOver={e => { if(!isSelected) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseOut={e => { if(!isSelected) e.currentTarget.style.background = "transparent"; }}
                 >
                   {format(day, "d")}
                 </button>
