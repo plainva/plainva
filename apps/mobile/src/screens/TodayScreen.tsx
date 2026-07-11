@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Calendar, ChevronLeft, ChevronRight, FileText, Plus } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, FileText, Plus, Trash2 } from "lucide-react";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { useLongPress } from "../lib/useLongPress";
+import { RowActionSheet } from "../components/RowActionSheet";
+import { confirmDeleteFile } from "../lib/deleteFile";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -36,6 +39,8 @@ export function TodayScreen({
   const [selectedIso, setSelectedIso] = useState(todayIso);
   const [dailyExists, setDailyExists] = useState(false);
   const [edited, setEdited] = useState<Array<{ path: string; title: string }>>([]);
+  const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
+  const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const dailyPath = `${getMobileSettings().dailyFolder}/${selectedIso}.md`;
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -107,11 +112,30 @@ export function TodayScreen({
         <p className="m-hint">{t("mobile.todayNothing")}</p>
       ) : (
         edited.map((n) => (
-          <button className="m-row" key={n.path} onClick={() => onOpenNote(n.path)}>
+          <button
+            className="m-row"
+            key={n.path}
+            onClick={() => { if (rowPress.clicked()) onOpenNote(n.path); }}
+            onContextMenu={(e) => { e.preventDefault(); setSheet(n); }}
+            onPointerCancel={rowPress.clear}
+            onPointerDown={() => rowPress.start(n)}
+            onPointerLeave={rowPress.clear}
+            onPointerUp={rowPress.clear}
+          >
             <FileText size={18} />
             <span>{n.title}</span>
           </button>
         ))
+      )}
+      {sheet && (
+        <RowActionSheet
+          title={sheet.title}
+          onClose={() => setSheet(null)}
+          actions={[
+            { icon: <FileText size={18} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenNote(s.path); } },
+            { icon: <Trash2 size={18} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
+          ]}
+        />
       )}
     </div>
   );

@@ -1578,7 +1578,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <SettingRow label={t("settings.driveFolder")} desc={t("settings.driveFolderDesc")}>
-                        <input autoComplete="off" value={driveFolderName} onChange={(e) => setDriveFolderName(e.target.value)} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
+                        <input autoComplete="off" readOnly value={driveFolderName} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
                         <button onClick={() => setSyncPicker("drive")} disabled={driveSaving || !driveConnected} title={!driveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
@@ -1612,7 +1612,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <button type="button" onClick={() => setOneDriveShowId(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
                       )}
                       <SettingRow label={t("settings.oneDriveFolder")} desc={t("settings.oneDriveFolderDesc")}>
-                        <input autoComplete="off" value={oneDriveFolderName} onChange={(e) => setOneDriveFolderName(e.target.value)} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
+                        <input autoComplete="off" readOnly value={oneDriveFolderName} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
                         <button onClick={() => setSyncPicker("onedrive")} disabled={oneDriveSaving || !oneDriveConnected} title={!oneDriveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
@@ -1646,7 +1646,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         <button type="button" onClick={() => setDropboxShowKey(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
                       )}
                       <SettingRow label={t("settings.dropboxRootPath")} desc={t("settings.dropboxRootPathDesc")}>
-                        <input autoComplete="off" value={dropboxRootPath} onChange={(e) => setDropboxRootPath(e.target.value)} placeholder="/Plainva" className="pv-field" style={{ width: "100%" }} />
+                        <input autoComplete="off" readOnly value={dropboxRootPath} placeholder="/Plainva" className="pv-field" style={{ width: "100%" }} />
                       </SettingRow>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
                         <button onClick={() => setSyncPicker("dropbox")} disabled={dropboxSaving || !dropboxConnected} title={!dropboxConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>

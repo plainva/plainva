@@ -19,6 +19,7 @@ import { isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
+import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 
 /**
@@ -45,7 +46,7 @@ export function BrowseScreen({
   const { t } = useTranslation();
   const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
-  const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean } | null>(
+  const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
   );
   const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
@@ -57,6 +58,9 @@ export function BrowseScreen({
   const press = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const folderPress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isFolder: true }),
+  );
+  const basePress = useLongPress<{ path: string; title: string }>((x) =>
+    setSheet({ ...x, isBase: true }),
   );
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -277,7 +281,16 @@ export function BrowseScreen({
         );
       })}
       {listing.bases.map((b) => (
-        <button className="m-row" key={b.path} onClick={() => onOpenBase(b.path)}>
+        <button
+          className="m-row"
+          key={b.path}
+          onClick={() => { if (basePress.clicked()) onOpenBase(b.path); }}
+          onContextMenu={(e) => { e.preventDefault(); setSheet({ path: b.path, title: b.title, isBase: true }); }}
+          onPointerCancel={basePress.clear}
+          onPointerDown={() => basePress.start({ path: b.path, title: b.title })}
+          onPointerLeave={basePress.clear}
+          onPointerUp={basePress.clear}
+        >
           <Database className="m-accent" size={18} />
           <span>{b.title}</span>
           <ChevronRight className="m-chevron" size={18} />
@@ -293,15 +306,17 @@ export function BrowseScreen({
             <button
               className="m-row"
               onClick={() => {
+                const s = sheet;
                 setSheet(null);
-                if (sheet.isFolder) onOpenFolder(sheet.path);
-                else onOpenNote(sheet.path);
+                if (s.isBase) onOpenBase(s.path);
+                else if (s.isFolder) onOpenFolder(s.path);
+                else onOpenNote(s.path);
               }}
             >
-              {sheet.isFolder ? <Folder size={18} /> : <FileText size={18} />}
+              {sheet.isBase ? <Database size={18} /> : sheet.isFolder ? <Folder size={18} /> : <FileText size={18} />}
               <span>{t("mobile.sheetOpen")}</span>
             </button>
-            {!sheet.isFolder && (
+            {!sheet.isFolder && !sheet.isBase && (
               <>
                 <button className="m-row" onClick={() => startMove(sheet)}>
                   <FolderInput size={18} />
@@ -317,19 +332,31 @@ export function BrowseScreen({
                 </button>
               </>
             )}
-            <button
-              className="m-row"
-              onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
-            >
-              <Pencil size={18} />
-              <span>{t("mobile.vaultRename")}</span>
-            </button>
+            {!sheet.isBase && (
+              <button
+                className="m-row"
+                onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
+              >
+                <Pencil size={18} />
+                <span>{t("mobile.vaultRename")}</span>
+              </button>
+            )}
             <button
               className="m-row m-danger"
-              onClick={() => (sheet.isFolder ? deleteFolder(sheet) : deleteNote(sheet))}
+              onClick={() => {
+                if (sheet.isBase) {
+                  const s = sheet;
+                  setSheet(null);
+                  void confirmDeleteFile(vault, s.path, s.title, t);
+                } else if (sheet.isFolder) {
+                  deleteFolder(sheet);
+                } else {
+                  deleteNote(sheet);
+                }
+              }}
             >
               <Trash2 size={18} />
-              <span>{sheet.isFolder ? t("mobile.deleteFolder") : t("mobile.deleteNote")}</span>
+              <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
             </button>
           </div>
         </div>

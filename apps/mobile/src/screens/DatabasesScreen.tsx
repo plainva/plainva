@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Database } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, Trash2 } from "lucide-react";
 import { EmptyState } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { useLongPress } from "../lib/useLongPress";
+import { RowActionSheet } from "../components/RowActionSheet";
+import { confirmDeleteFile } from "../lib/deleteFile";
 import { type MobileVault } from "../services/vaultService";
 
 /**
@@ -22,6 +25,8 @@ export function DatabasesScreen({
 }) {
   const { t } = useTranslation();
   const [bases, setBases] = useState<Array<{ path: string; title: string }>>([]);
+  const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
+  const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 
@@ -64,7 +69,16 @@ export function DatabasesScreen({
           <div key={folder || "/"}>
             <p className="m-sectionlabel">{folder || t("mobile.vaultRoot")}</p>
             {groups.get(folder)!.map((b) => (
-              <button className="m-row" key={b.path} onClick={() => onOpenBase(b.path)}>
+              <button
+                className="m-row"
+                key={b.path}
+                onClick={() => { if (rowPress.clicked()) onOpenBase(b.path); }}
+                onContextMenu={(e) => { e.preventDefault(); setSheet(b); }}
+                onPointerCancel={rowPress.clear}
+                onPointerDown={() => rowPress.start(b)}
+                onPointerLeave={rowPress.clear}
+                onPointerUp={rowPress.clear}
+              >
                 <Database className="m-accent" size={18} />
                 <span>{b.title}</span>
                 <ChevronRight className="m-chevron" size={18} />
@@ -72,6 +86,16 @@ export function DatabasesScreen({
             ))}
           </div>
         ))
+      )}
+      {sheet && (
+        <RowActionSheet
+          title={sheet.title}
+          onClose={() => setSheet(null)}
+          actions={[
+            { icon: <Database size={18} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenBase(s.path); } },
+            { icon: <Trash2 size={18} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
+          ]}
+        />
       )}
     </div>
   );
