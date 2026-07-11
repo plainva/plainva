@@ -71,6 +71,12 @@
   /* Square scrollbars (thumb painted below with a real bevel). */
   --scrollbar-thumb: #A6A6A6;
   --scrollbar-thumb-hover: #808080;
+
+  /* Windows 95 had no UI animation — pin the motion scheme to "none" so the
+     shared enter/press motion collapses to instant, authentic to the era. */
+  --dur-1: 0.01ms;
+  --dur-2: 0.01ms;
+  --dur-3: 0.01ms;
 }
 
 /* ------------------------------------------------------------------ */

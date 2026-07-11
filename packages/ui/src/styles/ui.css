@@ -524,3 +524,42 @@
    the last row when everything fits. */
 .pv-scroll-edge.is-overflow::after { opacity: 1; }
 
+/* ------------------------------------------------- Motion (UI 2.0, subtle) */
+/* Enter animations for floating surfaces + press feedback on controls. All
+   token-sourced, so prefers-reduced-motion (and a theme's "none" scheme via
+   the duration tokens) collapse them. Only the animation is shared — themes
+   keep their own shapes, so LCARS/Phosphor gain motion without losing their
+   look. Content (editor/reader) is never animated. */
+@keyframes pv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pv-pop { from { opacity: 0; transform: scale(0.97) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes pv-modal-in { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pv-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.pv-menu { animation: pv-pop var(--dur-1) var(--ease-spatial); }
+.pv-overlay, .pv-palette-overlay { animation: pv-fade var(--dur-2) var(--ease-effects); }
+.pv-modal, .pv-modal-card, .pv-palette { animation: pv-modal-in var(--dur-2) var(--ease-spatial); }
+.pv-toast { animation: pv-toast-in var(--dur-2) var(--ease-spatial); }
+.pv-tooltip { animation: pv-fade var(--dur-1) var(--ease-effects); }
+
+/* One shared transition + press feedback across the interactive controls, so
+   every primitive-driven button/field/menu-item animates the same way. */
+.pv-btn,
+.pv-iconbtn,
+.pv-seg-item,
+.pv-menu-item,
+.pv-field {
+  transition-property: background, background-color, border-color, color, box-shadow, transform;
+  transition-duration: var(--dur-1);
+  transition-timing-function: var(--ease-1);
+}
+.pv-btn:active:not(:disabled),
+.pv-iconbtn:active:not(:disabled),
+.pv-seg-item:active { transform: scale(0.97); }
+
+/* Field focus ring (M3 state layer) — replaces the bare border-color change. */
+.pv-field:focus,
+.pv-field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--state-focus);
+}
+
