@@ -462,11 +462,8 @@
   pointer-events: none;
   z-index: 1400;
   box-shadow: inset 0 0 0 2px #FF4444;
+  /* Deliberately NOT gated on prefers-reduced-motion: red alert is an opt-in
+     state the user actively switches into, and the gentle breathing IS the
+     signal. Kept very subtle so it stays comfortable. */
   animation: pv-lcars-frame 1.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-theme-name="lcars"][data-theme-variant="red-alert"] #root::after {
-    animation: none;
-    opacity: 0.4;
-  }
 }
