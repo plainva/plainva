@@ -1420,18 +1420,18 @@ export const Editor: React.FC<{
       {!peek && (
       <div style={{ padding: "0.5rem 1rem", flexShrink: 0, borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-primary)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button 
-            onClick={onNavigateBack} 
+          <button
+            onClick={onNavigateBack}
             disabled={!canGoBack}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: canGoBack ? "var(--text-muted)" : "var(--text-faint)", opacity: canGoBack ? 1 : 0.4, cursor: canGoBack ? "pointer" : "default", borderRadius: "var(--radius-xs)" }}
+            className="pv-iconbtn"
             title={t("editor.back")}
           >
             <ArrowLeft size={18} />
           </button>
-          <button 
-            onClick={onNavigateForward} 
+          <button
+            onClick={onNavigateForward}
             disabled={!canGoForward}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: canGoForward ? "var(--text-muted)" : "var(--text-faint)", opacity: canGoForward ? 1 : 0.4, cursor: canGoForward ? "pointer" : "default", borderRadius: "var(--radius-xs)" }}
+            className="pv-iconbtn"
             title={t("editor.forward")}
           >
             <ArrowRight size={18} />
@@ -1442,24 +1442,27 @@ export const Editor: React.FC<{
             {isSaving ? t("editor.saving") : saveError ? t("editor.saveFailed") : t("editor.saved")}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
-            <button 
+            <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
               title={t("editor.readMode")}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: viewMode === 'read' ? 'var(--bg-primary)' : 'transparent', border: "none", borderRadius: "var(--radius-xs)", color: viewMode === 'read' ? 'var(--accent-color)' : 'var(--text-muted)', cursor: "pointer", boxShadow: viewMode === 'read' ? 'var(--shadow-1)' : 'none' }}
+              className="pv-iconbtn"
+              style={{ background: viewMode === 'read' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'read' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'read' ? 'var(--shadow-1)' : 'none' }}
             >
               <BookOpen size={16} />
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('live'); rememberSessionViewMode(activePath, 'live'); } }}
               title={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")}
-              style={{ opacity: managedIndex ? 0.45 : 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: viewMode === 'live' ? 'var(--bg-primary)' : 'transparent', border: "none", borderRadius: "var(--radius-xs)", color: viewMode === 'live' ? 'var(--accent-color)' : 'var(--text-muted)', cursor: "pointer", boxShadow: viewMode === 'live' ? 'var(--shadow-1)' : 'none' }}
+              className="pv-iconbtn"
+              style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'live' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'live' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'live' ? 'var(--shadow-1)' : 'none' }}
             >
               <Pencil size={16} />
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('source'); rememberSessionViewMode(activePath, 'source'); } }}
               title={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")}
-              style={{ opacity: managedIndex ? 0.45 : 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent', border: "none", borderRadius: "var(--radius-xs)", color: viewMode === 'source' ? 'var(--accent-color)' : 'var(--text-muted)', cursor: "pointer", boxShadow: viewMode === 'source' ? 'var(--shadow-1)' : 'none' }}
+              className="pv-iconbtn"
+              style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'source' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'source' ? 'var(--shadow-1)' : 'none' }}
             >
               <Code size={16} />
             </button>
@@ -1469,7 +1472,7 @@ export const Editor: React.FC<{
             onClick={toggleWidth}
             title={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
             aria-label={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", borderRadius: "var(--radius-xs)" }}
+            className="pv-iconbtn"
           >
             {editorWidth === 'narrow' ? <UnfoldHorizontal size={16} /> : <FoldHorizontal size={16} />}
           </button>
@@ -1484,7 +1487,7 @@ export const Editor: React.FC<{
               aria-haspopup="menu"
               aria-expanded={showMenu}
               data-testid="editor-menu-btn"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", borderRadius: "var(--radius-xs)" }}
+              className="pv-iconbtn"
             >
               <MoreVertical size={16} />
             </button>
@@ -1558,19 +1561,18 @@ export const Editor: React.FC<{
           {conflictInfo.conflictPath && (
             <button
               type="button"
-              className="pv-btn-secondary"
-              style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+              className="pv-btn pv-btn--secondary pv-btn--sm"
               onClick={() => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: conflictInfo.conflictPath } }))}
             >
               {t("conflict.resolveAction")}
             </button>
           )}
           {conflictInfo.conflictPath && onOpenPath && (
-            <button type="button" className="pv-btn-secondary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => onOpenPath(conflictInfo.conflictPath, true)}>
+            <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => onOpenPath(conflictInfo.conflictPath, true)}>
               {t("editor.conflictOpenCopy")}
             </button>
           )}
-          <button type="button" className="pv-btn-secondary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => setConflictInfo(null)}>
+          <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => setConflictInfo(null)}>
             {t("common.dismiss")}
           </button>
         </div>
@@ -1583,8 +1585,7 @@ export const Editor: React.FC<{
           </span>
           <button
             type="button"
-            className="pv-btn-secondary"
-            style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+            className="pv-btn pv-btn--secondary pv-btn--sm"
             onClick={() => {
               const offer = draftOffer;
               setDraftOffer(null);
@@ -1601,8 +1602,7 @@ export const Editor: React.FC<{
           </button>
           <button
             type="button"
-            className="pv-btn-secondary"
-            style={{ padding: "4px 10px", fontSize: "0.78rem" }}
+            className="pv-btn pv-btn--secondary pv-btn--sm"
             onClick={() => {
               setDraftOffer(null);
               if (activePath && vaultPath) {
@@ -1623,8 +1623,8 @@ export const Editor: React.FC<{
             {managedIndex && (
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "0.8rem", color: "var(--text-muted)" }}>
                 <span style={{ flex: 1, minWidth: 180 }}>{t("indexMd.managedBanner")}</span>
-                <button type="button" className="pv-btn-secondary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => void refreshManagedIndex()}>{t("indexMd.refreshNow")}</button>
-                <button type="button" className="pv-btn-secondary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => void unlockManagedIndex()}>{t("indexMd.editAnyway")}</button>
+                <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => void refreshManagedIndex()}>{t("indexMd.refreshNow")}</button>
+                <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => void unlockManagedIndex()}>{t("indexMd.editAnyway")}</button>
               </div>
             )}
             <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} />

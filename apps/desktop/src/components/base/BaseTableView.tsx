@@ -173,10 +173,10 @@ export function BaseTableView({
                   </span>
                   {!col.startsWith('file.') && (
                     <span className="base-th-actions" style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-                      <button onClick={(e) => { e.stopPropagation(); onOpenColumnEditor(col); }} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--text-muted)" }}>
+                      <button onClick={(e) => { e.stopPropagation(); onOpenColumnEditor(col); }} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} className="pv-iconbtn pv-iconbtn--sm">
                         <Settings2 size={12} />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); onToggleColumn(col); }} aria-label={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} title={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--text-muted)" }}>
+                      <button onClick={(e) => { e.stopPropagation(); onToggleColumn(col); }} aria-label={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} title={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} className="pv-iconbtn pv-iconbtn--sm">
                         <Trash2 size={12} />
                       </button>
                     </span>

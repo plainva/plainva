@@ -182,7 +182,8 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+              className="pv-field"
+              style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
           </form>
@@ -239,7 +240,8 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+              className="pv-field"
+              style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
           </form>
@@ -302,7 +304,8 @@ const TreeNodeView: React.FC<{
                     }
                   }}
                   placeholder={newItemPlaceholder(newItemParams.type, t)}
-                  style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                  className="pv-field"
+                  style={{ flex: 1, minWidth: 0 }}
                 />
                 {newItemError && <div className="pv-inline-error">{newItemError}</div>}
               </div>
@@ -1098,7 +1101,8 @@ export const FileTree: React.FC<{
                 onChange={e => updateRenamingName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
                 onBlur={() => handleRenameSubmit()}
-                style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                className="pv-field"
+                style={{ flex: 1, minWidth: 0 }}
               />
               {renamingError && <div className="pv-inline-error">{renamingError}</div>}
             </form>
@@ -1228,7 +1232,8 @@ export const FileTree: React.FC<{
                   }
                 }}
                 placeholder={newItemPlaceholder(newItemParams.type, t)}
-                style={{ flex: 1, background: "var(--bg-primary)", color: "var(--text-main)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "2px 4px", fontSize: "0.9rem", outline: "none", minWidth: 0 }}
+                className="pv-field"
+                style={{ flex: 1, minWidth: 0 }}
               />
               {newItemError && <div className="pv-inline-error">{newItemError}</div>}
             </div>

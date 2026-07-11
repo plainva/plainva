@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState } from "react";
 import { Columns2, Rows2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DropdownMenu } from "./DropdownMenu";
@@ -17,20 +17,13 @@ export function SplitButton({ onSplit, activeDirection }: { onSplit?: (direction
 
   if (!onSplit) return null;
 
-  const btn: CSSProperties = {
-    display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem",
-    background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", borderRadius: "var(--radius-xs)",
-  };
-
   return (
-    <div style={{ display: "flex", alignItems: "center" }}>
+    <div className="pv-splitbtn">
       <button
         onClick={() => onSplit("vertical")}
         title={t("editor.splitVertical", { defaultValue: "Vertikal teilen (nebeneinander)" })}
         aria-label={t("editor.split", { defaultValue: "Editor teilen" })}
-        style={btn}
-        onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-main)")}
-        onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+        className="pv-btn pv-btn--ghost pv-btn--sm"
       >
         <Columns2 size={16} />
       </button>
@@ -41,9 +34,7 @@ export function SplitButton({ onSplit, activeDirection }: { onSplit?: (direction
         aria-expanded={open}
         aria-label={t("editor.splitOptions", { defaultValue: "Teilungsrichtung wählen" })}
         title={t("editor.splitOptions", { defaultValue: "Teilungsrichtung wählen" })}
-        style={{ ...btn, padding: "0.3rem 0.05rem", marginLeft: "-5px" }}
-        onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-main)")}
-        onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+        className="pv-btn pv-btn--ghost pv-btn--sm"
       >
         <ChevronDown size={12} />
       </button>

@@ -240,17 +240,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
               handleSelectEmoji(customEntry);
             }
           }}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "6px 8px",
-            fontSize: "13px",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--bg-secondary)",
-            color: "var(--text-main)",
-            outline: "none",
-          }}
+          className="pv-field"
         />
 
         {mode === "emoji" && !searching && (
@@ -426,17 +416,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
             <button
               type="button"
               onClick={onRemove}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              style={{
-                background: "transparent",
-                border: "1px solid var(--border-color)",
-                borderRadius: "var(--radius-sm)",
-                padding: "4px 10px",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-              }}
+              className="pv-btn pv-btn--secondary pv-btn--sm"
             >
               {labels.remove}
             </button>

@@ -32,6 +32,16 @@ body,
   --m-secondary-container: var(--accent-container);
   --m-on-secondary-container: var(--on-accent-container);
   --m-state-pressed: var(--state-press);
+
+  /* Danger role + the mobile radius scale as central roles — every value is
+     adjustable in one place (and a theme can override them wholesale). Mobile
+     keeps M3's slightly larger radii than the desktop control scale. */
+  --m-danger: var(--error-text);
+  --m-on-danger: #fff;
+  --m-radius-xs: 2px;
+  --m-radius-chip: 10px;
+  --m-radius-card: 14px;
+  --m-radius-sheet: 28px;
 }
 
 body {
@@ -334,7 +344,7 @@ body {
 .m-result-snippet mark {
   background: var(--highlight-bg);
   color: inherit;
-  border-radius: 2px;
+  border-radius: var(--m-radius-xs);
 }
 
 .m-headicon {
@@ -379,7 +389,7 @@ body {
 .m-field input,
 .m-field select {
   min-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--m-radius-chip);
 }
 
 .m-field-row {
@@ -452,7 +462,7 @@ body {
   align-items: stretch;
 }
 .m-danger {
-  color: var(--danger-color, #b3261e);
+  color: var(--m-danger);
 }
 
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
@@ -560,7 +570,7 @@ body {
   min-width: 48px;
   padding: 10px 6px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--m-radius-card);
   background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
@@ -644,13 +654,13 @@ body {
   color: var(--m-on-secondary-container);
 }
 .m-btn--danger {
-  background: var(--danger-color, #b3261e);
-  color: #fff;
+  background: var(--m-danger);
+  color: var(--m-on-danger);
 }
 .m-sheet {
   width: 100%;
   background: var(--m-surface);
-  border-radius: 28px 28px 0 0;
+  border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0;
   padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
   max-height: 78vh;
   overflow-y: auto;
@@ -697,7 +707,7 @@ body {
   margin: 8px 0;
   padding: 12px 14px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--m-radius-card);
   background: var(--warning-bg);
   color: var(--warning-text);
   font-size: 0.9rem;

@@ -89,11 +89,6 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
     if (activeDate) setViewDate(startOfMonth(activeDate));
   }, [activeDate]);
 
-  const navBtn: React.CSSProperties = {
-    background: "transparent", border: "none", color: "var(--text-muted)",
-    cursor: "pointer", padding: "0.2rem", display: "flex", alignItems: "center", flexShrink: 0,
-  };
-
   const renderDay = (d: Date, key: number) => {
     const inMonth = d.getMonth() === viewDate.getMonth();
     const isToday = sameDay(d, today);
@@ -143,7 +138,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
       <div ref={navRef} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
-        <button onClick={prevMonth} style={navBtn} aria-label={t("calendar.prevMonth")} title={t("calendar.prevMonth")}><ChevronLeft size={16} /></button>
+        <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} title={t("calendar.prevMonth")}><ChevronLeft size={16} /></button>
         <button
           onClick={togglePicker}
           data-testid="calendar-month-label"
@@ -154,8 +149,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
           <span style={{ minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{monthLabel}</span>
           <ChevronDown size={12} style={{ flexShrink: 0, opacity: 0.6 }} aria-hidden="true" />
         </button>
-        <button onClick={nextMonth} style={navBtn} aria-label={t("calendar.nextMonth")} title={t("calendar.nextMonth")}><ChevronRight size={16} /></button>
-        <button onClick={goToday} data-testid="calendar-today" style={navBtn} aria-label={t("calendar.today")} title={t("calendar.today")}><CalendarCheck size={15} /></button>
+        <button onClick={nextMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextMonth")} title={t("calendar.nextMonth")}><ChevronRight size={16} /></button>
+        <button onClick={goToday} data-testid="calendar-today" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.today")} title={t("calendar.today")}><CalendarCheck size={15} /></button>
 
         {pickerOpen && (
           <div
@@ -167,9 +162,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-              <button onClick={() => setPickerYear((y) => y - 1)} data-testid="calendar-picker-prev-year" style={navBtn} aria-label={t("calendar.prevYear")} title={t("calendar.prevYear")}><ChevronLeft size={14} /></button>
+              <button onClick={() => setPickerYear((y) => y - 1)} data-testid="calendar-picker-prev-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevYear")} title={t("calendar.prevYear")}><ChevronLeft size={14} /></button>
               <span data-testid="calendar-picker-year" style={{ fontSize: "0.85rem", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pickerYear}</span>
-              <button onClick={() => setPickerYear((y) => y + 1)} data-testid="calendar-picker-next-year" style={navBtn} aria-label={t("calendar.nextYear")} title={t("calendar.nextYear")}><ChevronRight size={14} /></button>
+              <button onClick={() => setPickerYear((y) => y + 1)} data-testid="calendar-picker-next-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextYear")} title={t("calendar.nextYear")}><ChevronRight size={14} /></button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "2px" }}>
               {monthNames.map((m, i) => {
@@ -194,7 +189,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
               })}
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}>
-              <input type="checkbox" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
+              <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
               {t("calendar.showWeeks")}
             </label>
           </div>

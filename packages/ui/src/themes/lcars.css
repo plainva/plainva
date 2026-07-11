@@ -257,6 +257,12 @@
 [data-theme-name="lcars"] .pv-btn-secondary {
   border-color: var(--lcars-4);
 }
+/* Icon buttons ride the same pill language — the UI 2.0 control sweep routed
+   many affordances through pv-iconbtn, so keep them round under LCARS rather
+   than falling back to the soft-card radius. */
+[data-theme-name="lcars"] .pv-iconbtn {
+  border-radius: var(--radius-pill);
+}
 
 /* Tabs as true Okuda pills (P12): floating capsules instead of flat tiles.
    The active tab fills with the primary bar colour and flips to black type —

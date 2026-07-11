@@ -780,7 +780,7 @@ export function BaseConfigPanel({
                   <span style={{ width: 12, flexShrink: 0 }} aria-hidden="true" />
                 )}
                 <label className="base-cfg-check" style={{ flex: 1, minWidth: 0 }}>
-                  <input type="checkbox" checked={visibleColumns.includes(col)} onChange={() => onToggleColumn(col)} />
+                  <input type="checkbox" className="pv-check" checked={visibleColumns.includes(col)} onChange={() => onToggleColumn(col)} />
                   {" "}<span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{cells.columnLabel(col)}</span>
                   {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
                   {availableColumns.includes(col) && (

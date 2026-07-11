@@ -1624,7 +1624,7 @@ export function BaseViewer({
               disabled={!canGoBack}
               aria-label={t("editor.back")}
               title={t("editor.back")}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: canGoBack ? "var(--text-muted)" : "var(--text-faint)", opacity: canGoBack ? 1 : 0.4, cursor: canGoBack ? "pointer" : "default", borderRadius: "var(--radius-xs)" }}
+              className="pv-iconbtn"
             >
               <ArrowLeft size={16} />
             </button>
@@ -1634,7 +1634,7 @@ export function BaseViewer({
               disabled={!canGoForward}
               aria-label={t("editor.forward")}
               title={t("editor.forward")}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.3rem", background: "transparent", border: "none", color: canGoForward ? "var(--text-muted)" : "var(--text-faint)", opacity: canGoForward ? 1 : 0.4, cursor: canGoForward ? "pointer" : "default", borderRadius: "var(--radius-xs)" }}
+              className="pv-iconbtn"
             >
               <ArrowRight size={16} />
             </button>
@@ -1650,7 +1650,7 @@ export function BaseViewer({
           }}
           aria-label={t("database.iconColor", "Icon-Farbe der Datenbank")}
           title={t("database.iconColor", "Icon-Farbe der Datenbank")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", padding: 2, borderRadius: "var(--radius-xs)", cursor: "pointer" }}
+          className="pv-iconbtn"
         >
           <Database size={18} color={baseIconColor || "var(--accent-color)"} />
         </button>
@@ -1729,18 +1729,14 @@ export function BaseViewer({
               <div className="pv-menu" style={{ position: "absolute", top: "100%", right: 0, left: "auto", marginTop: 4, minWidth: 170 }}>
                 <button
                   onClick={() => { setShowHeaderMenu(false); onToggleBookmark?.(); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem", background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", textAlign: "left", borderRadius: "var(--radius-xs)" }}
-                  onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
-                  onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+                  className="pv-menu-item"
                 >
                   <Bookmark size={14} fill={isBookmarked ? "currentColor" : "none"} />
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </button>
                 <button
                   onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem", background: "transparent", border: "none", color: "var(--error-text)", cursor: "pointer", textAlign: "left", borderRadius: "var(--radius-xs)" }}
-                  onMouseOver={(e) => e.currentTarget.style.background = "var(--error-bg)"}
-                  onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+                  className="pv-menu-item pv-menu-item--danger"
                 >
                   <Trash2 size={14} />
                   {t("editor.delete", { defaultValue: "Löschen" })}

@@ -69,7 +69,7 @@ export function SourceConditionEditor({
               <span style={{ fontWeight: 600, color: "var(--accent-color)", flexShrink: 0 }}>{label}:</span>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={display}>{display}</span>
             </div>
-            <button onClick={() => onRemoveAt(idx)} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6, flexShrink: 0, color: "var(--text-main)", display: "flex" }}>
+            <button onClick={() => onRemoveAt(idx)} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="pv-iconbtn">
               <Trash2 size={14} />
             </button>
           </div>

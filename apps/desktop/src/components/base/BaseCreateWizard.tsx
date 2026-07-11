@@ -96,7 +96,7 @@ export function BaseCreateWizard({
             <Database size={16} color="var(--accent-color)" />
             {t("database.wizardTitle", "Neue Datenbank")}: {fileName}
           </span>
-          <button type="button" className="pv-icon-btn" aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex" }}><X size={16} /></button>
+          <button type="button" className="pv-iconbtn" aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} onClick={onCancel}><X size={16} /></button>
         </div>
 
         <div className="pv-modal-section">
@@ -134,14 +134,14 @@ export function BaseCreateWizard({
               <div style={{ display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" }}>
                 {columns.map((col) => (
                   <label key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
-                    <input type="checkbox" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
+                    <input type="checkbox" className="pv-check" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
                     {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
                     <span className="base-cfg-badge" title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
                   </label>
                 ))}
                 {newColumns.map((col) => (
                   <div key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
-                    <input type="checkbox" checked readOnly disabled />
+                    <input type="checkbox" className="pv-check" checked readOnly disabled />
                     {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
                     <span className="base-cfg-badge">{t("database.newProperty", "Neue Eigenschaft")}</span>
                     <button onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
@@ -175,14 +175,13 @@ export function BaseCreateWizard({
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
-          <button type="button" className="pv-btn-secondary" onClick={onCancel} style={{ padding: "0.45rem 1rem", cursor: "pointer", background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-main)", borderRadius: "var(--radius-sm)" }}>{t("common.cancel", "Abbrechen")}</button>
+          <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</button>
           <button
             type="button"
-            className="pv-btn-primary"
+            className="pv-btn pv-btn--primary pv-btn--sm"
             onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
             disabled={!canCreate}
             title={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
-            style={{ padding: "0.45rem 1rem", cursor: canCreate ? "pointer" : "default", background: "var(--accent-color)", border: "none", color: "var(--accent-on)", borderRadius: "var(--radius-sm)", opacity: canCreate ? 1 : 0.5 }}
           >
             {t("database.wizardCreate", "Datenbank erstellen")}
           </button>

@@ -117,15 +117,7 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
           <span style={{ flex: 1 }}>{t("colorPicker.custom")}</span>
           <button
             onClick={() => onSelect(custom)}
-            style={{
-              padding: "0.3rem 0.8rem",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--accent-color)",
-              background: "var(--accent-color)",
-              color: "#fff",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-            }}
+            className="pv-btn pv-btn--primary"
           >
             {t("colorPicker.apply")}
           </button>
@@ -133,22 +125,8 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
         {value && (
           <button
             onClick={onRemove}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              marginTop: "0.6rem",
-              width: "100%",
-              padding: "0.35rem 0.4rem",
-              background: "transparent",
-              border: "none",
-              borderRadius: "var(--radius-xs)",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
+            className="pv-btn pv-btn--ghost"
+            style={{ width: "100%", marginTop: "0.6rem" }}
           >
             <Trash2 size={14} />
             {t("colorPicker.remove")}
