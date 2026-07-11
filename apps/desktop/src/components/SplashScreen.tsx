@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, ArrowRight, Folder, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfirm } from "../services/appDialogs";
 import { Checkbox } from "@plainva/ui";
+import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultData } from "../services/vaultForget";
@@ -47,16 +48,6 @@ export const SplashScreen: React.FC = () => {
   const [forgetting, setForgetting] = useState(false);
 
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
-
-  // Scroll-edge (UI 2.0): fade the recent-vaults list ONLY when it actually
-  // overflows and isn't scrolled to the bottom, so the last (possibly hovered)
-  // row is never obscured — maintainer report: the list looked cut off.
-  const listScrollRef = useRef<HTMLDivElement>(null);
-  const [listOverflow, setListOverflow] = useState(false);
-  useEffect(() => {
-    const el = listScrollRef.current;
-    setListOverflow(!!el && el.scrollTop + el.clientHeight < el.scrollHeight - 2);
-  }, [recentVaults.length]);
 
   const handleRemoveOnlyList = async () => {
     if (!removeTarget) return;
@@ -200,7 +191,8 @@ export const SplashScreen: React.FC = () => {
             <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.createVault")}</h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.createVaultDesc")}</p>
 
-            <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "330px", overflowY: "auto", marginBottom: "14px", paddingRight: "10px" }}>
+            <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
+            <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
               <button
                 onClick={() => handleCreateVault(null)}
                 disabled={creating}
@@ -245,6 +237,7 @@ export const SplashScreen: React.FC = () => {
                   </div>
                 </button>
               ))}
+            </ScrollEdge>
             </div>
 
             <button
@@ -260,7 +253,8 @@ export const SplashScreen: React.FC = () => {
             <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.openOnlineVault")}</h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.onlineVaultDesc")}</p>
 
-            <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "330px", overflowY: "auto", marginBottom: "14px", paddingRight: "10px" }}>
+            <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
+            <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
               {onlineProviders.map(({ id, name, desc, Icon, byo }) => (
                 <button
                   key={id}
@@ -290,6 +284,7 @@ export const SplashScreen: React.FC = () => {
                   </div>
                 </button>
               ))}
+            </ScrollEdge>
             </div>
 
             {onlineProviders.some((p) => p.byo) && (
@@ -327,13 +322,7 @@ export const SplashScreen: React.FC = () => {
             {recentVaults.length > 0 && (
               <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "10px 10px 6px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
-                <div className={listOverflow ? "pv-scroll-edge is-overflow" : "pv-scroll-edge"}>
-                <div
-                  ref={listScrollRef}
-                  onScroll={(e) => { const el = e.currentTarget; setListOverflow(el.scrollTop + el.clientHeight < el.scrollHeight - 2); }}
-                  className="custom-scrollbar"
-                  style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "190px", overflowY: "auto", paddingRight: "10px" }}
-                >
+                <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "190px", paddingRight: "10px" }}>
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
                     // app's usual ghost icon button (pv-icon-btn) instead of a
@@ -367,8 +356,7 @@ export const SplashScreen: React.FC = () => {
                       </button>
                     </div>
                   ))}
-                </div>
-                </div>
+                </ScrollEdge>
               </div>
             )}
 

@@ -513,6 +513,10 @@
   pointer-events: none;
   opacity: 0;
   background: var(--edge-scrim);
+  /* Fade the shadow out toward the left/right edges so it never casts a hard
+     corner against the rounded container or the scrollbar. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
   transition: opacity var(--dur-1) var(--ease-1);
 }
 /* The consumer toggles .is-overflow (via a scroll handler) so the fade only

@@ -4,7 +4,7 @@ import { act, createRef, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
-import { Fab, Segmented } from "@plainva/ui";
+import { Fab, Segmented, ScrollEdge } from "@plainva/ui";
 import { IconButton } from "@plainva/ui";
 import { TextInput, SelectField, TextArea } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
@@ -166,6 +166,22 @@ describe("Segmented", () => {
     expect(radios[1].getAttribute("aria-checked")).toBe("false");
     act(() => radios[1].click());
     expect(onChange).toHaveBeenCalledWith("board");
+  });
+});
+
+describe("ScrollEdge", () => {
+  it("wraps its children in a scroll-edge container with an inner scroller", () => {
+    render(
+      <ScrollEdge className="custom-scrollbar" style={{ maxHeight: 100 }}>
+        <div>row-a</div>
+        <div>row-b</div>
+      </ScrollEdge>
+    );
+    const wrap = container.querySelector(".pv-scroll-edge")!;
+    expect(wrap).toBeTruthy();
+    const scroller = wrap.querySelector<HTMLElement>(".custom-scrollbar")!;
+    expect(scroller.style.overflowY).toBe("auto");
+    expect(scroller.textContent).toBe("row-arow-b");
   });
 });
 
