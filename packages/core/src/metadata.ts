@@ -20,8 +20,14 @@ export const okfVersionSchema = z.literal("0.1");
  * Tolerant read-side schema: files declaring a newer/unknown okf_version must
  * stay readable ("permissive consumption", OKF SPEC §9/§11). Validation against
  * a specific spec version is the job of the versioned linter, not of parsing.
+ * A bare YAML number (`okf_version: 1`) is coerced to its string form — a
+ * hand-written note must not silently lose ALL indexed properties/tags just
+ * because the version was not quoted.
  */
-export const okfVersionReadSchema = nonEmptyStringSchema;
+export const okfVersionReadSchema = z.preprocess(
+  (value) => (typeof value === "number" && Number.isFinite(value) ? String(value) : value),
+  nonEmptyStringSchema
+);
 
 export const OKF_VERSION = "0.1" as const;
 

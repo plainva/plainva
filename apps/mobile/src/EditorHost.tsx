@@ -1,29 +1,37 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import {
   Bold,
   Camera as CameraIcon,
   CheckSquare,
+  Copy,
   Heading,
   Italic,
   Link2,
   List,
+  MoveDown,
+  MoveUp,
   Quote,
   Redo2,
   Strikethrough,
+  Trash2,
   Undo2,
 } from "lucide-react";
 import {
+  applyBlockAction,
   consumePendingSearchJump,
   createEditorSession,
   cycleHeading,
   findFirstMatch,
   insertWikiLink,
+  performBlockMove,
   redo,
   toggleInlineMark,
   toggleLinePrefix,
   undo,
+  type BlockAction,
+  type BlockTarget,
   type EditorSession,
   type EditorSessionDeps,
 } from "@plainva/ui";
@@ -55,6 +63,9 @@ export function EditorHost({
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
   const editableRef = useRef(editable);
+  // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
+  // blockHandles plugin); this host renders it as a bottom sheet.
+  const [blockMenuFrom, setBlockMenuFrom] = useState<number | null>(null);
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -105,9 +116,12 @@ export function EditorHost({
         changeColor: t("docHeader.changeColor"),
       },
       deps: depsRef,
+      // Read-first (M4): the session's editable facet blocks input for real —
+      // flipping the raw contenteditable attribute was rewritten by CM on the
+      // next update, so a tap re-opened the keyboard (finding 2026-07-11).
+      editable: editableRef.current,
     });
     sessionRef.current = session;
-    session.view.contentDOM.setAttribute("contenteditable", editableRef.current ? "true" : "false");
     // Search jump (P4): a parked jump from the search tab selects and
     // reveals the first occurrence once the session exists (rAF so the
     // first layout pass has happened before scrolling).
@@ -133,15 +147,44 @@ export function EditorHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, t]);
 
-  // Read-first (M4): flipping contentEditable keeps the live preview fully
+  // Read-first (M4): the editable facet keeps the live preview fully
   // rendered while blocking the keyboard; entering edit mode focuses.
   useEffect(() => {
     editableRef.current = editable;
-    const view = sessionRef.current?.view;
-    if (!view) return;
-    view.contentDOM.setAttribute("contenteditable", editable ? "true" : "false");
-    if (editable) view.focus();
+    const session = sessionRef.current;
+    if (!session) return;
+    session.setEditable(editable);
+    if (editable) session.view.focus();
   }, [editable]);
+
+  // Block-handle events (R1.2): the shared plugin dispatches window events;
+  // the desktop editor listens too, but only one shell is ever mounted.
+  useEffect(() => {
+    const onMenu = (e: Event) => {
+      if (!sessionRef.current) return;
+      const d = (e as CustomEvent).detail as { from: number };
+      setBlockMenuFrom(d.from);
+    };
+    const onMove = (e: Event) => {
+      const view = sessionRef.current?.view;
+      if (!view) return;
+      const d = (e as CustomEvent).detail as { from: number; targetFrom: number };
+      performBlockMove(view, d.from, d.targetFrom);
+    };
+    window.addEventListener("plainva-open-block-menu", onMenu);
+    window.addEventListener("plainva-move-block", onMove);
+    return () => {
+      window.removeEventListener("plainva-open-block-menu", onMenu);
+      window.removeEventListener("plainva-move-block", onMove);
+    };
+  }, []);
+
+  const runBlockAction = (action: BlockAction) => {
+    const view = sessionRef.current?.view;
+    const from = blockMenuFrom;
+    setBlockMenuFrom(null);
+    if (view && from !== null) applyBlockAction(view, from, action);
+  };
 
   const run = (fn: (v: NonNullable<EditorSession["view"]>) => unknown) => {
     const view = sessionRef.current?.view;
@@ -219,6 +262,54 @@ export function EditorHost({
           <button aria-label="Redo" onClick={() => run(redo)}>
             <Redo2 size={18} />
           </button>
+        </div>
+      )}
+
+      {blockMenuFrom !== null && (
+        <div className="m-sheet-backdrop" onClick={() => setBlockMenuFrom(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <p className="m-sheet-title">{t("block.menuTitle")}</p>
+            <p className="m-sectionlabel">{t("block.turnInto")}</p>
+            <div className="m-turninto">
+              {(
+                [
+                  ["paragraph", t("block.paragraph")],
+                  ["h1", t("block.h1")],
+                  ["h2", t("block.h2")],
+                  ["h3", t("block.h3")],
+                  ["bullet", t("block.bullet")],
+                  ["numbered", t("block.numbered")],
+                  ["task", t("block.task")],
+                  ["quote", t("block.quote")],
+                  ["code", t("block.code")],
+                ] as Array<[BlockTarget, string]>
+              ).map(([target, label]) => (
+                <button
+                  className="m-chip"
+                  key={target}
+                  onClick={() => runBlockAction({ kind: "turn", target })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button className="m-row" onClick={() => runBlockAction({ kind: "move-up" })}>
+              <MoveUp size={16} />
+              <span>{t("block.moveUp")}</span>
+            </button>
+            <button className="m-row" onClick={() => runBlockAction({ kind: "move-down" })}>
+              <MoveDown size={16} />
+              <span>{t("block.moveDown")}</span>
+            </button>
+            <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
+              <Copy size={16} />
+              <span>{t("block.duplicate")}</span>
+            </button>
+            <button className="m-row m-danger" onClick={() => runBlockAction({ kind: "delete" })}>
+              <Trash2 size={16} />
+              <span>{t("block.delete")}</span>
+            </button>
+          </div>
         </div>
       )}
     </>

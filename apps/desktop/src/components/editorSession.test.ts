@@ -81,7 +81,7 @@ function baseDeps(): EditorSessionDeps {
 }
 
 const open: EditorSession[] = [];
-function makeSession(mode: "live" | "source" = "live", doc = DOC) {
+function makeSession(mode: "live" | "source" = "live", doc = DOC, editable?: boolean) {
   const deps = { current: baseDeps() };
   const parent = document.createElement("div");
   document.body.appendChild(parent);
@@ -93,6 +93,7 @@ function makeSession(mode: "live" | "source" = "live", doc = DOC) {
     i18n: fakeI18n,
     headerTexts: HEADER_TEXTS,
     deps,
+    editable,
   });
   open.push(session);
   return { session, deps };
@@ -122,6 +123,26 @@ describe("editorSession", () => {
 
     session.setMode("live");
     expect(syntaxTree(session.view.state).length).toBeGreaterThanOrEqual(before);
+  });
+
+  it("drives editability through CM's own facet, not the raw attribute (R1.1)", async () => {
+    const { EditorView } = await import("@codemirror/view");
+    const { session } = makeSession("live", DOC, false);
+    // Read-only session: facet false, readOnly true, attribute managed by CM.
+    expect(session.view.state.facet(EditorView.editable)).toBe(false);
+    expect(session.view.state.readOnly).toBe(true);
+    expect(session.view.contentDOM.getAttribute("contenteditable")).toBe("false");
+    // A view update must NOT flip the attribute back (the old raw-attribute
+    // approach lost to CM's next DOM sync — the mobile keyboard bug).
+    session.view.dispatch({ selection: { anchor: 1 } });
+    expect(session.view.contentDOM.getAttribute("contenteditable")).toBe("false");
+    // Toggling on restores normal editing; default sessions stay editable.
+    session.setEditable(true);
+    expect(session.view.state.facet(EditorView.editable)).toBe(true);
+    expect(session.view.state.readOnly).toBe(false);
+    expect(session.view.contentDOM.getAttribute("contenteditable")).toBe("true");
+    const { session: defaultSession } = makeSession();
+    expect(defaultSession.view.state.facet(EditorView.editable)).toBe(true);
   });
 
   it("treats identical external text as a complete no-op", () => {

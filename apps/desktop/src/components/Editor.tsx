@@ -44,9 +44,8 @@ import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { SelectionToolbar, type FormatAction } from "./SelectionToolbar";
-import { BlockMenu, type BlockAction } from "./BlockMenu";
-import { blockAt, listBlocks } from "@plainva/ui";
-import { turnInto, moveBlockAbove, listMarkerStyle } from "./blockTransforms";
+import { BlockMenu } from "./BlockMenu";
+import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { toggleTaskAtIndex } from "@plainva/ui";
@@ -58,16 +57,6 @@ import { parkTreeReveal } from "@plainva/ui";
 // previous instance started — otherwise it reads (and later re-saves) the
 // pre-write content. Entries remove themselves once settled.
 const pendingWrites = new Map<string, Promise<void>>();
-
-// Replace the whole document (used by block move/reorder) without the view
-// jumping: keep the caret in range and restore the scroll position (#7 feedback).
-function replaceDocPreservingScroll(view: EditorView, newText: string) {
-  if (newText === view.state.doc.toString()) return;
-  const scrollTop = view.scrollDOM.scrollTop;
-  const head = Math.min(view.state.selection.main.head, newText.length);
-  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newText }, selection: { anchor: head }, scrollIntoView: false });
-  view.scrollDOM.scrollTop = scrollTop;
-}
 
 export const Editor: React.FC<{
   activePath: string | null;
@@ -847,33 +836,8 @@ export const Editor: React.FC<{
       const d = (e as CustomEvent).detail as { from: number; targetFrom: number };
       const view = sessionRef.current?.view;
       if (!view) return;
-      const src = blockAt(view.state, d.from);
-      if (!src) return;
-      let targetFirst: number;
-      if (d.targetFrom === -1) {
-        targetFirst = view.state.doc.lines + 1;
-      } else {
-        const tb = blockAt(view.state, d.targetFrom);
-        if (!tb || tb.from === src.from) return;
-        targetFirst = tb.firstLine;
-      }
-      // E2 (2026-07-05): dropping a list next to a SAME-style list would merge
-      // them — CommonMark treats blank-line-separated same-marker lists as ONE
-      // loose list (Obsidian/GitHub too). An invisible `<!-- -->` separator at
-      // that boundary keeps the moved list its own block, everywhere.
-      const doc = view.state.doc;
-      const lineText = (n: number) => (n >= 1 && n <= doc.lines ? doc.line(n).text : "");
-      const srcStyle = listMarkerStyle(lineText(src.firstLine));
-      let guardAbove = false;
-      let guardBelow = false;
-      if (srcStyle) {
-        const blocks = (() => { try { return listBlocks(view.state); } catch { return []; } })();
-        const above = [...blocks].reverse().find((b) => b.lastLine < targetFirst && b.from !== src.from);
-        const below = blocks.find((b) => b.firstLine >= targetFirst && b.from !== src.from);
-        guardAbove = !!above && listMarkerStyle(lineText(above.firstLine)) === srcStyle;
-        guardBelow = !!below && listMarkerStyle(lineText(below.firstLine)) === srcStyle;
-      }
-      replaceDocPreservingScroll(view, moveBlockAbove(view.state.doc.toString(), src.firstLine, src.lastLine, targetFirst, { guardAbove, guardBelow }));
+      // Shared with the mobile shell (R1.2): list-separator guards included.
+      performBlockMove(view, d.from, d.targetFrom);
     };
     window.addEventListener("plainva-open-block-menu", onMenu);
     window.addEventListener("plainva-move-block", onMove);
@@ -885,32 +849,9 @@ export const Editor: React.FC<{
 
   const handleBlockAction = (action: BlockAction) => {
     const view = sessionRef.current?.view;
-    if (!view || !blockMenu) { setBlockMenu(null); return; }
-    const blk = blockAt(view.state, blockMenu.from);
-    if (!blk) { setBlockMenu(null); return; }
-    const text = view.state.sliceDoc(blk.from, blk.to);
-    if (action.kind === "turn") {
-      view.dispatch({ changes: { from: blk.from, to: blk.to, insert: turnInto(text, action.target) }, userEvent: "input" });
-    } else if (action.kind === "duplicate") {
-      // A real, separate block: blank line between original and the copy.
-      const insert = `\n\n${text}`;
-      view.dispatch({ changes: { from: blk.to, insert }, selection: { anchor: blk.to + insert.length }, userEvent: "input" });
-    } else if (action.kind === "delete") {
-      let end = blk.to;
-      if (end < view.state.doc.length && view.state.sliceDoc(end, end + 1) === "\n") end++;
-      view.dispatch({ changes: { from: blk.from, to: end, insert: "" }, userEvent: "delete" });
-    } else if (action.kind === "move-up" || action.kind === "move-down") {
-      const blocks = listBlocks(view.state);
-      const idx = blocks.findIndex((b) => b.from === blk.from);
-      let targetFirst: number | null = null;
-      if (action.kind === "move-up" && idx > 0) targetFirst = blocks[idx - 1].firstLine;
-      else if (action.kind === "move-down" && idx >= 0 && idx < blocks.length - 1) targetFirst = blocks[idx + 2] ? blocks[idx + 2].firstLine : view.state.doc.lines + 1;
-      if (targetFirst != null) {
-        replaceDocPreservingScroll(view, moveBlockAbove(view.state.doc.toString(), blk.firstLine, blk.lastLine, targetFirst));
-      }
-    }
+    if (view && blockMenu) applyBlockAction(view, blockMenu.from, action);
     setBlockMenu(null);
-    view.focus();
+    view?.focus();
   };
 
   // Smart paste (#10) + OS file drop (P3.2) share one import: the file is

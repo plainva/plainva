@@ -1,13 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BlockTarget } from "./blockTransforms";
+import type { BlockAction, BlockTarget } from "@plainva/ui";
 
-export type BlockAction =
-  | { kind: "turn"; target: BlockTarget }
-  | { kind: "duplicate" }
-  | { kind: "move-up" }
-  | { kind: "move-down" }
-  | { kind: "delete" };
+export type { BlockAction } from "@plainva/ui";
 
 interface Props {
   x: number;

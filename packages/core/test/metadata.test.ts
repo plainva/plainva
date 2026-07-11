@@ -24,6 +24,22 @@ describe("readableFrontmatterSchema", () => {
       tags: ["plainva/core", "phase-1"]
     });
   });
+
+  it("coerces a bare YAML number okf_version instead of failing the whole parse", () => {
+    // `okf_version: 1` (unquoted) parses as a number; a hand-written note must
+    // not silently lose all indexed properties/tags over the missing quotes.
+    const result = readableFrontmatterSchema.parse({
+      okf_version: 1,
+      tags: ["kept"],
+      status: "active"
+    });
+    expect(result.okf_version).toBe("1");
+    expect(result).toMatchObject({ tags: ["kept"], status: "active" });
+    // Decimals keep their numeric string form.
+    expect(readableFrontmatterSchema.parse({ okf_version: 0.1 }).okf_version).toBe("0.1");
+    // Non-coercible shapes still fail (tolerance is for numbers only).
+    expect(readableFrontmatterSchema.safeParse({ okf_version: true }).success).toBe(false);
+  });
 });
 
 describe("okfConceptFrontmatterSchema", () => {

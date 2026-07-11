@@ -529,3 +529,22 @@ body {
 .cm-tooltip.cm-tooltip-autocomplete > ul > li {
   padding: 8px 10px;
 }
+
+/* Block menu sheet (R1.2): turn-into targets as a wrapping chip grid. */
+.m-turninto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 12px;
+}
+.m-chip {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+.m-chip:active {
+  background: var(--bg-active);
+}

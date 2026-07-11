@@ -97,6 +97,13 @@ export interface EditorSessionConfig {
   /** Fixed per session; a language switch rebuilds the session (host effect). */
   headerTexts: DocumentHeaderTexts;
   deps: { readonly current: EditorSessionDeps };
+  /**
+   * Read-only sessions (mobile read-first mode) start with `editable: false`.
+   * This drives CodeMirror's own `EditorView.editable` facet — flipping the
+   * raw contenteditable attribute is NOT enough, CM rewrites it on the next
+   * update and the keyboard comes back (mobile finding, 2026-07-11).
+   */
+  editable?: boolean;
 }
 
 /** Marks transactions that adopt externally produced text (watcher/sync/merge). */
@@ -106,6 +113,12 @@ export interface EditorSession {
   readonly view: EditorView;
   /** Swap only the mode-dependent extensions; the syntax tree survives. */
   setMode(mode: EditorSessionMode): void;
+  /**
+   * Toggle user editability (facet + readOnly state) without rebuilding the
+   * session; decorations and the syntax tree survive. Read-only still allows
+   * programmatic `applyExternalText`.
+   */
+  setEditable(on: boolean): void;
   /**
    * Adopt external text as a minimal range change; identical text is a no-op.
    * Never enters the undo history (E4) and never marks the editor dirty.
@@ -118,6 +131,11 @@ export interface EditorSession {
 export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
+  const editableComp = new Compartment();
+  const editableExtensions = (on: boolean): Extension => [
+    EditorView.editable.of(on),
+    EditorState.readOnly.of(!on),
+  ];
 
   // Stable container for the embed widgets. `vaultContext` is a getter so a
   // widget built later sees the CURRENT services (the old host handed the
@@ -248,6 +266,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
     }),
+    editableComp.of(editableExtensions(cfg.editable !== false)),
     modeComp.of(modeExtensions(cfg.mode)),
   ];
 
@@ -257,6 +276,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   });
 
   let currentMode = cfg.mode;
+  let currentEditable = cfg.editable !== false;
 
   return {
     view,
@@ -264,6 +284,11 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       if (mode === currentMode) return;
       currentMode = mode;
       view.dispatch({ effects: modeComp.reconfigure(modeExtensions(mode)) });
+    },
+    setEditable(on) {
+      if (on === currentEditable) return;
+      currentEditable = on;
+      view.dispatch({ effects: editableComp.reconfigure(editableExtensions(on)) });
     },
     applyExternalText(text) {
       const change = minimalDocChange(view.state.doc.toString(), text);

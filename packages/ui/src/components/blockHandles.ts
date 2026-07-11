@@ -4,12 +4,18 @@ import { listBlocks, blockAt, type DocBlock } from "./blockModel";
 
 // Notion-style block handles (#7). A "⠿" grip is shown just left of each block —
 // anchored to the TEXT COLUMN (not a far-left gutter), so it stays next to the
-// block even in the centered/readable width. Left-click (without dragging) and
-// right-click both open the block menu; dragging the grip reorders blocks.
+// block even in the centered/readable width. Left-click/tap (without dragging)
+// and right-click both open the block menu; dragging the grip reorders blocks.
 //
-// Drag uses mouse tracking — NOT HTML5 drag-and-drop, which Tauri's native
+// Drag uses POINTER tracking — NOT HTML5 drag-and-drop, which Tauri's native
 // drag-drop handler swallows (dragDropEnabled defaults to true). Same lesson as
-// the right sidebar / .base columns.
+// the right sidebar / .base columns. Pointer events (with capture on the grip
+// and touch-action:none) make the same click-or-drag flow work for mouse AND
+// touch — the previous mouse-only listeners left the grips purely decorative
+// on mobile (finding 2026-07-11, R1.2).
+//
+// Handles only exist while the editor is user-editable (EditorView.editable):
+// the mobile read-first mode keeps the reading surface calm (E3).
 
 const GRIP_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">' +
@@ -21,15 +27,22 @@ function openMenuFor(from: number, x: number, y: number) {
   window.dispatchEvent(new CustomEvent("plainva-open-block-menu", { detail: { from, x, y } }));
 }
 
-function beginDrag(view: EditorView, fromPos: number, down: MouseEvent) {
+function beginDrag(view: EditorView, fromPos: number, handle: HTMLElement, down: PointerEvent) {
   const startX = down.clientX;
   const startY = down.clientY;
+  // Fingers wobble more than a mouse: a larger slop keeps a tap a tap.
+  const slop = down.pointerType === "mouse" ? 4 : 8;
   let dragging = false;
   let indicator: HTMLElement | null = null;
   let targetFrom: number | null = null;
+  try {
+    handle.setPointerCapture(down.pointerId);
+  } catch {
+    /* jsdom / detached node */
+  }
 
-  const onMove = (e: MouseEvent) => {
-    if (!dragging && Math.hypot(e.clientX - startX, e.clientY - startY) < 4) return;
+  const onMove = (e: PointerEvent) => {
+    if (!dragging && Math.hypot(e.clientX - startX, e.clientY - startY) < slop) return;
     dragging = true;
     document.body.style.cursor = "grabbing";
     const content = view.contentDOM.getBoundingClientRect();
@@ -63,22 +76,33 @@ function beginDrag(view: EditorView, fromPos: number, down: MouseEvent) {
     }
   };
 
-  const onUp = () => {
-    document.removeEventListener("mousemove", onMove, true);
-    document.removeEventListener("mouseup", onUp, true);
+  const finish = (commit: boolean) => {
+    handle.removeEventListener("pointermove", onMove);
+    handle.removeEventListener("pointerup", onUp);
+    handle.removeEventListener("pointercancel", onCancel);
+    try {
+      handle.releasePointerCapture(down.pointerId);
+    } catch {
+      /* already released */
+    }
     document.body.style.cursor = "";
     if (indicator) indicator.remove();
+    if (!commit) return;
     if (dragging) {
       if (targetFrom !== null && targetFrom !== fromPos) {
         window.dispatchEvent(new CustomEvent("plainva-move-block", { detail: { from: fromPos, targetFrom } }));
       }
     } else {
-      openMenuFor(fromPos, startX, startY); // no drag -> treat as a click (at the cursor)
+      openMenuFor(fromPos, startX, startY); // no drag -> treat as a click/tap (at the cursor)
     }
   };
+  const onUp = () => finish(true);
+  const onCancel = () => finish(false);
 
-  document.addEventListener("mousemove", onMove, true);
-  document.addEventListener("mouseup", onUp, true);
+  // Pointer capture routes move/up to the grip even outside its bounds.
+  handle.addEventListener("pointermove", onMove);
+  handle.addEventListener("pointerup", onUp);
+  handle.addEventListener("pointercancel", onCancel);
 }
 
 interface HandlePos { from: number; top: number; left: number; }
@@ -101,8 +125,15 @@ class BlockHandlesView {
   update(u: ViewUpdate) {
     // Also re-measure on async parse progress: listBlocks() reads the syntax
     // tree, so grips computed from a stale tree would sit at pre-reflow
-    // positions until the next edit/scroll (Jitter, P5).
-    if (u.docChanged || u.viewportChanged || u.geometryChanged || syntaxTree(u.startState) !== syntaxTree(u.state)) {
+    // positions until the next edit/scroll (Jitter, P5). An editable-facet
+    // flip (mobile read/edit toggle) shows/hides the grips.
+    if (
+      u.docChanged ||
+      u.viewportChanged ||
+      u.geometryChanged ||
+      syntaxTree(u.startState) !== syntaxTree(u.state) ||
+      u.state.facet(EditorView.editable) !== u.startState.facet(EditorView.editable)
+    ) {
       this.schedule();
     }
   }
@@ -116,6 +147,8 @@ class BlockHandlesView {
 
   private measure(): HandlePos[] {
     const view = this.view;
+    // Read-only sessions (mobile read-first) show no grips at all (E3).
+    if (!view.state.facet(EditorView.editable)) return [];
     let blocks: DocBlock[];
     try { blocks = listBlocks(view.state); } catch { return []; }
     const { from: vpFrom, to: vpTo } = view.viewport;
@@ -135,14 +168,17 @@ class BlockHandlesView {
   private makeHandle(): HTMLElement {
     const h = document.createElement("div");
     h.className = "cm-block-handle";
-    h.style.cssText = "position:absolute;pointer-events:auto;";
+    // touch-action:none keeps the browser from stealing the pointer for a
+    // scroll gesture once a drag starts on the grip (mobile).
+    h.style.cssText = "position:absolute;pointer-events:auto;touch-action:none;";
     h.setAttribute("aria-hidden", "true");
     h.innerHTML = GRIP_SVG;
-    h.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return; // left button: click-or-drag
+    h.addEventListener("pointerdown", (e) => {
+      if (!e.isPrimary) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return; // left button: click-or-drag
       e.preventDefault();
       e.stopPropagation();
-      beginDrag(this.view, Number(h.dataset.from), e);
+      beginDrag(this.view, Number(h.dataset.from), h, e);
     });
     h.addEventListener("contextmenu", (e) => {
       e.preventDefault();

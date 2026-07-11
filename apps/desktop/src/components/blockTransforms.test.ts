@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stripMarker, turnInto, moveBlockAbove, listMarkerStyle, LIST_SEPARATOR } from "./blockTransforms";
+import { stripMarker, turnInto, moveBlockAbove, listMarkerStyle, LIST_SEPARATOR } from "@plainva/ui";
 
 describe("stripMarker", () => {
   it("removes heading, quote, bullet, numbered and task markers", () => {
