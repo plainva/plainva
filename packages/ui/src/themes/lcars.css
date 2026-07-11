@@ -446,3 +446,27 @@
     animation: none;
   }
 }
+
+/* Red alert (desktop): a very faint red frame breathes around the whole main
+   window, synced with the console bars above. Fixed click-through overlay above
+   all app chrome; static (still visible) under reduced motion. Desktop-only in
+   practice — mobile never sets the red-alert variant. */
+@keyframes pv-lcars-frame {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.18; }
+}
+[data-theme-name="lcars"][data-theme-variant="red-alert"] #root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1400;
+  box-shadow: inset 0 0 0 2px #FF4444;
+  animation: pv-lcars-frame 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme-name="lcars"][data-theme-variant="red-alert"] #root::after {
+    animation: none;
+    opacity: 0.4;
+  }
+}

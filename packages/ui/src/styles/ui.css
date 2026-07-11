@@ -29,8 +29,10 @@
     color var(--dur-1) var(--ease-1);
 }
 .pv-btn:disabled { opacity: 0.5; cursor: default; }
-.pv-btn--sm { height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-sm); }
-.pv-btn--lg { height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-md); }
+/* Size variants change only the tap-target (height + padding); the label size
+   stays constant (--text-ui) so every button reads at one consistent size. */
+.pv-btn--sm { height: var(--control-sm); padding: 0 var(--space-2); }
+.pv-btn--lg { height: var(--control-lg); padding: 0 var(--space-4); }
 .pv-btn--primary { background: var(--accent-color); color: var(--accent-on); font-weight: 600; }
 .pv-btn--primary:hover:not(:disabled) { background: var(--accent-color-hover); }
 /* Tonal (UI 2.0): accent-container fill, medium emphasis between primary and secondary. */

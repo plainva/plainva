@@ -439,8 +439,8 @@ option {
 .pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-main); cursor: pointer; }
 .pv-modal-check input { accent-color: var(--accent-color); }
 .pv-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
-.pv-btn-primary { padding: 7px 14px; border-radius: var(--radius-md); border: none; background: var(--accent-color); color: var(--accent-on); font-size: 0.85rem; cursor: pointer; }
-.pv-btn-secondary { padding: 7px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: transparent; color: var(--text-main); font-size: 0.85rem; cursor: pointer; }
+.pv-btn-primary { padding: 7px 14px; border-radius: var(--radius-md); border: none; background: var(--accent-color); color: var(--accent-on); font-size: var(--text-ui); cursor: pointer; }
+.pv-btn-secondary { padding: 7px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: transparent; color: var(--text-main); font-size: var(--text-ui); cursor: pointer; }
 
 /* Managed index.md read view (plan UI-UX P11): title with accent rule, link
    lists as a theme card grid. Applied only to marker-carrying listings. */
