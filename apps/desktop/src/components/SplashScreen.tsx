@@ -315,9 +315,10 @@ export const SplashScreen: React.FC = () => {
         ) : !showWebDavForm ? (
           <>
             {recentVaults.length > 0 && (
-              <>
-                <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", marginBottom: "10px" }}>{t("splash.recentVaults")}</div>
-                <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px", maxHeight: "210px", overflowY: "auto", paddingRight: "10px" }}>
+              <div style={{ background: "var(--surface-container)", borderRadius: "var(--radius-lg)", padding: "10px 10px 4px", marginBottom: "20px" }}>
+                <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
+                <div className="pv-scroll-edge">
+                <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "196px", overflowY: "auto", paddingRight: "10px" }}>
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
                     // app's usual ghost icon button (pv-icon-btn) instead of a
@@ -352,7 +353,8 @@ export const SplashScreen: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </>
+                </div>
+              </div>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
