@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, ArrowRight, Folder, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +47,16 @@ export const SplashScreen: React.FC = () => {
   const [forgetting, setForgetting] = useState(false);
 
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+
+  // Scroll-edge (UI 2.0): fade the recent-vaults list ONLY when it actually
+  // overflows and isn't scrolled to the bottom, so the last (possibly hovered)
+  // row is never obscured — maintainer report: the list looked cut off.
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const [listOverflow, setListOverflow] = useState(false);
+  useEffect(() => {
+    const el = listScrollRef.current;
+    setListOverflow(!!el && el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  }, [recentVaults.length]);
 
   const handleRemoveOnlyList = async () => {
     if (!removeTarget) return;
@@ -317,8 +327,13 @@ export const SplashScreen: React.FC = () => {
             {recentVaults.length > 0 && (
               <div style={{ background: "var(--surface-container)", borderRadius: "var(--radius-lg)", padding: "10px 10px 4px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
-                <div className="pv-scroll-edge">
-                <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "196px", overflowY: "auto", paddingRight: "10px" }}>
+                <div className={listOverflow ? "pv-scroll-edge is-overflow" : "pv-scroll-edge"}>
+                <div
+                  ref={listScrollRef}
+                  onScroll={(e) => { const el = e.currentTarget; setListOverflow(el.scrollTop + el.clientHeight < el.scrollHeight - 2); }}
+                  className="custom-scrollbar"
+                  style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "256px", overflowY: "auto", paddingRight: "10px" }}
+                >
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
                     // app's usual ghost icon button (pv-icon-btn) instead of a
