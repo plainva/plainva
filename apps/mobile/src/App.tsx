@@ -48,7 +48,6 @@ import {
   type NavState,
   type TabScreenId,
 } from "./navigation";
-import { useLongPress } from "./lib/useLongPress";
 import { isoOf } from "./lib/dates";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
@@ -84,8 +83,6 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
   const [fromTemplate, setFromTemplate] = useState(false);
-  // ＋: tap captures, long-press opens the quick-create sheet (R3).
-  const fabPress = useLongPress<undefined>(() => setQuickCreate(true));
   // The Android back listener registers once; it reads the live state here.
   const navRef = useRef(nav);
   useEffect(() => {
@@ -286,7 +283,10 @@ export default function App() {
 
       {!top && (
         <header className="m-topbar">
-          <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
+          <span className="m-headtitle">
+            <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
+            <SyncIndicator />
+          </span>
           <span className="m-headactions">
             {nav.activeTab === "notes" && (
               <button
@@ -311,7 +311,6 @@ export default function App() {
             >
               <MoreVertical size={22} />
             </button>
-            <SyncIndicator />
           </span>
         </header>
       )}
@@ -418,17 +417,7 @@ export default function App() {
           <button
             aria-label={t("mobile.newNote")}
             className="m-fab"
-            onClick={() => {
-              if (fabPress.clicked()) capture();
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setQuickCreate(true);
-            }}
-            onPointerCancel={fabPress.clear}
-            onPointerDown={() => fabPress.start(undefined)}
-            onPointerLeave={fabPress.clear}
-            onPointerUp={fabPress.clear}
+            onClick={() => setQuickCreate(true)}
           >
             <Plus size={24} />
           </button>

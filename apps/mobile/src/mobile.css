@@ -119,6 +119,19 @@ body {
   white-space: nowrap;
 }
 
+/* Title + sync cloud sit together on the left; the cloud clings to the title
+   text so the three-dot menu in .m-headactions stays at the far right. */
+.m-headtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.m-topbar .m-headtitle h1 {
+  flex: 0 1 auto;
+}
+
 .m-header {
   margin: 0 -16px;
 }
@@ -559,6 +572,12 @@ body {
 }
 .m-page--note .m-editor {
   padding-bottom: 64px;
+}
+/* The .m-page already supplies the 16px side inset; the shared (desktop-tuned)
+   .cm-content padding of 1.5rem would stack on top and triple the margin.
+   Trim it to a mobile-appropriate value (~26px effective per side). */
+.m-page--note .m-editor .cm-content {
+  padding: 0.5rem 8px;
 }
 .m-datestrip {
   display: flex;
