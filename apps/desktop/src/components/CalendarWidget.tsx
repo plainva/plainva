@@ -103,16 +103,15 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
         onClick={() => onSelectDate(d)}
         aria-current={isActive ? "date" : undefined}
         title={new Intl.DateTimeFormat(lang, { dateStyle: "full" }).format(d)}
+        className="pv-rowhover"
         style={{
           position: "relative", aspectRatio: "1 / 1", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
           fontSize: "0.8rem", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          background: isActive ? "var(--accent-color)" : "transparent",
+          background: isActive ? "var(--accent-color)" : undefined,
           color: isActive ? "var(--accent-on)" : outlined ? "var(--accent-color)" : inMonth ? "var(--text-main)" : "var(--text-faint)",
           fontWeight: isActive ? 700 : outlined ? 600 : 400,
           boxShadow: outlined ? "inset 0 0 0 1.5px var(--accent-color)" : undefined,
         }}
-        onMouseOver={(e) => { if (!isActive && !isToday) e.currentTarget.style.background = "var(--bg-hover)"; }}
-        onMouseOut={(e) => { if (!isActive && !isToday) e.currentTarget.style.background = "transparent"; }}
       >
         {d.getDate()}
         {isMarked && (
@@ -174,14 +173,13 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
                     key={i}
                     data-testid={`calendar-pick-month-${i}`}
                     onClick={() => { setViewDate(new Date(pickerYear, i, 1)); setPickerOpen(false); }}
+                    className="pv-rowhover"
                     style={{
                       padding: "0.35rem 0.2rem", fontSize: "0.75rem", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
                       textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      background: isCurrent ? "var(--accent-color)" : "transparent",
+                      background: isCurrent ? "var(--accent-color)" : undefined,
                       color: isCurrent ? "var(--accent-on)" : "var(--text-main)",
                     }}
-                    onMouseOver={(e) => { if (!isCurrent) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                    onMouseOut={(e) => { if (!isCurrent) e.currentTarget.style.background = "transparent"; }}
                   >
                     {m}
                   </button>

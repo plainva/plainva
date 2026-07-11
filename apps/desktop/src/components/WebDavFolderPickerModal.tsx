@@ -147,9 +147,8 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
             <div style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", overflowY: "auto", flex: 1 }}>
               <div
                 onClick={handleGoUp}
+                className="pv-rowhover"
                 style={rowStyle}
-                onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
               >
                 <CornerLeftUp size={16} color="var(--text-muted)" />
                 <span style={{ color: "var(--text-muted)" }}>{t("webDavPicker.goUp")}</span>
@@ -160,9 +159,8 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
                   <li
                     key={f}
                     onClick={() => handleSelectFolder(f)}
+                    className="pv-rowhover"
                     style={rowStyle}
-                    onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     <Folder size={16} color="var(--accent-color)" />
                     {getBasename(f)}

@@ -85,7 +85,6 @@ const gridButtonStyle: React.CSSProperties = {
   padding: 0,
   fontSize: "20px",
   lineHeight: 1,
-  background: "transparent",
   border: "none",
   borderRadius: "var(--radius-sm)",
   cursor: "pointer",
@@ -370,8 +369,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                   aria-label={cell.label}
                   title={cell.label}
                   onClick={() => handleSelectEmoji(cell.char)}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  className="pv-rowhover"
                   style={gridButtonStyle}
                 >
                   {cell.char}
@@ -401,8 +399,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                 aria-label={entry.name}
                 title={entry.name}
                 onClick={() => onSelectIcon(entry.name, tint)}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                className="pv-rowhover"
                 style={{ ...gridButtonStyle, color: tint ?? "var(--text-main)" }}
               >
                 <DocIcon icon={`lucide:${entry.name}`} color={tint ?? undefined} size={19} />

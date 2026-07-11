@@ -36,16 +36,15 @@ export function OutlineSection() {
           type="button"
           onClick={() => goto(h)}
           title={h.text}
+          className="pv-rowhover"
           style={{
-            display: "block", width: "100%", textAlign: "left", border: "none", background: "transparent",
+            display: "block", width: "100%", textAlign: "left", border: "none",
             color: h.level === minLevel ? "var(--text-main)" : "var(--text-muted)",
             cursor: "pointer", borderRadius: "var(--radius-xs)", fontSize: "0.85rem",
             padding: "3px 6px", paddingLeft: `${6 + (h.level - minLevel) * 14}px`,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             fontWeight: h.level === minLevel ? 600 : 400,
           }}
-          onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-          onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
         >
           {h.text}
         </button>

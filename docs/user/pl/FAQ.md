@@ -70,6 +70,10 @@ Wtedy sama synchronizacja jest zerwana — często dlatego, że logowanie wygas�
 
 Plainva to aplikacja desktopowa, a nie strona internetowa. Klawisze odświeżania (F5, Ctrl+R) są celowo wyłączone — odświeżenie odrzuciłoby otwarte karty i niezapisane zmiany. Wbudowane menu kontekstowe WebView jest również ukryte; kliknięcie prawym przyciskiem myszy na zaznaczonym tekście nadal oferuje **Kopiuj**, a drzewo plików, karty i tabele zachowują własne menu kontekstowe.
 
+### Dlaczego nie widzę żadnych animacji?
+
+Plainva respektuje ustawienie systemowe „ogranicz ruch”. Jeśli brakuje przejść i efektów (przyciski, menu i podświetlenia się nie poruszają), animacje są wyłączone w Twoim systemie operacyjnym. W systemie **Windows**: Ustawienia → Ułatwienia dostępu → Efekty wizualne → włącz **Efekty animacji**. W systemie **macOS**: Ustawienia systemowe → Dostępność → Ekran → wyłącz **Ogranicz ruch**.
+
 ### Jak zmienić język?
 
 **Ustawienia → Aplikacja → Wygląd → Język** (obecnie niemiecki i angielski).

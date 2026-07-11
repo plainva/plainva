@@ -63,9 +63,8 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
         <div
           key={link.source_path}
           onClick={(e) => onOpenPath(link.source_path, e.ctrlKey || e.metaKey)}
+          className="pv-rowhover"
           style={{ padding: '0.5rem', borderRadius: "var(--radius-sm)", cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <FileText size={14} color="var(--accent-color)" style={{ marginTop: '2px', flexShrink: 0 }} />
           <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>

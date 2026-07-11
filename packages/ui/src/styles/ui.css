@@ -565,6 +565,23 @@
 .pv-iconbtn:active:not(:disabled),
 .pv-seg-item:active { transform: scale(0.97); }
 
+/* Shared list-row hover: lets CSS drive the hover so rows (file tree, tags,
+   outline, backlinks, folder pickers) don't hand-roll it in JS. An inline
+   selected/active background has higher specificity and still wins, so the
+   active row keeps its highlight without a hover flicker. Also a perf win on
+   large trees (no per-mouseover style writes). */
+.pv-rowhover { transition: background var(--dur-1) var(--ease-1); }
+.pv-rowhover:hover:not(:disabled) { background: var(--state-hover); }
+
+/* Bordered "card" hover (e.g. splash vault/template cards): the row-hover's
+   card cousin — owns the 1px border and lifts it to the accent on hover while
+   tinting the surface. Cards keep their own radius/padding inline. */
+.pv-cardhover {
+  border: 1px solid var(--border-color);
+  transition: background var(--dur-1) var(--ease-1), border-color var(--dur-1) var(--ease-1);
+}
+.pv-cardhover:hover:not(:disabled) { background: var(--state-hover); border-color: var(--accent-color); }
+
 /* Field focus ring (M3 state layer) — replaces the bare border-color change. */
 .pv-field:focus,
 .pv-field:focus-visible {

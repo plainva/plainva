@@ -154,9 +154,7 @@ export const SplashScreen: React.FC = () => {
     gap: "4px",
     padding: "12px 14px",
     textAlign: "left",
-    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-lg)",
-    background: "transparent",
     color: "var(--text-main)",
     cursor: "pointer",
     width: "100%",
@@ -196,9 +194,8 @@ export const SplashScreen: React.FC = () => {
               <button
                 onClick={() => handleCreateVault(null)}
                 disabled={creating}
+                className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px", opacity: creating ? 0.6 : 1 }}
-                onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.borderColor = "var(--accent-color)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-color)"; }}
               >
                 <FilePlus2 size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -217,9 +214,8 @@ export const SplashScreen: React.FC = () => {
                   key={def.id}
                   onClick={() => handleCreateVault(def)}
                   disabled={creating}
+                  className="pv-cardhover"
                   style={{ ...templateCardStyle, opacity: creating ? 0.6 : 1 }}
-                  onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.borderColor = "var(--accent-color)"; }}
-                  onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-color)"; }}
                 >
                   <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{def.name}</div>
                   <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{def.description}</div>
@@ -243,7 +239,8 @@ export const SplashScreen: React.FC = () => {
             <button
               onClick={() => setShowCreateChooser(false)}
               disabled={creating}
-              style={{ width: "100%", padding: "0.75rem", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer" }}
+              className="pv-btn pv-btn--secondary"
+              style={{ width: "100%" }}
             >
               {t("splash.back")}
             </button>
@@ -266,9 +263,8 @@ export const SplashScreen: React.FC = () => {
                       handleOnlineProvider(id);
                     }
                   }}
+                  className="pv-cardhover"
                   style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
-                  onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.borderColor = "var(--accent-color)"; }}
-                  onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-color)"; }}
                 >
                   <Icon size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -312,7 +308,8 @@ export const SplashScreen: React.FC = () => {
 
             <button
               onClick={() => setShowOnlineChooser(false)}
-              style={{ width: "100%", padding: "0.75rem", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer" }}
+              className="pv-btn pv-btn--secondary"
+              style={{ width: "100%" }}
             >
               {t("splash.back")}
             </button>
@@ -325,13 +322,12 @@ export const SplashScreen: React.FC = () => {
                 <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "190px", paddingRight: "10px" }}>
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
-                    // app's usual ghost icon button (pv-icon-btn) instead of a
+                    // shared ghost icon button (pv-iconbtn) instead of a
                     // detached box next to the scrollbar.
                     <div
                       key={path}
-                      style={{ display: "flex", alignItems: "center", border: "1px solid var(--border-color)", borderRadius: "var(--radius-lg)", background: "transparent" }}
-                      onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.borderColor = "var(--accent-color)"; }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-color)"; }}
+                      className="pv-cardhover"
+                      style={{ display: "flex", alignItems: "center", borderRadius: "var(--radius-lg)" }}
                     >
                       <button
                         onClick={() => openVault(path)}
@@ -344,13 +340,11 @@ export const SplashScreen: React.FC = () => {
                         </div>
                       </button>
                       <button
-                        className="pv-icon-btn"
+                        className="pv-iconbtn pv-iconbtn--sm"
                         aria-label={t("splash.removeFromList")}
                         title={t("splash.removeFromListHint")}
                         onClick={() => { setForgetZips(false); setRemoveTarget(path); }}
                         style={{ marginRight: "8px" }}
-                        onMouseOver={(e) => { e.currentTarget.style.color = "var(--error-text)"; }}
-                        onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
                       >
                         <X size={14} />
                       </button>
@@ -363,27 +357,24 @@ export const SplashScreen: React.FC = () => {
             <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
               <button
                 onClick={selectVault}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-sm)", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer" }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "var(--accent-color-hover)")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-color)")}
+                className="pv-btn pv-btn--primary"
+                style={{ width: "100%", height: 46, gap: 9 }}
               >
                 <FolderOpen size={17} />{t("splash.openFolder", { defaultValue: "Ordner öffnen" })}
               </button>
 
               <button
                 onClick={() => setShowOnlineChooser(true)}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-container)", color: "var(--on-accent-container)", border: "none", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary))")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-container)")}
+                className="pv-btn pv-btn--tonal"
+                style={{ width: "100%", height: 46, gap: 9 }}
               >
                 <Cloud size={16} />{t("splash.openOnlineVault")}
               </button>
 
               <button
                 onClick={() => { setCreateError(null); setShowCreateChooser(true); }}
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", height: 46, background: "var(--accent-container)", color: "var(--on-accent-container)", border: "none", borderRadius: "var(--radius-sm) var(--radius-sm) var(--radius-lg) var(--radius-lg)", fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary))")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "var(--accent-container)")}
+                className="pv-btn pv-btn--tonal"
+                style={{ width: "100%", height: 46, gap: 9 }}
               >
                 <Plus size={16} />{t("splash.createVault", { defaultValue: "Neuen Vault erstellen" })}
               </button>
@@ -407,25 +398,23 @@ export const SplashScreen: React.FC = () => {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.serverUrl")}</label>
                 <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav"
-                  style={{ padding: "0.75rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)" }} />
+                  className="pv-field" />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.username")}</label>
-                <input value={user} onChange={(e) => setUser(e.target.value)}
-                  style={{ padding: "0.75rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)" }} />
+                <input value={user} onChange={(e) => setUser(e.target.value)} className="pv-field" />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.password")}</label>
-                <input type="password" value={pass} onChange={(e) => setPass(e.target.value)}
-                  style={{ padding: "0.75rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)" }} />
+                <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} className="pv-field" />
               </div>
               <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
                 <button onClick={() => { setShowWebDavForm(false); setShowOnlineChooser(true); }}
-                  style={{ flex: 1, padding: "0.75rem", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", color: "var(--text-main)", cursor: "pointer" }}>
+                  className="pv-btn pv-btn--secondary" style={{ flex: 1 }}>
                   {t("splash.back")}
                 </button>
                 <button onClick={handleWebDavNext} disabled={!url || !user || !pass}
-                  style={{ flex: 1, padding: "0.75rem", background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-md)", color: "var(--accent-on)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", opacity: (!url || !user || !pass) ? 0.5 : 1 }}>
+                  className="pv-btn pv-btn--primary" style={{ flex: 1, gap: "0.5rem" }}>
                   {t("splash.browseServer")} <ArrowRight size={16} />
                 </button>
               </div>

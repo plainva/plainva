@@ -94,6 +94,11 @@ body {
   min-height: 64px;
   padding: calc(6px + env(safe-area-inset-top)) 8px 6px;
   background: var(--m-surface);
+  /* Subtle M3 elevation: the bar sits gently above the scrolling content.
+     position+z-index so the shadow paints over the page below it. */
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.12);
 }
 
 .m-topbar {

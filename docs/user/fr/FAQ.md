@@ -70,6 +70,10 @@ Alors c'est la connexion de synchronisation elle-même qui est rompue — souven
 
 Plainva est une application de bureau, pas une page web. Les touches de rechargement (F5, Ctrl+R) sont désactivées volontairement — un rechargement supprimerait vos onglets ouverts et vos modifications non enregistrées. Le menu contextuel intégré de la WebView est également masqué ; un clic droit sur du texte sélectionné propose toujours **Copier**, et l'arborescence des fichiers, les onglets et les tableaux conservent leurs propres menus contextuels.
 
+### Pourquoi ne vois-je aucune animation ?
+
+Plainva respecte le réglage « réduire les animations » de votre système. Si les transitions et les effets sont absents (les boutons, menus et surlignages ne bougent pas), les animations sont désactivées dans votre système d'exploitation. Sous **Windows** : Paramètres → Accessibilité → Effets visuels → activez **Effets d'animation**. Sous **macOS** : Réglages Système → Accessibilité → Écran → désactivez **Réduire les animations**.
+
 ### Comment changer la langue ?
 
 **Paramètres → App → Apparence → Langue** (actuellement allemand et anglais).
