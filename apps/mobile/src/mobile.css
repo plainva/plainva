@@ -64,7 +64,10 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
+  /* The FAB overhangs the navigation bar by 26px into this scroll area
+     (maintainer finding on iOS: content collided with ＋) — the bottom
+     padding keeps the last rows scrollable clear of it. */
+  padding: 4px 16px calc(64px + env(safe-area-inset-bottom));
 }
 
 .m-page--note {
