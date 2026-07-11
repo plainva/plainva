@@ -10,5 +10,6 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(WebDavHttpPlugin())
         bridge?.registerPluginInstance(SecureStorePlugin())
+        bridge?.registerPluginInstance(AtomicFilePlugin())
     }
 }

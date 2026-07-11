@@ -13,6 +13,7 @@
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		7A0002000000000000000001 /* WebDavHttpPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000001 /* WebDavHttpPlugin.swift */; };
 		7A0002000000000000000002 /* SecureStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000002 /* SecureStorePlugin.swift */; };
+		7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000004 /* AtomicFilePlugin.swift */; };
 		7A0002000000000000000003 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000003 /* MainViewController.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
@@ -27,6 +28,7 @@
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7A0001000000000000000001 /* WebDavHttpPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDavHttpPlugin.swift; sourceTree = "<group>"; };
 		7A0001000000000000000002 /* SecureStorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStorePlugin.swift; sourceTree = "<group>"; };
+		7A0001000000000000000004 /* AtomicFilePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFilePlugin.swift; sourceTree = "<group>"; };
 		7A0001000000000000000003 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7A0001000000000000000001 /* WebDavHttpPlugin.swift */,
 				7A0001000000000000000002 /* SecureStorePlugin.swift */,
+				7A0001000000000000000004 /* AtomicFilePlugin.swift */,
 				7A0001000000000000000003 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -167,6 +170,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				7A0002000000000000000001 /* WebDavHttpPlugin.swift in Sources */,
 				7A0002000000000000000002 /* SecureStorePlugin.swift in Sources */,
+				7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */,
 				7A0002000000000000000003 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
