@@ -122,13 +122,18 @@ jobs:
 
       - name: Archive
         working-directory: apps/mobile/ios/App
+        # CURRENT_PROJECT_VERSION = the monotonic workflow run number, so every
+        # upload gets a unique, increasing build number (App Store Connect
+        # rejects a re-used one). MARKETING_VERSION (1.0) stays the user-facing
+        # version; bump it in the pbxproj for a real release.
         run: |
           xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/App.xcarchive"
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
 
       - name: Export and upload to TestFlight
         working-directory: apps/mobile/ios/App
