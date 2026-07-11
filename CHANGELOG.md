@@ -7,12 +7,12 @@ reaches 1.0.
 
 ## [Unreleased]
 
-## [0.1.3] — Unreleased
+## [0.2.0] — 2026-07-11
 
-A hardening release driven by the first external user reports (thank you!)
-and a deep review pass: crash-safe file writes, a sturdier sync engine, and
-the most-requested customization options. No format changes; existing vaults
-and `.base` files are untouched.
+The first big update after launch, driven by the first external user reports
+(thank you!) and a deep review pass: crash-safe file writes, a sturdier sync
+engine, a reorganized settings dialog and the most-requested customization
+options. No format changes; existing vaults and `.base` files are untouched.
 
 ### Fixed
 
@@ -24,9 +24,9 @@ and `.base` files are untouched.
 
 ### Added
 
-- **Content font size and font family** (Settings → General): scale the
-  editor and reading view from 12–24 px and pick serif, sans-serif, monospace
-  or any installed font — the interface itself stays unchanged (#5).
+- **Content font size and font family** (Settings → App → Editor & notes):
+  scale the editor and reading view from 12–24 px and pick serif, sans-serif,
+  monospace or any installed font — the interface itself stays unchanged (#5).
 - **Interface zoom** (80–150 %): scales the whole window via
   `Ctrl/Cmd+Plus/Minus`, `Ctrl/Cmd+0` resets (#5).
 - **Export as Markdown…** in the editor menu and command palette saves a copy
@@ -36,8 +36,12 @@ and `.base` files are untouched.
 - **Draft recovery.** While you type, Plainva journals the unsaved buffer;
   after a crash or failed save, reopening the note offers to restore the
   draft.
-- **Pending-transfer view** (Settings → Sync) shows what is still queued for
-  the cloud, and a **Rebuild index** button covers stale search/backlinks.
+- **In-vault folder pickers** for the daily-notes and template folders: a
+  folder button next to each field browses the vault instead of typing the
+  path.
+- **Pending-transfer view** (Settings → Vault → Sync) shows what is still
+  queued for the cloud, and a **Rebuild index** button covers stale
+  search/backlinks.
 - **Focus mode** command collapses both sidebars and restores the layout on
   the next invocation. The right sidebar now remembers its visibility per
   view (notes, databases, vault map — the map starts collapsed), and the
@@ -48,6 +52,14 @@ and `.base` files are untouched.
 
 ### Changed
 
+- **The settings dialog is reorganized into two worlds.** The left rail now
+  shows the app-wide areas (Appearance, Editor & notes, Startup & behavior,
+  Updates, About & diagnostics) and the vault areas (Sync, Content &
+  structure, Backup & version history, Maintenance) at once, with a dropdown
+  picking the vault — no more one nav row per vault. Three settings moved to
+  where they belong: auto-open last vault (startup, not appearance), vault
+  statistics (per vault, not global) and rebuild index (maintenance, not
+  sync). Nothing was removed and no setting changed behavior.
 - **Every note write is atomic now** (temp file + fsync + rename, desktop and
   Android): a crash, full disk or network-share drop can no longer leave a
   torn or half-written note.
