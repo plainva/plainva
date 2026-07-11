@@ -203,8 +203,9 @@ export default function App() {
   };
 
   const capture = () => {
-    // Context-aware (P3): capture into the folder the user is looking at.
-    const folder = browseFolder() || "Inbox";
+    // Context-aware (P3): capture into the folder the user is looking at,
+    // else the configurable inbox (R3.6).
+    const folder = browseFolder() || getMobileSettings().inboxFolder;
     void vaultOps.createNote(vault, folder, "Note").then((path) => {
       setNav((s) => pushCapturedNote(s, slots, path));
     });
@@ -240,7 +241,7 @@ export default function App() {
       });
       const name = value?.trim().replace(/[\\/]/g, "-");
       if (cancelled || !name) return;
-      const folder = browseFolder() || "Inbox";
+      const folder = browseFolder() || getMobileSettings().inboxFolder;
       const path = await vaultOps.createNoteFromTemplate(vault, folder, name, raw);
       setNav((s) => pushCapturedNote(s, slots, path));
     })();
@@ -328,7 +329,7 @@ export default function App() {
         ) : top?.kind === "bookmarks" ? (
           <BookmarksScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "settings" ? (
-          <SettingsScreen onBack={pop} />
+          <SettingsScreen onBack={pop} vault={vault} />
         ) : top?.kind === "sync" ? (
           <AddVaultScreen onBack={pop} vault={vault} />
         ) : top?.kind === "vault" ? (

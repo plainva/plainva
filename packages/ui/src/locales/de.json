@@ -1528,6 +1528,9 @@
     "todayOpenDaily": "Tagesnotiz öffnen",
     "todayCreateDaily": "Tagesnotiz erstellen",
     "todayEdited": "An diesem Tag bearbeitet",
-    "todayNothing": "An diesem Tag wurde nichts bearbeitet."
+    "todayNothing": "An diesem Tag wurde nichts bearbeitet.",
+    "settingFolders": "Ordner",
+    "settingInboxFolder": "Inbox-Ordner",
+    "settingTemplateFolder": "Vorlagen-Ordner"
   }
 }

@@ -1538,6 +1538,9 @@
     "todayOpenDaily": "Otwórz notatkę dzienną",
     "todayCreateDaily": "Utwórz notatkę dzienną",
     "todayEdited": "Edytowane tego dnia",
-    "todayNothing": "Tego dnia niczego nie edytowano."
+    "todayNothing": "Tego dnia niczego nie edytowano.",
+    "settingFolders": "Foldery",
+    "settingInboxFolder": "Folder skrzynki",
+    "settingTemplateFolder": "Folder szablonów"
   }
 }

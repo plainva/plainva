@@ -1533,6 +1533,9 @@
     "todayOpenDaily": "Abrir nota diária",
     "todayCreateDaily": "Criar nota diária",
     "todayEdited": "Editadas neste dia",
-    "todayNothing": "Nada foi editado neste dia."
+    "todayNothing": "Nada foi editado neste dia.",
+    "settingFolders": "Pastas",
+    "settingInboxFolder": "Pasta de entrada",
+    "settingTemplateFolder": "Pasta de modelos"
   }
 }

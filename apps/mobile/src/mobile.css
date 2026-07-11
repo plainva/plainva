@@ -382,6 +382,16 @@ body {
   border-radius: 10px;
 }
 
+.m-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m-field-row input {
+  flex: 1;
+  min-width: 0;
+}
+
 .m-sync-actions {
   display: flex;
   gap: 10px;

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { APP_LANGUAGES, TextInput } from "@plainva/ui";
+import { FolderPickerSheet } from "./components/FolderPickerSheet";
 import { mSelect } from "./services/mobileDialogs";
 import {
   getMobileSettings,
@@ -9,6 +10,7 @@ import {
   type DefaultView,
   type ThemeMode,
 } from "./services/mobileSettings";
+import type { MobileVault } from "./services/vaultService";
 import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./navigation";
 
 /**
@@ -18,9 +20,11 @@ import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./n
  * R2.2 adds the tab-bar layout: up to four pool screens, ▲▼ reorder.
  * R3.3: choices open M3 selection sheets instead of native <select>s.
  */
-export function SettingsScreen({ onBack }: { onBack: () => void }) {
+export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
+  // Folder picker target (R3.6): which path setting is being browsed.
+  const [pickFor, setPickFor] = useState<"dailyFolder" | "inboxFolder" | "templateFolder" | null>(null);
 
   const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
     void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
@@ -107,15 +111,40 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         value={viewLabel(settings.defaultView)}
       />
 
+      {/* Configurable capture/daily/template folders (R3.6): free text plus
+          a vault-internal folder picker on every field. */}
+      <p className="m-sectionlabel">{t("mobile.settingFolders")}</p>
       <div className="m-sync">
-        <label className="m-field">
-          <span>{t("mobile.settingDailyFolder")}</span>
-          <TextInput
-            onChange={(e) => update({ dailyFolder: e.target.value.trim() || "Daily" })}
-            value={settings.dailyFolder}
-          />
-        </label>
+        <FolderField
+          label={t("mobile.settingDailyFolder")}
+          onChange={(v) => update({ dailyFolder: v || "Daily" })}
+          onPick={() => setPickFor("dailyFolder")}
+          value={settings.dailyFolder}
+        />
+        <FolderField
+          label={t("mobile.settingInboxFolder")}
+          onChange={(v) => update({ inboxFolder: v || "Inbox" })}
+          onPick={() => setPickFor("inboxFolder")}
+          value={settings.inboxFolder}
+        />
+        <FolderField
+          label={t("mobile.settingTemplateFolder")}
+          onChange={(v) => update({ templateFolder: v || "Templates" })}
+          onPick={() => setPickFor("templateFolder")}
+          value={settings.templateFolder}
+        />
       </div>
+
+      {pickFor && (
+        <FolderPickerSheet
+          onClose={() => setPickFor(null)}
+          onPick={(path) => {
+            if (path) update({ [pickFor]: path });
+          }}
+          title={t("settings.browseFolders")}
+          vault={vault}
+        />
+      )}
 
       <p className="m-sectionlabel">{t("mobile.settingTabs")}</p>
       <p className="m-hint">{t("mobile.settingTabsHint", { max: MAX_TAB_SLOTS })}</p>
@@ -180,5 +209,30 @@ function SettingRow({
       <span className="m-prop-val">{value}</span>
       <ChevronRight className="m-chevron" size={18} />
     </button>
+  );
+}
+
+/** Path setting: free-text field plus the vault-internal folder picker. */
+function FolderField({
+  label,
+  value,
+  onChange,
+  onPick,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onPick: () => void;
+}) {
+  return (
+    <label className="m-field">
+      <span>{label}</span>
+      <span className="m-field-row">
+        <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
+        <button aria-label={label} className="m-iconbtn" onClick={(e) => { e.preventDefault(); onPick(); }} type="button">
+          <FolderSearch size={20} />
+        </button>
+      </span>
+    </label>
   );
 }

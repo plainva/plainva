@@ -1523,6 +1523,9 @@
     "todayOpenDaily": "デイリーノートを開く",
     "todayCreateDaily": "デイリーノートを作成",
     "todayEdited": "この日に編集",
-    "todayNothing": "この日に編集されたものはありません。"
+    "todayNothing": "この日に編集されたものはありません。",
+    "settingFolders": "フォルダー",
+    "settingInboxFolder": "インボックスフォルダー",
+    "settingTemplateFolder": "テンプレートフォルダー"
   }
 }

@@ -1533,6 +1533,9 @@
     "todayOpenDaily": "Apri nota giornaliera",
     "todayCreateDaily": "Crea nota giornaliera",
     "todayEdited": "Modificate in questo giorno",
-    "todayNothing": "Niente è stato modificato in questo giorno."
+    "todayNothing": "Niente è stato modificato in questo giorno.",
+    "settingFolders": "Cartelle",
+    "settingInboxFolder": "Cartella Inbox",
+    "settingTemplateFolder": "Cartella dei modelli"
   }
 }

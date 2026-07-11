@@ -1528,6 +1528,9 @@
     "todayOpenDaily": "Dagnotitie openen",
     "todayCreateDaily": "Dagnotitie aanmaken",
     "todayEdited": "Bewerkt op deze dag",
-    "todayNothing": "Er is op deze dag niets bewerkt."
+    "todayNothing": "Er is op deze dag niets bewerkt.",
+    "settingFolders": "Mappen",
+    "settingInboxFolder": "Inbox-map",
+    "settingTemplateFolder": "Sjablonenmap"
   }
 }
