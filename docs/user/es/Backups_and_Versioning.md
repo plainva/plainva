@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Stand: 2026-07-05
+Stand: 2026-07-11
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -48,7 +48,7 @@ Los archivos ZIP se nombran `VaultName_2026-07-05_14-30-00.zip` y contienen toda
 
 ## Configuración de un vistazo
 
-Configuración → tu vault → **Copias de seguridad y versionado**:
+Configuración → **Vault** → **Copias de seguridad y versionado**:
 
 | Ajuste | Predeterminado | Significado |
 |---|---|---|

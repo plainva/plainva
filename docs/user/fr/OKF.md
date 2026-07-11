@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-11
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -33,7 +33,7 @@ Le Markdown pur est merveilleusement portable — mais à lui seul, il n'a aucun
 
 ## Ce que Plainva fait automatiquement
 
-**Les nouveaux fichiers** reçoivent l'en-tête OKF automatiquement : chaque note créée dans Plainva reçoit `type` et `okf_version` dans son frontmatter. Vous configurez les valeurs par vault : **Paramètres → Paramètres du vault → OKF (Open Knowledge Format)** → **type pour les nouvelles notes** (par défaut `Note`) et **type pour les notes quotidiennes** (par défaut `Daily Note`). Si un modèle apporte son propre `type`, le modèle l'emporte.
+**Les nouveaux fichiers** reçoivent l'en-tête OKF automatiquement : chaque note créée dans Plainva reçoit `type` et `okf_version` dans son frontmatter. Vous configurez les valeurs par vault : **Paramètres → Vault → Contenu et structure → OKF (Open Knowledge Format)** → **type pour les nouvelles notes** (par défaut `Note`) et **type pour les notes quotidiennes** (par défaut `Daily Note`). Si un modèle apporte son propre `type`, le modèle l'emporte.
 
 **Les fichiers existants ne sont jamais modifiés sans votre accord.** Plainva n'ajoute des champs OKF qu'à la création de nouveaux fichiers ou lorsque vous démarrez explicitement la conversion.
 
@@ -45,7 +45,7 @@ Le Markdown pur est merveilleusement portable — mais à lui seul, il n'a aucun
 
 Une `index.md` est la table des matières d'un dossier : une liste des notes et sous-dossiers qu'il contient, avec des descriptions et des liens relatifs.
 
-- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Générer/actualiser index.md**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → OKF → Ouvrir…**).
+- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Générer/actualiser index.md**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → Vault → Contenu et structure → Ouvrir…**).
 - **Adopter plutôt que générer** — si vous avez déjà des notes de synthèse (MOC, Overview, note de dossier, README…), le gestionnaire les suggère comme candidates. **Adopter** renomme le fichier en `index.md` (les liens sont mis à jour dans tout le vault) et peut éventuellement le préparer pour l'OKF.
 - **Entretien automatique** — les listings *générés* par Plainva portent un marqueur invisible à la fin du fichier (un commentaire HTML). Seuls ces fichiers marqués sont maintenus à jour automatiquement à chaque changement dans le dossier — et uniquement dans les vaults OKF (reconnaissables par `okf_version` dans l'`index.md` racine).
 - **Lecture seule avec une échappatoire** — les fichiers index.md gérés s'ouvrent en mode lecture avec la bannière « Cet index.md est géré par Plainva et mis à jour automatiquement. » Vous pouvez y **Actualiser** — ou choisir **Modifier quand même** : cela retire le marqueur et le fichier redevient entièrement le vôtre (plus de mises à jour automatiques).
@@ -55,7 +55,7 @@ Une `index.md` est la table des matières d'un dossier : une liste des notes et 
 
 ## Convertir un vault existant (opt-in)
 
-Si des fichiers du vault ne sont pas conformes au format OKF (champ `type` manquant, ou noms réservés utilisés comme notes normales), Plainva propose la conversion — une fois à l'ouverture du vault, et en permanence sous **Paramètres → OKF → Conversion OKF** (l'entrée n'apparaît que tant qu'il y a quelque chose à faire).
+Si des fichiers du vault ne sont pas conformes au format OKF (champ `type` manquant, ou noms réservés utilisés comme notes normales), Plainva propose la conversion — une fois à l'ouverture du vault, et en permanence sous **Paramètres → Vault → Contenu et structure → Conversion OKF** (l'entrée n'apparaît que tant qu'il y a quelque chose à faire).
 
 L'assistant **Convertir au format OKF** fonctionne en étapes claires :
 

@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-07-05
+Stand: 2026-07-11
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -48,7 +48,7 @@ Die ZIP-Dateien heißen `VaultName_2026-07-05_14-30-00.zip` und enthalten alle N
 
 ## Einstellungen im Überblick
 
-Einstellungen → Dein Vault → **Backup & Versionierung**:
+Einstellungen → **Vault** → **Backup & Versionierung**:
 
 | Einstellung | Standard | Bedeutung |
 |---|---|---|

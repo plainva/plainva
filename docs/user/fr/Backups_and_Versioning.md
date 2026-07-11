@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-07-05
+Dernière mise à jour : 2026-07-11
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -48,7 +48,7 @@ Les fichiers ZIP sont nommés `VaultName_2026-07-05_14-30-00.zip` et contiennent
 
 ## Paramètres en un coup d'œil
 
-Paramètres → votre vault → **Sauvegarde & historique des versions** :
+Paramètres → **Vault** → **Sauvegarde & historique des versions** :
 
 | Paramètre | Par défaut | Signification |
 |---|---|---|

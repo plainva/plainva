@@ -1,6 +1,6 @@
 # Configurando a Sincronização do Google Drive (Traga Suas Próprias Credenciais)
 
-Stand: 2026-07-04
+Stand: 2026-07-11
 
 Esta tradução foi gerada automaticamente — correções são bem-vindas.
 
@@ -53,7 +53,7 @@ Para que o Plainva use suas credenciais, uma tela de consentimento ("OAuth Conse
 
 ### 5. Informá-los no Plainva
 1. Abra o Plainva e vá até as configurações do vault (ícone de engrenagem do vault em questão).
-2. Abra a seção **Sincronização na nuvem**.
+2. Abra a seção **Sincronização**.
 3. Escolha **Google Drive** como o provedor.
 4. Cole o **Client ID** e o **Client Secret** copiados nos campos correspondentes.
 5. Clique em **Conectar ao Google**.

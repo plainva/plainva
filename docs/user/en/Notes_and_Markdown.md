@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last reviewed: 2026-07-10
+Last reviewed: 2026-07-11
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -81,7 +81,7 @@ Every note can carry an icon (Notion-style above the title, also visible in tabs
 
 ## Templates
 
-Set a **Template Folder** under **Settings → Vault Settings → Daily Notes & Templates**. Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins.
+Set a **Template Folder** under **Settings → Vault → Content & structure**. Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins.
 
 Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree.
 

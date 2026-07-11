@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Einstellungen",
-    "general": "Allgemein",
     "theme": "Design",
     "themeLight": "Hell",
     "themeDark": "Dunkel",
@@ -164,9 +163,7 @@
     "showShortcuts": "Tastenkombinationen anzeigen",
     "activeSync": "Aktiver Sync",
     "activeSyncHint": "noch verbunden – unten „Trennen“ wählen, um den Sync zu stoppen",
-    "warnings": "Warnhinweise",
     "showCompatWarning": "Zeige Kompatibilitäts-Hinweise für Plainva-Erweiterungen",
-    "diagnostics": "System-Diagnose",
     "osKeychain": "OS-Keychain",
     "keychainChecking": "Wird geprüft...",
     "keychainNative": "Aktiv (Native)",
@@ -181,7 +178,6 @@
     "densityCompact": "Kompakt",
     "defaultViewMode": "Standard-Ansicht",
     "defaultViewModeDesc": "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung.",
-    "appearance": "Darstellung",
     "syncSection": "Synchronisation",
     "autoUpdateCheck": "Beim Start nach Updates suchen",
     "autoUpdateCheckDesc": "Prüft kurz nach dem Start still auf neue Versionen und zeigt bei Funden einen Hinweis.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Suchindex",
     "rebuildIndexDesc": "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken.",
     "rebuildIndexAction": "Index neu aufbauen",
-    "rebuildIndexRunning": "Läuft…"
+    "rebuildIndexRunning": "Läuft…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Vault wählen",
+    "sectionAppearance": "Erscheinungsbild",
+    "sectionEditor": "Editor & Notizen",
+    "sectionBehavior": "Start & Verhalten",
+    "sectionContent": "Inhalt & Struktur",
+    "sectionMaintenance": "Wartung"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",

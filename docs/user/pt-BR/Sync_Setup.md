@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -8,7 +8,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 
 ## Fundamentos
 
-- A configuração fica em **Configurações → Configurações do vault → Sincronização na nuvem**. O **Provedor de sincronização** é escolhido por vault: **Nenhum (somente local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Armazenamento compatível com S3** — sempre exatamente um por vault.
+- A configuração fica em **Configurações → Vault → Sincronização**. O **Provedor de sincronização** é escolhido por vault: **Nenhum (somente local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Armazenamento compatível com S3** — sempre exatamente um por vault.
 - **Configurar um novo vault online a partir da tela inicial**: **Abrir vault online** guia você pelas mesmas três etapas em todos os provedores — **1. Conectar** (fazer login ou informar credenciais), **2. Escolher a pasta na nuvem**, **3. Escolher ou criar a pasta local**. Você também pode configurar a sincronização de um vault já aberto a qualquer momento em Configurações.
 - Salvamentos locais são enviados imediatamente; o Plainva verifica alterações remotas no **Intervalo de sincronização (segundos)** configurado.
 - Alterações offline ficam em uma fila e são transferidas no próximo contato; a barra de status mostra **Online**/**Offline** e o indicador de sincronização mostra o estado (**Sincronizar agora** ao clicar). Durante uma sincronização longa ou a primeira sincronização, a barra de status mostra o progresso como um contador (por exemplo, **Sync 123/540**), para que você veja que ela está avançando pelo vault.
@@ -17,7 +17,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 - **Resolver conflitos**: um banner na nota afetada (e **Resolver conflito…** no menu de contexto do arquivo `.CONFLICT` na árvore) abre o diálogo de comparação — o estado atual do arquivo à esquerda, sua versão preservada à direita, editável com adoção por bloco. **Salvar o lado direito e resolver** grava o resultado no arquivo e remove a cópia de conflito; **Manter o outro lado** descarta sua cópia (um snapshot de versão permanece). O diálogo de erro de sincronização também lista as cópias de conflito existentes e leva à mesma comparação com um clique.
 - **Proteção contra exclusões em massa**: se uma parcela incomumente grande dos arquivos sincronizados estiver prestes a ser excluída na nuvem de uma só vez (por exemplo, porque a pasta local do vault foi esvaziada ou movida), o Plainva retém as exclusões e pergunta primeiro: **Excluir na nuvem** as executa, **Não excluir (restaurar)** as descarta e restaura os arquivos da nuvem na próxima sincronização. As exclusões que você mesmo confirmou no Plainva não são retidas — em exclusões grandes (mais de 10 arquivos ou mais de 20% do vault), o Plainva pede uma segunda confirmação antes de excluir.
 - Anexos (imagens etc.) também são sincronizados.
-- Credenciais e tokens são armazenados no chaveiro do sistema operacional (status: **Configurações → Diagnóstico do sistema → Chaveiro do sistema**), nunca em arquivos dentro do vault.
+- Credenciais e tokens são armazenados no chaveiro do sistema operacional (status: **Configurações → App → Sobre e diagnóstico → Chaveiro do sistema**), nunca em arquivos dentro do vault.
 - **Desconectar** interrompe a sincronização do vault; nenhum arquivo é excluído em lugar nenhum ao fazer isso.
 
 ## WebDAV / Nextcloud

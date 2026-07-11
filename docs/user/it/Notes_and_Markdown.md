@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -81,7 +81,7 @@ Ogni nota può avere un'icona (in stile Notion sopra il titolo, visibile anche n
 
 ## Modelli
 
-Imposta una **Cartella dei modelli** in **Impostazioni → Impostazioni del vault → Note giornaliere e modelli**. Poi inserisci i modelli con `Ctrl+Alt+T` o il comando slash **Inserisci modello**. I modelli definiscono completamente il contenuto dei nuovi file — incluso il frontmatter: se un modello porta un proprio `type`, vince il modello.
+Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e struttura**. Poi inserisci i modelli con `Ctrl+Alt+T` o il comando slash **Inserisci modello**. I modelli definiscono completamente il contenuto dei nuovi file — incluso il frontmatter: se un modello porta un proprio `type`, vince il modello.
 
 Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) offre **Crea nuovo modello** (si apre un modello nuovo pronto per la modifica) e **Salva la nota corrente come modello** (copia la nota aperta nella cartella dei modelli). I modelli sono normali file Markdown — modificali, rinominali o eliminali direttamente nell'albero dei file.
 

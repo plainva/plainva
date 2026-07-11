@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-07-10
+Stan na: 2026-07-11
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -81,7 +81,7 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 
 ## Szablony
 
-Ustaw **Folder szablonów** w **Ustawienia → Ustawienia vaultu → Notatki dzienne i szablony**. Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa.
+Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura**. Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa.
 
 Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
 

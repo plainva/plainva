@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-07-05
+Stan na: 2026-07-11
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -48,7 +48,7 @@ Pliki ZIP mają nazwę `VaultName_2026-07-05_14-30-00.zip` i zawierają wszystki
 
 ## Ustawienia w skrócie
 
-Ustawienia → Twój vault → **Backup i historia wersji**:
+Ustawienia → **Vault** → **Backup i historia wersji**:
 
 | Ustawienie | Domyślnie | Znaczenie |
 |---|---|---|

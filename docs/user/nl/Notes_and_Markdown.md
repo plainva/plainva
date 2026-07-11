@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-10
+Laatst bijgewerkt: 2026-07-11
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -81,7 +81,7 @@ Elke notitie kan een icoon dragen (Notion-achtig boven de titel, ook zichtbaar i
 
 ## Sjablonen
 
-Stel een **Sjablonenmap** in onder **Instellingen → Vault-instellingen → Dagelijkse notities**. Voeg sjablonen dan in via `Ctrl+Alt+T` of het slash-commando **Sjabloon invoegen**. Sjablonen bepalen de inhoud van nieuwe bestanden volledig — inclusief frontmatter: als een sjabloon een eigen `type` meebrengt, wint het sjabloon.
+Stel een **Sjablonenmap** in onder **Instellingen → Vault → Inhoud en structuur**. Voeg sjablonen dan in via `Ctrl+Alt+T` of het slash-commando **Sjabloon invoegen**. Sjablonen bepalen de inhoud van nieuwe bestanden volledig — inclusief frontmatter: als een sjabloon een eigen `type` meebrengt, wint het sjabloon.
 
 Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom.
 

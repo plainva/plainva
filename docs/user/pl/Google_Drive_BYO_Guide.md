@@ -49,7 +49,7 @@ Aby Plainva mogła używać Twoich danych dostępowych, musi zostać skonfigurow
 
 ### 5. Wprowadź je w Plainva
 1. Otwórz Plainva i przejdź do ustawień vaultu (ikona zębatki przy danym vaulcie).
-2. Otwórz sekcję **Synchronizacja z chmurą**.
+2. Otwórz sekcję **Synchronizacja**.
 3. Wybierz **Google Drive** jako dostawcę.
 4. Wklej skopiowane **Client ID** i **Client Secret** w odpowiednie pola.
 5. Kliknij **Połącz z Google**.

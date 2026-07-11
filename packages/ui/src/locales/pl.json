@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Ustawienia",
-    "general": "Ogólne",
     "theme": "Motyw",
     "themeLight": "Jasny",
     "themeDark": "Ciemny",
@@ -164,9 +163,7 @@
     "showShortcuts": "Pokaż skróty klawiszowe",
     "activeSync": "Aktywna synchronizacja",
     "activeSyncHint": "nadal połączono – aby zatrzymać synchronizację, użyj poniżej „Rozłącz”",
-    "warnings": "Ostrzeżenia",
     "showCompatWarning": "Pokazuj ostrzeżenia o zgodności dla rozszerzeń Plainva",
-    "diagnostics": "Diagnostyka systemu",
     "osKeychain": "Pęk kluczy systemu",
     "keychainChecking": "Sprawdzanie...",
     "keychainNative": "Aktywny (natywny)",
@@ -181,7 +178,6 @@
     "densityCompact": "Kompaktowy",
     "defaultViewMode": "Widok domyślny",
     "defaultViewModeDesc": "Notatki otwierają się w tym widoku; ręczna zmiana obowiązuje dla danego pliku w bieżącej sesji.",
-    "appearance": "Wygląd",
     "syncSection": "Synchronizacja",
     "autoUpdateCheck": "Sprawdzaj aktualizacje przy starcie",
     "autoUpdateCheckDesc": "Krótko po starcie po cichu sprawdza nowe wersje i pokazuje powiadomienie, gdy jakaś jest dostępna.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Indeks wyszukiwania",
     "rebuildIndexDesc": "Odbudowuje od zera indeks wyszukiwania tego sejfu — pomaga, gdy wyszukiwanie, backlinki lub bazy wyglądają na nieaktualne.",
     "rebuildIndexAction": "Odbuduj indeks",
-    "rebuildIndexRunning": "Trwa…"
+    "rebuildIndexRunning": "Trwa…",
+    "sectionApp": "Aplikacja",
+    "sectionVault": "Vault",
+    "vaultSelect": "Wybierz vault",
+    "sectionAppearance": "Wygląd",
+    "sectionEditor": "Edytor i notatki",
+    "sectionBehavior": "Uruchamianie i zachowanie",
+    "sectionContent": "Treść i struktura",
+    "sectionMaintenance": "Konserwacja"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",

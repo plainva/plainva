@@ -49,7 +49,7 @@ Om Plainva je credentials te laten gebruiken, moet een toestemmingsscherm ("OAut
 
 ### 5. Invoeren in Plainva
 1. Open Plainva en ga naar de vault-instellingen (tandwielicoon voor de betreffende vault).
-2. Open de sectie **Cloud Sync**.
+2. Open de sectie **Synchronisatie**.
 3. Kies **Google Drive** als provider.
 4. Plak de gekopieerde **Client-ID** en het **Client secret** in de bijbehorende velden.
 5. Klik op **Verbinden met Google**.

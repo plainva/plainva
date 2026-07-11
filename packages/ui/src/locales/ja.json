@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "設定",
-    "general": "一般",
     "theme": "テーマ",
     "themeLight": "ライト",
     "themeDark": "ダーク",
@@ -164,9 +163,7 @@
     "showShortcuts": "キーボードショートカットを表示",
     "activeSync": "同期中",
     "activeSyncHint": "接続を維持しています——同期を停止するには下の「切断」を選択してください",
-    "warnings": "警告",
     "showCompatWarning": "Plainva拡張機能の互換性警告を表示",
-    "diagnostics": "システム診断",
     "osKeychain": "OSキーチェーン",
     "keychainChecking": "確認中...",
     "keychainNative": "有効（ネイティブ）",
@@ -181,7 +178,6 @@
     "densityCompact": "コンパクト",
     "defaultViewMode": "デフォルトの表示",
     "defaultViewModeDesc": "ノートはこの表示で開きます。手動で切り替えた場合は、現在のセッション中そのファイルに適用されます。",
-    "appearance": "外観",
     "syncSection": "同期",
     "autoUpdateCheck": "起動時にアップデートを確認",
     "autoUpdateCheckDesc": "起動直後に静かに新しいバージョンを確認し、見つかった場合に通知を表示します。",
@@ -224,7 +220,15 @@
     "rebuildIndex": "検索インデックス",
     "rebuildIndexDesc": "この Vault の検索インデックスをゼロから再構築します。検索・バックリンク・データベースが古く見えるときに有効です。",
     "rebuildIndexAction": "インデックスを再構築",
-    "rebuildIndexRunning": "実行中…"
+    "rebuildIndexRunning": "実行中…",
+    "sectionApp": "アプリ",
+    "sectionVault": "保管庫",
+    "vaultSelect": "保管庫を選択",
+    "sectionAppearance": "外観",
+    "sectionEditor": "エディタとノート",
+    "sectionBehavior": "起動と動作",
+    "sectionContent": "コンテンツと構造",
+    "sectionMaintenance": "メンテナンス"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",

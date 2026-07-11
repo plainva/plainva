@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-07-05
+Laatst bijgewerkt: 2026-07-11
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -48,7 +48,7 @@ De ZIP-bestanden heten `VaultName_2026-07-05_14-30-00.zip` en bevatten alle noti
 
 ## Instellingen in één oogopslag
 
-Instellingen → jouw vault → **Backup & versiegeschiedenis**:
+Instellingen → **Vault** → **Backup & versiegeschiedenis**:
 
 | Instelling | Standaard | Betekenis |
 |---|---|---|

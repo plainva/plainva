@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -81,7 +81,7 @@ Jede Notiz kann ein Icon (Notion-artig über dem Titel, auch im Tab und Dateibau
 
 ## Vorlagen (Templates)
 
-Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault Einstellungen → Tagesnotizen & Vorlagen** fest. Dann fügst Du Vorlagen per `Strg+Alt+T` oder Slash-Befehl **Vorlage einfügen** ein. Vorlagen bestimmen den Inhalt neuer Dateien vollständig — inklusive Frontmatter: Bringt die Vorlage ein eigenes `type` mit, gewinnt es.
+Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault → Inhalt & Struktur** fest. Dann fügst Du Vorlagen per `Strg+Alt+T` oder Slash-Befehl **Vorlage einfügen** ein. Vorlagen bestimmen den Inhalt neuer Dateien vollständig — inklusive Frontmatter: Bringt die Vorlage ein eigenes `type` mit, gewinnt es.
 
 Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Neue Vorlage erstellen** (eine frische Vorlage öffnet sich zum Bearbeiten) und **Aktuelle Notiz als Vorlage speichern** (kopiert die offene Notiz in den Vorlagen-Ordner). Vorlagen sind gewöhnliche Markdown-Dateien — bearbeite, benenne oder lösche sie direkt im Dateibaum.
 

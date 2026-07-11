@@ -968,9 +968,9 @@ test('Density setting switches compact mode on the html element', async ({ page 
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
 
-  // The density select lives in the appearance group of the GENERAL section
-  // (plan §2.5); the modal opens on the active vault by default.
-  await dialog.getByRole('button', { name: /^(Allgemein|General)$/ }).click();
+  // The density select lives in the Appearance area of the APP world
+  // (settings redesign 2026-07-11); the modal opens on the active vault by default.
+  await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
   await dialog.getByLabel(/Dichte|Density/).click();
   await page.getByRole('option', { name: /Kompakt|Compact/ }).click();
   await expect
@@ -996,7 +996,7 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: /^(Allgemein|General)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
   await dialog.getByLabel(/Standard-Ansicht|Default view/).click();
   await page.getByRole('option', { name: /Lesemodus|Read Mode/ }).click();
   await page.keyboard.press('Escape');
@@ -1021,24 +1021,61 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await expect(page.locator('.markdown-reader')).toHaveCount(0);
 });
 
-test('Settings subnav: clicking a late anchor highlights it even when it cannot scroll to the top', async ({ page }) => {
+test('Settings two-worlds nav: vault dropdown switches the vault; cross-world clicks change the page', async ({ page }) => {
+  // A second (not-open) vault so the dropdown has something to switch to.
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'recentVaults') return [['/test-vault', '/zweiter-vault'], true];
+      return orig(cmd, args, options);
+    };
+  });
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: /^(Allgemein|General)$/ }).click();
 
-  // "Updates" is the LAST group: the container cannot scroll it up to the spy
-  // line, so before the click-wins fix the highlight never moved (the click
-  // looked dead). The clicked entry must become the active one regardless.
+  // Opens on the ACTIVE vault's page: the sync area heading is there.
+  await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toBeVisible();
+
+  // Cross-world: clicking an APP area switches to the app page.
+  await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
+  await expect(dialog.getByRole('heading', { name: /^(Erscheinungsbild|Appearance)$/ })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toHaveCount(0);
+
+  // …and a VAULT area click returns to the vault page (maintenance holds the reindex row).
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+  await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toBeVisible();
+
+  // The dropdown picks WHICH vault the vault areas show; a not-open vault
+  // renders the "not open" hint instead of the active-only maintenance rows.
+  await dialog.getByLabel(/Vault wählen|Choose vault/).click();
+  await page.getByRole('option', { name: 'zweiter-vault' }).click();
+  await expect(dialog.getByText('/zweiter-vault', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toHaveCount(0);
+});
+
+test('Settings nav: clicking a late anchor highlights it even when it cannot scroll to the top', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  // Two-worlds nav: the modal opens on the vault page; clicking an APP area
+  // switches the page AND scrolls. "Updates" is a late group the container
+  // cannot scroll up to the spy line, so before the click-wins fix the
+  // highlight never moved. The clicked entry must become the active one.
   const updates = dialog.getByRole('button', { name: /^Updates$/ });
   await updates.click();
   await expect(updates).toHaveCSS('font-weight', '600');
 
   // Clicking another anchor hands the highlight over.
-  const appearance = dialog.getByRole('button', { name: /^(Darstellung|Appearance)$/ });
+  const appearance = dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ });
   await appearance.click();
   await expect(appearance).toHaveCSS('font-weight', '600');
   await expect(updates).toHaveCSS('font-weight', '400');

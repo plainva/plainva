@@ -173,7 +173,7 @@ test('Language picker lists every shipped language; switching to French localize
   await page.getByRole('button', { name: en.shortcuts.openSettings, exact: true }).click();
   const dialog = page.getByRole('dialog', { name: en.settings.title });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: en.settings.general, exact: true }).click();
+  await dialog.getByRole('button', { name: en.settings.sectionAppearance, exact: true }).click();
 
   // The language picker offers all registered languages under their native names.
   await page.getByLabel(en.settings.language).click();
@@ -197,6 +197,6 @@ test('Language picker lists every shipped language; switching to French localize
   // Reopen: still French, and the picker shows Français as the current value.
   await frSettingsButton.click();
   await expect(page.getByRole('dialog', { name: fr.settings.title })).toBeVisible();
-  await page.getByRole('dialog', { name: fr.settings.title }).getByRole('button', { name: fr.settings.general, exact: true }).click();
+  await page.getByRole('dialog', { name: fr.settings.title }).getByRole('button', { name: fr.settings.sectionAppearance, exact: true }).click();
   await expect(page.getByLabel(fr.settings.language)).toContainText('Français');
 });

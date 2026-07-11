@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-10
+Laatst bijgewerkt: 2026-07-11
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -8,7 +8,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 
 ## Basisprincipes
 
-- Installatie onder **Instellingen → Vault-instellingen → Cloud Sync**. De **Sync-provider** wordt per vault gekozen: **Geen (alleen lokaal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** of **S3-compatibele opslag** — altijd precies één per vault.
+- Installatie onder **Instellingen → Vault → Synchronisatie**. De **Sync-provider** wordt per vault gekozen: **Geen (alleen lokaal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** of **S3-compatibele opslag** — altijd precies één per vault.
 - **Een nieuwe online vault instellen vanaf het startscherm**: **Online vault openen** loodst je voor elke provider door dezelfde drie stappen — **1. Verbinden** (aanmelden of toegangsgegevens invoeren), **2. Map in de cloud kiezen**, **3. Lokale map kiezen of aanmaken**. Je kunt de synchronisatie voor een al geopende vault ook altijd onder Instellingen instellen.
 - Lokale opslagen worden meteen geüpload; op externe wijzigingen controleert Plainva op het ingestelde **Sync-interval (seconden)**.
 - Offline wijzigingen worden verzameld in een wachtrij en overgedragen bij het volgende contact; de statusbalk toont **Online**/**Offline** en de sync-indicator de status (**Nu synchroniseren** bij klik). Bij een lange of eerste synchronisatie toont de statusbalk de voortgang als een teller (bijv. **Sync 123/540**), zodat je ziet dat de vault wordt doorgewerkt.
@@ -17,7 +17,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 - **Conflicten oplossen**: een banner in de betreffende notitie (en **Conflict oplossen…** in het rechtsklikmenu van het `.CONFLICT`-bestand in de boom) opent het vergelijkingsdialoogvenster — de huidige staat van het bestand links, jouw bewaarde versie rechts, bewerkbaar met overname per blok. **Rechterversie opslaan en oplossen** schrijft het resultaat naar het bestand en ruimt de conflictkopie op; **Andere kant behouden** verwerpt jouw kopie (een versiesnapshot blijft bewaard). Ook het synchronisatiefout-dialoogvenster toont bestaande conflictkopieën en leidt je met één klik naar diezelfde vergelijking.
 - **Bescherming tegen massaverwijderingen**: als een ongewoon groot deel van de gesynchroniseerde bestanden in één keer in de cloud verwijderd dreigt te worden (bijvoorbeeld omdat de lokale vault-map is geleegd of verplaatst), houdt Plainva de verwijderingen aan en vraagt eerst: **In de cloud verwijderen** voert ze uit, **Niet verwijderen (herstellen)** verwerpt ze en herstelt de bestanden bij de volgende synchronisatie vanuit de cloud. Verwijderingen die je zelf in Plainva hebt bevestigd, worden niet vastgehouden — bij grote verwijderingen (meer dan 10 bestanden of meer dan 20% van de vault) vraagt Plainva in plaats daarvan vóór het verwijderen een tweede keer om bevestiging.
 - Bijlagen (afbeeldingen enz.) worden mee gesynchroniseerd.
-- Toegangsgegevens en tokens komen terecht in de sleutelhanger van het besturingssysteem (status: **Instellingen → Systeemdiagnose → OS-sleutelhanger**), nooit in bestanden binnen de vault.
+- Toegangsgegevens en tokens komen terecht in de sleutelhanger van het besturingssysteem (status: **Instellingen → App → Over & diagnose → OS-sleutelhanger**), nooit in bestanden binnen de vault.
 - **Ontkoppelen** stopt de sync van de vault; er worden hierbij nergens bestanden verwijderd.
 
 ## WebDAV / Nextcloud

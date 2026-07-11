@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Configurações",
-    "general": "Geral",
     "theme": "Tema",
     "themeLight": "Claro",
     "themeDark": "Escuro",
@@ -164,9 +163,7 @@
     "showShortcuts": "Mostrar atalhos de teclado",
     "activeSync": "Sincronização ativa",
     "activeSyncHint": "ainda conectado – use “Desconectar” abaixo para parar a sincronização",
-    "warnings": "Avisos",
     "showCompatWarning": "Mostrar avisos de compatibilidade para extensões do Plainva",
-    "diagnostics": "Diagnóstico do sistema",
     "osKeychain": "Chaveiro do sistema",
     "keychainChecking": "Verificando...",
     "keychainNative": "Ativo (nativo)",
@@ -181,7 +178,6 @@
     "densityCompact": "Compacto",
     "defaultViewMode": "Visualização padrão",
     "defaultViewModeDesc": "As notas abrem nesta visualização; uma troca manual vale para o arquivo durante a sessão atual.",
-    "appearance": "Aparência",
     "syncSection": "Sincronização",
     "autoUpdateCheck": "Verificar atualizações ao iniciar",
     "autoUpdateCheckDesc": "Verifica silenciosamente novas versões logo após o início e mostra um aviso quando encontrar uma.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Índice de busca",
     "rebuildIndexDesc": "Reconstrói do zero o índice de busca deste vault — útil se a busca, os backlinks ou os bancos parecem desatualizados.",
     "rebuildIndexAction": "Reconstruir índice",
-    "rebuildIndexRunning": "Em andamento…"
+    "rebuildIndexRunning": "Em andamento…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Escolher vault",
+    "sectionAppearance": "Aparência",
+    "sectionEditor": "Editor e notas",
+    "sectionBehavior": "Inicialização e comportamento",
+    "sectionContent": "Conteúdo e estrutura",
+    "sectionMaintenance": "Manutenção"
   },
   "editor": {
     "fileNotFound": "Arquivo não encontrado",

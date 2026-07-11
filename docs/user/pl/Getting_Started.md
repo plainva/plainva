@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-10
+Stan na: 2026-07-11
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -36,7 +36,7 @@ Tryb zmieniasz w prawym górnym rogu edytora:
 | **Podgląd na żywo** | Domyślny tryb do pisania: Markdown renderuje się w trakcie pisania, znaki formatowania pojawiają się tylko tam, gdzie właśnie pracujesz. |
 | **Źródło Markdown** | Surowy tekst bez renderowania — dla pełnej kontroli. |
 
-Tryb, w jakim otwierają się notatki, zależy od Ciebie: wybierz **Widok domyślny** w **Ustawienia → Ogólne** (czytanie, na żywo lub źródło). Ręczna zmiana trybu w edytorze obowiązuje dla tego pliku w bieżącej sesji.
+Tryb, w jakim otwierają się notatki, zależy od Ciebie: wybierz **Widok domyślny** w **Ustawienia → Aplikacja → Edytor i notatki** (czytanie, na żywo lub źródło). Ręczna zmiana trybu w edytorze obowiązuje dla tego pliku w bieżącej sesji.
 
 Dodatkowo można przełączać się między **Szerokością czytelną** a **Pełną szerokością**.
 
@@ -50,7 +50,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 
 ## Notatki dzienne
 
-**Otwórz notatkę dzienną** (lub kliknięcie daty w **Kalendarzu** po prawej) otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Ustawienia vaultu → Notatki dzienne i szablony**.
+**Otwórz notatkę dzienną** (lub kliknięcie daty w **Kalendarzu** po prawej) otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Vault → Treść i struktura**.
 
 W kalendarzu przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
 
@@ -58,16 +58,16 @@ W kalendarzu przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykie
 
 **Ustawienia** (ikona zębatki na dole paska akcji przy lewej krawędzi lub `Ctrl+,`) zamykasz przyciskiem **X** w prawym górnym rogu, klawiszem `Esc` lub kliknięciem poza oknem. Zmiany zapisują się od razu i automatycznie — tylko dane dostępowe synchronizacji stosujesz świadomie przez **Zapisz**/**Połącz** (patrz [Konfiguracja synchronizacji](Sync_Setup.md)). Ustawienia dzielą się na dwie części:
 
-- **Ogólne** — wybór **motywu** jako kart podglądu: oprócz **Petrol** (domyślny) dostępne są **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (w stylu E-Ink, maksymalnie spokojny), **Sepia** (ciepły papier), **Las**, **Północ** (czerń OLED), **Wysoki kontrast** oraz **Fosfor zielony**/**Fosfor bursztynowy** (retro terminal z delikatnymi scanlines). Do tego **Tryb** (**Jasny**/**Ciemny**/**Systemowy**) — motywy jednotrybowe, takie jak **Północ** (tylko ciemny), ustalają tryb na stałe, a przełącznik jasny/ciemny na pasku tytułu jest wtedy nieaktywny. Dalej: **Język**, aktualizacje (Plainva po cichu sprawdza dostępność nowych wersji przy starcie i pokazuje powiadomienie, gdy je znajdzie — można to wyłączyć przez **Sprawdzaj aktualizacje przy starcie**), **Pokaż skróty klawiszowe** (także przez `F1`), **Ostrzeżenia**, **Diagnostyka systemu** (np. status **pęku kluczy systemu**) oraz **Informacje i diagnostyka** (szczegóły wersji, **Eksportuj diagnostykę…** — bez treści notatek — i **Zgłoś problem**).
-- **Ustawienia vaultu** — dla każdego vaultu osobno: **Synchronizacja z chmurą** (patrz [Konfiguracja synchronizacji](Sync_Setup.md)), **Notatki dzienne i szablony** (w tym **Folder szablonów**), **OKF (Open Knowledge Format)** (patrz [OKF](OKF.md)) i **Rozszerzone bazy danych**.
+- **Aplikacja** — wszystko, co dotyczy całej aplikacji, w pięciu obszarach. **Wygląd**: wybór **motywu** jako kart podglądu — oprócz **Petrol** (domyślny) dostępne są **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (w stylu E-Ink, maksymalnie spokojny), **Sepia** (ciepły papier), **Las**, **Północ** (czerń OLED), **Wysoki kontrast** oraz **Fosfor zielony**/**Fosfor bursztynowy** (retro terminal z delikatnymi scanlines); do tego **Tryb** (**Jasny**/**Ciemny**/**Systemowy**; motywy jednotrybowe, takie jak **Północ**, ustalają tryb na stałe, a przełącznik jasny/ciemny na pasku tytułu jest wtedy nieaktywny), **Język**, **Gęstość** i **Powiększenie interfejsu**. **Edytor i notatki**: **Widok domyślny**, **Rozmiar czcionki treści** i **Czcionka treści**. **Uruchamianie i zachowanie**: automatyczne otwieranie ostatniego vaultu, ostrzeżenia o zgodności. **Aktualizacje**: Plainva po cichu sprawdza dostępność nowych wersji przy starcie i pokazuje powiadomienie, gdy je znajdzie — można to wyłączyć przez **Sprawdzaj aktualizacje przy starcie**. **Informacje i diagnostyka**: szczegóły wersji, status **pęku kluczy systemu**, **Pomiary wydajności**, **Eksportuj diagnostykę…** (bez treści notatek) i **Zgłoś problem**. Skróty klawiszowe są zawsze dostępne przez `F1` lub **Pokaż skróty klawiszowe** w lewym dolnym rogu.
+- **Vault** — przełącznik vaultu znajduje się jako lista rozwijana powyżej; poniżej cztery obszary dla każdego vaultu: **Synchronizacja** (patrz [Konfiguracja synchronizacji](Sync_Setup.md)), **Treść i struktura** (**Notatki dzienne i szablony**, w tym **Folder szablonów**, **OKF (Open Knowledge Format)** — patrz [OKF](OKF.md) — i **Rozszerzone bazy danych**), **Backup i historia wersji** oraz **Konserwacja** (**Odbuduj indeks**, przywracanie usuniętych plików, statystyki vaultu).
 
 ## Dostosowywanie interfejsu
 
 - **Przełączanie pasków bocznych** za pomocą dwóch przycisków na pasku tytułu lub `Ctrl+Alt+B` (lewy) / `Ctrl+Alt+R` (prawy) — świetne do skupionego pisania. Plainva zapamiętuje ten stan.
 - **Paleta poleceń**: `Ctrl+P` otwiera **Polecenia** — wpisz i naciśnij `Enter`, aby uruchomić (nowa notatka, notatka dzienna, podział, paski boczne, **Utwórz kopię zapasową teraz** i wiele więcej).
-- **Gęstość**: w **Ustawienia → Ogólne** wybierz między **Komfortowy** a **Kompaktowy** — Kompaktowy zagęszcza listy, menu i wiersze tabel; treść notatek pozostaje bez zmian.
-- **Czcionka treści**: w **Ustawienia → Ogólne** ustaw **Rozmiar czcionki treści** (12–24 px) oraz krój czcionki (**Domyślna motywu**, **Szeryfowa**, **Bezszeryfowa**, **O stałej szerokości** lub **Niestandardowa…** z nazwą dowolnej zainstalowanej czcionki) — skaluje to tylko edytor i widok czytania; interfejs pozostaje bez zmian.
-- **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Ogólne** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
+- **Gęstość**: w **Ustawienia → Aplikacja → Wygląd** wybierz między **Komfortowy** a **Kompaktowy** — Kompaktowy zagęszcza listy, menu i wiersze tabel; treść notatek pozostaje bez zmian.
+- **Czcionka treści**: w **Ustawienia → Aplikacja → Edytor i notatki** ustaw **Rozmiar czcionki treści** (12–24 px) oraz krój czcionki (**Domyślna motywu**, **Szeryfowa**, **Bezszeryfowa**, **O stałej szerokości** lub **Niestandardowa…** z nazwą dowolnej zainstalowanej czcionki) — skaluje to tylko edytor i widok czytania; interfejs pozostaje bez zmian.
+- **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Aplikacja → Wygląd** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
 - **Okna dialogowe i powiadomienia bez natywnych okienek**: potwierdzenia pojawiają się jako okna dialogowe Plainva w stylu Twojego motywu (destrukcyjne akcje mają czerwony przycisk), krótkie komunikaty jako dyskretne powiadomienia w prawym dolnym rogu — koniec z systemowymi wyskakującymi okienkami.
 
 ## Zobacz też

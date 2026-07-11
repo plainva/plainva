@@ -49,7 +49,7 @@ Damit Plainva Deine Credentials nutzen kann, muss ein Zustimmungsbildschirm ("OA
 
 ### 5. In Plainva eintragen
 1. Öffne Plainva und wechsle in die Vault-Einstellungen (Zahnrad-Symbol für den jeweiligen Vault).
-2. Gehe in den Bereich **Synchronisierung**.
+2. Gehe in den Bereich **Synchronisation**.
 3. Wähle als Anbieter **Google Drive** aus.
 4. Trage die kopierte **Client-ID** und das **Client-Secret** in die vorgesehenen Felder ein.
 5. Klicke auf **Verbinden**.

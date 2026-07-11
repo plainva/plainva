@@ -221,7 +221,7 @@ test('A canonical German dub line unlocks LCARS with its variant — in the Engl
   // section, so navigate to General where the theme cards live.)
   await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toBeVisible();
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(General|Allgemein)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
   await expect(page.getByTestId('theme-card-lcars')).toBeVisible();
   await expect(page.getByRole('button', { name: /Toggle light\/dark|Hell\/Dunkel umschalten|Mode fixed|Modus vom Theme/ })).toBeDisabled();
 
@@ -234,7 +234,7 @@ test('Theme cards switch bundled themes; single-mode themes pin the mode', async
   await openApp(page);
   await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toBeVisible();
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(General|Allgemein)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
   await expect(page.getByTestId('theme-card-petrol')).toBeVisible();
 
   // LCARS stays hidden while locked.
@@ -292,7 +292,7 @@ test("Scotty's line to the mouse unlocks Windows 95 as the LAST picker card", as
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
   await expect(page.locator('html')).toHaveAttribute('data-theme-name', 'win95');
   await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(General|Allgemein)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
   await expect(page.getByTestId('theme-card-win95')).toBeVisible();
   const ids = await page.locator('[data-testid^="theme-card-"]').evaluateAll(
     (els) => els.map((e) => e.getAttribute('data-testid')),

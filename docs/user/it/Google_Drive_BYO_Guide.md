@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione con Google Drive (Bring Your Own Credentials)
 
-Stand: 2026-07-04
+Stand: 2026-07-11
 
 Per sincronizzare un vault locale con il tuo Google Drive in Plainva, puoi usare le tue credenziali API di Google. Poiché Plainva non è (ancora) passata attraverso la verifica CASA centrale di Google, questo approccio **Bring Your Own Credentials (BYO)** offre un modo sicuro per sincronizzare i tuoi file privati.
 
@@ -51,7 +51,7 @@ Perché Plainva usi le tue credenziali, deve essere configurata una schermata di
 
 ### 5. Inseriscili in Plainva
 1. Apri Plainva e vai alle impostazioni del vault (icona a forma di ingranaggio per il vault in questione).
-2. Apri la sezione **Sincronizzazione cloud**.
+2. Apri la sezione **Sincronizzazione**.
 3. Scegli **Google Drive** come provider.
 4. Incolla l'**ID client** e il **Secret client** copiati nei campi corrispondenti.
 5. Clicca su **Connetti a Google**.

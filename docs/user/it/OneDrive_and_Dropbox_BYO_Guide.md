@@ -1,6 +1,6 @@
 # Configurare OneDrive e Dropbox (registrazione app personale)
 
-Stand: 2026-07-06
+Stand: 2026-07-11
 
 **Normalmente non hai bisogno di questa pagina:** Plainva fornisce già i propri ID app per OneDrive e Dropbox — scegli il provider, fai clic su **Connetti** e accedi. Questa guida serve solo per il caso **facoltativo** in cui vuoi usare una tua registrazione app (gratuita), ad es. per restrizioni aziendali. Nelle impostazioni di sincronizzazione mostri i campi ID tramite **Usa il tuo ID applicazione**, poi inserisci un unico valore pubblico:
 
@@ -56,7 +56,7 @@ Nella **Panoramica** dell'app, copia il valore **"ID applicazione (client)"** �
 
 ### Inseriscilo in Plainva
 
-1. **Impostazioni → Impostazioni del vault → Sincronizzazione cloud**.
+1. **Impostazioni → Vault → Sincronizzazione**.
 2. Imposta il **Provider di sincronizzazione** su **OneDrive**.
 3. Incolla l'ID applicazione copiato nel campo **ID client**; facoltativamente imposta la **Cartella OneDrive (nome)** (predefinita `Plainva`).
 4. **Connetti a Microsoft** → accedi nel browser e conferma l'accesso. Il browser ti dirà poi che puoi chiudere la finestra.
@@ -105,7 +105,7 @@ Scheda **Settings**: copia il valore **App key** — questo è il tuo valore per
 
 ### Inseriscilo in Plainva
 
-1. **Impostazioni → Impostazioni del vault → Sincronizzazione cloud**.
+1. **Impostazioni → Vault → Sincronizzazione**.
 2. Imposta il **Provider di sincronizzazione** su **Dropbox**.
 3. Incolla l'App key copiata nel campo **Chiave dell'app**; facoltativamente imposta la **Cartella Dropbox (percorso)** (predefinita `/Plainva`).
 4. **Connetti a Dropbox** → accedi nel browser e conferma l'accesso.

@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Settings",
-    "general": "General",
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
@@ -164,9 +163,7 @@
     "showShortcuts": "Show keyboard shortcuts",
     "activeSync": "Active sync",
     "activeSyncHint": "still connected – use Disconnect below to stop syncing",
-    "warnings": "Warnings",
     "showCompatWarning": "Show compatibility warnings for Plainva extensions",
-    "diagnostics": "System diagnostics",
     "osKeychain": "OS keychain",
     "keychainChecking": "Checking...",
     "keychainNative": "Active (native)",
@@ -181,7 +178,6 @@
     "densityCompact": "Compact",
     "defaultViewMode": "Default view",
     "defaultViewModeDesc": "Notes open in this view; switching the mode applies to that file for the current session.",
-    "appearance": "Appearance",
     "syncSection": "Sync",
     "autoUpdateCheck": "Check for updates on startup",
     "autoUpdateCheckDesc": "Quietly checks for new versions shortly after start and shows a notice when one is found.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Search index",
     "rebuildIndexDesc": "Rebuilds this vault's search index from scratch — helps when search, backlinks or databases look stale.",
     "rebuildIndexAction": "Rebuild index",
-    "rebuildIndexRunning": "Running…"
+    "rebuildIndexRunning": "Running…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Choose vault",
+    "sectionAppearance": "Appearance",
+    "sectionEditor": "Editor & notes",
+    "sectionBehavior": "Startup & behavior",
+    "sectionContent": "Content & structure",
+    "sectionMaintenance": "Maintenance"
   },
   "editor": {
     "fileNotFound": "File not found",

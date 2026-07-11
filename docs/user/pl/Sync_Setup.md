@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-10
+Stan na: 2026-07-11
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -8,7 +8,7 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 
 ## Podstawy
 
-- Konfiguracja znajduje się w **Ustawienia → Ustawienia vaultu → Synchronizacja z chmurą**. **Dostawca synchronizacji** jest wybierany dla każdego vaultu osobno: **Brak (tylko lokalnie)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** lub **magazyn zgodny z S3** — zawsze dokładnie jeden na vault.
+- Konfiguracja znajduje się w **Ustawienia → Vault → Synchronizacja**. **Dostawca synchronizacji** jest wybierany dla każdego vaultu osobno: **Brak (tylko lokalnie)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** lub **magazyn zgodny z S3** — zawsze dokładnie jeden na vault.
 - **Skonfiguruj nowy vault online z ekranu powitalnego**: **Otwórz vault online** prowadzi Cię przez te same trzy kroki dla każdego dostawcy — **1. Połącz** (zaloguj się lub wpisz dane dostępowe), **2. Wybierz folder w chmurze**, **3. Wybierz lub utwórz folder lokalny**. Alternatywnie możesz w każdej chwili skonfigurować synchronizację dla już otwartego vaultu w Ustawieniach.
 - Lokalne zapisy są wysyłane od razu; Plainva sprawdza zdalne zmiany w skonfigurowanym **interwale synchronizacji (sekundy)**.
 - Zmiany offline są kolejkowane i przesyłane przy najbliższym kontakcie; pasek stanu pokazuje **Online**/**Offline**, a wskaźnik synchronizacji stan (**Synchronizuj teraz** po kliknięciu). Podczas długiej lub pierwszej synchronizacji pasek stanu pokazuje postęp w postaci licznika (np. **Sync 123/540**), dzięki czemu widzisz, że przetwarza cały vault.
@@ -17,7 +17,7 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 - **Rozwiązywanie konfliktów**: baner w dotkniętej notatce (oraz **Rozwiąż konflikt…** w menu kontekstowym pliku `.CONFLICT` w drzewie) otwiera okno porównania — bieżący stan pliku po lewej, Twoja zachowana wersja po prawej, edytowalne z przejmowaniem poszczególnych bloków. **Zapisz prawą wersję i rozwiąż** zapisuje wynik do pliku i usuwa kopię konfliktu; **Zachowaj drugą stronę** odrzuca Twoją kopię (pozostaje migawka wersji). Okno dialogowe błędu synchronizacji również wyświetla listę istniejących kopii konfliktów i jednym kliknięciem przenosi do tego samego porównania.
 - **Ochrona przed masowym usuwaniem**: jeśli niezwykle duża część synchronizowanych plików ma zostać usunięta w chmurze naraz (np. dlatego, że lokalny folder vaultu został opróżniony lub przeniesiony), Plainva wstrzymuje usunięcia i najpierw pyta: **Usuń w chmurze** wykonuje je, **Nie usuwaj (przywróć)** odrzuca je i przywraca pliki z chmury przy następnej synchronizacji. Usunięcia potwierdzone samodzielnie w Plainva nie są wstrzymywane — przy dużych usunięciach (ponad 10 plików lub ponad 20% vaultu) Plainva zamiast tego prosi o drugie potwierdzenie przed usunięciem.
 - Załączniki (obrazy itp.) są synchronizowane razem z notatkami.
-- Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Diagnostyka systemu → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.
+- Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Aplikacja → Informacje i diagnostyka → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.
 - **Rozłącz** zatrzymuje synchronizację vaultu; żadne pliki nie są przy tym nigdzie usuwane.
 
 ## WebDAV / Nextcloud

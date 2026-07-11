@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-11
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -14,7 +14,7 @@ Exclusivement chez vous : un vault est un simple dossier de fichiers Markdown su
 
 Oui — c'est une promesse fondamentale, avec une réserve honnête. Plainva écrit du Markdown pur avec un frontmatter standard ; tout ce qui est spécifique à Plainva est regroupé sous des clés `plainva:` (dans les notes et les fichiers `.base`), qu'Obsidian ignore simplement à l'ouverture des fichiers. Obsidian affiche la clé `plainva` comme un objet non modifiable dans ses propriétés — c'est sans conséquence. Les vues propres à Plainva comme Board ou Calendrier apparaissent dans Obsidian comme un simple tableau.
 
-La réserve : **ouvrir est toujours sûr, modifier ne l'est pas toujours.** Un vault Obsidian existant peut être ouvert et modifié dans Plainva sans risque — rien n'est migré ni reformaté. Mais dès qu'un vault utilise des fonctionnalités Plainva (extensions de base de données comme les boards, les relations ou les colonnes inverses, des fichiers `index.md` gérés), modifier ces fichiers précis dans Obsidian peut casser la fonctionnalité Plainva, car Obsidian ne connaît pas les extensions `plainva:`. Les notes sans extension Plainva peuvent être modifiées partout, à tout moment. La première fois que vous utilisez une telle extension, un dialogue de rappel (**Extension Plainva**) le signale ; il peut être désactivé sous **Paramètres → Avertissements**.
+La réserve : **ouvrir est toujours sûr, modifier ne l'est pas toujours.** Un vault Obsidian existant peut être ouvert et modifié dans Plainva sans risque — rien n'est migré ni reformaté. Mais dès qu'un vault utilise des fonctionnalités Plainva (extensions de base de données comme les boards, les relations ou les colonnes inverses, des fichiers `index.md` gérés), modifier ces fichiers précis dans Obsidian peut casser la fonctionnalité Plainva, car Obsidian ne connaît pas les extensions `plainva:`. Les notes sans extension Plainva peuvent être modifiées partout, à tout moment. La première fois que vous utilisez une telle extension, un dialogue de rappel (**Extension Plainva**) le signale ; il peut être désactivé sous **Paramètres → App → Démarrage et comportement**.
 
 ### Plainva modifie-t-il mon vault existant ?
 
@@ -72,7 +72,7 @@ Plainva est une application de bureau, pas une page web. Les touches de recharge
 
 ### Comment changer la langue ?
 
-**Paramètres → Général → Langue** (actuellement allemand et anglais).
+**Paramètres → App → Apparence → Langue** (actuellement allemand et anglais).
 
 ### « Rechercher des mises à jour » ne trouve rien
 

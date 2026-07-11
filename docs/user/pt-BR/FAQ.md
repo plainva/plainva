@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Stand: 2026-07-07
+Stand: 2026-07-11
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -14,7 +14,7 @@ Exclusivamente com você: um vault é uma pasta comum de arquivos Markdown no se
 
 Sim — essa é uma promessa central, com uma ressalva sincera. O Plainva grava Markdown puro com frontmatter padrão; tudo o que é específico do Plainva fica agrupado sob chaves `plainva:` (em notas e arquivos `.base`), que o Obsidian simplesmente ignora ao abrir os arquivos. O Obsidian mostra a chave `plainva` como um objeto não editável em suas propriedades — isso é inofensivo. Visualizações exclusivas do Plainva, como Quadro ou Calendário, aparecem no Obsidian como uma tabela simples.
 
-A ressalva: **abrir é sempre seguro, editar nem sempre.** Um vault existente do Obsidian pode ser aberto e editado no Plainva sem riscos — nada é migrado ou reformatado. Mas, quando um vault passa a usar recursos do Plainva (extensões de banco de dados como quadros, relações ou colunas reversas, arquivos `index.md` gerenciados), editar esses arquivos específicos no Obsidian pode quebrar a funcionalidade do Plainva, porque o Obsidian não conhece as extensões `plainva:`. Notas sem extensões do Plainva podem ser editadas em qualquer lugar, a qualquer momento. Na primeira vez que você usa uma dessas extensões, um diálogo de aviso (**Extensão do Plainva**) avisa sobre isso; pode ser desativado em **Configurações → Avisos**.
+A ressalva: **abrir é sempre seguro, editar nem sempre.** Um vault existente do Obsidian pode ser aberto e editado no Plainva sem riscos — nada é migrado ou reformatado. Mas, quando um vault passa a usar recursos do Plainva (extensões de banco de dados como quadros, relações ou colunas reversas, arquivos `index.md` gerenciados), editar esses arquivos específicos no Obsidian pode quebrar a funcionalidade do Plainva, porque o Obsidian não conhece as extensões `plainva:`. Notas sem extensões do Plainva podem ser editadas em qualquer lugar, a qualquer momento. Na primeira vez que você usa uma dessas extensões, um diálogo de aviso (**Extensão do Plainva**) avisa sobre isso; pode ser desativado em **Configurações → App → Inicialização e comportamento**.
 
 ### O Plainva modifica meu vault existente?
 
@@ -72,7 +72,7 @@ O Plainva é um aplicativo de desktop, não uma página web. As teclas de recarr
 
 ### Como mudo o idioma?
 
-**Configurações → Geral → Idioma** (atualmente alemão e inglês).
+**Configurações → App → Aparência → Idioma** (atualmente alemão e inglês).
 
 ### "Verificar atualizações" não encontra nada
 

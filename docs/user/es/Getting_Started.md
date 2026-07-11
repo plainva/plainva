@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -36,7 +36,7 @@ Cambia de modo en la parte superior derecha del editor:
 | **Vista previa en vivo** | El modo predeterminado para escribir: el Markdown se renderiza mientras escribes; los caracteres de formato solo aparecen donde estás trabajando. |
 | **Código fuente Markdown** | El texto sin procesar y sin renderizar — para un control total. |
 
-En qué modo se abren tus notas depende de ti: elige la **Vista predeterminada** en **Configuración → General** (lectura, en vivo o código fuente). Cambiar el modo en el editor se aplica a ese archivo durante la sesión actual.
+En qué modo se abren tus notas depende de ti: elige la **Vista predeterminada** en **Configuración → App → Editor y notas** (lectura, en vivo o código fuente). Cambiar el modo en el editor se aplica a ese archivo durante la sesión actual.
 
 También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 
@@ -50,7 +50,7 @@ También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 
 ## Notas diarias
 
-**Abrir nota diaria** (o hacer clic en una fecha en el **Calendario** de la derecha) abre o crea la nota de hoy. Configura la carpeta base, el formato de fecha y una plantilla opcional en **Configuración → Configuración del vault → Notas diarias y plantillas**.
+**Abrir nota diaria** (o hacer clic en una fecha en el **Calendario** de la derecha) abre o crea la nota de hoy. Configura la carpeta base, el formato de fecha y una plantilla opcional en **Configuración → Vault → Contenido y estructura**.
 
 En el calendario, el botón **Hoy** te devuelve al mes actual; al hacer clic en el nombre del mes se abre un selector rápido de mes y año. Ahí también puedes activar **Mostrar números de semana** para añadir una columna de semana ISO — el ajuste se recuerda.
 
@@ -58,16 +58,16 @@ En el calendario, el botón **Hoy** te devuelve al mes actual; al hacer clic en 
 
 **Configuración** (icono de engranaje abajo en la barra de acciones del extremo izquierdo, o `Ctrl+,`) se cierra con la **X** de arriba a la derecha, `Esc` o un clic fuera de la ventana. Los cambios se guardan de inmediato y automáticamente — solo las credenciales de sincronización se aplican deliberadamente mediante **Guardar**/**Conectar** (ver [Configurar la sincronización](Sync_Setup.md)). La configuración tiene dos partes:
 
-- **General** — el selector de **Tema** como tarjetas de vista previa: además de **Petrol** (el predeterminado) tienes **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papel** (parecido a E-Ink, máximamente tranquilo), **Sepia** (papel cálido), **Bosque**, **Medianoche** (negro OLED), **Alto contraste** y **Fósforo verde**/**Fósforo ámbar** (terminal retro con líneas de escaneo sutiles). Además el **Modo** (**Claro**/**Oscuro**/**Predeterminado del sistema**) — los temas de un solo modo como **Medianoche** (solo oscuro) fijan el modo, y el interruptor claro/oscuro de la barra de título se desactiva mientras están activos. También aquí: **Idioma**, actualizaciones (Plainva comprueba silenciosamente si hay versiones nuevas al iniciar y muestra un aviso si las encuentra — desactivable mediante **Buscar actualizaciones al iniciar**), **Mostrar atajos de teclado** (también con `F1`), **Avisos**, **Diagnóstico del sistema** (p. ej. el estado del **Llavero del sistema**) y **Acerca de y diagnóstico** (datos de versión, **Exportar diagnóstico…** — sin contenido de notas — e **Informar de un problema**).
-- **Configuración del vault** — por vault: **Sincronización en la nube** (ver [Configurar la sincronización](Sync_Setup.md)), **Notas diarias y plantillas** (incluida la **Carpeta de plantillas**), **OKF (Open Knowledge Format)** (ver [OKF](OKF.md)) y **Bases de datos extendidas**.
+- **App** — todo lo que se aplica a toda la app, en cinco áreas. **Apariencia**: el selector de **Tema** como tarjetas de vista previa — además de **Petrol** (el predeterminado) tienes **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papel** (parecido a E-Ink, máximamente tranquilo), **Sepia** (papel cálido), **Bosque**, **Medianoche** (negro OLED), **Alto contraste** y **Fósforo verde**/**Fósforo ámbar** (terminal retro con líneas de escaneo sutiles); además el **Modo** (**Claro**/**Oscuro**/**Predeterminado del sistema**; los temas de un solo modo como **Medianoche** fijan el modo, y el interruptor claro/oscuro de la barra de título se desactiva mientras están activos), **Idioma**, **Densidad** y **Zoom de la interfaz**. **Editor y notas**: **Vista predeterminada**, **Tamaño de fuente del contenido** y **Fuente del contenido**. **Inicio y comportamiento**: abrir automáticamente el último vault, avisos de compatibilidad. **Actualizaciones**: Plainva comprueba silenciosamente si hay versiones nuevas al iniciar y muestra un aviso si las encuentra — desactivable mediante **Buscar actualizaciones al iniciar**. **Acerca de y diagnóstico**: datos de versión, el estado del **Llavero del sistema**, **Métricas de rendimiento**, **Exportar diagnóstico…** (sin contenido de notas) e **Informar de un problema**. Los atajos de teclado están siempre accesibles con `F1` o **Mostrar atajos de teclado** abajo a la izquierda.
+- **Vault** — el selector de vault aparece como una lista desplegable arriba; debajo, cuatro áreas por vault: **Sincronización** (ver [Configurar la sincronización](Sync_Setup.md)), **Contenido y estructura** (**Notas diarias y plantillas** incluida la **Carpeta de plantillas**, **OKF (Open Knowledge Format)** — ver [OKF](OKF.md) — y **Bases de datos extendidas**), **Copias de seguridad y versionado** y **Mantenimiento** (**Reconstruir índice**, restaurar archivos eliminados, estadísticas del vault).
 
 ## Personalizar la interfaz
 
 - **Alternar las barras laterales** con los dos botones de la barra de título o con `Ctrl+Alt+B` (izquierda) / `Ctrl+Alt+R` (derecha) — ideal para escribir concentrado. Plainva recuerda el estado.
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — escribe y pulsa `Intro` para ejecutar (nueva nota, nota diaria, dividir, barras laterales, **Crear copia de seguridad ahora** y mucho más).
-- **Densidad**: en **Configuración → General**, elige entre **Cómodo** y **Compacto** — Compacto reduce listas, menús y filas de tabla; el contenido de las notas no se ve afectado.
-- **Fuente del contenido**: en **Configuración → General**, ajusta el **Tamaño de fuente del contenido** (12–24 px) y la **Fuente del contenido** (**Predeterminada del tema**, **Serif**, **Sans-serif**, **Monoespaciada** o **Personalizada…** con el nombre de cualquier fuente instalada) — esto solo escala el editor y la vista de lectura; la interfaz permanece igual.
-- **Zoom de la interfaz**: escala TODA la interfaz entre el 80 % y el 150 % — en **Configuración → General** o con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` restablece el zoom).
+- **Densidad**: en **Configuración → App → Apariencia**, elige entre **Cómodo** y **Compacto** — Compacto reduce listas, menús y filas de tabla; el contenido de las notas no se ve afectado.
+- **Fuente del contenido**: en **Configuración → App → Editor y notas**, ajusta el **Tamaño de fuente del contenido** (12–24 px) y la **Fuente del contenido** (**Predeterminada del tema**, **Serif**, **Sans-serif**, **Monoespaciada** o **Personalizada…** con el nombre de cualquier fuente instalada) — esto solo escala el editor y la vista de lectura; la interfaz permanece igual.
+- **Zoom de la interfaz**: escala TODA la interfaz entre el 80 % y el 150 % — en **Configuración → App → Apariencia** o con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` restablece el zoom).
 - **Diálogos y avisos sin ventanas nativas**: las confirmaciones aparecen como diálogos de Plainva con el estilo de tu tema (las acciones destructivas tienen un botón rojo), los avisos breves como notificaciones discretas abajo a la derecha — se acabaron las ventanas emergentes del sistema.
 
 ## Ver también

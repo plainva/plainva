@@ -1,6 +1,6 @@
 # Getting Started
 
-Last reviewed: 2026-07-10
+Last reviewed: 2026-07-11
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -36,7 +36,7 @@ Switch modes at the top right of the editor:
 | **Live Preview** | The default for writing: Markdown renders as you type; formatting characters only appear where you are working. |
 | **Markdown Source** | The raw text without rendering — for full control. |
 
-Which mode notes open in is up to you: pick the **Default view** under **Settings → General** (read, live or source). Switching the mode in the editor applies to that file for the current session.
+Which mode notes open in is up to you: pick the **Default view** under **Settings → App → Editor & notes** (read, live or source). Switching the mode in the editor applies to that file for the current session.
 
 You can also toggle between **Readable width** and **Full width**.
 
@@ -50,7 +50,7 @@ You can also toggle between **Readable width** and **Full width**.
 
 ## Daily notes
 
-**Open Daily Note** (or clicking a date in the **Calendar** on the right) opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault Settings → Daily Notes & Templates**.
+**Open Daily Note** (or clicking a date in the **Calendar** on the right) opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault → Content & structure**.
 
 In the calendar, the **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
 
@@ -58,16 +58,16 @@ In the calendar, the **Today** button returns to the current month; clicking the
 
 **Settings** (gear icon at the bottom of the leftmost action rail, or `Ctrl+,`) close via the **X** in the top right, `Esc` or a click outside the window. Changes are saved immediately and automatically — only sync credentials are applied deliberately via **Save**/**Connect** (see [Sync Setup](Sync_Setup.md)). Settings come in two parts:
 
-- **General** — the **Theme** picker as preview cards: besides **Petrol** (the default) you get **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Paper** (E-Ink-like, maximally calm), **Sepia** (warm paper), **Forest**, **Midnight** (OLED black), **High Contrast** and **Phosphor Green**/**Phosphor Amber** (retro terminal with subtle scanlines). Plus the **Mode** (**Light**/**Dark**/**System Default**) — single-mode themes such as **Midnight** (dark only) pin the mode, and the light/dark switch in the title bar pauses while they are active. Also here: **Language**, updates (Plainva quietly checks for new versions on startup and shows a notice when one is found — opt out via **Check for updates on startup**), **Show keyboard shortcuts** (also via `F1`), **Warnings**, **System diagnostics** (e.g. the **OS keychain** status) and **About & diagnostics** (version details, **Export diagnostics…** — no note content — and **Report a problem**).
-- **Vault Settings** — per vault: **Cloud Sync** (see [Sync Setup](Sync_Setup.md)), **Daily Notes & Templates** (including the **Template Folder**), **OKF (Open Knowledge Format)** (see [OKF](OKF.md)) and **Extended databases**.
+- **App** — everything that applies app-wide, in five areas. **Appearance**: the **Theme** picker as preview cards — besides **Petrol** (the default) you get **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Paper** (E-Ink-like, maximally calm), **Sepia** (warm paper), **Forest**, **Midnight** (OLED black), **High Contrast** and **Phosphor Green**/**Phosphor Amber** (retro terminal with subtle scanlines); plus the **Mode** (**Light**/**Dark**/**System Default**; single-mode themes such as **Midnight** pin the mode, and the light/dark switch in the title bar pauses while they are active), **Language**, **Density** and **Interface zoom**. **Editor & notes**: **Default view**, **Content font size** and **Content font**. **Startup & behavior**: open the last vault automatically, compatibility warnings. **Updates**: Plainva quietly checks for new versions on startup and shows a notice when one is found — opt out via **Check for updates on startup**. **About & diagnostics**: version details, the **OS keychain** status, **Performance metrics**, **Export diagnostics…** (no note content) and **Report a problem**. Keyboard shortcuts stay reachable any time via `F1` or **Show keyboard shortcuts** in the bottom left.
+- **Vault** — the vault picker sits as a dropdown above; below it, four areas per vault: **Sync** (see [Sync Setup](Sync_Setup.md)), **Content & structure** (**Daily Notes & Templates** including the **Template Folder**, **OKF (Open Knowledge Format)** — see [OKF](OKF.md) — and **Extended databases**), **Backup & version history** and **Maintenance** (**Rebuild index**, restore deleted files, vault statistics).
 
 ## Customizing the interface
 
 - **Toggle the sidebars** via the two title-bar buttons or `Ctrl+Alt+B` (left) / `Ctrl+Alt+R` (right) — great for focused writing. Plainva remembers the state.
 - **Command palette**: `Ctrl+P` opens **Commands** — type and hit `Enter` to run (new note, daily note, split, sidebars, **Back up now**, and more).
-- **Density**: under **Settings → General**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
-- **Content font**: under **Settings → General**, set the **Content font size** (12–24 px) and the **Content font** (theme default, serif, sans-serif, monospace or the name of any installed font) — this scales the editor and reading view only; the interface stays as it is.
-- **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → General** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
+- **Density**: under **Settings → App → Appearance**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
+- **Content font**: under **Settings → App → Editor & notes**, set the **Content font size** (12–24 px) and the **Content font** (theme default, serif, sans-serif, monospace or the name of any installed font) — this scales the editor and reading view only; the interface stays as it is.
+- **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → App → Appearance** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
 - **Native-free dialogs**: confirmations appear as Plainva dialogs styled by your theme (destructive actions get a red button), short notices as subtle toasts in the bottom right — no more system popups.
 
 ## See also

@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-10
+Laatst bijgewerkt: 2026-07-11
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -36,7 +36,7 @@ Wissel van modus rechtsboven in de editor:
 | **Live-voorbeeld** | De standaard om te schrijven: Markdown wordt gerenderd terwijl je typt; opmaaktekens verschijnen alleen waar je aan het werk bent. |
 | **Markdown-bron** | De ruwe tekst zonder rendering — voor volledige controle. |
 
-In welke modus notities openen, bepaal je zelf: kies de **Standaardweergave** onder **Instellingen → Algemeen** (lezen, live of bron). Wisselen van modus in de editor geldt per bestand voor de huidige sessie.
+In welke modus notities openen, bepaal je zelf: kies de **Standaardweergave** onder **Instellingen → App → Editor en notities** (lezen, live of bron). Wisselen van modus in de editor geldt per bestand voor de huidige sessie.
 
 Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 
@@ -50,7 +50,7 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 
 ## Dagelijkse notities
 
-**Dagnotitie openen** (of een klik op een datum in de **Kalender** rechts) opent of maakt de notitie van vandaag. Stel de basismap, het datumformaat en een optioneel sjabloon in onder **Instellingen → Vault-instellingen → Dagelijkse notities**.
+**Dagnotitie openen** (of een klik op een datum in de **Kalender** rechts) opent of maakt de notitie van vandaag. Stel de basismap, het datumformaat en een optioneel sjabloon in onder **Instellingen → Vault → Inhoud en structuur**.
 
 In de kalender brengt de knop **Vandaag** je terug naar de huidige maand; een klik op het maandlabel opent een snelkeuze voor maand en jaar. Daar schakel je ook **Weeknummers tonen** in om een ISO-weekkolom toe te voegen — de instelling wordt onthouden.
 
@@ -58,16 +58,16 @@ In de kalender brengt de knop **Vandaag** je terug naar de huidige maand; een kl
 
 **Instellingen** (tandwielicoon onderaan de actiebalk uiterst links, of `Ctrl+,`) sluit je via de **X** rechtsboven, `Esc` of een klik buiten het venster. Wijzigingen worden direct en automatisch opgeslagen — alleen sync-toegangsgegevens pas je bewust toe via **Opslaan**/**Verbinden** (zie [Sync instellen](Sync_Setup.md)). Instellingen bestaan uit twee delen:
 
-- **Algemeen** — de **Thema**-kiezer als voorbeeldkaarten: naast **Petrol** (de standaard) krijg je **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-achtig, maximaal rustig), **Sepia** (warm papier), **Bos**, **Middernacht** (OLED-zwart), **Hoog contrast** en **Fosforgroen**/**Fosforamber** (retroterminal met subtiele scanlines). Plus de **Modus** (**Licht**/**Donker**/**Systeemstandaard**) — thema's met één modus zoals **Middernacht** (alleen donker) leggen de modus vast en de licht/donker-schakelaar in de titelbalk pauzeert dan. Ook hier: **Taal**, updates (Plainva controleert bij het opstarten stilletjes op nieuwe versies en toont een melding zodra er een gevonden wordt — uitschakelbaar via **Bij het starten op updates controleren**), **Sneltoetsen tonen** (ook via `F1`), **Waarschuwingen**, **Systeemdiagnose** (bijv. de status van de **OS-sleutelhanger**) en **Over & diagnose** (versiedetails, **Diagnose exporteren…** — geen notitie-inhoud — en **Probleem melden**).
-- **Vault-instellingen** — per vault: **Cloud Sync** (zie [Sync instellen](Sync_Setup.md)), **Dagelijkse notities** (incl. de **Sjablonenmap**), **OKF (Open Knowledge Format)** (zie [OKF](OKF.md)) en **Uitgebreide databases**.
+- **App** — alles wat app-breed geldt, in vijf gebieden. **Weergave**: de **Thema**-kiezer als voorbeeldkaarten — naast **Petrol** (de standaard) krijg je **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-achtig, maximaal rustig), **Sepia** (warm papier), **Bos**, **Middernacht** (OLED-zwart), **Hoog contrast** en **Fosforgroen**/**Fosforamber** (retroterminal met subtiele scanlines); daarnaast de **Modus** (**Licht**/**Donker**/**Systeemstandaard**; thema's met één modus zoals **Middernacht** leggen de modus vast, de licht/donker-schakelaar in de titelbalk pauzeert dan), **Taal**, **Dichtheid** en **Interfacezoom**. **Editor en notities**: **Standaardweergave**, **Lettergrootte van inhoud** en **Lettertype van inhoud**. **Opstarten en gedrag**: laatste vault automatisch openen, compatibiliteitswaarschuwingen. **Updates**: Plainva controleert bij het opstarten stilletjes op nieuwe versies en toont een melding zodra er een gevonden wordt — uitschakelbaar via **Bij het starten op updates controleren**. **Over & diagnose**: versiedetails, de status van de **OS-sleutelhanger**, **Prestatiemetingen**, **Diagnose exporteren…** (geen notitie-inhoud) en **Probleem melden**. De sneltoetsen bereik je op elk moment via `F1` of **Sneltoetsen tonen** linksonder.
+- **Vault** — de vault-keuze staat als keuzelijst erboven; daaronder vier gebieden per vault: **Synchronisatie** (zie [Sync instellen](Sync_Setup.md)), **Inhoud en structuur** (**Dagelijkse notities & sjablonen** incl. de **Sjablonenmap**, **OKF (Open Knowledge Format)** — zie [OKF](OKF.md) — en **Uitgebreide databases**), **Backup & versiegeschiedenis** en **Onderhoud** (**Index opnieuw opbouwen**, verwijderde bestanden herstellen, vault-statistieken).
 
 ## De interface aanpassen
 
 - **Zijbalken tonen/verbergen** via de twee knoppen in de titelbalk of `Ctrl+Alt+B` (links) / `Ctrl+Alt+R` (rechts) — ideaal om geconcentreerd te schrijven. Plainva onthoudt de status.
 - **Opdrachtenpalet**: `Ctrl+P` opent **Opdrachten** — typ en druk op `Enter` om uit te voeren (nieuwe notitie, dagnotitie, splitsen, zijbalken, **Nu back-uppen**, en meer).
-- **Dichtheid**: onder **Instellingen → Algemeen** kies je tussen **Comfortabel** en **Compact** — Compact maakt lijsten, menu's en tabelrijen krapper; notitie-inhoud blijft ongewijzigd.
-- **Lettertype van inhoud**: onder **Instellingen → Algemeen** stel je de **Lettergrootte van inhoud** in (12–24 px) en het **Lettertype van inhoud** (**Themastandaard**, **Serif**, **Sans-serif**, **Monospace** of **Aangepast…** met de naam van een geïnstalleerd lettertype) — dit schaalt alleen editor en leesweergave; de interface blijft ongewijzigd.
-- **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → Algemeen** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).
+- **Dichtheid**: onder **Instellingen → App → Weergave** kies je tussen **Comfortabel** en **Compact** — Compact maakt lijsten, menu's en tabelrijen krapper; notitie-inhoud blijft ongewijzigd.
+- **Lettertype van inhoud**: onder **Instellingen → App → Editor en notities** stel je de **Lettergrootte van inhoud** in (12–24 px) en het **Lettertype van inhoud** (**Themastandaard**, **Serif**, **Sans-serif**, **Monospace** of **Aangepast…** met de naam van een geïnstalleerd lettertype) — dit schaalt alleen editor en leesweergave; de interface blijft ongewijzigd.
+- **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → App → Weergave** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).
 - **Native-vrije dialoogvensters**: bevestigingen verschijnen als Plainva-dialoogvensters in de stijl van je thema (destructieve acties krijgen een rode knop), korte meldingen als subtiele toasts rechtsonder — geen systeempopups meer.
 
 ## Zie ook

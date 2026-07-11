@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "设置",
-    "general": "通用",
     "theme": "外观",
     "themeLight": "浅色",
     "themeDark": "深色",
@@ -164,9 +163,7 @@
     "showShortcuts": "显示快捷键",
     "activeSync": "当前同步",
     "activeSyncHint": "仍处于连接状态——要停止同步，请使用下方的“断开连接”",
-    "warnings": "警告提示",
     "showCompatWarning": "显示Plainva扩展功能的兼容性提示",
-    "diagnostics": "系统诊断",
     "osKeychain": "系统钥匙串",
     "keychainChecking": "检查中…",
     "keychainNative": "已启用（原生）",
@@ -181,7 +178,6 @@
     "densityCompact": "紧凑",
     "defaultViewMode": "默认视图",
     "defaultViewModeDesc": "笔记将以此视图打开；手动切换仅对该文件在当前会话内生效。",
-    "appearance": "外观",
     "syncSection": "同步",
     "autoUpdateCheck": "启动时检查更新",
     "autoUpdateCheckDesc": "启动后静默检查新版本，发现更新时显示提示。",
@@ -224,7 +220,15 @@
     "rebuildIndex": "搜索索引",
     "rebuildIndexDesc": "从头重建此 Vault 的搜索索引——当搜索、反向链接或数据库显得过时时很有用。",
     "rebuildIndexAction": "重建索引",
-    "rebuildIndexRunning": "进行中…"
+    "rebuildIndexRunning": "进行中…",
+    "sectionApp": "应用",
+    "sectionVault": "仓库",
+    "vaultSelect": "选择仓库",
+    "sectionAppearance": "外观",
+    "sectionEditor": "编辑器与笔记",
+    "sectionBehavior": "启动与行为",
+    "sectionContent": "内容与结构",
+    "sectionMaintenance": "维护"
   },
   "editor": {
     "fileNotFound": "未找到文件",

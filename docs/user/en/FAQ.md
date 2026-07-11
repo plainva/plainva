@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-07-07
+Last reviewed: 2026-07-11
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -14,7 +14,7 @@ Exclusively with you: a vault is a plain folder of Markdown files on your comput
 
 Yes — that is a core promise, with one honest caveat. Plainva writes plain Markdown with standard frontmatter; everything Plainva-specific is bundled under `plainva:` keys (in notes and `.base` files), which Obsidian simply ignores when opening files. Obsidian shows the `plainva` key as a non-editable object in its properties — that is harmless. Plainva-only views such as Board or Calendar appear in Obsidian as a plain table.
 
-The caveat: **opening is always safe, editing is not always.** An existing Obsidian vault can be opened and edited in Plainva without risk — nothing is migrated or reformatted. But once a vault uses Plainva features (database extensions such as boards, relations or reverse columns, managed `index.md` files), editing those specific files in Obsidian can break the Plainva functionality, because Obsidian does not know the `plainva:` extensions. Notes without Plainva extensions can be edited anywhere, anytime. The first time you use such an extension, a reminder dialog (**Plainva extension**) points it out; it can be disabled under **Settings → Warnings**.
+The caveat: **opening is always safe, editing is not always.** An existing Obsidian vault can be opened and edited in Plainva without risk — nothing is migrated or reformatted. But once a vault uses Plainva features (database extensions such as boards, relations or reverse columns, managed `index.md` files), editing those specific files in Obsidian can break the Plainva functionality, because Obsidian does not know the `plainva:` extensions. Notes without Plainva extensions can be edited anywhere, anytime. The first time you use such an extension, a reminder dialog (**Plainva extension**) points it out; it can be disabled under **Settings → App → Startup & behavior**.
 
 ### Does Plainva modify my existing vault?
 
@@ -72,7 +72,7 @@ Plainva is a desktop app, not a web page. Reload keys (F5, Ctrl+R) are disabled 
 
 ### How do I change the language?
 
-**Settings → General → Language** (currently German and English).
+**Settings → App → Appearance → Language** (currently German and English).
 
 ### "Check for Updates" finds nothing
 

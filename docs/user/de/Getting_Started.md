@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -36,7 +36,7 @@ Oben rechts im Editor wechselst Du den Modus:
 | **Live-Vorschau** | Der Standard zum Schreiben: Markdown wird beim Tippen gerendert, Formatierungszeichen erscheinen nur, wo Du gerade arbeitest. |
 | **Markdown Source** | Der rohe Text ohne Rendering — für volle Kontrolle. |
 
-In welchem Modus Notizen öffnen, bestimmst Du über die **Standard-Ansicht** unter **Einstellungen → Allgemein** (Lesen, Live oder Quelltext). Ein manueller Wechsel im Editor gilt je Datei für die laufende Sitzung.
+In welchem Modus Notizen öffnen, bestimmst Du über die **Standard-Ansicht** unter **Einstellungen → App → Editor & Notizen** (Lesen, Live oder Quelltext). Ein manueller Wechsel im Editor gilt je Datei für die laufende Sitzung.
 
 Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalten.
 
@@ -50,7 +50,7 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 
 ## Tägliche Notizen
 
-Der Knopf **Tägliche Notiz öffnen** (oder ein Klick auf ein Datum im **Kalender** rechts) öffnet bzw. erstellt die Notiz des Tages. Basis-Ordner, Datumsformat und eine optionale Vorlage stellst Du unter **Einstellungen → Vault Einstellungen → Tagesnotizen & Vorlagen** ein.
+Der Knopf **Tägliche Notiz öffnen** (oder ein Klick auf ein Datum im **Kalender** rechts) öffnet bzw. erstellt die Notiz des Tages. Basis-Ordner, Datumsformat und eine optionale Vorlage stellst Du unter **Einstellungen → Vault → Inhalt & Struktur** ein.
 
 Im Kalender bringt Dich der **Heute**-Knopf zurück zum aktuellen Monat; ein Klick auf das Monatslabel öffnet eine Schnellauswahl für Monat und Jahr. Dort blendest Du über **Kalenderwochen anzeigen** auch eine KW-Spalte ein — die Einstellung bleibt gespeichert.
 
@@ -58,16 +58,16 @@ Im Kalender bringt Dich der **Heute**-Knopf zurück zum aktuellen Monat; ein Kli
 
 **Einstellungen** (Zahnrad unten in der Aktionsleiste ganz links oder `Strg+,`) schließen über das **X** oben rechts, `Esc` oder einen Klick außerhalb des Fensters. Änderungen speichern sofort automatisch — nur Sync-Zugangsdaten übernimmst Du bewusst per **Speichern**/**Verbinden** (siehe [Sync einrichten](Sync_Setup.md)). Die Einstellungen sind zweigeteilt:
 
-- **Allgemein** — die **Theme**-Auswahl als Vorschau-Karten: neben **Petrol** (Standard) stehen **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-artig, maximal ruhig), **Sepia** (warmes Papier), **Wald**, **Mitternacht** (OLED-Schwarz), **Hoher Kontrast** und **Phosphor Grün**/**Phosphor Amber** (Retro-Terminal mit dezenten Scanlines) bereit. Dazu der **Modus** (**Hell**/**Dunkel**/**System-Standard**) — Ein-Modus-Themes wie **Mitternacht** (nur dunkel) legen den Modus fest, der Hell/Dunkel-Schalter in der Titelleiste pausiert dann. Außerdem: **Sprache**, Updates (Plainva sucht beim Start still nach neuen Versionen und zeigt bei Funden einen Hinweis — abschaltbar über **Beim Start nach Updates suchen**), **Tastenkombinationen anzeigen** (auch per `F1`), **Warnhinweise**, **System-Diagnose** (z. B. Status des **OS-Keychain**) und **Über & Diagnose** (Versionsangaben, **Diagnose exportieren…** — ohne Notizinhalte — und **Problem melden**).
-- **Vault Einstellungen** — pro Vault: **Cloud Sync** (siehe [Sync einrichten](Sync_Setup.md)), **Tagesnotizen & Vorlagen** (inkl. **Vorlagen-Ordner (Templates)**), **OKF (Open Knowledge Format)** (siehe [OKF](OKF.md)) und **Erweiterte Datenbanken**.
+- **App** — alles, was app-weit gilt, in fünf Bereichen. **Erscheinungsbild**: die **Theme**-Auswahl als Vorschau-Karten — neben **Petrol** (Standard) stehen **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-artig, maximal ruhig), **Sepia** (warmes Papier), **Wald**, **Mitternacht** (OLED-Schwarz), **Hoher Kontrast** und **Phosphor Grün**/**Phosphor Amber** (Retro-Terminal mit dezenten Scanlines) bereit; dazu der **Modus** (**Hell**/**Dunkel**/**System-Standard**; Ein-Modus-Themes wie **Mitternacht** legen den Modus fest, der Hell/Dunkel-Schalter in der Titelleiste pausiert dann), **Sprache**, **Kompaktheitsgrad** und **Oberflächen-Zoom**. **Editor & Notizen**: **Standard-Ansicht**, **Inhalts-Schriftgröße** und **Inhalts-Schriftart**. **Start & Verhalten**: letzten Vault automatisch öffnen, Kompatibilitäts-Hinweise. **Updates**: Plainva sucht beim Start still nach neuen Versionen und zeigt bei Funden einen Hinweis — abschaltbar über **Beim Start nach Updates suchen**. **Über & Diagnose**: Versionsangaben, Status des **OS-Keychain**, **Performance-Messwerte**, **Diagnose exportieren…** (ohne Notizinhalte) und **Problem melden**. Die Tastenkombinationen erreichst Du jederzeit per `F1` oder **Tastenkombinationen anzeigen** unten links.
+- **Vault** — die Vault-Auswahl sitzt als Auswahlfeld darüber; darunter vier Bereiche pro Vault: **Synchronisation** (siehe [Sync einrichten](Sync_Setup.md)), **Inhalt & Struktur** (**Tagesnotizen & Vorlagen** inkl. **Vorlagen-Ordner (Templates)**, **OKF (Open Knowledge Format)** — siehe [OKF](OKF.md) — und **Erweiterte Datenbanken**), **Backup & Versionierung** und **Wartung** (**Index neu aufbauen**, gelöschte Dateien wiederherstellen, Vault-Statistik).
 
 ## Oberfläche anpassen
 
 - **Seitenleisten ein-/ausblenden**: über die beiden Knöpfe in der Titelleiste oder `Strg+Alt+B` (links) / `Strg+Alt+R` (rechts) — ideal zum fokussierten Schreiben. Plainva merkt sich den Zustand.
 - **Befehls-Palette**: `Strg+P` öffnet **Befehle** — tippen, mit `Enter` ausführen (Neue Notiz, Tageseintrag, Teilen, Seitenleisten, **Jetzt sichern** u. v. m.).
-- **Kompaktheitsgrad**: Unter **Einstellungen → Allgemein** wählst Du zwischen **Standard** und **Kompakt** — Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert.
-- **Inhalts-Schrift**: Unter **Einstellungen → Allgemein** stellst Du die **Inhalts-Schriftgröße** (12–24 px) und die **Inhalts-Schriftart** ein (Theme-Standard, Serif, Sans-Serif, Monospace oder der Name einer installierten Schriftart) — das skaliert nur Editor und Leseansicht; die Oberfläche bleibt, wie sie ist.
-- **Oberflächen-Zoom**: skaliert die GESAMTE Oberfläche zwischen 80 % und 150 % — unter **Einstellungen → Allgemein** oder per `Strg+Plus`/`Strg+Minus` (`Strg+0` setzt zurück).
+- **Kompaktheitsgrad**: Unter **Einstellungen → App → Erscheinungsbild** wählst Du zwischen **Standard** und **Kompakt** — Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert.
+- **Inhalts-Schrift**: Unter **Einstellungen → App → Editor & Notizen** stellst Du die **Inhalts-Schriftgröße** (12–24 px) und die **Inhalts-Schriftart** ein (Theme-Standard, Serif, Sans-Serif, Monospace oder der Name einer installierten Schriftart) — das skaliert nur Editor und Leseansicht; die Oberfläche bleibt, wie sie ist.
+- **Oberflächen-Zoom**: skaliert die GESAMTE Oberfläche zwischen 80 % und 150 % — unter **Einstellungen → App → Erscheinungsbild** oder per `Strg+Plus`/`Strg+Minus` (`Strg+0` setzt zurück).
 - **Eigene Dialoge & Hinweise**: Bestätigungen erscheinen als Plainva-Dialoge im Stil Deines Themes (destruktive Aktionen mit rotem Knopf), kurze Meldungen als dezente Hinweise unten rechts — keine System-Popups mehr.
 
 ## Siehe auch

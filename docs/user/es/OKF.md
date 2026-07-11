@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-07-08
+Stand: 2026-07-11
 
 OKF (Open Knowledge Format) es una convención abierta para colecciones de conocimiento en Markdown: archivos Markdown puros con un pequeño encabezado frontmatter uniforme. Esta página explica qué es OKF, qué hace Plainva automáticamente por él — y por qué no *tienes* que usar nada de esto.
 
@@ -33,7 +33,7 @@ El Markdown puro es maravillosamente portátil — pero por sí solo no tiene un
 
 ## Qué hace Plainva automáticamente
 
-**Los archivos nuevos** reciben el encabezado OKF automáticamente: cada nota creada en Plainva recibe `type` y `okf_version` en su frontmatter. Configuras los valores por vault: **Configuración → Configuración del vault → OKF (Open Knowledge Format)** → **type para notas nuevas** (por defecto `Note`) y **type para notas diarias** (por defecto `Daily Note`). Si una plantilla trae su propio `type`, gana la plantilla.
+**Los archivos nuevos** reciben el encabezado OKF automáticamente: cada nota creada en Plainva recibe `type` y `okf_version` en su frontmatter. Configuras los valores por vault: **Configuración → Vault → Contenido y estructura → OKF (Open Knowledge Format)** → **type para notas nuevas** (por defecto `Note`) y **type para notas diarias** (por defecto `Daily Note`). Si una plantilla trae su propio `type`, gana la plantilla.
 
 **Los archivos existentes nunca se cambian sin preguntar.** Plainva solo añade campos OKF al crear archivos nuevos o cuando inicias explícitamente la conversión.
 
@@ -45,7 +45,7 @@ El Markdown puro es maravillosamente portátil — pero por sí solo no tiene un
 
 Un `index.md` es el índice de contenidos de una carpeta: una lista de las notas y subcarpetas que contiene, con descripciones y enlaces relativos.
 
-- **Generarlo** — siempre por tu acción, nunca de la nada: clic derecho en una carpeta → **Generar/actualizar index.md**, o en bloque mediante el **gestor de index.md** (**Configuración → OKF → Abrir…**).
+- **Generarlo** — siempre por tu acción, nunca de la nada: clic derecho en una carpeta → **Generar/actualizar index.md**, o en bloque mediante el **gestor de index.md** (**Configuración → Vault → Contenido y estructura**).
 - **Adoptar en lugar de generar** — si ya tienes notas de resumen (MOC, Overview, folder note, README …), el gestor las sugiere como candidatas. **Adoptar** renombra el archivo a `index.md` (los enlaces se actualizan en todo el vault) y opcionalmente puede prepararlo para OKF.
 - **Mantenimiento automático** — los listados *generados* por Plainva llevan una marca invisible al final del archivo (un comentario HTML). Solo esos archivos marcados se mantienen actualizados automáticamente cada vez que cambia la carpeta — y solo en vaults OKF (reconocibles por `okf_version` en el `index.md` de la raíz).
 - **Solo lectura con salida** — los archivos index.md gestionados se abren en modo lectura con el banner "Este index.md lo gestiona Plainva y se actualiza automáticamente." Ahí puedes **Actualizar** — o elegir **Editar de todos modos**: eso quita la marca y el archivo vuelve a ser completamente tuyo (ya no hay actualizaciones automáticas).
@@ -55,7 +55,7 @@ Un `index.md` es el índice de contenidos de una carpeta: una lista de las notas
 
 ## Convertir un vault existente (opcional)
 
-Si hay archivos en el vault que no cumplen el formato OKF (falta el campo `type`, o se usan nombres reservados como notas normales), Plainva ofrece la conversión — una vez al abrir el vault, y de forma permanente en **Configuración → OKF → Conversión OKF** (la entrada solo aparece mientras haya algo que hacer).
+Si hay archivos en el vault que no cumplen el formato OKF (falta el campo `type`, o se usan nombres reservados como notas normales), Plainva ofrece la conversión — una vez al abrir el vault, y de forma permanente en **Configuración → Vault → Contenido y estructura** (la entrada solo aparece mientras haya algo que hacer).
 
 El asistente **Convertir al formato OKF** funciona en pasos claros:
 

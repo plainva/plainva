@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-07-07
+Stand: 2026-07-11
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -14,7 +14,7 @@ Ausschließlich bei Dir: Ein Vault ist ein normaler Ordner mit Markdown-Dateien 
 
 Ja — das ist ein Kernversprechen, mit einer ehrlichen Einschränkung. Plainva schreibt reines Markdown mit Standard-Frontmatter; alles Plainva-Spezifische liegt gebündelt unter `plainva:`-Schlüsseln (in Notizen und `.base`-Dateien), die Obsidian beim Öffnen einfach ignoriert. Obsidian zeigt den `plainva`-Schlüssel als nicht editierbares Objekt in den Properties — das ist harmlos. Plainva-Ansichten wie Board oder Kalender erscheinen in Obsidian als einfache Tabelle.
 
-Die Einschränkung: **Öffnen ist immer sicher, Bearbeiten nicht immer.** Ein bestehender Obsidian-Vault lässt sich in Plainva gefahrlos öffnen und bearbeiten — nichts wird migriert oder umformatiert. Nutzt ein Vault aber Plainva-Funktionen (Datenbank-Erweiterungen wie Boards, Relationen oder Rückspalten, verwaltete `index.md`-Dateien), kann das Bearbeiten genau dieser Dateien in Obsidian die Plainva-Funktionalität beschädigen, weil Obsidian die `plainva:`-Erweiterungen nicht kennt. Notizen ohne Plainva-Erweiterungen kannst Du jederzeit überall bearbeiten. Beim ersten Einsatz einer solchen Erweiterung erinnert ein Hinweis-Dialog (**Plainva-Erweiterung**) daran; abschaltbar unter **Einstellungen → Warnhinweise**.
+Die Einschränkung: **Öffnen ist immer sicher, Bearbeiten nicht immer.** Ein bestehender Obsidian-Vault lässt sich in Plainva gefahrlos öffnen und bearbeiten — nichts wird migriert oder umformatiert. Nutzt ein Vault aber Plainva-Funktionen (Datenbank-Erweiterungen wie Boards, Relationen oder Rückspalten, verwaltete `index.md`-Dateien), kann das Bearbeiten genau dieser Dateien in Obsidian die Plainva-Funktionalität beschädigen, weil Obsidian die `plainva:`-Erweiterungen nicht kennt. Notizen ohne Plainva-Erweiterungen kannst Du jederzeit überall bearbeiten. Beim ersten Einsatz einer solchen Erweiterung erinnert ein Hinweis-Dialog (**Plainva-Erweiterung**) daran; abschaltbar unter **Einstellungen → App → Start & Verhalten**.
 
 ### Verändert Plainva meinen bestehenden Vault?
 
@@ -72,7 +72,7 @@ Plainva ist eine Desktop-App, keine Webseite. Neu-laden-Tasten (F5, Strg+R) sind
 
 ### Wie ändere ich die Sprache?
 
-**Einstellungen → Allgemein → Sprache** (derzeit Deutsch und Englisch).
+**Einstellungen → App → Erscheinungsbild → Sprache** (derzeit Deutsch und Englisch).
 
 ### „Nach Updates suchen" findet nichts
 

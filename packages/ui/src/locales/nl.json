@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Instellingen",
-    "general": "Algemeen",
     "theme": "Thema",
     "themeLight": "Licht",
     "themeDark": "Donker",
@@ -164,9 +163,7 @@
     "showShortcuts": "Sneltoetsen tonen",
     "activeSync": "Actieve sync",
     "activeSyncHint": "nog verbonden – kies hieronder Ontkoppelen om de synchronisatie te stoppen",
-    "warnings": "Waarschuwingen",
     "showCompatWarning": "Compatibiliteitswaarschuwingen voor Plainva-extensies tonen",
-    "diagnostics": "Systeemdiagnose",
     "osKeychain": "OS-sleutelhanger",
     "keychainChecking": "Controleren...",
     "keychainNative": "Actief (native)",
@@ -181,7 +178,6 @@
     "densityCompact": "Compact",
     "defaultViewMode": "Standaardweergave",
     "defaultViewModeDesc": "Notities openen in deze weergave; een handmatige wissel geldt per bestand voor de huidige sessie.",
-    "appearance": "Weergave",
     "syncSection": "Synchronisatie",
     "autoUpdateCheck": "Bij het starten op updates controleren",
     "autoUpdateCheckDesc": "Controleert kort na de start stilletjes op nieuwe versies en toont een melding als er een is.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Zoekindex",
     "rebuildIndexDesc": "Bouwt de zoekindex van deze vault volledig opnieuw op — handig als zoeken, backlinks of databases verouderd lijken.",
     "rebuildIndexAction": "Index opnieuw opbouwen",
-    "rebuildIndexRunning": "Bezig…"
+    "rebuildIndexRunning": "Bezig…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Vault kiezen",
+    "sectionAppearance": "Weergave",
+    "sectionEditor": "Editor en notities",
+    "sectionBehavior": "Opstarten en gedrag",
+    "sectionContent": "Inhoud en structuur",
+    "sectionMaintenance": "Onderhoud"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",

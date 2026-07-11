@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-07-07
+Laatst bijgewerkt: 2026-07-11
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -14,7 +14,7 @@ Uitsluitend bij jou: een vault is een gewone map met Markdown-bestanden op je co
 
 Ja — dat is een kernbelofte, met één eerlijke kanttekening. Plainva schrijft puur Markdown met standaard frontmatter; alles wat Plainva-specifiek is, staat gebundeld onder `plainva:`-sleutels (in notities en `.base`-bestanden), die Obsidian bij het openen van bestanden gewoon negeert. Obsidian toont de `plainva`-sleutel als niet-bewerkbaar object in de eigenschappen — dat is onschadelijk. Plainva-only weergaven zoals Bord of Kalender verschijnen in Obsidian als gewone tabel.
 
-De kanttekening: **openen is altijd veilig, bewerken niet altijd.** Een bestaande Obsidian-vault kan zonder risico in Plainva worden geopend en bewerkt — er wordt niets gemigreerd of geherformatteerd. Maar zodra een vault Plainva-functies gebruikt (database-extensies zoals borden, relaties of omgekeerde kolommen, beheerde `index.md`-bestanden), kan het bewerken van die specifieke bestanden in Obsidian de Plainva-functionaliteit breken, omdat Obsidian de `plainva:`-extensies niet kent. Notities zonder Plainva-extensies kun je overal en altijd bewerken. Bij het eerste gebruik van zo'n uitbreiding wijst een herinneringsdialoog (**Plainva-extensie**) je hierop; uit te schakelen onder **Instellingen → Waarschuwingen**.
+De kanttekening: **openen is altijd veilig, bewerken niet altijd.** Een bestaande Obsidian-vault kan zonder risico in Plainva worden geopend en bewerkt — er wordt niets gemigreerd of geherformatteerd. Maar zodra een vault Plainva-functies gebruikt (database-extensies zoals borden, relaties of omgekeerde kolommen, beheerde `index.md`-bestanden), kan het bewerken van die specifieke bestanden in Obsidian de Plainva-functionaliteit breken, omdat Obsidian de `plainva:`-extensies niet kent. Notities zonder Plainva-extensies kun je overal en altijd bewerken. Bij het eerste gebruik van zo'n uitbreiding wijst een herinneringsdialoog (**Plainva-extensie**) je hierop; uit te schakelen onder **Instellingen → App → Opstarten en gedrag**.
 
 ### Wijzigt Plainva mijn bestaande vault?
 
@@ -72,7 +72,7 @@ Plainva is een desktop-app, geen webpagina. Herlaadtoetsen (F5, Ctrl+R) zijn met
 
 ### Hoe verander ik de taal?
 
-**Instellingen → Algemeen → Taal** (momenteel Duits en Engels).
+**Instellingen → App → Weergave → Taal** (momenteel Duits en Engels).
 
 ### "Controleren op updates" vindt niets
 

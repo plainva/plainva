@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Laatst bijgewerkt: 2026-07-08
+Laatst bijgewerkt: 2026-07-11
 
 OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: pure Markdown-bestanden met een kleine, uniforme frontmatter-kop. Deze pagina legt uit wat OKF is, wat Plainva daarvoor automatisch doet — en waarom je er niets van *hoeft* te gebruiken.
 
@@ -33,7 +33,7 @@ Gewone Markdown is fantastisch draagbaar — maar heeft op zichzelf geen betrouw
 
 ## Wat Plainva automatisch doet
 
-**Nieuwe bestanden** krijgen de OKF-kop automatisch: elke in Plainva aangemaakte notitie krijgt `type` en `okf_version` in de frontmatter. Welke waarden, stel je per vault in: **Instellingen → Vault-instellingen → OKF (Open Knowledge Format)** → **type voor nieuwe notities** (standaard `Note`) en **type voor dagelijkse notities** (standaard `Daily Note`). Brengt een sjabloon een eigen `type` mee, dan wint het sjabloon.
+**Nieuwe bestanden** krijgen de OKF-kop automatisch: elke in Plainva aangemaakte notitie krijgt `type` en `okf_version` in de frontmatter. Welke waarden, stel je per vault in: **Instellingen → Vault → Inhoud en structuur → OKF (Open Knowledge Format)** → **type voor nieuwe notities** (standaard `Note`) en **type voor dagelijkse notities** (standaard `Daily Note`). Brengt een sjabloon een eigen `type` mee, dan wint het sjabloon.
 
 **Bestaande bestanden worden nooit ongevraagd gewijzigd.** Plainva voegt OKF-velden alleen toe bij het aanmaken van nieuwe bestanden of wanneer je de conversie expliciet start.
 
@@ -45,7 +45,7 @@ Gewone Markdown is fantastisch draagbaar — maar heeft op zichzelf geen betrouw
 
 Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notities en submappen, met beschrijvingen en relatieve links.
 
-- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **index.md genereren/vernieuwen**, of gebundeld via het **index.md-beheer** (**Instellingen → OKF → Openen…**).
+- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **index.md genereren/vernieuwen**, of gebundeld via het **index.md-beheer** (**Instellingen → Vault → Inhoud en structuur**).
 - **Overnemen in plaats van genereren** — heb je al overzichtsnotities (MOC, Overzicht, mapnotitie, README …), dan stelt het beheer ze voor als kandidaten. **Overnemen** hernoemt het bestand naar `index.md` (links worden vault-breed bijgewerkt) en kan het optioneel voorbereiden voor OKF.
 - **Automatisch bijhouden** — listings die door Plainva *gegenereerd* zijn, dragen aan het einde van het bestand een onzichtbare markering (een HTML-commentaar). Alleen zulke gemarkeerde bestanden houdt Plainva automatisch actueel zodra er iets in de map verandert — en alleen in OKF-vaults (herkenbaar aan `okf_version` in de root-`index.md`).
 - **Alleen-lezen met een uitweg** — beheerde index.md-bestanden openen in leesmodus met de banner "Deze index.md wordt beheerd door Plainva en automatisch bijgewerkt." Daar kun je **Vernieuwen** — of kiezen voor **Toch bewerken**: dat verwijdert de markering en het bestand is weer helemaal van jou (geen automatische updates meer).
@@ -55,7 +55,7 @@ Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notitie
 
 ## Een bestaande vault converteren (opt-in)
 
-Als bestanden in de vault niet voldoen aan het OKF-formaat (ontbrekend `type`-veld, of gereserveerde namen gebruikt als gewone notitie), biedt Plainva de conversie aan — eenmalig bij het openen van de vault en permanent onder **Instellingen → OKF → OKF-conversie** (het item verschijnt alleen zolang er iets te doen is).
+Als bestanden in de vault niet voldoen aan het OKF-formaat (ontbrekend `type`-veld, of gereserveerde namen gebruikt als gewone notitie), biedt Plainva de conversie aan — eenmalig bij het openen van de vault en permanent onder **Instellingen → Vault → Inhoud en structuur** (het item verschijnt alleen zolang er iets te doen is).
 
 De wizard **Naar OKF-formaat converteren** werkt in duidelijke stappen:
 

@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-07-07
+Stan na: 2026-07-11
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -14,7 +14,7 @@ Wyłącznie u Ciebie: vault to zwykły folder z plikami Markdown na Twoim komput
 
 Tak — to jedna z podstawowych obietnic, z jednym uczciwym zastrzeżeniem. Plainva zapisuje zwykły Markdown ze standardowym frontmatter; wszystko specyficzne dla Plainva jest zgrupowane pod kluczami `plainva:` (w notatkach i plikach `.base`), które Obsidian przy otwieraniu plików po prostu ignoruje. Obsidian pokazuje klucz `plainva` jako nieedytowalny obiekt w swoich właściwościach — to nieszkodliwe. Widoki dostępne tylko w Plainva, jak Tablica lub Kalendarz, pojawiają się w Obsidian jako zwykła tabela.
 
-Zastrzeżenie: **otwieranie jest zawsze bezpieczne, edytowanie nie zawsze.** Istniejący vault Obsidian można bez ryzyka otworzyć i edytować w Plainva — nic nie jest migrowane ani przeformatowywane. Ale gdy vault korzysta z funkcji Plainva (rozszerzeń baz danych, takich jak tablice, relacje czy kolumny odwrotne, oraz zarządzanych plików `index.md`), edytowanie właśnie tych plików w Obsidian może zepsuć funkcjonalność Plainva, ponieważ Obsidian nie zna rozszerzeń `plainva:`. Notatki bez rozszerzeń Plainva można edytować wszędzie i zawsze. Przy pierwszym użyciu takiego rozszerzenia wskazuje na to dialog przypominający (**Rozszerzenie Plainva**); można go wyłączyć w **Ustawienia → Ostrzeżenia**.
+Zastrzeżenie: **otwieranie jest zawsze bezpieczne, edytowanie nie zawsze.** Istniejący vault Obsidian można bez ryzyka otworzyć i edytować w Plainva — nic nie jest migrowane ani przeformatowywane. Ale gdy vault korzysta z funkcji Plainva (rozszerzeń baz danych, takich jak tablice, relacje czy kolumny odwrotne, oraz zarządzanych plików `index.md`), edytowanie właśnie tych plików w Obsidian może zepsuć funkcjonalność Plainva, ponieważ Obsidian nie zna rozszerzeń `plainva:`. Notatki bez rozszerzeń Plainva można edytować wszędzie i zawsze. Przy pierwszym użyciu takiego rozszerzenia wskazuje na to dialog przypominający (**Rozszerzenie Plainva**); można go wyłączyć w **Ustawienia → Aplikacja → Uruchamianie i zachowanie**.
 
 ### Czy Plainva modyfikuje mój istniejący vault?
 
@@ -72,7 +72,7 @@ Plainva to aplikacja desktopowa, a nie strona internetowa. Klawisze odświeżani
 
 ### Jak zmienić język?
 
-**Ustawienia → Ogólne → Język** (obecnie niemiecki i angielski).
+**Ustawienia → Aplikacja → Wygląd → Język** (obecnie niemiecki i angielski).
 
 ### „Sprawdź aktualizacje” niczego nie znajduje
 

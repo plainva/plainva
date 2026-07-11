@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Impostazioni",
-    "general": "Generali",
     "theme": "Tema",
     "themeLight": "Chiaro",
     "themeDark": "Scuro",
@@ -164,9 +163,7 @@
     "showShortcuts": "Mostra le scorciatoie da tastiera",
     "activeSync": "Sincronizzazione attiva",
     "activeSyncHint": "ancora connesso – usa Disconnetti qui sotto per interrompere la sincronizzazione",
-    "warnings": "Avvisi",
     "showCompatWarning": "Mostra avvisi di compatibilità per le estensioni Plainva",
-    "diagnostics": "Diagnostica di sistema",
     "osKeychain": "Portachiavi del sistema operativo",
     "keychainChecking": "Verifica in corso...",
     "keychainNative": "Attivo (nativo)",
@@ -181,7 +178,6 @@
     "densityCompact": "Compatto",
     "defaultViewMode": "Vista predefinita",
     "defaultViewModeDesc": "Le note si aprono in questa vista; un cambio manuale vale per quel file durante la sessione corrente.",
-    "appearance": "Aspetto",
     "syncSection": "Sincronizzazione",
     "autoUpdateCheck": "Cerca aggiornamenti all'avvio",
     "autoUpdateCheckDesc": "Controlla silenziosamente le nuove versioni poco dopo l'avvio e mostra un avviso quando ne trova una.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Indice di ricerca",
     "rebuildIndexDesc": "Ricostruisce da zero l'indice di ricerca di questo vault — utile se ricerca, backlink o database sembrano obsoleti.",
     "rebuildIndexAction": "Ricostruisci indice",
-    "rebuildIndexRunning": "In corso…"
+    "rebuildIndexRunning": "In corso…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Scegli vault",
+    "sectionAppearance": "Aspetto",
+    "sectionEditor": "Editor e note",
+    "sectionBehavior": "Avvio e comportamento",
+    "sectionContent": "Contenuto e struttura",
+    "sectionMaintenance": "Manutenzione"
   },
   "editor": {
     "fileNotFound": "File non trovato",

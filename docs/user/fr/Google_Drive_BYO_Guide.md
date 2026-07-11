@@ -49,7 +49,7 @@ Pour que Plainva puisse utiliser vos identifiants, un écran de consentement («
 
 ### 5. Les saisir dans Plainva
 1. Ouvrez Plainva et accédez aux paramètres du vault (icône d'engrenage pour le vault concerné).
-2. Ouvrez la section **Synchronisation cloud**.
+2. Ouvrez la section **Synchronisation**.
 3. Choisissez **Google Drive** comme fournisseur.
 4. Collez l'**ID client** et le **Secret client** copiés dans les champs correspondants.
 5. Cliquez sur **Se connecter à Google**.

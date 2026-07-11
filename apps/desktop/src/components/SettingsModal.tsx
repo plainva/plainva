@@ -106,6 +106,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const vaults = Array.from(new Set([vaultPath, ...recentVaults].filter(Boolean) as string[]));
 
   const [section, setSection] = useState<string>(vaultPath || GENERAL);
+  // Which vault the VAULT areas show (two-worlds nav); the dropdown changes it.
+  const [selectedVault, setSelectedVault] = useState<string>(vaultPath || vaults[0] || "");
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
@@ -1023,20 +1025,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     fontSize: "0.9rem", overflow: "hidden",
   });
 
-  // Second nav level (plan Designsprache P8/L4, Variante A): anchors per
-  // section, click scrolls, scrollspy highlights the group in view.
-  const generalAnchors = [
-    { id: "sec-appearance", label: t("settings.appearance", { defaultValue: "Darstellung" }) },
-    { id: "sec-warnings", label: t("settings.warnings") },
-    { id: "sec-diagnostics", label: t("settings.diagnostics") },
+  // Two-worlds nav (settings redesign 2026-07-11, variant B): the left rail
+  // shows the APP areas and the VAULT areas at once; a dropdown picks WHICH
+  // vault the vault areas show. `section` still carries GENERAL vs. a vault
+  // path, so every persistence handler keeps its existing contract. Clicking
+  // an area of the other world switches the page first, then scrolls.
+  const appAnchors = [
+    { id: "sec-appearance", label: t("settings.sectionAppearance", { defaultValue: "Erscheinungsbild" }) },
+    { id: "sec-editor", label: t("settings.sectionEditor", { defaultValue: "Editor & Notizen" }) },
+    { id: "sec-behavior", label: t("settings.sectionBehavior", { defaultValue: "Start & Verhalten" }) },
     { id: "sec-updates", label: t("settings.updates", "Updates") },
     { id: "sec-about", label: t("settings.about") },
   ];
   const vaultAnchors = [
     { id: "sec-sync", label: t("settings.syncSection", { defaultValue: "Synchronisation" }) },
-    { id: "sec-features", label: t("settings.features") },
-    { id: "sec-okf", label: t("settings.okfHeading") },
+    { id: "sec-content", label: t("settings.sectionContent", { defaultValue: "Inhalt & Struktur" }) },
     { id: "sec-backup", label: t("settings.backupSection") },
+    { id: "sec-maintenance", label: t("settings.sectionMaintenance", { defaultValue: "Wartung" }) },
   ];
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   // Click wins: sections near the end can never scroll up to the spy line, so
@@ -1045,17 +1050,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // scroll; any real user input on the container hands control back to the spy.
   const spyPausedRef = useRef(false);
   const spyResumeTimerRef = useRef<number | undefined>(undefined);
-  const jumpToAnchor = (id: string) => {
+  const jumpToAnchor = (id: string, behavior: ScrollBehavior = "smooth") => {
     setActiveAnchor(id);
     spyPausedRef.current = true;
     window.clearTimeout(spyResumeTimerRef.current);
     spyResumeTimerRef.current = window.setTimeout(() => { spyPausedRef.current = false; }, 1000);
-    contentRef.current?.querySelector(`#${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    contentRef.current?.querySelector(`#${id}`)?.scrollIntoView({ block: "start", behavior });
   };
+  // Cross-world clicks land on a page that has not rendered yet — park the
+  // anchor, switch the section, jump after the new content mounted.
+  const pendingJumpRef = useRef<string | null>(null);
+  const openArea = (target: string, anchorId: string) => {
+    if (!target) return;
+    if (section === target) { jumpToAnchor(anchorId); return; }
+    pendingJumpRef.current = anchorId;
+    setSection(target);
+  };
+  useEffect(() => {
+    const id = pendingJumpRef.current;
+    if (!id) return;
+    pendingJumpRef.current = null;
+    requestAnimationFrame(() => jumpToAnchor(id, "auto"));
+  }, [section]);
   useEffect(() => {
     const c = contentRef.current;
     if (!c) return;
-    const ids = (section === GENERAL ? generalAnchors : vaultAnchors).map((a) => a.id);
+    const ids = (section === GENERAL ? appAnchors : vaultAnchors).map((a) => a.id);
     const onScroll = () => {
       if (spyPausedRef.current) return;
       const top = c.getBoundingClientRect().top;
@@ -1085,20 +1105,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
-  const subNavBtn = (a: { id: string; label: string }) => (
-    <button
-      key={a.id}
-      onClick={() => jumpToAnchor(a.id)}
-      style={{
-        display: "block", width: "100%", textAlign: "left", border: "none", background: "transparent",
-        cursor: "pointer", padding: "3px 8px 3px 30px", fontSize: "var(--text-sm)", borderRadius: "var(--radius-sm)",
-        color: activeAnchor === a.id ? "var(--accent-color)" : "var(--text-muted)",
-        fontWeight: activeAnchor === a.id ? 600 : 400,
-      }}
-    >
-      {a.label}
-    </button>
-  );
+  // One button per settings area. Both worlds stay visible; a click on an area
+  // of the inactive world switches the page first (openArea), so the rail acts
+  // as one flat map of every setting.
+  const navGroupLabel: React.CSSProperties = { padding: "0 0.4rem 0.25rem", fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" };
+  const navAreaBtn = (target: string, a: { id: string; label: string }) => {
+    const active = section === target && activeAnchor === a.id;
+    return (
+      <button
+        key={a.id}
+        onClick={() => openArea(target, a.id)}
+        style={{
+          ...navItemStyle(active),
+          color: active ? "var(--accent-color)" : "var(--text-main)",
+          fontWeight: active ? 600 : 400,
+        }}
+      >
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
+      </button>
+    );
+  };
 
   return (
     <>
@@ -1109,27 +1135,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         bodyClassName="pv-modal-body--flush"
       >
         <div style={{ display: "flex", flexDirection: "row", flex: 1, minHeight: 0 }}>
-          {/* Left navigation */}
+          {/* Left navigation: two worlds — app-wide areas above, the selected vault's areas below. */}
           <div className="custom-scrollbar" style={{ width: "220px", flexShrink: 0, borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)", padding: "0.75rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <button style={navItemStyle(section === GENERAL)} onClick={() => setSection(GENERAL)}>
-              <Settings2 size={14} color="var(--accent-color)" style={{ flexShrink: 0 }} />
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("settings.general")}</span>
-            </button>
-            {section === GENERAL && generalAnchors.map(subNavBtn)}
+            <div style={{ ...navGroupLabel, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <Settings2 size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+              {t("settings.sectionApp", { defaultValue: "App" })}
+            </div>
+            {appAnchors.map((a) => navAreaBtn(GENERAL, a))}
 
-            <div style={{ marginTop: "1rem", padding: "0 0.4rem 0.25rem", fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{t("sidebar.vaults")}</div>
-            {vaults.map((v) => (
-              <React.Fragment key={v}>
-                <button style={navItemStyle(section === v)} onClick={() => setSection(v)} title={v}>
-                  <Folder size={14} color="var(--accent-color)" style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{basename(v)}</span>
-                  {configuredVaults.has(v) && <Cloud size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
-                  {v === vaultPath && <span title={t("settings.activeVault")} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-color)", flexShrink: 0 }} />}
-                </button>
-                {section === v && vaultAnchors.map(subNavBtn)}
-              </React.Fragment>
-            ))}
-            
+            {vaults.length > 0 && (
+              <>
+                <div style={{ ...navGroupLabel, marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <Folder size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                  {t("settings.sectionVault", { defaultValue: "Vault" })}
+                </div>
+                <div style={{ padding: "0 0.1rem 0.25rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Select
+                      ariaLabel={t("settings.vaultSelect", { defaultValue: "Vault wählen" })}
+                      value={selectedVault}
+                      onChange={(v) => {
+                        setSelectedVault(v);
+                        setSection(v);
+                      }}
+                      options={vaults.map((v) => ({ value: v, label: basename(v) }))}
+                    />
+                  </div>
+                  {configuredVaults.has(selectedVault) && <Cloud size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+                  {selectedVault === vaultPath && <span title={t("settings.activeVault")} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-color)", flexShrink: 0 }} />}
+                </div>
+                {vaultAnchors.map((a) => navAreaBtn(selectedVault, a))}
+              </>
+            )}
+
             <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
               <button
                 onClick={() => setShowShortcuts(true)}
@@ -1148,7 +1186,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               {section === GENERAL ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                   <div>
-                    <h3 id="sec-appearance" style={{ marginTop: 0, scrollMarginTop: "8px" }}>{t("settings.general")}</h3>
+                    <h3 id="sec-appearance" style={{ marginTop: 0, scrollMarginTop: "8px" }}>{t("settings.sectionAppearance", { defaultValue: "Erscheinungsbild" })}</h3>
                     <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
 
                       {/* Theme picker as full-width preview cards (E6). */}
@@ -1219,6 +1257,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         </div>
                       </SettingRow>
 
+                      <SettingRow
+                        label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
+                        desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
+                      >
+                        <div style={{ width: "100%" }}>
+                          <Select
+                            ariaLabel={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
+                            value={String(uiZoom)}
+                            onChange={(v) => {
+                              const z = Number(v);
+                              setUiZoom(z);
+                              void setStoredUiZoom(z);
+                            }}
+                            options={Array.from(
+                              { length: (MAX_UI_ZOOM - MIN_UI_ZOOM) / UI_ZOOM_STEP + 1 },
+                              (_, i) => MIN_UI_ZOOM + i * UI_ZOOM_STEP
+                            ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
+                          />
+                        </div>
+                      </SettingRow>
+
+                      <h4 id="sec-editor" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionEditor", { defaultValue: "Editor & Notizen" })}</h4>
                       <SettingRow
                         label={t("settings.defaultViewMode", { defaultValue: "Standard-Ansicht" })}
                         desc={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
@@ -1299,32 +1359,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         </div>
                       </SettingRow>
 
-                      <SettingRow
-                        label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-                        desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
-                      >
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-                            value={String(uiZoom)}
-                            onChange={(v) => {
-                              const z = Number(v);
-                              setUiZoom(z);
-                              void setStoredUiZoom(z);
-                            }}
-                            options={Array.from(
-                              { length: (MAX_UI_ZOOM - MIN_UI_ZOOM) / UI_ZOOM_STEP + 1 },
-                              (_, i) => MIN_UI_ZOOM + i * UI_ZOOM_STEP
-                            ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
-                          />
-                        </div>
-                      </SettingRow>
-
+                      <h4 id="sec-behavior" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionBehavior", { defaultValue: "Start & Verhalten" })}</h4>
                       <SettingRow label={t("splash.autoOpenLastVault")} desc={t("settings.autoOpenLastVaultDesc")}>
                         <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={autoOpenLastVault} onChange={(e) => { void setAutoOpenLastVault(e.target.checked); }} />
                       </SettingRow>
-
-                      <h4 id="sec-warnings" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.warnings")}</h4>
                       <SettingRow label={t("settings.showCompatWarning")}>
                         <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={showCompatibilityWarning} onChange={async (e) => {
                           const val = e.target.checked;
@@ -1333,11 +1371,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           await store.set(SHOW_COMPATIBILITY_WARNING_KEY, val);
                           await store.save();
                         }} />
-                      </SettingRow>
-
-                      <h4 id="sec-diagnostics" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.diagnostics")}</h4>
-                      <SettingRow label={t("settings.osKeychain")}>
-                        <strong style={{ color: keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "0.9rem" }}>{keychainStatus === "checking" ? t("settings.keychainChecking") : keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}</strong>
                       </SettingRow>
 
                       <h4 id="sec-updates" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.updates", "Updates")}</h4>
@@ -1374,14 +1407,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           {t("settings.exportDiagnostics")}
                         </Button>
                       </SettingRow>
-                      {vaultStats && (
-                        <SettingRow
-                          label={t("settings.vaultStats", { defaultValue: "Vault-Statistik" })}
-                          desc={t("settings.vaultStatsValue", { defaultValue: "Notizen: {{notes}} · Anhänge: {{attachments}}", notes: vaultStats.notes, attachments: vaultStats.attachments })}
-                        >
-                          <span />
-                        </SettingRow>
-                      )}
+                      <SettingRow label={t("settings.osKeychain")}>
+                        <strong style={{ color: keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "0.9rem" }}>{keychainStatus === "checking" ? t("settings.keychainChecking") : keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}</strong>
+                      </SettingRow>
                       <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
                         <div style={{ display: "flex", gap: "8px" }}>
                           <Button variant="secondary" size="sm" onClick={() => { void refreshPerfStats(); }}>
@@ -1431,12 +1459,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <h3 id="sec-sync" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "0.5rem", scrollMarginTop: "8px" }}>
+                  <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <Folder size={18} color="var(--accent-color)" /> {basename(section)}
                     {section === vaultPath && <span style={{ fontSize: "0.75rem", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "0 0.4rem" }}>{t("settings.activeVault")}</span>}
                   </h3>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", wordBreak: "break-all", marginBottom: "1rem" }}>{section}</div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", wordBreak: "break-all", marginBottom: "0.5rem" }}>{section}</div>
 
+                  <h4 id="sec-sync" style={{ marginTop: 0, marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.syncSection", { defaultValue: "Synchronisation" })}</h4>
                   <SettingRow
                     label={t("settings.provider")}
                     desc={`${t("settings.activeSync")}: ${
@@ -1700,29 +1729,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     </>
                   )}
 
-                  {section === vaultPath && (
-                    <SettingRow
-                      label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}
-                      desc={t("settings.rebuildIndexDesc", { defaultValue: "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken." })}
-                    >
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={reindexRunning}
-                        onClick={() => {
-                          setReindexRunning(true);
-                          void refreshVault()
-                            .catch((e) => console.error("[Settings] reindex failed", e))
-                            .finally(() => setReindexRunning(false));
-                        }}
-                      >
-                        {reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("settings.rebuildIndexAction", { defaultValue: "Index neu aufbauen" })}
-                      </Button>
-                    </SettingRow>
-                  )}
-
                   <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
-                  <h4 id="sec-features" style={{ marginTop: 0, marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.features")}</h4>
+                  <h4 id="sec-content" style={{ marginTop: 0, marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionContent", { defaultValue: "Inhalt & Struktur" })}</h4>
+                  <h5 style={{ margin: "0.5rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.features")}</h5>
 
                   <SettingRow label={t("settings.dailyNotesFolder")}>
                     <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" style={{ ...inputStyle, width: "100%" }} />
@@ -1740,12 +1749,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" style={{ ...inputStyle, width: "100%" }} />
                   </SettingRow>
 
-                  <h4 style={{ marginTop: "1.5rem", marginBottom: "0.25rem" }}>{t("settings.extendedDatabases")}</h4>
-                  <SettingRow label={t("settings.allowExtendedDb")} desc={t("settings.allowExtendedDbDesc")}>
-                    <input type="checkbox" id="extDb" checked={extendedDatabases} onChange={(e) => { setExtendedDatabases(e.target.checked); void persistFeature(section, extendedDatabasesKey(section), e.target.checked); }} />
-                  </SettingRow>
-
-                  <h4 id="sec-okf" style={{ marginTop: "1.4rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.okfHeading")}</h4>
+                  <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.okfHeading")}</h5>
 
                   <SettingRow label={t("settings.defaultNoteType")} desc={t("settings.defaultNoteTypeDesc")}>
                     <input autoComplete="off" value={defaultNoteType} onChange={(e) => { setDefaultNoteType(e.target.value); void persistFeature(section, defaultNoteTypeKey(section), e.target.value.trim() || DEFAULT_NOTE_TYPE); }} placeholder={DEFAULT_NOTE_TYPE} style={{ ...inputStyle, width: "100%" }} />
@@ -1796,6 +1800,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       </SettingRow>
                     </>
                   )}
+
+                  <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.extendedDatabases")}</h5>
+                  <SettingRow label={t("settings.allowExtendedDb")} desc={t("settings.allowExtendedDbDesc")}>
+                    <input type="checkbox" id="extDb" checked={extendedDatabases} onChange={(e) => { setExtendedDatabases(e.target.checked); void persistFeature(section, extendedDatabasesKey(section), e.target.checked); }} />
+                  </SettingRow>
 
                   {/* Backup & Versionierung (Gesamtplan 2026-07-05, P7). Plain
                       settings persist on change; retention changes reach the
@@ -1941,16 +1950,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingRow>
 
+                  {/* Maintenance (settings redesign 2026-07-11): repair/recovery
+                      actions and the vault's stats — everything here operates on
+                      the OPEN vault, hence the active-vault gate per row. */}
+                  <h4 id="sec-maintenance" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionMaintenance", { defaultValue: "Wartung" })}</h4>
                   {section === vaultPath && (
-                    <SettingRow label={t("versions.deletedTitle")} desc={t("settings.deletedFilesDesc")}>
-                      <button
-                        data-testid="settings-deleted-files"
-                        onClick={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
-                        style={{ ...inputStyle, cursor: "pointer" }}
+                    <>
+                      <SettingRow
+                        label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}
+                        desc={t("settings.rebuildIndexDesc", { defaultValue: "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken." })}
                       >
-                        {t("settings.deletedFilesButton")}
-                      </button>
-                    </SettingRow>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={reindexRunning}
+                          onClick={() => {
+                            setReindexRunning(true);
+                            void refreshVault()
+                              .catch((e) => console.error("[Settings] reindex failed", e))
+                              .finally(() => setReindexRunning(false));
+                          }}
+                        >
+                          {reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("settings.rebuildIndexAction", { defaultValue: "Index neu aufbauen" })}
+                        </Button>
+                      </SettingRow>
+                      <SettingRow label={t("versions.deletedTitle")} desc={t("settings.deletedFilesDesc")}>
+                        <button
+                          data-testid="settings-deleted-files"
+                          onClick={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
+                          style={{ ...inputStyle, cursor: "pointer" }}
+                        >
+                          {t("settings.deletedFilesButton")}
+                        </button>
+                      </SettingRow>
+                      {vaultStats && (
+                        <SettingRow
+                          label={t("settings.vaultStats", { defaultValue: "Vault-Statistik" })}
+                          desc={t("settings.vaultStatsValue", { defaultValue: "Notizen: {{notes}} · Anhänge: {{attachments}}", notes: vaultStats.notes, attachments: vaultStats.attachments })}
+                        >
+                          <span />
+                        </SettingRow>
+                      )}
+                    </>
                   )}
 
                   {section !== vaultPath && (

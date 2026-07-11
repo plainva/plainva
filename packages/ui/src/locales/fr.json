@@ -23,7 +23,6 @@
   },
   "settings": {
     "title": "Paramètres",
-    "general": "Général",
     "theme": "Thème",
     "themeLight": "Clair",
     "themeDark": "Sombre",
@@ -164,9 +163,7 @@
     "showShortcuts": "Afficher les raccourcis clavier",
     "activeSync": "Synchronisation active",
     "activeSyncHint": "toujours connecté – utilisez « Déconnecter » ci-dessous pour arrêter la synchronisation",
-    "warnings": "Avertissements",
     "showCompatWarning": "Afficher les avertissements de compatibilité pour les extensions Plainva",
-    "diagnostics": "Diagnostic système",
     "osKeychain": "Trousseau du système",
     "keychainChecking": "Vérification...",
     "keychainNative": "Actif (natif)",
@@ -181,7 +178,6 @@
     "densityCompact": "Compact",
     "defaultViewMode": "Vue par défaut",
     "defaultViewModeDesc": "Les notes s'ouvrent dans cette vue ; un changement manuel s'applique au fichier pour la session en cours.",
-    "appearance": "Apparence",
     "syncSection": "Synchronisation",
     "autoUpdateCheck": "Rechercher des mises à jour au démarrage",
     "autoUpdateCheckDesc": "Vérifie discrètement les nouvelles versions peu après le démarrage et affiche un avis le cas échéant.",
@@ -224,7 +220,15 @@
     "rebuildIndex": "Index de recherche",
     "rebuildIndexDesc": "Reconstruit entièrement l'index de recherche de ce coffre — utile si la recherche, les rétroliens ou les bases semblent obsolètes.",
     "rebuildIndexAction": "Reconstruire l'index",
-    "rebuildIndexRunning": "En cours…"
+    "rebuildIndexRunning": "En cours…",
+    "sectionApp": "App",
+    "sectionVault": "Vault",
+    "vaultSelect": "Choisir le vault",
+    "sectionAppearance": "Apparence",
+    "sectionEditor": "Éditeur et notes",
+    "sectionBehavior": "Démarrage et comportement",
+    "sectionContent": "Contenu et structure",
+    "sectionMaintenance": "Maintenance"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",

@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Stand: 2026-07-05
+Stand: 2026-07-11
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -48,7 +48,7 @@ Os arquivos ZIP são nomeados `VaultName_2026-07-05_14-30-00.zip` e contêm toda
 
 ## Configurações em resumo
 
-Configurações → seu vault → **Backup e versionamento**:
+Configurações → **Vault** → **Backup e versionamento**:
 
 | Configuração | Padrão | Significado |
 |---|---|---|

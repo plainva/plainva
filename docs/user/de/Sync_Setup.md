@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-10
+Stand: 2026-07-11
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -8,7 +8,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 
 ## Grundlagen
 
-- Einrichtung unter **Einstellungen → Vault Einstellungen → Cloud Sync**. Der **Sync Provider** wird pro Vault gewählt: **Keiner (Nur lokal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** oder **S3-kompatibler Speicher** — immer genau einer pro Vault.
+- Einrichtung unter **Einstellungen → Vault → Synchronisation**. Der **Sync Provider** wird pro Vault gewählt: **Keiner (Nur lokal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** oder **S3-kompatibler Speicher** — immer genau einer pro Vault.
 - **Neuen Online-Vault vom Startbildschirm einrichten**: **Online-Vault öffnen** führt Dich bei allen Anbietern gleich durch drei Schritte — **1. Verbinden** (Anmeldung bzw. Zugangsdaten eingeben), **2. Ordner in der Cloud wählen**, **3. lokalen Ordner wählen oder erstellen**. Alternativ richtest Du den Sync für einen bereits offenen Vault jederzeit unter Einstellungen ein.
 - Lokale Speicherungen werden sofort hochgeladen; auf Remote-Änderungen prüft Plainva im eingestellten **Sync-Intervall (Sekunden)**.
 - Offline-Änderungen werden in einer Warteschlange gesammelt und beim nächsten Kontakt übertragen; die Statusleiste zeigt **Online**/**Offline** und der Sync-Indikator den Zustand (**Jetzt synchronisieren** per Klick). Bei einem langen oder erstmaligen Sync zeigt die Statusleiste den Fortschritt als Zähler (z. B. **Sync 123/540**), damit Du siehst, dass sie den Vault abarbeitet.
@@ -17,7 +17,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - **Konflikte lösen**: Ein Banner in der betroffenen Notiz (und **Konflikt lösen…** im Rechtsklick-Menü der `.CONFLICT`-Datei im Baum) öffnet den Vergleichsdialog — links der aktuelle Stand der Datei, rechts Deine gesicherte Version zum Bearbeiten und blockweisen Übernehmen. **Rechte Version speichern & auflösen** schreibt das Ergebnis in die Datei und räumt die Konfliktkopie auf; **Andere Seite behalten** verwirft Deine Kopie (ein Versions-Snapshot bleibt). Auch der Sync-Fehler-Dialog listet vorhandene Konfliktkopien und führt mit einem Klick in denselben Vergleich.
 - **Schutz vor Massenlöschungen**: Sollen ungewöhnlich viele der synchronisierten Dateien auf einmal in der Cloud gelöscht werden (z. B. weil der lokale Vault-Ordner geleert oder verschoben wurde), hält Plainva die Löschungen an und fragt zuerst nach: **In der Cloud löschen** führt sie aus, **Nicht löschen (wiederherstellen)** verwirft sie und stellt die Dateien beim nächsten Sync aus der Cloud wieder her. Löschungen, die Du in Plainva selbst bestätigt hast, werden nicht angehalten – bei großen Löschungen (mehr als 10 Dateien oder mehr als 20 % des Vaults) fragt Plainva stattdessen schon vor dem Löschen ein zweites Mal nach.
 - Anhänge (Bilder etc.) werden mitsynchronisiert.
-- Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → System-Diagnose → OS-Keychain**), nie in Dateien im Vault.
+- Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → App → Über & Diagnose → OS-Keychain**), nie in Dateien im Vault.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
 
 ## WebDAV / Nextcloud

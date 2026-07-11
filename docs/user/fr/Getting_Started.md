@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-10
+Dernière mise à jour : 2026-07-11
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -36,7 +36,7 @@ Changez de mode en haut à droite de l'éditeur :
 | **Aperçu en direct** | Le mode par défaut pour écrire : le Markdown se rend au fur et à mesure que vous tapez ; les caractères de mise en forme n'apparaissent que là où vous travaillez. |
 | **Source Markdown** | Le texte brut sans rendu — pour un contrôle total. |
 
-Le mode dans lequel les notes s'ouvrent est votre choix : choisissez la **Vue par défaut** sous **Paramètres → Général** (lecture, direct ou source). Changer de mode dans l'éditeur s'applique au fichier pour la session en cours.
+Le mode dans lequel les notes s'ouvrent est votre choix : choisissez la **Vue par défaut** sous **Paramètres → App → Éditeur et notes** (lecture, direct ou source). Changer de mode dans l'éditeur s'applique au fichier pour la session en cours.
 
 Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 
@@ -50,7 +50,7 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 
 ## Notes quotidiennes
 
-**Ouvrir la note quotidienne** (ou un clic sur une date dans le **Calendrier** à droite) ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Paramètres du vault → Notes quotidiennes & modèles**.
+**Ouvrir la note quotidienne** (ou un clic sur une date dans le **Calendrier** à droite) ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Vault → Contenu et structure**.
 
 Dans le calendrier, le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
 
@@ -58,16 +58,16 @@ Dans le calendrier, le bouton **Aujourd'hui** revient au mois en cours ; cliquer
 
 **Paramètres** (icône d'engrenage en bas de la barre d'actions tout à gauche, ou `Ctrl+,`) se ferment via le **X** en haut à droite, `Esc` ou un clic en dehors de la fenêtre. Les modifications sont enregistrées immédiatement et automatiquement — seuls les identifiants de synchronisation sont appliqués délibérément via **Enregistrer**/**Se connecter** (voir [Configurer la synchronisation](Sync_Setup.md)). Les paramètres se composent de deux parties :
 
-- **Général** — le sélecteur de **Thème** sous forme de cartes d'aperçu : en plus de **Pétrole** (par défaut), vous avez **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (façon e-ink, maximalement calme), **Sépia** (papier chaud), **Forêt**, **Minuit** (noir OLED), **Contraste élevé** et **Phosphore vert**/**Phosphore ambre** (terminal rétro avec de subtils effets de balayage). Plus le **Mode** (**Clair**/**Sombre**/**Par défaut du système**) — les thèmes à mode unique comme **Minuit** (sombre uniquement) imposent le mode, et le bascule clair/sombre de la barre de titre se met en pause pendant qu'ils sont actifs. Également ici : **Langue**, mises à jour (Plainva vérifie discrètement la disponibilité de nouvelles versions au démarrage et affiche un avis lorsqu'il en trouve une — désactivable via **Rechercher des mises à jour au démarrage**), **Afficher les raccourcis clavier** (aussi via `F1`), **Avertissements**, **Diagnostic système** (p. ex. le statut du **Trousseau du système**) et **À propos et diagnostic** (détails de version, **Exporter le diagnostic…** — sans contenu de note — et **Signaler un problème**).
-- **Paramètres du vault** — par vault : **Synchronisation cloud** (voir [Configurer la synchronisation](Sync_Setup.md)), **Notes quotidiennes & modèles** (y compris le **Dossier de modèles**), **OKF (Open Knowledge Format)** (voir [OKF](OKF.md)) et **Bases de données étendues**.
+- **App** — tout ce qui s'applique à toute l'application, réparti en cinq zones. **Apparence** : le sélecteur de **Thème** sous forme de cartes d'aperçu — en plus de **Pétrole** (par défaut), vous avez **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (façon e-ink, maximalement calme), **Sépia** (papier chaud), **Forêt**, **Minuit** (noir OLED), **Contraste élevé** et **Phosphore vert**/**Phosphore ambre** (terminal rétro avec de subtils effets de balayage) ; plus le **Mode** (**Clair**/**Sombre**/**Par défaut du système** ; les thèmes à mode unique comme **Minuit** imposent le mode, et le bascule clair/sombre de la barre de titre se met en pause pendant qu'ils sont actifs), **Langue**, **Densité** et **Zoom de l'interface**. **Éditeur et notes** : **Vue par défaut**, **Taille de police du contenu** et **Police du contenu**. **Démarrage et comportement** : l'ouverture automatique du dernier vault, les avertissements de compatibilité. **Mises à jour** : Plainva vérifie discrètement la disponibilité de nouvelles versions au démarrage et affiche un avis lorsqu'il en trouve une — désactivable via **Rechercher des mises à jour au démarrage**. **À propos et diagnostic** : les informations de version, le statut du **Trousseau du système**, **Mesures de performance**, **Exporter le diagnostic…** (sans contenu de note) et **Signaler un problème**. Les raccourcis clavier restent accessibles à tout moment via `F1` ou **Afficher les raccourcis clavier** en bas à gauche.
+- **Vault** — le sélecteur de vault se trouve sous forme de menu déroulant au-dessus ; en dessous, quatre zones par vault : **Synchronisation** (voir [Configurer la synchronisation](Sync_Setup.md)), **Contenu et structure** (**Notes quotidiennes & modèles** y compris le **Dossier de modèles**, **OKF (Open Knowledge Format)** — voir [OKF](OKF.md) — et **Bases de données étendues**), **Sauvegarde & historique des versions** et **Maintenance** (**Reconstruire l'index**, restaurer les fichiers supprimés, statistiques du vault).
 
 ## Personnaliser l'interface
 
 - **Basculer les barres latérales** via les deux boutons de la barre de titre ou `Ctrl+Alt+B` (gauche) / `Ctrl+Alt+R` (droite) — idéal pour écrire en pleine concentration. Plainva se souvient de l'état.
 - **Palette de commandes** : `Ctrl+P` ouvre **Commandes** — tapez et appuyez sur `Entrée` pour exécuter (nouvelle note, note quotidienne, scission, barres latérales, **Sauvegarder maintenant**, et bien plus).
-- **Densité** : sous **Paramètres → Général**, choisissez entre **Confortable** et **Compact** — Compact resserre les listes, menus et lignes de tableau ; le contenu des notes n'est pas affecté.
-- **Police du contenu** : sous **Paramètres → Général**, réglez la **Taille de police du contenu** (12–24 px) et la **Police du contenu** (défaut du thème, serif, sans-serif, monospace ou le nom d'une police installée) — cela ne redimensionne que l'éditeur et la vue de lecture ; l'interface reste inchangée.
-- **Zoom de l'interface** : redimensionne TOUTE l'interface entre 80 % et 150 % — sous **Paramètres → Général** ou via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` réinitialise).
+- **Densité** : sous **Paramètres → App → Apparence**, choisissez entre **Confortable** et **Compact** — Compact resserre les listes, menus et lignes de tableau ; le contenu des notes n'est pas affecté.
+- **Police du contenu** : sous **Paramètres → App → Éditeur et notes**, réglez la **Taille de police du contenu** (12–24 px) et la **Police du contenu** (défaut du thème, serif, sans-serif, monospace ou le nom d'une police installée) — cela ne redimensionne que l'éditeur et la vue de lecture ; l'interface reste inchangée.
+- **Zoom de l'interface** : redimensionne TOUTE l'interface entre 80 % et 150 % — sous **Paramètres → App → Apparence** ou via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` réinitialise).
 - **Boîtes de dialogue et notifications natives-free** : les confirmations apparaissent comme des boîtes de dialogue Plainva stylées selon votre thème (les actions destructrices ont un bouton rouge), les brefs avis comme des toasts discrets en bas à droite — plus de fenêtres système.
 
 ## Voir aussi

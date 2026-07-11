@@ -1,6 +1,6 @@
 # Setting up OneDrive & Dropbox (your own app registration)
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-11
 
 **You normally don't need this page:** Plainva ships its own app IDs for OneDrive and Dropbox — you pick the provider, click **Connect** and sign in. This guide is only for the **optional** case where you want to use your own (free) app registration (e.g. for corporate restrictions). In the sync settings you reveal the ID fields via **Use your own app ID**, then enter a single public value:
 
@@ -56,7 +56,7 @@ On the app's **Overview**, copy the **"Application (client) ID"** — that is yo
 
 ### Enter it in Plainva
 
-1. **Settings → Vault Settings → Cloud Sync**.
+1. **Settings → Vault → Sync**.
 2. Set the **Sync Provider** to **OneDrive**.
 3. Paste the copied Application ID into the **Client ID** field; optionally set the **OneDrive Folder (Name)** (default `Plainva`).
 4. **Connect to Microsoft** → sign in in the browser and confirm access. The browser then tells you that you can close the window.
@@ -105,7 +105,7 @@ Tab **Settings**: copy the **App key** value — that is your value for Plainva.
 
 ### Enter it in Plainva
 
-1. **Settings → Vault Settings → Cloud Sync**.
+1. **Settings → Vault → Sync**.
 2. Set the **Sync Provider** to **Dropbox**.
 3. Paste the copied App key into the **App Key** field; optionally set the **Dropbox Folder (Path)** (default `/Plainva`).
 4. **Connect to Dropbox** → sign in in the browser and confirm access.
