@@ -10,6 +10,7 @@ import { setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
+import { MobileDialogHost } from "./components/MobileDialogHost";
 import App from "./App";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
@@ -72,6 +73,7 @@ async function boot(): Promise<void> {
       <FatalBoundary>
         <App />
         <ToastHost />
+        <MobileDialogHost />
       </FatalBoundary>
     </React.StrictMode>,
   );

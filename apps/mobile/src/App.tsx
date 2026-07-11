@@ -17,7 +17,7 @@ import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultServ
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
 import { App as CapApp } from "@capacitor/app";
-import { Dialog } from "@capacitor/dialog";
+import { mPrompt } from "./services/mobileDialogs";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { createDatabase } from "./services/baseOps";
 import { SettingsScreen } from "./SettingsScreen";
@@ -86,7 +86,9 @@ export default function App() {
   const fabPress = useLongPress<undefined>(() => setQuickCreate(true));
   // The Android back listener registers once; it reads the live state here.
   const navRef = useRef(nav);
-  navRef.current = nav;
+  useEffect(() => {
+    navRef.current = nav;
+  }, [nav]);
 
   useEffect(() => {
     void getMobileVault().then((v) => {
@@ -230,7 +232,7 @@ export default function App() {
   const quickNewDatabase = () => {
     setQuickCreate(false);
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("mobile.newDatabase"),
         message: t("mobile.newDatabasePrompt"),
       });

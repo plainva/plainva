@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, CloudOff } from "lucide-react";
-import { Button, EmptyState, SelectField, TextInput } from "@plainva/ui";
+import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
+import { EmptyState, TextInput } from "@plainva/ui";
+import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import { connectProvider, syncPossible, type MobileSyncProvider } from "./services/syncService";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
@@ -10,6 +11,14 @@ import type { MobileVault } from "./services/vaultService";
 type ProviderId = MobileSyncProvider["provider"];
 
 const OAUTH_PROVIDERS: ReadonlySet<ProviderId> = new Set(["drive", "onedrive", "dropbox"]);
+
+const PROVIDER_OPTIONS: Array<{ value: ProviderId; label: string }> = [
+  { value: "webdav", label: "WebDAV / Nextcloud" },
+  { value: "s3", label: "S3 (AWS / R2 / MinIO …)" },
+  { value: "drive", label: "Google Drive" },
+  { value: "onedrive", label: "OneDrive" },
+  { value: "dropbox", label: "Dropbox" },
+];
 
 /**
  * "Add cloud vault" screen (M3.6 vault-management rework): pure connect
@@ -98,16 +107,24 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
           {error && <p className="m-sync-error">{error}</p>}
 
-          <label className="m-field">
+          <button
+            className="m-row"
+            onClick={() =>
+              void mSelect({
+                title: t("mobile.syncProvider"),
+                options: PROVIDER_OPTIONS,
+                value: provider,
+              }).then((v) => {
+                if (v !== null) setProvider(v as ProviderId);
+              })
+            }
+          >
             <span>{t("mobile.syncProvider")}</span>
-            <SelectField onChange={(e) => setProvider(e.target.value as ProviderId)} value={provider}>
-              <option value="webdav">WebDAV / Nextcloud</option>
-              <option value="s3">S3 (AWS / R2 / MinIO …)</option>
-              <option value="drive">Google Drive</option>
-              <option value="onedrive">OneDrive</option>
-              <option value="dropbox">Dropbox</option>
-            </SelectField>
-          </label>
+            <span className="m-prop-val">
+              {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
+            </span>
+            <ChevronRight className="m-chevron" size={18} />
+          </button>
 
           {provider === "webdav" && (
             <>
@@ -216,9 +233,9 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           )}
 
           <div className="m-sync-actions">
-            <Button disabled={busy || !canConnect} onClick={connect} variant="primary">
+            <button className="m-btn m-btn--filled" disabled={busy || !canConnect} onClick={connect}>
               {t("mobile.syncConnect")}
-            </Button>
+            </button>
           </div>
         </div>
       )}

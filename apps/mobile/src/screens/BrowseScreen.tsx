@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
-import { Dialog } from "@capacitor/dialog";
+import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 
@@ -126,7 +126,7 @@ export function BrowseScreen({
 
   const createFolder = () => {
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("mobile.newFolder"),
         message: t("mobile.newFolderPrompt"),
       });
@@ -139,10 +139,10 @@ export function BrowseScreen({
   const renameFolder = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("mobile.vaultRename"),
         message: t("mobile.renamePrompt"),
-        inputText: target.title,
+        initial: target.title,
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === target.title) return;
@@ -154,11 +154,13 @@ export function BrowseScreen({
   const deleteFolder = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
-      const { value } = await Dialog.confirm({
+      const ok = await mConfirm({
         title: t("mobile.deleteFolder"),
         message: t("mobile.deleteFolderConfirm", { name: target.title }),
+        danger: true,
+        confirmLabel: t("common.delete"),
       });
-      if (!value) return;
+      if (!ok) return;
       await vaultOps.removeFolder(vault, target.path);
     })();
   };
@@ -185,10 +187,10 @@ export function BrowseScreen({
   const renameNote = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("mobile.vaultRename"),
         message: t("mobile.renamePrompt"),
-        inputText: target.title,
+        initial: target.title,
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === target.title) return;
@@ -199,11 +201,13 @@ export function BrowseScreen({
   const deleteNote = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
-      const { value } = await Dialog.confirm({
+      const ok = await mConfirm({
         title: t("mobile.deleteNote"),
         message: t("mobile.deleteNoteConfirm", { name: target.title }),
+        danger: true,
+        confirmLabel: t("common.delete"),
       });
-      if (!value) return;
+      if (!ok) return;
       await vaultOps.remove(vault, target.path);
     })();
   };
@@ -385,7 +389,7 @@ export function BrowseScreen({
 /** The root-level create-folder action, reused by the shell's top bar. */
 export function createFolderPrompt(vault: MobileVault, folder: string, t: (k: string) => string) {
   void (async () => {
-    const { value, cancelled } = await Dialog.prompt({
+    const { value, cancelled } = await mPrompt({
       title: t("mobile.newFolder"),
       message: t("mobile.newFolderPrompt"),
     });

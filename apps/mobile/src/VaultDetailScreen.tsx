@@ -1,8 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Dialog } from "@capacitor/dialog";
 import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@plainva/ui";
+import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
   getSyncStatus,
   pauseProvider,
@@ -56,14 +55,12 @@ export function VaultDetailScreen({
   const name = entry.name || t("mobile.vaultLocal");
   const connected = isActive && status.status !== "off";
 
-  // window.confirm/prompt return false/null unanswered in the Capacitor 8
-  // WebView — the Dialog plugin shows real native dialogs instead.
   const rename = () => {
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("mobile.vaultRename"),
         message: t("mobile.vaultRenamePrompt"),
-        inputText: entry.name,
+        initial: entry.name,
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed) return;
@@ -74,11 +71,13 @@ export function VaultDetailScreen({
 
   const remove = () => {
     void (async () => {
-      const { value } = await Dialog.confirm({
+      const ok = await mConfirm({
         title: t("mobile.vaultDelete"),
         message: t("mobile.vaultDeleteConfirm", { name }),
+        danger: true,
+        confirmLabel: t("common.delete"),
       });
-      if (!value) return;
+      if (!ok) return;
       setBusy(true);
       await deleteVault(vaultId)
         .then(onBack)
@@ -123,9 +122,9 @@ export function VaultDetailScreen({
               {statusLabel}
             </span>
             {connected && (
-              <Button disabled={busy} onClick={() => syncNow()} size="sm" variant="ghost">
+              <button className="m-btn" disabled={busy} onClick={() => syncNow()}>
                 {t("mobile.syncNow")}
-              </Button>
+              </button>
             )}
           </div>
         )}
@@ -143,17 +142,18 @@ export function VaultDetailScreen({
 
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (
-            <Button disabled={busy} onClick={() => void switchVault(vaultId)} variant="primary">
+            <button className="m-btn m-btn--filled" disabled={busy} onClick={() => void switchVault(vaultId)}>
               <Check size={16} /> {t("mobile.vaultUse")}
-            </Button>
+            </button>
           )}
           {!isLocal && (
-            <Button disabled={busy} onClick={rename}>
+            <button className="m-btn m-btn--tonal" disabled={busy} onClick={rename}>
               <Pencil size={16} /> {t("mobile.vaultRename")}
-            </Button>
+            </button>
           )}
           {entry.provider && !entry.paused && (
-            <Button
+            <button
+              className="m-btn m-btn--tonal"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -161,24 +161,24 @@ export function VaultDetailScreen({
               }}
             >
               {t("mobile.syncDisconnect")}
-            </Button>
+            </button>
           )}
           {entry.provider && entry.paused && (
-            <Button
+            <button
+              className="m-btn m-btn--filled"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
                 void resumeProvider(vaultId).finally(() => setBusy(false));
               }}
-              variant="primary"
             >
               {t("mobile.syncResume")}
-            </Button>
+            </button>
           )}
           {!isLocal && (
-            <Button className="m-danger" disabled={busy} onClick={remove}>
+            <button className="m-btn m-btn--danger" disabled={busy} onClick={remove}>
               <Trash2 size={16} /> {t("mobile.vaultDelete")}
-            </Button>
+            </button>
           )}
         </div>
       </div>

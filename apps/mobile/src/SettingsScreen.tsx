@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ChevronLeft } from "lucide-react";
-import { APP_LANGUAGES, SelectField, TextInput } from "@plainva/ui";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { APP_LANGUAGES, TextInput } from "@plainva/ui";
+import { mSelect } from "./services/mobileDialogs";
 import {
   getMobileSettings,
   updateMobileSettings,
@@ -15,6 +16,7 @@ import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./n
  * daily-notes folder. Values persist through the platform settings store
  * and apply immediately (desktop hybrid-save model: no save button).
  * R2.2 adds the tab-bar layout: up to four pool screens, ▲▼ reorder.
+ * R3.3: choices open M3 selection sheets instead of native <select>s.
  */
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
@@ -22,6 +24,51 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
 
   const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
     void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
+  };
+
+  const themeLabel = (mode: ThemeMode) =>
+    t(mode === "light" ? "mobile.themeLight" : mode === "dark" ? "mobile.themeDark" : "mobile.themeSystem");
+  const viewLabel = (view: DefaultView) =>
+    t(view === "edit" ? "mobile.defaultViewEdit" : "mobile.defaultViewRead");
+  const languageLabel = (code: string) =>
+    code
+      ? (APP_LANGUAGES.find((l) => l.code === code)?.nativeName ?? code)
+      : t("mobile.settingLanguageSystem");
+
+  const pickLanguage = () => {
+    void mSelect({
+      title: t("mobile.settingLanguage"),
+      options: [
+        { value: "", label: t("mobile.settingLanguageSystem") },
+        ...APP_LANGUAGES.map((l) => ({ value: l.code, label: l.nativeName })),
+      ],
+      value: settings.language,
+    }).then((v) => {
+      if (v !== null) update({ language: v });
+    });
+  };
+
+  const pickTheme = () => {
+    void mSelect({
+      title: t("mobile.settingTheme"),
+      options: (["system", "light", "dark"] as ThemeMode[]).map((m) => ({
+        value: m,
+        label: themeLabel(m),
+      })),
+      value: settings.themeMode,
+    }).then((v) => {
+      if (v !== null) update({ themeMode: v as ThemeMode });
+    });
+  };
+
+  const pickDefaultView = () => {
+    void mSelect({
+      title: t("mobile.settingDefaultView"),
+      options: (["read", "edit"] as DefaultView[]).map((m) => ({ value: m, label: viewLabel(m) })),
+      value: settings.defaultView,
+    }).then((v) => {
+      if (v !== null) update({ defaultView: v as DefaultView });
+    });
   };
 
   const slots = sanitizeTabSlots(settings.tabSlots);
@@ -52,45 +99,15 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <h1>{t("mobile.sectionSettings")}</h1>
       </header>
 
+      <SettingRow label={t("mobile.settingLanguage")} onClick={pickLanguage} value={languageLabel(settings.language)} />
+      <SettingRow label={t("mobile.settingTheme")} onClick={pickTheme} value={themeLabel(settings.themeMode)} />
+      <SettingRow
+        label={t("mobile.settingDefaultView")}
+        onClick={pickDefaultView}
+        value={viewLabel(settings.defaultView)}
+      />
+
       <div className="m-sync">
-        <label className="m-field">
-          <span>{t("mobile.settingLanguage")}</span>
-          <SelectField
-            onChange={(e) => update({ language: e.target.value })}
-            value={settings.language}
-          >
-            <option value="">{t("mobile.settingLanguageSystem")}</option>
-            {APP_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.nativeName}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-
-        <label className="m-field">
-          <span>{t("mobile.settingTheme")}</span>
-          <SelectField
-            onChange={(e) => update({ themeMode: e.target.value as ThemeMode })}
-            value={settings.themeMode}
-          >
-            <option value="system">{t("mobile.themeSystem")}</option>
-            <option value="light">{t("mobile.themeLight")}</option>
-            <option value="dark">{t("mobile.themeDark")}</option>
-          </SelectField>
-        </label>
-
-        <label className="m-field">
-          <span>{t("mobile.settingDefaultView")}</span>
-          <SelectField
-            onChange={(e) => update({ defaultView: e.target.value as DefaultView })}
-            value={settings.defaultView}
-          >
-            <option value="read">{t("mobile.defaultViewRead")}</option>
-            <option value="edit">{t("mobile.defaultViewEdit")}</option>
-          </SelectField>
-        </label>
-
         <label className="m-field">
           <span>{t("mobile.settingDailyFolder")}</span>
           <TextInput
@@ -144,5 +161,24 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         },
       )}
     </div>
+  );
+}
+
+/** M3 one-line setting: label left, current value right, opens a sheet. */
+function SettingRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="m-row" onClick={onClick}>
+      <span>{label}</span>
+      <span className="m-prop-val">{value}</span>
+      <ChevronRight className="m-chevron" size={18} />
+    </button>
   );
 }

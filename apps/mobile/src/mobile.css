@@ -528,6 +528,56 @@ body {
   display: flex;
   align-items: flex-end;
 }
+/* Dialog sheets (mobileDialogs) stack above content sheets. */
+.m-sheet-backdrop--dialog {
+  z-index: 50;
+}
+
+/* ---- M3 buttons (text / filled / danger) for forms and dialog sheets ---- */
+
+.m-btnrow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 8px 4px;
+}
+.m-btn {
+  min-height: 40px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--m-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.m-btn:active {
+  background: var(--m-state-pressed);
+}
+.m-btn:disabled {
+  opacity: 0.38;
+}
+.m-btn--filled {
+  background: var(--m-primary);
+  color: var(--m-on-primary);
+}
+.m-btn--filled:active {
+  background: var(--m-primary);
+  filter: brightness(1.08);
+}
+.m-btn--tonal {
+  background: var(--m-secondary-container);
+  color: var(--m-on-secondary-container);
+}
+.m-btn--danger {
+  background: var(--danger-color, #b3261e);
+  color: #fff;
+}
 .m-sheet {
   width: 100%;
   background: var(--m-surface);

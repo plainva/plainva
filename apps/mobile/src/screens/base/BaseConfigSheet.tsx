@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2, X } from "lucide-react";
-import { Dialog } from "@capacitor/dialog";
+import { mConfirm, mPrompt } from "../../services/mobileDialogs";
 import {
   addTopFilterRule,
   buildUIFilterModel,
@@ -102,7 +102,7 @@ export function BaseConfigSheet({
 
   const addView = () => {
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("database.addView"),
         message: t("database.renameViewPrompt"),
       });
@@ -117,10 +117,10 @@ export function BaseConfigSheet({
 
   const renameView = () => {
     void (async () => {
-      const { value, cancelled } = await Dialog.prompt({
+      const { value, cancelled } = await mPrompt({
         title: t("database.renameView"),
         message: t("database.renameViewPrompt"),
-        inputText: String(view.name ?? ""),
+        initial: String(view.name ?? ""),
       });
       const name = value?.trim();
       if (cancelled || !name) return;
@@ -133,11 +133,13 @@ export function BaseConfigSheet({
   const deleteView = () => {
     if (views.length <= 1) return;
     void (async () => {
-      const { value } = await Dialog.confirm({
+      const ok = await mConfirm({
         title: t("database.deleteView"),
         message: String(view.name ?? ""),
+        danger: true,
+        confirmLabel: t("common.delete"),
       });
-      if (!value) return;
+      if (!ok) return;
       onMutate((cfg) => {
         cfg.views.splice(viewIndex, 1);
       });
