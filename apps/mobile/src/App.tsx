@@ -319,6 +319,7 @@ export default function App() {
       <div className="m-screen">
         {top?.kind === "tags" ? (
           <TagsScreen
+            bump={bump}
             key={top.path}
             onBack={pop}
             onOpenNote={openNote}
@@ -327,7 +328,7 @@ export default function App() {
             vault={vault}
           />
         ) : top?.kind === "bookmarks" ? (
-          <BookmarksScreen onBack={pop} onOpenNote={openNote} vault={vault} />
+          <BookmarksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "settings" ? (
           <SettingsScreen onBack={pop} vault={vault} />
         ) : top?.kind === "sync" ? (
@@ -394,13 +395,14 @@ export default function App() {
           <TodayScreen bump={bump} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "tags" ? (
           <TagsScreen
+            bump={bump}
             onOpenNote={openNote}
             onOpenTag={(tag) => push({ kind: "tags", path: tag })}
             tag=""
             vault={vault}
           />
         ) : nav.activeTab === "bookmarks" ? (
-          <BookmarksScreen onOpenNote={openNote} vault={vault} />
+          <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "calendar" ? (
           <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
         ) : (

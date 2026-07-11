@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database } from "lucide-react";
 import { EmptyState } from "@plainva/ui";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { type MobileVault } from "../services/vaultService";
 
 /**
@@ -21,6 +22,8 @@ export function DatabasesScreen({
 }) {
   const { t } = useTranslation();
   const [bases, setBases] = useState<Array<{ path: string; title: string }>>([]);
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
 
   useEffect(() => {
     let stale = false;
@@ -44,7 +47,8 @@ export function DatabasesScreen({
   const folders = [...groups.keys()].sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>

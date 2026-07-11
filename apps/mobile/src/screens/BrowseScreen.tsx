@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import { isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -57,6 +58,8 @@ export function BrowseScreen({
   const folderPress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isFolder: true }),
   );
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, folder).then((l) => {
@@ -213,7 +216,8 @@ export function BrowseScreen({
   };
 
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>

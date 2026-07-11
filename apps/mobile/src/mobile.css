@@ -499,6 +499,39 @@ body {
   text-align: center;
   font-weight: 600;
 }
+
+/* ---- Pull-to-refresh indicator (R3.8) ---- */
+
+.m-ptr {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  transition: height 120ms ease;
+}
+.m-ptr-circle {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  border: 3px solid var(--m-secondary-container);
+  border-top-color: var(--m-primary);
+  background: var(--m-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.m-ptr-circle.is-spin {
+  animation: m-ptr-rotate 800ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-ptr-circle.is-spin {
+    animation: none;
+  }
+}
+@keyframes m-ptr-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .m-edit-toolbar button {
   background: none;
   border: 0;

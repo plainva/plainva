@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Plus } from "lucide-react";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -36,6 +37,8 @@ export function TodayScreen({
   const [dailyExists, setDailyExists] = useState(false);
   const [edited, setEdited] = useState<Array<{ path: string; title: string }>>([]);
   const dailyPath = `${getMobileSettings().dailyFolder}/${selectedIso}.md`;
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
 
   const stripRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -65,7 +68,8 @@ export function TodayScreen({
 
   const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>

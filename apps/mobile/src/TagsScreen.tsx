@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
 import { EmptyState } from "@plainva/ui";
+import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { type MobileVault } from "./services/vaultService";
 
 /**
@@ -11,12 +12,14 @@ import { type MobileVault } from "./services/vaultService";
 export function TagsScreen({
   vault,
   tag,
+  bump = 0,
   onBack,
   onOpenTag,
   onOpenNote,
 }: {
   vault: MobileVault;
   tag: string;
+  bump?: number;
   /** Absent when rendered as a tab root — the app shell owns the top bar. */
   onBack?: () => void;
   onOpenTag: (tag: string) => void;
@@ -25,6 +28,8 @@ export function TagsScreen({
   const { t } = useTranslation();
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   const [files, setFiles] = useState<Array<{ path: string; title: string }>>([]);
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
 
   useEffect(() => {
     let stale = false;
@@ -41,10 +46,11 @@ export function TagsScreen({
     return () => {
       stale = true;
     };
-  }, [vault, tag]);
+  }, [vault, tag, bump]);
 
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>

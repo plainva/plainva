@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database, Plus, Settings2 } from "lucide-react";
 import {
@@ -24,6 +24,7 @@ import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
+import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
 
 type Row = Record<string, any>;
@@ -54,6 +55,9 @@ export function BaseScreen({
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
+  // Pull-to-refresh re-queries through the m-vault-changed listener below.
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
 
   const config = loaded?.config;
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
@@ -459,7 +463,8 @@ export function BaseScreen({
   };
 
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       <header className="m-header">
         <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={22} />

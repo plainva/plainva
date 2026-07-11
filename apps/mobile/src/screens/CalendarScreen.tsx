@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { isoOf } from "../lib/dates";
+import { usePullToRefresh } from "../lib/usePullToRefresh";
 
 /**
  * Calendar screen (R2.3): month grid over the daily-notes folder. Days with
@@ -26,6 +27,8 @@ export function CalendarScreen({
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
   const [existing, setExisting] = useState<Set<string>>(new Set());
   const todayIso = isoOf(new Date());
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(ptrRef);
 
   useEffect(() => {
     let stale = false;
@@ -59,7 +62,8 @@ export function CalendarScreen({
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
 
   return (
-    <div className="m-page">
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
