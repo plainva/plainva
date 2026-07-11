@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import * as yaml from "yaml";
 import { getVaultTemplates } from "./vaultTemplates";
-import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
-import { resolveNewItemTarget, sourceFolderOfConfig } from "./baseRelations";
+import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { resolveNewItemTarget, sourceFolderOfConfig } from "@plainva/ui";
 import { APP_LANGUAGES } from "@plainva/ui";
 
 // CredentialManager (transitively imported via VaultContext) calls store.load()

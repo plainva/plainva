@@ -1475,7 +1475,6 @@
     "renamePrompt": "Nowa nazwa",
     "deleteNote": "Usuń notatkę",
     "deleteNoteConfirm": "Usunąć „{{name}}\"? Przy aktywnej synchronizacji zostanie usunięta także w chmurze.",
-    "baseReadOnly": "Bazy danych są na razie tylko do odczytu na urządzeniach mobilnych.",
     "baseName": "Nazwa",
     "settingLanguage": "Język",
     "settingLanguageSystem": "Język systemu",
@@ -1526,6 +1525,9 @@
     "settingTabs": "Pasek kart",
     "settingTabsHint": "Wybierz maksymalnie {{max}} sekcje dla dolnego paska; wszystko pozostaje dostępne w „Więcej”.",
     "quickCreate": "Utwórz nowy",
-    "newDaily": "Nowa notatka dzienna"
+    "newDaily": "Nowa notatka dzienna",
+    "newDatabase": "Nowa baza danych",
+    "newDatabasePrompt": "Nazwa nowej bazy danych",
+    "baseGraphFallback": "Widok grafu jest dostępny na komputerze; tutaj wyświetlany jako tabela."
   }
 }

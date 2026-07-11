@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath } from "@plainva/core";
-import { renamePropertyInConfig } from "./base/renameProperty";
+import { renamePropertyInConfig } from "@plainva/ui";
 import { deletePropertyFromConfig } from "./base/deleteProperty";
-import { parseBaseConfig, serializeBaseConfig } from "../services/baseFormat";
+import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
   addReverseColumnToConfig,
   enableSubItemsConfig,
@@ -14,7 +14,7 @@ import {
   resolveNewItemTarget,
   retargetReverseColumns,
   writeReverseColumnChange,
-} from "../services/baseRelations";
+} from "@plainva/ui";
 import {
   baseStemOf,
   buildNewItemContent,
@@ -44,7 +44,7 @@ import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, BASE_VIEWER_STYLES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems } from "../services/baseViewState";
-import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "./base/filterExpr";
+import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
 import { BaseViewTabs } from "./base/BaseViewTabs";

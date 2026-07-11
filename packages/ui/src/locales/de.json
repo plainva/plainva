@@ -1465,7 +1465,6 @@
     "renamePrompt": "Neuer Name",
     "deleteNote": "Notiz löschen",
     "deleteNoteConfirm": "\"{{name}}\" löschen? Bei aktivem Sync wird sie auch in der Cloud gelöscht.",
-    "baseReadOnly": "Datenbanken sind mobil vorerst schreibgeschützt.",
     "baseName": "Name",
     "settingLanguage": "Sprache",
     "settingLanguageSystem": "Systemsprache",
@@ -1516,6 +1515,9 @@
     "settingTabs": "Tab-Leiste",
     "settingTabsHint": "Wähle bis zu {{max}} Bereiche für die untere Leiste; über „Mehr“ bleibt alles erreichbar.",
     "quickCreate": "Neu erstellen",
-    "newDaily": "Neue Tagesnotiz"
+    "newDaily": "Neue Tagesnotiz",
+    "newDatabase": "Neue Datenbank",
+    "newDatabasePrompt": "Name der neuen Datenbank",
+    "baseGraphFallback": "Die Graph-Ansicht gibt es am Desktop; hier als Tabelle dargestellt."
   }
 }

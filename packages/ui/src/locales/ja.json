@@ -1460,7 +1460,6 @@
     "renamePrompt": "新しい名前",
     "deleteNote": "ノートを削除",
     "deleteNoteConfirm": "「{{name}}」を削除しますか？同期が有効な場合、クラウドからも削除されます。",
-    "baseReadOnly": "データベースはモバイルでは当面読み取り専用です。",
     "baseName": "名前",
     "settingLanguage": "言語",
     "settingLanguageSystem": "システムの言語",
@@ -1511,6 +1510,9 @@
     "settingTabs": "タブバー",
     "settingTabsHint": "下部バーに表示するセクションを最大 {{max}} 個選べます。すべては「その他」からも利用できます。",
     "quickCreate": "新規作成",
-    "newDaily": "新しいデイリーノート"
+    "newDaily": "新しいデイリーノート",
+    "newDatabase": "新しいデータベース",
+    "newDatabasePrompt": "新しいデータベースの名前",
+    "baseGraphFallback": "グラフビューはデスクトップ版で利用できます。ここでは表として表示されます。"
   }
 }

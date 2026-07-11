@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { TFunction } from "i18next";
 import { Trash2, FolderPlus } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
-import { buildSourceClause, parseSourceClause } from "./filterExpr";
+import { buildSourceClause, parseSourceClause } from "@plainva/ui";
 
 // Shared editor for the folder/tag source conditions of a `.base` (plan W3):
 // used by the config panel's data-source section and by the creation wizard so

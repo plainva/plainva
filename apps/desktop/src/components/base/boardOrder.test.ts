@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { orderBoardGroups, reorderBoardKeys, UNGROUPED_KEY } from "./boardOrder";
+import { orderBoardGroups, reorderBoardKeys, UNGROUPED_KEY } from "@plainva/ui";
 
 describe("orderBoardGroups", () => {
   it("defaults to alphabetical with the no-value column last", () => {

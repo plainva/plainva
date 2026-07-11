@@ -12,8 +12,8 @@ import {
   sourceTagOfConfig,
   writeReverseColumnChange,
   type BaseFileAdapter,
-} from "./baseRelations";
-import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
+} from "@plainva/ui";
+import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { parse as parseYaml } from "yaml";
 
 const baseConfig = () => ({

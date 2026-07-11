@@ -1,5 +1,5 @@
 import { upsertFrontmatterKeys, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
-import { parseBaseConfig } from "./baseFormat";
+import { parseBaseConfig } from "@plainva/ui";
 import { requestSaveFlush } from "./saveFlush";
 
 /**

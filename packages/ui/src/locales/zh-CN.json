@@ -1460,7 +1460,6 @@
     "renamePrompt": "新名称",
     "deleteNote": "删除笔记",
     "deleteNoteConfirm": "删除“{{name}}”？同步开启时也会从云端删除。",
-    "baseReadOnly": "数据库在移动端暂为只读。",
     "baseName": "名称",
     "settingLanguage": "语言",
     "settingLanguageSystem": "系统语言",
@@ -1511,6 +1510,9 @@
     "settingTabs": "标签栏",
     "settingTabsHint": "为底部栏选择最多 {{max}} 个板块；所有内容仍可在“更多”中访问。",
     "quickCreate": "新建",
-    "newDaily": "新建每日笔记"
+    "newDaily": "新建每日笔记",
+    "newDatabase": "新建数据库",
+    "newDatabasePrompt": "新数据库的名称",
+    "baseGraphFallback": "图谱视图在桌面版可用；此处以表格显示。"
   }
 }

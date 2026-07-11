@@ -1470,7 +1470,6 @@
     "renamePrompt": "Nuevo nombre",
     "deleteNote": "Eliminar nota",
     "deleteNoteConfirm": "¿Eliminar «{{name}}»? Con la sincronización activa también se elimina en la nube.",
-    "baseReadOnly": "Las bases de datos son de solo lectura en el móvil por ahora.",
     "baseName": "Nombre",
     "settingLanguage": "Idioma",
     "settingLanguageSystem": "Idioma del sistema",
@@ -1521,6 +1520,9 @@
     "settingTabs": "Barra de pestañas",
     "settingTabsHint": "Elige hasta {{max}} secciones para la barra inferior; todo sigue disponible en «Más».",
     "quickCreate": "Crear nuevo",
-    "newDaily": "Nueva nota diaria"
+    "newDaily": "Nueva nota diaria",
+    "newDatabase": "Nueva base de datos",
+    "newDatabasePrompt": "Nombre de la nueva base de datos",
+    "baseGraphFallback": "La vista de grafo está disponible en el escritorio; aquí se muestra como tabla."
   }
 }

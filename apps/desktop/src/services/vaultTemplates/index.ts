@@ -7,7 +7,7 @@ import {
   dailyNoteTemplateKey,
   DEFAULT_NOTE_TYPE,
 } from "../../contexts/VaultContext";
-import { serializeBaseConfig } from "../baseFormat";
+import { serializeBaseConfig } from "@plainva/ui";
 import { matchAppLanguage } from "@plainva/ui";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 import { templates as templatesDe } from "./templates.de";

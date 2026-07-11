@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { parseBaseConfig } from "../services/baseFormat";
+import { parseBaseConfig } from "@plainva/ui";
 import type { VaultQueryService, IVaultAdapter } from "@plainva/core";
 
 export interface DocIconEntry {

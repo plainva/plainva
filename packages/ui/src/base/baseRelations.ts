@@ -1,6 +1,6 @@
 import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
-import { parseSourceClause, type SourceClause } from "../components/base/filterExpr";
-import { isValidNewPropertyName } from "../components/base/renameProperty";
+import { parseSourceClause, type SourceClause } from "./filterExpr";
+import { isValidNewPropertyName } from "./renameProperty";
 
 /**
  * Config side of reverse-relation columns (Gesamtplan Base-Relationen, P6):

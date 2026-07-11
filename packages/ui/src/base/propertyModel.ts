@@ -441,3 +441,10 @@ export function filterTagSuggestions(all: TagSuggestion[], query: string, existi
     .filter((t) => (q === "" ? true : t.tag.toLowerCase().includes(q)))
     .slice(0, limit);
 }
+
+/** Uppercase the first code point (surrogate-safe), leaving the rest as-is. */
+export function capitalizeFirst(text: string): string {
+  if (!text) return text;
+  const [first, ...rest] = text;
+  return first.toUpperCase() + rest.join("");
+}

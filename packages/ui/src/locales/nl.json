@@ -1465,7 +1465,6 @@
     "renamePrompt": "Nieuwe naam",
     "deleteNote": "Notitie verwijderen",
     "deleteNoteConfirm": "\"{{name}}\" verwijderen? Bij actieve synchronisatie wordt deze ook in de cloud verwijderd.",
-    "baseReadOnly": "Databases zijn op mobiel voorlopig alleen-lezen.",
     "baseName": "Naam",
     "settingLanguage": "Taal",
     "settingLanguageSystem": "Systeemtaal",
@@ -1516,6 +1515,9 @@
     "settingTabs": "Tabbladbalk",
     "settingTabsHint": "Kies maximaal {{max}} onderdelen voor de balk onderaan; alles blijft bereikbaar via ‘Meer’.",
     "quickCreate": "Nieuw maken",
-    "newDaily": "Nieuwe dagnotitie"
+    "newDaily": "Nieuwe dagnotitie",
+    "newDatabase": "Nieuwe database",
+    "newDatabasePrompt": "Naam van de nieuwe database",
+    "baseGraphFallback": "De grafiekweergave is beschikbaar op desktop; hier weergegeven als tabel."
   }
 }

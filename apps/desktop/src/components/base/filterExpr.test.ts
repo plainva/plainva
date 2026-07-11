@@ -17,7 +17,7 @@ import {
   combineFilters,
   migrateFiltersToPerView,
   type PropertyFilterRule,
-} from "./filterExpr";
+} from "@plainva/ui";
 
 describe("filterExpr", () => {
   it("classifies folder/tag source conditions", () => {

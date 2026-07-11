@@ -1,4 +1,4 @@
-import { parseSourceClause, type SourceClause } from "./filterExpr";
+import { parseSourceClause, type SourceClause } from "@plainva/ui";
 
 /**
  * Decides whether an index refresh restricted to `changedPaths` can affect a

@@ -20,8 +20,8 @@ import {
   type FilterEntryRef,
   type FilterOp,
   type PropertyFilterRule,
-} from "./filterExpr";
-import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type CuratedOption } from "../propertyModel";
+} from "@plainva/ui";
+import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type CuratedOption } from "@plainva/ui";
 import type { BaseCells } from "./useBaseCells";
 import { useRowDrag } from "./useRowDrag";
 import { SELF_MARKER, getContextFilters, addContextFilter, removeContextFilter } from "../../services/embedScope";

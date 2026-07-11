@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildWizardConfig, collectWizardColumns } from "./createWizardModel";
-import { serializeBaseConfig, parseBaseConfig } from "../../services/baseFormat";
+import { serializeBaseConfig, parseBaseConfig } from "@plainva/ui";
 
 describe("collectWizardColumns", () => {
   const rows = [

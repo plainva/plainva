@@ -12,7 +12,7 @@
  * rather than the async Tauri store so the panel can resolve types on render.
  */
 
-import type { PropertyType } from "./propertyModel";
+import type { PropertyType } from "@plainva/ui";
 
 const key = (vault: string | null) => `plainva-prop-types::${vault ?? "_"}`;
 

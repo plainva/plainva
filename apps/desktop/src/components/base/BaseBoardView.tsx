@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { GripHorizontal, Plus } from "lucide-react";
 import { hitTest, useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
-import { orderBoardGroups, reorderBoardKeys } from "./boardOrder";
-import { chipPaletteIndex } from "../propertyModel";
+import { orderBoardGroups, reorderBoardKeys } from "@plainva/ui";
+import { chipPaletteIndex } from "@plainva/ui";
 import type { BaseCells } from "./useBaseCells";
 
 // Board (kanban) view of the BaseViewer (structural split, plan C3). Cards are

@@ -1465,7 +1465,6 @@
     "renamePrompt": "New name",
     "deleteNote": "Delete note",
     "deleteNoteConfirm": "Delete \"{{name}}\"? With sync active it is deleted in the cloud too.",
-    "baseReadOnly": "Databases are read-only on mobile for now.",
     "baseName": "Name",
     "settingLanguage": "Language",
     "settingLanguageSystem": "System language",
@@ -1516,6 +1515,9 @@
     "settingTabs": "Tab bar",
     "settingTabsHint": "Pick up to {{max}} sections for the bottom bar; everything stays available under More.",
     "quickCreate": "Create new",
-    "newDaily": "New daily note"
+    "newDaily": "New daily note",
+    "newDatabase": "New database",
+    "newDatabasePrompt": "Name of the new database",
+    "baseGraphFallback": "The graph view is available on desktop; shown here as a table."
   }
 }

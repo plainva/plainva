@@ -28,6 +28,18 @@ export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
 export * from "./lib/wordCount";
 
+// .base database layer (R4.1): the Obsidian-compatible (de)serialization,
+// the filter-expression model/mutators and the board grouping helpers —
+// shared so the mobile shell edits databases through the SAME contract
+// (never hand-written YAML).
+export * from "./base/baseFormat";
+export * from "./base/baseRelations";
+export * from "./base/boardOrder";
+export * from "./base/filterExpr";
+export * from "./base/newItemNaming";
+export * from "./base/propertyModel";
+export * from "./base/renameProperty";
+
 // App-language registry (the i18n singleton itself is a side-effect module,
 // exported only via the "@plainva/ui/i18n" subpath)
 export * from "./services/languages";

@@ -1470,7 +1470,6 @@
     "renamePrompt": "Novo nome",
     "deleteNote": "Excluir nota",
     "deleteNoteConfirm": "Excluir \"{{name}}\"? Com a sincronização ativa, ela também será excluída na nuvem.",
-    "baseReadOnly": "Os bancos de dados são somente leitura no celular por enquanto.",
     "baseName": "Nome",
     "settingLanguage": "Idioma",
     "settingLanguageSystem": "Idioma do sistema",
@@ -1521,6 +1520,9 @@
     "settingTabs": "Barra de abas",
     "settingTabsHint": "Escolha até {{max}} seções para a barra inferior; tudo continua disponível em “Mais”.",
     "quickCreate": "Criar novo",
-    "newDaily": "Nova nota diária"
+    "newDaily": "Nova nota diária",
+    "newDatabase": "Novo banco de dados",
+    "newDatabasePrompt": "Nome do novo banco de dados",
+    "baseGraphFallback": "A visualização de grafo está disponível no desktop; aqui é exibida como tabela."
   }
 }

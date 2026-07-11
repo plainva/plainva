@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Calendar,
   Cloud,
+  Database as DatabaseIcon,
   FileText,
   FolderPlus,
   MoreVertical,
@@ -16,7 +17,9 @@ import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultServ
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
 import { App as CapApp } from "@capacitor/app";
-import { BaseReadView } from "./BaseReadView";
+import { Dialog } from "@capacitor/dialog";
+import { BaseScreen } from "./screens/base/BaseScreen";
+import { createDatabase } from "./services/baseOps";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
@@ -235,6 +238,22 @@ export default function App() {
     createFolderPrompt(vault, browseFolder(), t);
   };
 
+  // New database (R4.5): name prompt, stored in the folder the user is
+  // looking at, one table view sourced on that folder (shared serializer).
+  const quickNewDatabase = () => {
+    setQuickCreate(false);
+    void (async () => {
+      const { value, cancelled } = await Dialog.prompt({
+        title: t("mobile.newDatabase"),
+        message: t("mobile.newDatabasePrompt"),
+      });
+      const name = value?.trim().replace(/[\\/]/g, "-");
+      if (cancelled || !name) return;
+      const path = await createDatabase(vault, browseFolder(), name, t("database.viewTable"));
+      push(activeTab, { kind: "base", path });
+    })();
+  };
+
   const activeDef = TAB_POOL.find((p) => p.id === activeTab)!;
 
   return (
@@ -311,7 +330,7 @@ export default function App() {
             vaultId={top.path}
           />
         ) : top?.kind === "base" ? (
-          <BaseReadView
+          <BaseScreen
             key={top.path}
             onBack={() => pop(activeTab)}
             onOpenNote={openNote}
@@ -436,6 +455,10 @@ export default function App() {
             <button className="m-row" onClick={quickNewFolder}>
               <FolderPlus size={18} />
               <span>{t("mobile.newFolder")}</span>
+            </button>
+            <button className="m-row" onClick={quickNewDatabase}>
+              <DatabaseIcon size={18} />
+              <span>{t("mobile.newDatabase")}</span>
             </button>
           </div>
         </div>

@@ -4,10 +4,10 @@ import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
-import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "./propertyModel";
-import { isValidNewPropertyName } from "./base/renameProperty";
+import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "@plainva/ui";
+import { isValidNewPropertyName } from "@plainva/ui";
 import { TypeMenu, BASE_TYPE_GROUPS, TYPE_ICONS, typeLabel, type MenuPropertyType } from "./PropertyValues";
-import { findReverseColumn, isValidReverseColumnName } from "../services/baseRelations";
+import { findReverseColumn, isValidReverseColumnName } from "@plainva/ui";
 import type { ColumnSchema } from "../services/baseSchema";
 
 type TFn = (key: string, opts?: any) => string;

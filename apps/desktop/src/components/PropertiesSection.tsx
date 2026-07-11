@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { parseBaseConfig } from "../services/baseFormat";
+import { parseBaseConfig } from "@plainva/ui";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, ReadableFrontmatter, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { activeDocument, type ActiveDoc, type DocChannel } from "../services/activeDocument";
 import { useVault } from "../contexts/VaultContext";
 import {
   PropertyType, inferType, coerceForType, defaultValueForType, normalizeFrontmatterValue, baseInputToType, TagSuggestion, CuratedOption,
-} from "./propertyModel";
+} from "@plainva/ui";
 import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/newNote";
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, type GoverningBase } from "../services/baseSchema";

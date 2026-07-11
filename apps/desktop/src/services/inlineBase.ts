@@ -5,7 +5,7 @@
  * `![[path]]`, which NoteEmbedPlugin renders as an inline BaseViewer.
  */
 import type { IVaultAdapter } from "@plainva/core";
-import { serializeBaseConfig } from "./baseFormat";
+import { serializeBaseConfig } from "@plainva/ui";
 
 /** Vault-relative folder of a path ("" for a root-level file). Forward slashes. */
 export function folderOf(path: string): string {

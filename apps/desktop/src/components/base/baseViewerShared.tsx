@@ -1,6 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
+import { capitalizeFirst } from "@plainva/ui";
 
 // Shared constants and helpers for the BaseViewer and its view components
 // (structural split of the former single-file BaseViewer, plan C3).
@@ -74,12 +75,8 @@ export function columnLabel(col: string, t: TFunction, dbConfig?: any): string {
   return capitalizeFirst(bare);
 }
 
-/** Uppercase the first code point (surrogate-safe), leaving the rest as-is. */
-export function capitalizeFirst(text: string): string {
-  if (!text) return text;
-  const [first, ...rest] = text;
-  return first.toUpperCase() + rest.join("");
-}
+// capitalizeFirst moved to @plainva/ui (R4) — imported above, re-exported here.
+export { capitalizeFirst };
 
 export const defaultViewName = (t: TFunction, type: string): string => {
   const key = ALL_VIEW_TYPES.includes(type) ? type : "table";

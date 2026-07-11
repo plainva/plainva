@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { chipClass, optionSwatch, parseWikiLinkValue, type CuratedOption } from "./propertyModel";
+import { chipClass, optionSwatch, parseWikiLinkValue, type CuratedOption } from "@plainva/ui";
 import { Select } from "./Select";
 
 type TFn = (key: string, opts?: any) => string;

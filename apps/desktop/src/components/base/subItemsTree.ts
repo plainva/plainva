@@ -1,4 +1,4 @@
-import { parseWikiLinkValue } from "../propertyModel";
+import { parseWikiLinkValue } from "@plainva/ui";
 
 /**
  * Flat query rows -> hierarchical display list for the table's sub-items mode

@@ -10,8 +10,8 @@
  * (authoring stays in the BaseViewer's saveConfig path).
  */
 
-import type { CuratedOption } from "../components/propertyModel";
-import { parseBaseConfig } from "./baseFormat";
+import type { CuratedOption } from "@plainva/ui";
+import { parseBaseConfig } from "@plainva/ui";
 
 export interface ReverseRelationDef {
   /** Vault-relative path of the counterpart `.base` holding the owning relation. */

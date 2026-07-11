@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isValidNewPropertyName, renamePropertyInConfig } from "./renameProperty";
-import { retargetReverseColumns } from "../../services/baseRelations";
+import { isValidNewPropertyName, renamePropertyInConfig } from "@plainva/ui";
+import { retargetReverseColumns } from "@plainva/ui";
 
 describe("renamePropertyInConfig (Base-UX2 follow-up)", () => {
   const config = {

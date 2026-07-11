@@ -7,7 +7,7 @@ import {
   fromPropId,
   toObsidianViewType,
   fromObsidianViewType,
-} from "./baseFormat";
+} from "@plainva/ui";
 
 describe("baseFormat id mapping", () => {
   it("prefixes frontmatter props with note. and keeps file./formula.", () => {

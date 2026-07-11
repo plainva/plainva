@@ -8,7 +8,7 @@ import { CustomDatePicker } from "./DatePicker";
 import {
   PropertyType, tagSegments, stripWikiLink, toWikiLink, chipClass,
   formatDateValue, filterTagSuggestions, TagSuggestion, CuratedOption, groupOptions,
-} from "./propertyModel";
+} from "@plainva/ui";
 
 export interface RelationCandidate { path: string; title: string; }
 

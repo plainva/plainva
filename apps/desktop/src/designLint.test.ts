@@ -25,8 +25,13 @@ import { fileURLToPath } from "node:url";
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
 // Desktop components + the extracted shared editor layer (ADR 0011); budget
-// keys keep their original "components/..." form across both roots.
-const COMPONENT_ROOTS = [join(SRC, "components"), join(SRC, "../../../packages/ui/src/components")];
+// keys keep their original "components/..." form across both roots. The
+// shared .base layer (R4) scans under its own "base/..." prefix.
+const COMPONENT_ROOTS: Array<{ dir: string; prefix: string }> = [
+  { dir: join(SRC, "components"), prefix: "components/" },
+  { dir: join(SRC, "../../../packages/ui/src/components"), prefix: "components/" },
+  { dir: join(SRC, "../../../packages/ui/src/base"), prefix: "base/" },
+];
 
 const RULES: Record<string, RegExp> = {
   radiusPx: /border-?[rR]adius:\s*["'`]?\d/g,
@@ -57,7 +62,7 @@ const BUDGET: Record<string, Counts> = {
   "components/ImagePreviewPlugin.ts": { rgba: 1 },
   "components/ImageViewer.tsx": { hex: 3, rgba: 1 },
   "components/MarkdownTheme.ts": { radiusPx: 2 },
-  "components/propertyModel.ts": { hex: 8 },
+  "base/propertyModel.ts": { hex: 8 },
   "components/Select.tsx": { fixedOverlay: 1 },
   "components/SelectionToolbar.tsx": { fixedOverlay: 1 },
   "components/SettingsModal.tsx": { radiusPx: 1, rgba: 1, fixedOverlay: 1 },
@@ -95,8 +100,8 @@ function countFile(source: string): Counts {
 function scan(): Record<string, Counts> {
   const actual: Record<string, Counts> = {};
   for (const root of COMPONENT_ROOTS) {
-    for (const file of walk(root)) {
-      const rel = "components/" + relative(root, file).replace(/\\/g, "/");
+    for (const file of walk(root.dir)) {
+      const rel = root.prefix + relative(root.dir, file).replace(/\\/g, "/");
       const counts = countFile(readFileSync(file, "utf8"));
       if (Object.keys(counts).length) actual[rel] = counts;
     }

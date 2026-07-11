@@ -3,7 +3,7 @@ import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { SourceConditionEditor } from "./base/SourceConditionEditor";
-import { isSourceCondition } from "./base/filterExpr";
+import { isSourceCondition } from "@plainva/ui";
 
 interface DatabaseSourceConfigProps {
   dbConfig: any;

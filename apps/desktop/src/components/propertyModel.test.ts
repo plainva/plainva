@@ -19,7 +19,7 @@ import {
   mergeObservedOptions,
   splitMultiValue,
   columnValuesAreWikiLinks,
-} from "./propertyModel";
+} from "@plainva/ui";
 
 describe("propertyModel.inferType", () => {
   it("infers primitives", () => {

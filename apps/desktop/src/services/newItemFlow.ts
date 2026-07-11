@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { getSettingsStore } from "./settingsStore";
 import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { templateFolderKey } from "../contexts/VaultContext";
-import { parsePropertyFilter } from "../components/base/filterExpr";
+import { parsePropertyFilter } from "@plainva/ui";
 import { withOkfDefaults } from "./newNote";
 
 /**
@@ -18,32 +18,8 @@ export interface TemplateItem {
   title: string;
 }
 
-/** Display stem of a `.base` path ("DB/Projekte.base" -> "Projekte"). */
-export function baseStemOf(path: string): string {
-  return path.split("/").pop()?.replace(/\.base$/i, "") || path;
-}
-
-/**
- * "{Base-Stem}_{n}" naming (maintainer decision 2026-07-03, refined same day:
- * underscore separator, and any whitespace in the stem becomes "_" too — file
- * names created by the "Neu" button never contain spaces). n starts at count+1
- * and counts up past existing files. The stem is the base's file name, so the
- * item name needs no localization.
- */
-export async function nextItemName(
-  stem: string,
-  count: number,
-  exists: (name: string) => Promise<boolean>
-): Promise<string> {
-  const cleanStem = stem.replace(/\s+/g, "_");
-  let n = Math.max(1, Math.floor(count) + 1);
-  let name = `${cleanStem}_${n}`;
-  while (await exists(name)) {
-    n++;
-    name = `${cleanStem}_${n}`;
-  }
-  return name;
-}
+// Item naming moved to @plainva/ui (R4) — shared with the mobile shell.
+export { baseStemOf, nextItemName } from "@plainva/ui";
 
 /** Template placeholders ({{date}}, {{time}}, {{title}}) — shared with the
  * editor's template picker so both interpolate identically. */
