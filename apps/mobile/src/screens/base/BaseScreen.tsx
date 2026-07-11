@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Database, Plus, Settings2 } from "lucide-rea
 import {
   capitalizeFirst,
   EmptyState,
+  inferType,
   orderBoardGroups,
   splitMultiValue,
   toPropId,
@@ -134,7 +135,21 @@ export function BaseScreen({
   const rowTitle = (r: Row) => String(r["file.name"] ?? "");
   const rowPath = (r: Row) => String(r["file.path"] ?? "");
 
-  const columnInput = (col: string): string => String(config?.columns?.[col]?.input ?? "text");
+  /**
+   * Column input type: the schema wins; untyped columns infer from the
+   * tapped value (desktop parity — a bare `done: false` edits as a checkbox,
+   * a bare wiki-link column as a relation, not as free text).
+   */
+  const columnInput = (col: string, sample?: unknown): string => {
+    const schema = config?.columns?.[col]?.input;
+    if (schema) return String(schema);
+    if (sample !== undefined && sample !== null) {
+      const inferred = inferType(sample, col);
+      if (inferred === "link") return "relation";
+      return inferred;
+    }
+    return "text";
+  };
   const isReverse = (col: string) => !!config?.columns?.[col]?.reverseOf;
 
   const cellText = (v: unknown): string => {
@@ -161,7 +176,7 @@ export function BaseScreen({
       }
       return;
     }
-    const input = columnInput(col);
+    const input = columnInput(col, r[col]);
     // Checkboxes toggle in place (no sheet).
     if (input === "checkbox") {
       const next = !(r[col] === true);
