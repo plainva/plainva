@@ -193,6 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [dailyNotesFormat, setDailyNotesFormat] = useState("YYYY-MM-DD");
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [dailyNoteTemplate, setDailyNoteTemplate] = useState("");
+  const [templateFiles, setTemplateFiles] = useState<string[]>([]);
   const [extendedDatabases, setExtendedDatabases] = useState(true);
 
   // OKF (Gesamtplan W8): default types for new notes + conversion entry point.
@@ -543,6 +544,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       .map((e) => e.name)
       .sort((a, b) => a.localeCompare(b));
   };
+
+  // Template-folder .md files → the daily-note template becomes a dropdown
+  // instead of a hand-typed filename. Only for the OPEN vault (listDir needs an
+  // adapter); empty/missing folder falls back to the free-text input below.
+  useEffect(() => {
+    if (section !== vaultPath || !vaultAdapter || !templateFolder.trim()) {
+      setTemplateFiles([]);
+      return;
+    }
+    let cancelled = false;
+    void vaultAdapter
+      .listDir(templateFolder)
+      .then((entries) =>
+        entries
+          .filter((e) => !e.isDirectory && e.name.endsWith(".md"))
+          .map((e) => e.name)
+          .sort((a, b) => a.localeCompare(b))
+      )
+      .then((files) => { if (!cancelled) setTemplateFiles(files); })
+      .catch(() => { if (!cancelled) setTemplateFiles([]); });
+    return () => { cancelled = true; };
+  }, [section, vaultPath, vaultAdapter, templateFolder]);
 
   const handleIntervalChange = (raw: string) => {
     setIntervalSec(raw);
@@ -1776,7 +1799,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingRow>
 
                   <SettingRow label={t("settings.dailyNotesTemplate")}>
-                    <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
+                    {templateFiles.length > 0 ? (
+                      <Select
+                        ariaLabel={t("settings.dailyNotesTemplate")}
+                        value={templateFiles.includes(dailyNoteTemplate) ? dailyNoteTemplate : ""}
+                        onChange={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
+                        options={[{ value: "", label: "—" }, ...templateFiles.map((f) => ({ value: f, label: f }))]}
+                      />
+                    ) : (
+                      <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
+                    )}
                   </SettingRow>
 
                   <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.okfHeading")}</h5>

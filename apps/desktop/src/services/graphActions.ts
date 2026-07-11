@@ -10,6 +10,19 @@ import { buildNewNoteContent } from "./newNote";
  */
 
 /**
+ * Notify any open editor of `path` so it adopts the just-written change live
+ * (minimal in-place range edit — no reload, no conflict). Without this, the
+ * ConflictAwareVaultAdapter advances local_sha256 on the write, so the indexer
+ * never reports an external change and the open buffer keeps the stale text
+ * until the note is reopened. Mirrors OkfConversionModal / FileTree / App.tsx.
+ */
+function notifyOpenEditor(path: string): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
+  }
+}
+
+/**
  * Appends a wiki link to `sourcePath` pointing at `targetPath` (bare basename
  * when unique, else path-qualified — identical to Plainva's own link writing).
  * Returns the written link text.
@@ -30,6 +43,7 @@ export async function appendWikiLink(
   const needsBlankLine = current.length > 0 && !current.endsWith("\n\n") ;
   const separator = current.length === 0 ? "" : current.endsWith("\n") ? (needsBlankLine ? "\n" : "") : "\n\n";
   await adapter.writeTextFile(sourcePath, `${current}${separator}${link}\n`);
+  notifyOpenEditor(sourcePath);
   return link;
 }
 
@@ -161,6 +175,7 @@ export async function applyInlineLink(
   const link = occ.matched === target ? `[[${occ.matched}]]` : `[[${target}|${occ.matched}]]`;
   const next = content.substring(0, occ.index) + link + content.substring(occ.index + occ.matched.length);
   await adapter.writeTextFile(sourcePath, next);
+  notifyOpenEditor(sourcePath);
   return { matched: occ.matched, link };
 }
 

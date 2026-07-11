@@ -41,18 +41,24 @@ function fakeQuery(paths: string[]): VaultQueryService {
 }
 
 describe("appendWikiLink", () => {
-  it("appends a bare-basename link after a blank line and fires the save-flush handshake", async () => {
+  it("appends a bare-basename link, fires the save-flush handshake, and notifies the open editor", async () => {
     const files = { "note.md": "# Note\nBody" };
     const flushed: string[] = [];
+    const refreshed: string[] = [];
     const onFlush = (e: Event) => flushed.push((e as CustomEvent<{ path: string }>).detail.path);
+    const onRefresh = (e: Event) => refreshed.push((e as CustomEvent<{ path: string }>).detail.path);
     window.addEventListener("plainva-flush-pending-save", onFlush);
+    window.addEventListener("plainva-external-update", onRefresh);
 
     const link = await appendWikiLink(fakeAdapter(files), fakeQuery(["note.md", "Ziel.md"]), "note.md", "Ziel.md");
 
     window.removeEventListener("plainva-flush-pending-save", onFlush);
+    window.removeEventListener("plainva-external-update", onRefresh);
     expect(link).toBe("[[Ziel]]");
     expect(files["note.md"]).toBe("# Note\nBody\n\n[[Ziel]]\n");
     expect(flushed).toEqual(["note.md"]);
+    // The just-written link must reach an open editor live (no reopen needed).
+    expect(refreshed).toEqual(["note.md"]);
   });
 
   it("path-qualifies the link when the basename collides", async () => {

@@ -106,13 +106,21 @@ export async function getStoredContentFont(): Promise<ContentFontSettings> {
 }
 
 export async function setStoredContentFont(settings: ContentFontSettings): Promise<void> {
-  const store = await getSettingsStore();
-  await store.set("contentFontSize", clampContentFontSize(settings.size));
-  await store.set("contentFontFamily", settings.family);
-  await store.set("contentFontCustom", sanitizeFontName(settings.customName));
-  await store.save();
+  // Apply to the DOM FIRST so the switch is felt immediately — the persist must
+  // never gate the look. Previously the apply ran after the awaited store.save()
+  // and a slow/failed write made the switcher appear to "do nothing".
   applyContentFontSize(settings.size);
   applyContentFontFamily(settings.family, settings.customName);
+  try {
+    const store = await getSettingsStore();
+    await store.set("contentFontSize", clampContentFontSize(settings.size));
+    await store.set("contentFontFamily", settings.family);
+    await store.set("contentFontCustom", sanitizeFontName(settings.customName));
+    await store.save();
+  } catch {
+    // Persist failed — the live look is already applied; swallow so the caller's
+    // fire-and-forget `void setStoredContentFont(...)` never rejects unhandled.
+  }
 }
 
 /** Applies defaults immediately (no flash), then the stored values. */

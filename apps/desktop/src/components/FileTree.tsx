@@ -229,8 +229,8 @@ const TreeNodeView: React.FC<{
           background: isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : undefined,
         }}
       >
-        {isOpen ? <ChevronDown size={14} style={{ opacity: 0.5 }} /> : <ChevronRight size={14} style={{ opacity: 0.5 }} />}
-        <Folder size={14} style={{ opacity: 0.7, color: "var(--text-muted)" }} />
+        {isOpen ? <ChevronDown size={14} style={{ opacity: 0.5, flexShrink: 0 }} /> : <ChevronRight size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+        <Folder size={14} style={{ opacity: 0.7, color: "var(--text-muted)", flexShrink: 0 }} />
         {isRenaming ? (
           <form onSubmit={handleRenameSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }} onClick={e => e.stopPropagation()}>
             <input
@@ -246,7 +246,7 @@ const TreeNodeView: React.FC<{
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
           </form>
         ) : (
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
             {node.name}
           </span>
         )}
