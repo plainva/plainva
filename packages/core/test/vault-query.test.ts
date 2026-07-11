@@ -439,6 +439,24 @@ describe("VaultQueryService", () => {
     expect(db.queries[0].params as any[]).toEqual([300]);
   });
 
+  it("lists notes modified inside a [from, to) window, newest first (Today tab)", async () => {
+    db.mockedResults.push([
+      { path: "b.md", title: null, mtime_local: 200 },
+      { path: "a.md", title: "A", mtime_local: 100 },
+      { path: "", title: "ghost", mtime_local: 50 },
+    ]);
+    const notes = await queryService.listNotesModifiedBetween(0, 1000);
+    expect(notes).toEqual([
+      { path: "b.md", title: "b.md", mtime_local: 200 },
+      { path: "a.md", title: "A", mtime_local: 100 },
+    ]);
+    expect(db.queries[0].query).toContain("mode != 'attachment'");
+    expect(db.queries[0].query).toContain("NOT LIKE '%.base'");
+    expect(db.queries[0].query).toContain("mtime_local >= ? AND mtime_local < ?");
+    expect(db.queries[0].query).toContain("ORDER BY mtime_local DESC");
+    expect(db.queries[0].params as any[]).toEqual([0, 1000]);
+  });
+
   it("resolves a note path by title or path (editor link semantics)", async () => {
     db.mockedOneResults.push({ path: "notes/World.md" });
     const path = await queryService.resolveNotePath("World");

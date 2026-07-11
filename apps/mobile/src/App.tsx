@@ -365,7 +365,7 @@ export default function App() {
             onOpenVault={(id) => push({ kind: "vault", path: id })}
           />
         ) : top?.kind === "today" ? (
-          <TodayScreen onBack={pop} onOpenDate={openDaily} />
+          <TodayScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "calendar" ? (
           <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} vault={vault} />
         ) : top?.kind === "databases" ? (
@@ -390,7 +390,7 @@ export default function App() {
             vault={vault}
           />
         ) : nav.activeTab === "today" ? (
-          <TodayScreen onOpenDate={openDaily} />
+          <TodayScreen bump={bump} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "tags" ? (
           <TagsScreen
             onOpenNote={openNote}

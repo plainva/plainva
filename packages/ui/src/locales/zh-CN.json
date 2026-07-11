@@ -1519,6 +1519,10 @@
     "newFromTemplate": "从模板…",
     "tableRows": "行",
     "tableCols": "列",
-    "insert": "插入"
+    "insert": "插入",
+    "todayOpenDaily": "打开每日笔记",
+    "todayCreateDaily": "创建每日笔记",
+    "todayEdited": "当天编辑过",
+    "todayNothing": "当天没有编辑任何内容。"
   }
 }

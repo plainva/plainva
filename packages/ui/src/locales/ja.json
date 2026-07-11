@@ -1519,6 +1519,10 @@
     "newFromTemplate": "テンプレートから…",
     "tableRows": "行",
     "tableCols": "列",
-    "insert": "挿入"
+    "insert": "挿入",
+    "todayOpenDaily": "デイリーノートを開く",
+    "todayCreateDaily": "デイリーノートを作成",
+    "todayEdited": "この日に編集",
+    "todayNothing": "この日に編集されたものはありません。"
   }
 }

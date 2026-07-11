@@ -176,6 +176,27 @@ export class VaultQueryService {
     return rows.filter((r) => !!r.path).map((r) => ({ path: r.path, title: r.title || r.path }));
   }
 
+  /**
+   * Notes touched inside a time window (mtime_local, [from, to) in ms) —
+   * the mobile Today tab's "edited on this day" list (R3.5). Attachments
+   * and .base files never appear; newest first.
+   */
+  async listNotesModifiedBetween(
+    fromMs: number,
+    toMs: number,
+  ): Promise<{ path: string; title: string; mtime_local: number }[]> {
+    const rows = await this.db.query<{ path: string; title: string | null; mtime_local: number }>(
+      `SELECT path, title, mtime_local FROM files
+       WHERE mode != 'attachment' AND path NOT LIKE '%.base'
+         AND mtime_local >= ? AND mtime_local < ?
+       ORDER BY mtime_local DESC`,
+      [fromMs, toMs],
+    );
+    return rows
+      .filter((r) => !!r.path)
+      .map((r) => ({ path: r.path, title: r.title || r.path, mtime_local: r.mtime_local }));
+  }
+
   /** Every .base database in the vault (mobile databases hub, R2.4). */
   async listBases(): Promise<{ path: string; title: string }[]> {
     const rows = await this.db.query<{ path: string; title: string | null }>(

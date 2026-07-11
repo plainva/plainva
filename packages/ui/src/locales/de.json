@@ -1524,6 +1524,10 @@
     "newFromTemplate": "Aus Vorlage…",
     "tableRows": "Zeilen",
     "tableCols": "Spalten",
-    "insert": "Einfügen"
+    "insert": "Einfügen",
+    "todayOpenDaily": "Tagesnotiz öffnen",
+    "todayCreateDaily": "Tagesnotiz erstellen",
+    "todayEdited": "An diesem Tag bearbeitet",
+    "todayNothing": "An diesem Tag wurde nichts bearbeitet."
   }
 }

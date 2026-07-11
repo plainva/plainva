@@ -1529,6 +1529,10 @@
     "newFromTemplate": "Desde plantilla…",
     "tableRows": "Filas",
     "tableCols": "Columnas",
-    "insert": "Insertar"
+    "insert": "Insertar",
+    "todayOpenDaily": "Abrir nota diaria",
+    "todayCreateDaily": "Crear nota diaria",
+    "todayEdited": "Editadas este día",
+    "todayNothing": "No se editó nada este día."
   }
 }

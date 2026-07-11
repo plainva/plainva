@@ -522,9 +522,14 @@ body {
   color: var(--text-main);
   font: inherit;
 }
+/* Selection fills (R3.5); "today" keeps a quiet outline when not selected. */
 .m-datestrip-day.is-today {
+  box-shadow: inset 0 0 0 2px var(--m-primary);
+}
+.m-datestrip-day.is-selected {
   background: var(--m-primary);
   color: var(--m-on-primary);
+  box-shadow: none;
 }
 .m-datestrip-wd {
   font-size: 0.7rem;

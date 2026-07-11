@@ -1524,6 +1524,10 @@
     "newFromTemplate": "From template…",
     "tableRows": "Rows",
     "tableCols": "Columns",
-    "insert": "Insert"
+    "insert": "Insert",
+    "todayOpenDaily": "Open daily note",
+    "todayCreateDaily": "Create daily note",
+    "todayEdited": "Edited on this day",
+    "todayNothing": "Nothing was edited on this day."
   }
 }

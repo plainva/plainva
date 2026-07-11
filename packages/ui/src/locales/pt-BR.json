@@ -1529,6 +1529,10 @@
     "newFromTemplate": "A partir de modelo…",
     "tableRows": "Linhas",
     "tableCols": "Colunas",
-    "insert": "Inserir"
+    "insert": "Inserir",
+    "todayOpenDaily": "Abrir nota diária",
+    "todayCreateDaily": "Criar nota diária",
+    "todayEdited": "Editadas neste dia",
+    "todayNothing": "Nada foi editado neste dia."
   }
 }

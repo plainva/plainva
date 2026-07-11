@@ -1534,6 +1534,10 @@
     "newFromTemplate": "Z szablonu…",
     "tableRows": "Wiersze",
     "tableCols": "Kolumny",
-    "insert": "Wstaw"
+    "insert": "Wstaw",
+    "todayOpenDaily": "Otwórz notatkę dzienną",
+    "todayCreateDaily": "Utwórz notatkę dzienną",
+    "todayEdited": "Edytowane tego dnia",
+    "todayNothing": "Tego dnia niczego nie edytowano."
   }
 }

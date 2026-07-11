@@ -1524,6 +1524,10 @@
     "newFromTemplate": "Vanuit sjabloon…",
     "tableRows": "Rijen",
     "tableCols": "Kolommen",
-    "insert": "Invoegen"
+    "insert": "Invoegen",
+    "todayOpenDaily": "Dagnotitie openen",
+    "todayCreateDaily": "Dagnotitie aanmaken",
+    "todayEdited": "Bewerkt op deze dag",
+    "todayNothing": "Er is op deze dag niets bewerkt."
   }
 }
