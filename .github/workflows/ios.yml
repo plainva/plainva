@@ -21,7 +21,7 @@ on:
 jobs:
   build:
     name: Simulator build (no signing)
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
     name: TestFlight upload
     needs: build
     if: ${{ inputs.testflight }}
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Checkout
