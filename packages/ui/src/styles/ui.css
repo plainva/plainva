@@ -43,7 +43,14 @@
 .pv-btn--ghost:active:not(:disabled) { background: var(--state-press); }
 .pv-btn--danger { background: var(--error-text); color: var(--error-bg); font-weight: 600; }
 .pv-btn--danger:hover:not(:disabled) { filter: brightness(0.94); }
+/* Soft/outlined danger (disconnect, remove) — error-tinted, less alarming than the filled danger. */
+.pv-btn--danger-soft { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+.pv-btn--danger-soft:hover:not(:disabled) { background: color-mix(in srgb, var(--error-text) 12%, var(--bg-primary)); }
 .pv-btn-ic { display: inline-flex; flex-shrink: 0; }
+/* Inline text-link button (e.g. "use your own app id") — accent, underline on hover. */
+.pv-linkbtn { background: none; border: none; padding: 0; color: var(--accent-color); cursor: pointer; font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; }
+.pv-linkbtn:hover:not(:disabled) { color: var(--accent-color-hover); text-decoration: underline; }
+.pv-linkbtn:disabled { opacity: 0.6; cursor: default; }
 
 /* Split button: two pv-btn halves sharing one silhouette. Theme-safe — LCARS
    pill radii produce proper half-pills automatically. *-of-type (not *-child):
