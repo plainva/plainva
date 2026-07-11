@@ -126,7 +126,7 @@ body {
   width: 44px;
   height: 44px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-main);
 }
@@ -162,7 +162,7 @@ body {
   min-height: 52px;
   padding: 8px 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-main);
   font-size: 0.95rem;
@@ -242,7 +242,7 @@ body {
   justify-content: center;
   width: 56px;
   height: 30px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: background var(--dur-2) var(--ease-effects);
 }
 
@@ -271,7 +271,7 @@ body {
   height: 56px;
   margin-top: -26px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--m-primary);
   color: var(--m-on-primary);
   box-shadow:
@@ -298,7 +298,7 @@ body {
   min-width: 0;
   height: 44px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 18px;
   font: inherit;
   font-size: 0.95rem;
@@ -433,7 +433,7 @@ body {
   padding: 8px 4px 8px 8px;
   background: none;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font: inherit;
   color: inherit;
   text-align: left;
@@ -460,7 +460,7 @@ body {
   flex: 0 0 auto;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 2px solid var(--m-outline);
 }
 .m-slotmark.is-on {
@@ -513,7 +513,7 @@ body {
   width: 26px;
   height: 26px;
   margin-bottom: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 3px solid var(--m-secondary-container);
   border-top-color: var(--m-primary);
   background: var(--m-surface);
@@ -537,7 +537,7 @@ body {
   border: 0;
   padding: 10px;
   color: var(--text-main);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .m-edit-toolbar button:active {
   background: var(--m-state-pressed);
@@ -614,7 +614,7 @@ body {
   min-height: 40px;
   padding: 8px 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--m-primary);
   font: inherit;
@@ -663,7 +663,7 @@ body {
 .m-sheet-grip {
   width: 32px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-outline);
   margin: 6px auto 10px;
 }
@@ -714,7 +714,7 @@ body {
 .m-viewpill {
   padding: 7px 14px;
   border: 1px solid var(--m-outline);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-size: 0.85rem;
@@ -739,7 +739,7 @@ body {
   gap: 4px;
   padding: 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--m-surface-container);
   color: var(--text-main);
   text-align: left;
@@ -805,7 +805,7 @@ body {
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 12px;
 }
 .m-cal-today:active {
@@ -830,7 +830,7 @@ body {
   justify-content: center;
   aspect-ratio: 1;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-main);
   font: inherit;
@@ -852,7 +852,7 @@ body {
   bottom: 15%;
   width: 5px;
   height: 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
 }
 .m-cal-day.has-daily .m-cal-dot {
@@ -881,7 +881,7 @@ body {
   gap: 6px;
   padding: 18px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--m-surface-container);
   color: var(--text-main);
   font: inherit;
@@ -921,7 +921,7 @@ body {
   border: 1px solid var(--m-outline);
   background: transparent;
   color: var(--text-main);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 9px 13px;
   font-size: 0.85rem;
 }
@@ -945,7 +945,7 @@ body {
 .m-board-col {
   flex: 0 0 240px;
   background: var(--m-surface-container);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -966,7 +966,7 @@ body {
 .m-board-count {
   background: var(--m-secondary-container);
   color: var(--m-on-secondary-container);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-size: 0.7rem;
 }
@@ -990,7 +990,7 @@ body {
   border: 1px solid var(--m-outline);
   background: transparent;
   color: var(--text-main);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 5px 12px;
   font-size: 0.8rem;
   max-width: 45vw;
@@ -1006,7 +1006,7 @@ body {
   flex: 0 0 auto;
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-primary);
 }
 .m-sheet-inputrow {
@@ -1020,7 +1020,7 @@ body {
   width: calc(100% - 16px);
   margin: 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--m-primary);
   color: var(--m-on-primary);
   font: inherit;
@@ -1035,7 +1035,7 @@ body {
 .m-filterrule {
   margin: 4px 8px 10px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--m-surface-container);
 }
 .m-filterrule-head {
