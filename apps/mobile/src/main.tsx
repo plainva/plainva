@@ -59,7 +59,14 @@ setPlatformServices({
   loadSettings: async () => capacitorSettingsStore,
   credentials: secureCredentialStore,
   openExternal: async (url) => {
-    window.open(url, "_blank", "noopener");
+    // window.open doesn't reliably reach the system browser inside the
+    // Capacitor WebView; open web links in the in-app browser instead.
+    if (/^https?:\/\//i.test(url)) {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url });
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
   },
 });
 

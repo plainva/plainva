@@ -13,7 +13,7 @@ import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultData } from "../services/vaultForget";
 import { toast } from "@plainva/ui";
-import { PlainvaLogo } from "./PlainvaLogo";
+import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";

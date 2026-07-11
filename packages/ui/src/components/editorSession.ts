@@ -26,7 +26,25 @@ import { blockHandles } from "./blockHandles";
 import { minimalDocChange } from "../lib/textDiff";
 import { countWords } from "../lib/wordCount";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
+import { markdownToHtml } from "../lib/markdownToHtml";
 import type { EditorTriggerDeps } from "./editorTriggers";
+
+/**
+ * Copy handler for live preview (#1): write BOTH text/plain (markers stripped)
+ * and text/html (formatting preserved) for a single non-empty selection, so
+ * pasting into a rich-text target keeps the formatting while plain-text targets
+ * get the filtered text. Empty/multi selections return false and fall through
+ * to CodeMirror's own (plain-text) copy path.
+ */
+function writeRichClipboard(event: ClipboardEvent, view: EditorView): boolean {
+  const ranges = view.state.selection.ranges;
+  if (ranges.length !== 1 || ranges[0].empty || !event.clipboardData) return false;
+  const md = view.state.sliceDoc(ranges[0].from, ranges[0].to);
+  event.clipboardData.setData("text/plain", markdownToPlainText(md));
+  event.clipboardData.setData("text/html", markdownToHtml(md));
+  event.preventDefault();
+  return true;
+}
 
 /**
  * Editor session (Gesamtplan Editor-Stabilitaet 2026-07-05, P1/E1).
@@ -190,6 +208,18 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         ? [
             EditorView.clipboardOutputFilter.of((text) => markdownToPlainText(text)),
             EditorView.contentAttributes.of({ "data-pv-live-preview": "true" }),
+            // Rich copy (#1): also put text/html on the clipboard so pasting
+            // into Word/Docs keeps formatting; the filter above still handles
+            // plain-text targets and the empty/multi-selection fall-through.
+            EditorView.domEventHandlers({
+              copy: (event, view) => writeRichClipboard(event, view),
+              cut: (event, view) => {
+                if (!writeRichClipboard(event, view)) return false;
+                const r = view.state.selection.ranges[0];
+                view.dispatch({ changes: { from: r.from, to: r.to, insert: "" }, userEvent: "delete.cut" });
+                return true;
+              },
+            }),
           ]
         : [],
     ];

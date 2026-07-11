@@ -13,6 +13,7 @@ export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";
 export * from "./lib/inlineMarkdown";
 export * from "./lib/linkParser";
+export * from "./lib/markdownToHtml";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
@@ -58,6 +59,7 @@ export * from "./platform/services";
 export * from "./components/ui/index";
 export * from "./components/ui/useFixedPopover";
 export * from "./components/ui/ToastHost";
+export * from "./components/PlainvaLogo";
 export * from "./hooks/useFocusTrap";
 
 // Editor layer (M0.4): the CodeMirror session and its portable plugins.

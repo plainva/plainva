@@ -13,6 +13,7 @@ import {
   Search,
   StickyNote,
 } from "lucide-react";
+import { PlainvaLogo } from "@plainva/ui";
 import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { handleOAuthRedirect } from "./services/oauthService";
@@ -284,6 +285,7 @@ export default function App() {
       {!top && (
         <header className="m-topbar">
           <span className="m-headtitle">
+            {nav.activeTab === "notes" ? <PlainvaLogo size={26} /> : <activeDef.icon size={22} />}
             <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
             <SyncIndicator />
           </span>

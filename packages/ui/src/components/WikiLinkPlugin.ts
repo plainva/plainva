@@ -7,6 +7,10 @@ import i18n from "../i18n";
 
 // Removed LinkWidget as we'll use Decoration.mark to allow CSS inheritance
 
+// Distinguishes a genuine tap (open the link) from a scroll or long-press on
+// touch devices (Capacitor WebView); keyed by view so editors stay isolated.
+const touchTapStart = new WeakMap<EditorView, { x: number; y: number; at: number }>();
+
 export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) => void, hideSyntax: boolean) {
   return [
     ViewPlugin.fromClass(class {
@@ -219,6 +223,49 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
           }
         }
         return false;
+      },
+      // Touch devices don't fire a reliable mousedown on tap (worse in the
+      // read-only view, where the content isn't focusable). Treat a genuine tap
+      // as a link open; preventDefault() suppresses the synthetic mouse events
+      // so desktop (mouse) still goes through mousedown with no double-fire.
+      touchstart: (event, view) => {
+        const t = event.touches[0];
+        if (t) touchTapStart.set(view, { x: t.clientX, y: t.clientY, at: event.timeStamp });
+        return false;
+      },
+      touchend: (event, view) => {
+        // Edit mode: a tap places the cursor; only the read-only view navigates.
+        if (view.state.facet(EditorView.editable)) return false;
+        const start = touchTapStart.get(view);
+        touchTapStart.delete(view);
+        const end = event.changedTouches[0];
+        if (!start || !end) return false;
+        const moved = Math.hypot(end.clientX - start.x, end.clientY - start.y);
+        if (moved > 10 || event.timeStamp - start.at > 700) return false; // scroll / long-press, not a tap
+        const pos = view.posAtCoords({ x: end.clientX, y: end.clientY });
+        if (pos === null) return false;
+        const line = view.state.doc.lineAt(pos);
+        const link = findLinkAtOffset(line.text, pos - line.from);
+        if (!link) return false;
+        if (link.type === "wiki") {
+          onOpenPath(link.target, false);
+        } else if (link.type === "markdown") {
+          if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
+            getPlatformServices().openExternal(link.target).catch((err) => {
+              toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+            });
+          } else {
+            onOpenPath(link.target, false);
+          }
+        } else if (link.type === "url") {
+          getPlatformServices().openExternal(link.target).catch((err) => {
+            toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+          });
+        } else {
+          return false;
+        }
+        event.preventDefault();
+        return true;
       }
     })
   ];

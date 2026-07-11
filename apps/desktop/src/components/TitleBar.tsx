@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sun, Moon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/theme";
-import { PlainvaLogo } from "./PlainvaLogo";
+import { PlainvaLogo } from "@plainva/ui";
 import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";

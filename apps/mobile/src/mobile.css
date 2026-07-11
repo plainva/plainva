@@ -131,6 +131,9 @@ body {
 .m-topbar .m-headtitle h1 {
   flex: 0 1 auto;
 }
+.m-headtitle > svg {
+  flex-shrink: 0;
+}
 
 .m-header {
   margin: 0 -16px;
