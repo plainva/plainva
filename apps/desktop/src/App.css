@@ -489,6 +489,12 @@ option {
    would cut everything after the first page. */
 .pv-print-host { display: none; }
 @media print {
+  /* Page margins for the printed PDF. macOS routes printing through the
+     native WKWebView path, which ignores the browser dialog's default
+     margins and honours only @page — without this the macOS output has no
+     margins at all (issue #6 / discussion #8). Windows and Linux print
+     dialogs honour @page too, so the result stays consistent everywhere. */
+  @page { margin: 1.6cm; }
   body[data-printing] #root { display: none !important; }
   body[data-printing] .pv-print-host { display: block !important; }
   body[data-printing] { background: var(--bg-primary); }

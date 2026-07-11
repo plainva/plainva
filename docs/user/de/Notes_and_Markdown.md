@@ -113,6 +113,10 @@ Im **⋮**-Menü des Editors und in der Befehls-Palette (`Strg+P`) findest Du **
 - **Als Markdown exportieren…** (⋮-Menü des Editors oder Befehls-Palette): speichert über den Systemdialog eine Kopie der Notiz an einen beliebigen Ort — zum Beispiel für ein anderes Programm. Verknüpfte Anhänge (Bilder) werden nicht mitkopiert; verweist die Notiz auf welche, zeigt Plainva einen kurzen Hinweis.
 - **PDF**: Nutze **Drucken / Als PDF…** (oben) und wähle im Systemdialog „Als PDF speichern".
 
+## Notiz in einer anderen App öffnen
+
+Deine Notizen sind einfache `.md`-Dateien, jeder Markdown-Editor kann sie öffnen. Im **⋮**-Menü des Editors gibt es **In Standard-App öffnen**: Damit übergibt Plainva die aktuelle Notiz an die App, die Dein System für Markdown-Dateien verwendet (etwa Byword, MacDown oder VS Code). Plainva beobachtet die Datei weiter, sodass dort gemachte Änderungen hier automatisch erscheinen.
+
 ## Bilder und Anhänge
 
 - **Einfügen**: Slash-Befehle **Internes Bild** (aus dem Vault suchen & einbetten) oder **Bild (Web)** (per URL). Außerdem: Ein Bild aus der Zwischenablage einfach **einfügen** (Strg+V) — es wird im Ordner der Notiz gespeichert und eingebettet. Und Du kannst Dateien **aus dem Datei-Explorer in den Editor ziehen**: Bilder werden eingebettet (`![[…]]`), andere Dateien kopiert und verlinkt (`[[…]]`).

@@ -113,6 +113,10 @@ Het **⋮**-menu van de editor en de opdrachtenpalet (`Ctrl+P`) bevatten **Afdru
 - **Exporteren als Markdown…** (**⋮**-menu van de editor of opdrachtenpalet): slaat via het systeemdialoogvenster een kopie van de notitie op naar een locatie naar keuze — bijvoorbeeld om de notitie aan een ander programma te geven. Gekoppelde bijlagen (afbeeldingen) worden niet meegekopieerd; als de notitie daarnaar verwijst, toont Plainva een korte melding.
 - **PDF**: gebruik **Afdrukken / Opslaan als PDF…** (hierboven) en kies in het systeemdialoogvenster "Opslaan als PDF".
 
+## Notitie openen in een andere editor
+
+Je notities zijn gewone `.md`-bestanden, dus elke Markdown-editor kan ze openen. Het **⋮**-menu van de editor bevat **Openen in standaardapp**, waarmee de huidige notitie wordt doorgegeven aan het programma dat je systeem gebruikt voor Markdown-bestanden (Byword, MacDown, VS Code enzovoort). Plainva blijft het bestand in de gaten houden, zodat wijzigingen die je daar aanbrengt hier automatisch verschijnen.
+
 ## Afbeeldingen en bijlagen
 
 - **Invoegen**: slash-commando's **Interne afbeelding** (zoeken & insluiten vanuit de vault) of **Afbeelding (web)** (via URL). Ook: **plak** eenvoudig een afbeelding vanuit het klembord (Ctrl+V) — die wordt naast de notitie opgeslagen en ingesloten. En je kunt **bestanden vanuit de bestandsverkenner naar de editor slepen**: afbeeldingen worden ingesloten (`![[…]]`), andere bestanden worden gekopieerd en gekoppeld (`[[…]]`).

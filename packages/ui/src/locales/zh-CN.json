@@ -405,6 +405,7 @@
     "pane": "编辑器窗格",
     "revealInTree": "在文件树中显示",
     "revealInFileManager": "在文件管理器中显示",
+    "openInDefaultApp": "在默认应用中打开",
     "conflictBanner": "同步冲突：你的版本已保存在“{{path}}”中。此文件现在显示另一端的内容。",
     "conflictBannerNoPath": "同步冲突：你的版本已保留为冲突副本。此文件现在显示另一端的内容。",
     "conflictOpenCopy": "打开冲突副本",

@@ -405,6 +405,7 @@
     "pane": "Editor-Bereich",
     "revealInTree": "Im Dateibaum anzeigen",
     "revealInFileManager": "Im Dateimanager anzeigen",
+    "openInDefaultApp": "In Standard-App öffnen",
     "conflictBanner": "Sync-Konflikt: Deine Version liegt in '{{path}}'. Diese Datei zeigt jetzt den Stand der anderen Seite.",
     "conflictBannerNoPath": "Sync-Konflikt: Deine Version wurde als Konfliktkopie gesichert. Diese Datei zeigt jetzt den Stand der anderen Seite.",
     "conflictOpenCopy": "Konfliktkopie öffnen",

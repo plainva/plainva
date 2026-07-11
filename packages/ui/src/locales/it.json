@@ -405,6 +405,7 @@
     "pane": "Riquadro dell'editor",
     "revealInTree": "Mostra nell'albero dei file",
     "revealInFileManager": "Mostra nel gestore file",
+    "openInDefaultApp": "Apri nell'app predefinita",
     "conflictBanner": "Conflitto di sincronizzazione: la tua versione è salvata in \"{{path}}\". Questo file mostra ora lo stato dell'altro lato.",
     "conflictBannerNoPath": "Conflitto di sincronizzazione: la tua versione è stata conservata come copia di conflitto. Questo file mostra ora lo stato dell'altro lato.",
     "conflictOpenCopy": "Apri copia di conflitto",

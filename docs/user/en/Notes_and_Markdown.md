@@ -113,6 +113,10 @@ The editor's **⋮** menu and the command palette (`Ctrl+P`) have **Print / Save
 - **Export as Markdown…** (editor **⋮** menu or command palette): saves a copy of the note anywhere via the system dialog — for example to hand it to another program. Linked attachments (images) are not copied along; Plainva shows a short notice when the note references any.
 - **PDF**: use **Print / Save as PDF…** (above) and choose "Save as PDF" in the system dialog.
 
+## Opening a note in another editor
+
+Your notes are plain `.md` files, so any Markdown editor can open them. The editor's **⋮** menu has **Open in default app**, which hands the current note to the app your system uses for Markdown files (Byword, MacDown, VS Code and so on). Plainva keeps watching the file, so edits you make there appear here automatically.
+
 ## Images and attachments
 
 - **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** an image from the clipboard (Ctrl+V) — it is saved next to the note and embedded. And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`).

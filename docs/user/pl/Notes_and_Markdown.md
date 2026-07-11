@@ -113,6 +113,10 @@ Menu **⋮** edytora oraz paleta poleceń (`Ctrl+P`) zawierają **Drukuj / Zapis
 - **Eksportuj jako Markdown…** (menu **⋮** edytora lub paleta poleceń): zapisuje kopię notatki w dowolnym miejscu za pomocą systemowego okna dialogowego — na przykład, aby przekazać ją innemu programowi. Powiązane załączniki (obrazy) nie są kopiowane razem z notatką; jeśli notatka się do nich odwołuje, Plainva pokazuje krótki komunikat.
 - **PDF**: użyj **Drukuj / Zapisz jako PDF…** (powyżej) i wybierz w oknie dialogowym systemu „Zapisz jako PDF".
 
+## Otwieranie notatki w innym edytorze
+
+Twoje notatki to zwykłe pliki `.md`, więc może je otworzyć dowolny edytor Markdown. Menu **⋮** edytora zawiera opcję **Otwórz w domyślnej aplikacji**, która przekazuje bieżącą notatkę do programu, którego Twój system używa do plików Markdown (Byword, MacDown, VS Code i inne). Plainva nadal obserwuje ten plik, więc zmiany wprowadzone tam automatycznie pojawiają się tutaj.
+
 ## Obrazy i załączniki
 
 - **Wstawianie**: polecenia slash **Obraz wewnętrzny** (wyszukaj i osadź z vaultu) lub **Obraz (z sieci)** (przez URL). Możesz też po prostu **wkleić** obraz ze schowka (Ctrl+V) — zostanie zapisany obok notatki i osadzony. A **pliki z eksploratora plików można przeciągnąć do edytora**: obrazy są osadzane (`![[…]]`), inne pliki są kopiowane i linkowane (`[[…]]`).

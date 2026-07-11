@@ -113,6 +113,10 @@ Le menu **⋮** de l'éditeur et la palette de commandes (`Ctrl+P`) proposent **
 - **Exporter en Markdown…** (menu **⋮** de l'éditeur ou palette de commandes) : enregistre une copie de la note n'importe où via la boîte de dialogue système — par exemple pour la transmettre à un autre programme. Les pièces jointes liées (images) ne sont pas copiées ; si la note en référence, Plainva affiche un bref avis.
 - **PDF** : utilisez **Imprimer / Enregistrer en PDF…** (ci-dessus) et choisissez « Enregistrer en PDF » dans la boîte de dialogue système.
 
+## Ouvrir une note dans un autre éditeur
+
+Vos notes sont de simples fichiers `.md`, donc n'importe quel éditeur Markdown peut les ouvrir. Le menu **⋮** de l'éditeur propose **Ouvrir dans l'application par défaut**, qui transmet la note actuelle au programme que votre système utilise pour les fichiers Markdown (Byword, MacDown, VS Code, etc.). Plainva continue de surveiller le fichier, donc les modifications que vous y apportez apparaissent ici automatiquement.
+
 ## Images et pièces jointes
 
 - **Insérer** : commandes slash **Image interne** (rechercher & intégrer depuis le vault) ou **Image (web)** (par URL). Vous pouvez aussi simplement **coller** une image depuis le presse-papiers (Ctrl+V) — elle est enregistrée à côté de la note et intégrée. Et vous pouvez **glisser des fichiers depuis l'explorateur de fichiers dans l'éditeur** : les images s'intègrent (`![[…]]`), les autres fichiers sont copiés et liés (`[[…]]`).

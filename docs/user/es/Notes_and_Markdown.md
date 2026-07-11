@@ -113,6 +113,10 @@ El menú **⋮** del editor y la paleta de comandos (`Ctrl+P`) tienen **Imprimir
 - **Exportar como Markdown…** (menú **⋮** del editor o paleta de comandos): guarda una copia de la nota donde quieras mediante el diálogo del sistema — por ejemplo, para pasarla a otro programa. Los adjuntos vinculados (imágenes) no se copian junto con ella; Plainva muestra un aviso breve cuando la nota hace referencia a alguno.
 - **PDF**: usa **Imprimir / Guardar como PDF…** (arriba) y elige "Guardar como PDF" en el diálogo del sistema.
 
+## Abrir una nota en otro editor
+
+Tus notas son archivos `.md` normales, así que cualquier editor Markdown puede abrirlas. El menú **⋮** del editor tiene **Abrir en la aplicación predeterminada**, que entrega la nota actual a la aplicación que tu sistema usa para archivos Markdown (Byword, MacDown, VS Code, entre otras). Plainva sigue vigilando el archivo, así que los cambios que hagas ahí aparecen aquí automáticamente.
+
 ## Imágenes y adjuntos
 
 - **Insertar**: comandos de barra oblicua **Imagen interna** (buscar e incrustar desde el vault) o **Imagen (web)** (mediante una URL). También: simplemente **pega** una imagen desde el portapapeles (Ctrl+V) — se guarda junto a la nota y se incrusta. Y puedes **arrastrar archivos desde el explorador de archivos al editor**: las imágenes se incrustan (`![[…]]`), otros archivos se copian y se enlazan (`[[…]]`).

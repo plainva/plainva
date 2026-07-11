@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -34,7 +34,7 @@ import { activeDocument, type DocChannel } from "../services/activeDocument";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
-import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
@@ -219,6 +219,19 @@ export const Editor: React.FC<{
       await revealItemInDir(`${vaultPath}/${activePath}`);
     } catch (err) {
       console.warn("[Editor] reveal in file manager failed", err);
+      toast.error((err as Error)?.message ?? String(err));
+    }
+  };
+
+  // Hand the note to the OS default handler for its type (e.g. Byword for
+  // `.md`) — plain-Markdown interop, requested in issue #6. The file watcher
+  // picks up external edits, so changes flow back into Plainva automatically.
+  const handleMenuOpenInDefaultApp = async () => {
+    if (!activePath || !vaultPath) return;
+    try {
+      await openPath(`${vaultPath}/${activePath}`);
+    } catch (err) {
+      console.warn("[Editor] open in default app failed", err);
       toast.error((err as Error)?.message ?? String(err));
     }
   };
@@ -1511,6 +1524,9 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<FolderOpen size={15} />} onSelect={() => { void handleMenuReveal(); }}>
                 {t("editor.revealInFileManager", "Im Dateimanager anzeigen")}
+              </MenuItem>
+              <MenuItem icon={<ExternalLink size={15} />} onSelect={() => { void handleMenuOpenInDefaultApp(); }}>
+                {t("editor.openInDefaultApp")}
               </MenuItem>
               <MenuItem icon={<Printer size={15} />} onSelect={handleMenuPrint}>
                 {t("editor.print")}

@@ -7,6 +7,26 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-07-11
+
+A small follow-up to 0.2.0, driven by the first macOS user reports on the new
+print path.
+
+### Fixed
+
+- **Print margins on macOS.** The native macOS print path produced pages with
+  no margins at all, because it honours only CSS `@page` margins (unlike the
+  Windows/Linux print dialog, which adds defaults). Printed pages and PDFs now
+  have proper margins on every platform (#6).
+
+### Added
+
+- **Open in default app** in the editor's ⋮ menu: hands the current note to the
+  app your system uses for Markdown files (Byword, MacDown, VS Code and so on).
+  Since notes are plain `.md` files, this is a natural fit — and Plainva keeps
+  watching the file, so edits made in the other editor flow back automatically
+  (#6).
+
 ## [0.2.0] — 2026-07-11
 
 The first big update after launch, driven by the first external user reports

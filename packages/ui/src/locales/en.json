@@ -405,6 +405,7 @@
     "pane": "Editor pane",
     "revealInTree": "Reveal in file tree",
     "revealInFileManager": "Reveal in file manager",
+    "openInDefaultApp": "Open in default app",
     "conflictBanner": "Sync conflict: your version is stored in '{{path}}'. This file now shows the other side's state.",
     "conflictBannerNoPath": "Sync conflict: your version was preserved as a conflict copy. This file now shows the other side's state.",
     "conflictOpenCopy": "Open conflict copy",
