@@ -43,6 +43,8 @@ Plainva works in small, reviewed steps:
 
 All documentation, code comments and commit messages are written in English. The only multilingual area is the user guide (`docs/user/<lang>/`) — user-visible changes update the affected pages in ALL language folders.
 
+`CHANGELOG.md` tracks the released desktop app. Changes to the (not yet released) mobile shell under `apps/mobile` are not listed there until the mobile app ships; they get their own changelog section with the first mobile release.
+
 Use concise conventional-style commit messages where practical, for example:
 
 ```text

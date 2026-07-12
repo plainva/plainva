@@ -4,7 +4,7 @@ Date: 2026-07-11
 
 ## Status
 
-Accepted (implementation in progress on a stacked `design/ui2-*` branch line; not yet merged to `main`).
+Accepted. Phases 0–3 (token foundation, primitives, first desktop surfaces, mobile wiring) plus the inline-control conversion were merged to `main` on 2026-07-11 (merge commit `2b20292`) and shipped with desktop release v0.2.2. The remaining phases (mobile visual reskin, mobile themes/easter eggs, verification) continue as the mobile M3E track.
 
 ## Context
 
