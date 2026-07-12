@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { haptics } from "../services/haptics";
 import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
 
 /**
@@ -94,9 +95,12 @@ export function usePullToRefresh(
         setPull(0);
         return;
       }
+      const prev = dist;
       dist = pullDistance(dy);
       // Own the gesture: without this the browser rubber-bands instead.
       if (dist > 0 && e.cancelable) e.preventDefault();
+      // One tactile tick exactly when the pull arms (crosses the threshold).
+      if (prev < PULL_THRESHOLD && dist >= PULL_THRESHOLD) haptics.light();
       setPull(dist);
     };
     const onEnd = () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Database, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
 import { EmptyState } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
@@ -17,11 +17,14 @@ export function DatabasesScreen({
   bump,
   onBack,
   onOpenBase,
+  onCreate,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
   onOpenBase: (path: string) => void;
+  /** Opens the shared new-database flow (R2.4: creation lives in the hub too). */
+  onCreate?: () => void;
 }) {
   const { t } = useTranslation();
   const [bases, setBases] = useState<Array<{ path: string; title: string }>>([]);
@@ -86,6 +89,12 @@ export function DatabasesScreen({
             ))}
           </div>
         ))
+      )}
+      {onCreate && (
+        <button className="m-row" onClick={onCreate}>
+          <Plus className="m-accent" size={18} />
+          <span>{t("mobile.newDatabase")}</span>
+        </button>
       )}
       {sheet && (
         <RowActionSheet

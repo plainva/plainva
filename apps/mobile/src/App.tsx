@@ -388,7 +388,7 @@ export default function App() {
         ) : top?.kind === "calendar" ? (
           <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} vault={vault} />
         ) : top?.kind === "databases" ? (
-          <DatabasesScreen bump={bump} onBack={pop} onOpenBase={openBase} vault={vault} />
+          <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "folder" ? (
           <BrowseScreen
             bump={bump}
@@ -423,7 +423,7 @@ export default function App() {
         ) : nav.activeTab === "calendar" ? (
           <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
         ) : (
-          <DatabasesScreen bump={bump} onOpenBase={openBase} vault={vault} />
+          <DatabasesScreen bump={bump} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         )}
       </div>
 
