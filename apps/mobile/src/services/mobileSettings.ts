@@ -1,4 +1,4 @@
-import { getPlatformServices } from "@plainva/ui";
+import { applyResolved, DEFAULT_THEME_NAME, getPlatformServices, getThemeDef } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 
 /**
@@ -12,6 +12,9 @@ export type DefaultView = "read" | "edit";
 
 interface MobileSettings {
   themeMode: ThemeMode;
+  /** Bundled theme id from the shared registry (package D3); single-mode
+   * themes pin `data-theme` regardless of `themeMode`. */
+  themeName: string;
   defaultView: DefaultView;
   dailyFolder: string;
   /** ＋-capture target when no folder is open (R3.6). */
@@ -31,6 +34,7 @@ const KEY = "mobile-settings";
 
 const DEFAULTS: MobileSettings = {
   themeMode: "system",
+  themeName: DEFAULT_THEME_NAME,
   defaultView: "read",
   dailyFolder: "Daily",
   inboxFolder: "Inbox",
@@ -44,10 +48,11 @@ let cache: MobileSettings = { ...DEFAULTS };
 let media: MediaQueryList | null = null;
 
 function applyTheme(): void {
-  const dark =
-    cache.themeMode === "dark" ||
-    (cache.themeMode === "system" && !!media?.matches);
-  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  // Shared applier (D3): writes data-theme-name AND the resolved data-theme —
+  // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
+  // default variant get it applied. themeMode maps 1:1 onto ThemePref.
+  const name = getThemeDef(cache.themeName) ? cache.themeName : DEFAULT_THEME_NAME;
+  applyResolved(cache.themeMode, name);
 }
 
 export async function initMobileSettings(): Promise<void> {

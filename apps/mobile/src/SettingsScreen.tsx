@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
-import { APP_LANGUAGES, TextInput } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, TextInput } from "@plainva/ui";
 import { FolderPickerSheet } from "./components/FolderPickerSheet";
 import { mSelect } from "./services/mobileDialogs";
 import {
@@ -105,6 +105,35 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
 
       <SettingRow label={t("mobile.settingLanguage")} onClick={pickLanguage} value={languageLabel(settings.language)} />
       <SettingRow label={t("mobile.settingTheme")} onClick={pickTheme} value={themeLabel(settings.themeMode)} />
+
+      {/* Theme catalog (M3E package D4): the shared registry, minus easter-egg
+          entries (their unlock flow arrives with the mobile hailing sheet).
+          Swatch colors are registry DATA, not styling literals. */}
+      <p className="m-sectionlabel">{t("settings.theme")}</p>
+      <div className="m-themegrid">
+        {AVAILABLE_THEMES.filter((th) => !th.unlock).map((th) => {
+          const mode = th.modes.includes(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light")
+            ? (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" as const : "light" as const)
+            : th.modes[0];
+          const sw = th.swatch[mode]!;
+          const active = (settings.themeName || "petrol") === th.id;
+          return (
+            <button
+              className={active ? "m-themecard is-on" : "m-themecard"}
+              key={th.id}
+              onClick={() => update({ themeName: th.id })}
+            >
+              <span aria-hidden className="m-themeprev">
+                <i style={{ background: sw.bg }} />
+                <i style={{ background: sw.surface }} />
+                <i style={{ background: sw.accent }} />
+              </span>
+              <span className="m-themename">{t(`themes.names.${th.id}`, { defaultValue: th.label })}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <SettingRow
         label={t("mobile.settingDefaultView")}
         onClick={pickDefaultView}

@@ -1240,6 +1240,46 @@ textarea {
   background: var(--state-press);
 }
 
+/* Theme catalog cards (D4): swatch preview strips + tonal selected border.
+   Swatch colors come from the registry as inline data, not CSS literals. */
+.m-themegrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  padding: 2px 16px 8px;
+}
+.m-themecard {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--m-outline);
+  border-radius: var(--m-radius-card);
+  background: var(--m-surface);
+  font-family: inherit;
+  text-align: left;
+  transition: border-color var(--dur-1) var(--ease-effects), box-shadow var(--dur-1) var(--ease-effects);
+}
+.m-themecard.is-on {
+  border-color: var(--m-primary);
+  box-shadow: 0 0 0 1px var(--m-primary);
+}
+.m-themeprev {
+  display: flex;
+  height: 40px;
+}
+.m-themeprev i {
+  flex: 1;
+  display: block;
+}
+.m-themename {
+  padding: 7px 10px 8px;
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: var(--text-main);
+}
+
 /* Screen enter (B5): a light shared-axis slide on every mounted page. The
    editor page is exempt — CodeMirror must never mount inside a transform. */
 @keyframes m-screen-in {
