@@ -7,6 +7,7 @@
 // Pure helpers and view-models
 export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
+export * from "./lib/contentFont";
 export * from "./lib/outline";
 export * from "./lib/recentsFile";
 export * from "./lib/renameNote";

@@ -194,10 +194,22 @@
  * selector. Every animation MUST source its duration from these tokens.
  */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  /* data-motion="on" is the deliberate in-app opt-in ("why do I see no
+     animations?" — OS animation effects off): it keeps chrome motion alive
+     despite the OS hint. Absent attribute = follow the system, as before. */
+  :root:not([data-motion="on"]) {
     --dur-1: 0.01ms;
     --dur-2: 0.01ms;
     --dur-3: 0.01ms;
     --ease-spatial: linear;
   }
+}
+
+/* In-app motion switch (M3E package D6): "off" collapses chrome motion even
+   when the OS allows it — same mechanism as the media query above. */
+:root[data-motion="off"] {
+  --dur-1: 0.01ms;
+  --dur-2: 0.01ms;
+  --dur-3: 0.01ms;
+  --ease-spatial: linear;
 }

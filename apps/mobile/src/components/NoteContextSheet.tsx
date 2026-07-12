@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, ListTree, Lock, Plus } from "lucide-react";
+import { Code, FileText, ListTree, Lock, Plus, Search } from "lucide-react";
 import { inferType, parseHeadings, type Heading } from "@plainva/ui";
 import { mPrompt } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
@@ -23,15 +23,22 @@ const LOCKED = new Set(["type", "okf_version"]);
 export function NoteContextSheet({
   vault,
   path,
+  sourceMode,
   onClose,
   onOpenNote,
   onJumpToLine,
+  onToggleSource,
+  onFind,
 }: {
   vault: MobileVault;
   path: string;
+  /** C4: current editor mode — the action row shows the mode it switches TO. */
+  sourceMode: boolean;
   onClose: () => void;
   onOpenNote: (path: string) => void;
   onJumpToLine: (line: number) => void;
+  onToggleSource: () => void;
+  onFind: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("props");
@@ -175,6 +182,29 @@ export function NoteContextSheet({
                 </button>
               ))
             ))}
+
+          {/* Note actions (C4): mode toggle + in-note search, tab-independent. */}
+          <p className="m-sectionlabel m-sectionlabel--inset">{t("mobile.noteInfo")}</p>
+          <button
+            className="m-row"
+            onClick={() => {
+              onClose();
+              onToggleSource();
+            }}
+          >
+            <Code className="m-accent" size={18} />
+            <span>{sourceMode ? t("editor.livePreview") : t("editor.sourceMode")}</span>
+          </button>
+          <button
+            className="m-row"
+            onClick={() => {
+              onClose();
+              onFind();
+            }}
+          >
+            <Search className="m-accent" size={18} />
+            <span>{t("search.find")}</span>
+          </button>
         </div>
       </div>
       {edit && (

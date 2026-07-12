@@ -29,6 +29,7 @@ import {
   cycleHeading,
   findFirstMatch,
   insertWikiLink,
+  openFindPanel,
   openSlashMenu,
   performBlockMove,
   planTableInsertion,
@@ -162,18 +163,37 @@ export function EditorHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, t]);
 
-  // Outline jump (C1): the note context sheet asks for a heading line; select
-  // its start and center it (works in read AND edit mode).
+  // Context-sheet requests (C1/C4): outline jump, mode toggle, in-note search.
   useEffect(() => {
-    const onGoto = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { path?: string; line?: number } | undefined;
+    const forThisNote = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       const view = sessionRef.current?.view;
-      if (!view || !detail || detail.path !== path || !detail.line) return;
-      const line = view.state.doc.line(Math.min(Math.max(detail.line, 1), view.state.doc.lines));
-      view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+      return view && detail?.path === path ? { view, detail: detail as Record<string, unknown> } : null;
+    };
+    const onGoto = (e: Event) => {
+      const hit = forThisNote(e);
+      const line = hit && (hit.detail.line as number | undefined);
+      if (!hit || !line) return;
+      const l = hit.view.state.doc.line(Math.min(Math.max(line, 1), hit.view.state.doc.lines));
+      hit.view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+    };
+    const onSetMode = (e: Event) => {
+      const hit = forThisNote(e);
+      const mode = hit && (hit.detail.mode as "live" | "source" | undefined);
+      if (hit && mode) sessionRef.current?.setMode(mode);
+    };
+    const onFind = (e: Event) => {
+      const hit = forThisNote(e);
+      if (hit) openFindPanel(hit.view);
     };
     window.addEventListener("m-editor-goto-line", onGoto);
-    return () => window.removeEventListener("m-editor-goto-line", onGoto);
+    window.addEventListener("m-editor-set-mode", onSetMode);
+    window.addEventListener("m-editor-find", onFind);
+    return () => {
+      window.removeEventListener("m-editor-goto-line", onGoto);
+      window.removeEventListener("m-editor-set-mode", onSetMode);
+      window.removeEventListener("m-editor-find", onFind);
+    };
   }, [path]);
 
   // Read-first (M4): the editable facet keeps the live preview fully

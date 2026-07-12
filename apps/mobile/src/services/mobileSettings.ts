@@ -1,4 +1,11 @@
-import { applyResolved, DEFAULT_THEME_NAME, getPlatformServices, getThemeDef } from "@plainva/ui";
+import {
+  applyResolved,
+  clampContentFontSize,
+  DEFAULT_CONTENT_FONT_SIZE,
+  DEFAULT_THEME_NAME,
+  getPlatformServices,
+  getThemeDef,
+} from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 
 /**
@@ -9,6 +16,7 @@ import { changeAppLanguage } from "@plainva/ui/i18n";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type DefaultView = "read" | "edit";
+export type MotionPref = "system" | "on" | "off";
 
 interface MobileSettings {
   themeMode: ThemeMode;
@@ -34,6 +42,10 @@ interface MobileSettings {
   unlockedThemeVariants: string[];
   /** Active variant per theme, e.g. { lcars: "engage" }. */
   themeVariants: Record<string, string>;
+  /** Note content font size in px, 12–24 (D6; shared limits, issue #5). */
+  contentFontSize: number;
+  /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
+  motion: MotionPref;
 }
 
 const KEY = "mobile-settings";
@@ -51,6 +63,8 @@ const DEFAULTS: MobileSettings = {
   unlockedThemes: [],
   unlockedThemeVariants: [],
   themeVariants: {},
+  contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
+  motion: "system",
 };
 
 let cache: MobileSettings = { ...DEFAULTS };
@@ -62,6 +76,13 @@ function applyTheme(): void {
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
   const name = getThemeDef(cache.themeName) ? cache.themeName : DEFAULT_THEME_NAME;
   applyResolved(cache.themeMode, name, cache.themeVariants[name]);
+  const root = document.documentElement;
+  // D6: note content size (chrome text is untouched — desktop contract).
+  root.style.setProperty("--content-font-size", `${clampContentFontSize(cache.contentFontSize)}px`);
+  // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
+  // and skips the OS reduce-collapse on "on"; absent = follow the system.
+  if (cache.motion === "system") root.removeAttribute("data-motion");
+  else root.setAttribute("data-motion", cache.motion);
 }
 
 export async function initMobileSettings(): Promise<void> {

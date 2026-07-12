@@ -12,9 +12,15 @@ import { getSettingsStore } from "./settingsStore";
  * own settings screen.
  */
 
-export const DEFAULT_CONTENT_FONT_SIZE = 16;
-export const MIN_CONTENT_FONT_SIZE = 12;
-export const MAX_CONTENT_FONT_SIZE = 24;
+// Size limits + clamp live in @plainva/ui (M3E package D6) — one 12–24 px
+// contract for both shells; re-exported so desktop imports stay unchanged.
+export {
+  clampContentFontSize,
+  DEFAULT_CONTENT_FONT_SIZE,
+  MAX_CONTENT_FONT_SIZE,
+  MIN_CONTENT_FONT_SIZE,
+} from "@plainva/ui";
+import { clampContentFontSize, DEFAULT_CONTENT_FONT_SIZE } from "@plainva/ui";
 
 export type ContentFontFamily = "theme" | "serif" | "sans" | "mono" | "custom";
 
@@ -26,11 +32,6 @@ export const FONT_FAMILY_STACKS: Record<Exclude<ContentFontFamily, "theme" | "cu
 
 export function isContentFontFamily(v: unknown): v is ContentFontFamily {
   return v === "theme" || v === "serif" || v === "sans" || v === "mono" || v === "custom";
-}
-
-export function clampContentFontSize(v: unknown): number {
-  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_CONTENT_FONT_SIZE;
-  return Math.min(MAX_CONTENT_FONT_SIZE, Math.max(MIN_CONTENT_FONT_SIZE, n));
 }
 
 /** CSS string delimiters/escapes that must never survive sanitizing. */

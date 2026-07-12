@@ -23,6 +23,8 @@ export function NoteScreen({
   const [doc, setDoc] = useState<string | null>(null);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState(false);
+  // C4: live preview <-> raw markdown source (session mode, per note session).
+  const [source, setSource] = useState(false);
   // Read-first (M4/E5): notes open rendered and read-only; the pen flips
   // into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
@@ -83,11 +85,21 @@ export function NoteScreen({
       {info && (
         <NoteContextSheet
           onClose={() => setInfo(false)}
+          onFind={() => window.dispatchEvent(new CustomEvent("m-editor-find", { detail: { path } }))}
           onJumpToLine={(line) =>
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
           }
           onOpenNote={onOpenNote}
+          onToggleSource={() =>
+            setSource((s) => {
+              window.dispatchEvent(
+                new CustomEvent("m-editor-set-mode", { detail: { path, mode: s ? "live" : "source" } }),
+              );
+              return !s;
+            })
+          }
           path={path}
+          sourceMode={source}
           vault={vault}
         />
       )}

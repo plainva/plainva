@@ -9,6 +9,7 @@ import {
   getMobileSettings,
   updateMobileSettings,
   type DefaultView,
+  type MotionPref,
   type ThemeMode,
 } from "./services/mobileSettings";
 import type { MobileVault } from "./services/vaultService";
@@ -75,6 +76,28 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
       value: settings.themeMode,
     }).then((v) => {
       if (v !== null) update({ themeMode: v as ThemeMode });
+    });
+  };
+
+  const motionLabel = (m: MotionPref) =>
+    t(m === "on" ? "mobile.motionOn" : m === "off" ? "mobile.motionOff" : "mobile.motionSystem");
+  const pickMotion = () => {
+    void mSelect({
+      title: t("mobile.settingMotion"),
+      options: (["system", "on", "off"] as MotionPref[]).map((m) => ({ value: m, label: motionLabel(m) })),
+      value: settings.motion,
+    }).then((v) => {
+      if (v !== null) update({ motion: v as MotionPref });
+    });
+  };
+
+  const pickFontSize = () => {
+    void mSelect({
+      title: t("settings.contentFontSize"),
+      options: [12, 14, 16, 18, 20, 22, 24].map((n) => ({ value: String(n), label: `${n} px` })),
+      value: String(settings.contentFontSize),
+    }).then((v) => {
+      if (v !== null) update({ contentFontSize: Number(v) });
     });
   };
 
@@ -147,6 +170,12 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
         })}
       </div>
 
+      <SettingRow
+        label={t("settings.contentFontSize")}
+        onClick={pickFontSize}
+        value={`${settings.contentFontSize} px`}
+      />
+      <SettingRow label={t("mobile.settingMotion")} onClick={pickMotion} value={motionLabel(settings.motion)} />
       <SettingRow
         label={t("mobile.settingDefaultView")}
         onClick={pickDefaultView}

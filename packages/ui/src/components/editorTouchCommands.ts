@@ -1,5 +1,6 @@
 import { startCompletion } from "@codemirror/autocomplete";
 import { undo, redo } from "@codemirror/commands";
+import { openSearchPanel } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
@@ -119,4 +120,10 @@ export function insertWikiLink(view: EditorView): void {
     userEvent: "input",
   });
   view.focus();
+}
+
+/** Opens CodeMirror's find/replace panel (C4: the note context sheet's
+ * "search in note" row — the shell has no keyboard shortcut on touch). */
+export function openFindPanel(view: EditorView): void {
+  openSearchPanel(view);
 }
