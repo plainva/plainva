@@ -24,7 +24,7 @@ import {
 } from "./vaultRegistry";
 import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
-import { applyTemplatePlaceholders, toast } from "@plainva/ui";
+import { applyTemplatePlaceholders, parseBookmarksFile, serializeBookmarksFile, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -369,8 +369,9 @@ export const vaultOps = {
   async getBookmarks(v: MobileVault): Promise<string[]> {
     try {
       const raw = await v.adapter.readTextFile(".plainva/bookmarks.json");
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter((p) => typeof p === "string") : [];
+      // Shared parser (package A5): accepts the legacy bare-array shape this
+      // shell used to write AND the desktop {items:[...]} object.
+      return parseBookmarksFile(raw).paths;
     } catch {
       return [];
     }
@@ -381,7 +382,7 @@ export const vaultOps = {
     const idx = marks.indexOf(path);
     if (idx >= 0) marks.splice(idx, 1);
     else marks.push(path);
-    await v.adapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify(marks, null, 2));
+    await v.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(marks));
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return idx < 0;
   },

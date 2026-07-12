@@ -15,7 +15,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { isImagePath } from "@plainva/ui";
+import { isImagePath, parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -340,15 +340,14 @@ function App() {
           console.debug("No obsidian bookmarks or parse error", e);
         }
 
-        // Check Plainva bookmarks
+        // Check Plainva bookmarks (shared parser accepts the legacy mobile
+        // bare-array shape too — .plainva/bookmarks.json is one contract now)
         let plainvaBookmarksExisted = false;
         try {
           const plData = await vaultAdapter.readTextFile(".plainva/bookmarks.json");
-          const plJson = JSON.parse(plData);
-          if (plJson.items) {
-            plainvaBookmarks = plJson.items.map((i: any) => i.path);
-            plainvaBookmarksExisted = true;
-          }
+          const plFile = parseBookmarksFile(plData);
+          plainvaBookmarks = plFile.paths;
+          plainvaBookmarksExisted = plFile.existed;
         } catch(e) {
           console.debug("No plainva bookmarks or parse error", e);
         }
@@ -358,8 +357,7 @@ function App() {
 
         // Save back if there were obsidian bookmarks imported that weren't in plainva
         if (obsidianBookmarks.length > 0 && merged.length > plainvaBookmarks.length || !plainvaBookmarksExisted && merged.length > 0) {
-          const newJson = { items: merged.map(p => ({ type: "file", path: p })) };
-          await vaultAdapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify(newJson, null, 2));
+          await vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(merged));
         }
 
         setBookmarks(merged);
@@ -374,8 +372,7 @@ function App() {
     setBookmarks(prev => {
       const next = prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path];
       if (vaultPath && vaultAdapter) {
-        const newJson = { items: next.map(p => ({ type: "file", path: p })) };
-        vaultAdapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify(newJson, null, 2)).catch((e) => {
+        vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(next)).catch((e) => {
           // The optimistic state update already happened — a silent write
           // failure would leave bookmarks permanently out of sync with disk.
           console.error("Failed to persist bookmarks", e);
