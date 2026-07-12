@@ -1465,6 +1465,7 @@
     "vaultExportFailed": "Export failed.",
     "selectMode": "Select",
     "selectedCount": "{{n}} selected",
+    "templatePick": "Choose a starting structure",
     "syncResume": "Reconnect",
     "editNote": "Edit",
     "doneEditing": "Done",

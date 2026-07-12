@@ -1475,6 +1475,7 @@
     "vaultExportFailed": "Eksport nie powiódł się.",
     "selectMode": "Zaznacz",
     "selectedCount": "Zaznaczono: {{n}}",
+    "templatePick": "Wybierz strukturę początkową",
     "syncResume": "Połącz ponownie",
     "editNote": "Edytuj",
     "doneEditing": "Gotowe",

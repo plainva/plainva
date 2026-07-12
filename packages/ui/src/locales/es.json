@@ -1470,6 +1470,7 @@
     "vaultExportFailed": "Error al exportar.",
     "selectMode": "Seleccionar",
     "selectedCount": "{{n}} seleccionado(s)",
+    "templatePick": "Elegir una estructura inicial",
     "syncResume": "Reconectar",
     "editNote": "Editar",
     "doneEditing": "Listo",

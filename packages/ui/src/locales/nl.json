@@ -1465,6 +1465,7 @@
     "vaultExportFailed": "Exporteren mislukt.",
     "selectMode": "Selecteren",
     "selectedCount": "{{n}} geselecteerd",
+    "templatePick": "Kies een startstructuur",
     "syncResume": "Opnieuw verbinden",
     "editNote": "Bewerken",
     "doneEditing": "Klaar",

@@ -5,6 +5,9 @@
  * with an English fallback.
  */
 
+/** OKF type of scaffolded daily notes (previously the desktop VaultContext constant). */
+export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
+
 export type VaultTemplateId = "para" | "zettelkasten" | "ace" | "jd" | "gtd" | "journal";
 
 export interface VaultTemplateNote {

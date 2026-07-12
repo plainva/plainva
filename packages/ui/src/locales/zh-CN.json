@@ -1460,6 +1460,7 @@
     "vaultExportFailed": "导出失败。",
     "selectMode": "选择",
     "selectedCount": "已选择 {{n}} 项",
+    "templatePick": "选择起始结构",
     "syncResume": "重新连接",
     "editNote": "编辑",
     "doneEditing": "完成",

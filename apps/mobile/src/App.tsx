@@ -13,13 +13,13 @@ import {
   Search,
   StickyNote,
 } from "lucide-react";
-import { PlainvaLogo } from "@plainva/ui";
+import { getVaultTemplates, PlainvaLogo, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
 import { getSyncStatus, listProviderFolders, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
-import { mPrompt } from "./services/mobileDialogs";
+import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { createDatabase } from "./services/baseOps";
@@ -79,7 +79,7 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
 };
 
 export default function App() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [vault, setVault] = useState<MobileVault | null>(null);
   const [slots, setSlots] = useState<TabScreenId[]>(() =>
     sanitizeTabSlots(getMobileSettings().tabSlots),
@@ -324,7 +324,43 @@ export default function App() {
   const finishOnboarding = (connectCloud: boolean) => {
     setOnboarded(true);
     void updateMobileSettings({ onboarded: true });
-    if (connectCloud) push({ kind: "sync", path: "" });
+    if (connectCloud) {
+      push({ kind: "sync", path: "" });
+      return;
+    }
+    // Local start: offer the shared structure templates (package I). Only a
+    // vault this boot created gets the offer — the one-time onboarding also
+    // shows once on existing installs, whose content must never gain folders.
+    void (async () => {
+      if (!vault.freshlySeeded) return;
+      const defs = getVaultTemplates(i18n.language);
+      const pick = await mSelect({
+        title: t("mobile.templatePick"),
+        options: [
+          { value: "", label: t("splash.emptyVault") },
+          ...defs.map((d) => ({ value: d.id, label: d.name })),
+        ],
+        value: "",
+      });
+      const def = defs.find((d) => d.id === pick);
+      if (!def) return;
+      await scaffoldVaultTemplate({
+        adapter: vault.files,
+        template: def,
+        vaultName: "Plainva",
+        subfoldersHeading: t("indexMd.subfoldersHeading"),
+      });
+      const ts = def.settings;
+      if (ts) {
+        await updateMobileSettings({
+          ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
+          ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
+          ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
+        });
+      }
+      await vault.indexer?.indexVaultFull();
+      window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    })().catch((e) => console.error("template scaffold failed", e));
   };
 
   const quickNewFolder = () => {

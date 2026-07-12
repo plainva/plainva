@@ -1460,6 +1460,7 @@
     "vaultExportFailed": "エクスポートに失敗しました。",
     "selectMode": "選択",
     "selectedCount": "{{n}}件選択中",
+    "templatePick": "開始時の構造を選択",
     "syncResume": "再接続",
     "editNote": "編集",
     "doneEditing": "完了",

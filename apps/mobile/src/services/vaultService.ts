@@ -50,6 +50,8 @@ import i18n from "@plainva/ui/i18n";
 export interface MobileVault {
   /** Registry id of this vault ("local" or a connection id). */
   vaultId: string;
+  /** True when this boot created the vault (first run) — gates the template offer. */
+  freshlySeeded: boolean;
   /** Raw sandbox adapter (listing, binary reads). */
   adapter: CapacitorVaultAdapter;
   /** App-facing adapter: the conflict-aware chain natively, raw on the web. */
@@ -149,8 +151,12 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   const adapter = new CapacitorVaultAdapter(isLocal ? "vault" : `vaults/${entry.id}`);
   await adapter.initialize();
 
+  // A vault seeded THIS boot is brand new — the onboarding may offer the
+  // structure templates (package I); existing installs never get the offer.
+  let freshlySeeded = false;
   if (isLocal && (await adapter.listDir("")).length === 0) {
     for (const [path, text] of SEEDS) await adapter.writeTextFile(path, text);
+    freshlySeeded = true;
   }
 
   // Enqueue guards mirror the desktop: nothing enqueues before sync is
@@ -241,6 +247,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
   const v: MobileVault = {
     vaultId: entry.id,
+    freshlySeeded,
     adapter,
     files,
     backup,

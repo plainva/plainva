@@ -1,5 +1,4 @@
-import { DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
-import { welcomeBody, type VaultTemplateDefinition } from "./types";
+import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 
 /** English template set — also the fallback for languages without their own set.

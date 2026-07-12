@@ -1,5 +1,4 @@
-import { DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
-import { welcomeBody, type VaultTemplateDefinition } from "./types";
+import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 
 /** Dutch template set — folder/file names follow the app language.
