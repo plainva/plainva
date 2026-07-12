@@ -1522,6 +1522,7 @@
     "newDaily": "New daily note",
     "newDatabase": "New database",
     "newDatabasePrompt": "Name of the new database",
+    "searchHint": "Search your notes…",
     "baseGraphFallback": "The graph view is available on desktop; shown here as a table.",
     "newFromTemplate": "From template…",
     "tableRows": "Rows",

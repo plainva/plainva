@@ -1532,6 +1532,7 @@
     "newDaily": "Nowa notatka dzienna",
     "newDatabase": "Nowa baza danych",
     "newDatabasePrompt": "Nazwa nowej bazy danych",
+    "searchHint": "Szukaj w notatkach…",
     "baseGraphFallback": "Widok grafu jest dostępny na komputerze; tutaj wyświetlany jako tabela.",
     "newFromTemplate": "Z szablonu…",
     "tableRows": "Wiersze",

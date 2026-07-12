@@ -24,7 +24,15 @@ import {
 } from "./vaultRegistry";
 import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
-import { applyTemplatePlaceholders, parseBookmarksFile, serializeBookmarksFile, toast } from "@plainva/ui";
+import {
+  applyTemplatePlaceholders,
+  parseBookmarksFile,
+  parseRecentsFile,
+  pushRecentEntry,
+  serializeBookmarksFile,
+  serializeRecentsFile,
+  toast,
+} from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -394,6 +402,43 @@ export const vaultOps = {
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, limit)
       .map((e) => ({ path: e.path, title: noteTitle(e.path) }));
+  },
+
+  /* ---- B2: real MRU (last OPENED, .plainva/recents.json — device-local,
+     shared contract with the desktop in @plainva/ui). mtime `recent()` above
+     stays the first-run fallback: it surfaces synced files, not opens. ---- */
+
+  async getRecents(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
+    try {
+      const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
+      const out: Array<{ path: string; title: string }> = [];
+      for (const e of entries) {
+        if (out.length >= limit) break;
+        // Deleted/renamed notes silently fall out of the strip.
+        if (await v.adapter.exists(e.path)) out.push({ path: e.path, title: noteTitle(e.path) });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  },
+
+  async pushRecent(v: MobileVault, path: string): Promise<void> {
+    if (!/\.md$/i.test(path) || path.startsWith(".")) return;
+    try {
+      let entries: ReturnType<typeof parseRecentsFile> = [];
+      try {
+        entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
+      } catch {
+        /* first use */
+      }
+      await v.adapter.writeTextFile(
+        ".plainva/recents.json",
+        serializeRecentsFile(pushRecentEntry(entries, path, Date.now())),
+      );
+    } catch {
+      /* recents are best-effort; never block opening a note */
+    }
   },
 
   async read(v: MobileVault, path: string): Promise<string> {

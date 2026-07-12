@@ -1517,6 +1517,7 @@
     "newDaily": "新建每日笔记",
     "newDatabase": "新建数据库",
     "newDatabasePrompt": "新数据库的名称",
+    "searchHint": "搜索笔记…",
     "baseGraphFallback": "图谱视图在桌面版可用；此处以表格显示。",
     "newFromTemplate": "从模板…",
     "tableRows": "行",

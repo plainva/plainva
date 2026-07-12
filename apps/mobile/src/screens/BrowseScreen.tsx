@@ -13,9 +13,10 @@ import {
   FolderInput,
   FolderPlus,
   Pencil,
+  Search,
   Trash2,
 } from "lucide-react";
-import { isConflictCopyPath, conflictOriginalPath } from "@plainva/ui";
+import { isConflictCopyPath, conflictOriginalPath, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
@@ -34,6 +35,7 @@ export function BrowseScreen({
   onOpenFolder,
   onOpenNote,
   onOpenBase,
+  onOpenSearch,
 }: {
   vault: MobileVault;
   folder: string;
@@ -42,10 +44,13 @@ export function BrowseScreen({
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
+  /** Home head (B3): the root shows a search pill that opens the search overlay. */
+  onOpenSearch?: () => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
+  const [marks, setMarks] = useState<string[]>([]);
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
   );
@@ -70,8 +75,14 @@ export function BrowseScreen({
       if (!stale) setListing(l);
     });
     if (!folder) {
-      void vaultOps.recent(vault, 2).then((r) => {
-        if (!stale) setRecent(r);
+      // Home head (B2/B3): real MRU first; mtime fallback covers first runs
+      // (nothing opened yet, but synced files exist).
+      void vaultOps.getRecents(vault, 8).then(async (r) => {
+        const list = r.length > 0 ? r : await vaultOps.recent(vault, 4);
+        if (!stale) setRecent(list);
+      });
+      void vaultOps.getBookmarks(vault).then((b) => {
+        if (!stale) setMarks(b.slice(0, 8));
       });
       // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
       if (vault.queryService) {
@@ -235,6 +246,12 @@ export function BrowseScreen({
           </span>
         </header>
       )}
+      {!folder && onOpenSearch && (
+        <button className="m-searchpill" onClick={onOpenSearch}>
+          <Search size={17} />
+          <span>{t("mobile.searchHint")}</span>
+        </button>
+      )}
       {!folder && conflicts.length > 0 && (
         <button
           className="m-conflictbanner"
@@ -252,9 +269,49 @@ export function BrowseScreen({
       {recent.length > 0 && (
         <>
           <p className="m-sectionlabel">{t("mobile.recent")}</p>
-          {recent.map(noteRow)}
-          <p className="m-sectionlabel">{t("mobile.folders")}</p>
+          <div className="m-caro">
+            {recent.map((n) => (
+              <button
+                className="m-caro-card"
+                key={n.path}
+                // A mousedown on a half-visible card focuses it, the browser
+                // auto-scrolls it into view, and the click lands elsewhere —
+                // suppress the focus scroll (keyboard focus is unaffected).
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onOpenNote(n.path)}
+              >
+                <span className="m-caro-ic">
+                  <FileText size={15} />
+                </span>
+                <b>{n.title}</b>
+                <span className="m-caro-sub">
+                  {n.path.includes("/") ? n.path.slice(0, n.path.lastIndexOf("/")) : t("mobile.vaultRoot")}
+                </span>
+              </button>
+            ))}
+          </div>
         </>
+      )}
+      {!folder && marks.length > 0 && (
+        <>
+          <p className="m-sectionlabel">{t("mobile.bookmarks")}</p>
+          <div className="m-chiprow">
+            {marks.map((p) => (
+              <button
+                className="m-chippill"
+                key={p}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onOpenNote(p)}
+              >
+                <Bookmark size={13} />
+                <span>{noteDisplayName(p)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {recent.length > 0 && (
+        <p className="m-sectionlabel">{t("mobile.folders")}</p>
       )}
       {listing.folders.map((name) => {
         const full = folder ? `${folder}/${name}` : name;

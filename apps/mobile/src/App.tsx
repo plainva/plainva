@@ -84,6 +84,10 @@ export default function App() {
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
+  // Top-bar scroll elevation (B4): whichever screen scrolls its .m-page tells
+  // the bar to raise (surface-container + shadow); navigation resets it.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => setScrolled(false), [nav]);
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
   const oauthListFolders = useCallback((p: string) => {
@@ -207,7 +211,11 @@ export default function App() {
     setBump((n) => n + 1);
   };
 
-  const openNote = (path: string) => push({ kind: "note", path });
+  const openNote = (path: string) => {
+    // Real MRU (B2): the "Zuletzt" strip lists what was OPENED, not what synced.
+    void vaultOps.pushRecent(vault, path);
+    push({ kind: "note", path });
+  };
   const openBase = (path: string) => push({ kind: "base", path });
 
   /** The folder the user is looking at (capture + new-folder context). */
@@ -299,7 +307,7 @@ export default function App() {
       )}
 
       {!top && (
-        <header className="m-topbar">
+        <header className={scrolled ? "m-topbar is-scrolled" : "m-topbar"}>
           <span className="m-headtitle">
             {nav.activeTab === "notes" ? <PlainvaLogo size={26} /> : <activeDef.icon size={22} />}
             <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
@@ -333,7 +341,13 @@ export default function App() {
         </header>
       )}
 
-      <div className="m-screen">
+      <div
+        className="m-screen"
+        onScrollCapture={(e) => {
+          const el = e.target as HTMLElement;
+          if (el.classList?.contains("m-page")) setScrolled(el.scrollTop > 2);
+        }}
+      >
         {top?.kind === "tags" ? (
           <TagsScreen
             bump={bump}
@@ -406,6 +420,7 @@ export default function App() {
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenNote={openNote}
+            onOpenSearch={() => push({ kind: "search", path: "" })}
             vault={vault}
           />
         ) : nav.activeTab === "today" ? (

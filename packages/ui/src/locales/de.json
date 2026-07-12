@@ -1522,6 +1522,7 @@
     "newDaily": "Neue Tagesnotiz",
     "newDatabase": "Neue Datenbank",
     "newDatabasePrompt": "Name der neuen Datenbank",
+    "searchHint": "Notizen durchsuchen…",
     "baseGraphFallback": "Die Graph-Ansicht gibt es am Desktop; hier als Tabelle dargestellt.",
     "newFromTemplate": "Aus Vorlage…",
     "tableRows": "Zeilen",

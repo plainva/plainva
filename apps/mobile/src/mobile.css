@@ -114,16 +114,23 @@ textarea {
   min-height: 64px;
   padding: calc(6px + env(safe-area-inset-top)) 8px 6px;
   background: var(--m-surface);
-  /* Subtle M3 elevation: the bar sits gently above the scrolling content.
-     position+z-index so the shadow paints over the page below it. */
+  /* The bars sit above the scrolling content (position+z-index so a shadow
+     paints over the page). The top bar raises ON SCROLL only (B4, M3 scroll
+     elevation); pushed-screen headers keep a static lift below. */
   position: relative;
   z-index: 1;
+}
+
+.m-header {
   box-shadow: var(--shadow-1);
 }
 
 .m-topbar {
   padding-left: 16px;
   padding-right: 10px;
+  transition:
+    background var(--dur-2) var(--ease-effects),
+    box-shadow var(--dur-2) var(--ease-effects);
 }
 
 .m-topbar h1,
@@ -1106,4 +1113,141 @@ textarea {
 .m-filterrule .m-searchfield {
   width: 100%;
   margin-top: 4px;
+}
+
+/* ---- Home head (plan Mobile M3E, package B): scroll-raised top bar state,
+   search pill, recents carousel, bookmark chips, screen enter. Tokens only
+   (mobileLint ratchet). ---- */
+
+.m-topbar.is-scrolled {
+  background: var(--surface-container);
+  box-shadow: var(--shadow-1);
+}
+
+.m-searchpill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 16px 4px;
+  padding: 0 16px;
+  height: 46px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--dur-1) var(--ease-effects);
+}
+.m-searchpill:active {
+  background: var(--surface-container-high);
+}
+.m-searchpill svg {
+  flex: none;
+}
+
+.m-caro {
+  display: flex;
+  gap: 10px;
+  padding: 2px 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.m-caro::-webkit-scrollbar {
+  display: none;
+}
+.m-caro-card {
+  flex: none;
+  width: 132px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 11px 12px 10px;
+  border: none;
+  border-radius: var(--m-radius-card);
+  background: var(--surface-container);
+  color: var(--text-main);
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--dur-1) var(--ease-effects);
+}
+.m-caro-card:active {
+  background: var(--surface-container-high);
+}
+.m-caro-ic {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 5px;
+  border-radius: var(--m-radius-chip);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+.m-caro-card b {
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.m-caro-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  color: var(--text-faint);
+}
+
+.m-chiprow {
+  display: flex;
+  gap: 8px;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.m-chiprow::-webkit-scrollbar {
+  display: none;
+}
+.m-chippill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--m-outline);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background var(--dur-1) var(--ease-effects);
+}
+.m-chippill svg {
+  color: var(--m-primary);
+}
+.m-chippill:active {
+  background: var(--state-press);
+}
+
+/* Screen enter (B5): a light shared-axis slide on every mounted page. The
+   editor page is exempt — CodeMirror must never mount inside a transform. */
+@keyframes m-screen-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.m-screen > .m-page:not(.m-page--note) {
+  animation: m-screen-in var(--dur-2) var(--ease-spatial) backwards;
 }

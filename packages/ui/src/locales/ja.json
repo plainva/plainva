@@ -1517,6 +1517,7 @@
     "newDaily": "新しいデイリーノート",
     "newDatabase": "新しいデータベース",
     "newDatabasePrompt": "新しいデータベースの名前",
+    "searchHint": "ノートを検索…",
     "baseGraphFallback": "グラフビューはデスクトップ版で利用できます。ここでは表として表示されます。",
     "newFromTemplate": "テンプレートから…",
     "tableRows": "行",

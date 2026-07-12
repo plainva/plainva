@@ -1522,6 +1522,7 @@
     "newDaily": "Nieuwe dagnotitie",
     "newDatabase": "Nieuwe database",
     "newDatabasePrompt": "Naam van de nieuwe database",
+    "searchHint": "Zoeken in notities…",
     "baseGraphFallback": "De grafiekweergave is beschikbaar op desktop; hier weergegeven als tabel.",
     "newFromTemplate": "Vanuit sjabloon…",
     "tableRows": "Rijen",

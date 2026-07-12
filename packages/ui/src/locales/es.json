@@ -1527,6 +1527,7 @@
     "newDaily": "Nueva nota diaria",
     "newDatabase": "Nueva base de datos",
     "newDatabasePrompt": "Nombre de la nueva base de datos",
+    "searchHint": "Buscar en las notas…",
     "baseGraphFallback": "La vista de grafo está disponible en el escritorio; aquí se muestra como tabla.",
     "newFromTemplate": "Desde plantilla…",
     "tableRows": "Filas",
