@@ -16,6 +16,7 @@ Plainva is een Markdown-vault-editor: je notities zijn gewone Markdown-bestanden
 | [OKF](OKF.md) | Het Open Knowledge Format: `type`, `okf_version`, index.md-beheer en de optionele vault-conversie |
 | [Bestandsformaat-referentie](File_Format_Reference.md) | Het exacte bestandsformaat van elk vault-bestand op schijf — voor tools, scripts of een KI die notities en `.base`-bestanden rechtstreeks bewerkt |
 | [Back-ups & versiegeschiedenis](Backups_and_Versioning.md) | Automatische bestandsversies, herstellen (ook van verwijderde bestanden) en dagelijkse ZIP-back-ups van de vault |
+| [De mobiele app](Mobile_App.md) | Plainva op Android en iOS: opbouw, bewerken, databases, synchronisatie en het vangnet |
 | [Sync instellen](Sync_Setup.md) | Stap voor stap per provider: WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3 |
 | [Sync-compatibiliteit](Sync_Compatibility.md) | Welke diensten vandaag werken — rechtstreeks, via WebDAV, of via de desktop-client van de provider |
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | Google Drive-sync instellen met je eigen toegangsgegevens |

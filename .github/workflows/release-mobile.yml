@@ -1,0 +1,90 @@
+name: Release Mobile
+
+# Android release pipeline (M3E package K, ADR 0011 tag namespaces):
+# an annotated `mobile-v*` tag builds the web assets, syncs Capacitor and
+# produces a signed AAB + APK draft release. Signing is gated on secrets —
+# without them the job builds an UNSIGNED release bundle as a build check
+# (store uploads always need the signed path). iOS ships separately through
+# the existing ios.yml TestFlight workflow (workflow_dispatch).
+#
+# Required secrets for signed builds:
+#   ANDROID_KEYSTORE_BASE64   base64 of the release .jks/.keystore
+#   ANDROID_KEYSTORE_PASSWORD store password
+#   ANDROID_KEY_ALIAS         key alias
+#   ANDROID_KEY_PASSWORD      key password
+
+on:
+  push:
+    tags:
+      - "mobile-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web assets
+        run: pnpm --filter mobile build
+
+      - name: Capacitor sync
+        working-directory: apps/mobile
+        run: npx cap sync android
+
+      - name: Decode keystore
+        id: keystore
+        if: ${{ vars.ANDROID_SIGNING == 'true' || secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: apps/mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release bundle (signed when secrets exist)
+        working-directory: apps/mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -f release.keystore ]; then
+            ./gradlew bundleRelease assembleRelease \
+              -Pandroid.injected.signing.store.file="$PWD/release.keystore" \
+              -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+          else
+            echo "No signing secrets — building unsigned release as a build check."
+            ./gradlew bundleRelease assembleRelease
+          fi
+
+      - name: Draft GitHub release with artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+            apps/mobile/android/app/build/outputs/apk/release/app-release*.apk

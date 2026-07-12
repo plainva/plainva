@@ -93,3 +93,21 @@ workspace scratchpad; re-run via
 | Search (typing -> result) | | | | |
 
 Open follow-up candidates after measurement: Rust bulk insert command with a real transaction (the JS `transaction()` is just a mutex), base view virtualization (from ~1-2k rows), graph layout chunking/worker (>2-3k visible nodes), FTS contentless (index DB size).
+
+## Mobile baseline (M3E package A10, 2026-07-12)
+
+Measured on the headless Pixel_10_Pro emulator (swiftshader software GPU —
+expect real devices to be substantially faster) against the generated 1k
+vault (1000 notes, 32 folders, 5 .base files; `scripts/gen-test-vault.mjs`):
+
+| Metric | Value | Notes |
+|---|---|---|
+| Cold app start (empty index DB) | Activity in 2.9 s | UI NOT blocked — the P5 warm-boot path shows the tree while indexing runs |
+| Cold full index (background) | ~69 s | DB growth watched until stable; final index DB 7.8 MB |
+| Warm app start (index present) | Activity in 2.4 s | index DB mtime unchanged → no re-index on boot |
+
+Reading: the architecture behaves as designed (no boot block, warm boots skip
+indexing). The absolute cold-index number is emulator-bound; a real-device
+pass belongs to the maintainer sighting list. The desktop's Rust bulk-insert
+follow-up would shrink the cold pass on mobile too once the shared indexer
+gains a batched write path.
