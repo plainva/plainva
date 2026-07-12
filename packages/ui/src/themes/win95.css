@@ -250,3 +250,17 @@
 [data-theme-name="win95"] ::-webkit-scrollbar-corner {
   background: #DFDFDF;
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): the selected container is the classic
+   navy selection; hover stays a whisper (Win95 had none), press a light well;
+   tonal containers collapse onto flat ButtonFace silver. */
+[data-theme-name="win95"] {
+  --accent-container: #000080;
+  --on-accent-container: #FFFFFF;
+  --state-hover: rgba(0, 0, 0, 0.05);
+  --state-press: rgba(0, 0, 0, 0.12);
+  --surface-container-low: var(--bg-secondary);
+  --surface-container: var(--bg-secondary);
+  --surface-container-high: var(--bg-secondary);
+  --surface-container-highest: var(--bg-secondary);
+}

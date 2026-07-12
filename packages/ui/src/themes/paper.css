@@ -78,3 +78,19 @@
   --callout-gray-tint: #8A887F14;
   --callout-cyan-tint: #8FADA814;
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): E-Ink shows no motion and no tonal
+   tint — surfaces stay flat paper, overflow edges are a thin rule, and the
+   spring family collapses exactly like prefers-reduced-motion. */
+[data-theme-name="paper"] {
+  --dur-1: 0.01ms;
+  --dur-2: 0.01ms;
+  --dur-3: 0.01ms;
+  --ease-spatial: linear;
+  --surface-container-low: var(--bg-primary);
+  --surface-container: var(--bg-secondary);
+  --surface-container-high: var(--bg-secondary);
+  --surface-container-highest: var(--bg-hover);
+  --edge-scrim: none;
+  --edge-shadow: 0 -1px 0 var(--border-color);
+}

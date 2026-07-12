@@ -143,3 +143,15 @@
 [data-theme-name="phosphor-amber"] .pv-modal-heading {
   text-shadow: 0 0 6px var(--phosphor-glow);
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): a CRT shows depth as glow, not shade —
+   overflow edges glow in the phosphor color; containers keep the tinted
+   color-mix default (text is phosphor-colored, so the tint reads in-theme). */
+[data-theme-name="phosphor-green"] {
+  --edge-scrim: linear-gradient(to top, rgba(92, 255, 156, 0.1), transparent 70%);
+  --edge-shadow: 0 -1px 8px rgba(92, 255, 156, 0.18);
+}
+[data-theme-name="phosphor-amber"] {
+  --edge-scrim: linear-gradient(to top, rgba(255, 197, 61, 0.1), transparent 70%);
+  --edge-shadow: 0 -1px 8px rgba(255, 197, 61, 0.18);
+}

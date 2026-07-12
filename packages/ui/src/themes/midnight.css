@@ -29,3 +29,15 @@
   --shadow-2: none;
   --shadow-3: none;
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): tonal steps on true black are nearly
+   invisible through the color-mix default — explicit dark greys keep the OLED
+   ground pure black while surfaces still separate. Edges lighten, not shade. */
+[data-theme-name="midnight"][data-theme="dark"] {
+  --surface-container-low: #0A0A0A;
+  --surface-container: #101010;
+  --surface-container-high: #161616;
+  --surface-container-highest: #1C1C1C;
+  --edge-scrim: linear-gradient(to top, rgba(255, 255, 255, 0.07), transparent 70%);
+  --edge-shadow: 0 -1px 0 #1F1F1F;
+}

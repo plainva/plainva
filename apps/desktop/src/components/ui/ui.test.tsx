@@ -4,7 +4,7 @@ import { act, createRef, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
-import { Fab, Segmented, ScrollEdge } from "@plainva/ui";
+import { Fab, Segmented, ScrollEdge, DockedToolbar } from "@plainva/ui";
 import { IconButton } from "@plainva/ui";
 import { TextInput, SelectField, TextArea } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
@@ -344,5 +344,21 @@ describe("TooltipHost", () => {
 
     press("a");
     expect(document.querySelector(".pv-tooltip")).toBeNull();
+  });
+});
+
+describe("DockedToolbar", () => {
+  it("renders a toolbar role on the shared class and hosts children", () => {
+    render(
+      <DockedToolbar className="extra">
+        <button>B</button>
+        <button>I</button>
+      </DockedToolbar>
+    );
+    const bar = container.querySelector('[role="toolbar"]')!;
+    expect(bar).not.toBeNull();
+    expect(bar.classList.contains("pv-docked-toolbar")).toBe(true);
+    expect(bar.classList.contains("extra")).toBe(true);
+    expect(bar.querySelectorAll("button")).toHaveLength(2);
   });
 });

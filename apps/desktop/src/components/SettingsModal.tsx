@@ -1051,13 +1051,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   };
 
 
-  const navItemStyle = (active: boolean): React.CSSProperties => ({
-    display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", textAlign: "left",
-    padding: "0.5rem 0.6rem", borderRadius: "var(--radius-sm)", cursor: "pointer", border: "none",
-    background: active ? "var(--bg-hover)" : "transparent", color: "var(--text-main)",
-    fontSize: "0.9rem", overflow: "hidden",
-  });
-
   // Two-worlds nav (settings redesign 2026-07-11, variant B): the left rail
   // shows the APP areas and the VAULT areas at once; a dropdown picks WHICH
   // vault the vault areas show. `section` still carries GENERAL vs. a vault
@@ -1148,11 +1141,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       <button
         key={a.id}
         onClick={() => openArea(target, a.id)}
-        style={{
-          ...navItemStyle(active),
-          color: active ? "var(--accent-color)" : "var(--text-main)",
-          fontWeight: active ? 600 : 400,
-        }}
+        className={active ? "pv-navlink is-active" : "pv-navlink"}
       >
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
       </button>
@@ -1204,7 +1193,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
             <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
               <button
                 onClick={() => setShowShortcuts(true)}
-                style={{ ...navItemStyle(false), color: "var(--text-muted)", fontSize: "0.8rem", padding: "0.4rem" }}
+                className="pv-navlink"
+                style={{ color: "var(--text-muted)", fontSize: "0.8rem", padding: "0.4rem" }}
               >
                 <Keyboard size={15} style={{ flexShrink: 0 }} />
                 <span style={{ flex: 1, textAlign: "left" }}>{t("settings.showShortcuts")}</span>

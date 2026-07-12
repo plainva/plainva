@@ -467,3 +467,15 @@
      signal. Kept very subtle so it stays comfortable. */
   animation: pv-lcars-frame 1.6s ease-in-out infinite;
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): Okuda cuts are crisp — shorter runs,
+   no overshoot ("crisp" motion scheme); the selected container is a warm
+   amber tint that stays readable on pure black. */
+[data-theme-name="lcars"] {
+  --dur-1: 80ms;
+  --dur-2: 120ms;
+  --dur-3: 170ms;
+  --ease-spatial: var(--ease-1);
+  --accent-container: #2E2007;
+  --on-accent-container: #FFBB55;
+}

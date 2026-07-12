@@ -3,6 +3,7 @@ export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from ".
 export { Fab, type FabProps } from "./Fab";
 export { Segmented, type SegmentedProps, type SegmentedOption } from "./Segmented";
 export { ScrollEdge, type ScrollEdgeProps } from "./ScrollEdge";
+export { DockedToolbar, type DockedToolbarProps } from "./DockedToolbar";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { TextInput, SelectField, TextArea } from "./Field";
 export { Checkbox, type CheckboxProps } from "./Checkbox";

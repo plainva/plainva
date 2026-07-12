@@ -589,3 +589,55 @@
   box-shadow: 0 0 0 3px var(--state-focus);
 }
 
+/* Docked toolbar (UI 2.0 primitive, plan Mobile M3E package A4): a calm
+   bottom-anchored action strip — mobile keyboard toolbar, desktop selection
+   tools. One horizontally scrolling row on a raised tonal surface; children
+   are regular buttons/icon buttons. Safe-area padding is inert on desktop. */
+.pv-docked-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface-container);
+  border-top: 1px solid var(--border-color-light);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.pv-docked-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Rail/side navigation link (settings second-level nav): the M3 "selected"
+   idiom — the accent container marks the active area, state layers carry
+   hover/press. Replaces the last inline-styled nav buttons (package A7). */
+.pv-navlink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-family: inherit;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-effects), color var(--dur-1) var(--ease-effects);
+}
+.pv-navlink:hover {
+  background: var(--state-hover);
+}
+.pv-navlink:active {
+  background: var(--state-press);
+}
+.pv-navlink.is-active {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-weight: 600;
+}
+

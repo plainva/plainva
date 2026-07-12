@@ -86,3 +86,13 @@
   --callout-gray-tint: #E6E6E61F;
   --callout-cyan-tint: #66FFFF1F;
 }
+
+/* UI 2.0 per-theme audit (2026-07-12): translucent 8% layers are too faint to
+   count as feedback here — states step up hard without ever dimming text, and
+   the selected container gets enough ink to be unmistakable. */
+[data-theme-name="high-contrast"] {
+  --state-hover: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  --state-focus: color-mix(in srgb, var(--accent-color) 28%, transparent);
+  --state-press: color-mix(in srgb, var(--accent-color) 36%, transparent);
+  --accent-container: color-mix(in srgb, var(--accent-color) 26%, var(--bg-primary));
+}
