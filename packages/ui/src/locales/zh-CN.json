@@ -1456,6 +1456,8 @@
     "vaultRenamePrompt": "新的仓库名称",
     "vaultDelete": "删除仓库",
     "vaultDeleteConfirm": "从此设备删除“{{name}}”？本地文件、索引和凭据将被移除；云端存储保持不变。",
+    "vaultExport": "导出仓库",
+    "vaultExportFailed": "导出失败。",
     "syncResume": "重新连接",
     "editNote": "编辑",
     "doneEditing": "完成",

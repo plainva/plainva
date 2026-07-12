@@ -1378,3 +1378,63 @@ textarea {
 .m-screen > .m-page:not(.m-page--note) {
   animation: m-screen-in var(--dur-2) var(--ease-spatial) backwards;
 }
+
+/* Version history + conflict diff (package G): read-only line diff and raw
+   preview. Change tints ride the shared callout/state tokens. */
+.m-row-detail {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+.m-version-preview {
+  margin: 4px 8px 12px;
+  padding: 10px;
+  max-height: 40vh;
+  overflow: auto;
+  border-radius: var(--m-radius-card);
+  background: var(--m-surface-container);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.m-diff {
+  margin: 4px 8px 12px;
+  max-height: 40vh;
+  overflow: auto;
+  border-radius: var(--m-radius-card);
+  background: var(--m-surface-container);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+}
+.m-diff-line {
+  padding: 1px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.m-diff-line.is-add {
+  background: var(--callout-success-tint, var(--m-secondary-container));
+}
+.m-diff-line.is-del {
+  background: var(--callout-red-tint, var(--m-state-pressed));
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+.m-diff-skip {
+  padding: 2px 10px;
+  color: var(--text-faint);
+  text-align: center;
+  font-size: 0.7rem;
+}
+/* Draft recovery banner (package G): compact strip above the editor. */
+.m-draftbanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 12px;
+  padding: 8px 12px;
+  border-radius: var(--m-radius-card);
+  background: var(--m-secondary-container);
+  color: var(--m-on-secondary-container);
+  font-size: 0.8rem;
+}

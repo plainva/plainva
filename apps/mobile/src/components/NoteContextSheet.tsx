@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Code, FileText, ListTree, Lock, Plus, Search } from "lucide-react";
+import { Code, FileText, History, ListTree, Lock, Plus, Search } from "lucide-react";
 import { inferType, parseHeadings, type Heading } from "@plainva/ui";
 import { mPrompt } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
@@ -29,6 +29,7 @@ export function NoteContextSheet({
   onJumpToLine,
   onToggleSource,
   onFind,
+  onVersions,
 }: {
   vault: MobileVault;
   path: string;
@@ -39,6 +40,8 @@ export function NoteContextSheet({
   onJumpToLine: (line: number) => void;
   onToggleSource: () => void;
   onFind: () => void;
+  /** Opens the version history sheet (package G). */
+  onVersions: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("props");
@@ -204,6 +207,16 @@ export function NoteContextSheet({
           >
             <Search className="m-accent" size={18} />
             <span>{t("search.find")}</span>
+          </button>
+          <button
+            className="m-row"
+            onClick={() => {
+              onClose();
+              onVersions();
+            }}
+          >
+            <History className="m-accent" size={18} />
+            <span>{t("versions.title")}</span>
           </button>
         </div>
       </div>

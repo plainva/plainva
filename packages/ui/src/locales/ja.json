@@ -1456,6 +1456,8 @@
     "vaultRenamePrompt": "新しい保管庫名",
     "vaultDelete": "保管庫を削除",
     "vaultDeleteConfirm": "「{{name}}」をこの端末から削除しますか？ローカルファイル・インデックス・認証情報が削除されます。クラウド側のデータはそのまま残ります。",
+    "vaultExport": "保管庫をエクスポート",
+    "vaultExportFailed": "エクスポートに失敗しました。",
     "syncResume": "再接続",
     "editNote": "編集",
     "doneEditing": "完了",

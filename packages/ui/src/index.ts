@@ -20,6 +20,7 @@ export * from "./lib/editableField";
 export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";
 export * from "./lib/inlineMarkdown";
+export * from "./lib/lineDiff";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
 export * from "./lib/markdownToPlainText";

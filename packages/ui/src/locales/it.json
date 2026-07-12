@@ -1466,6 +1466,8 @@
     "vaultRenamePrompt": "Nuovo nome del vault",
     "vaultDelete": "Elimina vault",
     "vaultDeleteConfirm": "Eliminare \"{{name}}\" da questo dispositivo? File locali, indice e credenziali verranno rimossi; lo storage cloud resta intatto.",
+    "vaultExport": "Esporta il vault",
+    "vaultExportFailed": "Esportazione non riuscita.",
     "syncResume": "Riconnetti",
     "editNote": "Modifica",
     "doneEditing": "Fine",

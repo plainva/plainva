@@ -1466,6 +1466,8 @@
     "vaultRenamePrompt": "Nouveau nom du coffre",
     "vaultDelete": "Supprimer le coffre",
     "vaultDeleteConfirm": "Supprimer « {{name}} » de cet appareil ? Les fichiers locaux, l’index et les identifiants seront supprimés ; le stockage cloud reste intact.",
+    "vaultExport": "Exporter le coffre",
+    "vaultExportFailed": "Échec de l'export.",
     "syncResume": "Reconnecter",
     "editNote": "Modifier",
     "doneEditing": "Terminé",

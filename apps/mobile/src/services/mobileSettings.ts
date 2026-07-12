@@ -46,6 +46,12 @@ interface MobileSettings {
   contentFontSize: number;
   /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
   motion: MotionPref;
+  /** Snapshot retention (package G, global — the desktop keeps it per vault):
+   * min seconds between snapshots (0 = every write), max per file, max age
+   * in days (0 = unlimited). Applied to the active vault via updatePolicy. */
+  backupIntervalSeconds: number;
+  backupMaxPerFile: number;
+  backupMaxAgeDays: number;
 }
 
 const KEY = "mobile-settings";
@@ -65,6 +71,9 @@ const DEFAULTS: MobileSettings = {
   themeVariants: {},
   contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
   motion: "system",
+  backupIntervalSeconds: 120,
+  backupMaxPerFile: 100,
+  backupMaxAgeDays: 90,
 };
 
 let cache: MobileSettings = { ...DEFAULTS };

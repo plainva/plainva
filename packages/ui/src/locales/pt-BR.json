@@ -1466,6 +1466,8 @@
     "vaultRenamePrompt": "Novo nome do cofre",
     "vaultDelete": "Excluir cofre",
     "vaultDeleteConfirm": "Excluir \"{{name}}\" deste dispositivo? Arquivos locais, índice e credenciais serão removidos; o armazenamento na nuvem permanece intacto.",
+    "vaultExport": "Exportar o vault",
+    "vaultExportFailed": "Falha na exportação.",
     "syncResume": "Reconectar",
     "editNote": "Editar",
     "doneEditing": "Concluído",

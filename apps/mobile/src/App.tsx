@@ -134,6 +134,22 @@ export default function App() {
     };
   }, []);
 
+  // Live snapshot retention (package G): settings changes reach the active
+  // vault's backup adapter without a reboot.
+  useEffect(() => {
+    if (!vault?.backup) return;
+    const onSettings = () => {
+      const ms = getMobileSettings();
+      vault.backup?.updatePolicy({
+        minSnapshotIntervalSeconds: ms.backupIntervalSeconds,
+        maxBackupsPerFile: ms.backupMaxPerFile,
+        maxAgeDays: ms.backupMaxAgeDays,
+      });
+    };
+    window.addEventListener("m-settings-changed", onSettings);
+    return () => window.removeEventListener("m-settings-changed", onSettings);
+  }, [vault]);
+
   // Connect-time folder pick (#10): the OAuth redirect fires this event once it
   // holds a token; the picker browses the cloud folders and finishConnect then
   // creates the (fresh, isolated) vault with the chosen root.

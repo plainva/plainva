@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
   getSyncStatus,
@@ -11,6 +11,8 @@ import {
 } from "./services/syncService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
+import { exportVault } from "./services/vaultExport";
+import { toast } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -149,6 +151,20 @@ export function VaultDetailScreen({
           {!isLocal && (
             <button className="m-btn m-btn--tonal" disabled={busy} onClick={rename}>
               <Pencil size={16} /> {t("mobile.vaultRename")}
+            </button>
+          )}
+          {isActive && (
+            <button
+              className="m-btn m-btn--tonal"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void exportVault(activeVault, entry.name)
+                  .catch(() => toast.warning(t("mobile.vaultExportFailed")))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <Upload size={16} /> {t("mobile.vaultExport")}
             </button>
           )}
           {entry.provider && !entry.paused && (

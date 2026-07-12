@@ -16,7 +16,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { isConflictCopyPath, conflictOriginalPath, noteDisplayName } from "@plainva/ui";
+import { collapseContext, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
@@ -444,6 +444,7 @@ export function BrowseScreen({
               <Trash2 size={18} />
               <span>{t("mobile.conflictKeepOriginal")}</span>
             </button>
+            <ConflictDiff conflictPath={conflictSheet.path} originalPath={conflictSheet.original} vault={vault} />
           </div>
         </div>
       )}
@@ -485,4 +486,57 @@ export function createFolderPrompt(vault: MobileVault, folder: string, t: (k: st
     if (cancelled || !trimmed) return;
     await vaultOps.createFolder(vault, folder ? `${folder}/${trimmed}` : trimmed);
   })();
+}
+
+/** Read-only line diff between the conflict copy and the current note (G3). */
+function ConflictDiff({
+  vault,
+  conflictPath,
+  originalPath,
+}: {
+  vault: MobileVault;
+  conflictPath: string;
+  originalPath: string;
+}) {
+  const { t } = useTranslation();
+  const [diff, setDiff] = useState<ReturnType<typeof collapseContext> | null>(null);
+  useEffect(() => {
+    let stale = false;
+    void (async () => {
+      try {
+        const [copy, original] = await Promise.all([
+          vaultOps.read(vault, conflictPath),
+          vaultOps.read(vault, originalPath),
+        ]);
+        const d = lineDiff(original, copy);
+        if (!stale && d) setDiff(collapseContext(d, 2));
+      } catch {
+        /* one side unreadable: the sheet still offers the actions */
+      }
+    })();
+    return () => {
+      stale = true;
+    };
+  }, [vault, conflictPath, originalPath]);
+  if (!diff) return null;
+  return (
+    <>
+      <p className="m-sectionlabel m-sectionlabel--inset">
+        {t("conflict.leftLabel")} / {t("conflict.rightLabel")}
+      </p>
+      <div className="m-diff">
+        {diff.map((l, idx) =>
+          l.type === "skip" ? (
+            <div className="m-diff-skip" key={idx}>
+              ... {l.count} ...
+            </div>
+          ) : (
+            <div className={`m-diff-line is-${l.type}`} key={idx}>
+              {l.text || " "}
+            </div>
+          ),
+        )}
+      </div>
+    </>
+  );
 }

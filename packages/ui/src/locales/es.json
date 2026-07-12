@@ -1466,6 +1466,8 @@
     "vaultRenamePrompt": "Nuevo nombre de la bóveda",
     "vaultDelete": "Eliminar bóveda",
     "vaultDeleteConfirm": "¿Eliminar «{{name}}» de este dispositivo? Se quitarán los archivos locales, el índice y las credenciales; el almacenamiento en la nube no se toca.",
+    "vaultExport": "Exportar el vault",
+    "vaultExportFailed": "Error al exportar.",
     "syncResume": "Reconectar",
     "editNote": "Editar",
     "doneEditing": "Listo",

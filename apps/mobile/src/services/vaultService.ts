@@ -24,6 +24,8 @@ import {
 } from "./vaultRegistry";
 import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
+import { writeDraft, clearDraft } from "./draftJournal";
+import { getMobileSettings } from "./mobileSettings";
 import {
   applyTemplatePlaceholders,
   parseBookmarksFile,
@@ -177,8 +179,17 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     await db.initialize();
     await initializeSchema(db);
 
+    // Retention comes from the global mobile settings (package G); the
+    // desktop keeps this per vault, mobile applies one policy to the active
+    // vault (updatePolicy also reacts to live settings changes below).
+    const ms = getMobileSettings();
     backup = new BackupVaultAdapter(adapter, {
-      policy: DEFAULT_BACKUP_RETENTION,
+      policy: {
+        ...DEFAULT_BACKUP_RETENTION,
+        minSnapshotIntervalSeconds: ms.backupIntervalSeconds,
+        maxBackupsPerFile: ms.backupMaxPerFile,
+        maxAgeDays: ms.backupMaxAgeDays,
+      },
       onBackupError: (p) => console.warn("[mobile] backup snapshot failed", p),
     });
     queue = new SyncQueue(db);
@@ -544,7 +555,11 @@ export const vaultOps = {
  */
 export const noteSaver = createSaveCoordinator<MobileVault>({
   write: (vault, path, text) => vaultOps.save(vault, path, text),
-  onSaved: () => syncSoon(),
+  onSchedule: (vault, path, text) => writeDraft(vault, path, text),
+  onSaved: (path, vault) => {
+    clearDraft(vault, path);
+    syncSoon();
+  },
   onError: (path, err, attempt) => {
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
     if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));

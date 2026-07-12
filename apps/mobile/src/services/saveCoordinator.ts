@@ -19,10 +19,12 @@
  */
 
 export interface SaveCoordinatorOptions<C> {
+  /** Fires on every schedule() BEFORE debouncing — the draft journal hooks here. */
+  onSchedule?: (ctx: C, path: string, text: string) => void;
   debounceMs?: number;
   retryBaseMs?: number;
   maxRetryDelayMs?: number;
-  onSaved?: (path: string) => void;
+  onSaved?: (path: string, ctx: C) => void;
   onError?: (path: string, error: unknown, attempt: number) => void;
   write: (ctx: C, path: string, text: string) => Promise<void>;
 }
@@ -71,7 +73,7 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
       .then(() => {
         entry.inFlight = null;
         entry.attempts = 0;
-        opts.onSaved?.(path);
+        opts.onSaved?.(path, ctx);
         const current = entries.get(path);
         if (current === entry && entry.revision === rev) {
           // Nothing newer arrived while writing — done, drop the entry.
@@ -107,6 +109,7 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
       entry.ctx = ctx;
       entry.text = text;
       entry.revision++;
+      opts.onSchedule?.(ctx, path, text);
       if (entry.timer) clearTimeout(entry.timer);
       if (entry.retryTimer) { clearTimeout(entry.retryTimer); entry.retryTimer = null; }
       entry.timer = setTimeout(() => {

@@ -111,6 +111,45 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
     });
   };
 
+  // Snapshot retention (package G): three coarse pickers over the shared
+  // BackupRetentionPolicy; the boot + the live listener apply them.
+  const pickBackupInterval = () => {
+    void mSelect({
+      title: t("settings.versionInterval"),
+      message: t("settings.versionIntervalDesc"),
+      options: [0, 60, 120, 300, 600].map((sec) => ({
+        value: String(sec),
+        label: sec === 0 ? t("settings.versionIntervalEvery") : `${sec / 60} min`,
+      })),
+      value: String(settings.backupIntervalSeconds),
+    }).then((v) => {
+      if (v !== null) update({ backupIntervalSeconds: Number(v) });
+    });
+  };
+  const pickBackupCount = () => {
+    void mSelect({
+      title: t("settings.versionMaxCount"),
+      message: t("settings.versionMaxCountDesc"),
+      options: [20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) })),
+      value: String(settings.backupMaxPerFile),
+    }).then((v) => {
+      if (v !== null) update({ backupMaxPerFile: Number(v) });
+    });
+  };
+  const pickBackupAge = () => {
+    void mSelect({
+      title: t("settings.versionMaxAge"),
+      message: t("settings.versionMaxAgeDesc"),
+      options: [0, 30, 90, 365].map((d) => ({
+        value: String(d),
+        label: d === 0 ? t("settings.versionAgeUnlimited") : t("settings.versionAgeDays", { days: d }),
+      })),
+      value: String(settings.backupMaxAgeDays),
+    }).then((v) => {
+      if (v !== null) update({ backupMaxAgeDays: Number(v) });
+    });
+  };
+
   const slots = sanitizeTabSlots(settings.tabSlots);
   const setSlots = (next: TabScreenId[]) => update({ tabSlots: next });
   const toggleSlot = (id: TabScreenId) => {
@@ -180,6 +219,32 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
         label={t("mobile.settingDefaultView")}
         onClick={pickDefaultView}
         value={viewLabel(settings.defaultView)}
+      />
+
+      {/* Snapshot retention (package G) */}
+      <p className="m-sectionlabel">{t("versions.title")}</p>
+      <SettingRow
+        label={t("settings.versionInterval")}
+        onClick={pickBackupInterval}
+        value={
+          settings.backupIntervalSeconds === 0
+            ? t("settings.versionIntervalEvery")
+            : `${settings.backupIntervalSeconds / 60} min`
+        }
+      />
+      <SettingRow
+        label={t("settings.versionMaxCount")}
+        onClick={pickBackupCount}
+        value={String(settings.backupMaxPerFile)}
+      />
+      <SettingRow
+        label={t("settings.versionMaxAge")}
+        onClick={pickBackupAge}
+        value={
+          settings.backupMaxAgeDays === 0
+            ? t("settings.versionAgeUnlimited")
+            : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })
+        }
       />
 
       {/* Configurable capture/daily/template folders (R3.6): free text plus
