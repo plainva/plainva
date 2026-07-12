@@ -15,6 +15,8 @@ import {
   Pencil,
   Search,
   Trash2,
+  CheckSquare,
+  X,
 } from "lucide-react";
 import { collapseContext, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
@@ -60,6 +62,10 @@ export function BrowseScreen({
   const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
     null,
   );
+  // Multi-select light (package I): toggled from the long-press sheet; rows
+  // then toggle membership and the action bar bulk-deletes with the shared
+  // large-deletion double-check (>10 items OR >20% of the listing).
+  const [selected, setSelected] = useState<Set<string> | null>(null);
   const press = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const folderPress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isFolder: true }),
@@ -104,6 +110,10 @@ export function BrowseScreen({
         key={n.path}
         onClick={() => {
           if (!press.clicked()) return;
+          if (selected) {
+            toggleSelected(n.path);
+            return;
+          }
           if (conflict) {
             setConflictSheet({ path: n.path, original: conflictOriginalPath(n.path) ?? n.path });
           } else {
@@ -121,8 +131,51 @@ export function BrowseScreen({
       >
         {conflict ? <AlertTriangle className="m-warn" size={18} /> : <FileText size={18} />}
         <span>{n.title}</span>
+        {selected && <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} />}
       </button>
     );
+  };
+
+  const toggleSelected = (path: string) =>
+    setSelected((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+
+  const bulkDelete = () => {
+    if (!selected || selected.size === 0) return;
+    void (async () => {
+      const count = selected.size;
+      const total = listing.notes.length + listing.bases.length;
+      const ok = await mConfirm({
+        title: t("common.delete"),
+        message: t("dialogs.deleteManyConfirmMsg", { count }),
+        danger: true,
+        confirmLabel: t("common.delete"),
+      });
+      if (!ok) return;
+      // Large-deletion double check (shared desktop thresholds, E2 rule).
+      if (count > 10 || (total > 0 && count / total > 0.2)) {
+        const sure = await mConfirm({
+          title: t("dialogs.deleteLargeTitle"),
+          message: t("dialogs.deleteLargeMsg", { count, total }),
+          danger: true,
+          confirmLabel: t("dialogs.deleteLargeConfirm"),
+        });
+        if (!sure) return;
+      }
+      for (const p of selected) {
+        try {
+          await vaultOps.remove(vault, p);
+        } catch {
+          /* keep going; the sync chain surfaces persistent failures */
+        }
+      }
+      setSelected(null);
+    })();
   };
 
   // Conflict resolution (P5): both branches drop exactly one version, but
@@ -341,7 +394,11 @@ export function BrowseScreen({
         <button
           className="m-row"
           key={b.path}
-          onClick={() => { if (basePress.clicked()) onOpenBase(b.path); }}
+          onClick={() => {
+            if (!basePress.clicked()) return;
+            if (selected) toggleSelected(b.path);
+            else onOpenBase(b.path);
+          }}
           onContextMenu={(e) => { e.preventDefault(); setSheet({ path: b.path, title: b.title, isBase: true }); }}
           onPointerCancel={basePress.clear}
           onPointerDown={() => basePress.start({ path: b.path, title: b.title })}
@@ -350,10 +407,37 @@ export function BrowseScreen({
         >
           <Database className="m-accent" size={18} />
           <span>{b.title}</span>
-          <ChevronRight className="m-chevron" size={18} />
+          {selected ? (
+            <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
+          ) : (
+            <ChevronRight className="m-chevron" size={18} />
+          )}
         </button>
       ))}
       {listing.notes.map(noteRow)}
+
+      {selected && (
+        <div className="m-selectbar">
+          <span>{t("mobile.selectedCount", { n: selected.size })}</span>
+          <span className="m-headactions">
+            <button
+              aria-label={t("common.delete")}
+              className="m-iconbtn"
+              disabled={selected.size === 0}
+              onClick={bulkDelete}
+            >
+              <Trash2 size={20} />
+            </button>
+            <button
+              aria-label={t("common.cancel")}
+              className="m-iconbtn"
+              onClick={() => setSelected(null)}
+            >
+              <X size={20} />
+            </button>
+          </span>
+        </div>
+      )}
 
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
@@ -415,6 +499,19 @@ export function BrowseScreen({
               <Trash2 size={18} />
               <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
             </button>
+            {!sheet.isFolder && (
+              <button
+                className="m-row"
+                onClick={() => {
+                  const start = sheet.path;
+                  setSheet(null);
+                  setSelected(new Set([start]));
+                }}
+              >
+                <CheckSquare size={18} />
+                <span>{t("mobile.selectMode")}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

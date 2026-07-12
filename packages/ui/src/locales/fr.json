@@ -1468,6 +1468,8 @@
     "vaultDeleteConfirm": "Supprimer « {{name}} » de cet appareil ? Les fichiers locaux, l’index et les identifiants seront supprimés ; le stockage cloud reste intact.",
     "vaultExport": "Exporter le coffre",
     "vaultExportFailed": "Échec de l'export.",
+    "selectMode": "Sélectionner",
+    "selectedCount": "{{n}} sélectionné(s)",
     "syncResume": "Reconnecter",
     "editNote": "Modifier",
     "doneEditing": "Terminé",

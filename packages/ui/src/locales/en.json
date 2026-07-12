@@ -1463,6 +1463,8 @@
     "vaultDeleteConfirm": "Delete \"{{name}}\" from this device? Local files, index and credentials are removed; the cloud storage stays untouched.",
     "vaultExport": "Export vault",
     "vaultExportFailed": "Export failed.",
+    "selectMode": "Select",
+    "selectedCount": "{{n}} selected",
     "syncResume": "Reconnect",
     "editNote": "Edit",
     "doneEditing": "Done",

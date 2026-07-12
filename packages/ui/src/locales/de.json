@@ -1463,6 +1463,8 @@
     "vaultDeleteConfirm": "\"{{name}}\" von diesem Gerät löschen? Lokale Dateien, Index und Zugangsdaten werden entfernt; der Cloud-Speicher bleibt unberührt.",
     "vaultExport": "Vault exportieren",
     "vaultExportFailed": "Export fehlgeschlagen.",
+    "selectMode": "Auswählen",
+    "selectedCount": "{{n}} ausgewählt",
     "syncResume": "Wieder verbinden",
     "editNote": "Bearbeiten",
     "doneEditing": "Fertig",

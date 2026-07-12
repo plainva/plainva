@@ -1468,6 +1468,8 @@
     "vaultDeleteConfirm": "Excluir \"{{name}}\" deste dispositivo? Arquivos locais, índice e credenciais serão removidos; o armazenamento na nuvem permanece intacto.",
     "vaultExport": "Exportar o vault",
     "vaultExportFailed": "Falha na exportação.",
+    "selectMode": "Selecionar",
+    "selectedCount": "{{n}} selecionado(s)",
     "syncResume": "Reconectar",
     "editNote": "Editar",
     "doneEditing": "Concluído",

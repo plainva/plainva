@@ -1473,6 +1473,8 @@
     "vaultDeleteConfirm": "Usunąć „{{name}}\" z tego urządzenia? Pliki lokalne, indeks i dane logowania zostaną usunięte; magazyn w chmurze pozostanie nietknięty.",
     "vaultExport": "Eksportuj sejf",
     "vaultExportFailed": "Eksport nie powiódł się.",
+    "selectMode": "Zaznacz",
+    "selectedCount": "Zaznaczono: {{n}}",
     "syncResume": "Połącz ponownie",
     "editNote": "Edytuj",
     "doneEditing": "Gotowe",

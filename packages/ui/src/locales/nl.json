@@ -1463,6 +1463,8 @@
     "vaultDeleteConfirm": "\"{{name}}\" van dit apparaat verwijderen? Lokale bestanden, index en inloggegevens worden verwijderd; de cloudopslag blijft onaangeroerd.",
     "vaultExport": "Kluis exporteren",
     "vaultExportFailed": "Exporteren mislukt.",
+    "selectMode": "Selecteren",
+    "selectedCount": "{{n}} geselecteerd",
     "syncResume": "Opnieuw verbinden",
     "editNote": "Bewerken",
     "doneEditing": "Klaar",

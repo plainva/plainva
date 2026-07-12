@@ -1554,3 +1554,20 @@ textarea {
   display: block;
   touch-action: none;
 }
+/* Multi-select action bar (package I): floats above the tab bar. */
+.m-selectbar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 16px;
+  border-radius: var(--m-radius-card);
+  background: var(--m-surface-container-high);
+  box-shadow: var(--shadow-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}

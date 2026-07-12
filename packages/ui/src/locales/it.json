@@ -1468,6 +1468,8 @@
     "vaultDeleteConfirm": "Eliminare \"{{name}}\" da questo dispositivo? File locali, indice e credenziali verranno rimossi; lo storage cloud resta intatto.",
     "vaultExport": "Esporta il vault",
     "vaultExportFailed": "Esportazione non riuscita.",
+    "selectMode": "Seleziona",
+    "selectedCount": "{{n}} selezionati",
     "syncResume": "Riconnetti",
     "editNote": "Modifica",
     "doneEditing": "Fine",

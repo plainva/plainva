@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
 import { EmptyState, TextInput } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
-import { connectProvider, syncPossible, type MobileSyncProvider } from "./services/syncService";
+import { connectProvider, listProviderFolders, syncPossible, type MobileSyncProvider } from "./services/syncService";
+import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import type { MobileVault } from "./services/vaultService";
 
@@ -43,6 +44,9 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
   const [driveClientSecret, setDriveClientSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Direct providers (WebDAV/S3) browse the cloud folder BEFORE connecting
+  // (package I; the desktop 3-step flow). OAuth keeps its redirect picker.
+  const [pickFor, setPickFor] = useState<MobileSyncProvider | null>(null);
 
   const connect = () => {
     setBusy(true);
@@ -73,7 +77,26 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
               prefix: s3.prefix?.trim() || undefined,
             },
           };
-    void connectProvider(vault, p)
+    setBusy(false);
+    setPickFor(p);
+  };
+
+  const connectAt = (p: MobileSyncProvider, folder: string) => {
+    setPickFor(null);
+    setBusy(true);
+    const withRoot: MobileSyncProvider =
+      p.provider === "webdav"
+        ? {
+            provider: "webdav",
+            creds: {
+              ...p.creds,
+              url: folder ? p.creds.url.replace(/\/+$/, "") + "/" + folder : p.creds.url,
+            },
+          }
+        : p.provider === "s3"
+          ? { provider: "s3", creds: { ...p.creds, prefix: folder || p.creds.prefix } }
+          : p;
+    void connectProvider(vault, withRoot)
       .catch((e) => setError(String(e)))
       .finally(() => setBusy(false));
   };
@@ -230,6 +253,15 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
             </button>
           </div>
         </div>
+      )}
+
+      {pickFor && (
+        <CloudFolderPickerSheet
+          listFolders={(path) => listProviderFolders(pickFor, path)}
+          onClose={() => setPickFor(null)}
+          onPick={(folder) => connectAt(pickFor, folder)}
+          title={t("settings.browseFolders")}
+        />
       )}
     </div>
   );
