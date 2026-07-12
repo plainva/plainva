@@ -479,3 +479,59 @@
   --accent-container: #2E2007;
   --on-accent-container: #FFBB55;
 }
+
+/* ------------------------------------------------------------------ */
+/* Mobile shell pendants (M3E plan, package D): the .m-* classes speak */
+/* Okuda too — pills, condensed uppercase chrome, colour bars on black */
+/* instead of elevation. Desktop never renders these selectors; the    */
+/* radius roles need :root specificity because mobile.css loads later. */
+/* ------------------------------------------------------------------ */
+:root[data-theme-name="lcars"] {
+  --m-radius-chip: 999px;
+  --m-radius-card: 4px;
+  --m-radius-sheet: 6px;
+}
+[data-theme-name="lcars"] .m-topbar {
+  border-bottom: 3px solid var(--lcars-1);
+}
+[data-theme-name="lcars"] .m-topbar h1,
+[data-theme-name="lcars"] .m-header h1 {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+[data-theme-name="lcars"] .m-tabbar {
+  border-top: 3px solid var(--lcars-4);
+}
+[data-theme-name="lcars"] .m-tab {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+/* Selected segment = filled bar colour with black type (Okuda pill). */
+[data-theme-name="lcars"] .m-tab.is-active .m-tab-pill {
+  background: var(--lcars-1);
+  color: #000;
+}
+[data-theme-name="lcars"] .m-fab {
+  border-radius: var(--radius-pill);
+  background: var(--lcars-1);
+  color: #000;
+}
+[data-theme-name="lcars"] .m-btn,
+[data-theme-name="lcars"] .m-chip {
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-theme-name="lcars"] .m-sheet {
+  border-top: 3px solid var(--lcars-2);
+}
+[data-theme-name="lcars"] .m-sheet-grip {
+  background: var(--lcars-2);
+}
+[data-theme-name="lcars"] .m-sectionlabel {
+  font-family: var(--font-ui);
+  color: var(--lcars-2);
+}

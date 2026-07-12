@@ -264,3 +264,88 @@
   --surface-container-high: var(--bg-secondary);
   --surface-container-highest: var(--bg-secondary);
 }
+
+/* ------------------------------------------------------------------ */
+/* Mobile shell pendants (M3E plan, package D): square silver chrome   */
+/* with the classic two-step bevels; the top bar wears the navy title  */
+/* colours. Desktop never renders these selectors; the radius roles    */
+/* need :root specificity because mobile.css loads later.              */
+/* ------------------------------------------------------------------ */
+:root[data-theme-name="win95"] {
+  --m-radius-xs: 0px;
+  --m-radius-chip: 0px;
+  --m-radius-card: 0px;
+  --m-radius-sheet: 0px;
+}
+[data-theme-name="win95"] .m-topbar {
+  background: var(--titlebar-bg);
+}
+[data-theme-name="win95"] .m-topbar h1 {
+  color: var(--titlebar-fg);
+}
+[data-theme-name="win95"] .m-topbar .m-iconbtn,
+[data-theme-name="win95"] .m-topbar .m-searchpill {
+  color: var(--titlebar-fg);
+}
+[data-theme-name="win95"] .m-tabbar {
+  background: #C0C0C0;
+  border-top: 1px solid #FFFFFF;
+}
+[data-theme-name="win95"] .m-tab {
+  color: #000000;
+}
+[data-theme-name="win95"] .m-tab-pill {
+  border-radius: 0;
+}
+/* Selected segment = a raised silver button. */
+[data-theme-name="win95"] .m-tab.is-active .m-tab-pill {
+  background: #C0C0C0;
+  color: #000000;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .m-btn,
+[data-theme-name="win95"] .m-btn--filled,
+[data-theme-name="win95"] .m-btn--tonal,
+[data-theme-name="win95"] .m-chip,
+[data-theme-name="win95"] .m-fab {
+  border-radius: 0;
+  border: none;
+  background: #C0C0C0;
+  color: #000000;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .m-btn:active,
+[data-theme-name="win95"] .m-chip:active,
+[data-theme-name="win95"] .m-chip.is-on,
+[data-theme-name="win95"] .m-fab:active {
+  box-shadow:
+    inset 1px 1px 0 #0A0A0A,
+    inset -1px -1px 0 #FFFFFF,
+    inset 2px 2px 0 #808080,
+    inset -2px -2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .m-chip.is-on {
+  background: #DFDFDF;
+}
+[data-theme-name="win95"] .m-fab {
+  margin-top: -26px;
+}
+[data-theme-name="win95"] .m-sheet {
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+/* The drag grip is not part of the Win95 language. */
+[data-theme-name="win95"] .m-sheet-grip {
+  display: none;
+}
