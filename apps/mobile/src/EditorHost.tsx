@@ -22,6 +22,8 @@ import {
   Undo2,
 } from "lucide-react";
 import {
+  markdownToPlainText,
+  buildNoteEmbedCoreExtension,
   applyBlockAction,
   buildMarkdownTable,
   consumePendingSearchJump,
@@ -139,7 +141,66 @@ export function EditorHost({
       onPickColor: () => setColorPick(true),
       readBinaryFile: (absolutePath) =>
         vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
-      buildNoteEmbedExtension: () => [],
+      // Note embeds (package H): the shared CM core scans ![[...]] lines;
+      // mobile renders a tappable preview card — note text stripped to
+      // plain prose, .base as a database card, both opening their target.
+      buildNoteEmbedExtension: (_ctx, isLive) =>
+        buildNoteEmbedCoreExtension(
+          {
+            render: (container, target) => {
+              let stale = false;
+              container.classList.add("m-embed");
+              void (async () => {
+                const bare = target.split("#")[0].split("|")[0].trim();
+                let resolved: string | null = null;
+                for (const cand of [bare, `${bare}.md`, `${bare}.base`]) {
+                  if (await vault.files.exists(cand)) {
+                    resolved = cand;
+                    break;
+                  }
+                }
+                if (!resolved) resolved = await vaultOps.resolveWikiTarget(vault, bare);
+                if (stale) return;
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "m-embed-card";
+                if (!resolved) {
+                  card.classList.add("is-missing");
+                  card.textContent = `![[${target}]]`;
+                  container.appendChild(card);
+                  return;
+                }
+                const path0 = resolved;
+                const head = document.createElement("span");
+                head.className = "m-embed-title";
+                head.textContent = path0.split("/").pop()!.replace(/\.(md|base)$/i, "");
+                card.appendChild(head);
+                if (!/\.base$/i.test(path0)) {
+                  try {
+                    const text = await vaultOps.read(vault, path0);
+                    if (stale) return;
+                    const body = document.createElement("span");
+                    body.className = "m-embed-body";
+                    body.textContent = markdownToPlainText(
+                      text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""),
+                    ).slice(0, 280);
+                    card.appendChild(body);
+                  } catch {
+                    /* preview stays title-only */
+                  }
+                } else {
+                  card.classList.add("is-base");
+                }
+                card.addEventListener("click", () => onOpenNote(path0));
+                container.appendChild(card);
+              })();
+              return () => {
+                stale = true;
+              };
+            },
+          },
+          isLive,
+        ),
     };
   });
 

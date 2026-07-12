@@ -228,6 +228,11 @@ export default function App() {
   };
 
   const openNote = (path: string) => {
+    // .base targets (wiki links, embed taps) open the database screen (H).
+    if (/.base$/i.test(path)) {
+      push({ kind: "base", path });
+      return;
+    }
     // Real MRU (B2): the "Zuletzt" strip lists what was OPENED, not what synced.
     void vaultOps.pushRecent(vault, path);
     push({ kind: "note", path });

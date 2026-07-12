@@ -100,6 +100,7 @@ export * from "./components/listIndent";
 export * from "./components/listKeymap";
 export * from "./components/lucideIconData";
 export * from "./components/mathMermaidLive";
+export * from "./components/noteEmbedCore";
 export * from "./components/searchSetup";
 export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";
