@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arcPositions, computeForceLayout, createSeededRandom, hashSeed, packCircles } from "./graphLayout";
+import { arcPositions, computeForceLayout, createSeededRandom, hashSeed, packCircles } from "@plainva/ui";
 
 describe("graphLayout", () => {
   it("seeded random is deterministic per seed", () => {

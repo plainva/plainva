@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { __resetThemeTokenCache, getGraphThemeTokens, subscribeGraphThemeTokens } from "./themeTokens";
+import { __resetThemeTokenCache, getGraphThemeTokens, subscribeGraphThemeTokens } from "@plainva/ui";
 
 describe("themeTokens", () => {
   afterEach(() => {

@@ -15,8 +15,8 @@ import { loadGraphCached } from "../../services/graphCache";
 import { removeRelationLink } from "../../services/graphRelationTargets";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState } from "../../services/graphState";
-import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
-import { hashSeed } from "./graphLayout";
+import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
+import { hashSeed } from "@plainva/ui";
 import { CleanupPanel } from "./CleanupPanel";
 import { PinModeToggle } from "./PinModeToggle";
 import { GraphCanvasMenu, GraphConnectMenu, GraphEdgeMenu, GraphFolderMenu, GraphNodeMenu, type CanvasMenuState, type ConnectDropState, type EdgeMenuState, type FolderMenuState, type NodeMenuState } from "./GraphMapMenus";
@@ -26,7 +26,7 @@ import {
   effectiveDate,
   type VaultMapOverlay,
   type VaultMapScene,
-} from "./vaultMapScene";
+} from "@plainva/ui";
 
 /**
  * Vault map (P4/P5): semantic zoom over the real folder structure. Folders

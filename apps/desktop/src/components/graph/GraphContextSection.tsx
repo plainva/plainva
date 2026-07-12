@@ -7,8 +7,8 @@ import { appendWikiLink, applyInlineLink, findFirstUnlinkedOccurrence } from "..
 import { buildOccurrenceSnippet, type OccurrenceSnippet } from "@plainva/ui";
 import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
-import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
-import { buildContextScene, sceneHasContent, scenePathOf, type ContextData } from "./contextScene";
+import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
+import { buildContextScene, sceneHasContent, scenePathOf, type ContextData } from "@plainva/ui";
 import { PinModeToggle } from "./PinModeToggle";
 
 /**

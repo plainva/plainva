@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { GraphEdgeInfo, GraphNodeInfo, VaultGraph } from "@plainva/core";
-import { buildContextScene } from "./contextScene";
+import { buildContextScene } from "@plainva/ui";
 
 function node(path: string, extra: Partial<GraphNodeInfo> = {}): GraphNodeInfo {
   return {

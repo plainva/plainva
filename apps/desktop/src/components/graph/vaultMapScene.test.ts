@@ -6,7 +6,7 @@ import {
   effectiveDate,
   representativeOf,
   type VaultMapInput,
-} from "./vaultMapScene";
+} from "@plainva/ui";
 
 function node(path: string, extra: Partial<GraphNodeInfo> = {}): GraphNodeInfo {
   return {

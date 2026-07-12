@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGraphScene, type GraphEngineDeps, type GraphScene } from "./graphEngine";
-import type { SceneEdge, SceneNode } from "./graphTypes";
+import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
+import type { SceneEdge, SceneNode } from "@plainva/ui";
 
 /**
  * jsdom has no 2D canvas context — the engine's draw path no-ops on a null

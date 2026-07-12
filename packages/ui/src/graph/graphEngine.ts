@@ -1,5 +1,5 @@
 import { quadtree, type Quadtree } from "d3-quadtree";
-import { getGraphThemeTokens, subscribeGraphThemeTokens, type GraphThemeTokens } from "../../services/themeTokens";
+import { getGraphThemeTokens, subscribeGraphThemeTokens, type GraphThemeTokens } from "./themeTokens";
 import type { NodePointerEvent, SceneEdge, SceneNode, SceneTransform } from "./graphTypes";
 
 /**

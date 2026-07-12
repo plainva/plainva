@@ -1,6 +1,6 @@
 import type { VaultGraph } from "@plainva/core";
-import { computeForceLayout } from "../graph/graphLayout";
-import type { SceneEdge, SceneNode } from "../graph/graphTypes";
+import { computeForceLayout } from "@plainva/ui";
+import type { SceneEdge, SceneNode } from "@plainva/ui";
 
 /**
  * Pure scene construction for the `.base` graph view (no React, no
