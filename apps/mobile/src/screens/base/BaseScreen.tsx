@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Database, Plus, Settings2 } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
+  Database,
+  GanttChart,
+  LayoutGrid,
+  List,
+  Plus,
+  Settings2,
+  Table,
+  Waypoints,
+} from "lucide-react";
 import {
   capitalizeFirst,
   chipPaletteIndex,
@@ -42,6 +55,16 @@ type Row = Record<string, any>;
  * every write goes through the shared serialize contract + sync chain.
  * `graph` (canvas engine, desktop-only for now) falls back to the table.
  */
+const VIEW_ICON: Record<string, typeof Table> = {
+  table: Table,
+  list: List,
+  cards: LayoutGrid,
+  board: Columns3,
+  calendar: CalendarDays,
+  timeline: GanttChart,
+  graph: Waypoints,
+};
+
 export function BaseScreen({
   vault,
   path,
@@ -555,6 +578,32 @@ export function BaseScreen({
       const opt = optionMeta.find((o: any) => String(o.value) === key);
       return `var(--chip-${chipPaletteIndex(key, opt?.color)}-bg)`;
     };
+    const dotFor = (key: string): string | undefined => {
+      if (key === UNGROUPED_KEY) return undefined;
+      if (groupInput !== "select" && groupInput !== "status" && groupInput !== "multiselect") return undefined;
+      const opt = optionMeta.find((o: any) => String(o.value) === key);
+      return `var(--chip-${chipPaletteIndex(key, opt?.color)}-fg)`;
+    };
+    const tintForChip = (key: string): string | undefined => {
+      const opt = optionMeta.find((o: any) => String(o.value) === key);
+      return `var(--chip-${chipPaletteIndex(key, opt?.color)}-bg)`;
+    };
+    const boardMiniChips = (r: Record<string, unknown>, group: string) => {
+      const cols = orderedColumns.filter((c: string) => c !== group).slice(0, 2);
+      const chips = cols
+        .map((c: string) => ({ c, text: cellText(r[c]) }))
+        .filter((x: { c: string; text: string }) => x.text);
+      if (chips.length === 0) return null;
+      return (
+        <span className="m-basecard-mini">
+          {chips.map((x: { c: string; text: string }) => (
+            <span className="m-minichip" key={x.c}>
+              {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
+            </span>
+          ))}
+        </span>
+      );
+    };
     return (
       <div className="m-board" ref={boardRef}>
         {orderKeys.map((key) => {
@@ -567,8 +616,9 @@ export function BaseScreen({
               style={tint ? { background: tint } : undefined}
             >
               <p className="m-board-head">
+                {dotFor(key) && <span className="m-board-dot" style={{ background: dotFor(key) }} />}
                 {key === UNGROUPED_KEY ? t("database.noEndDate") : key}
-                <span className="m-board-count">{groups.get(key)!.length}</span>
+                <span className="m-board-count">· {groups.get(key)!.length}</span>
               </p>
               {groups.get(key)!.map((r) => (
                 <div
@@ -581,9 +631,18 @@ export function BaseScreen({
                   <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
                     {rowTitle(r)}
                   </button>
-                  <button className="m-cellchip" onClick={() => openCellEditor(r, groupBy)}>
+                  <button
+                    className="m-cellchip"
+                    onClick={() => openCellEditor(r, groupBy)}
+                    style={
+                      dotFor(key) && key !== UNGROUPED_KEY
+                        ? { background: tintForChip(key), color: "var(--text-main)" }
+                        : undefined
+                    }
+                  >
                     {cellText(r[groupBy]) || "—"}
                   </button>
+                  {boardMiniChips(r, groupBy)}
                 </div>
               ))}
             </div>
@@ -708,15 +767,15 @@ export function BaseScreen({
   return (
     <div className="m-page" ref={ptrRef}>
       {ptrIndicator}
+      <button className="m-fab-float m-fab-float--above-tabs m-fab-float--pill" onClick={newItem}>
+        <Plus size={18} /> {t("database.newItem", { defaultValue: "+" })}
+      </button>
       <header className="m-header">
         <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={22} />
         </button>
         <h1>{title}</h1>
         <span className="m-headactions">
-          <button aria-label={t("mobile.newNote")} className="m-iconbtn" onClick={newItem}>
-            <Plus size={22} />
-          </button>
           <button
             aria-label={t("database.configure")}
             className="m-iconbtn"
@@ -737,6 +796,11 @@ export function BaseScreen({
               key={`${v.name ?? ""}-${i}`}
               onClick={() => setViewIndex(i)}
             >
+              {(() => {
+                const render = (v.plainva as { render?: string } | undefined)?.render;
+                const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;
+                return <Icon size={14} />;
+              })()}
               {v.name || v.type || String(i + 1)}
             </button>
           ))}

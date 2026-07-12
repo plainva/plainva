@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
   getSyncStatus,
@@ -12,6 +12,7 @@ import {
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
+import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
 import { toast } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -44,6 +45,7 @@ export function VaultDetailScreen({
   const [busy, setBusy] = useState(false);
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
+  const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
     void getVaultEntry(vaultId).then(setEntry);
@@ -189,6 +191,11 @@ export function VaultDetailScreen({
               <Upload size={16} /> {t("mobile.vaultExport")}
             </button>
           )}
+          {isActive && (
+            <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => setDeleted(true)}>
+              <FileClock size={16} /> {t("versions.deletedTitle")}
+            </button>
+          )}
           {entry.provider && !entry.paused && (
             <button
               className="m-btn m-btn--tonal"
@@ -225,6 +232,7 @@ export function VaultDetailScreen({
           )}
         </div>
       </div>
+      {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={activeVault} />}
     </div>
   );
 }

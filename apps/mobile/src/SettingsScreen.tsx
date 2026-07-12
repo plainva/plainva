@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
-import { listTemplates, formatDiagnosticsExport, APP_LANGUAGES, AVAILABLE_THEMES, PlainvaLogo, TextInput } from "@plainva/ui";
+import { listTemplates, formatDiagnosticsExport, APP_LANGUAGES, PlainvaLogo, TextInput } from "@plainva/ui";
 import { FolderPickerSheet } from "./components/FolderPickerSheet";
 import { HailingSheet } from "./components/HailingSheet";
 import { mSelect } from "./services/mobileDialogs";
@@ -10,8 +10,6 @@ import {
   getMobileSettings,
   updateMobileSettings,
   type DefaultView,
-  type MotionPref,
-  type ThemeMode,
 } from "./services/mobileSettings";
 import type { MobileVault } from "./services/vaultService";
 import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./navigation";
@@ -23,7 +21,15 @@ import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./n
  * R2.2 adds the tab-bar layout: up to four pool screens, ▲▼ reorder.
  * R3.3: choices open M3 selection sheets instead of native <select>s.
  */
-export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
+export function SettingsScreen({
+  vault,
+  onBack,
+  onOpenAppearance,
+}: {
+  vault: MobileVault;
+  onBack: () => void;
+  onOpenAppearance: () => void;
+}) {
   const { t, i18n: i18nInstance } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
   // Folder picker target (R3.6): which path setting is being browsed.
@@ -46,8 +52,6 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
     void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
   };
 
-  const themeLabel = (mode: ThemeMode) =>
-    t(mode === "light" ? "mobile.themeLight" : mode === "dark" ? "mobile.themeDark" : "mobile.themeSystem");
   const viewLabel = (view: DefaultView) =>
     t(view === "edit" ? "mobile.defaultViewEdit" : "mobile.defaultViewRead");
   const languageLabel = (code: string) =>
@@ -68,40 +72,6 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
     });
   };
 
-  const pickTheme = () => {
-    void mSelect({
-      title: t("mobile.settingTheme"),
-      options: (["system", "light", "dark"] as ThemeMode[]).map((m) => ({
-        value: m,
-        label: themeLabel(m),
-      })),
-      value: settings.themeMode,
-    }).then((v) => {
-      if (v !== null) update({ themeMode: v as ThemeMode });
-    });
-  };
-
-  const motionLabel = (m: MotionPref) =>
-    t(m === "on" ? "mobile.motionOn" : m === "off" ? "mobile.motionOff" : "mobile.motionSystem");
-  const pickMotion = () => {
-    void mSelect({
-      title: t("mobile.settingMotion"),
-      options: (["system", "on", "off"] as MotionPref[]).map((m) => ({ value: m, label: motionLabel(m) })),
-      value: settings.motion,
-    }).then((v) => {
-      if (v !== null) update({ motion: v as MotionPref });
-    });
-  };
-
-  const pickFontSize = () => {
-    void mSelect({
-      title: t("settings.contentFontSize"),
-      options: [12, 14, 16, 18, 20, 22, 24].map((n) => ({ value: String(n), label: `${n} px` })),
-      value: String(settings.contentFontSize),
-    }).then((v) => {
-      if (v !== null) update({ contentFontSize: Number(v) });
-    });
-  };
 
   const pickDefaultView = () => {
     void mSelect({
@@ -234,42 +204,11 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
       </header>
 
       <SettingRow label={t("mobile.settingLanguage")} onClick={pickLanguage} value={languageLabel(settings.language)} />
-      <SettingRow label={t("mobile.settingTheme")} onClick={pickTheme} value={themeLabel(settings.themeMode)} />
-
-      {/* Theme catalog (M3E package D4): the shared registry, minus easter-egg
-          entries (their unlock flow arrives with the mobile hailing sheet).
-          Swatch colors are registry DATA, not styling literals. */}
-      <p className="m-sectionlabel">{t("settings.theme")}</p>
-      <div className="m-themegrid">
-        {AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)).map((th) => {
-          const mode = th.modes.includes(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light")
-            ? (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" as const : "light" as const)
-            : th.modes[0];
-          const sw = th.swatch[mode]!;
-          const active = (settings.themeName || "petrol") === th.id;
-          return (
-            <button
-              className={active ? "m-themecard is-on" : "m-themecard"}
-              key={th.id}
-              onClick={() => update({ themeName: th.id })}
-            >
-              <span aria-hidden className="m-themeprev">
-                <i style={{ background: sw.bg }} />
-                <i style={{ background: sw.surface }} />
-                <i style={{ background: sw.accent }} />
-              </span>
-              <span className="m-themename">{t(`themes.names.${th.id}`, { defaultValue: th.label })}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <SettingRow
-        label={t("settings.contentFontSize")}
-        onClick={pickFontSize}
-        value={`${settings.contentFontSize} px`}
-      />
-      <SettingRow label={t("mobile.settingMotion")} onClick={pickMotion} value={motionLabel(settings.motion)} />
+      {/* Appearance moved to its own screen (M3E mockup 9). */}
+      <button className="m-row" onClick={onOpenAppearance}>
+        <span>{t("mobile.settingTheme")}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
       <SettingRow
         label={t("mobile.settingDefaultView")}
         onClick={pickDefaultView}

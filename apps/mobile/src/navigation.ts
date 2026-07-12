@@ -70,6 +70,7 @@ export type NavKind =
   | "search"
   | "more"
   | "settings"
+  | "appearance"
   | "sync"
   | "vault";
 
@@ -80,7 +81,7 @@ export interface NavEntry {
   configOpen?: boolean;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "sync", "vault"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "appearance", "sync", "vault"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 

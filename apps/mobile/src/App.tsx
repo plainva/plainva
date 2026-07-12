@@ -29,6 +29,7 @@ import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
 import { SyncIndicator } from "./components/SyncIndicator";
+import { AppearanceScreen } from "./screens/AppearanceScreen";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { NoteScreen } from "./screens/NoteScreen";
 import { SearchScreen } from "./screens/SearchScreen";
@@ -478,7 +479,7 @@ export default function App() {
         ) : top?.kind === "bookmarks" ? (
           <BookmarksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "settings" ? (
-          <SettingsScreen onBack={pop} vault={vault} />
+          <SettingsScreen onBack={pop} onOpenAppearance={() => push({ kind: "appearance", path: "" })} vault={vault} />
         ) : top?.kind === "sync" ? (
           <AddVaultScreen onBack={pop} vault={vault} />
         ) : top?.kind === "vault" ? (
@@ -519,6 +520,8 @@ export default function App() {
             path={top.path}
             vault={vault}
           />
+        ) : top?.kind === "appearance" ? (
+          <AppearanceScreen onBack={pop} />
         ) : top?.kind === "search" ? (
           <SearchScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "more" ? (
