@@ -6,7 +6,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { MenuItem, MenuLabel, MenuSurface } from "@plainva/ui";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
 import { getGraphState } from "../../services/graphState";
-import { buildBaseGraphScene } from "./baseGraphScene";
+import { buildBaseGraphScene } from "@plainva/ui";
 import { columnLabel } from "./baseViewerShared";
 import { PinModeToggle } from "../graph/PinModeToggle";
 

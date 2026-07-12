@@ -107,6 +107,7 @@ export * from "./graph/graphTypes";
 export * from "./graph/contextScene";
 export * from "./graph/vaultMapScene";
 export * from "./graph/themeTokens";
+export * from "./graph/baseGraphScene";
 export * from "./components/searchSetup";
 export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";

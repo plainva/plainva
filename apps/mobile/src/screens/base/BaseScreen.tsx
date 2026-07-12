@@ -25,6 +25,7 @@ import {
 } from "../../services/baseOps";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { boardDropValue } from "./boardDrag";
+import { MobileBaseGraph } from "./MobileBaseGraph";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
@@ -245,7 +246,22 @@ export function BaseScreen({
   const endProp = view.endField ? String(view.endField) : null;
 
   const render = String(view.plainva?.render ?? view.type ?? "table");
-  const effectiveRender = render === "graph" ? "table" : render === "cards" || render === "card" ? "gallery" : render;
+  // Package F: the graph view renders natively over the shared engine now;
+  // it needs the resolved vault graph (relation edges) from the core service.
+  const [vaultGraph, setVaultGraph] = useState<any | null>(null);
+  useEffect(() => {
+    if (render !== "graph" || !vault.queryService) return;
+    let stale = false;
+    void import("@plainva/core").then(({ GraphService }) =>
+      new GraphService(vault.queryService!.db).loadGraph().then((g) => {
+        if (!stale) setVaultGraph(g);
+      }),
+    );
+    return () => {
+      stale = true;
+    };
+  }, [render, vault, rows]);
+  const effectiveRender = render === "graph" ? (vaultGraph ? "graph" : "table") : render === "cards" || render === "card" ? "gallery" : render;
 
   // Gallery cover images (E3, desktop views[i].coverImage contract): the
   // cover column's value resolves to a vault file and loads as a blob URL.
@@ -711,7 +727,7 @@ export function BaseScreen({
         </span>
       </header>
 
-      {render === "graph" && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
+      {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 
       {views.length > 1 && (
         <div className="m-viewpills">
@@ -731,6 +747,15 @@ export function BaseScreen({
         <EmptyState icon={<Database size={20} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : rows.length === 0 ? (
         <EmptyState icon={<Database size={20} />}>{t("mobile.baseEmpty")}</EmptyState>
+      ) : effectiveRender === "graph" ? (
+        <MobileBaseGraph
+          columnLabel={columnLabel}
+          graph={vaultGraph}
+          onOpenNote={onOpenNote}
+          rows={rows}
+          seed={path}
+          view={view}
+        />
       ) : effectiveRender === "gallery" ? (
         renderCards()
       ) : effectiveRender === "list" ? (

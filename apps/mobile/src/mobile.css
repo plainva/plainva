@@ -1505,3 +1505,18 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* .base graph view (package F): the shared canvas fills the remaining page. */
+.m-basegraph {
+  height: calc(100dvh - 240px);
+  min-height: 260px;
+  margin: 4px 8px;
+  border-radius: var(--m-radius-card);
+  overflow: hidden;
+  background: var(--m-surface-container);
+}
+.m-basegraph canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}

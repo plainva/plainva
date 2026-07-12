@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { GraphEdgeInfo, GraphNodeInfo, VaultGraph } from "@plainva/core";
-import { buildBaseGraphScene, type BaseGraphSceneInput } from "./baseGraphScene";
+import { buildBaseGraphScene, type BaseGraphSceneInput } from "@plainva/ui";
 
 function node(path: string): GraphNodeInfo {
   return { path, title: path.replace(/\.md$/, ""), mode: "obsidian", okfType: null, folder: "", mtime: 0, ctime: null };
