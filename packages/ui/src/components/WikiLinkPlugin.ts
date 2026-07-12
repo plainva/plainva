@@ -11,6 +11,55 @@ import i18n from "../i18n";
 // touch devices (Capacitor WebView); keyed by view so editors stay isolated.
 const touchTapStart = new WeakMap<EditorView, { x: number; y: number; at: number }>();
 
+// One physical tap/click can surface as mousedown, touchend AND click. The
+// pipeline marker records that the primary handlers were reachable at all —
+// the click fallback only acts when they were NOT (native WebViews, iOS
+// WKWebView in particular, can swallow touch/mouse events on non-editable
+// content while still synthesizing a click). lastLinkNav additionally dedupes
+// a same-target re-fire within a short window as a belt-and-braces guard.
+const lastPointerEvent = new WeakMap<EditorView, number>();
+const lastLinkNav = new WeakMap<EditorView, { at: number; target: string }>();
+
+/** Resolves the link under (x, y) and opens it. Returns true when a link was
+ * opened (callers preventDefault). Shared by mousedown, touchend and click. */
+function openLinkAtCoords(
+  view: EditorView,
+  x: number,
+  y: number,
+  newTab: boolean,
+  onOpenPath: (linkText: string, newTab: boolean) => void,
+  timeStamp: number,
+): boolean {
+  const pos = view.posAtCoords({ x, y });
+  if (pos === null) return false;
+  const line = view.state.doc.lineAt(pos);
+  const link = findLinkAtOffset(line.text, pos - line.from);
+  if (!link) return false;
+  const last = lastLinkNav.get(view);
+  if (last && last.target === link.target && timeStamp - last.at < 900) {
+    return true; // duplicate event of the same physical tap — swallow, don't re-open
+  }
+  if (link.type === "wiki") {
+    onOpenPath(link.target, newTab);
+  } else if (link.type === "markdown") {
+    if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
+      getPlatformServices().openExternal(link.target).catch((err) => {
+        toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+      });
+    } else {
+      onOpenPath(link.target, newTab);
+    }
+  } else if (link.type === "url") {
+    getPlatformServices().openExternal(link.target).catch((err) => {
+      toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+    });
+  } else {
+    return false;
+  }
+  lastLinkNav.set(view, { at: timeStamp, target: link.target });
+  return true;
+}
+
 export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) => void, hideSyntax: boolean) {
   return [
     ViewPlugin.fromClass(class {
@@ -172,6 +221,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
     EditorView.domEventHandlers({
       mousedown: (event, view) => {
         if (event.button !== 0) return false; // only left click
+        lastPointerEvent.set(view, event.timeStamp);
 
         let targetNode = event.target as Node | null;
         if (targetNode && targetNode.nodeType === Node.TEXT_NODE) {
@@ -188,39 +238,10 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         const isClickable = target.closest('.cm-wiki-link') !== null;
         const wantsToNavigate = isClickable || event.ctrlKey || event.metaKey;
 
-        if (wantsToNavigate) {
-          // posAtCoords is much more reliable for mouse events than posAtDOM
-          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-          if (pos !== null) {
-            const line = view.state.doc.lineAt(pos);
-            const text = line.text;
-            const offset = pos - line.from;
-            
-            const link = findLinkAtOffset(text, offset);
-            if (link) {
-              if (link.type === 'wiki') {
-                onOpenPath(link.target, event.ctrlKey || event.metaKey);
-                event.preventDefault();
-                return true;
-              } else if (link.type === 'markdown') {
-                if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
-                   getPlatformServices().openExternal(link.target).catch((err) => {
-                     toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-                   });
-                } else {
-                   onOpenPath(link.target, event.ctrlKey || event.metaKey);
-                }
-                event.preventDefault();
-                return true;
-              } else if (link.type === 'url') {
-                getPlatformServices().openExternal(link.target).catch((err) => {
-                  toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-                });
-                event.preventDefault();
-                return true;
-              }
-            }
-          }
+        // posAtCoords is much more reliable for mouse events than posAtDOM
+        if (wantsToNavigate && openLinkAtCoords(view, event.clientX, event.clientY, event.ctrlKey || event.metaKey, onOpenPath, event.timeStamp)) {
+          event.preventDefault();
+          return true;
         }
         return false;
       },
@@ -234,6 +255,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         return false;
       },
       touchend: (event, view) => {
+        lastPointerEvent.set(view, event.timeStamp);
         // Edit mode: a tap places the cursor; only the read-only view navigates.
         if (view.state.facet(EditorView.editable)) return false;
         const start = touchTapStart.get(view);
@@ -242,30 +264,27 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         if (!start || !end) return false;
         const moved = Math.hypot(end.clientX - start.x, end.clientY - start.y);
         if (moved > 10 || event.timeStamp - start.at > 700) return false; // scroll / long-press, not a tap
-        const pos = view.posAtCoords({ x: end.clientX, y: end.clientY });
-        if (pos === null) return false;
-        const line = view.state.doc.lineAt(pos);
-        const link = findLinkAtOffset(line.text, pos - line.from);
-        if (!link) return false;
-        if (link.type === "wiki") {
-          onOpenPath(link.target, false);
-        } else if (link.type === "markdown") {
-          if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
-            getPlatformServices().openExternal(link.target).catch((err) => {
-              toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-            });
-          } else {
-            onOpenPath(link.target, false);
-          }
-        } else if (link.type === "url") {
-          getPlatformServices().openExternal(link.target).catch((err) => {
-            toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-          });
-        } else {
-          return false;
+        if (openLinkAtCoords(view, end.clientX, end.clientY, false, onOpenPath, event.timeStamp)) {
+          event.preventDefault();
+          return true;
         }
-        event.preventDefault();
-        return true;
+        return false;
+      },
+      // Native WebViews (iOS WKWebView in particular) run their own gesture
+      // recognizers ahead of the page: a tap on non-editable content may never
+      // reach the touch/mouse handlers above, but it DOES synthesize a click
+      // on elements styled cursor:pointer. This fallback only acts when the
+      // primary handlers were unreachable for this tap (no recent pointer
+      // event); lastLinkNav guards the same-target re-fire on top of that.
+      click: (event, view) => {
+        if (view.state.facet(EditorView.editable)) return false;
+        const seen = lastPointerEvent.get(view);
+        if (seen !== undefined && event.timeStamp - seen < 1500) return false; // normal pipeline handled this tap
+        if (openLinkAtCoords(view, event.clientX, event.clientY, false, onOpenPath, event.timeStamp)) {
+          event.preventDefault();
+          return true;
+        }
+        return false;
       }
     })
   ];

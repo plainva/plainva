@@ -51,6 +51,19 @@ body {
   font-family: var(--font-ui, Roboto, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Native-app feel: chrome (rows, sheets, bars) is never text-selectable —
+     a long-press opens menus without the WebView starting a text selection.
+     Note content and form fields opt back in below. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.cm-content,
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .m-app {
@@ -80,7 +93,11 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0;
+  /* The note view opts out of the page inset entirely — the editor content
+     below carries the ONE horizontal inset (12px), so an open note uses
+     nearly the full screen width (maintainer: the boxed-in look). The note
+     header keeps its own padding and its margin stays 0 (rule below). */
+  padding: 0;
 }
 
 /* ---- Top app bar (M3 small app bar; the shell renders it on tab roots,
@@ -576,11 +593,12 @@ body {
 .m-page--note .m-editor {
   padding-bottom: 64px;
 }
-/* The .m-page already supplies the 16px side inset; the shared (desktop-tuned)
-   .cm-content padding of 1.5rem would stack on top and triple the margin.
-   Trim it to a mobile-appropriate value (~26px effective per side). */
+/* The note page carries no inset of its own (see .m-page--note) — this is
+   the ONE horizontal inset around note content. 12px matches the compact
+   feel of mobile editors (Obsidian/iA Writer territory) instead of the
+   desktop-tuned 1.5rem the shared .cm-content would bring. */
 .m-page--note .m-editor .cm-content {
-  padding: 0.5rem 8px;
+  padding: 0.5rem 12px;
 }
 .m-datestrip {
   display: flex;

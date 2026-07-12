@@ -12,6 +12,10 @@ export function useLongPress<T>(onLongPress: (arg: T) => void) {
     firedRef.current = false;
     timerRef.current = setTimeout(() => {
       firedRef.current = true;
+      // A long-press can start a native text selection in the WebView (some
+      // Android versions ignore user-select for the selection handles); clear
+      // it so the opened sheet doesn't show marked text.
+      window.getSelection?.()?.removeAllRanges();
       onLongPress(arg);
     }, 500);
   };
