@@ -1275,6 +1275,33 @@ textarea {
   color: var(--text-main);
 }
 
+/* Board card drag (E1): armed card dims, the drop column outlines, a fixed
+   ghost chip follows the finger. Tints/positions arrive inline as data. */
+.m-basecard.is-dragging {
+  opacity: 0.35;
+}
+.m-board-col.is-over {
+  outline: 2px solid var(--m-primary);
+  outline-offset: -2px;
+}
+.m-board-ghost {
+  position: fixed;
+  z-index: 60;
+  transform: translate(-50%, -120%);
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: var(--m-radius-card);
+  background: var(--surface-container-highest);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 650;
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+}
+
 /* Emoji + accent color sheets (C3): flat grids inside a bottom sheet. Swatch
    backgrounds are registry DATA set inline, not CSS literals. */
 .m-emojigrid {

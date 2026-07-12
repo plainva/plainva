@@ -311,6 +311,24 @@ export function BaseConfigSheet({
                 </button>
               ))}
             </div>
+            {/* Column color mode (E1, WP3 parity): chip only vs. whole list. */}
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.boardColor")}</p>
+            <div className="m-turninto">
+              {(["chip", "column"] as const).map((mode) => (
+                <button
+                  className={`m-chip${(view.boardColorMode === "column" ? "column" : "chip") === mode ? " is-on" : ""}`}
+                  key={mode}
+                  onClick={() =>
+                    mutateView((v) => {
+                      if (mode === "column") v.boardColorMode = "column";
+                      else delete v.boardColorMode;
+                    })
+                  }
+                >
+                  {t(mode === "column" ? "database.boardColorColumn" : "database.boardColorChip")}
+                </button>
+              ))}
+            </div>
           </>
         )}
         {(view.type === "calendar" || view.type === "timeline") && (

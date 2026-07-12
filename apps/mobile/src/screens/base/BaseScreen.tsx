@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database, Plus, Settings2 } from "lucide-react";
 import {
   capitalizeFirst,
+  chipPaletteIndex,
   EmptyState,
   inferType,
   orderBoardGroups,
@@ -11,6 +12,7 @@ import {
   UNGROUPED_KEY,
   parseWikiLinkValue,
 } from "@plainva/ui";
+import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
   commitCellValue,
@@ -21,6 +23,7 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
+import { boardDropValue } from "./boardDrag";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
@@ -302,12 +305,113 @@ export function BaseScreen({
     </div>
   );
 
+  const boardGroupBy: string | null =
+    view.groupBy ??
+    columnsPool.find((c) => columnInput(c) === "select" && c.toLowerCase() === "status") ??
+    columnsPool.find((c) => columnInput(c) === "select") ??
+    null;
+
+  // Board card drag (E1, desktop parity): long-press arms, moving carries a
+  // ghost, dropping on another column rewrites the groupBy value through the
+  // same commit path as the cell editor. One delegated listener set on the
+  // board container — cards stay scrollable until the press arms.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [boardDrag, setBoardDrag] = useState<{
+    path: string;
+    fromKey: string;
+    title: string;
+    x: number;
+    y: number;
+    overKey: string | null;
+  } | null>(null);
+  const dragRef = useRef<{ armed: boolean; timer: ReturnType<typeof setTimeout> | null; startX: number; startY: number }>(
+    { armed: false, timer: null, startX: 0, startY: 0 },
+  );
+  const boardDragRef = useRef(boardDrag);
+  useEffect(() => {
+    boardDragRef.current = boardDrag;
+  }, [boardDrag]);
+
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el || view.type !== "board" || !boardGroupBy || !rows) return;
+    const d = dragRef.current;
+    const clear = () => {
+      if (d.timer) clearTimeout(d.timer);
+      d.timer = null;
+      d.armed = false;
+      setBoardDrag(null);
+    };
+    const onDown = (e: PointerEvent) => {
+      const card = (e.target as HTMLElement).closest<HTMLElement>(".m-basecard");
+      if (!card || !card.dataset.rowPath) return;
+      d.startX = e.clientX;
+      d.startY = e.clientY;
+      const payload = {
+        path: card.dataset.rowPath,
+        fromKey: card.dataset.groupKey ?? UNGROUPED_KEY,
+        title: card.dataset.rowTitle ?? "",
+      };
+      d.timer = setTimeout(() => {
+        d.armed = true;
+        haptics.medium();
+        setBoardDrag({ ...payload, x: d.startX, y: d.startY, overKey: null });
+      }, 350);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!d.armed) {
+        // Real movement before the arm = a scroll; give the gesture back.
+        if (d.timer && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 8) {
+          clearTimeout(d.timer);
+          d.timer = null;
+        }
+        return;
+      }
+      const colEl = document
+        .elementFromPoint(e.clientX, e.clientY)
+        ?.closest<HTMLElement>("[data-board-key]");
+      setBoardDrag((prev) =>
+        prev ? { ...prev, x: e.clientX, y: e.clientY, overKey: colEl?.dataset.boardKey ?? null } : prev,
+      );
+      // Auto-scroll the horizontal board near its edges.
+      const rect = el.getBoundingClientRect();
+      if (e.clientX < rect.left + 48) el.scrollLeft -= 12;
+      else if (e.clientX > rect.right - 48) el.scrollLeft += 12;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      // Own the gesture once armed; before that the board scrolls normally.
+      if (d.armed && e.cancelable) e.preventDefault();
+    };
+    const onUp = () => {
+      const drag = boardDragRef.current;
+      if (d.armed && drag && drag.overKey && drag.overKey !== drag.fromKey) {
+        const row = rows.find((r) => rowPath(r) === drag.path);
+        if (row) {
+          const next = boardDropValue(row[boardGroupBy], drag.fromKey, drag.overKey);
+          haptics.light();
+          void commitCellValue(vault, drag.path, boardGroupBy, next).then(() => requery(config, viewIndex));
+        }
+      }
+      clear();
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("touchmove", onTouchMove);
+      clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, boardGroupBy, view.type, config, viewIndex, vault]);
+
   const renderBoard = () => {
-    const groupBy: string | null =
-      view.groupBy ??
-      columnsPool.find((c) => columnInput(c) === "select" && c.toLowerCase() === "status") ??
-      columnsPool.find((c) => columnInput(c) === "select") ??
-      null;
+    const groupBy = boardGroupBy;
     if (!groupBy) return renderTable();
     const groups = new Map<string, Row[]>();
     for (const r of rows!) {
@@ -325,32 +429,63 @@ export function BaseScreen({
         groups.set(key, list);
       }
     }
-    const options = (config?.columns?.[groupBy]?.options ?? []).map((o: any) => String(o.value));
+    const optionMeta: any[] = config?.columns?.[groupBy]?.options ?? [];
+    const options = optionMeta.map((o: any) => String(o.value));
     for (const o of options) if (!groups.has(o)) groups.set(o, []);
     const orderKeys = orderBoardGroups([...groups.keys()], {
       optionOrder: options.length ? options : undefined,
       savedOrder: Array.isArray(view.boardColumnOrder) ? view.boardColumnOrder : undefined,
     });
+    // Column color mode (E1, WP3 parity): "column" tints the whole list with
+    // the option's chip palette color; only option-backed group columns tint.
+    const colorMode: "chip" | "column" = view.boardColorMode === "column" ? "column" : "chip";
+    const groupInput = columnInput(groupBy);
+    const tintable =
+      colorMode === "column" && (groupInput === "select" || groupInput === "status" || groupInput === "multiselect");
+    const tintFor = (key: string): string | undefined => {
+      if (!tintable || key === UNGROUPED_KEY) return undefined;
+      const opt = optionMeta.find((o: any) => String(o.value) === key);
+      return `var(--chip-${chipPaletteIndex(key, opt?.color)}-bg)`;
+    };
     return (
-      <div className="m-board">
-        {orderKeys.map((key) => (
-          <div className="m-board-col" key={key}>
-            <p className="m-board-head">
-              {key === UNGROUPED_KEY ? t("database.noEndDate") : key}
-              <span className="m-board-count">{groups.get(key)!.length}</span>
-            </p>
-            {groups.get(key)!.map((r) => (
-              <div className="m-basecard" key={rowPath(r)}>
-                <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
-                  {rowTitle(r)}
-                </button>
-                <button className="m-cellchip" onClick={() => openCellEditor(r, groupBy)}>
-                  {cellText(r[groupBy]) || "—"}
-                </button>
-              </div>
-            ))}
+      <div className="m-board" ref={boardRef}>
+        {orderKeys.map((key) => {
+          const tint = tintFor(key);
+          return (
+            <div
+              className={`m-board-col${boardDrag?.overKey === key && boardDrag.fromKey !== key ? " is-over" : ""}`}
+              data-board-key={key}
+              key={key}
+              style={tint ? { background: tint } : undefined}
+            >
+              <p className="m-board-head">
+                {key === UNGROUPED_KEY ? t("database.noEndDate") : key}
+                <span className="m-board-count">{groups.get(key)!.length}</span>
+              </p>
+              {groups.get(key)!.map((r) => (
+                <div
+                  className={`m-basecard${boardDrag?.path === rowPath(r) ? " is-dragging" : ""}`}
+                  data-group-key={key}
+                  data-row-path={rowPath(r)}
+                  data-row-title={rowTitle(r)}
+                  key={rowPath(r)}
+                >
+                  <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
+                    {rowTitle(r)}
+                  </button>
+                  <button className="m-cellchip" onClick={() => openCellEditor(r, groupBy)}>
+                    {cellText(r[groupBy]) || "—"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+        {boardDrag && (
+          <div aria-hidden className="m-board-ghost" style={{ left: boardDrag.x, top: boardDrag.y }}>
+            {boardDrag.title}
           </div>
-        ))}
+        )}
       </div>
     );
   };
