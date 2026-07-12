@@ -29,6 +29,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.plainva.app" />
             </intent-filter>
+
+            <!-- Share target (package J): plain text from any app lands as a
+                 captured note (ShareTargetPlugin buffers, JS polls on resume). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- Static launcher shortcuts (package J): new note / today. -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
         <provider

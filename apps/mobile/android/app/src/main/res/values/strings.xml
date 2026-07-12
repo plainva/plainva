@@ -4,4 +4,6 @@
     <string name="title_activity_main">Plainva</string>
     <string name="package_name">com.plainva.app</string>
     <string name="custom_url_scheme">com.plainva.app</string>
+    <string name="shortcut_new_note">New note</string>
+    <string name="shortcut_today">Today</string>
 </resources>

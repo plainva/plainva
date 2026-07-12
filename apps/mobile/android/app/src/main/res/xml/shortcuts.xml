@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static launcher shortcuts (M3E package J): both fire VIEW intents on the
+     app's own scheme; the JS appUrlOpen handler routes them (App.tsx). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new-note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_note">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app://shortcut/new-note"
+            android:targetPackage="com.plainva.app"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="today"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_today">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app://shortcut/today"
+            android:targetPackage="com.plainva.app"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+</shortcuts>

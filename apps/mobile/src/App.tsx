@@ -50,6 +50,8 @@ import {
   type NavState,
   type TabScreenId,
 } from "./navigation";
+import { consumePendingShare } from "./services/shareTarget";
+import { haptics } from "./services/haptics";
 import { isoOf } from "./lib/dates";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
@@ -100,6 +102,30 @@ export default function App() {
   useEffect(() => {
     navRef.current = nav;
   }, [nav]);
+  const vaultRef = useRef(vault);
+  useEffect(() => {
+    vaultRef.current = vault;
+  }, [vault]);
+  // Package J intents: the [] URL effect and the resume poll only park them
+  // here; the PendingIntentRunner below (rendered after the vault guard)
+  // executes them with the real capture/openDaily closures.
+  const [pendingShortcut, setPendingShortcut] = useState<string | null>(null);
+  const [pendingShare, setPendingShare] = useState<{ text: string; subject: string } | null>(null);
+  useEffect(() => {
+    const onShortcut = (e: Event) => setPendingShortcut(String((e as CustomEvent).detail?.which ?? ""));
+    const onPollShare = () => {
+      void consumePendingShare().then((share) => {
+        if (share) setPendingShare(share);
+      });
+    };
+    window.addEventListener("m-shortcut", onShortcut);
+    window.addEventListener("m-poll-share", onPollShare);
+    onPollShare(); // cold start: the stashed intent is already waiting
+    return () => {
+      window.removeEventListener("m-shortcut", onShortcut);
+      window.removeEventListener("m-poll-share", onPollShare);
+    };
+  }, []);
 
   useEffect(() => {
     void getMobileVault().then((v) => {
@@ -165,21 +191,34 @@ export default function App() {
   useEffect(() => {
     let removed = false;
     let handle: { remove: () => Promise<void> } | undefined;
-    void CapApp.addListener("appUrlOpen", ({ url }) => {
+    const routeAppUrl = (url: string) => {
+      // Launcher shortcuts (package J) ride the app scheme.
+      if (url.startsWith("com.plainva.app://shortcut/")) {
+        const which = url.split("/").pop();
+        window.dispatchEvent(new CustomEvent("m-shortcut", { detail: { which } }));
+        return;
+      }
       void handleOAuthRedirect(url);
+    };
+    void CapApp.addListener("appUrlOpen", ({ url }) => {
+      routeAppUrl(url);
     }).then((h) => {
       if (removed) void h.remove();
       else handle = h;
     });
     void CapApp.getLaunchUrl().then((r) => {
-      if (r?.url) void handleOAuthRedirect(r.url);
+      if (r?.url) routeAppUrl(r.url);
     });
     // Returning to the app pulls a fresh full listing: WebView timers pause
     // in the background, so without this a user could wait forever for new
     // remote files (they only arrive through listings).
     let stateHandle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("appStateChange", ({ isActive }) => {
-      if (isActive) syncNow();
+      if (isActive) {
+        syncNow();
+        // Share target (package J): a warm share foregrounds the app.
+        window.dispatchEvent(new CustomEvent("m-poll-share"));
+      }
       // Going to the background: Android may kill the process without any
       // further callback (M1) — flush pending editor saves NOW, best-effort.
       else void import("./services/vaultService").then(({ noteSaver }) => noteSaver.flushAll()).catch(() => {});
@@ -261,6 +300,23 @@ export default function App() {
     void vaultOps.ensureDailyNote(vault, path, title).then(() => openNote(path));
   };
 
+  const runPendingIntents = (
+    <PendingIntentRunner
+      onCapture={capture}
+      onCaptureShared={(text, subject) => {
+        const title = subject.trim() || text.split("\n")[0].slice(0, 60).trim() || "Note";
+        void vaultOps
+          .createNoteFromTemplate(vault, getMobileSettings().inboxFolder, title, text)
+          .then((path) => setNav((s2) => pushCapturedNote(s2, slots, path)));
+      }}
+      onOpenToday={() => openDaily(isoOf(new Date()))}
+      pendingShare={pendingShare}
+      pendingShortcut={pendingShortcut}
+      setPendingShare={setPendingShare}
+      setPendingShortcut={setPendingShortcut}
+    />
+  );
+
   const noteOpen = top?.kind === "note";
 
   const finishOnboarding = (connectCloud: boolean) => {
@@ -312,6 +368,7 @@ export default function App() {
 
   return (
     <div className="m-app">
+      {runPendingIntents}
       {!onboarded && (
         <div className="m-onboarding">
           <h1>{t("mobile.onboardingTitle")}</h1>
@@ -469,7 +526,7 @@ export default function App() {
       {!noteOpen && (
         <nav aria-label="Tabs" className="m-tabbar">
           {slots.slice(0, 2).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => setNav((s) => tapTab(s, id))} />
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
           ))}
           <button
             aria-label={t("mobile.newNote")}
@@ -479,7 +536,7 @@ export default function App() {
             <Plus size={24} />
           </button>
           {slots.slice(2).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => setNav((s) => tapTab(s, id))} />
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
           ))}
         </nav>
       )}
@@ -584,4 +641,38 @@ function SyncIndicator() {
       )}
     </span>
   );
+}
+
+/** Executes parked package-J intents once the vault closures exist (hook-rule safe). */
+function PendingIntentRunner({
+  pendingShortcut,
+  pendingShare,
+  setPendingShortcut,
+  setPendingShare,
+  onCapture,
+  onCaptureShared,
+  onOpenToday,
+}: {
+  pendingShortcut: string | null;
+  pendingShare: { text: string; subject: string } | null;
+  setPendingShortcut: (v: string | null) => void;
+  setPendingShare: (v: { text: string; subject: string } | null) => void;
+  onCapture: () => void;
+  onCaptureShared: (text: string, subject: string) => void;
+  onOpenToday: () => void;
+}) {
+  useEffect(() => {
+    if (!pendingShortcut) return;
+    setPendingShortcut(null);
+    if (pendingShortcut === "new-note") onCapture();
+    else if (pendingShortcut === "today") onOpenToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingShortcut]);
+  useEffect(() => {
+    if (!pendingShare) return;
+    setPendingShare(null);
+    onCaptureShared(pendingShare.text, pendingShare.subject);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingShare]);
+  return null;
 }
