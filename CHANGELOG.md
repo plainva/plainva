@@ -7,6 +7,40 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-07-12
+
+A polish release: a batch of editor, sidebar and sync-settings refinements.
+
+### Added
+
+- **Rich-text copy.** Copying from the live preview now also places HTML on the
+  clipboard, so pasting into Google Docs, Word or other rich-text targets keeps
+  the formatting (bold, headings, lists, links, …); plain-text targets still get
+  clean text (#1).
+- **Daily-note template picker.** When a template folder is set, the daily-note
+  template is chosen from a dropdown of that folder's files instead of typing the
+  file name (#4).
+
+### Changed
+
+- **The sidebar remembers its shape.** The file tree keeps its expanded folders
+  when you switch to the Tags or Bookmarks tab and back — no more collapsing and
+  jumping around (#3).
+- **The cloud folder is picker-only.** For a connected Google Drive / OneDrive /
+  Dropbox vault, the sync folder is set through the folder picker and can no
+  longer be changed by typing a path, so a synced vault can't be re-pointed by
+  accident (#2).
+
+### Fixed
+
+- **Graph suggestions link live.** Accepting a link suggestion in the context
+  graph now shows the `[[link]]` in the open note immediately, without reopening
+  it (#6).
+- **A narrow sidebar no longer squashes folder icons.** Folder rows keep their
+  icon size when the sidebar is made very narrow; only the label truncates (#5).
+- **The content font applies instantly.** A changed content font or size now
+  takes effect the moment you pick it, even if saving the setting is slow (#7).
+
 ## [0.2.1] — 2026-07-11
 
 A small follow-up to 0.2.0, driven by the first macOS user reports on the new
