@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Calendar, ChevronLeft, ChevronRight, FileText, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, FileText, Trash2 } from "lucide-react";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -10,10 +10,10 @@ import { confirmDeleteFile } from "../lib/deleteFile";
 import type { MobileVault } from "../services/vaultService";
 
 /**
- * Today tab as a day view (R3.5, maintainer question "what is this tab
- * supposed to do?"): the strip SELECTS a day (today preselected); below it
- * sit that day's daily note (open or create) and the notes edited on that
- * day (index mtime window). Nothing opens on a strip tap anymore.
+ * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
+ * (today preselected, dots mark days with an existing daily note); below it
+ * a daily-note card (template + folder line, open/create) and the notes
+ * edited on that day (index mtime window, folder · time meta).
  */
 export function TodayScreen({
   vault,
@@ -38,10 +38,12 @@ export function TodayScreen({
   const todayIso = isoOf(new Date());
   const [selectedIso, setSelectedIso] = useState(todayIso);
   const [dailyExists, setDailyExists] = useState(false);
-  const [edited, setEdited] = useState<Array<{ path: string; title: string }>>([]);
+  const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
+  const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
   const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
   const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
-  const dailyPath = `${getMobileSettings().dailyFolder}/${selectedIso}.md`;
+  const settings = getMobileSettings();
+  const dailyPath = `${settings.dailyFolder}/${selectedIso}.md`;
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 
@@ -52,6 +54,23 @@ export function TodayScreen({
       ?.querySelector(".is-selected")
       ?.scrollIntoView({ inline: "center", block: "nearest" });
   }, []);
+
+  // One folder listing marks every strip day that has a daily note (mockup dots).
+  useEffect(() => {
+    let stale = false;
+    void vault.files
+      .listDir(settings.dailyFolder)
+      .then((entries) => {
+        if (stale) return;
+        setDailyDays(new Set(entries.filter((e) => !e.isDirectory).map((e) => e.name.replace(/\.md$/, ""))));
+      })
+      .catch(() => {
+        if (!stale) setDailyDays(new Set());
+      });
+    return () => {
+      stale = true;
+    };
+  }, [vault, settings.dailyFolder, bump]);
 
   useEffect(() => {
     let stale = false;
@@ -72,16 +91,29 @@ export function TodayScreen({
   }, [vault, selectedIso, dailyPath, bump]);
 
   const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
+  const longDate = new Intl.DateTimeFormat(i18nInstance.language, { day: "numeric", month: "long", year: "numeric" });
+  const timeOf = new Intl.DateTimeFormat(i18nInstance.language, { hour: "2-digit", minute: "2-digit" });
+  const [sy, sm, sd] = selectedIso.split("-").map(Number);
+  const selectedDate = new Date(sy, sm - 1, sd);
+  const folderOf = (path: string) => {
+    const dir = path.split("/").slice(0, -1).join("/");
+    return dir || t("mobile.vaultRoot");
+  };
+
   return (
     <div className="m-page" ref={ptrRef}>
       {ptrIndicator}
-      {onBack && (
+      {onBack ? (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
             <ChevronLeft size={22} />
           </button>
           <h1>{t("mobile.tabToday")}</h1>
         </header>
+      ) : (
+        <div className="m-appbar">
+          <h1 className="m-appbar-title m-appbar-title--sub">{t("mobile.tabToday")}</h1>
+        </div>
       )}
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {
@@ -93,19 +125,25 @@ export function TodayScreen({
             <button aria-pressed={iso === selectedIso} className={cls} key={iso} onClick={() => setSelectedIso(iso)}>
               <span className="m-datestrip-wd">{weekday.format(d)}</span>
               <span className="m-datestrip-num">{d.getDate()}</span>
+              {dailyDays.has(iso) ? <span className="m-datestrip-dot" /> : <span className="m-datestrip-dot is-off" />}
             </button>
           );
         })}
       </div>
 
-      <button className="m-row" onClick={() => onOpenDate(selectedIso)}>
-        {dailyExists ? <Calendar className="m-accent" size={18} /> : <Plus className="m-accent" size={18} />}
-        <span>
-          {dailyExists ? t("mobile.todayOpenDaily") : t("mobile.todayCreateDaily")}
-          <span className="m-soon"> · {selectedIso}</span>
-        </span>
-        <ChevronRight className="m-chevron" size={18} />
-      </button>
+      <div className="m-bigcard">
+        <h4>
+          {t("mobile.todayDailyCard")} · {longDate.format(selectedDate)}
+        </h4>
+        <p>
+          {settings.dailyTemplate
+            ? `${t("mobile.todayFromTemplate", { name: settings.dailyTemplate.replace(/\.md$/, "") })} · ${t("mobile.todayInFolder", { folder: settings.dailyFolder })}`
+            : t("mobile.todayInFolder", { folder: settings.dailyFolder })}
+        </p>
+        <button className="m-btn m-btn--tonal" onClick={() => onOpenDate(selectedIso)}>
+          {dailyExists ? t("mobile.open") : t("mobile.create")}
+        </button>
+      </div>
 
       <p className="m-sectionlabel">{t("mobile.todayEdited")}</p>
       {edited.length === 0 ? (
@@ -122,8 +160,13 @@ export function TodayScreen({
             onPointerLeave={rowPress.clear}
             onPointerUp={rowPress.clear}
           >
-            <FileText size={18} />
-            <span>{n.title}</span>
+            <FileText className="m-accent" size={18} />
+            <span className="m-row-txt">
+              <b>{n.title}</b>
+              <span>
+                {folderOf(n.path)} · {timeOf.format(new Date(n.mtime_local))}
+              </span>
+            </span>
           </button>
         ))
       )}

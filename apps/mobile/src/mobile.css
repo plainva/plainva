@@ -1571,3 +1571,268 @@ textarea {
   font-size: 0.9rem;
   font-weight: 600;
 }
+
+/* Hailing sheet: collected LCARS frequency chips (D5 switcher). */
+.m-hail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-main);
+}
+.m-hail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 2px 0 10px;
+}
+.m-hail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex: none;
+}
+
+/* ===== M3E mockup polish (note screen + context sheet) ===== */
+
+/* Segmented control (mockup .seg): a filled pill track; the active segment
+ * pops out white-on-track with a soft shadow. Scrolls when five segments
+ * outgrow the sheet width. */
+.m-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 12px;
+  background: var(--m-surface-container-high);
+  border-radius: var(--radius-pill);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.m-seg::-webkit-scrollbar {
+  display: none;
+}
+.m-seg-item {
+  flex: 1 0 auto;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.m-seg-item.is-on {
+  background: var(--m-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-1);
+}
+
+/* Property chips under the note title (mockup 2): tappable, open the sheet. */
+.m-props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 12px 8px;
+}
+.m-prop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--m-surface-container);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+.m-prop-chip.is-tag {
+  color: var(--m-primary);
+  background: var(--m-secondary-container);
+}
+
+/* Floating pencil FAB (mockups 1/2): 52px, above the tab bar on roots and
+ * near the bottom edge on the note screen (no tab bar there). */
+.m-fab-float {
+  position: fixed;
+  right: 16px;
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: var(--m-primary);
+  color: var(--m-on-primary);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-2);
+  z-index: 30;
+}
+.m-fab-float--above-tabs {
+  bottom: calc(96px + env(safe-area-inset-bottom));
+}
+.m-fab-float:active {
+  transform: scale(0.96);
+}
+
+/* Tonal icon button (mockup .ibtn.tonal — the editing check). */
+.m-iconbtn.is-tonal {
+  background: var(--m-secondary-container);
+  color: var(--m-on-secondary-container);
+}
+
+/* Version rows: size-delta badge (mockup 8 +92/−12). */
+.m-delta {
+  font-size: var(--text-xs);
+  font-weight: 750;
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+}
+.m-delta.is-plus {
+  background: var(--callout-success-tint, var(--m-secondary-container));
+  color: var(--text-main);
+}
+.m-delta.is-minus {
+  background: var(--callout-red-tint, var(--m-state-pressed));
+  color: var(--text-main);
+}
+
+/* Suggestion card in the context-graph segment (mockup 4). */
+.m-suggest {
+  margin: 10px 4px 4px;
+  border: 1px solid var(--m-outline);
+  border-radius: var(--radius-md);
+  background: var(--m-surface);
+  padding: 10px 12px;
+}
+.m-suggest-eyebrow {
+  margin: 0 0 3px;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--callout-warning-fg, var(--text-muted));
+}
+.m-suggest-text {
+  margin: 0 0 8px;
+  font-size: var(--text-sm);
+  color: var(--text-main);
+}
+.m-suggest-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.m-btn--ghost {
+  background: transparent;
+  color: var(--m-primary);
+}
+
+/* Edit toolbar: the slash command is the emphasized primary slot (mockup 3). */
+.m-edit-toolbar button.is-primary {
+  background: var(--m-primary);
+  color: var(--m-on-primary);
+  border-radius: var(--radius-sm);
+}
+
+/* ===== Home / Today large app bars (mockups 1 + 6) ===== */
+
+/* The home root pins its large app bar; only the body below scrolls. */
+.m-page--home {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.m-page--home .m-browse-body {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 0 16px calc(150px + env(safe-area-inset-bottom));
+}
+
+.m-appbar {
+  flex: none;
+  padding: 10px 18px 12px;
+}
+.m-appbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+}
+.m-appbar-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.m-appbar-title {
+  margin: 2px 0 10px;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-main);
+}
+.m-appbar-title--sub {
+  font-size: 23px;
+  margin: 6px 0 4px;
+}
+
+/* Two-line list rows (mockup .lrow): bold title + muted meta line. */
+.m-row-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+}
+.m-row-txt b {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-row-txt > span {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+/* Daily-note big card (mockup 6). */
+.m-bigcard {
+  margin: 6px 16px 4px;
+  border-radius: var(--radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-outline);
+  padding: 14px 15px 13px;
+}
+.m-bigcard h4 {
+  margin: 0 0 3px;
+  font-size: var(--text-md);
+  font-weight: 750;
+}
+.m-bigcard p {
+  margin: 0 0 10px;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+/* Date-strip dots: a filled dot marks days with an existing daily note. */
+.m-datestrip-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--m-primary);
+  margin: 3px auto 0;
+}
+.m-datestrip-dot.is-off {
+  background: transparent;
+}
+.m-datestrip-day.is-selected .m-datestrip-dot {
+  background: var(--m-on-primary);
+}

@@ -12,13 +12,14 @@ export async function confirmDeleteFile(
   path: string,
   title: string,
   t: TFunction,
-): Promise<void> {
+): Promise<boolean> {
   const ok = await mConfirm({
     title: t("common.delete"),
     message: t("mobile.deleteNoteConfirm", { name: title }),
     danger: true,
     confirmLabel: t("common.delete"),
   });
-  if (!ok) return;
+  if (!ok) return false;
   await vaultOps.remove(vault, path);
+  return true;
 }

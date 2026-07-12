@@ -32,7 +32,8 @@ class DocumentHeaderWidget extends WidgetType {
   constructor(
     readonly meta: PlainvaDocMeta,
     readonly texts: DocumentHeaderTexts,
-    readonly cb: DocumentHeaderCallbacks
+    readonly cb: DocumentHeaderCallbacks,
+    readonly showAddActions: boolean
   ) {
     super();
   }
@@ -95,8 +96,9 @@ class DocumentHeaderWidget extends WidgetType {
       });
       actions.appendChild(btn);
     };
-    if (!this.meta.icon) addAction(`＋ ${this.texts.addIcon}`, this.cb.onPickIcon);
-    if (!this.meta.headerColor) addAction(`＋ ${this.texts.addColor}`, this.cb.onPickColor);
+    // Mobile hides the add buttons — icon/stripe live in the note's ⋮ menu there.
+    if (this.showAddActions && !this.meta.icon) addAction(`＋ ${this.texts.addIcon}`, this.cb.onPickIcon);
+    if (this.showAddActions && !this.meta.headerColor) addAction(`＋ ${this.texts.addColor}`, this.cb.onPickColor);
     if (actions.childElementCount > 0) inner.appendChild(actions);
 
     root.appendChild(inner);
@@ -131,13 +133,14 @@ interface HeaderFieldValue {
 function buildValue(
   state: EditorState,
   texts: DocumentHeaderTexts,
-  cb: DocumentHeaderCallbacks
+  cb: DocumentHeaderCallbacks,
+  showAddActions: boolean
 ): HeaderFieldValue {
   const fmText = frontmatterTextOf(state);
   const meta = plainvaMetaFromBlock(fmText);
   const deco = Decoration.set([
     Decoration.widget({
-      widget: new DocumentHeaderWidget(meta, texts, cb),
+      widget: new DocumentHeaderWidget(meta, texts, cb, showAddActions),
       side: -1,
       block: true,
     }).range(0),
@@ -191,12 +194,14 @@ const stripeFullBleed = ViewPlugin.fromClass(
 export function documentHeaderExtension(
   enabled: boolean,
   texts: DocumentHeaderTexts,
-  cb: DocumentHeaderCallbacks
+  cb: DocumentHeaderCallbacks,
+  opts?: { showAddActions?: boolean }
 ): Extension {
   if (!enabled) return [];
+  const showAddActions = opts?.showAddActions !== false;
   const field = StateField.define<HeaderFieldValue>({
     create(state) {
-      return buildValue(state, texts, cb);
+      return buildValue(state, texts, cb, showAddActions);
     },
     update(value, tr) {
       if (!tr.docChanged) return value;
@@ -204,7 +209,7 @@ export function documentHeaderExtension(
       // every keystroke must not re-parse YAML or recreate the widget.
       const fmText = frontmatterTextOf(tr.state);
       if (fmText === value.fmText) return value;
-      return buildValue(tr.state, texts, cb);
+      return buildValue(tr.state, texts, cb, showAddActions);
     },
     provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
   });

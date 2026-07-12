@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Bookmark,
+  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Folder,
   FolderInput,
   FolderPlus,
+  MoreVertical,
   Pencil,
   Search,
   Trash2,
@@ -20,10 +22,23 @@ import {
 } from "lucide-react";
 import { collapseContext, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
+import { getMobileSettings } from "../services/mobileSettings";
+import { SyncIndicator } from "../components/SyncIndicator";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import i18n from "@plainva/ui/i18n";
+
+function relTimeAt(now: number, ts?: number): string | null {
+  if (!ts) return null;
+  const rtf = new Intl.RelativeTimeFormat(i18n.language, { numeric: "auto" });
+  const mins = Math.round((ts - now) / 60000);
+  if (mins > -60) return rtf.format(mins, "minute");
+  const hours = Math.round(mins / 60);
+  if (hours > -24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -38,6 +53,9 @@ export function BrowseScreen({
   onOpenNote,
   onOpenBase,
   onOpenSearch,
+  homeVaultName,
+  onOpenMore,
+  onNewNote,
 }: {
   vault: MobileVault;
   folder: string;
@@ -48,10 +66,15 @@ export function BrowseScreen({
   onOpenBase: (path: string) => void;
   /** Home head (B3): the root shows a search pill that opens the search overlay. */
   onOpenSearch?: () => void;
+  /** Vault name for the large home app bar (mockup 1). */
+  homeVaultName?: string;
+  onOpenMore?: () => void;
+  /** Pencil FAB: create + open a new note. */
+  onNewNote?: () => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
-  const [recent, setRecent] = useState<Array<{ path: string; title: string }>>([]);
+  const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
   const [marks, setMarks] = useState<string[]>([]);
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
@@ -85,7 +108,17 @@ export function BrowseScreen({
       // (nothing opened yet, but synced files exist).
       void vaultOps.getRecents(vault, 8).then(async (r) => {
         const list = r.length > 0 ? r : await vaultOps.recent(vault, 4);
-        if (!stale) setRecent(list);
+        // Relative-time labels are computed here (effects may read the clock;
+        // render must stay pure for the React compiler).
+        const now = Date.now();
+        if (!stale)
+          setRecent(
+            list.map((e) => ({
+              path: e.path,
+              title: e.title,
+              rel: relTimeAt(now, (e as { openedAt?: number }).openedAt) ?? undefined,
+            })),
+          );
       });
       void vaultOps.getBookmarks(vault).then((b) => {
         if (!stale) setMarks(b.slice(0, 8));
@@ -101,6 +134,13 @@ export function BrowseScreen({
       stale = true;
     };
   }, [vault, folder, bump]);
+
+  const caroIcon = (p: string) => {
+    if (/\.base$/i.test(p)) return <Database size={15} />;
+    const daily = getMobileSettings().dailyFolder;
+    if (p.startsWith(`${daily}/`)) return <CalendarDays size={15} />;
+    return <FileText size={15} />;
+  };
 
   const noteRow = (n: { path: string; title: string }) => {
     const conflict = isConflictCopyPath(n.path);
@@ -283,9 +323,32 @@ export function BrowseScreen({
     })();
   };
 
+  const isHome = !folder && !onBack;
   return (
-    <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
+    <div className={isHome ? "m-page m-page--home" : "m-page"} ref={isHome ? undefined : ptrRef}>
+      {!isHome && ptrIndicator}
+      {isHome && (
+        <div className="m-appbar">
+          <div className="m-appbar-row">
+            <span className="m-appbar-eyebrow">{t("mobile.vaultEyebrow")}</span>
+            <span className="m-headactions">
+              <SyncIndicator />
+              {onOpenMore && (
+                <button aria-label={t("mobile.tabMore")} className="m-iconbtn" onClick={onOpenMore}>
+                  <MoreVertical size={20} />
+                </button>
+              )}
+            </span>
+          </div>
+          <h1 className="m-appbar-title">{homeVaultName ?? "Plainva"}</h1>
+          {onOpenSearch && (
+            <button className="m-searchpill" onClick={onOpenSearch}>
+              <Search size={17} />
+              <span>{t("mobile.searchHint")}</span>
+            </button>
+          )}
+        </div>
+      )}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
@@ -299,12 +362,8 @@ export function BrowseScreen({
           </span>
         </header>
       )}
-      {!folder && onOpenSearch && (
-        <button className="m-searchpill" onClick={onOpenSearch}>
-          <Search size={17} />
-          <span>{t("mobile.searchHint")}</span>
-        </button>
-      )}
+      <div className="m-browse-body" ref={isHome ? ptrRef : undefined}>
+      {isHome && ptrIndicator}
       {!folder && conflicts.length > 0 && (
         <button
           className="m-conflictbanner"
@@ -333,12 +392,10 @@ export function BrowseScreen({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onOpenNote(n.path)}
               >
-                <span className="m-caro-ic">
-                  <FileText size={15} />
-                </span>
+                <span className="m-caro-ic">{caroIcon(n.path)}</span>
                 <b>{n.title}</b>
                 <span className="m-caro-sub">
-                  {n.path.includes("/") ? n.path.slice(0, n.path.lastIndexOf("/")) : t("mobile.vaultRoot")}
+                  {n.rel ?? (n.path.includes("/") ? n.path.slice(0, n.path.lastIndexOf("/")) : t("mobile.vaultRoot"))}
                 </span>
               </button>
             ))}
@@ -363,10 +420,8 @@ export function BrowseScreen({
           </div>
         </>
       )}
-      {recent.length > 0 && (
-        <p className="m-sectionlabel">{t("mobile.folders")}</p>
-      )}
-      {listing.folders.map((name) => {
+      {listing.folders.length > 0 && <p className="m-sectionlabel">{t("mobile.folders")}</p>}
+      {listing.folders.map(({ name, count }) => {
         const full = folder ? `${folder}/${name}` : name;
         return (
           <button
@@ -385,7 +440,10 @@ export function BrowseScreen({
             onPointerUp={folderPress.clear}
           >
             <Folder className="m-accent" size={18} />
-            <span>{name}</span>
+            <span className="m-row-txt">
+              <b>{name}</b>
+              <span>{t("mobile.folderCount", { count })}</span>
+            </span>
             <ChevronRight className="m-chevron" size={18} />
           </button>
         );
@@ -439,6 +497,12 @@ export function BrowseScreen({
         </div>
       )}
 
+      </div>
+      {isHome && onNewNote && (
+        <button aria-label={t("mobile.quickNote")} className="m-fab-float m-fab-float--above-tabs" onClick={onNewNote}>
+          <Pencil size={22} />
+        </button>
+      )}
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>

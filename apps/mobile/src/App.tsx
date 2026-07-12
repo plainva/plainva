@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSyncExternalStore } from "react";
 import {
-  AlertTriangle,
   Calendar,
   Cloud,
   Database as DatabaseIcon,
@@ -13,9 +11,9 @@ import {
   Search,
   StickyNote,
 } from "lucide-react";
-import { getVaultTemplates, PlainvaLogo, scaffoldVaultTemplate } from "@plainva/ui";
+import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
-import { getSyncStatus, listProviderFolders, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
+import { listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
@@ -30,6 +28,8 @@ import { getMobileSettings, updateMobileSettings } from "./services/mobileSettin
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
+import { SyncIndicator } from "./components/SyncIndicator";
+import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { NoteScreen } from "./screens/NoteScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { TodayScreen } from "./screens/TodayScreen";
@@ -129,11 +129,13 @@ export default function App() {
     };
   }, []);
 
+  const [vaultName, setVaultName] = useState("Plainva");
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
       void startSyncIfConfigured(v);
     });
+    void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onChanged = () => setBump((n) => n + 1);
     // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
     // reboot the vault and restart sync for the newly active container.
@@ -145,6 +147,7 @@ export default function App() {
         setBump((n) => n + 1);
         void startSyncIfConfigured(v);
       });
+      void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
     // Live settings (R2.2): re-read the tab slots when settings change.
     const onSettings = () => {
@@ -278,7 +281,11 @@ export default function App() {
     void vaultOps.pushRecent(vault, path);
     push({ kind: "note", path });
   };
-  const openBase = (path: string) => push({ kind: "base", path });
+  const openBase = (path: string) => {
+    // Databases join the "Zuletzt" carousel too (mockup 1 shows one).
+    void vaultOps.pushRecent(vault, path);
+    push({ kind: "base", path });
+  };
 
   /** The folder the user is looking at (capture + new-folder context). */
   const browseFolder = () => {
@@ -424,23 +431,15 @@ export default function App() {
         </div>
       )}
 
-      {!top && (
+      {/* Home and Today carry their own large app bars (mockups 1/6). */}
+      {!top && nav.activeTab !== "notes" && nav.activeTab !== "today" && (
         <header className={scrolled ? "m-topbar is-scrolled" : "m-topbar"}>
           <span className="m-headtitle">
-            {nav.activeTab === "notes" ? <PlainvaLogo size={26} /> : <activeDef.icon size={22} />}
-            <h1>{nav.activeTab === "notes" ? "Plainva" : t(activeDef.labelKey)}</h1>
+            <activeDef.icon size={22} />
+            <h1>{t(activeDef.labelKey)}</h1>
             <SyncIndicator />
           </span>
           <span className="m-headactions">
-            {nav.activeTab === "notes" && (
-              <button
-                aria-label={t("mobile.newFolder")}
-                className="m-iconbtn"
-                onClick={() => createFolderPrompt(vault, "", t)}
-              >
-                <FolderPlus size={22} />
-              </button>
-            )}
             <button
               aria-label={t("mobile.tabSearch")}
               className="m-iconbtn"
@@ -502,6 +501,21 @@ export default function App() {
             key={top.path}
             onBack={pop}
             onOpenNote={openNote}
+            onRenamed={(newPath) =>
+              // Retarget the open entry in place — the note keeps its stack slot.
+              setNav((st) => {
+                if (st.overlay.length > 0) {
+                  const next = [...st.overlay];
+                  next[next.length - 1] = { ...next[next.length - 1], path: newPath };
+                  return { ...st, overlay: next };
+                }
+                const stack = st.stacks[st.activeTab];
+                if (stack.length === 0) return st;
+                const next = [...stack];
+                next[next.length - 1] = { ...next[next.length - 1], path: newPath };
+                return { ...st, stacks: { ...st.stacks, [st.activeTab]: next } };
+              })
+            }
             path={top.path}
             vault={vault}
           />
@@ -538,8 +552,11 @@ export default function App() {
           <BrowseScreen
             bump={bump}
             folder=""
+            homeVaultName={vaultName}
+            onNewNote={capture}
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
+            onOpenMore={() => push({ kind: "more", path: "" })}
             onOpenNote={openNote}
             onOpenSearch={() => push({ kind: "search", path: "" })}
             vault={vault}
@@ -671,19 +688,6 @@ function TabButton({
   );
 }
 
-function SyncIndicator() {
-  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
-  if (status.status === "off") return null;
-  return (
-    <span className="m-headicon">
-      {status.status === "error" ? (
-        <AlertTriangle className="m-error" size={16} />
-      ) : (
-        <Cloud className={status.status === "syncing" ? "m-chevron" : "m-accent"} size={16} />
-      )}
-    </span>
-  );
-}
 
 /** Executes parked package-J intents once the vault closures exist (hook-rule safe). */
 function PendingIntentRunner({

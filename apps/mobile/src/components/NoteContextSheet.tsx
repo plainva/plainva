@@ -1,52 +1,49 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Code, FileText, History, ListTree, Lock, Plus, Search } from "lucide-react";
+import { FileText, ListTree, Lock, Plus } from "lucide-react";
 import { inferType, parseHeadings, type Heading } from "@plainva/ui";
 import { mPrompt } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
 import { ContextGraph } from "./ContextGraph";
+import { VersionsPanel } from "./VersionsPanel";
 
-type Tab = "props" | "backlinks" | "outline" | "graph";
+export type ContextTab = "props" | "backlinks" | "outline" | "graph" | "history";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
 
 /**
- * Note context sheet (M3E package C1): the mobile counterpart of the desktop
- * right sidebar — one sheet with segments. Properties are EDITABLE here
- * (previously display-only): each row opens the shared .base cell editor and
- * commits through the same frontmatter updater; backlinks dedupe with an ×N
- * badge like the desktop panel; the outline jumps the editor to a heading.
- * The graph segment (package F) renders the shared context scene with
- * suggestion cards; version history opens through the action row (G).
+ * Note context sheet (M3E package C1 + mockup 4): the mobile counterpart of
+ * the desktop right sidebar — ONE sheet with a segmented control:
+ * Eigenschaften · Backlinks · Gliederung · Graph · Verlauf. Properties are
+ * EDITABLE (shared .base cell editor + frontmatter updater); backlinks dedupe
+ * with an ×N badge; the outline jumps the editor to a heading; the graph
+ * segment renders the shared context scene with suggestion cards; history
+ * embeds the versions panel (no stacked second sheet). File ACTIONS live in
+ * the note's ⋮ menu, not here.
  */
 export function NoteContextSheet({
   vault,
   path,
-  sourceMode,
+  initialTab = "props",
   onClose,
   onOpenNote,
   onJumpToLine,
-  onToggleSource,
-  onFind,
-  onVersions,
+  onRestored,
 }: {
   vault: MobileVault;
   path: string;
-  /** C4: current editor mode — the action row shows the mode it switches TO. */
-  sourceMode: boolean;
+  initialTab?: ContextTab;
   onClose: () => void;
   onOpenNote: (path: string) => void;
   onJumpToLine: (line: number) => void;
-  onToggleSource: () => void;
-  onFind: () => void;
-  /** Opens the version history sheet (package G). */
-  onVersions: () => void;
+  /** Reloads the editor after a version restore (package G). */
+  onRestored: () => void;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>("props");
+  const [tab, setTab] = useState<ContextTab>(initialTab);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number }>>([]);
   const [headings, setHeadings] = useState<Heading[]>([]);
@@ -107,17 +104,18 @@ export function NoteContextSheet({
         <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
           <div className="m-sheet-grip" />
           <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
-          <div className="m-viewpills">
+          <div className="m-seg">
             {(
               [
                 ["props", t("rightPanel.properties")],
                 ["backlinks", t("rightPanel.backlinks")],
                 ["outline", t("rightPanel.outline")],
                 ["graph", t("rightPanel.graph")],
-              ] as Array<[Tab, string]>
+                ["history", t("versions.title")],
+              ] as Array<[ContextTab, string]>
             ).map(([id, label]) => (
               <button
-                className={tab === id ? "m-viewpill is-active" : "m-viewpill"}
+                className={tab === id ? "m-seg-item is-on" : "m-seg-item"}
                 key={id}
                 onClick={() => setTab(id)}
               >
@@ -191,38 +189,9 @@ export function NoteContextSheet({
 
           {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
 
-          {/* Note actions (C4): mode toggle + in-note search, tab-independent. */}
-          <p className="m-sectionlabel m-sectionlabel--inset">{t("mobile.noteInfo")}</p>
-          <button
-            className="m-row"
-            onClick={() => {
-              onClose();
-              onToggleSource();
-            }}
-          >
-            <Code className="m-accent" size={18} />
-            <span>{sourceMode ? t("editor.livePreview") : t("editor.sourceMode")}</span>
-          </button>
-          <button
-            className="m-row"
-            onClick={() => {
-              onClose();
-              onFind();
-            }}
-          >
-            <Search className="m-accent" size={18} />
-            <span>{t("search.find")}</span>
-          </button>
-          <button
-            className="m-row"
-            onClick={() => {
-              onClose();
-              onVersions();
-            }}
-          >
-            <History className="m-accent" size={18} />
-            <span>{t("versions.title")}</span>
-          </button>
+          {tab === "history" && (
+            <VersionsPanel onDone={onClose} onRestored={onRestored} path={path} vault={vault} />
+          )}
         </div>
       </div>
       {edit && (

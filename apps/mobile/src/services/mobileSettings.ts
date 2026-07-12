@@ -40,6 +40,8 @@ interface MobileSettings {
   unlockedThemes: string[];
   /** Collected LCARS palette variant ids (D5). */
   unlockedThemeVariants: string[];
+  /** Theme active before an easter-egg theme took over (for the off toggle). */
+  themeBefore: string;
   /** Active variant per theme, e.g. { lcars: "engage" }. */
   themeVariants: Record<string, string>;
   /** Note content font size in px, 12–24 (D6; shared limits, issue #5). */
@@ -71,6 +73,7 @@ const DEFAULTS: MobileSettings = {
   unlockedThemes: [],
   unlockedThemeVariants: [],
   themeVariants: {},
+  themeBefore: "",
   contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
   motion: "system",
   backupIntervalSeconds: 120,

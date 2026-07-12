@@ -114,6 +114,9 @@ export interface EditorSessionConfig {
   i18n: I18nInstance;
   /** Fixed per session; a language switch rebuilds the session (host effect). */
   headerTexts: DocumentHeaderTexts;
+  /** Show the ＋-add buttons in the document header (desktop). Mobile hides
+   * them — icon/stripe are edited from the note's ⋮ menu. Default true. */
+  headerAddActions?: boolean;
   deps: { readonly current: EditorSessionDeps };
   /**
    * Read-only sessions (mobile read-first mode) start with `editable: false`.
@@ -178,10 +181,15 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       isLive ? [] : [lineNumbers(), highlightActiveLineGutter()],
       frontmatterHidePlugin(isLive),
       // Document header (W3): stripe + icon widget above the hidden frontmatter.
-      documentHeaderExtension(isLive, cfg.headerTexts, {
-        onPickIcon: (anchor) => deps.current.onPickIcon(anchor),
-        onPickColor: (anchor) => deps.current.onPickColor(anchor),
-      }),
+      documentHeaderExtension(
+        isLive,
+        cfg.headerTexts,
+        {
+          onPickIcon: (anchor) => deps.current.onPickIcon(anchor),
+          onPickColor: (anchor) => deps.current.onPickColor(anchor),
+        },
+        { showAddActions: cfg.headerAddActions !== false }
+      ),
       tableField(isLive),
       // Math + mermaid render in place in LIVE mode only (P3.4 + Nachfass);
       // source mode stays raw markdown. Caret inside = raw, like every widget.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
-import { LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput, getThemeDef } from "@plainva/ui";
+import { DEFAULT_THEME_NAME, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput, getThemeDef } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 
 /**
@@ -31,11 +31,13 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
     }
     const quote = STAR_TREK_QUOTES.find((q) => q.id === id)!;
     const cur = getMobileSettings();
+    // Remember the theme LCARS/win95 replaces so the off toggle can return to it.
+    const themeBefore = cur.themeName === "lcars" || cur.themeName === "win95" ? cur.themeBefore : cur.themeName;
     if (quote.unlocksTheme) {
       // Whole-theme unlock (win95): activate it, remember it in the picker.
       const known = cur.unlockedThemes.includes(quote.unlocksTheme);
       const unlockedThemes = known ? cur.unlockedThemes : [...cur.unlockedThemes, quote.unlocksTheme];
-      void updateMobileSettings({ unlockedThemes, themeName: quote.unlocksTheme }).then(onChanged);
+      void updateMobileSettings({ unlockedThemes, themeBefore, themeName: quote.unlocksTheme }).then(onChanged);
       const def = getThemeDef(quote.unlocksTheme);
       setFeedback(
         known
@@ -50,6 +52,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
       void updateMobileSettings({
         unlockedThemes,
         unlockedThemeVariants,
+        themeBefore,
         themeVariants: { ...cur.themeVariants, lcars: id },
         themeName: "lcars",
       }).then(onChanged);
@@ -87,6 +90,55 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
         <p className="m-hint m-hint--inset">
           <Radio size={13} style={{ verticalAlign: -2 }} /> {t("hailing.collection", { count: collected, total: LCARS_VARIANTS.length })}
         </p>
+        {collected > 0 && (
+          <>
+            <label className="m-hail-toggle">
+              <input
+                checked={s.themeName === "lcars"}
+                onChange={() => {
+                  const cur = getMobileSettings();
+                  if (cur.themeName === "lcars") {
+                    void updateMobileSettings({ themeName: cur.themeBefore || DEFAULT_THEME_NAME }).then(onChanged);
+                  } else {
+                    const themeBefore = cur.themeName === "win95" ? cur.themeBefore : cur.themeName;
+                    void updateMobileSettings({
+                      themeBefore,
+                      themeName: "lcars",
+                      themeVariants: { ...cur.themeVariants, lcars: cur.themeVariants.lcars ?? cur.unlockedThemeVariants[0] },
+                    }).then(onChanged);
+                  }
+                }}
+                type="checkbox"
+              />
+              {t("hailing.lcarsActive")}
+            </label>
+            <div className="m-hail-chips">
+              {LCARS_VARIANTS.filter((v) => s.unlockedThemeVariants.includes(v.id)).map((v) => {
+                const active = s.themeName === "lcars" && (s.themeVariants.lcars ?? "make-it-so") === v.id;
+                return (
+                  <button
+                    className={active ? "m-chip is-on" : "m-chip"}
+                    key={v.id}
+                    onClick={() => {
+                      const cur = getMobileSettings();
+                      const themeBefore =
+                        cur.themeName === "lcars" || cur.themeName === "win95" ? cur.themeBefore : cur.themeName;
+                      void updateMobileSettings({
+                        themeBefore,
+                        themeName: "lcars",
+                        themeVariants: { ...cur.themeVariants, lcars: v.id },
+                      }).then(onChanged);
+                    }}
+                    style={{ borderColor: v.accent }}
+                  >
+                    <span className="m-hail-dot" style={{ background: v.accent }} />
+                    {t(`themes.variants.${v.id}`, { defaultValue: v.label })}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <div className="m-btnrow">
           <button className="m-btn" onClick={onClose}>
             {t("common.close", { defaultValue: "Schließen" })}

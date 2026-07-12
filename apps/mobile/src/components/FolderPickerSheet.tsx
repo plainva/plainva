@@ -26,7 +26,7 @@ export function FolderPickerSheet({
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, path).then((l) => {
-      if (!stale) setFolders(l.folders);
+      if (!stale) setFolders(l.folders.map((x) => x.name));
     });
     return () => {
       stale = true;

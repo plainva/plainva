@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, X } from "lucide-react";
 import {
   GraphService,
   type GraphSuggestion,
@@ -131,35 +130,31 @@ export function ContextGraph({
       <div className="m-contextgraph">
         <canvas aria-label={t("rightPanel.graph")} ref={canvasRef} />
       </div>
-      {suggestions.length > 0 && (
-        <>
-          <p className="m-sectionlabel m-sectionlabel--inset">{t("graph.suggestions")}</p>
-          {suggestions.map((s, idx) => (
-            <div className="m-row m-row--split" key={`${s.source}-${s.target}-${idx}`}>
-              <button className="m-row-main" onClick={() => onOpenNote(s.target)}>
-                <span>
-                  {titleOf(s.source === path ? s.target : s.source)}
-                  <span className="m-soon"> · {t(REASON_KEY[s.reason])}</span>
-                </span>
+      {suggestions.length > 0 &&
+        suggestions.map((s, idx) => (
+          <div className="m-suggest" key={`${s.source}-${s.target}-${idx}`}>
+            <p className="m-suggest-eyebrow">{t("graph.suggestions")}</p>
+            <p className="m-suggest-text">
+              {titleOf(s.source === path ? s.target : s.source)}
+              <b> [[{titleOf(s.target)}]]</b>
+              <span className="m-soon"> · {t(REASON_KEY[s.reason])}</span>
+            </p>
+            <div className="m-suggest-actions">
+              <button className="m-btn m-btn--tonal" onClick={() => accept(s)}>
+                {t("graph.acceptSuggestion")}
               </button>
               <button
-                aria-label={t("graph.acceptSuggestion")}
-                className="m-iconbtn"
-                onClick={() => accept(s)}
-              >
-                <Check className="m-accent" size={18} />
-              </button>
-              <button
-                aria-label={t("graph.dismissSuggestion")}
-                className="m-iconbtn"
+                className="m-btn m-btn--ghost"
                 onClick={() => setSuggestions((prev) => prev.filter((x) => x !== s))}
               >
-                <X size={18} />
+                {t("graph.dismissSuggestion")}
+              </button>
+              <button className="m-btn m-btn--ghost" onClick={() => onOpenNote(s.target)}>
+                {t("mobile.sheetOpen")}
               </button>
             </div>
-          ))}
-        </>
-      )}
+          </div>
+        ))}
     </>
   );
 }

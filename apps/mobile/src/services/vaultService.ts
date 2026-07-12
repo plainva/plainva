@@ -280,7 +280,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 }
 
 export interface FolderListing {
-  folders: string[];
+  folders: Array<{ name: string; count: number }>;
   notes: Array<{ path: string; title: string }>;
   /** Read-only databases (M4): .base files in this folder. */
   bases: Array<{ path: string; title: string }>;
@@ -291,10 +291,25 @@ const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "")
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
     const entries = await v.files.listDir(folder);
-    const folders = entries
+    // Note counts per subfolder (mockup 1 "24 Notizen"): one shallow listing
+    // each — root folders are few, and listDir is a cheap sandbox call.
+    const countNotesIn = async (path: string): Promise<number> => {
+      try {
+        return (await v.files.listDir(path)).filter((e) => !e.isDirectory && /\.md$/i.test(e.name)).length;
+      } catch {
+        return 0;
+      }
+    };
+    const folderNames = entries
       .filter((e) => e.isDirectory && !e.name.startsWith("."))
       .map((e) => e.name)
       .sort();
+    const folders = await Promise.all(
+      folderNames.map(async (name) => ({
+        name,
+        count: await countNotesIn(folder ? `${folder}/${name}` : name),
+      })),
+    );
     const notes = entries
       .filter((e) => !e.isDirectory && /\.md$/i.test(e.name))
       .map((e) => ({ path: e.path, title: noteTitle(e.path) }))
@@ -447,14 +462,18 @@ export const vaultOps = {
      shared contract with the desktop in @plainva/ui). mtime `recent()` above
      stays the first-run fallback: it surfaces synced files, not opens. ---- */
 
-  async getRecents(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
+  async getRecents(
+    v: MobileVault,
+    limit: number,
+  ): Promise<Array<{ path: string; title: string; openedAt?: number }>> {
     try {
       const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
-      const out: Array<{ path: string; title: string }> = [];
+      const out: Array<{ path: string; title: string; openedAt?: number }> = [];
       for (const e of entries) {
         if (out.length >= limit) break;
         // Deleted/renamed notes silently fall out of the strip.
-        if (await v.adapter.exists(e.path)) out.push({ path: e.path, title: noteTitle(e.path) });
+        if (await v.adapter.exists(e.path))
+          out.push({ path: e.path, title: noteTitle(e.path), openedAt: e.openedAt });
       }
       return out;
     } catch {

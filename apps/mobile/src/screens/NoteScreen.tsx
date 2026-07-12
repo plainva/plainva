@@ -1,37 +1,62 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Check, ChevronLeft, Info, Pencil } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  Code,
+  History,
+  MoreVertical,
+  Paintbrush,
+  Pencil,
+  Search,
+  SlidersHorizontal,
+  Smile,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
+import { mPrompt } from "../services/mobileDialogs";
+import { confirmDeleteFile } from "../lib/deleteFile";
 import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal";
-import { NoteContextSheet } from "../components/NoteContextSheet";
-import { VersionsSheet } from "../components/VersionsSheet";
+import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
+import { RowActionSheet } from "../components/RowActionSheet";
 import { EditorHost } from "../EditorHost";
 
-/** Note view (extracted from App.tsx in R2): read-first with the pen toggle. */
+/**
+ * Note view (M3E mockup 2/3): read-first. Reading shows back · title · star ·
+ * ⋮ plus a pencil FAB; editing collapses the bar to back · title · tonal
+ * check. File actions (icon, stripe, source toggle, find, rename, delete)
+ * live in the ⋮ sheet; properties render as a tappable chip row that opens
+ * the context sheet.
+ */
 export function NoteScreen({
   vault,
   path,
   onBack,
   onOpenNote,
+  onRenamed,
 }: {
   vault: MobileVault;
   path: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
+  /** Retargets the open nav entry after a rename (path changes). */
+  onRenamed: (newPath: string) => void;
 }) {
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   const [doc, setDoc] = useState<string | null>(null);
   const [marked, setMarked] = useState(false);
-  const [info, setInfo] = useState(false);
-  const [versions, setVersions] = useState(false);
+  const [info, setInfo] = useState<ContextTab | null>(null);
+  const [menu, setMenu] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   // C4: live preview <-> raw markdown source (session mode, per note session).
   const [source, setSource] = useState(false);
-  // Read-first (M4/E5): notes open rendered and read-only; the pen flips
-  // into editing (and back), which also shows the keyboard toolbar.
+  // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
+  // flips into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
+  const [chips, setChips] = useState<Array<{ label: string; tag?: boolean }>>([]);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   useEffect(() => {
     let stale = false;
@@ -53,6 +78,48 @@ export function NoteScreen({
     };
   }, [vault, path]);
 
+  // Property chips under the header (mockup 2): tags as #chips plus the first
+  // scalar frontmatter values; tapping any chip opens the context sheet.
+  useEffect(() => {
+    let stale = false;
+    const q = vault.queryService;
+    if (!q) return;
+    void q.getFileProperties(path).then((raw) => {
+      if (stale) return;
+      const out: Array<{ label: string; tag?: boolean }> = [];
+      const tags = raw.tags;
+      if (Array.isArray(tags)) for (const tg of tags.slice(0, 3)) out.push({ label: `#${String(tg)}`, tag: true });
+      for (const [k, v] of Object.entries(raw)) {
+        if (out.length >= 4) break;
+        if (k === "tags" || k === "type" || k === "okf_version" || k.startsWith("plainva")) continue;
+        const text = Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v);
+        if (!text) continue;
+        out.push({ label: `${k} · ${text.length > 24 ? `${text.slice(0, 24)}…` : text}` });
+      }
+      setChips(out);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, path, reloadTick, editing]);
+
+  const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { path } }));
+
+  const rename = () => {
+    void (async () => {
+      const { value, cancelled } = await mPrompt({
+        title: t("common.rename"),
+        message: t("mobile.renamePrompt"),
+        initial: title,
+      });
+      const trimmed = value?.trim();
+      if (cancelled || !trimmed || trimmed === title) return;
+      const dir = path.includes("/") ? `${path.slice(0, path.lastIndexOf("/"))}/` : "";
+      await vaultOps.rename(vault, path, trimmed);
+      onRenamed(`${dir}${trimmed}.md`);
+    })();
+  };
+
   return (
     <div className="m-page m-page--note">
       <header className="m-header">
@@ -61,29 +128,43 @@ export function NoteScreen({
         </button>
         <h1>{title}</h1>
         <span className="m-headactions">
-          <button
-            aria-label={t("mobile.toggleBookmark")}
-            aria-pressed={marked}
-            className={`m-iconbtn${marked ? " is-active" : ""}`}
-            onClick={() =>
-              void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
-            }
-          >
-            <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
-          </button>
-          <button aria-label={t("mobile.noteInfo")} className="m-iconbtn" onClick={() => setInfo(true)}>
-            <Info size={20} />
-          </button>
-          <button
-            aria-label={editing ? t("mobile.doneEditing") : t("mobile.editNote")}
-            aria-pressed={editing}
-            className={`m-iconbtn${editing ? " is-active" : ""}`}
-            onClick={() => setEditing((e) => !e)}
-          >
-            {editing ? <Check size={20} /> : <Pencil size={20} />}
-          </button>
+          {!editing && (
+            <button
+              aria-label={t("mobile.toggleBookmark")}
+              aria-pressed={marked}
+              className={`m-iconbtn${marked ? " is-active" : ""}`}
+              onClick={() =>
+                void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
+              }
+            >
+              <Star fill={marked ? "currentColor" : "none"} size={20} />
+            </button>
+          )}
+          {!editing && (
+            <button aria-label={t("mobile.noteMenu")} className="m-iconbtn" onClick={() => setMenu(true)}>
+              <MoreVertical size={20} />
+            </button>
+          )}
+          {editing && (
+            <button
+              aria-label={t("mobile.doneEditing")}
+              className="m-iconbtn is-tonal"
+              onClick={() => setEditing(false)}
+            >
+              <Check size={20} />
+            </button>
+          )}
         </span>
       </header>
+      {!editing && chips.length > 0 && (
+        <div className="m-props" role="button" tabIndex={0} onClick={() => setInfo("props")}>
+          {chips.map((c, i) => (
+            <span className={c.tag ? "m-prop-chip is-tag" : "m-prop-chip"} key={i}>
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
       {draft && (
         <div className="m-draftbanner">
           <span>
@@ -126,36 +207,101 @@ export function NoteScreen({
           vault={vault}
         />
       )}
+      {!editing && (
+        <button aria-label={t("mobile.editNote")} className="m-fab-float" onClick={() => setEditing(true)}>
+          <Pencil size={22} />
+        </button>
+      )}
+
+      {menu && (
+        <RowActionSheet
+          title={title}
+          onClose={() => setMenu(false)}
+          actions={[
+            {
+              icon: <Smile size={18} />,
+              label: t("docHeader.changeIcon"),
+              onClick: () => {
+                setMenu(false);
+                editorEvent("m-editor-pick-icon");
+              },
+            },
+            {
+              icon: <Paintbrush size={18} />,
+              label: t("docHeader.changeColor"),
+              onClick: () => {
+                setMenu(false);
+                editorEvent("m-editor-pick-color");
+              },
+            },
+            {
+              icon: <SlidersHorizontal size={18} />,
+              label: t("rightPanel.properties"),
+              onClick: () => {
+                setMenu(false);
+                setInfo("props");
+              },
+            },
+            {
+              icon: <History size={18} />,
+              label: t("versions.title"),
+              onClick: () => {
+                setMenu(false);
+                setInfo("history");
+              },
+            },
+            {
+              icon: <Code size={18} />,
+              label: source ? t("editor.livePreview") : t("editor.sourceMode"),
+              onClick: () => {
+                setMenu(false);
+                setSource((s) => {
+                  window.dispatchEvent(
+                    new CustomEvent("m-editor-set-mode", { detail: { path, mode: s ? "live" : "source" } }),
+                  );
+                  return !s;
+                });
+              },
+            },
+            {
+              icon: <Search size={18} />,
+              label: t("search.find"),
+              onClick: () => {
+                setMenu(false);
+                editorEvent("m-editor-find");
+              },
+            },
+            {
+              icon: <Pencil size={18} />,
+              label: t("common.rename"),
+              onClick: () => {
+                setMenu(false);
+                rename();
+              },
+            },
+            {
+              icon: <Trash2 size={18} />,
+              label: t("common.delete"),
+              danger: true,
+              onClick: () => {
+                setMenu(false);
+                void confirmDeleteFile(vault, path, title, t).then((ok) => {
+                  if (ok) onBack();
+                });
+              },
+            },
+          ]}
+        />
+      )}
 
       {info && (
         <NoteContextSheet
-          onClose={() => setInfo(false)}
-          onFind={() => window.dispatchEvent(new CustomEvent("m-editor-find", { detail: { path } }))}
+          initialTab={info}
+          onClose={() => setInfo(null)}
           onJumpToLine={(line) =>
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
           }
           onOpenNote={onOpenNote}
-          onToggleSource={() =>
-            setSource((s) => {
-              window.dispatchEvent(
-                new CustomEvent("m-editor-set-mode", { detail: { path, mode: s ? "live" : "source" } }),
-              );
-              return !s;
-            })
-          }
-          onVersions={() => {
-            setInfo(false);
-            setVersions(true);
-          }}
-          path={path}
-          sourceMode={source}
-          vault={vault}
-        />
-      )}
-
-      {versions && (
-        <VersionsSheet
-          onClose={() => setVersions(false)}
           onRestored={() => {
             void vaultOps.read(vault, path).then((text) => {
               setDoc(text);

@@ -211,6 +211,8 @@ export function EditorHost({
       parent,
       doc: initialDoc,
       mode: "live",
+      // The ＋ Icon/＋ Farbstreifen buttons live in the note ⋮ menu on mobile.
+      headerAddActions: false,
       vaultPath: "",
       i18n,
       headerTexts: {
@@ -403,13 +405,24 @@ export function EditorHost({
       const hit = forThisNote(e);
       if (hit) openFindPanel(hit.view);
     };
+    // Note ⋮ menu (mockup 2): icon / stripe pickers open from outside.
+    const onPickIcon = (e: Event) => {
+      if (forThisNote(e)) setEmojiPick("icon");
+    };
+    const onPickColor = (e: Event) => {
+      if (forThisNote(e)) setColorPick(true);
+    };
     window.addEventListener("m-editor-goto-line", onGoto);
     window.addEventListener("m-editor-set-mode", onSetMode);
     window.addEventListener("m-editor-find", onFind);
+    window.addEventListener("m-editor-pick-icon", onPickIcon);
+    window.addEventListener("m-editor-pick-color", onPickColor);
     return () => {
       window.removeEventListener("m-editor-goto-line", onGoto);
       window.removeEventListener("m-editor-set-mode", onSetMode);
       window.removeEventListener("m-editor-find", onFind);
+      window.removeEventListener("m-editor-pick-icon", onPickIcon);
+      window.removeEventListener("m-editor-pick-color", onPickColor);
     };
   }, [path]);
 
@@ -566,9 +579,6 @@ export function EditorHost({
       <div className="m-editor" ref={containerRef} />
       {editable && (
         <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
-          <button aria-label="Slash commands" onClick={() => run(openSlashMenu)}>
-            <Slash size={18} />
-          </button>
           <button aria-label="Bold" onClick={() => run((v) => toggleInlineMark(v, "**"))}>
             <Bold size={18} />
           </button>
@@ -601,6 +611,9 @@ export function EditorHost({
           </button>
           <button aria-label="Redo" onClick={() => run(redo)}>
             <Redo2 size={18} />
+          </button>
+          <button aria-label="Slash commands" className="is-primary" onClick={() => run(openSlashMenu)}>
+            <Slash size={18} />
           </button>
         </DockedToolbar>
       )}
