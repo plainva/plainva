@@ -54,6 +54,12 @@ jobs:
       - name: Desktop tests
         run: pnpm --filter desktop test
 
+      # The mobile vitest suite (navigation reducer, save coordinator, dialogs,
+      # pull-to-refresh, structure ratchet) previously ran only in the local
+      # pre-push hook — a push without hooks had no mobile test coverage.
+      - name: Mobile tests
+        run: pnpm --filter mobile test
+
       - name: Desktop web build
         run: pnpm --filter desktop build
 
