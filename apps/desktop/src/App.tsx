@@ -19,6 +19,7 @@ import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type Fi
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
 import { BookmarksList } from "./components/BookmarksList";
+import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 import { GRAPH_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
@@ -844,7 +845,8 @@ function App() {
             />
           </div>
         </div>
-        {/* View switch (Files / Tags / Bookmarks) + tree collapse/expand-all */}
+        {/* View switch (Files / Tags / Bookmarks). The tree collapse/expand-all
+            toggle lives in the file-tree heading below (next to the vault name). */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px 8px' }}>
           <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, flex: 1 }}>
             {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })]] as const).map(([key, Icon, label]) => {
@@ -865,30 +867,38 @@ function App() {
               );
             })}
           </div>
-          {leftSidebarTab === 'files' && (
-            <button
-              className="pv-iconbtn"
-              aria-label={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
-              data-tip={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
-              onClick={() => window.dispatchEvent(new CustomEvent('plainva-tree-toggle-all'))}
-            >
-              {treeHasExpanded ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
-            </button>
-          )}
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
-            <FileTree
-              activePath={activePath}
-              onSelect={openInFocusedPane}
-              onExpandedStateChange={setTreeHasExpanded}
-              onCloseTabsByPrefix={closeTabsByPrefix}
-              onRenameTabPrefix={renameTabPrefix}
-              externalQuery={leftQueryDebounced}
-              onOpenInSplit={openPathInSplit}
-              isBookmarked={(p) => bookmarks.includes(p)}
-              onToggleBookmarkPath={toggleBookmark}
-            />
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+              <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={openInFocusedPane} />
+              <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px 2px" }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {vaultPath ? (vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath) : ""}
+                </span>
+                <button
+                  className="pv-iconbtn"
+                  aria-label={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
+                  data-tip={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
+                  onClick={() => window.dispatchEvent(new CustomEvent('plainva-tree-toggle-all'))}
+                >
+                  {treeHasExpanded ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
+                </button>
+              </div>
+              <div data-testid="file-tree" style={{ flex: 1, minHeight: 0 }}>
+                <FileTree
+                  activePath={activePath}
+                  onSelect={openInFocusedPane}
+                  onExpandedStateChange={setTreeHasExpanded}
+                  onCloseTabsByPrefix={closeTabsByPrefix}
+                  onRenameTabPrefix={renameTabPrefix}
+                  externalQuery={leftQueryDebounced}
+                  onOpenInSplit={openPathInSplit}
+                  isBookmarked={(p) => bookmarks.includes(p)}
+                  onToggleBookmarkPath={toggleBookmark}
+                />
+              </div>
+            </div>
           ) : leftSidebarTab === "tags" ? (
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
           ) : (

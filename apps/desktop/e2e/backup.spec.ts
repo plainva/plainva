@@ -188,7 +188,7 @@ test('version history lists snapshots, shows a diff and restores an older versio
   await openVault(page);
 
   // Open the file first so the editor participates in the flush/adopt handshake.
-  const treeItem = page.getByLabel('Left Sidebar').getByText('Doc', { exact: true });
+  const treeItem = page.getByTestId('file-tree').getByText('Doc', { exact: true });
   await treeItem.click();
   await expect(page.locator('.cm-content').first()).toContainText('aktuelle Fassung', { timeout: 10000 });
 

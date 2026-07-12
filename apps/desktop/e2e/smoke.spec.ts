@@ -377,7 +377,10 @@ test('Code block: language grammar lazy-loads on demand', async ({ page }) => {
   await expect(page.locator('.cm-line', { hasText: 'def greet' }).first()).toBeVisible();
   // …and the python grammar (loaded on demand via @codemirror/language-data)
   // kicked in: once it arrives, keywords get their own highlight spans.
-  await expect(page.locator('.cm-content span').filter({ hasText: /^def$/ }).first()).toBeVisible({ timeout: 15000 });
+  // 30s (not 15): the python grammar is a cold dynamic import; under load (the
+  // full pre-push runs the unit suite + vite + Playwright at once) it can take
+  // longer to arrive, and this assertion is about correctness, not speed.
+  await expect(page.locator('.cm-content span').filter({ hasText: /^def$/ }).first()).toBeVisible({ timeout: 30000 });
 });
 
 // --- File tree: folder selection targets "+ Neu", new notes start with an H1 (UI-UX P6/P7) ---
@@ -414,7 +417,7 @@ test('File tree: Ctrl-selection deletes both notes after a single confirm', asyn
     });
   });
   await page.goto('/');
-  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  const aside = page.getByTestId('file-tree');
   await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await aside.getByText('Beta', { exact: true }).click();
@@ -494,14 +497,15 @@ test('Editor menu: reveal in file tree re-expands the folder and selects the not
   });
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
-  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   // Open the nested note, then collapse its folder again — the tree must NOT
   // auto-reveal open files (deliberate; only the explicit menu action does).
-  await aside.getByText('Tief', { exact: true }).click();
-  await aside.getByText('Drin', { exact: true }).click();
-  await aside.getByText('Tief', { exact: true }).click();
-  await expect(aside.getByText('Drin', { exact: true })).not.toBeVisible();
+  await tree.getByText('Tief', { exact: true }).click();
+  await tree.getByText('Drin', { exact: true }).click();
+  await tree.getByText('Tief', { exact: true }).click();
+  await expect(tree.getByText('Drin', { exact: true })).not.toBeVisible();
 
   // Switch to the bookmarks tab: the tree unmounts. The reveal must switch
   // back to the files tab (App listener) AND apply on the remounted tree
@@ -513,8 +517,8 @@ test('Editor menu: reveal in file tree re-expands the folder and selects the not
 
   // Files tab is active again, the ancestors re-expanded, the row is in view.
   await expect(aside.getByRole('tab', { name: /Dateien|Files/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(aside.getByText('Drin', { exact: true })).toBeVisible();
-  await expect(aside.locator('[data-tree-path="Tief/Drin.md"]')).toBeVisible();
+  await expect(tree.getByText('Drin', { exact: true })).toBeVisible();
+  await expect(tree.locator('[data-tree-path="Tief/Drin.md"]')).toBeVisible();
 });
 
 // --- Bookmarks list mirrors a file-tree row: name without extension + icon (2026-07-10) ---
@@ -1003,7 +1007,7 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await expect(dialog).toHaveCount(0);
 
   // Opening a note now starts in the read view.
-  await page.getByText('Zweite', { exact: true }).click();
+  await page.getByTestId('file-tree').getByText('Zweite', { exact: true }).click();
   await expect(page.locator('.markdown-reader').first()).toBeVisible();
 
   // Manual switch to live for THIS file…
@@ -1012,11 +1016,11 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await expect(page.locator('.markdown-reader')).toHaveCount(0);
 
   // …other files still open in the default (read)…
-  await page.getByText('Welcome', { exact: true }).click();
+  await page.getByTestId('file-tree').getByText('Welcome', { exact: true }).click();
   await expect(page.locator('.markdown-reader').first()).toBeVisible();
 
   // …and returning to the switched file keeps its session choice (live).
-  await page.getByText('Zweite', { exact: true }).click();
+  await page.getByTestId('file-tree').getByText('Zweite', { exact: true }).click();
   await expect(page.locator('.cm-editor').first()).toBeVisible();
   await expect(page.locator('.markdown-reader')).toHaveCount(0);
 });

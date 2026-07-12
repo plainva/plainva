@@ -410,9 +410,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 // The file tree hides the .base extension (Base-UX2 P7) — bases are addressed
-// by their bare display name, scoped to the sidebar to avoid title collisions.
+// by their bare display name, scoped to the file tree to avoid collisions with
+// the editor title and the "recently opened" strip above the tree.
 async function openBase(page: Page, name: string) {
-  const entry = page.locator('aside').getByText(name, { exact: true });
+  const entry = page.getByTestId('file-tree').getByText(name, { exact: true });
   await expect(entry).toBeVisible({ timeout: 10000 });
   await entry.click();
 }
