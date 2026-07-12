@@ -53,6 +53,9 @@ import {
   type TemplateItem,
 } from "@plainva/ui";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
+import { ColorPickSheet } from "./components/ColorPickSheet";
+import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { noteSaver, vaultOps, type MobileVault } from "./services/vaultService";
@@ -101,6 +104,10 @@ export function EditorHost({
   } | null>(null);
   const [dateMention, setDateMention] = useState<{ pos: number } | null>(null);
   const [dateValue, setDateValue] = useState("");
+  // C3: emoji sheet serves both text emoji (/emoji) and the document icon
+  // (header widget + /icon); the color sheet drives plainva.header_color.
+  const [emojiPick, setEmojiPick] = useState<"emoji" | "icon" | null>(null);
+  const [colorPick, setColorPick] = useState(false);
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -127,8 +134,9 @@ export function EditorHost({
       },
       onSelectionToolbar: () => {},
       onSelectionStats: () => {},
-      onPickIcon: () => {},
-      onPickColor: () => {},
+      // C3: the header widget's icon/stripe buttons open the mobile sheets.
+      onPickIcon: () => setEmojiPick("icon"),
+      onPickColor: () => setColorPick(true),
       readBinaryFile: (absolutePath) =>
         vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
       buildNoteEmbedExtension: () => [],
@@ -201,13 +209,66 @@ export function EditorHost({
       setDateValue(new Date().toISOString().slice(0, 10));
       setDateMention({ pos });
     };
+    const onEmoji = () => setEmojiPick("emoji");
+    const onIcon = () => setEmojiPick("icon");
+    const onColor = () => setColorPick(true);
     window.addEventListener("plainva-open-table-menu", onTableMenu);
     window.addEventListener("plainva-open-date-mention", onDateMention);
+    window.addEventListener("plainva-open-emoji-picker", onEmoji);
+    window.addEventListener("plainva-open-icon-picker", onIcon);
+    window.addEventListener("plainva-open-header-color", onColor);
     return () => {
       window.removeEventListener("plainva-open-table-menu", onTableMenu);
       window.removeEventListener("plainva-open-date-mention", onDateMention);
+      window.removeEventListener("plainva-open-emoji-picker", onEmoji);
+      window.removeEventListener("plainva-open-icon-picker", onIcon);
+      window.removeEventListener("plainva-open-header-color", onColor);
     };
   }, []);
+
+  // Desktop applyPlainvaValue/applyDocIcon contract: rewrite the plainva:
+  // frontmatter namespace on the live document (emoji icons clear a stale
+  // icon_color, exactly like the desktop's emoji pick).
+  const applyPlainva = (mutate: (base: string) => string) => {
+    const view = sessionRef.current?.view;
+    if (!view) return;
+    try {
+      const base = view.state.doc.toString();
+      const next = mutate(base);
+      if (next !== base) {
+        // Deliberately NO userEvent: the shared frontmatterProtectPlugin
+        // rejects user-initiated ("input") changes inside the frontmatter —
+        // this programmatic metadata write must pass the filter (the desktop
+        // properties path dispatches the same way).
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+      }
+    } catch (e) {
+      console.warn("[EditorHost] updating plainva frontmatter failed", e);
+    }
+  };
+
+  const handleEmojiPick = (char: string) => {
+    const mode = emojiPick;
+    setEmojiPick(null);
+    const view = sessionRef.current?.view;
+    if (!view) return;
+    if (mode === "emoji") {
+      const range = view.state.selection.main;
+      view.dispatch({
+        changes: { from: range.from, to: range.to, insert: char },
+        selection: { anchor: range.from + char.length },
+        userEvent: "input",
+      });
+      view.focus();
+    } else {
+      applyPlainva((base) =>
+        deleteFrontmatterPath(
+          setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], char),
+          [PLAINVA_NAMESPACE_KEY, "icon_color"],
+        ),
+      );
+    }
+  };
 
   // Desktop handleTableMenuAction contract: re-parse the table from the live
   // document (source of truth), run the shared mutation, write the slice back.
@@ -511,6 +572,42 @@ export function EditorHost({
       )}
 
       {tableMenu && <TableMenuSheet onAction={handleTableAction} onClose={() => setTableMenu(null)} />}
+
+      {emojiPick && (
+        <EmojiPickSheet
+          onClose={() => setEmojiPick(null)}
+          onPick={handleEmojiPick}
+          onRemove={
+            emojiPick === "icon"
+              ? () => {
+                  setEmojiPick(null);
+                  applyPlainva((base) =>
+                    deleteFrontmatterPath(
+                      deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"]),
+                      [PLAINVA_NAMESPACE_KEY, "icon_color"],
+                    ),
+                  );
+                }
+              : undefined
+          }
+          showRemove={emojiPick === "icon"}
+          title={emojiPick === "icon" ? t("docHeader.addIcon") : t("editor.slashEmoji")}
+        />
+      )}
+
+      {colorPick && (
+        <ColorPickSheet
+          onClose={() => setColorPick(false)}
+          onPick={(hex) => {
+            setColorPick(false);
+            applyPlainva((base) => setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"], hex));
+          }}
+          onRemove={() => {
+            setColorPick(false);
+            applyPlainva((base) => deleteFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "header_color"]));
+          }}
+        />
+      )}
 
       {dateMention && (
         <div className="m-sheet-backdrop" onClick={() => setDateMention(null)}>

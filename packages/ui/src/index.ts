@@ -9,6 +9,7 @@ export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/contentFont";
 export * from "./lib/outline";
+export * from "./lib/palette";
 export * from "./lib/recentsFile";
 export * from "./lib/renameNote";
 export * from "./lib/startrekQuotes";
