@@ -529,6 +529,31 @@ export const vaultOps = {
     return path;
   },
 
+  /**
+   * Daily note create-or-open (package I): a configured daily template seeds
+   * fresh dailies (placeholders interpolated, OKF frontmatter secured —
+   * desktop dailyNotesTemplate contract); without one the plain skeleton.
+   */
+  async ensureDailyNote(v: MobileVault, path: string, title: string): Promise<string> {
+    if (await v.files.exists(path)) return path;
+    const ms = getMobileSettings();
+    if (ms.dailyTemplate) {
+      try {
+        const raw = await this.read(v, `${ms.templateFolder}/${ms.dailyTemplate}`);
+        const interpolated = applyTemplatePlaceholders(raw, title);
+        const content = /^---\r?\n/.test(interpolated)
+          ? interpolated
+          : `---\ntype: Daily Note\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+        await this.save(v, path, content);
+        return path;
+      } catch {
+        /* missing template file falls back to the skeleton */
+      }
+    }
+    await this.save(v, path, OKF("Daily Note", title, ""));
+    return path;
+  },
+
   async resolveWikiTarget(v: MobileVault, target: string): Promise<string | null> {
     const name = target.split("#")[0].split("|")[0].trim().toLowerCase();
     const all = await v.files.listDir("", true);

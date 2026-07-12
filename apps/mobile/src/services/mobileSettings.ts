@@ -52,6 +52,8 @@ interface MobileSettings {
   backupIntervalSeconds: number;
   backupMaxPerFile: number;
   backupMaxAgeDays: number;
+  /** Template file name (inside templateFolder) seeding new daily notes; empty = plain skeleton. */
+  dailyTemplate: string;
 }
 
 const KEY = "mobile-settings";
@@ -74,6 +76,7 @@ const DEFAULTS: MobileSettings = {
   backupIntervalSeconds: 120,
   backupMaxPerFile: 100,
   backupMaxAgeDays: 90,
+  dailyTemplate: "",
 };
 
 let cache: MobileSettings = { ...DEFAULTS };

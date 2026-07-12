@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
   getSyncStatus,
@@ -89,12 +89,23 @@ export function VaultDetailScreen({
 
   const statusLabel =
     status.status === "syncing"
-      ? t("mobile.syncSyncing")
+      ? status.progress
+        ? t("sync.syncingCount", { current: status.progress.current, total: status.progress.total })
+        : t("mobile.syncSyncing")
       : status.status === "error"
         ? t("mobile.syncError")
         : status.status === "idle"
           ? t("mobile.syncIdle")
           : t("mobile.syncDisconnect");
+
+  const rebuildIndex = () => {
+    if (!activeVault.indexer) return;
+    setBusy(true);
+    void activeVault.indexer
+      .indexVaultFull()
+      .then(() => window.dispatchEvent(new CustomEvent("m-vault-changed")))
+      .finally(() => setBusy(false));
+  };
 
   return (
     <div className="m-page">
@@ -140,6 +151,17 @@ export function VaultDetailScreen({
               }),
             })}
           </p>
+        )}
+        {isActive && entry.provider && <QueuePeek vault={activeVault} />}
+        {isActive && status.errorHistory.length > 0 && (
+          <>
+            <p className="m-sectionlabel">{t("settings.syncErrorHistory")}</p>
+            {status.errorHistory.map((e) => (
+              <p className="m-hint" key={e.at}>
+                {new Date(e.at).toLocaleTimeString()} · {e.message}
+              </p>
+            ))}
+          </>
         )}
 
         <div className="m-sync-actions m-sync-actions--column">
@@ -191,6 +213,11 @@ export function VaultDetailScreen({
               {t("mobile.syncResume")}
             </button>
           )}
+          {isActive && activeVault.indexer && (
+            <button className="m-btn m-btn--tonal" disabled={busy} onClick={rebuildIndex}>
+              <RefreshCw size={16} /> {t("settings.rebuildIndexAction")}
+            </button>
+          )}
           {!isLocal && (
             <button className="m-btn m-btn--danger" disabled={busy} onClick={remove}>
               <Trash2 size={16} /> {t("mobile.vaultDelete")}
@@ -199,5 +226,41 @@ export function VaultDetailScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Pending sync queue peek (package I): oldest first, capped at five rows. */
+function QueuePeek({ vault }: { vault: MobileVault }) {
+  const { t } = useTranslation();
+  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  const [ops, setOps] = useState<Array<{ id: number; op_type: string; path: string }> | null>(null);
+  useEffect(() => {
+    let stale = false;
+    const load = () => {
+      if (!vault.syncQueue) return;
+      void vault.syncQueue.getPendingOperations().then((list) => {
+        if (!stale) setOps(list.slice(0, 5) as any);
+      });
+    };
+    load();
+    return () => {
+      stale = true;
+    };
+    // Re-peek whenever a cycle settles.
+  }, [vault, status.status, status.lastSyncAt]);
+  if (!ops) return null;
+  return (
+    <>
+      <p className="m-sectionlabel">{t("settings.syncQueue")}</p>
+      {ops.length === 0 ? (
+        <p className="m-hint">{t("settings.syncQueueEmpty")}</p>
+      ) : (
+        ops.map((op) => (
+          <p className="m-hint" key={op.id}>
+            {op.op_type} · {op.path}
+          </p>
+        ))
+      )}
+    </>
   );
 }

@@ -252,7 +252,8 @@ export default function App() {
   const openDaily = (iso: string) => {
     const { path, title } = dailyPathFor(iso);
     // Push into the current context: back returns to Today/Calendar (R2).
-    void vaultOps.ensureNote(vault, path, "Daily Note", title).then(() => openNote(path));
+    // Fresh dailies seed from the configured template (package I).
+    void vaultOps.ensureDailyNote(vault, path, title).then(() => openNote(path));
   };
 
   const noteOpen = top?.kind === "note";

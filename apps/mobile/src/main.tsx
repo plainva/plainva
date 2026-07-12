@@ -6,7 +6,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
-import { setPlatformServices, ToastHost } from "@plainva/ui";
+import { logDiagnostic, setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
@@ -37,8 +37,14 @@ function showFatalError(label: string, err: unknown): void {
   box.textContent = `Plainva startup error\n[${label}]\n\n${detail}`;
 }
 
-window.addEventListener("error", (e) => showFatalError("error", e.error ?? e.message));
-window.addEventListener("unhandledrejection", (e) => showFatalError("promise", e.reason));
+window.addEventListener("error", (e) => {
+  logDiagnostic("window.error", String(e.error ?? e.message));
+  showFatalError("error", e.error ?? e.message);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  logDiagnostic("unhandledrejection", String(e.reason));
+  showFatalError("promise", e.reason);
+});
 
 // Catches errors thrown while rendering the tree (a mounted-but-crashing
 // child), which window.onerror would not surface as readable text.

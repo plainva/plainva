@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Capacitor } from "@capacitor/core";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, PlainvaLogo, TextInput } from "@plainva/ui";
+import { listTemplates, formatDiagnosticsExport, APP_LANGUAGES, AVAILABLE_THEMES, PlainvaLogo, TextInput } from "@plainva/ui";
 import { FolderPickerSheet } from "./components/FolderPickerSheet";
 import { HailingSheet } from "./components/HailingSheet";
 import { mSelect } from "./services/mobileDialogs";
@@ -23,13 +24,14 @@ import { MAX_TAB_SLOTS, sanitizeTabSlots, TAB_POOL, type TabScreenId } from "./n
  * R3.3: choices open M3 selection sheets instead of native <select>s.
  */
 export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n: i18nInstance } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
   // Folder picker target (R3.6): which path setting is being browsed.
   const [pickFor, setPickFor] = useState<"dailyFolder" | "inboxFolder" | "templateFolder" | null>(null);
   // Easter egg (D5): five taps on the About logo within 3 s open the
   // hailing-frequencies sheet — the desktop title-bar gesture, mobile-sized.
   const [hailing, setHailing] = useState(false);
+  const [okfInfo, setOkfInfo] = useState(false);
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -148,6 +150,59 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
     }).then((v) => {
       if (v !== null) update({ backupMaxAgeDays: Number(v) });
     });
+  };
+
+  // Daily template (package I, desktop dailyNotesTemplate parity): fresh
+  // dailies seed from a template file in the template folder; "—" = none.
+  const pickDailyTemplate = () => {
+    void (async () => {
+      const items = await listTemplates(vault.adapter, settings.templateFolder).catch(() => []);
+      const picked = await mSelect({
+        title: t("settings.dailyNotesTemplate"),
+        options: [
+          { value: "", label: "—" },
+          ...items.map((it) => {
+            const file = it.path.split("/").pop() ?? it.path;
+            return { value: file, label: it.title };
+          }),
+        ],
+        value: settings.dailyTemplate,
+      });
+      if (picked !== null) update({ dailyTemplate: picked });
+    })();
+  };
+
+  // Diagnostics export (package I, desktop P4 parity): the shared no-content
+  // event log plus app facts, through the share sheet (web: a download).
+  const exportDiagnostics = () => {
+    void (async () => {
+      let appVersion = "dev";
+      try {
+        const { App } = await import("@capacitor/app");
+        appVersion = (await App.getInfo()).version;
+      } catch {
+        /* web dev server has no native info */
+      }
+      const text = formatDiagnosticsExport({
+        appVersion,
+        tauriVersion: "-",
+        webView: navigator.userAgent.match(/(Chrome|AppleWebKit)\/[\d.]+/)?.[0],
+        os: Capacitor.getPlatform(),
+        language: i18nInstance.language,
+      });
+      const name = `plainva-diagnostics-${new Date().toISOString().slice(0, 10)}.md`;
+      if (Capacitor.getPlatform() === "web") {
+        const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        return;
+      }
+      const { Share } = await import("@capacitor/share");
+      await Share.share({ title: name, text });
+    })();
   };
 
   const slots = sanitizeTabSlots(settings.tabSlots);
@@ -270,6 +325,11 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           value={settings.templateFolder}
         />
       </div>
+      <SettingRow
+        label={t("settings.dailyNotesTemplate")}
+        onClick={pickDailyTemplate}
+        value={settings.dailyTemplate || "—"}
+      />
 
       {pickFor && (
         <FolderPickerSheet
@@ -332,8 +392,32 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
         <PlainvaLogo size={22} />
         <span>Plainva</span>
       </button>
+      <button className="m-row" onClick={exportDiagnostics}>
+        <span>{t("settings.exportDiagnostics")}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
+      <button className="m-row" onClick={() => setOkfInfo(true)}>
+        <span>{t("okfInfo.settingsButton")}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
 
       {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
+
+      {okfInfo && (
+        <div className="m-sheet-backdrop" onClick={() => setOkfInfo(false)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="m-sheet-grip" />
+            <p className="m-sheet-title">{t("okfInfo.title")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.intro")}</p>
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.whatTitle")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.whatBody")}</p>
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.whyTitle")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.whyBody")}</p>
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.obsidianTitle")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.obsidianBody")}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

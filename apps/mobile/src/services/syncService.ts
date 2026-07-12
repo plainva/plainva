@@ -75,15 +75,33 @@ interface SyncState {
   message: string | null;
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
   lastSyncAt: number | null;
+  /** Cycle progress while syncing (package I: the desktop status-bar x/y). */
+  progress: { current: number; total: number } | null;
+  /** Last few error messages, newest first (package I transparency). */
+  errorHistory: Array<{ at: number; message: string }>;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [] };
 const listeners = new Set<() => void>();
 let worker: SyncWorker | null = null;
 
 function setState(next: { status: MobileSyncStatus; message: string | null }): void {
   const finished = state.status === "syncing" && next.status === "idle";
-  state = { ...next, lastSyncAt: finished ? Date.now() : state.lastSyncAt };
+  const errorHistory =
+    next.status === "error" && next.message && next.message !== state.message
+      ? [{ at: Date.now(), message: next.message }, ...state.errorHistory].slice(0, 5)
+      : state.errorHistory;
+  state = {
+    ...next,
+    lastSyncAt: finished ? Date.now() : state.lastSyncAt,
+    progress: next.status === "syncing" ? state.progress : null,
+    errorHistory,
+  };
+  for (const l of listeners) l();
+}
+
+function setProgress(progress: { current: number; total: number } | null): void {
+  state = { ...state, progress };
   for (const l of listeners) l();
 }
 
@@ -310,6 +328,9 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   });
   w.onStatusChange = (status, errorMsg) => {
     setState({ status, message: errorMsg ?? null });
+  };
+  w.onProgress = (p) => {
+    setProgress(p ? { current: p.current, total: p.total } : null);
   };
   w.onFirstCycleComplete = () => {
     void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});

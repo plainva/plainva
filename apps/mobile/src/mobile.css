@@ -1438,3 +1438,30 @@ textarea {
   color: var(--m-on-secondary-container);
   font-size: 0.8rem;
 }
+/* ISO week column (package I): the grid grows an extra narrow column. */
+.m-cal-grid--weeks {
+  grid-template-columns: 24px repeat(7, 1fr);
+}
+.m-cal-week {
+  align-self: center;
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--text-faint);
+}
+.m-cal-month {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+.m-cal-month:active {
+  background: var(--m-state-pressed);
+}
+/* Nested tag rows (package I): indented under their root segment. */
+.m-row--nested {
+  padding-left: 40px;
+  min-height: 44px;
+}
