@@ -1458,6 +1458,7 @@
     "syncClientId": "Identyfikator klienta",
     "syncClientSecret": "Sekret klienta (opcjonalnie)",
     "syncFolder": "Folder zdalny (opcjonalnie)",
+    "syncFolderAfterConnect": "Folder w chmurze wybierzesz po połączeniu.",
     "vaults": "Sejfy",
     "vaultLocal": "Na tym urządzeniu",
     "vaultNotConnected": "Ten sejf nie jest już połączony.",

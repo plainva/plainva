@@ -1448,6 +1448,7 @@
     "syncClientId": "Client-ID",
     "syncClientSecret": "Client-secret (optioneel)",
     "syncFolder": "Externe map (optioneel)",
+    "syncFolderAfterConnect": "De cloudmap wordt na het verbinden gekozen.",
     "vaults": "Kluizen",
     "vaultLocal": "Op dit apparaat",
     "vaultNotConnected": "Deze kluis is niet meer verbonden.",

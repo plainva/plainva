@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSyncExternalStore } from "react";
 import {
@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { PlainvaLogo } from "@plainva/ui";
 import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
-import { getSyncStatus, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
-import { handleOAuthRedirect } from "./services/oauthService";
+import { getSyncStatus, listProviderFolders, startSyncIfConfigured, subscribeSyncStatus, syncNow } from "./services/syncService";
+import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
+import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt } from "./services/mobileDialogs";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
@@ -83,6 +84,12 @@ export default function App() {
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
+  const [oauthPick, setOauthPick] = useState(false);
+  // Stable so the picker's navigation effect doesn't re-fetch every render.
+  const oauthListFolders = useCallback((p: string) => {
+    const prov = getPendingConnect();
+    return prov ? listProviderFolders(prov, p) : Promise.resolve([]);
+  }, []);
   const [fromTemplate, setFromTemplate] = useState(false);
   // The Android back listener registers once; it reads the live state here.
   const navRef = useRef(nav);
@@ -121,6 +128,15 @@ export default function App() {
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-settings-changed", onSettings);
     };
+  }, []);
+
+  // Connect-time folder pick (#10): the OAuth redirect fires this event once it
+  // holds a token; the picker browses the cloud folders and finishConnect then
+  // creates the (fresh, isolated) vault with the chosen root.
+  useEffect(() => {
+    const onChoose = () => setOauthPick(true);
+    window.addEventListener("plainva-oauth-choose-folder", onChoose);
+    return () => window.removeEventListener("plainva-oauth-choose-folder", onChoose);
   }, []);
 
   // OAuth redirect (M3): the system browser returns via the custom scheme.
@@ -429,6 +445,14 @@ export default function App() {
         </nav>
       )}
 
+      {oauthPick && (
+        <CloudFolderPickerSheet
+          title={t("mobile.syncFolder")}
+          listFolders={oauthListFolders}
+          onPick={(folder) => { setOauthPick(false); void finishConnect(folder); }}
+          onClose={() => { setOauthPick(false); cancelConnect(); }}
+        />
+      )}
       {quickCreate && (
         <div className="m-sheet-backdrop" onClick={() => setQuickCreate(false)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>

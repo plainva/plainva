@@ -1453,6 +1453,7 @@
     "syncClientId": "ID do cliente",
     "syncClientSecret": "Segredo do cliente (opcional)",
     "syncFolder": "Pasta remota (opcional)",
+    "syncFolderAfterConnect": "A pasta na nuvem é escolhida após conectar.",
     "vaults": "Cofres",
     "vaultLocal": "Neste dispositivo",
     "vaultNotConnected": "Este cofre não está mais conectado.",

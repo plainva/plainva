@@ -1453,6 +1453,7 @@
     "syncClientId": "ID client",
     "syncClientSecret": "Secret client (optionnel)",
     "syncFolder": "Dossier distant (optionnel)",
+    "syncFolderAfterConnect": "Le dossier cloud est choisi après la connexion.",
     "vaults": "Coffres",
     "vaultLocal": "Sur cet appareil",
     "vaultNotConnected": "Ce coffre n’est plus connecté.",

@@ -41,7 +41,6 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
   // OAuth extras: folders for all three, BYO client for Google Drive.
   const [driveClientId, setDriveClientId] = useState("");
   const [driveClientSecret, setDriveClientSecret] = useState("");
-  const [remoteFolder, setRemoteFolder] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,11 +50,11 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
     if (OAUTH_PROVIDERS.has(provider)) {
       // Opens the system browser; the redirect handler finishes the connect
       // (which creates and activates the new vault).
+      // The cloud folder is chosen AFTER the browser returns a token (#10),
+      // via the folder picker — there is no token to browse with beforehand.
       void beginOAuth(provider as OAuthProviderId, {
         clientId: driveClientId.trim() || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
-        rootFolderName: remoteFolder.trim() || undefined,
-        rootPath: remoteFolder.trim() || undefined,
       })
         .catch((e) => setError(String(e)))
         .finally(() => setBusy(false));
@@ -222,14 +221,7 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           )}
 
           {OAUTH_PROVIDERS.has(provider) && (
-            <label className="m-field">
-              <span>{t("mobile.syncFolder")}</span>
-              <TextInput
-                onChange={(e) => setRemoteFolder(e.target.value)}
-                placeholder={provider === "dropbox" ? "/Apps/Plainva" : "Plainva"}
-                value={remoteFolder}
-              />
-            </label>
+            <p className="m-hint">{t("mobile.syncFolderAfterConnect")}</p>
           )}
 
           <div className="m-sync-actions">

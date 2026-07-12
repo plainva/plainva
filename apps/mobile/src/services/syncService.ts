@@ -275,6 +275,22 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   }
 }
 
+/**
+ * Lists remote folders under `path` for a NOT-yet-connected provider — feeds
+ * the connect-time folder picker (#10). Builds a throwaway target from the
+ * given credentials (Drive/OneDrive/Dropbox after OAuth, S3 from the form).
+ * WebDAV has no `listFolders` (its URL already carries the path) → []. Passing
+ * the SAME provider object across calls matters: OneDrive/Dropbox rotate the
+ * refresh token on use, and `buildTarget`'s `onTokensRefreshed` mutates
+ * `p.creds` in place, so the eventual connect uses the current token.
+ */
+export async function listProviderFolders(p: MobileSyncProvider, path: string): Promise<string[]> {
+  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  const target = buildTarget(p, credKeyFor("probe"));
+  return target.listFolders ? target.listFolders(path) : [];
+}
+
 function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the

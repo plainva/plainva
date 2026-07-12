@@ -1443,6 +1443,7 @@
     "syncClientId": "クライアント ID",
     "syncClientSecret": "クライアントシークレット（任意）",
     "syncFolder": "リモートフォルダ（任意）",
+    "syncFolderAfterConnect": "クラウドフォルダは接続後に選択します。",
     "vaults": "保管庫",
     "vaultLocal": "この端末上",
     "vaultNotConnected": "この保管庫は接続されていません。",

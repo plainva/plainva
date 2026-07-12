@@ -1453,6 +1453,7 @@
     "syncClientId": "ID client",
     "syncClientSecret": "Segreto client (opzionale)",
     "syncFolder": "Cartella remota (opzionale)",
+    "syncFolderAfterConnect": "La cartella cloud viene scelta dopo la connessione.",
     "vaults": "Vault",
     "vaultLocal": "Su questo dispositivo",
     "vaultNotConnected": "Questo vault non è più connesso.",

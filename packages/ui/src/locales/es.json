@@ -1453,6 +1453,7 @@
     "syncClientId": "ID de cliente",
     "syncClientSecret": "Secreto de cliente (opcional)",
     "syncFolder": "Carpeta remota (opcional)",
+    "syncFolderAfterConnect": "La carpeta en la nube se elige después de conectar.",
     "vaults": "Bóvedas",
     "vaultLocal": "En este dispositivo",
     "vaultNotConnected": "Esta bóveda ya no está conectada.",

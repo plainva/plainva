@@ -10,7 +10,7 @@ import {
 } from "@plainva/core";
 import { getPlatformServices, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { connectProvider } from "./syncService";
+import { connectProvider, type MobileSyncProvider } from "./syncService";
 import { getMobileVault } from "./vaultService";
 
 /**
@@ -102,6 +102,48 @@ async function loadPending(): Promise<PendingFlow | null> {
   return null;
 }
 
+/**
+ * Connect-time folder pick (#10): once OAuth returns a token we hold the
+ * resolved provider here (folder still unset) instead of connecting straight
+ * away, dispatch `plainva-oauth-choose-folder`, and let the React host browse
+ * the cloud folders (listProviderFolders) with the fresh token before calling
+ * finishConnect. The object is passed BY REFERENCE to the picker, so an
+ * OneDrive/Dropbox refresh-token rotation during browsing stays on it.
+ */
+let pendingConnect: MobileSyncProvider | null = null;
+
+export function getPendingConnect(): MobileSyncProvider | null {
+  return pendingConnect;
+}
+
+/** Bind the chosen cloud folder and create the (fresh, isolated) vault. */
+export async function finishConnect(rootFolder: string): Promise<void> {
+  const p = pendingConnect;
+  pendingConnect = null;
+  if (!p) return;
+  const folder = rootFolder.trim() || undefined;
+  let withFolder: MobileSyncProvider;
+  switch (p.provider) {
+    case "dropbox":
+      withFolder = { provider: "dropbox", creds: { ...p.creds, rootPath: folder } };
+      break;
+    case "onedrive":
+      withFolder = { provider: "onedrive", creds: { ...p.creds, rootFolderName: folder } };
+      break;
+    case "drive":
+      withFolder = { provider: "drive", creds: { ...p.creds, rootFolderName: folder } };
+      break;
+    default:
+      withFolder = p; // s3/webdav never reach the OAuth picker
+  }
+  await connectProvider(await getMobileVault(), withFolder);
+}
+
+/** The user backed out of the folder pick — discard the token, create no vault. */
+export function cancelConnect(): void {
+  pendingConnect = null;
+}
+
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   const pkce = await generatePkcePair();
@@ -160,21 +202,21 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     pending = null;
     void persistPending(null);
 
-    const v = await getMobileVault();
+    let mp: MobileSyncProvider;
     if (flow.provider === "dropbox") {
       const tok = await exchangeDropboxCode(
         { appKey: PLAINVA_DROPBOX_APP_KEY, code, codeVerifier: flow.verifier, redirectUri: OAUTH_REDIRECT_URI },
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
-      await connectProvider(v, {
+      mp = {
         provider: "dropbox",
         creds: {
           appKey: PLAINVA_DROPBOX_APP_KEY,
           refreshToken: tok.refreshToken,
           rootPath: flow.extras.rootPath || undefined,
         },
-      });
+      };
     } else if (flow.provider === "onedrive") {
       const clientId = flow.extras.clientId || PLAINVA_ONEDRIVE_CLIENT_ID;
       const tok = await exchangeOneDriveCode(
@@ -182,14 +224,14 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
-      await connectProvider(v, {
+      mp = {
         provider: "onedrive",
         creds: {
           clientId,
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
         },
-      });
+      };
     } else {
       const tok = await exchangeCode(
         {
@@ -204,7 +246,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
-      await connectProvider(v, {
+      mp = {
         provider: "drive",
         creds: {
           clientId: flow.extras.clientId ?? "",
@@ -212,8 +254,12 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
         },
-      });
+      };
     }
+    // Two-phase folder pick (#10): don't create the vault yet — hold the fresh
+    // token and let the React host browse the cloud folders, then finishConnect.
+    pendingConnect = mp;
+    window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
   } catch (e) {
     toast.error(String(e instanceof Error ? e.message : e));
   }

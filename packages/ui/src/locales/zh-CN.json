@@ -1443,6 +1443,7 @@
     "syncClientId": "客户端 ID",
     "syncClientSecret": "客户端密钥（可选）",
     "syncFolder": "远程文件夹（可选）",
+    "syncFolderAfterConnect": "云文件夹将在连接后选择。",
     "vaults": "仓库",
     "vaultLocal": "在此设备上",
     "vaultNotConnected": "此仓库已断开连接。",
