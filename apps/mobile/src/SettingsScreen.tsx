@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, TextInput } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, PlainvaLogo, TextInput } from "@plainva/ui";
 import { FolderPickerSheet } from "./components/FolderPickerSheet";
+import { HailingSheet } from "./components/HailingSheet";
 import { mSelect } from "./services/mobileDialogs";
 import {
   getMobileSettings,
@@ -25,6 +26,18 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
   const [settings, setSettings] = useState(getMobileSettings());
   // Folder picker target (R3.6): which path setting is being browsed.
   const [pickFor, setPickFor] = useState<"dailyFolder" | "inboxFolder" | "templateFolder" | null>(null);
+  // Easter egg (D5): five taps on the About logo within 3 s open the
+  // hailing-frequencies sheet — the desktop title-bar gesture, mobile-sized.
+  const [hailing, setHailing] = useState(false);
+  const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
+  const logoTap = () => {
+    const now = Date.now();
+    taps.current = now - taps.current.t > 3000 ? { n: 1, t: now } : { n: taps.current.n + 1, t: taps.current.t };
+    if (taps.current.n >= 5) {
+      taps.current = { n: 0, t: 0 };
+      setHailing(true);
+    }
+  };
 
   const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
     void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
@@ -111,7 +124,7 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           Swatch colors are registry DATA, not styling literals. */}
       <p className="m-sectionlabel">{t("settings.theme")}</p>
       <div className="m-themegrid">
-        {AVAILABLE_THEMES.filter((th) => !th.unlock).map((th) => {
+        {AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)).map((th) => {
           const mode = th.modes.includes(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light")
             ? (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" as const : "light" as const)
             : th.modes[0];
@@ -218,6 +231,15 @@ export function SettingsScreen({ vault, onBack }: { vault: MobileVault; onBack: 
           );
         },
       )}
+
+      {/* About (D5): the logo listens for the desktop's 5-tap gesture. */}
+      <p className="m-sectionlabel">{t("settings.about")}</p>
+      <button className="m-row m-row--static" onClick={logoTap}>
+        <PlainvaLogo size={22} />
+        <span>Plainva</span>
+      </button>
+
+      {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
     </div>
   );
 }

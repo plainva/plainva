@@ -8,6 +8,7 @@
 export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/recentsFile";
+export * from "./lib/startrekQuotes";
 export * from "./lib/themeRegistry";
 export * from "./lib/concurrencyLimiter";
 export * from "./lib/conflictFiles";

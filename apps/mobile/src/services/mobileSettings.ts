@@ -28,6 +28,12 @@ interface MobileSettings {
   onboarded: boolean;
   /** Bottom-bar screens (R2.2), sanitized by navigation.sanitizeTabSlots. */
   tabSlots: string[];
+  /** Discovered easter-egg theme ids (D5; same semantics as the desktop). */
+  unlockedThemes: string[];
+  /** Collected LCARS palette variant ids (D5). */
+  unlockedThemeVariants: string[];
+  /** Active variant per theme, e.g. { lcars: "engage" }. */
+  themeVariants: Record<string, string>;
 }
 
 const KEY = "mobile-settings";
@@ -42,6 +48,9 @@ const DEFAULTS: MobileSettings = {
   language: "",
   onboarded: false,
   tabSlots: ["notes", "today", "tags", "bookmarks"],
+  unlockedThemes: [],
+  unlockedThemeVariants: [],
+  themeVariants: {},
 };
 
 let cache: MobileSettings = { ...DEFAULTS };
@@ -52,7 +61,7 @@ function applyTheme(): void {
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
   const name = getThemeDef(cache.themeName) ? cache.themeName : DEFAULT_THEME_NAME;
-  applyResolved(cache.themeMode, name);
+  applyResolved(cache.themeMode, name, cache.themeVariants[name]);
 }
 
 export async function initMobileSettings(): Promise<void> {
