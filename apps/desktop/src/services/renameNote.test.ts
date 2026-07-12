@@ -123,7 +123,7 @@ describe("renameFileWithLinkUpdates", () => {
       newPath: "Projects/index.md",
     });
 
-    expect(result).toEqual({ renamedLinks: 2, changedFiles: 1, linkUpdateFailed: false });
+    expect(result).toEqual({ renamedLinks: 2, changedFiles: 1, linkUpdateFailed: false, changedPaths: ["task.md"] });
     expect(store.get("task.md")).toContain('projekt: "[[index]]"');
     expect(store.get("task.md")).toContain('- "[[Projects/index#Intro|Alias]]"');
   });
@@ -147,7 +147,7 @@ describe("renameFileWithLinkUpdates", () => {
       newPath: "Index.md",
     });
 
-    expect(result).toEqual({ renamedLinks: 2, changedFiles: 1, linkUpdateFailed: false });
+    expect(result).toEqual({ renamedLinks: 2, changedFiles: 1, linkUpdateFailed: false, changedPaths: ["mixed.md"] });
     expect(store.get("mixed.md")).toContain('projekt: "[[Index]]"');
     expect(store.get("mixed.md")).toContain("Siehe [[Index]].");
   });
@@ -191,7 +191,7 @@ describe("renameFileWithLinkUpdates", () => {
       newPath: "Index.md",
     });
 
-    expect(result).toEqual({ renamedLinks: 1, changedFiles: 1, linkUpdateFailed: false });
+    expect(result).toEqual({ renamedLinks: 1, changedFiles: 1, linkUpdateFailed: false, changedPaths: ["broken.md"] });
     expect(store.get("broken.md")).toContain("Siehe [[Index]].");
   });
 
@@ -212,6 +212,6 @@ describe("renameFileWithLinkUpdates", () => {
     });
 
     expect(store.has("New.md")).toBe(true);
-    expect(result).toEqual({ renamedLinks: 0, changedFiles: 0, linkUpdateFailed: true });
+    expect(result).toEqual({ renamedLinks: 0, changedFiles: 0, linkUpdateFailed: true, changedPaths: [] });
   });
 });

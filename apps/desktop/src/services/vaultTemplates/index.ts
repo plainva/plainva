@@ -128,7 +128,9 @@ export async function scaffoldVaultTemplate(opts: {
       .map((n) => ({ path: n.path, description: n.description }));
     const subfolders = folders
       .filter((f) => f !== folder && f.startsWith(prefix) && !f.slice(prefix.length).includes("/"))
-      .map((name) => ({ name: name.slice(prefix.length) }));
+      // Every template folder gets its own managed index.md (loop above), so
+      // each listed subfolder always has one to link to (Issue #9).
+      .map((f) => ({ name: f.slice(prefix.length), hasIndex: true }));
 
     const content = generateIndexContent({
       folder,

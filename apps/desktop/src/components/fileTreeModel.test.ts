@@ -64,6 +64,31 @@ describe("flattenVisibleTree", () => {
       "Zettel.md",
     ]);
   });
+
+  it("puts a folder's own index.md first, before subfolders and files (Issue #9)", () => {
+    const tree = buildTree([
+      { path: "Notes/index.md", title: "Notes" },
+      { path: "Notes/apple.md", title: "apple" },
+      { path: "Notes/Sub/Deep.md", title: "Deep" },
+      { path: "index.md", title: "Home" },
+      { path: "Atlas/Idee.md", title: "Idee" },
+    ]);
+    // Root: its own index.md leads, then the folders A-Z.
+    expect(flattenVisibleTree(tree, new Set()).map((v) => v.path)).toEqual([
+      "index.md",
+      "Atlas",
+      "Notes",
+    ]);
+    // Inside "Notes": index.md first, then the Sub folder, then apple.md.
+    expect(flattenVisibleTree(tree, new Set(["Notes"])).map((v) => v.path)).toEqual([
+      "index.md",
+      "Atlas",
+      "Notes",
+      "Notes/index.md",
+      "Notes/Sub",
+      "Notes/apple.md",
+    ]);
+  });
 });
 
 describe("applyClickSelection", () => {

@@ -26,7 +26,10 @@ describe("generateIndexContent", () => {
         { path: "Projects/Beta.md", title: "Beta", description: "Second project." },
         { path: "Projects/Alpha.md" },
       ],
-      subfolders: [{ name: "Archive", description: "Old stuff." }],
+      subfolders: [
+        { name: "Archive", description: "Old stuff.", hasIndex: true },
+        { name: "Scratch" }, // no index.md of its own
+      ],
       subfoldersHeading: "Ordner",
     });
 
@@ -39,10 +42,28 @@ describe("generateIndexContent", () => {
         "",
         "# Ordner",
         "",
-        "* [Archive](Archive/) - Old stuff.",
+        // A subfolder WITH its own index.md links straight to it (opens in
+        // Plainva AND Obsidian). Without one, a plain entry avoids fabricating a
+        // stray note on click in Obsidian (Issue #9).
+        "* [Archive](Archive/index.md) - Old stuff.",
+        "* Scratch",
         "",
       ].join("\n")
     );
+  });
+
+  it("url-encodes a linked subfolder and points at its index.md (Issue #9)", () => {
+    const content = generateIndexContent({
+      folder: "",
+      heading: "Vault",
+      files: [],
+      subfolders: [{ name: "1 Markdown handbook", hasIndex: true }],
+      subfoldersHeading: "Ordner",
+    });
+    // Exactly the reporter's folder: the old `1%20Markdown%20handbook/` form
+    // has no target in Obsidian, so clicking it created a stray note.
+    expect(content).toContain("* [1 Markdown handbook](1%20Markdown%20handbook/index.md)");
+    expect(content).not.toContain("(1%20Markdown%20handbook/)");
   });
 
   it("adds okf_version frontmatter only for the bundle root", () => {

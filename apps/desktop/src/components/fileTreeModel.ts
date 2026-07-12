@@ -51,9 +51,14 @@ export const buildTree = (files: TreeFileRow[]): TreeNode => {
   return root;
 };
 
-/** Render order of a folder's children: subfolders first, then files, each A-Z. */
+/** Render order of a folder's children: the folder's own index.md first, then
+ *  subfolders, then files, each A-Z. Leading with index.md keeps the folder
+ *  overview at the start of the list instead of at "i" among the files (Issue #9). */
 export function sortedChildren(node: TreeNode): TreeNode[] {
   return Object.values(node.children || {}).sort((a, b) => {
+    const aIsIndex = !a.children && a.name.toLowerCase() === "index.md";
+    const bIsIndex = !b.children && b.name.toLowerCase() === "index.md";
+    if (aIsIndex !== bIsIndex) return aIsIndex ? -1 : 1;
     const aIsFolder = !!a.children;
     const bIsFolder = !!b.children;
     if (aIsFolder && !bIsFolder) return -1;

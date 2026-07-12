@@ -30,6 +30,12 @@ export interface IndexFileEntry {
 export interface IndexSubfolderEntry {
   name: string;
   description?: string;
+  /**
+   * Whether the subfolder has its own index.md. When true the listing links to
+   * that note (portable — both Plainva and Obsidian open it); when false the
+   * entry stays plain text so a click never fabricates a stray note (Issue #9).
+   */
+  hasIndex?: boolean;
 }
 
 export interface GenerateIndexOptions {
@@ -100,7 +106,18 @@ export function generateIndexContent(options: GenerateIndexOptions): string {
     lines.push("", `# ${options.subfoldersHeading ?? "Subdirectories"}`, "");
     for (const sub of sortedFolders) {
       const description = sub.description?.trim();
-      lines.push(`* [${sub.name}](${encodeURI(sub.name)}/)${description ? ` - ${description}` : ""}`);
+      const suffix = description ? ` - ${description}` : "";
+      if (sub.hasIndex) {
+        // Link to the subfolder's own index.md — an existing note both Plainva
+        // AND Obsidian open. A trailing-slash folder link (`Name/`) only
+        // navigates inside Plainva; Obsidian has no target for it, so clicking
+        // one fabricates a stray empty note named after the folder (Issue #9).
+        lines.push(`* [${sub.name}](${encodeURI(sub.name)}/index.md)${suffix}`);
+      } else {
+        // No index.md to point at — a plain (non-link) entry so a click can
+        // never create a junk note in either app.
+        lines.push(`* ${sub.name}${suffix}`);
+      }
     }
   }
 

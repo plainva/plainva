@@ -139,6 +139,7 @@ export async function generateIndexForFolder(opts: {
 }): Promise<{ indexPath: string; entries: number; overwrote: boolean }> {
   const { adapter, queryService, folder } = opts;
   const paths = await listMarkdownPaths(queryService);
+  const lowerPaths = new Set(paths.map((p) => p.toLowerCase()));
 
   const prefix = folder ? `${folder}/` : "";
   const directFiles = paths.filter(
@@ -174,7 +175,12 @@ export async function generateIndexForFolder(opts: {
       title: titleMap.get(p) || undefined,
       description: descMap.get(p) || undefined,
     })),
-    subfolders: [...subfolders].map((name) => ({ name })),
+    subfolders: [...subfolders].map((name) => ({
+      name,
+      // Only link a subfolder whose own index.md exists (Issue #9): the entry
+      // then opens that note in both Plainva and Obsidian.
+      hasIndex: lowerPaths.has(`${prefix}${name}/index.md`.toLowerCase()),
+    })),
     subfoldersHeading: opts.subfoldersHeading,
     bundleRoot: folder === "",
     managedMarker: true,

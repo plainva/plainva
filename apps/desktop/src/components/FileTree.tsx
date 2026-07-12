@@ -20,7 +20,7 @@ import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
-import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
+import { duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { generateIndexForFolder } from "../services/indexMd";
 import { isImagePath } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -803,7 +803,9 @@ export const FileTree: React.FC<{
       }
       setRenamingItemParams(null);
       onRenameTabPrefix?.(oldPath, result.newPath);
-      await indexer.indexVaultFull();
+      // Targeted reindex (Issue #9): a full-vault scan on every rename was the
+      // visible lag before the sidebar updated.
+      await reindexAfterRename(indexer, { oldPath, newPath: result.newPath, isFolder, changedPaths: result.changedPaths });
       triggerFileTreeUpdate();
       if (result.linkUpdateFailed) {
         toast.warning(t("dialogs.renameLinksFailed"));

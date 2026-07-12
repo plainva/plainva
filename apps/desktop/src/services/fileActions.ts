@@ -17,7 +17,7 @@ export interface FileActionAdapter extends RenameAdapter {
 }
 
 export type RenameToNameResult =
-  | { ok: true; newPath: string; renamedLinks: number; changedFiles: number; linkUpdateFailed: boolean }
+  | { ok: true; newPath: string; renamedLinks: number; changedFiles: number; linkUpdateFailed: boolean; changedPaths: string[] }
   | { ok: false; reason: "unchanged" | "invalid-name" | "already-exists" };
 
 /** File name (no folder) the rename UIs prefill: `.md` is hidden for notes,
@@ -60,10 +60,38 @@ export async function renameToName(opts: {
 
   if (wasNote && newPath.toLowerCase().endsWith(".md") && queryService) {
     const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath, newPath });
-    return { ok: true, newPath, renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed };
+    return { ok: true, newPath, renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed, changedPaths: result.changedPaths };
   }
   await adapter.renameItem(oldPath, newPath);
-  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
+  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] };
+}
+
+/** Minimal indexer surface `reindexAfterRename` needs (VaultIndexer satisfies it). */
+export interface RenameReindexer {
+  indexVaultFull(): Promise<void>;
+  indexPath(path: string): Promise<unknown>;
+  removePathFromIndex(path: string): Promise<void>;
+}
+
+/**
+ * Refresh the index after a rename with the least work so the sidebar reflects
+ * it immediately. A full-vault reindex on every rename was the visible lag
+ * (Issue #9). A FILE rename only removes the old path, indexes the new one and
+ * re-indexes the handful of files whose links were rewritten. A FOLDER rename
+ * changes many descendant paths at once, so it still falls back to the full scan.
+ */
+export async function reindexAfterRename(
+  indexer: RenameReindexer,
+  opts: { oldPath: string; newPath: string; isFolder: boolean; changedPaths: string[] }
+): Promise<void> {
+  if (opts.isFolder) {
+    await indexer.indexVaultFull();
+    return;
+  }
+  await indexer.removePathFromIndex(opts.oldPath);
+  for (const path of new Set<string>([opts.newPath, ...opts.changedPaths])) {
+    await indexer.indexPath(path);
+  }
 }
 
 /** "Datei duplizieren" (P8): text files copy as text, attachments byte-wise;

@@ -91,6 +91,7 @@ describe("generateIndexForFolder", () => {
         "Projects/Alpha.md": "# A\n",
         "Projects/Beta.md": "# B\n",
         "Projects/Sub/Deep.md": "# D\n",
+        "Projects/Docs/index.md": "# Docs\n",
       },
       [{ path: "Projects/Alpha.md", value: "First project." }]
     );
@@ -109,7 +110,12 @@ describe("generateIndexForFolder", () => {
     expect(content).toContain("# Projects");
     expect(content).toContain("* [Alpha](Alpha.md) - First project.");
     expect(content).toContain("* [Beta](Beta.md)");
-    expect(content).toContain("* [Sub](Sub/)");
+    // Docs has its own index.md → link straight to it (opens in Plainva AND
+    // Obsidian). Sub has none → plain text, so a click never fabricates a stray
+    // note in Obsidian (Issue #9).
+    expect(content).toContain("* [Docs](Docs/index.md)");
+    expect(content).toContain("* Sub");
+    expect(content).not.toContain("(Sub/)");
     expect(content.startsWith("---")).toBe(false);
   });
 

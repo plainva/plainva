@@ -36,6 +36,12 @@ export interface RenameResult {
    * name. Callers surface this as a warning instead of staying silent.
    */
   linkUpdateFailed: boolean;
+  /**
+   * Paths of the referencing files whose links were rewritten. The caller
+   * re-indexes exactly these (plus the renamed file) instead of scanning the
+   * whole vault, so the sidebar reflects the rename immediately (Issue #9).
+   */
+  changedPaths: string[];
 }
 
 export async function renameFileWithLinkUpdates(opts: {
@@ -63,7 +69,7 @@ export async function renameFileWithLinkUpdates(opts: {
 
   await adapter.renameItem(oldPath, newPath);
 
-  if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed };
+  if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed, changedPaths: [] };
 
   const newBase = newPath.split(/[/\\]/).pop()!.replace(/\.md$/i, "");
   const newWikiQualified = newPath.replace(/\.md$/i, "");
@@ -104,6 +110,7 @@ export async function renameFileWithLinkUpdates(opts: {
 
   let renamedLinks = 0;
   let changedFiles = 0;
+  const changedPaths: string[] = [];
   for (const [source, entry] of bySource) {
     try {
       let text = await adapter.readTextFile(source);
@@ -139,6 +146,7 @@ export async function renameFileWithLinkUpdates(opts: {
         await adapter.writeTextFile(source, text);
         renamedLinks += bodyCount + fmCount;
         changedFiles++;
+        changedPaths.push(source);
       }
     } catch (e) {
       console.warn(`[renameNote] updating links in ${source} failed`, e);
@@ -146,5 +154,5 @@ export async function renameFileWithLinkUpdates(opts: {
     }
   }
 
-  return { renamedLinks, changedFiles, linkUpdateFailed };
+  return { renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
 }

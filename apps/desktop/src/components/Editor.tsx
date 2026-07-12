@@ -38,7 +38,7 @@ import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
-import { duplicateFile, renameInitialName, renameToName } from "../services/fileActions";
+import { duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
@@ -174,7 +174,8 @@ export const Editor: React.FC<{
         return;
       }
       onRenamed?.(activePath, result.newPath);
-      await indexer?.indexVaultFull();
+      // Targeted reindex (Issue #9): avoid a full-vault scan on every rename.
+      if (indexer) await reindexAfterRename(indexer, { oldPath: activePath, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
       triggerFileTreeUpdate();
       if (result.linkUpdateFailed) {
         toast.warning(t("dialogs.renameLinksFailed"));

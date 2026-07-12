@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duplicateFile, renameInitialName, renameToName, type FileActionAdapter } from "./fileActions";
+import { duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
 function makeAdapter(initial: Record<string, string | Uint8Array>) {
@@ -41,7 +41,7 @@ describe("renameToName", () => {
   it("appends .md for notes typed without extension and keeps the folder", async () => {
     const { adapter, files } = makeAdapter({ "sub/Old.md": "# Old" });
     const r = await renameToName({ adapter, queryService: null, oldPath: "sub/Old.md", newName: "New", isFolder: false });
-    expect(r).toEqual({ ok: true, newPath: "sub/New.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false });
+    expect(r).toEqual({ ok: true, newPath: "sub/New.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] });
     expect(files.has("sub/New.md")).toBe(true);
     expect(files.has("sub/Old.md")).toBe(false);
   });
@@ -49,7 +49,7 @@ describe("renameToName", () => {
   it("does NOT append .md when renaming an attachment (old tree logic produced photo2.png.md)", async () => {
     const { adapter, files } = makeAdapter({ "img/photo.png": new Uint8Array([1]) });
     const r = await renameToName({ adapter, queryService: null, oldPath: "img/photo.png", newName: "photo2.png", isFolder: false });
-    expect(r).toEqual({ ok: true, newPath: "img/photo2.png", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false });
+    expect(r).toEqual({ ok: true, newPath: "img/photo2.png", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] });
     expect(files.has("img/photo2.png")).toBe(true);
   });
 
@@ -71,7 +71,7 @@ describe("renameToName", () => {
   it("renames folders without touching extensions", async () => {
     const { adapter, files } = makeAdapter({ "Projects": "DIR" });
     const r = await renameToName({ adapter, queryService: null, oldPath: "Projects", newName: "Archive.md", isFolder: true });
-    expect(r).toEqual({ ok: true, newPath: "Archive.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false });
+    expect(r).toEqual({ ok: true, newPath: "Archive.md", renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] });
     expect(files.has("Archive.md")).toBe(true);
   });
 
@@ -128,5 +128,54 @@ describe("duplicateFile", () => {
     const copy = await duplicateFile(adapter, "img/photo.png", "Kopie");
     expect(copy).toBe("img/photo (Kopie).png");
     expect(files.get(copy)).toEqual(bytes);
+  });
+});
+
+describe("reindexAfterRename", () => {
+  function makeReindexer() {
+    const calls = { full: 0, indexed: [] as string[], removed: [] as string[] };
+    const indexer: RenameReindexer = {
+      indexVaultFull: async () => void calls.full++,
+      indexPath: async (p) => void calls.indexed.push(p),
+      removePathFromIndex: async (p) => void calls.removed.push(p),
+    };
+    return { indexer, calls };
+  }
+
+  it("indexes only the affected paths for a file rename (no full scan) — Issue #9", async () => {
+    const { indexer, calls } = makeReindexer();
+    await reindexAfterRename(indexer, {
+      oldPath: "Old.md",
+      newPath: "New.md",
+      isFolder: false,
+      changedPaths: ["Ref.md", "Other.md"],
+    });
+    expect(calls.full).toBe(0);
+    expect(calls.removed).toEqual(["Old.md"]);
+    expect(calls.indexed).toEqual(["New.md", "Ref.md", "Other.md"]);
+  });
+
+  it("de-duplicates the new path when it also appears among the changed sources", async () => {
+    const { indexer, calls } = makeReindexer();
+    await reindexAfterRename(indexer, {
+      oldPath: "Old.md",
+      newPath: "New.md",
+      isFolder: false,
+      changedPaths: ["New.md"], // self-reference rewrite reports the renamed file
+    });
+    expect(calls.indexed).toEqual(["New.md"]);
+  });
+
+  it("falls back to a full scan for a folder rename (many paths change at once)", async () => {
+    const { indexer, calls } = makeReindexer();
+    await reindexAfterRename(indexer, {
+      oldPath: "Projects",
+      newPath: "Archive",
+      isFolder: true,
+      changedPaths: [],
+    });
+    expect(calls.full).toBe(1);
+    expect(calls.removed).toEqual([]);
+    expect(calls.indexed).toEqual([]);
   });
 });
