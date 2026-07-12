@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Folder, Hash, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Folder, Hash, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
@@ -11,6 +11,7 @@ import {
   buildSourceClause,
   buildUIFilterModel,
   isSourceCondition,
+  isValidNewPropertyName,
   moveTopFilterEntries,
   parsePropertyFilter,
   parseSourceClause,
@@ -18,6 +19,7 @@ import {
   removeGroupRule,
   serializePropertyFilter,
   setGroupLogic,
+  toast,
   updateGroupRule,
   updateTopFilterRule,
   type FilterEntryRef,
@@ -37,6 +39,23 @@ import {
 
 const VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline"] as const;
 const FILTER_OPS: FilterOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<=", "empty", "notEmpty"];
+/** Authoring vocabulary for fresh properties — relation stays desktop (E3). */
+const NEW_PROPERTY_TYPES = [
+  "text",
+  "number",
+  "checkbox",
+  "date",
+  "datetime",
+  "select",
+  "status",
+  "multiselect",
+  "list",
+  "tags",
+  "url",
+  "email",
+  "phone",
+] as const;
+const DATE_FORMATS = ["default", "long", "iso", "relative"] as const;
 
 export function BaseConfigSheet({
   config,
@@ -46,6 +65,7 @@ export function BaseConfigSheet({
   vault,
   onMutate,
   onSelectView,
+  onEditProperty,
   onClose,
 }: {
   config: any;
@@ -57,6 +77,8 @@ export function BaseConfigSheet({
   /** Clone-mutate-save: the callback owns persistence + re-query. */
   onMutate: (mutate: (cfg: any) => void) => void;
   onSelectView: (idx: number) => void;
+  /** Opens the property schema sheet (E3). */
+  onEditProperty: (col: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -276,6 +298,36 @@ export function BaseConfigSheet({
     })();
   };
 
+  // New property (E3): name prompt → type pick → schema + active view order.
+  const addProperty = () => {
+    void (async () => {
+      const { value, cancelled } = await mPrompt({
+        title: t("properties.addProperty"),
+        message: t("properties.namePlaceholder"),
+      });
+      const name = value?.trim();
+      if (cancelled || !name) return;
+      if (!isValidNewPropertyName(name, columnsPool, "")) {
+        toast.error(t("properties.renameInvalid"));
+        return;
+      }
+      const type = await mSelect({
+        title: t("properties.chooseType"),
+        options: NEW_PROPERTY_TYPES.map((tp) => ({ value: tp, label: t(`properties.type_${tp}`) })),
+      });
+      if (type === null) return;
+      onMutate((cfg) => {
+        if (!cfg.columns || Array.isArray(cfg.columns)) cfg.columns = {};
+        cfg.columns[name] = { input: type };
+        const v = cfg.views[viewIndex];
+        if (v) {
+          if (!Array.isArray(v.order)) v.order = ["file.name"];
+          if (!v.order.includes(name)) v.order.push(name);
+        }
+      });
+    })();
+  };
+
   const dateColumns = columnsPool.filter((c) => {
     const input = config?.columns?.[c]?.input;
     return input === "date" || input === "datetime";
@@ -487,8 +539,69 @@ export function BaseConfigSheet({
             )}
           </>
         )}
+        {view.type === "gallery" && (
+          <>
+            {/* Cover image column (E3, desktop views[i].coverImage contract) */}
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.coverImage")}</p>
+            <div className="m-turninto">
+              <button
+                className={`m-chip${!view.coverImage ? " is-on" : ""}`}
+                onClick={() =>
+                  mutateView((v) => {
+                    delete v.coverImage;
+                  })
+                }
+              >
+                {t("database.noCover")}
+              </button>
+              {columnsPool.map((c) => (
+                <button
+                  className={`m-chip${view.coverImage === c ? " is-on" : ""}`}
+                  key={c}
+                  onClick={() =>
+                    mutateView((v) => {
+                      v.coverImage = c;
+                    })
+                  }
+                >
+                  {columnLabel(c)}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {dateColumns.length > 0 && (
+          <>
+            {/* Per-view date format (E3, desktop views[i].dateFormat contract) */}
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.dateFormat")}</p>
+            <div className="m-turninto">
+              {DATE_FORMATS.map((fmt) => (
+                <button
+                  className={`m-chip${(view.dateFormat ?? "default") === fmt ? " is-on" : ""}`}
+                  key={fmt}
+                  onClick={() =>
+                    mutateView((v) => {
+                      if (fmt === "default") delete v.dateFormat;
+                      else v.dateFormat = fmt;
+                    })
+                  }
+                >
+                  {t(
+                    fmt === "default"
+                      ? "database.dateFormatDefault"
+                      : fmt === "long"
+                        ? "database.dateFormatLong"
+                        : fmt === "iso"
+                          ? "database.dateFormatIso"
+                          : "database.dateFormatRelative",
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
-        {/* Columns */}
+        {/* Columns (E3: pencil opens the schema sheet, + adds a property) */}
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.properties")}</p>
         {shown.map((c, idx) => (
           <div className="m-row m-row--split" key={c}>
@@ -498,6 +611,13 @@ export function BaseConfigSheet({
             >
               <span>{columnLabel(c)}</span>
               <span className="m-slotmark is-on" />
+            </button>
+            <button
+              aria-label={t("properties.editColumn", { column: columnLabel(c) })}
+              className="m-iconbtn"
+              onClick={() => onEditProperty(c)}
+            >
+              <Pencil size={18} />
             </button>
             <button
               aria-label={t("block.moveUp")}
@@ -518,11 +638,24 @@ export function BaseConfigSheet({
           </div>
         ))}
         {hidden.map((c) => (
-          <button className="m-row" key={c} onClick={() => setOrder([...shown, c])}>
-            <span>{columnLabel(c)}</span>
-            <span className="m-slotmark" />
-          </button>
+          <div className="m-row m-row--split" key={c}>
+            <button className="m-row-main" onClick={() => setOrder([...shown, c])}>
+              <span>{columnLabel(c)}</span>
+              <span className="m-slotmark" />
+            </button>
+            <button
+              aria-label={t("properties.editColumn", { column: columnLabel(c) })}
+              className="m-iconbtn"
+              onClick={() => onEditProperty(c)}
+            >
+              <Pencil size={18} />
+            </button>
+          </div>
         ))}
+        <button className="m-row" onClick={addProperty}>
+          <Plus size={18} />
+          <span>{t("properties.addProperty")}</span>
+        </button>
 
         {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sort")}</p>

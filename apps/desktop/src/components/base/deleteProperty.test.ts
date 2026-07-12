@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deletePropertyFromConfig } from "./deleteProperty";
+import { deletePropertyFromConfig } from "@plainva/ui";
 
 const config = (): any => ({
   columns: {
@@ -84,5 +84,20 @@ describe("deletePropertyFromConfig (plan Base-Neu P11)", () => {
     expect(cfg.columns.status).toBeDefined();
     expect(deletePropertyFromConfig({}, "x").columns).toEqual({});
     expect(deletePropertyFromConfig(null, "x").columns).toEqual({});
+  });
+
+  it("drops the property rules from per-view filters (views[i].filters)", () => {
+    const cfg = {
+      columns: { status: { input: "select" }, prio: {} },
+      views: [
+        {
+          type: "table",
+          name: "T",
+          filters: { and: ['status == "open"', 'prio == "1"', { or: ['note.status != "done"'] }] },
+        },
+      ],
+    };
+    const out = deletePropertyFromConfig(cfg, "status");
+    expect(out.views[0].filters.and).toEqual(['prio == "1"']); // emptied group vanished too
   });
 });

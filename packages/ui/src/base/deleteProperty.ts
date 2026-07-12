@@ -64,6 +64,18 @@ export function deletePropertyFromConfig(config: any, name: string): any {
       if (Array.isArray(nc.filters[key])) nc.filters[key] = cleanList(nc.filters[key]);
     }
   }
+  // Per-view filters (views[i].filters) carry the property rules since the
+  // per-view migration — drop the deleted property's rules there too.
+  if (Array.isArray(nc.views)) {
+    nc.views = nc.views.map((v: any) => {
+      if (!v || typeof v !== "object" || !v.filters || typeof v.filters !== "object") return v;
+      const nf = { ...v.filters };
+      for (const key of ["and", "or"] as const) {
+        if (Array.isArray(nf[key])) nf[key] = cleanList(nf[key]);
+      }
+      return { ...v, filters: nf };
+    });
+  }
 
   const rawProps = nc._obsidian?.properties;
   if (rawProps && typeof rawProps === "object" && !Array.isArray(rawProps)) {

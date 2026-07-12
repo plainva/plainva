@@ -4,8 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath } from "@plainva/core";
-import { renamePropertyInConfig } from "@plainva/ui";
-import { deletePropertyFromConfig } from "./base/deleteProperty";
+import { deletePropertyFromConfig, renamePropertyInConfig } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
   addReverseColumnToConfig,

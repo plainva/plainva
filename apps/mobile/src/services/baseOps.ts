@@ -1,16 +1,22 @@
 import {
+  deleteFrontmatterPath,
   extractFrontmatter,
   parseMarkdownAst,
+  renameFrontmatterKey,
   updateFrontmatterString,
   OKF_VERSION,
 } from "@plainva/core";
 import {
+  applyTemplatePlaceholders,
   baseStemOf,
   buildSourceClause,
+  buildUIFilterModel,
   combineFilters,
+  deletePropertyFromConfig,
   migrateFiltersToPerView,
   nextItemName,
   parseBaseConfig,
+  renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
 } from "@plainva/ui";
@@ -107,15 +113,96 @@ export async function relationCandidates(
 }
 
 /**
+ * Renames a property in the config (shared renamePropertyInConfig) and moves
+ * the frontmatter key in every source note (desktop rename contract).
+ * Returns the number of rewritten notes.
+ */
+export async function renameBaseProperty(
+  v: MobileVault,
+  basePath: string,
+  config: any,
+  oldName: string,
+  newName: string,
+  rowPaths: string[],
+): Promise<number> {
+  const nc = renamePropertyInConfig(config, oldName, newName);
+  await saveBaseConfig(v, basePath, nc);
+  let changed = 0;
+  for (const p of rowPaths) {
+    try {
+      const text = await vaultOps.read(v, p);
+      const next = renameFrontmatterKey(text, oldName, newName);
+      if (next !== text) {
+        await vaultOps.save(v, p, next);
+        changed++;
+      }
+    } catch {
+      /* note lacks the key or already carries the new one — skip */
+    }
+  }
+  if (changed > 0) syncSoon();
+  return changed;
+}
+
+/**
+ * Deletes a property from the config (shared deletePropertyFromConfig) and
+ * optionally removes the frontmatter key from the source notes.
+ */
+export async function deleteBaseProperty(
+  v: MobileVault,
+  basePath: string,
+  config: any,
+  name: string,
+  rowPaths: string[],
+  cleanNotes: boolean,
+): Promise<void> {
+  const nc = deletePropertyFromConfig(config, name);
+  await saveBaseConfig(v, basePath, nc);
+  if (cleanNotes) {
+    for (const p of rowPaths) {
+      try {
+        const text = await vaultOps.read(v, p);
+        const next = deleteFrontmatterPath(text, [name]);
+        if (next !== text) await vaultOps.save(v, p, next);
+      } catch {
+        /* skip unreadable notes; the column is gone either way */
+      }
+    }
+  }
+  syncSoon();
+}
+
+/**
+ * Frontmatter prefill for a fresh base item (desktop parity): the simple
+ * `==` rules of the active view when the top logic is ALL.
+ */
+export function newItemPrefill(config: any, viewIndex: number): Record<string, unknown> {
+  const prefill: Record<string, unknown> = {};
+  const views = Array.isArray(config?.views) ? config.views : [];
+  const active = views[viewIndex] ?? views[0];
+  if (!active) return prefill;
+  const model = buildUIFilterModel(active);
+  if (model.topLogic !== "all") return prefill;
+  for (const e of model.entries) {
+    if (e.kind === "rule" && e.rule.op === "==" && e.rule.value !== "") {
+      prefill[e.rule.column.replace(/^note\./, "")] = e.rule.value;
+    }
+  }
+  return prefill;
+}
+
+/**
  * Creates a new item for the base ({stem}_{n} naming, OKF frontmatter,
- * inherited tags from tag sources). Returns the new note's path, or null
- * when the base has no folder source to store into.
+ * inherited tags from tag sources; E3: the base's newItemTemplate seeds the
+ * body and simple == filters of the active view prefill the frontmatter).
+ * Returns the new note's path, or null when the base has no folder source.
  */
 export async function createBaseItem(
   v: MobileVault,
   basePath: string,
   config: any,
   rowCount: number,
+  viewIndex = 0,
 ): Promise<string | null> {
   const target = resolveNewItemTarget(config);
   const folder = target.folder ?? target.folderSources[0];
@@ -123,11 +210,34 @@ export async function createBaseItem(
   const stem = baseStemOf(basePath);
   const name = await nextItemName(stem, rowCount, (n) => v.files.exists(`${folder}/${n}.md`));
   const path = `${folder}/${name}.md`;
-  let fm = `type: Note\nokf_version: "${OKF_VERSION}"`;
-  if (target.inheritTags.length > 0) {
-    fm += `\ntags:\n${target.inheritTags.map((t) => `  - ${t}`).join("\n")}`;
+
+  // Body: the base's template (interpolated, OKF-secured) or the skeleton.
+  let content: string | null = null;
+  const tplPath = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
+  if (tplPath) {
+    try {
+      const interpolated = applyTemplatePlaceholders(await vaultOps.read(v, tplPath), name);
+      content = /^---\r?\n/.test(interpolated)
+        ? interpolated
+        : `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+    } catch {
+      content = null; // missing template falls back to the skeleton
+    }
   }
-  const content = `---\n${fm}\n---\n\n# ${name}\n`;
+  if (content === null) content = `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n# ${name}\n`;
+
+  // Frontmatter prefill: inherited tags + the active view's == filters.
+  const prefill = newItemPrefill(config, viewIndex);
+  if (target.inheritTags.length > 0) prefill.tags = target.inheritTags;
+  if (Object.keys(prefill).length > 0) {
+    const fmResult = extractFrontmatter(parseMarkdownAst(content));
+    const props: Record<string, unknown> = {
+      ...((fmResult.success && fmResult.data ? fmResult.data : {}) as Record<string, unknown>),
+      ...prefill,
+    };
+    content = updateFrontmatterString(content, props);
+  }
+
   await vaultOps.save(v, path, content);
   syncSoon();
   return path;

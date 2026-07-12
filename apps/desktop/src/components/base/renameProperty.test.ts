@@ -85,6 +85,18 @@ describe("renaming a self-relation parent column preserves the sub-items functio
     expect(out.views[0].order).toEqual(["file.name", "oberelement", "subitems"]);
     expect(out.columns.subitems.reverseOf.property).toBe("oberelement"); // reverse column stays fed
   });
+
+  it("renames rules inside per-view filters (views[i].filters)", () => {
+    const cfg = {
+      columns: { status: { input: "select" } },
+      views: [
+        { type: "table", name: "T", filters: { and: ['status == "open"', { or: ['note.status != "done"'] }] } },
+      ],
+    };
+    const out = renamePropertyInConfig(cfg, "status", "zustand");
+    expect(out.views[0].filters.and[0]).toBe('zustand == "open"');
+    expect(out.views[0].filters.and[1].or[0]).toBe('note.zustand != "done"');
+  });
 });
 
 describe("isValidNewPropertyName", () => {

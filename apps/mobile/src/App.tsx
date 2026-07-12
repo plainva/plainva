@@ -281,7 +281,8 @@ export default function App() {
       const name = value?.trim().replace(/[\\/]/g, "-");
       if (cancelled || !name) return;
       const path = await createDatabase(vault, browseFolder(), name, t("database.viewTable"));
-      push({ kind: "base", path });
+      // Mini wizard (E3): a fresh database opens straight into configure.
+      push({ kind: "base", path, configOpen: true });
     })();
   };
 
@@ -372,6 +373,7 @@ export default function App() {
           />
         ) : top?.kind === "base" ? (
           <BaseScreen
+            initialConfigOpen={top.configOpen}
             key={top.path}
             onBack={pop}
             onOpenNote={openNote}

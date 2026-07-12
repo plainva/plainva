@@ -74,6 +74,8 @@ export type NavKind =
 export interface NavEntry {
   kind: NavKind;
   path: string;
+  /** Fresh .base entries open with the configure sheet up (E3 mini wizard). */
+  configOpen?: boolean;
 }
 
 const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "sync", "vault"]);

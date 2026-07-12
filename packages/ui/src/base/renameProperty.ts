@@ -62,6 +62,13 @@ export function renamePropertyInConfig(config: any, oldName: string, newName: st
   };
   if (Array.isArray(nc.filters?.and)) nc.filters.and = nc.filters.and.map(mapFilter);
   if (Array.isArray(nc.filters?.or)) nc.filters.or = nc.filters.or.map(mapFilter);
+  // Per-view filters (views[i].filters, plan Per-View-Filter 2026-07-07) hold
+  // the property rules since the migration — rename them too.
+  if (Array.isArray(nc.views)) {
+    nc.views = nc.views.map((v: any) =>
+      v && typeof v === "object" && v.filters != null ? { ...v, filters: mapFilter(v.filters) } : v
+    );
+  }
 
   // Raw Obsidian property entry (displayName etc.): rename the id key.
   const rawProps = nc._obsidian?.properties;

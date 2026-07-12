@@ -1129,6 +1129,14 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Option color dot (E3): background is chip-token data set inline. */
+.m-optiondot {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+}
 
 /* ---- Home head (plan Mobile M3E, package B): scroll-raised top bar state,
    search pill, recents carousel, bookmark chips, screen enter. Tokens only

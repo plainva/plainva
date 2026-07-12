@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Search } from "lucide-react";
+import { Check, ExternalLink, Search } from "lucide-react";
 import {
+  getPlatformServices,
   inlineOptionsFrom,
   parseWikiLinkValue,
   splitMultiValue,
@@ -233,24 +234,57 @@ export function CellEditSheet({
         )}
 
         {!isSelect && !isMulti && !isRelation && !isDate && (
-          <div className="m-sheet-inputrow">
-            <input
-              className="m-searchfield"
-              inputMode={input === "number" ? "decimal" : undefined}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={col}
-              type={input === "number" ? "number" : "text"}
-              value={text}
-            />
-            <button
-              className="m-iconbtn"
-              onClick={() =>
-                onCommit(input === "number" && text.trim() !== "" ? Number(text) : text)
-              }
-            >
-              <Check size={20} />
-            </button>
-          </div>
+          <>
+            <div className="m-sheet-inputrow">
+              <input
+                className="m-searchfield"
+                inputMode={
+                  input === "number"
+                    ? "decimal"
+                    : input === "url"
+                      ? "url"
+                      : input === "email"
+                        ? "email"
+                        : input === "phone"
+                          ? "tel"
+                          : undefined
+                }
+                onChange={(e) => setText(e.target.value)}
+                placeholder={col}
+                type={input === "number" ? "number" : "text"}
+                value={text}
+              />
+              <button
+                className="m-iconbtn"
+                onClick={() =>
+                  onCommit(input === "number" && text.trim() !== "" ? Number(text) : text)
+                }
+              >
+                <Check size={20} />
+              </button>
+            </div>
+            {/* Contact types open externally (E3 parity to the desktop cells). */}
+            {(input === "url" || input === "email" || input === "phone") && text.trim() !== "" && (
+              <button
+                className="m-row"
+                onClick={() => {
+                  const raw = text.trim();
+                  const href =
+                    input === "email"
+                      ? `mailto:${raw}`
+                      : input === "phone"
+                        ? `tel:${raw}`
+                        : /^[a-z][a-z0-9+.-]*:/i.test(raw)
+                          ? raw
+                          : `https://${raw}`;
+                  void getPlatformServices().openExternal(href);
+                }}
+              >
+                <ExternalLink size={18} />
+                <span>{t("properties.openLink")}</span>
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   inferType,
   orderBoardGroups,
   splitMultiValue,
+  formatDateValue,
   toPropId,
   UNGROUPED_KEY,
   parseWikiLinkValue,
@@ -25,6 +26,7 @@ import {
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { boardDropValue } from "./boardDrag";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
+import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
@@ -44,11 +46,14 @@ export function BaseScreen({
   path,
   onBack,
   onOpenNote,
+  initialConfigOpen,
 }: {
   vault: MobileVault;
   path: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
+  /** Fresh databases open with the configure sheet up (E3 mini wizard). */
+  initialConfigOpen?: boolean;
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.base$/i, "");
@@ -56,7 +61,8 @@ export function BaseScreen({
   const [viewIndex, setViewIndex] = useState(0);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
-  const [showConfig, setShowConfig] = useState(false);
+  const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
+  const [propEdit, setPropEdit] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
   // Pull-to-refresh re-queries through the m-vault-changed listener below.
   const ptrRef = useRef<HTMLDivElement>(null);
@@ -169,6 +175,17 @@ export function BaseScreen({
     return wiki ? wiki.display : s;
   };
 
+  /** Cell display honoring the per-view date format (E3, desktop contract). */
+  const displayCell = (col: string, v: unknown): string => {
+    if (v == null || v === "") return "";
+    const input = columnInput(col, v);
+    if (input === "date" || input === "datetime") {
+      const fmt = (view.dateFormat ?? "default") as "default" | "long" | "iso" | "relative";
+      return formatDateValue(String(v), input === "datetime", i18nInstance.language, fmt);
+    }
+    return cellText(v);
+  };
+
   const openCellEditor = (r: Row, col: string) => {
     if (col.startsWith("file.")) return;
     // Computed reverse columns live in the counterpart notes — tapping opens
@@ -212,7 +229,7 @@ export function BaseScreen({
 
   const newItem = () => {
     if (!config) return;
-    void createBaseItem(vault, path, config, rows?.length ?? 0).then((p) => {
+    void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then((p) => {
       if (p) onOpenNote(p);
       else setShowConfig(true); // no folder source to store into
     });
@@ -230,11 +247,83 @@ export function BaseScreen({
   const render = String(view.plainva?.render ?? view.type ?? "table");
   const effectiveRender = render === "graph" ? "table" : render === "cards" || render === "card" ? "gallery" : render;
 
+  // Gallery cover images (E3, desktop views[i].coverImage contract): the
+  // cover column's value resolves to a vault file and loads as a blob URL.
+  const coverCol =
+    effectiveRender === "gallery" && view.coverImage ? String(view.coverImage) : null;
+  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
+  const coverUrlsRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!coverCol || !rows || rows.length === 0) {
+      coverUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      coverUrlsRef.current = [];
+      setCoverUrls({});
+      return;
+    }
+    let stale = false;
+    const created: string[] = [];
+    const MIME: Record<string, string> = {
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      webp: "image/webp",
+      svg: "image/svg+xml",
+      bmp: "image/bmp",
+      avif: "image/avif",
+    };
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const r of rows.slice(0, 60)) {
+        const raw = r[coverCol];
+        const first = Array.isArray(raw) ? raw[0] : raw;
+        if (!first) continue;
+        let rel = String(first)
+          .trim()
+          .replace(/^!?\[\[/, "")
+          .replace(/\]\]$/, "")
+          .split("|")[0];
+        if (!rel) continue;
+        try {
+          if (!(await vault.files.exists(rel))) {
+            const resolved = await vaultOps.resolveWikiTarget(vault, rel);
+            if (!resolved) continue;
+            rel = resolved;
+          }
+          const ext = rel.split(".").pop()?.toLowerCase() ?? "";
+          if (!(ext in MIME)) continue;
+          const bin = await vault.adapter.readBinaryFile(rel);
+          const url = URL.createObjectURL(new Blob([bin as BlobPart], { type: MIME[ext] }));
+          created.push(url);
+          next[rowPath(r)] = url;
+        } catch {
+          /* not an image or unreadable — the card just shows no cover */
+        }
+      }
+      if (stale) {
+        created.forEach((u) => URL.revokeObjectURL(u));
+        return;
+      }
+      coverUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      coverUrlsRef.current = created;
+      setCoverUrls(next);
+    })();
+    return () => {
+      stale = true;
+    };
+  }, [coverCol, rows, vault]);
+  useEffect(
+    () => () => {
+      coverUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    },
+    [],
+  );
+
   /* ---------------- renderers ---------------- */
 
   const propLine = (r: Row, cols: string[], max: number) =>
     cols.slice(0, max).map((c) =>
-      cellText(r[c]) ? (
+      displayCell(c, r[c]) ? (
         <button
           className="m-basecard-prop"
           key={c}
@@ -243,7 +332,7 @@ export function BaseScreen({
             openCellEditor(r, c);
           }}
         >
-          <span className="m-prop-key">{columnLabel(c)}</span> {cellText(r[c])}
+          <span className="m-prop-key">{columnLabel(c)}</span> {displayCell(c, r[c])}
         </button>
       ) : null,
     );
@@ -265,7 +354,7 @@ export function BaseScreen({
               <td onClick={() => onOpenNote(rowPath(r))}>{rowTitle(r)}</td>
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => openCellEditor(r, c)}>
-                  {cellText(r[c])}
+                  {displayCell(c, r[c])}
                 </td>
               ))}
             </tr>
@@ -284,7 +373,7 @@ export function BaseScreen({
           </button>
           {orderedColumns[0] && (
             <button className="m-cellchip" onClick={() => openCellEditor(r, orderedColumns[0])}>
-              {cellText(r[orderedColumns[0]]) || "—"}
+              {displayCell(orderedColumns[0], r[orderedColumns[0]]) || "—"}
             </button>
           )}
         </div>
@@ -296,6 +385,9 @@ export function BaseScreen({
     <div className="m-basecards">
       {rows!.map((r) => (
         <div className="m-basecard" key={rowPath(r)}>
+          {coverUrls[rowPath(r)] && (
+            <img alt="" className="m-basecard-cover" src={coverUrls[rowPath(r)]} />
+          )}
           <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
             {rowTitle(r)}
           </button>
@@ -690,10 +782,28 @@ export function BaseScreen({
           columnsPool={columnsPool}
           config={config}
           onClose={() => setShowConfig(false)}
+          onEditProperty={setPropEdit}
           onMutate={mutateConfig}
           onSelectView={setViewIndex}
           vault={vault}
           viewIndex={viewIndex}
+        />
+      )}
+
+      {propEdit && config && (
+        <PropertyEditSheet
+          basePath={path}
+          column={propEdit}
+          columnLabel={columnLabel}
+          config={config}
+          onClose={() => setPropEdit(null)}
+          onMutate={mutateConfig}
+          onReload={() => {
+            void loadBase(vault, path).then(setLoaded);
+          }}
+          rowPaths={(rows ?? []).map((r) => rowPath(r)).filter(Boolean)}
+          rows={rows ?? []}
+          vault={vault}
         />
       )}
     </div>
