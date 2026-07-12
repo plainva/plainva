@@ -162,6 +162,20 @@ export function EditorHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, t]);
 
+  // Outline jump (C1): the note context sheet asks for a heading line; select
+  // its start and center it (works in read AND edit mode).
+  useEffect(() => {
+    const onGoto = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { path?: string; line?: number } | undefined;
+      const view = sessionRef.current?.view;
+      if (!view || !detail || detail.path !== path || !detail.line) return;
+      const line = view.state.doc.line(Math.min(Math.max(detail.line, 1), view.state.doc.lines));
+      view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+    };
+    window.addEventListener("m-editor-goto-line", onGoto);
+    return () => window.removeEventListener("m-editor-goto-line", onGoto);
+  }, [path]);
+
   // Read-first (M4): the editable facet keeps the live preview fully
   // rendered while blocking the keyboard; entering edit mode focuses.
   useEffect(() => {

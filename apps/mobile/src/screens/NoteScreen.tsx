@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Check, ChevronLeft, FileText, Info, Pencil } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, Info, Pencil } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
+import { NoteContextSheet } from "../components/NoteContextSheet";
 import { EditorHost } from "../EditorHost";
 
 /** Note view (extracted from App.tsx in R2): read-first with the pen toggle. */
@@ -21,10 +22,7 @@ export function NoteScreen({
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   const [doc, setDoc] = useState<string | null>(null);
   const [marked, setMarked] = useState(false);
-  const [info, setInfo] = useState<{
-    props: Array<[string, string]>;
-    backlinks: Array<{ path: string; title: string }>;
-  } | null>(null);
+  const [info, setInfo] = useState(false);
   // Read-first (M4/E5): notes open rendered and read-only; the pen flips
   // into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
@@ -40,31 +38,6 @@ export function NoteScreen({
       stale = true;
     };
   }, [vault, path]);
-
-  const openInfo = () => {
-    void (async () => {
-      const q = vault.queryService;
-      const props: Array<[string, string]> = [];
-      const backlinks: Array<{ path: string; title: string }> = [];
-      if (q) {
-        const raw = await q.getFileProperties(path);
-        for (const [k, v] of Object.entries(raw)) {
-          props.push([k, Array.isArray(v) ? v.join(", ") : String(v)]);
-        }
-        const links = await q.getBacklinks(path);
-        const seen = new Set<string>();
-        for (const l of links) {
-          if (seen.has(l.source_path)) continue;
-          seen.add(l.source_path);
-          backlinks.push({
-            path: l.source_path,
-            title: l.source_path.split("/").pop()!.replace(/\.md$/i, ""),
-          });
-        }
-      }
-      setInfo({ props, backlinks });
-    })();
-  };
 
   return (
     <div className="m-page m-page--note">
@@ -84,7 +57,7 @@ export function NoteScreen({
           >
             <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
           </button>
-          <button aria-label={t("mobile.noteInfo")} className="m-iconbtn" onClick={openInfo}>
+          <button aria-label={t("mobile.noteInfo")} className="m-iconbtn" onClick={() => setInfo(true)}>
             <Info size={20} />
           </button>
           <button
@@ -108,41 +81,15 @@ export function NoteScreen({
       )}
 
       {info && (
-        <div className="m-sheet-backdrop" onClick={() => setInfo(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
-            <p className="m-sheet-title">{t("mobile.noteInfo")}</p>
-            {info.props.length > 0 && (
-              <>
-                <p className="m-sectionlabel m-sectionlabel--inset">{t("mobile.properties")}</p>
-                {info.props.map(([k, v]) => (
-                  <div className="m-row m-row--static" key={k}>
-                    <span className="m-prop-key">{k}</span>
-                    <span className="m-prop-val">{v}</span>
-                  </div>
-                ))}
-              </>
-            )}
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("mobile.backlinks")}</p>
-            {info.backlinks.length === 0 ? (
-              <p className="m-hint m-hint--inset">{t("mobile.noBacklinks")}</p>
-            ) : (
-              info.backlinks.map((b) => (
-                <button
-                  className="m-row"
-                  key={b.path}
-                  onClick={() => {
-                    setInfo(null);
-                    onOpenNote(b.path);
-                  }}
-                >
-                  <FileText size={18} />
-                  <span>{b.title}</span>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+        <NoteContextSheet
+          onClose={() => setInfo(false)}
+          onJumpToLine={(line) =>
+            window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
+          }
+          onOpenNote={onOpenNote}
+          path={path}
+          vault={vault}
+        />
       )}
     </div>
   );

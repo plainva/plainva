@@ -29,6 +29,7 @@ import {
   parseBookmarksFile,
   parseRecentsFile,
   pushRecentEntry,
+  renameFileWithLinkUpdates,
   serializeBookmarksFile,
   serializeRecentsFile,
   toast,
@@ -287,18 +288,38 @@ export const vaultOps = {
     return { folders, notes, bases };
   },
 
-  /** Renames a note within its folder; sync mirrors it via the queueing chain. */
+  /** Renames a note within its folder; sync mirrors it via the queueing chain.
+   * With a warm index every vault link onto the note is retargeted through the
+   * SHARED renameFileWithLinkUpdates (package C — a mobile rename used to break
+   * [[links]] silently); rewrites run through v.files, so backups + sync queue
+   * see every touched referencing note. */
   async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newTitle}.md`;
     if (newPath === oldPath) return oldPath;
-    await v.files.renameItem(oldPath, newPath);
+    let changedPaths: string[] = [];
+    if (v.queryService) {
+      const result = await renameFileWithLinkUpdates({
+        adapter: v.files,
+        queryService: v.queryService,
+        oldPath,
+        newPath,
+      });
+      changedPaths = result.changedPaths;
+      if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+      else if (result.changedFiles > 0)
+        toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+    } else {
+      await v.files.renameItem(oldPath, newPath);
+    }
     if (v.indexer) {
       await v.indexer.removePathFromIndex(oldPath).catch(() => {});
-      try {
-        await v.indexer.indexFile(await v.adapter.getFileInfo(newPath));
-      } catch {
-        /* next full pass repairs it */
+      for (const p of [newPath, ...changedPaths]) {
+        try {
+          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
+        } catch {
+          /* next full pass repairs it */
+        }
       }
     }
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
