@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Bookmark, Calendar, CalendarDays, Database, FileText, Hash } from "lucide-react";
+import { Bookmark, Calendar, CalendarDays, Database, FileText, Hash , Waypoints } from "lucide-react";
 
 /**
  * Configurable bottom navigation (R2.2): the user picks up to four screens
@@ -7,7 +7,7 @@ import { Bookmark, Calendar, CalendarDays, Database, FileText, Hash } from "luci
  * stays reachable through the More menu regardless of the selection.
  */
 
-export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "databases";
+export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "databases" | "graph";
 
 export interface TabDef {
   id: TabScreenId;
@@ -22,6 +22,7 @@ export const TAB_POOL: TabDef[] = [
   { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
   { id: "databases", icon: Database, labelKey: "mobile.tabDatabases" },
+  { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
 
 export const DEFAULT_TAB_SLOTS: TabScreenId[] = ["notes", "today", "tags", "bookmarks"];
@@ -63,6 +64,7 @@ export type NavKind =
   | "today"
   | "calendar"
   | "databases"
+  | "graphmap"
   | "tags"
   | "bookmarks"
   | "search"
@@ -95,6 +97,7 @@ export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   bookmarks: [],
   calendar: [],
   databases: [],
+  graph: [],
 });
 
 export function initialNavState(activeTab: TabScreenId): NavState {

@@ -1534,3 +1534,23 @@ textarea {
   display: block;
   touch-action: none;
 }
+/* Vault map screen (package F): the canvas takes the remaining height. */
+.m-page--graph {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.m-vaultmap {
+  flex: 1;
+  min-height: 0;
+  margin: 4px 8px calc(64px + env(safe-area-inset-bottom));
+  border-radius: var(--m-radius-card);
+  overflow: hidden;
+  background: var(--m-surface-container);
+}
+.m-vaultmap canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}

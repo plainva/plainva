@@ -36,6 +36,7 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { MoreScreen } from "./screens/MoreScreen";
+import { GraphScreen } from "./screens/GraphScreen";
 import {
   backStep,
   initialNavState,
@@ -74,6 +75,7 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   bookmarks: { kind: "bookmarks", path: "" },
   calendar: { kind: "calendar", path: "" },
   databases: { kind: "databases", path: "" },
+  graph: { kind: "graphmap", path: "" },
 };
 
 export default function App() {
@@ -484,6 +486,8 @@ export default function App() {
           <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} vault={vault} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
+        ) : top?.kind === "graphmap" ? (
+          <GraphScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "folder" ? (
           <BrowseScreen
             bump={bump}
@@ -518,6 +522,8 @@ export default function App() {
           <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "calendar" ? (
           <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
+        ) : nav.activeTab === "graph" ? (
+          <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : (
           <DatabasesScreen bump={bump} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         )}
