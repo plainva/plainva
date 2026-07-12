@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
@@ -617,7 +618,9 @@ export function BaseViewer({
           await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
         }
       }
-      indexer?.indexVaultFull().then(() => {
+      // Reindex the new note (and the host note if its relation was written) —
+      // no full-vault scan per new entry (Issue #9).
+      if (indexer) applyIndexChanges(indexer, { added: hostPath ? [path, hostPath] : [path] }).then(() => {
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "create", path }]);
         // Detached-root embeds don't see the fileTreeVersion bump — refresh locally.
@@ -702,7 +705,7 @@ export function BaseViewer({
       const { createNewTemplate } = await import("../services/templateActions");
       const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
       if (!path) return;
-      indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+      if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       onOpenPath?.(path, true);
     } catch (e) {
       console.error("[BaseViewer] creating a template failed", e);

@@ -66,7 +66,7 @@ export async function renameToName(opts: {
   return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] };
 }
 
-/** Minimal indexer surface `reindexAfterRename` needs (VaultIndexer satisfies it). */
+/** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */
 export interface RenameReindexer {
   indexVaultFull(): Promise<void>;
   indexPath(path: string): Promise<unknown>;
@@ -74,24 +74,43 @@ export interface RenameReindexer {
 }
 
 /**
- * Refresh the index after a rename with the least work so the sidebar reflects
- * it immediately. A full-vault reindex on every rename was the visible lag
- * (Issue #9). A FILE rename only removes the old path, indexes the new one and
- * re-indexes the handful of files whose links were rewritten. A FOLDER rename
- * changes many descendant paths at once, so it still falls back to the full scan.
+ * Apply the smallest index update for a structural change so the sidebar
+ * refreshes without a full-vault reindex — a full scan on every create/delete/
+ * move/rename was the visible lag (Issue #9). `needsFullScan` (e.g. a folder
+ * delete/move that changes many descendant paths at once) falls back to the
+ * full scan; otherwise the removed paths are de-indexed and the added ones
+ * indexed individually. An empty change with `needsFullScan: false` is a no-op
+ * (e.g. creating an empty folder needs no index work — the tree refresh alone
+ * lists it). Sync semantics are identical to the full scan: removePathFromIndex
+ * fires onLocalFileDeleted, a freshly indexed path fires onNewLocalFile.
+ */
+export async function applyIndexChanges(
+  indexer: RenameReindexer,
+  changes: { removed?: string[]; added?: string[]; needsFullScan?: boolean }
+): Promise<void> {
+  if (changes.needsFullScan) {
+    await indexer.indexVaultFull();
+    return;
+  }
+  for (const path of changes.removed ?? []) await indexer.removePathFromIndex(path);
+  for (const path of new Set(changes.added ?? [])) await indexer.indexPath(path);
+}
+
+/**
+ * Refresh the index after a rename with the least work (Issue #9). A FILE
+ * rename removes the old path, indexes the new one and re-indexes the handful
+ * of files whose links were rewritten. A FOLDER rename changes many descendant
+ * paths at once, so it falls back to the full scan.
  */
 export async function reindexAfterRename(
   indexer: RenameReindexer,
   opts: { oldPath: string; newPath: string; isFolder: boolean; changedPaths: string[] }
 ): Promise<void> {
-  if (opts.isFolder) {
-    await indexer.indexVaultFull();
-    return;
-  }
-  await indexer.removePathFromIndex(opts.oldPath);
-  for (const path of new Set<string>([opts.newPath, ...opts.changedPaths])) {
-    await indexer.indexPath(path);
-  }
+  await applyIndexChanges(indexer, {
+    needsFullScan: opts.isFolder,
+    removed: opts.isFolder ? [] : [opts.oldPath],
+    added: opts.isFolder ? [] : [opts.newPath, ...opts.changedPaths],
+  });
 }
 
 /** "Datei duplizieren" (P8): text files copy as text, attachments byte-wise;

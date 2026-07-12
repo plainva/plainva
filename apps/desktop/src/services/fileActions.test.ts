@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
+import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
 function makeAdapter(initial: Record<string, string | Uint8Array>) {
@@ -175,6 +175,42 @@ describe("reindexAfterRename", () => {
       changedPaths: [],
     });
     expect(calls.full).toBe(1);
+    expect(calls.removed).toEqual([]);
+    expect(calls.indexed).toEqual([]);
+  });
+});
+
+describe("applyIndexChanges", () => {
+  function makeReindexer() {
+    const calls = { full: 0, indexed: [] as string[], removed: [] as string[] };
+    const indexer: RenameReindexer = {
+      indexVaultFull: async () => void calls.full++,
+      indexPath: async (p) => void calls.indexed.push(p),
+      removePathFromIndex: async (p) => void calls.removed.push(p),
+    };
+    return { indexer, calls };
+  }
+
+  it("de-indexes removed paths and indexes added paths (deduped), no full scan", async () => {
+    const { indexer, calls } = makeReindexer();
+    await applyIndexChanges(indexer, { removed: ["Old.md"], added: ["New.md", "New.md", "Ref.md"] });
+    expect(calls.full).toBe(0);
+    expect(calls.removed).toEqual(["Old.md"]);
+    expect(calls.indexed).toEqual(["New.md", "Ref.md"]);
+  });
+
+  it("runs a full scan and ignores removed/added when needsFullScan is set", async () => {
+    const { indexer, calls } = makeReindexer();
+    await applyIndexChanges(indexer, { removed: ["a.md"], added: ["b.md"], needsFullScan: true });
+    expect(calls.full).toBe(1);
+    expect(calls.removed).toEqual([]);
+    expect(calls.indexed).toEqual([]);
+  });
+
+  it("is a no-op for an empty change (e.g. creating an empty folder)", async () => {
+    const { indexer, calls } = makeReindexer();
+    await applyIndexChanges(indexer, { added: [] });
+    expect(calls.full).toBe(0);
     expect(calls.removed).toEqual([]);
     expect(calls.indexed).toEqual([]);
   });

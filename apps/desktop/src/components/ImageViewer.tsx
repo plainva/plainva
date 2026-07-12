@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
@@ -225,7 +226,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
         }
       }
       await saveCanvasToVault(vaultAdapter, targetPath, out, mime, mime === "image/jpeg" ? 0.92 : undefined);
-      await indexer?.indexVaultFull();
+      if (indexer) await applyIndexChanges(indexer, { added: [targetPath] });
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "create", path: targetPath }]);
       if (targetPath === path) {

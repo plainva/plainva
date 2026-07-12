@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
+import { applyIndexChanges } from "./services/fileActions";
 import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId } from "./contexts/VaultContext";
 import { useDisplaySyncStatus } from "./services/syncStatusStore";
 import type { SyncWorker } from "@plainva/core";
@@ -427,7 +428,8 @@ function App() {
             vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
             subfoldersHeading: () => t("indexMd.subfoldersHeading"),
           });
-          if (indexer) await indexer.indexVaultFull();
+          // Only the regenerated index.md files changed — reindex just those (Issue #9).
+          if (indexer) await applyIndexChanges(indexer, { added: result.updated });
           triggerFileTreeUpdate();
           for (const p of result.updated) {
             window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: p } }));
@@ -459,7 +461,7 @@ function App() {
     try {
       await vaultAdapter.deleteItem(path);
       closeTabsByPrefix(path);
-      if (indexer) await indexer.indexVaultFull();
+      if (indexer) await applyIndexChanges(indexer, { removed: [path] });
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "delete", path }]);
     } catch (e) {
@@ -1214,7 +1216,7 @@ function App() {
                 .then(async ({ createNewTemplate }) => {
                   const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
                   if (!path) return;
-                  indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+                  if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
                   openInFocusedPane(path, true);
                 })
                 .catch((e) => console.error("[App] creating a template failed", e));
@@ -1226,7 +1228,7 @@ function App() {
                 .then(async ({ saveNoteAsTemplate }) => {
                   const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
                   if (!saved) return;
-                  indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+                  if (indexer) applyIndexChanges(indexer, { added: [saved] }).then(() => triggerFileTreeUpdate()).catch(() => {});
                   toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
                 })
                 .catch((e) => console.error("[App] saving note as template failed", e));

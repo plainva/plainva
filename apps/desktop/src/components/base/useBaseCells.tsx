@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
@@ -255,10 +256,10 @@ export function useBaseCells({
         return { ...r, [rev.property]: kept.length > 0 ? kept : "" };
       }));
 
-      // One re-index for all touched notes; the fileTreeVersion bump re-queries
-      // reverse columns everywhere.
-      if (changedPaths.size > 0) {
-        indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+      // Re-index only the touched notes; the fileTreeVersion bump re-queries
+      // reverse columns everywhere (Issue #9 — no full-vault scan per cell edit).
+      if (changedPaths.size > 0 && indexer) {
+        applyIndexChanges(indexer, { added: [...changedPaths.keys()] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       }
     } finally {
       reverseBusyRef.current = false;
@@ -342,7 +343,7 @@ export function useBaseCells({
       if (tags.length > 0) content = upsertFrontmatterKeys(content, { tags });
       await vaultAdapter.writeTextFile(path, content);
       candCacheRef.current.map.clear();
-      indexer?.indexVaultFull().then(() => {
+      if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => {
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "create", path }]);
       }).catch(() => {});

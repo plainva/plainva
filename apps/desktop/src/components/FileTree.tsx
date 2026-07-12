@@ -20,7 +20,7 @@ import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
-import { duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { generateIndexForFolder } from "../services/indexMd";
 import { isImagePath } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -578,7 +578,7 @@ export const FileTree: React.FC<{
         await vaultAdapter.writeBinaryFile(original, bytes);
       }
       await vaultAdapter.deleteItem(conflictPath);
-      await indexer.indexVaultFull();
+      await applyIndexChanges(indexer, { removed: [conflictPath], added: [original] });
       triggerFileTreeUpdate();
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: original } }));
     } catch (e) {
@@ -598,7 +598,7 @@ export const FileTree: React.FC<{
     if (!ok) return;
     try {
       await vaultAdapter.deleteItem(conflictPath);
-      await indexer.indexVaultFull();
+      await applyIndexChanges(indexer, { removed: [conflictPath] });
       triggerFileTreeUpdate();
     } catch (e) {
       console.error("Failed to discard conflict", e);
@@ -623,7 +623,7 @@ export const FileTree: React.FC<{
     try {
       await vaultAdapter.writeTextFile(path, serializeBaseConfig(config));
       setBaseWizardPath(null);
-      await indexer.indexVaultFull();
+      await applyIndexChanges(indexer, { added: [path] });
       triggerFileTreeUpdate();
       onSelect(path, false);
     } catch (err: any) {
@@ -757,7 +757,8 @@ export const FileTree: React.FC<{
         onSelect(newPath, false);
       }
       setNewItemParams(null);
-      await indexer.indexVaultFull();
+      // Empty folder: nothing to index — the tree refresh lists it. New file: index it.
+      await applyIndexChanges(indexer, { added: isFolder ? [] : [newPath] });
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "create", path: newPath, isFolder }]);
     } catch (err: any) {
@@ -841,7 +842,8 @@ export const FileTree: React.FC<{
     try {
       await vaultAdapter.deleteItem(path, true);
       onCloseTabsByPrefix?.(path);
-      await indexer.indexVaultFull();
+      // A folder delete purges many descendant rows → full scan; a file just drops out.
+      await applyIndexChanges(indexer, { removed: isFolder ? [] : [path], needsFullScan: isFolder });
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "delete", path, isFolder }]);
     } catch (err: any) {
@@ -865,7 +867,7 @@ export const FileTree: React.FC<{
         errors.push(p.split(/[/\\]/).pop() ?? p);
       }
     }
-    await indexer.indexVaultFull();
+    await applyIndexChanges(indexer, { added: createdOps.map((o) => o.path) });
     triggerFileTreeUpdate();
     notifyFileOps(createdOps);
     if (errors.length > 0) {
@@ -903,7 +905,11 @@ export const FileTree: React.FC<{
     }
     setSelection(new Set());
     setSelectionAnchor(null);
-    await indexer.indexVaultFull();
+    // Any folder among the roots purges descendant rows → full scan; else drop the files.
+    await applyIndexChanges(indexer, {
+      removed: roots.filter((r) => !folderPaths.has(r)),
+      needsFullScan: roots.some((r) => folderPaths.has(r)),
+    });
     triggerFileTreeUpdate();
     notifyFileOps(deletedOps);
     if (errors.length > 0) {
@@ -981,7 +987,16 @@ export const FileTree: React.FC<{
       }
     }
     if (movedOps.length > 0) {
-      await indexer?.indexVaultFull();
+      if (indexer) {
+        // A moved folder changes many descendant paths → full scan; moved files
+        // just relocate (moves keep raw paths, no vault-wide link rewrite).
+        const anyFolder = movedOps.some((o) => o.isFolder);
+        await applyIndexChanges(indexer, {
+          needsFullScan: anyFolder,
+          removed: anyFolder ? [] : movedOps.map((o) => o.from),
+          added: anyFolder ? [] : movedOps.map((o) => o.to),
+        });
+      }
       triggerFileTreeUpdate();
       notifyFileOps(movedOps);
     }
@@ -1035,7 +1050,7 @@ export const FileTree: React.FC<{
         heading,
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
-      await indexer.indexVaultFull();
+      await applyIndexChanges(indexer, { added: [result.indexPath] });
       triggerFileTreeUpdate();
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: result.indexPath } }));
     } catch (err: any) {

@@ -38,7 +38,7 @@ import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
-import { duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
@@ -124,7 +124,8 @@ export const Editor: React.FC<{
       const folder = activePath.includes("/") ? activePath.slice(0, activePath.lastIndexOf("/")) : "";
       const heading = folder ? folder.split("/").pop()! : (vaultPath?.split(/[/\\]/).pop() ?? "Vault");
       await generateIndexForFolder({ adapter: vaultAdapter, queryService, folder, heading, subfoldersHeading: t("indexMd.subfoldersHeading"), skipBackup: true });
-      indexer?.indexVaultFull().then(() => triggerFileTreeUpdate()).catch(() => {});
+      // Only the folder's index.md changed — reindex just that (Issue #9).
+      if (indexer) applyIndexChanges(indexer, { added: [folder ? `${folder}/index.md` : "index.md"] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: activePath } }));
     } catch (e) {
       console.error("[Editor] refreshing the managed index failed", e);
@@ -194,7 +195,7 @@ export const Editor: React.FC<{
     try {
       await requestSaveFlush(activePath);
       const copy = await duplicateFile(vaultAdapter, activePath, t("fileTree.copySuffix"));
-      await indexer?.indexVaultFull();
+      if (indexer) await applyIndexChanges(indexer, { added: [copy] });
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "create", path: copy }]);
       onOpenPath?.(copy, true);
@@ -752,7 +753,7 @@ export const Editor: React.FC<{
     try {
       const folder = folderOf(activePath);
       const newPath = await createInlineBase(vaultAdapter, folder, t("editor.inlineBaseDefaultName", { defaultValue: "Datenbank" }), t("database.viewTable", { defaultValue: "Table" }));
-      await indexer.indexVaultFull();
+      await applyIndexChanges(indexer, { added: [newPath] });
       triggerFileTreeUpdate();
       embedBaseAtPos(newPath, pos);
     } catch (e) {
