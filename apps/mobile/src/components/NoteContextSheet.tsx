@@ -6,8 +6,9 @@ import { mPrompt } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
+import { ContextGraph } from "./ContextGraph";
 
-type Tab = "props" | "backlinks" | "outline";
+type Tab = "props" | "backlinks" | "outline" | "graph";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
@@ -18,7 +19,8 @@ const LOCKED = new Set(["type", "okf_version"]);
  * (previously display-only): each row opens the shared .base cell editor and
  * commits through the same frontmatter updater; backlinks dedupe with an ×N
  * badge like the desktop panel; the outline jumps the editor to a heading.
- * The graph and version-history segments arrive with packages F and G.
+ * The graph segment (package F) renders the shared context scene with
+ * suggestion cards; version history opens through the action row (G).
  */
 export function NoteContextSheet({
   vault,
@@ -111,6 +113,7 @@ export function NoteContextSheet({
                 ["props", t("rightPanel.properties")],
                 ["backlinks", t("rightPanel.backlinks")],
                 ["outline", t("rightPanel.outline")],
+                ["graph", t("rightPanel.graph")],
               ] as Array<[Tab, string]>
             ).map(([id, label]) => (
               <button
@@ -185,6 +188,8 @@ export function NoteContextSheet({
                 </button>
               ))
             ))}
+
+          {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
 
           {/* Note actions (C4): mode toggle + in-note search, tab-independent. */}
           <p className="m-sectionlabel m-sectionlabel--inset">{t("mobile.noteInfo")}</p>
