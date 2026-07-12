@@ -1,21 +1,29 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Folder, Hash, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Folder, Hash, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
 import {
+  addGroupWithRule,
+  addRuleToGroup,
   addTopFilterRule,
   buildSourceClause,
   buildUIFilterModel,
   isSourceCondition,
+  moveTopFilterEntries,
   parsePropertyFilter,
   parseSourceClause,
   removeFilterEntry,
+  removeGroupRule,
   serializePropertyFilter,
+  setGroupLogic,
+  updateGroupRule,
   updateTopFilterRule,
+  type FilterEntryRef,
   type FilterOp,
   type PropertyFilterRule,
+  type UIGroupItem,
 } from "@plainva/ui";
 
 /**
@@ -55,6 +63,8 @@ export function BaseConfigSheet({
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
+  // Pre-selected top logic while the view has no filter yet (desktop pattern).
+  const [emptyLogic, setEmptyLogic] = useState<"all" | "any">("all");
   // Data-source editing (R3.7): folder/tag clauses in filters.and/or —
   // identical contract to the desktop's source editor (base-global).
   const [pickSourceFolder, setPickSourceFolder] = useState<"and" | "or" | null>(null);
@@ -133,14 +143,69 @@ export function BaseConfigSheet({
   const sortRules: Array<{ property: string; direction: string }> = Array.isArray(view.sort)
     ? view.sort
     : [];
+  // The shared query sorts file.* columns too (desktop parity, E2).
+  const sortableColumns = ["file.name", "file.mtime", "file.size", ...columnsPool];
+  const sortLabel = (col: string) =>
+    col === "file.name"
+      ? t("database.colFileName")
+      : col === "file.mtime"
+        ? t("database.colModified")
+        : col === "file.size"
+          ? t("database.colSize")
+          : columnLabel(col.replace(/^note\./, ""));
+  const moveSortRule = (idx: number, delta: -1 | 1) => {
+    const to = idx + delta;
+    if (to < 0 || to >= sortRules.length) return;
+    mutateView((v) => {
+      const [moved] = v.sort.splice(idx, 1);
+      v.sort.splice(to, 0, moved);
+    });
+  };
 
   const filterModel = buildUIFilterModel(view);
+  const filterLogic: "all" | "any" = filterModel.hasEntries ? filterModel.topLogic : emptyLogic;
+  const setFilterLogic = (to: "all" | "any") => {
+    if (filterModel.hasEntries) {
+      mutateView((v) => {
+        Object.assign(v, moveTopFilterEntries(v, to));
+      });
+    } else setEmptyLogic(to);
+  };
   const simpleRules = filterModel.entries.filter((e) => e.kind === "rule") as Array<{
     kind: "rule";
-    ref: any;
+    ref: FilterEntryRef;
     rule: PropertyFilterRule;
   }>;
-  const groupCount = filterModel.entries.length - simpleRules.length;
+  const groupEntries = filterModel.entries.filter((e) => e.kind === "group") as Array<{
+    kind: "group";
+    ref: FilterEntryRef;
+    logic: "all" | "any";
+    items: UIGroupItem[];
+  }>;
+  const leftoverEntries = filterModel.entries.filter(
+    (e) => e.kind === "rawString" || e.kind === "opaque",
+  );
+
+  const addGroup = () => {
+    void (async () => {
+      const col = await mSelect({
+        title: t("database.filterGroup"),
+        options: columnsPool.map((c) => ({ value: c, label: columnLabel(c) })),
+      });
+      if (col === null) return;
+      mutateView((v) => {
+        Object.assign(
+          v,
+          addGroupWithRule(
+            v,
+            "all",
+            serializePropertyFilter({ column: col, op: "notEmpty", value: "" }),
+            filterLogic,
+          ),
+        );
+      });
+    })();
+  };
 
   const addView = () => {
     void (async () => {
@@ -170,6 +235,28 @@ export function BaseConfigSheet({
         v.name = name;
       });
     })();
+  };
+
+  // Desktop parity (E2): duplicate inserts a deep copy right after the
+  // source view and selects it; reorder moves the view within the file.
+  const duplicateView = () => {
+    const copy = JSON.parse(JSON.stringify(view));
+    copy.name = `${String(view.name || viewTypeLabel(view.type ?? "table"))} ${t("database.copySuffix")}`;
+    onMutate((cfg) => {
+      cfg.views.splice(viewIndex + 1, 0, copy);
+    });
+    onSelectView(viewIndex + 1);
+  };
+
+  const moveView = (idx: number, delta: -1 | 1) => {
+    const to = idx + delta;
+    if (to < 0 || to >= views.length) return;
+    onMutate((cfg) => {
+      const [moved] = cfg.views.splice(idx, 1);
+      cfg.views.splice(to, 0, moved);
+    });
+    if (idx === viewIndex) onSelectView(to);
+    else if (to === viewIndex) onSelectView(idx);
   };
 
   const deleteView = () => {
@@ -257,6 +344,22 @@ export function BaseConfigSheet({
               <span>{v.name || viewTypeLabel(v.type ?? "table")}</span>
               <span className={`m-slotmark${i === viewIndex ? " is-on" : ""}`} />
             </button>
+            <button
+              aria-label={t("block.moveUp")}
+              className="m-iconbtn"
+              disabled={i === 0}
+              onClick={() => moveView(i, -1)}
+            >
+              <ArrowUp size={18} />
+            </button>
+            <button
+              aria-label={t("block.moveDown")}
+              className="m-iconbtn"
+              disabled={i === views.length - 1}
+              onClick={() => moveView(i, 1)}
+            >
+              <ArrowDown size={18} />
+            </button>
           </div>
         ))}
         <button className="m-row" onClick={addView}>
@@ -266,6 +369,9 @@ export function BaseConfigSheet({
         <div className="m-config-actions">
           <button className="m-chip" onClick={renameView}>
             {t("database.renameView")}
+          </button>
+          <button className="m-chip" onClick={duplicateView}>
+            <Copy size={14} /> {t("database.duplicateView")}
           </button>
           {views.length > 1 && (
             <button className="m-chip m-danger" onClick={deleteView}>
@@ -418,7 +524,7 @@ export function BaseConfigSheet({
           </button>
         ))}
 
-        {/* Sort */}
+        {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sort")}</p>
         {sortRules.map((rule, idx) => (
           <div className="m-row m-row--split" key={`${rule.property}-${idx}`}>
@@ -432,8 +538,24 @@ export function BaseConfigSheet({
             >
               <ArrowUpDown size={18} />
               <span>
-                {columnLabel(rule.property.replace(/^note\./, ""))} · {rule.direction === "DESC" ? "↓" : "↑"}
+                {sortLabel(rule.property)} · {rule.direction === "DESC" ? "↓" : "↑"}
               </span>
+            </button>
+            <button
+              aria-label={t("block.moveUp")}
+              className="m-iconbtn"
+              disabled={idx === 0}
+              onClick={() => moveSortRule(idx, -1)}
+            >
+              <ArrowUp size={18} />
+            </button>
+            <button
+              aria-label={t("block.moveDown")}
+              className="m-iconbtn"
+              disabled={idx === sortRules.length - 1}
+              onClick={() => moveSortRule(idx, 1)}
+            >
+              <ArrowDown size={18} />
             </button>
             <button
               aria-label={t("database.deleteView")}
@@ -449,8 +571,13 @@ export function BaseConfigSheet({
           </div>
         ))}
         <div className="m-turninto">
-          {columnsPool
-            .filter((c) => !sortRules.some((r) => r.property.replace(/^note\./, "") === c))
+          {sortableColumns
+            .filter(
+              (c) =>
+                !sortRules.some(
+                  (r) => r.property === c || r.property.replace(/^note\./, "") === c,
+                ),
+            )
             .map((c) => (
               <button
                 className="m-chip"
@@ -462,15 +589,27 @@ export function BaseConfigSheet({
                   })
                 }
               >
-                + {columnLabel(c)}
+                + {sortLabel(c)}
               </button>
             ))}
         </div>
 
-        {/* Simple property filters on THIS view (desktop per-view contract) */}
+        {/* Property filters on THIS view (desktop per-view contract, E2:
+            top logic toggle + Notion-style groups + raw leftovers). */}
         <p className="m-sectionlabel m-sectionlabel--inset">
           {t("database.addFilter")} · {t("database.filterPerViewHint")}
         </p>
+        <div className="m-turninto">
+          {(["all", "any"] as const).map((logic) => (
+            <button
+              className={`m-chip${filterLogic === logic ? " is-on" : ""}`}
+              key={logic}
+              onClick={() => setFilterLogic(logic)}
+            >
+              {t(logic === "all" ? "database.filterMatchAll" : "database.filterMatchAny")}
+            </button>
+          ))}
+        </div>
         {simpleRules.map((entry, idx) => (
           <FilterRuleRow
             columnLabel={columnLabel}
@@ -490,9 +629,111 @@ export function BaseConfigSheet({
             rule={entry.rule}
           />
         ))}
-        {groupCount > 0 && (
-          <p className="m-hint m-hint--inset">{t("database.filterPerViewHint")} (+{groupCount})</p>
-        )}
+        {groupEntries.map((group, gi) => (
+          <div className="m-filtergroup" key={`group-${gi}`}>
+            <div className="m-filterrule-head">
+              <span className="m-filterrule-col">{t("database.filterGroup")}</span>
+              <span className="m-headactions">
+                {(["all", "any"] as const).map((logic) => (
+                  <button
+                    className={`m-chip${group.logic === logic ? " is-on" : ""}`}
+                    key={logic}
+                    onClick={() =>
+                      onMutate((cfg) => {
+                        const v = cfg.views[viewIndex];
+                        Object.assign(v, setGroupLogic(v, group.ref, logic));
+                      })
+                    }
+                  >
+                    {t(logic === "all" ? "database.filterMatchAll" : "database.filterMatchAny")}
+                  </button>
+                ))}
+                <button
+                  aria-label={t("common.delete")}
+                  className="m-iconbtn"
+                  onClick={() =>
+                    onMutate((cfg) => {
+                      const v = cfg.views[viewIndex];
+                      Object.assign(v, removeFilterEntry(v, group.ref));
+                    })
+                  }
+                >
+                  <Trash2 size={18} />
+                </button>
+              </span>
+            </div>
+            {group.items.map((item, ii) =>
+              item.rule ? (
+                <FilterRuleRow
+                  columnLabel={columnLabel}
+                  key={ii}
+                  onChange={(rule) =>
+                    onMutate((cfg) => {
+                      const v = cfg.views[viewIndex];
+                      Object.assign(
+                        v,
+                        updateGroupRule(v, group.ref, item.idx, serializePropertyFilter(rule)),
+                      );
+                    })
+                  }
+                  onRemove={() =>
+                    onMutate((cfg) => {
+                      const v = cfg.views[viewIndex];
+                      Object.assign(v, removeGroupRule(v, group.ref, item.idx));
+                    })
+                  }
+                  rule={item.rule}
+                />
+              ) : (
+                <RawFilterRow
+                  key={ii}
+                  onRemove={() =>
+                    onMutate((cfg) => {
+                      const v = cfg.views[viewIndex];
+                      Object.assign(v, removeGroupRule(v, group.ref, item.idx));
+                    })
+                  }
+                  raw={item.raw}
+                />
+              ),
+            )}
+            <div className="m-turninto">
+              {columnsPool.map((c) => (
+                <button
+                  className="m-chip"
+                  key={c}
+                  onClick={() =>
+                    onMutate((cfg) => {
+                      const v = cfg.views[viewIndex];
+                      Object.assign(
+                        v,
+                        addRuleToGroup(
+                          v,
+                          group.ref,
+                          serializePropertyFilter({ column: c, op: "notEmpty", value: "" }),
+                        ),
+                      );
+                    })
+                  }
+                >
+                  + {columnLabel(c)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {leftoverEntries.map((entry, idx) => (
+          <RawFilterRow
+            key={`raw-${idx}`}
+            onRemove={() =>
+              onMutate((cfg) => {
+                const v = cfg.views[viewIndex];
+                Object.assign(v, removeFilterEntry(v, entry.ref));
+              })
+            }
+            raw={entry.kind === "rawString" ? entry.raw : JSON.stringify(entry.raw)}
+          />
+        ))}
         <div className="m-turninto">
           {columnsPool.map((c) => (
             <button
@@ -507,7 +748,7 @@ export function BaseConfigSheet({
                     addTopFilterRule(
                       v,
                       serializePropertyFilter({ column: c, op: "notEmpty", value: "" }),
-                      "all",
+                      filterLogic,
                     ),
                   );
                 });
@@ -516,6 +757,11 @@ export function BaseConfigSheet({
               + {columnLabel(c)}
             </button>
           ))}
+          {columnsPool.length > 0 && (
+            <button className="m-chip" onClick={addGroup}>
+              + {t("database.filterGroup")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -578,6 +824,19 @@ function FilterRuleRow({
           placeholder={t("database.selectValue")}
         />
       )}
+    </div>
+  );
+}
+
+/** Filter entry the mobile editor cannot parse: shown verbatim, removable. */
+function RawFilterRow({ raw, onRemove }: { raw: string; onRemove: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="m-row m-row--split">
+      <span className="m-row-main m-row--static m-rawfilter">{raw}</span>
+      <button aria-label={t("common.delete")} className="m-iconbtn" onClick={onRemove}>
+        <X size={18} />
+      </button>
     </div>
   );
 }

@@ -1109,6 +1109,26 @@ textarea {
   width: 100%;
   margin-top: 4px;
 }
+/* Notion-style filter group box (E2): nested rules inside a framed card. */
+.m-filtergroup {
+  margin: 4px 8px 10px;
+  padding: 8px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+.m-filtergroup .m-filterrule {
+  margin: 4px 2px 8px;
+}
+.m-filtergroup .m-filterrule-head {
+  padding: 0 6px;
+}
+.m-rawfilter {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---- Home head (plan Mobile M3E, package B): scroll-raised top bar state,
    search pill, recents carousel, bookmark chips, screen enter. Tokens only
