@@ -27,13 +27,21 @@ import {
   consumePendingSearchJump,
   createEditorSession,
   cycleHeading,
+  deleteColumn,
+  deleteRow,
+  DockedToolbar,
   findFirstMatch,
+  insertColumn,
+  insertRow,
   insertWikiLink,
   openFindPanel,
   openSlashMenu,
+  parseMarkdownTable,
   performBlockMove,
   planTableInsertion,
   redo,
+  serializeTable,
+  setColumnAlign,
   templateInsertText,
   toggleInlineMark,
   toggleLinePrefix,
@@ -45,6 +53,7 @@ import {
   type TemplateItem,
 } from "@plainva/ui";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { noteSaver, vaultOps, type MobileVault } from "./services/vaultService";
 import { syncSoon } from "./services/syncService";
@@ -82,6 +91,16 @@ export function EditorHost({
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
   const [templatePick, setTemplatePick] = useState<{ pos: number } | null>(null);
+  // C3: cell long-press menu of the live table widget + the @-mention date pick.
+  const [tableMenu, setTableMenu] = useState<{
+    from: number;
+    to: number;
+    kind: "header" | "body";
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
+  const [dateMention, setDateMention] = useState<{ pos: number } | null>(null);
+  const [dateValue, setDateValue] = useState("");
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -162,6 +181,82 @@ export function EditorHost({
     // initialDoc is the load-time snapshot for THIS path — remount on path only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, t]);
+
+  // C3: the shared live-preview widgets dispatch these; only one editor is
+  // ever mounted on mobile, so the events need no path guard.
+  useEffect(() => {
+    const onTableMenu = (e: Event) => {
+      const d = (e as CustomEvent).detail as {
+        from: number;
+        to: number;
+        kind: "header" | "body";
+        rowIndex: number;
+        colIndex: number;
+      };
+      setTableMenu({ from: d.from, to: d.to, kind: d.kind, rowIndex: d.rowIndex, colIndex: d.colIndex });
+    };
+    const onDateMention = (e: Event) => {
+      const pos = ((e as CustomEvent).detail as { pos?: number } | undefined)?.pos;
+      if (pos == null) return;
+      setDateValue(new Date().toISOString().slice(0, 10));
+      setDateMention({ pos });
+    };
+    window.addEventListener("plainva-open-table-menu", onTableMenu);
+    window.addEventListener("plainva-open-date-mention", onDateMention);
+    return () => {
+      window.removeEventListener("plainva-open-table-menu", onTableMenu);
+      window.removeEventListener("plainva-open-date-mention", onDateMention);
+    };
+  }, []);
+
+  // Desktop handleTableMenuAction contract: re-parse the table from the live
+  // document (source of truth), run the shared mutation, write the slice back.
+  const handleTableAction = (action: TableMenuAction) => {
+    const view = sessionRef.current?.view;
+    if (view && tableMenu) {
+      const { from, to, kind, rowIndex, colIndex } = tableMenu;
+      const safeTo = Math.min(to, view.state.doc.length);
+      if (action === "table-delete") {
+        let end = safeTo;
+        if (end < view.state.doc.length && view.state.sliceDoc(end, end + 1) === "\n") end++;
+        view.dispatch({ changes: { from, to: end, insert: "" }, userEvent: "input" });
+      } else {
+        const model = parseMarkdownTable(view.state.sliceDoc(from, safeTo));
+        if (model) {
+          let next = model;
+          switch (action) {
+            case "row-above": next = insertRow(model, kind === "header" ? 0 : rowIndex); break;
+            case "row-below": next = insertRow(model, kind === "header" ? 0 : rowIndex + 1); break;
+            case "row-delete": next = deleteRow(model, rowIndex); break;
+            case "col-left": next = insertColumn(model, colIndex); break;
+            case "col-right": next = insertColumn(model, colIndex + 1); break;
+            case "col-delete": next = deleteColumn(model, colIndex); break;
+            case "align-left": next = setColumnAlign(model, colIndex, "left"); break;
+            case "align-center": next = setColumnAlign(model, colIndex, "center"); break;
+            case "align-right": next = setColumnAlign(model, colIndex, "right"); break;
+          }
+          view.dispatch({ changes: { from, to: safeTo, insert: serializeTable(next) }, userEvent: "input" });
+        }
+      }
+    }
+    setTableMenu(null);
+  };
+
+  // Desktop handleDateMentionSelect contract: insert @YYYY-MM-DD at the caret.
+  const insertMentionDate = () => {
+    const view = sessionRef.current?.view;
+    if (view && dateMention && dateValue) {
+      const pos = Math.min(dateMention.pos, view.state.doc.length);
+      const token = `@${dateValue}`;
+      view.dispatch({
+        changes: { from: pos, insert: token },
+        selection: { anchor: pos + token.length },
+        userEvent: "input",
+      });
+      view.focus();
+    }
+    setDateMention(null);
+  };
 
   // Context-sheet requests (C1/C4): outline jump, mode toggle, in-note search.
   useEffect(() => {
@@ -348,7 +443,7 @@ export function EditorHost({
     <>
       <div className="m-editor" ref={containerRef} />
       {editable && (
-        <div aria-label={t("mobile.editToolbar")} className="m-edit-toolbar" role="toolbar">
+        <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
           <button aria-label="Slash commands" onClick={() => run(openSlashMenu)}>
             <Slash size={18} />
           </button>
@@ -385,7 +480,7 @@ export function EditorHost({
           <button aria-label="Redo" onClick={() => run(redo)}>
             <Redo2 size={18} />
           </button>
-        </div>
+        </DockedToolbar>
       )}
 
       {tableSheet && (
@@ -408,6 +503,28 @@ export function EditorHost({
                 {t("common.cancel")}
               </button>
               <button className="m-btn m-btn--filled" onClick={insertTable}>
+                {t("mobile.insert")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tableMenu && <TableMenuSheet onAction={handleTableAction} onClose={() => setTableMenu(null)} />}
+
+      {dateMention && (
+        <div className="m-sheet-backdrop" onClick={() => setDateMention(null)}>
+          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="m-sheet-grip" />
+            <p className="m-sheet-title">{t("editor.atDatePick")}</p>
+            <div className="m-field">
+              <input onChange={(e) => setDateValue(e.target.value)} type="date" value={dateValue} />
+            </div>
+            <div className="m-btnrow">
+              <button className="m-btn" onClick={() => setDateMention(null)}>
+                {t("common.cancel")}
+              </button>
+              <button className="m-btn m-btn--filled" onClick={insertMentionDate}>
                 {t("mobile.insert")}
               </button>
             </div>
