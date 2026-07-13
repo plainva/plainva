@@ -74,4 +74,19 @@ The redesign (plan `docs/planning/Gesamtplan_Redesign_M3_Expressive_2026-07-11.m
 - **Motion** `--dur-3`, `--ease-spatial` (may overshoot), `--ease-effects`; `@media (prefers-reduced-motion: reduce)` collapses the durations — the `--motion-scheme` mechanism. Every animation MUST source its duration from these tokens; a "none" theme (Win95, E-Ink) pins the durations to ~0. Motion is chrome-only; content never animates.
 - **Emphasis type** `--text-display`, `--text-headline` — on `--font-ui` (no new webfont), for splash/empty-state/screen titles.
 
-Black themes (Midnight, LCARS, Phosphor) keep `--shadow-*: none` and express elevation/edge via colour frames, tonal lightening or glow. Per-theme tuning of these families is a dedicated audit as surfaces begin consuming them (later phases).
+Black themes (Midnight, LCARS, Phosphor) keep `--shadow-*: none` and express elevation/edge via colour frames, tonal lightening or glow.
+
+### Per-theme audit results (M3E package A3, 2026-07-12)
+
+Once the mobile surfaces began consuming the families, the seven special themes were audited so the `color-mix()` automatic derivation does not read wrong on a hand-tuned palette. Values live as annotated blocks in the theme CSS; summary:
+
+| Theme | Container strategy | State layers | Selection / accent container | Motion |
+|---|---|---|---|---|
+| Midnight (OLED) | explicit OLED container steps (near-black, not `color-mix`) | default | lightening edge | default |
+| Paper / E-Ink | flat containers, line edge | subtle | flat | **none** (durations ~0) |
+| Phosphor (green + amber) | glow edges instead of shadow | default | glow | default |
+| LCARS | crisp, no overshoot | default | amber selection container `#2E2007` / `#FFBB55` | **crisp** 80/120/170 ms |
+| High contrast | container 26 % | state layer 18/28/36 % | high-contrast fill | default |
+| Win95 | flat silver containers | whisper states | navy selection `#000080` / white | **none** |
+
+Reading: the automatic derivation holds for the twelve regular themes; only the special palettes above needed pinned values. Remaining regular themes rely on the `color-mix()` path unchanged.

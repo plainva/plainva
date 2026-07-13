@@ -2105,3 +2105,57 @@ textarea {
 .m-sheet {
   transition: transform var(--dur-2) var(--ease-spatial);
 }
+
+/* ===== CodeMirror search panel — touch optics (C2 follow-up) =====
+   The shared find panel ships desktop-dense; on the phone its fields and
+   buttons need M3 sizing and the app palette. */
+.m-editor .cm-panels {
+  background: var(--m-surface-container);
+  border-color: var(--m-outline);
+  color: var(--text-main);
+}
+.m-editor .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.m-editor .cm-panel.cm-search .cm-textfield {
+  flex: 1 1 auto;
+  min-width: 120px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 1rem;
+  border: 1px solid var(--m-outline);
+  border-radius: var(--m-radius-chip);
+  background: var(--m-surface);
+  color: var(--text-main);
+}
+.m-editor .cm-panel.cm-search .cm-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--m-radius-chip);
+  background: var(--m-secondary-container);
+  color: var(--m-on-secondary-container);
+  background-image: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+.m-editor .cm-panel.cm-search .cm-button:active {
+  background: var(--m-state-pressed);
+}
+.m-editor .cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.m-editor .cm-panel.cm-search [name="close"] {
+  width: 36px;
+  height: 36px;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+}

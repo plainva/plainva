@@ -111,3 +111,26 @@ indexing). The absolute cold-index number is emulator-bound; a real-device
 pass belongs to the maintainer sighting list. The desktop's Rust bulk-insert
 follow-up would shrink the cold pass on mobile too once the shared indexer
 gains a batched write path.
+
+### Large-vault follow-up (M3E N5, 2026-07-13)
+
+The parity plan flagged that the promised large-vault measurement (pull
+duration / memory / editor-open at the ~600-note scale) had never been
+recorded. Measured on the same headless emulator against the 1k vault (1000
+notes — larger than the 600 the plan named, so a conservative upper bound):
+
+| Metric | Value | Notes |
+|---|---|---|
+| Cold Activity start (`am start -W`, warm index) | 3.4–4.1 s (2 runs) | Activity-to-first-frame; index already present, no re-index |
+| Process memory after boot + full index | PSS ≈ 157 MB, RSS ≈ 300 MB | `dumpsys meminfo`; the SQLite index + WebView dominate |
+| Editor open (large note, live preview) | no perceptible delay | shared CodeMirror session mounts from the load-time snapshot; qualitative — screenshot cadence is too coarse for a hard number |
+
+Not measurable on the emulator, deferred to the device gate (needs a
+configured cloud vault): **first-sync pull duration** over a real WebDAV/Drive
+connection — the local sandbox vault has no remote to pull from. The device
+sighting in `Mobile_Release_Gate.md` covers it.
+
+Reading: memory sits in the normal range for a WebView + SQLite app of this
+size; nothing here changes the release posture. The cold-index time remains the
+one hotspot, emulator-bound and shared with the desktop (Rust bulk-insert
+follow-up).
