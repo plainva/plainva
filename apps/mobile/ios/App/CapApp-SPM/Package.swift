@@ -21,7 +21,8 @@ let package = Package(
         .package(name: "CapacitorHaptics", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+haptics@8.0.2_@capacitor+core@8.4.1\node_modules\@capacitor\haptics"),
         .package(name: "CapacitorKeyboard", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+keyboard@8.0.5_@capacitor+core@8.4.1\node_modules\@capacitor\keyboard"),
         .package(name: "CapacitorPreferences", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+preferences@8.0.1_@capacitor+core@8.4.1\node_modules\@capacitor\preferences"),
-        .package(name: "CapacitorShare", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+share@8.0.1_@capacitor+core@8.4.1\node_modules\@capacitor\share")
+        .package(name: "CapacitorShare", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+share@8.0.1_@capacitor+core@8.4.1\node_modules\@capacitor\share"),
+        .package(name: "CapacitorStatusBar", path: "..\..\..\..\..\node_modules\.pnpm\@capacitor+status-bar@8.0.2_@capacitor+core@8.4.1\node_modules\@capacitor\status-bar")
     ],
     targets: [
         .target(
@@ -38,7 +39,8 @@ let package = Package(
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorKeyboard", package: "CapacitorKeyboard"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
-                .product(name: "CapacitorShare", package: "CapacitorShare")
+                .product(name: "CapacitorShare", package: "CapacitorShare"),
+                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar")
             ]
         )
     ]

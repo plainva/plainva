@@ -25,6 +25,7 @@
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "@plainva/core": "workspace:*",
     "@plainva/ui": "workspace:*",
     "date-fns": "^4.4.0",

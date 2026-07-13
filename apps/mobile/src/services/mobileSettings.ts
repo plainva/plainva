@@ -7,6 +7,8 @@ import {
   getThemeDef,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 /**
  * Mobile app settings (P1): tiny synchronous module cache over the platform
@@ -85,6 +87,14 @@ const DEFAULTS: MobileSettings = {
 let cache: MobileSettings = { ...DEFAULTS };
 let media: MediaQueryList | null = null;
 
+/** Native status bar icon/text color must track the RESOLVED app theme, not the
+ *  system. Style.Light = light content (for a dark background); Style.Dark = dark
+ *  content (for a light background). No-op on web. */
+function syncNativeStatusBar(mode: "light" | "dark"): void {
+  if (Capacitor.getPlatform() === "web") return;
+  void StatusBar.setStyle({ style: mode === "dark" ? Style.Light : Style.Dark }).catch(() => {});
+}
+
 function applyTheme(): void {
   // Shared applier (D3): writes data-theme-name AND the resolved data-theme —
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
@@ -98,6 +108,10 @@ function applyTheme(): void {
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (cache.motion === "system") root.removeAttribute("data-motion");
   else root.setAttribute("data-motion", cache.motion);
+  // Drive the native status bar from the RESOLVED theme (applyResolved just
+  // wrote data-theme, so mode-pinning/variants are already accounted for) —
+  // otherwise a light app under a dark OS shows unreadable white status text.
+  syncNativeStatusBar(root.getAttribute("data-theme") === "dark" ? "dark" : "light");
 }
 
 export async function initMobileSettings(): Promise<void> {
