@@ -802,7 +802,10 @@
     "loading": "Laden...",
     "useFolder": "Diesen Ordner verwenden",
     "goUp": ".. (Nach oben)",
-    "emptyFolder": "Leerer Ordner"
+    "emptyFolder": "Leerer Ordner",
+    "newFolder": "Neuer Ordner",
+    "createFolder": "Anlegen",
+    "folderExists": "Ein Ordner mit diesem Namen existiert bereits."
   },
   "dialogs": {
     "discardConflictTitle": "Konflikt verwerfen",

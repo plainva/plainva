@@ -802,7 +802,10 @@
     "loading": "Laden...",
     "useFolder": "Deze map gebruiken",
     "goUp": ".. (Omhoog)",
-    "emptyFolder": "Lege map"
+    "emptyFolder": "Lege map",
+    "newFolder": "Nieuwe map",
+    "createFolder": "Aanmaken",
+    "folderExists": "Er bestaat al een map met deze naam."
   },
   "dialogs": {
     "discardConflictTitle": "Conflict verwerpen",

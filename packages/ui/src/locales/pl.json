@@ -806,7 +806,10 @@
     "loading": "Ładowanie...",
     "useFolder": "Użyj tego folderu",
     "goUp": ".. (W górę)",
-    "emptyFolder": "Pusty folder"
+    "emptyFolder": "Pusty folder",
+    "newFolder": "Nowy folder",
+    "createFolder": "Utwórz",
+    "folderExists": "Folder o tej nazwie już istnieje."
   },
   "dialogs": {
     "discardConflictTitle": "Odrzuć konflikt",

@@ -802,7 +802,10 @@
     "loading": "Loading...",
     "useFolder": "Use this folder",
     "goUp": ".. (Go up)",
-    "emptyFolder": "Empty folder"
+    "emptyFolder": "Empty folder",
+    "newFolder": "New folder",
+    "createFolder": "Create",
+    "folderExists": "A folder with this name already exists."
   },
   "dialogs": {
     "discardConflictTitle": "Discard Conflict",

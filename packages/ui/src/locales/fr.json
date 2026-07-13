@@ -804,7 +804,10 @@
     "loading": "Chargement...",
     "useFolder": "Utiliser ce dossier",
     "goUp": ".. (Remonter)",
-    "emptyFolder": "Dossier vide"
+    "emptyFolder": "Dossier vide",
+    "newFolder": "Nouveau dossier",
+    "createFolder": "Créer",
+    "folderExists": "Un dossier portant ce nom existe déjà."
   },
   "dialogs": {
     "discardConflictTitle": "Rejeter le conflit",

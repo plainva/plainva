@@ -804,7 +804,10 @@
     "loading": "Caricamento...",
     "useFolder": "Usa questa cartella",
     "goUp": ".. (Sali di livello)",
-    "emptyFolder": "Cartella vuota"
+    "emptyFolder": "Cartella vuota",
+    "newFolder": "Nuova cartella",
+    "createFolder": "Crea",
+    "folderExists": "Esiste già una cartella con questo nome."
   },
   "dialogs": {
     "discardConflictTitle": "Scarta il conflitto",

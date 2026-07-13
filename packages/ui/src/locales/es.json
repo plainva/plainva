@@ -804,7 +804,10 @@
     "loading": "Cargando...",
     "useFolder": "Usar esta carpeta",
     "goUp": ".. (Subir)",
-    "emptyFolder": "Carpeta vacía"
+    "emptyFolder": "Carpeta vacía",
+    "newFolder": "Nueva carpeta",
+    "createFolder": "Crear",
+    "folderExists": "Ya existe una carpeta con este nombre."
   },
   "dialogs": {
     "discardConflictTitle": "Descartar conflicto",

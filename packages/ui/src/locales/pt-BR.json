@@ -804,7 +804,10 @@
     "loading": "Carregando...",
     "useFolder": "Usar esta pasta",
     "goUp": ".. (Subir)",
-    "emptyFolder": "Pasta vazia"
+    "emptyFolder": "Pasta vazia",
+    "newFolder": "Nova pasta",
+    "createFolder": "Criar",
+    "folderExists": "Já existe uma pasta com este nome."
   },
   "dialogs": {
     "discardConflictTitle": "Descartar conflito",

@@ -800,7 +800,10 @@
     "loading": "加载中…",
     "useFolder": "使用此文件夹",
     "goUp": "..（上一级）",
-    "emptyFolder": "空文件夹"
+    "emptyFolder": "空文件夹",
+    "newFolder": "新建文件夹",
+    "createFolder": "创建",
+    "folderExists": "已存在同名文件夹。"
   },
   "dialogs": {
     "discardConflictTitle": "丢弃冲突",

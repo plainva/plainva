@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Folder, CornerLeftUp, Check } from "lucide-react";
+import { Folder, FolderPlus, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
@@ -20,6 +20,12 @@ interface SyncFolderPickerModalProps {
   rootLabel: string;
   /** Whether the root itself is a valid pick (S3: empty prefix = bucket root). */
   allowRoot?: boolean;
+  /**
+   * Optional "new folder" row (2026-07-13): creates `path` at the current level
+   * (the core adapters' ISyncTarget.createFolder) and descends into it, so the
+   * fresh folder is the selection. The create-online-vault flow relies on it.
+   */
+  createFolder?: (path: string) => Promise<void>;
   onSelect: (path: string) => void;
   onCancel: () => void;
 }
@@ -28,6 +34,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
   listFolders,
   rootLabel,
   allowRoot = false,
+  createFolder,
   onSelect,
   onCancel,
 }) => {
@@ -36,6 +43,9 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
   const [folders, setFolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const load = useCallback(
     async (next: string[]) => {
@@ -60,6 +70,29 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
 
   const currentPath = segments.join("/");
   const canUse = !loading && !error && (allowRoot || segments.length > 0);
+
+  // "New folder" row (2026-07-13): create at the current level, then descend
+  // into it — the fresh folder IS the selection the footer button confirms.
+  const handleCreateFolder = async () => {
+    if (!createFolder) return;
+    const name = newName.trim();
+    if (!name) return;
+    if (folders.some((f) => f.toLowerCase() === name.toLowerCase())) {
+      setCreateError(t("webDavPicker.folderExists"));
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await createFolder([...segments, name].join("/"));
+      setNewName("");
+      await load([...segments, name]);
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const rowStyle: React.CSSProperties = {
     padding: "var(--space-2)", borderBottom: "1px solid var(--border-color)", cursor: "pointer",
@@ -130,6 +163,41 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
                 </div>
               )}
             </ul>
+          </div>
+        )}
+
+        {createFolder && !loading && !error && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <FolderPlus size={16} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+              <input
+                className="pv-field"
+                style={{ flex: 1, minWidth: 0 }}
+                placeholder={t("webDavPicker.newFolder")}
+                value={newName}
+                disabled={creating}
+                onChange={(e) => {
+                  // Names only — a slash would create a chain the descend below
+                  // cannot follow level by level.
+                  setNewName(e.target.value.replace(/[/\\]/g, ""));
+                  setCreateError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleCreateFolder();
+                }}
+              />
+              <Button
+                disabled={creating || newName.trim().length === 0}
+                onClick={() => void handleCreateFolder()}
+              >
+                {t("webDavPicker.createFolder")}
+              </Button>
+            </div>
+            {createError && (
+              <div style={{ marginTop: "4px", fontSize: "var(--text-sm)", color: "var(--error-text)", overflowWrap: "anywhere" }}>
+                {createError}
+              </div>
+            )}
           </div>
         )}
       </div>

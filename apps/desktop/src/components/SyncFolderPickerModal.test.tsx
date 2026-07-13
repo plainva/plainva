@@ -118,4 +118,96 @@ describe("SyncFolderPickerModal", () => {
     expect(container.textContent).toContain("S3 list failed: 403");
     expect(useButton().disabled).toBe(true);
   });
+
+  // --- "New folder" row (2026-07-13) -------------------------------------
+
+  const newFolderInput = () =>
+    container.querySelector('input[placeholder="New folder"]') as HTMLInputElement | null;
+
+  const typeNewName = async (value: string) => {
+    const input = newFolderInput()!;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+
+  const createButton = (): HTMLButtonElement => {
+    const btn = [...container.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Create");
+    expect(btn, "create button not found").toBeTruthy();
+    return btn as HTMLButtonElement;
+  };
+
+  it("shows the new-folder row only when createFolder is provided", async () => {
+    const listFolders = vi.fn(async () => []);
+    await render(
+      <SyncFolderPickerModal listFolders={listFolders} rootLabel="Dropbox" allowRoot onSelect={() => {}} onCancel={() => {}} />
+    );
+    expect(newFolderInput()).toBeNull();
+
+    await render(
+      <SyncFolderPickerModal
+        listFolders={listFolders}
+        rootLabel="Dropbox"
+        allowRoot
+        createFolder={async () => {}}
+        onSelect={() => {}}
+        onCancel={() => {}}
+      />
+    );
+    expect(newFolderInput()).not.toBeNull();
+  });
+
+  it("creates a folder at the current level and descends into it as the selection", async () => {
+    const listFolders = vi.fn(async (path: string) => {
+      if (path === "") return ["Alpha"];
+      if (path === "Alpha") return [];
+      if (path === "Alpha/Mein Wissen") return [];
+      throw new Error(`unexpected ${path}`);
+    });
+    const createFolder = vi.fn(async () => {});
+    const onSelect = vi.fn();
+    await render(
+      <SyncFolderPickerModal
+        listFolders={listFolders}
+        rootLabel="Nextcloud"
+        createFolder={createFolder}
+        onSelect={onSelect}
+        onCancel={() => {}}
+      />
+    );
+
+    await act(async () => rowByText("Alpha").click());
+    await typeNewName("Mein Wissen");
+    await act(async () => createButton().click());
+
+    expect(createFolder).toHaveBeenCalledWith("Alpha/Mein Wissen");
+    expect(listFolders).toHaveBeenLastCalledWith("Alpha/Mein Wissen");
+    expect(container.textContent).toContain("Nextcloud / Alpha/Mein Wissen");
+
+    await act(async () => useButton().click());
+    expect(onSelect).toHaveBeenCalledWith("Alpha/Mein Wissen");
+  });
+
+  it("rejects a name that already exists at this level without calling createFolder", async () => {
+    const listFolders = vi.fn(async () => ["Alpha"]);
+    const createFolder = vi.fn(async () => {});
+    await render(
+      <SyncFolderPickerModal
+        listFolders={listFolders}
+        rootLabel="Nextcloud"
+        allowRoot
+        createFolder={createFolder}
+        onSelect={() => {}}
+        onCancel={() => {}}
+      />
+    );
+
+    await typeNewName("alpha");
+    await act(async () => createButton().click());
+
+    expect(createFolder).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("A folder with this name already exists.");
+  });
 });
