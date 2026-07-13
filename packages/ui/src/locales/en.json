@@ -1466,6 +1466,8 @@
     "selectMode": "Select",
     "selectedCount": "{{n}} selected",
     "templatePick": "Choose a starting structure",
+    "tabHome": "Home",
+    "segHistory": "History",
     "noteMenu": "Note menu",
     "today": "Today",
     "yesterday": "Yesterday",

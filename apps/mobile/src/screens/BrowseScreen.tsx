@@ -20,7 +20,7 @@ import {
   CheckSquare,
   X,
 } from "lucide-react";
-import { collapseContext, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
+import { collapseContext, DocIcon, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { getMobileSettings } from "../services/mobileSettings";
 import { SyncIndicator } from "../components/SyncIndicator";
@@ -55,7 +55,6 @@ export function BrowseScreen({
   onOpenSearch,
   homeVaultName,
   onOpenMore,
-  onNewNote,
 }: {
   vault: MobileVault;
   folder: string;
@@ -69,8 +68,6 @@ export function BrowseScreen({
   /** Vault name for the large home app bar (mockup 1). */
   homeVaultName?: string;
   onOpenMore?: () => void;
-  /** Pencil FAB: create + open a new note. */
-  onNewNote?: () => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<
@@ -78,6 +75,7 @@ export function BrowseScreen({
   >({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
   const [marks, setMarks] = useState<string[]>([]);
+  const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
   );
@@ -102,6 +100,13 @@ export function BrowseScreen({
   const ptrIndicator = usePullToRefresh(ptrRef);
   useEffect(() => {
     let stale = false;
+    // Custom note icons (desktop tree parity): one indexed map per load.
+    void vault.queryService
+      ?.getDocumentIcons()
+      .then((m) => {
+        if (!stale) setDocIcons(m);
+      })
+      .catch(() => {});
     void vaultOps.listFolder(vault, folder).then((l) => {
       if (stale) return;
       // Note rows carry a relative-time meta line (mockup .lrow); computed
@@ -152,6 +157,8 @@ export function BrowseScreen({
   }, [vault, folder, bump]);
 
   const caroIcon = (p: string) => {
+    const custom = docIcons.get(p);
+    if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={15} />;
     if (/\.base$/i.test(p)) return <Database size={15} />;
     const daily = getMobileSettings().dailyFolder;
     if (p.startsWith(`${daily}/`)) return <CalendarDays size={15} />;
@@ -185,7 +192,13 @@ export function BrowseScreen({
         onPointerLeave={press.clear}
         onPointerUp={press.clear}
       >
-        {conflict ? <AlertTriangle className="m-warn" size={18} /> : <FileText size={18} />}
+        {conflict ? (
+          <AlertTriangle className="m-warn" size={18} />
+        ) : docIcons.get(n.path) ? (
+          <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
         {n.rel ? (
           <span className="m-row-txt">
             <b>{n.title}</b>
@@ -521,11 +534,6 @@ export function BrowseScreen({
       )}
 
       </div>
-      {isHome && onNewNote && (
-        <button aria-label={t("mobile.quickNote")} className="m-fab-float m-fab-float--above-tabs" onClick={onNewNote}>
-          <Pencil size={22} />
-        </button>
-      )}
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>

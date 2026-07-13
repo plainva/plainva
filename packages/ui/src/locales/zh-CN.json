@@ -1461,6 +1461,8 @@
     "selectMode": "选择",
     "selectedCount": "已选择 {{n}} 项",
     "templatePick": "选择起始结构",
+    "tabHome": "主页",
+    "segHistory": "历史",
     "noteMenu": "笔记菜单",
     "today": "今天",
     "yesterday": "昨天",

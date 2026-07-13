@@ -1466,6 +1466,8 @@
     "selectMode": "Selecteren",
     "selectedCount": "{{n}} geselecteerd",
     "templatePick": "Kies een startstructuur",
+    "tabHome": "Home",
+    "segHistory": "Geschiedenis",
     "noteMenu": "Notitiemenu",
     "today": "Vandaag",
     "yesterday": "Gisteren",

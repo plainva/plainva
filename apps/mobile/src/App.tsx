@@ -556,7 +556,6 @@ export default function App() {
             bump={bump}
             folder=""
             homeVaultName={vaultName}
-            onNewNote={capture}
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenMore={() => push({ kind: "more", path: "" })}

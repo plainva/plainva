@@ -1461,6 +1461,8 @@
     "selectMode": "選択",
     "selectedCount": "{{n}}件選択中",
     "templatePick": "開始時の構造を選択",
+    "tabHome": "ホーム",
+    "segHistory": "履歴",
     "noteMenu": "ノートメニュー",
     "today": "今日",
     "yesterday": "昨日",

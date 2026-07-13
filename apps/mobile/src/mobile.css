@@ -325,8 +325,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
+  margin-top: -26px;
   border: none;
   border-radius: var(--radius-lg);
   background: var(--m-primary);
@@ -1540,9 +1541,10 @@ textarea {
   overflow: hidden;
 }
 .m-vaultmap {
+  position: relative;
   flex: 1;
   min-height: 0;
-  margin: 4px 8px calc(64px + env(safe-area-inset-bottom));
+  margin: 4px 8px 16px;
   border-radius: var(--m-radius-card);
   overflow: hidden;
   background: var(--m-surface-container);
@@ -1614,7 +1616,7 @@ textarea {
 }
 .m-seg-item {
   flex: 1 0 auto;
-  padding: 6px 12px;
+  padding: 6px 9px;
   border-radius: var(--radius-pill);
   font-size: var(--text-xs);
   font-weight: 650;
@@ -1770,14 +1772,21 @@ textarea {
 }
 .m-appbar-title {
   margin: 2px 0 10px;
-  font-size: 27px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-appbar .m-searchpill {
+  margin: 0;
+  width: 100%;
 }
 .m-appbar-title--sub {
-  font-size: 23px;
+  font-size: 20px;
   margin: 6px 0 4px;
 }
 
@@ -1872,6 +1881,10 @@ textarea {
 }
 .m-gfilters::-webkit-scrollbar {
   display: none;
+}
+.m-gfilters .m-chip {
+  white-space: nowrap;
+  flex: none;
 }
 .m-zoomers {
   position: absolute;
@@ -1968,4 +1981,32 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Shared document-header widget (stripe + icon): mobile styles — the classes
+ * were desktop-only (App.css), so the stripe had no height here at all. */
+.pv-doc-header {
+  display: block;
+}
+.pv-doc-header-stripe {
+  height: 8px;
+  width: 100%;
+  cursor: pointer;
+}
+.pv-doc-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 2px;
+}
+.pv-doc-header-icon {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  font-size: 34px;
+  line-height: 1;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }

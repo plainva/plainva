@@ -204,9 +204,13 @@ export function SettingsScreen({
       </header>
 
       <SettingRow label={t("mobile.settingLanguage")} onClick={pickLanguage} value={languageLabel(settings.language)} />
-      {/* Appearance moved to its own screen (M3E mockup 9). */}
+      {/* Appearance moved to its own screen (M3E mockup 9); the row shows
+          the active theme so the catalog stays discoverable. */}
       <button className="m-row" onClick={onOpenAppearance}>
         <span>{t("mobile.settingTheme")}</span>
+        <span className="m-prop-val">
+          {t(`themes.names.${settings.themeName || "petrol"}`, { defaultValue: settings.themeName || "Petrol" })}
+        </span>
         <ChevronRight className="m-chevron" size={18} />
       </button>
       <SettingRow

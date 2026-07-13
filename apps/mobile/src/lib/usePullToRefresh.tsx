@@ -37,8 +37,12 @@ function waitForSyncSettled(timeoutMs: number): Promise<void> {
 /** Shared refresh action: sync (when configured) + notify every list. */
 export async function refreshVaultAction(): Promise<void> {
   if (getSyncStatus().status !== "off") {
-    syncNow();
-    await waitForSyncSettled(15000);
+    try {
+      syncNow();
+    } catch {
+      /* a failed trigger must not wedge the indicator */
+    }
+    await waitForSyncSettled(8000);
   } else {
     await new Promise((r) => setTimeout(r, 400));
   }

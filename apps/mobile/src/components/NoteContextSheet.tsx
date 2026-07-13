@@ -14,6 +14,10 @@ export type ContextTab = "props" | "backlinks" | "outline" | "graph" | "history"
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
 
+/** plainva:-namespace fields (icon, stripe color) are edited from the note ⋮
+ * menu — they are presentation, not user properties. */
+const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plainva.") || key.startsWith("plainva:");
+
 /**
  * Note context sheet (M3E package C1 + mockup 4): the mobile counterpart of
  * the desktop right sidebar — ONE sheet with a segmented control:
@@ -56,7 +60,7 @@ export function NoteContextSheet({
       const q = vault.queryService;
       if (q) {
         const raw = await q.getFileProperties(path);
-        const rows = Object.entries(raw) as Array<[string, unknown]>;
+        const rows = (Object.entries(raw) as Array<[string, unknown]>).filter(([k]) => !isHiddenProp(k));
         const links = await q.getBacklinks(path);
         const bySource = new Map<string, number>();
         for (const l of links) bySource.set(l.source_path, (bySource.get(l.source_path) ?? 0) + 1);
@@ -111,7 +115,7 @@ export function NoteContextSheet({
                 ["backlinks", t("rightPanel.backlinks")],
                 ["outline", t("rightPanel.outline")],
                 ["graph", t("rightPanel.graph")],
-                ["history", t("versions.title")],
+                ["history", t("mobile.segHistory")],
               ] as Array<[ContextTab, string]>
             ).map(([id, label]) => (
               <button

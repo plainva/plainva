@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Bookmark, Calendar, CalendarDays, Database, FileText, Hash , Waypoints } from "lucide-react";
+import { Bookmark, Calendar, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
 
 /**
  * Configurable bottom navigation (R2.2): the user picks up to four screens
@@ -16,7 +16,7 @@ export interface TabDef {
 }
 
 export const TAB_POOL: TabDef[] = [
-  { id: "notes", icon: FileText, labelKey: "mobile.tabNotes" },
+  { id: "notes", icon: Home, labelKey: "mobile.tabHome" },
   { id: "today", icon: Calendar, labelKey: "mobile.tabToday" },
   { id: "tags", icon: Hash, labelKey: "mobile.tags" },
   { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },

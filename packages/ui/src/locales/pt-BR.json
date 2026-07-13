@@ -1471,6 +1471,8 @@
     "selectMode": "Selecionar",
     "selectedCount": "{{n}} selecionado(s)",
     "templatePick": "Escolher uma estrutura inicial",
+    "tabHome": "Início",
+    "segHistory": "Histórico",
     "noteMenu": "Menu da nota",
     "today": "Hoje",
     "yesterday": "Ontem",
