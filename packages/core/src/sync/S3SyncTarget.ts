@@ -257,6 +257,19 @@ export class S3SyncTarget implements ISyncTarget {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  /**
+   * "Creates" the folder at `path` (bucket-root-relative) — picker "new folder"
+   * support (2026-07-13). S3 has no folder concept: a zero-byte marker object
+   * (`path/`) makes the new prefix show up in delimiter listings; pull() already
+   * skips such markers.
+   */
+  public async createFolder(path: string): Promise<void> {
+    const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (!clean) return;
+    const res = await this.signedFetch("PUT", encodeS3Key(`${clean}/`), { body: new Uint8Array() });
+    if (!res.ok) throw new Error(`S3 folder create failed: ${res.status} ${res.statusText}`);
+  }
+
   // S3 has no incremental change token in the worker's model: always a full listing
   // (the optional `cursor` from the ISyncTarget contract is ignored, like WebDAV).
   public async pull(_cursor?: string): Promise<PullResult> {

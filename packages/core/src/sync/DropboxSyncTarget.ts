@@ -224,6 +224,21 @@ export class DropboxSyncTarget implements ISyncTarget {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  /**
+   * Creates the folder at `path` (Dropbox-root-relative) — picker "new folder"
+   * support (2026-07-13). Same coordinate system as listFolders; a 409
+   * (path/conflict = already exists) is success.
+   */
+  public async createFolder(path: string): Promise<void> {
+    const clean = path.replace(/\\/g, "/").replace(/\/+$/g, "");
+    const dbxPath = !clean || clean === "/" ? "" : clean.startsWith("/") ? clean : `/${clean}`;
+    if (!dbxPath) return; // the Dropbox root always exists
+    const res = await this.rpc("files/create_folder_v2", { path: dbxPath, autorename: false });
+    if (!res.ok && res.status !== 409) {
+      throw new Error(`Dropbox folder create failed: ${res.status} ${res.statusText}`);
+    }
+  }
+
   /** Content endpoint (content.dropboxapi.com): args in the Dropbox-API-Arg header. */
   private async contentCall(path: string, arg: unknown, body?: Uint8Array): Promise<Response> {
     return this.authedFetch(`${CONTENT}/${path}`, {

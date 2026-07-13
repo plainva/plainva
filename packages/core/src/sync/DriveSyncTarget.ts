@@ -252,6 +252,17 @@ export class DriveSyncTarget implements ISyncTarget {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  /**
+   * Creates (or finds) the folder chain for `path` in MY DRIVE — picker
+   * "new folder" support (2026-07-13). Same coordinate system as listFolders.
+   */
+  public async createFolder(path: string): Promise<void> {
+    let parentId = "root";
+    for (const segment of path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0)) {
+      parentId = await this.findOrCreateFolder(segment, parentId);
+    }
+  }
+
   /** Folder lookup by name under a parent — null when it does not exist. */
   private async findFolder(name: string, parentId: string): Promise<string | null> {
     const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;

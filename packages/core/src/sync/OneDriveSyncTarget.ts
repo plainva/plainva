@@ -206,6 +206,34 @@ export class OneDriveSyncTarget implements ISyncTarget {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  /**
+   * Creates the folder chain for `path` relative to the DRIVE root — picker
+   * "new folder" support (2026-07-13). Same coordinate system as listFolders
+   * (deliberately independent of `rootFolderName`); 409 = already exists.
+   */
+  public async createFolder(path: string): Promise<void> {
+    const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
+    let parentRel = "";
+    for (const name of segments) {
+      const encodedParent = parentRel
+        .split("/")
+        .filter((s) => s.length > 0)
+        .map((s) => encodeURIComponent(s))
+        .join("/");
+      const url = encodedParent
+        ? `${GRAPH}/me/drive/root:/${encodedParent}:/children`
+        : `${GRAPH}/me/drive/root/children`;
+      const res = await this.authedFetch("POST", url, {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+      });
+      if (!res.ok && res.status !== 409) {
+        throw new Error(`OneDrive folder create failed: ${res.status} ${res.statusText}`);
+      }
+      parentRel = parentRel ? `${parentRel}/${name}` : name;
+    }
+  }
+
   private itemEtag(item: GraphItem): string {
     return item.cTag || item.eTag || item.lastModifiedDateTime || item.id;
   }

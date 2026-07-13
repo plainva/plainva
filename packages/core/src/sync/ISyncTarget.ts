@@ -78,4 +78,12 @@ export interface ISyncTarget {
    * root-level name (Google Drive) only ever get called with "".
    */
   listFolders?(path: string): Promise<string[]>;
+  /**
+   * Optional folder creation for the pickers' "new folder" row (2026-07-13):
+   * creates the folder chain for `path` in the SAME coordinate system as
+   * `listFolders` (account/bucket root, NOT the configured vault folder).
+   * Idempotent — an already existing folder is success. S3 writes a zero-byte
+   * folder-marker object so the new prefix shows up in listings.
+   */
+  createFolder?(path: string): Promise<void>;
 }

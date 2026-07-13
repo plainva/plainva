@@ -199,6 +199,52 @@ export class WebDavSyncTarget implements ISyncTarget {
       }
   }
 
+  /**
+   * Child folder names one level below `path` ("" = the server base URL) —
+   * picker support (2026-07-13, unified online-vault setup). One PROPFIND with
+   * Depth: 1; a 404 (folder does not exist yet) is an empty level, not an error.
+   */
+  public async listFolders(path: string): Promise<string[]> {
+    const rel = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const url = rel ? this.urlForPath(rel + "/") : this.creds.url;
+    const res = await this.request("PROPFIND", url, {
+      headers: { ...this.headers, "Depth": "1" }
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+    const names: string[] = [];
+    for (const resp of this.parseListing(await res.text())) {
+      if (!resp.href || !resp.isCollection) continue;
+      // A Depth: 1 answer lists the collection itself first — skip it.
+      const childRel = this.relativeHref(resp.href).replace(/\/+$/, "");
+      if (!childRel || childRel === rel) continue;
+      const name = childRel.split("/").pop() ?? childRel;
+      if (WebDavSyncTarget.SKIPPED_COLLECTIONS.has(name)) continue;
+      names.push(name);
+    }
+    return names.sort((a, b) => a.localeCompare(b));
+  }
+
+  /**
+   * Creates the folder chain for `path` relative to the server base URL —
+   * picker "new folder" support (2026-07-13). MKCOL per level; 405 means the
+   * collection already exists (same tolerance as ensureDir).
+   */
+  public async createFolder(path: string): Promise<void> {
+    const rel = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (!rel) return;
+    let currentPath = "";
+    for (const part of rel.split("/").filter((p) => p.length > 0)) {
+      currentPath += part + "/";
+      const res = await this.request("MKCOL", this.urlForPath(currentPath), {
+        headers: this.headers
+      });
+      if (!res.ok && res.status !== 405) {
+        throw new Error(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`);
+      }
+    }
+  }
+
   // WebDAV has no incremental change token: the `cursor` argument from the
   // ISyncTarget contract is intentionally ignored and a full PROPFIND listing is
   // always returned. Deletions are derived by the worker from the listing diff.
