@@ -535,3 +535,55 @@
   font-family: var(--font-ui);
   color: var(--lcars-2);
 }
+/* Pushed-screen header carries the same colour bar as the top app bar. */
+[data-theme-name="lcars"] .m-header {
+  border-bottom: 3px solid var(--lcars-1);
+}
+/* Large app bar (Home/Today): colour bar + condensed uppercase title. */
+[data-theme-name="lcars"] .m-appbar {
+  border-bottom: 3px solid var(--lcars-1);
+}
+[data-theme-name="lcars"] .m-appbar-title {
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lcars-2);
+}
+/* Floating action buttons (pencil + "+ Eintrag" pill) become Okuda pills. */
+[data-theme-name="lcars"] .m-fab-float,
+[data-theme-name="lcars"] .m-fab-float--pill {
+  border-radius: var(--radius-pill);
+  background: var(--lcars-1);
+  color: #000;
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+/* Base view chrome speaks Okuda: pill tabs + rounded chip cells. */
+[data-theme-name="lcars"] .m-viewpills {
+  background: transparent;
+}
+[data-theme-name="lcars"] .m-viewpill {
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+[data-theme-name="lcars"] .m-viewpill.is-active {
+  background: var(--lcars-1);
+  color: #000;
+}
+[data-theme-name="lcars"] .m-cellchip {
+  border-radius: var(--radius-pill);
+}
+/* Elevation is off in LCARS — a left colour cap makes list rows read as Okuda
+   bars, and a frame keeps cards from vanishing into pure black. */
+[data-theme-name="lcars"] .m-row {
+  border-left: 4px solid var(--lcars-2);
+}
+[data-theme-name="lcars"] .m-caro-card,
+[data-theme-name="lcars"] .m-basecard,
+[data-theme-name="lcars"] .m-bigcard,
+[data-theme-name="lcars"] .m-suggest {
+  border: 2px solid var(--lcars-4);
+}
