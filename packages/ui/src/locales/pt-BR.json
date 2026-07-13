@@ -1541,6 +1541,7 @@
     "lastSync": "Última sincronização: {{time}}",
     "baseEmpty": "Nenhuma entrada corresponde a esta visão.",
     "saveRetry": "Falha ao salvar — tentando novamente em segundo plano.",
+    "noteMissing": "Esta nota não foi encontrada.",
     "tabDatabases": "Bancos de dados",
     "tabCalendar": "Calendário",
     "databasesEmpty": "Ainda não há bancos de dados. Crie um arquivo .base para começar.",

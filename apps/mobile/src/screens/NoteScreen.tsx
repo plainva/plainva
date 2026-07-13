@@ -9,6 +9,7 @@ import {
   MoreVertical,
   Paintbrush,
   Pencil,
+  FileX,
   Search,
   Share2,
   SlidersHorizontal,
@@ -17,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { markdownToPlainText } from "@plainva/ui";
+import { EmptyState, markdownToPlainText } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -52,6 +53,7 @@ export function NoteScreen({
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   const [doc, setDoc] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
   const [menu, setMenu] = useState(false);
@@ -65,16 +67,24 @@ export function NoteScreen({
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   useEffect(() => {
     let stale = false;
-    void vaultOps.read(vault, path).then(async (text) => {
-      if (stale) return;
-      setDoc(text);
-      // Draft recovery (package G): offer an unsaved draft that is newer
-      // than the file on disk and differs from it.
-      const d = await readDraft(vault, path);
-      if (stale || !d || d.text === text) return;
-      const info = await vault.adapter.getFileInfo(path).catch(() => null);
-      if (!stale && (!info || d.ts > info.mtime)) setDraft(d);
-    });
+    void vaultOps
+      .read(vault, path)
+      .then(async (text) => {
+        if (stale) return;
+        setLoadError(false);
+        setDoc(text);
+        // Draft recovery (package G): offer an unsaved draft that is newer
+        // than the file on disk and differs from it.
+        const d = await readDraft(vault, path);
+        if (stale || !d || d.text === text) return;
+        const info = await vault.adapter.getFileInfo(path).catch(() => null);
+        if (!stale && (!info || d.ts > info.mtime)) setDraft(d);
+      })
+      .catch(() => {
+        // The note is gone (a stale bookmark/recent, or deleted while open) —
+        // show a friendly not-found body instead of a fatal unhandled rejection.
+        if (!stale) setLoadError(true);
+      });
     void vaultOps.getBookmarks(vault).then((marks) => {
       if (!stale) setMarked(marks.includes(path));
     });
@@ -188,6 +198,9 @@ export function NoteScreen({
           path={path}
           vault={vault}
         />
+      )}
+      {doc === null && loadError && (
+        <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
       {!editing && (
         <button aria-label={t("mobile.editNote")} className="m-fab-float" onClick={() => setEditing(true)}>

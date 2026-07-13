@@ -1529,6 +1529,7 @@
     "lastSync": "上次同步：{{time}}",
     "baseEmpty": "没有符合此视图的条目。",
     "saveRetry": "保存失败——正在后台重试。",
+    "noteMissing": "找不到此笔记。",
     "tabDatabases": "数据库",
     "tabCalendar": "日历",
     "databasesEmpty": "还没有数据库。创建一个 .base 文件即可开始。",

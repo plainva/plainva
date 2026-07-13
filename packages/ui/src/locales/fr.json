@@ -1541,6 +1541,7 @@
     "lastSync": "Dernière synchronisation : {{time}}",
     "baseEmpty": "Aucune entrée ne correspond à cette vue.",
     "saveRetry": "Échec de l'enregistrement — nouvelle tentative en arrière-plan.",
+    "noteMissing": "Cette note est introuvable.",
     "tabDatabases": "Bases de données",
     "tabCalendar": "Calendrier",
     "databasesEmpty": "Aucune base de données pour l’instant. Créez un fichier .base pour commencer.",

@@ -1535,6 +1535,7 @@
     "lastSync": "Last synced: {{time}}",
     "baseEmpty": "No entries match this view.",
     "saveRetry": "Saving failed — retrying in the background.",
+    "noteMissing": "This note could not be found.",
     "tabDatabases": "Databases",
     "tabCalendar": "Calendar",
     "databasesEmpty": "No databases yet. Create a .base file to get started.",

@@ -1547,6 +1547,7 @@
     "lastSync": "Ostatnia synchronizacja: {{time}}",
     "baseEmpty": "Żadne wpisy nie pasują do tego widoku.",
     "saveRetry": "Zapis nie powiódł się — ponawianie w tle.",
+    "noteMissing": "Nie znaleziono tej notatki.",
     "tabDatabases": "Bazy danych",
     "tabCalendar": "Kalendarz",
     "databasesEmpty": "Brak baz danych. Utwórz plik .base, aby zacząć.",

@@ -1541,6 +1541,7 @@
     "lastSync": "Última sincronización: {{time}}",
     "baseEmpty": "Ninguna entrada coincide con esta vista.",
     "saveRetry": "Error al guardar; se reintentará en segundo plano.",
+    "noteMissing": "No se encontró esta nota.",
     "tabDatabases": "Bases de datos",
     "tabCalendar": "Calendario",
     "databasesEmpty": "Aún no hay bases de datos. Crea un archivo .base para empezar.",

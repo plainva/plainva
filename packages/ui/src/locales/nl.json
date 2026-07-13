@@ -1535,6 +1535,7 @@
     "lastSync": "Laatst gesynchroniseerd: {{time}}",
     "baseEmpty": "Geen items komen overeen met deze weergave.",
     "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond.",
+    "noteMissing": "Deze notitie is niet gevonden.",
     "tabDatabases": "Databases",
     "tabCalendar": "Kalender",
     "databasesEmpty": "Nog geen databases. Maak een .base-bestand om te beginnen.",

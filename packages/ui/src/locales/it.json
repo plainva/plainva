@@ -1541,6 +1541,7 @@
     "lastSync": "Ultima sincronizzazione: {{time}}",
     "baseEmpty": "Nessuna voce corrisponde a questa vista.",
     "saveRetry": "Salvataggio non riuscito — nuovo tentativo in background.",
+    "noteMissing": "Impossibile trovare questa nota.",
     "tabDatabases": "Database",
     "tabCalendar": "Calendario",
     "databasesEmpty": "Ancora nessun database. Crea un file .base per iniziare.",

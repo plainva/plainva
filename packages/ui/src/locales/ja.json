@@ -1529,6 +1529,7 @@
     "lastSync": "最終同期: {{time}}",
     "baseEmpty": "このビューに一致する項目はありません。",
     "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。",
+    "noteMissing": "このノートが見つかりません。",
     "tabDatabases": "データベース",
     "tabCalendar": "カレンダー",
     "databasesEmpty": "データベースはまだありません。.base ファイルを作成して始めましょう。",

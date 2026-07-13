@@ -363,6 +363,8 @@ export const vaultOps = {
   async remove(v: MobileVault, path: string): Promise<void> {
     await v.files.deleteItem(path);
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
+    // Drop a bookmark to the deleted note so it can't be tapped into a crash.
+    await this.removeBookmark(v, path).catch(() => {});
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
@@ -433,7 +435,15 @@ export const vaultOps = {
       const raw = await v.adapter.readTextFile(".plainva/bookmarks.json");
       // Shared parser (package A5): accepts the legacy bare-array shape this
       // shell used to write AND the desktop {items:[...]} object.
-      return parseBookmarksFile(raw).paths;
+      const paths = parseBookmarksFile(raw).paths;
+      // A bookmark to a note deleted/renamed elsewhere (sync, folder delete,
+      // move) silently falls out — mirrors getRecents so a stale bookmark can
+      // never point at a missing file (tapping it used to crash the app).
+      const out: string[] = [];
+      for (const p of paths) {
+        if (await v.adapter.exists(p)) out.push(p);
+      }
+      return out;
     } catch {
       return [];
     }
@@ -447,6 +457,22 @@ export const vaultOps = {
     await v.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(marks));
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return idx < 0;
+  },
+
+  /** Removes a path from bookmarks if present (e.g. on delete); persists the
+   *  cleanup by reading the RAW file so it works even after the note is gone. */
+  async removeBookmark(v: MobileVault, path: string): Promise<void> {
+    let paths: string[];
+    try {
+      paths = parseBookmarksFile(await v.adapter.readTextFile(".plainva/bookmarks.json")).paths;
+    } catch {
+      return; // no bookmarks file yet
+    }
+    if (!paths.includes(path)) return;
+    await v.adapter.writeTextFile(
+      ".plainva/bookmarks.json",
+      serializeBookmarksFile(paths.filter((p) => p !== path)),
+    );
   },
 
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string }>> {
