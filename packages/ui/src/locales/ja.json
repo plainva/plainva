@@ -458,6 +458,8 @@
     "tags": "タグ",
     "bookmarks": "ブックマーク",
     "noBookmarks": "ブックマークがありません",
+    "databases": "データベース",
+    "noDatabases": "データベースがありません",
     "recent": "最近開いた",
     "recentVaults": "最近使った保管庫",
     "vaults": "保管庫",

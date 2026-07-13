@@ -458,6 +458,8 @@
     "tags": "Tagi",
     "bookmarks": "Zakładki",
     "noBookmarks": "Brak zakładek",
+    "databases": "Bazy danych",
+    "noDatabases": "Brak baz danych",
     "recent": "Ostatnio otwarte",
     "recentVaults": "Ostatnie vaulty",
     "vaults": "Vaulty",

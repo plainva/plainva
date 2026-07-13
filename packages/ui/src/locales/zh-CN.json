@@ -458,6 +458,8 @@
     "tags": "标签",
     "bookmarks": "书签",
     "noBookmarks": "暂无书签",
+    "databases": "数据库",
+    "noDatabases": "没有数据库",
     "recent": "最近打开",
     "recentVaults": "最近使用的仓库",
     "vaults": "仓库",

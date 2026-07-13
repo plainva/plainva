@@ -20,6 +20,7 @@ import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type Fi
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
 import { BookmarksList } from "./components/BookmarksList";
+import { DatabasesList } from "./components/DatabasesList";
 import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
@@ -193,7 +194,7 @@ function App() {
     return () => window.removeEventListener("plainva-show-sync-error", onShowSyncError);
   }, []);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
-  const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "bookmarks">("files");
+  const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "bookmarks" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
   // toggle in the sidebar tab row (E3 2026-07-09; reported by the FileTree).
   const [treeHasExpanded, setTreeHasExpanded] = useState(false);
@@ -848,7 +849,7 @@ function App() {
             toggle lives in the file-tree heading below (next to the vault name). */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px 8px' }}>
           <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, flex: 1 }}>
-            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })]] as const).map(([key, Icon, label]) => {
+            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })], ['databases', Database, t('sidebar.databases', { defaultValue: 'Datenbanken' })]] as const).map(([key, Icon, label]) => {
               const active = leftSidebarTab === key;
               return (
                 <button
@@ -901,10 +902,18 @@ function App() {
             </div>
           ) : leftSidebarTab === "tags" ? (
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
-          ) : (
+          ) : leftSidebarTab === "bookmarks" ? (
             <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
               <BookmarksList
                 bookmarks={bookmarks}
+                query={leftQueryDebounced}
+                activePath={activePath}
+                onOpen={openInFocusedPane}
+              />
+            </div>
+          ) : (
+            <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
+              <DatabasesList
                 query={leftQueryDebounced}
                 activePath={activePath}
                 onOpen={openInFocusedPane}

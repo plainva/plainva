@@ -458,6 +458,8 @@
     "tags": "Tags",
     "bookmarks": "Lesezeichen",
     "noBookmarks": "Keine Lesezeichen",
+    "databases": "Datenbanken",
+    "noDatabases": "Keine Datenbanken",
     "recent": "Zuletzt geöffnet",
     "recentVaults": "Zuletzt geöffnet",
     "vaults": "Vaults",
