@@ -73,7 +73,9 @@ export function BrowseScreen({
   onNewNote?: () => void;
 }) {
   const { t } = useTranslation();
-  const [listing, setListing] = useState<FolderListing>({ folders: [], notes: [], bases: [] });
+  const [listing, setListing] = useState<
+    Omit<FolderListing, "notes"> & { notes: Array<{ path: string; title: string; rel?: string }> }
+  >({ folders: [], notes: [], bases: [] });
   const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
   const [marks, setMarks] = useState<string[]>([]);
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
@@ -101,8 +103,22 @@ export function BrowseScreen({
   useEffect(() => {
     let stale = false;
     void vaultOps.listFolder(vault, folder).then((l) => {
-      if (!stale) setListing(l);
+      if (stale) return;
+      // Note rows carry a relative-time meta line (mockup .lrow); computed
+      // here — render stays pure for the React compiler.
+      const now = Date.now();
+      setListing({
+        ...l,
+        notes: l.notes.map((n) => ({ path: n.path, title: n.title, rel: relTimeAt(now, n.mtime) ?? undefined })),
+      });
     });
+    if (folder) {
+      // React reuses the instance when Home pushes a folder — the home-only
+      // sections must clear or the carousel sticks on pushed screens.
+      setRecent([]);
+      setMarks([]);
+      setConflicts([]);
+    }
     if (!folder) {
       // Home head (B2/B3): real MRU first; mtime fallback covers first runs
       // (nothing opened yet, but synced files exist).
@@ -142,7 +158,7 @@ export function BrowseScreen({
     return <FileText size={15} />;
   };
 
-  const noteRow = (n: { path: string; title: string }) => {
+  const noteRow = (n: { path: string; title: string; rel?: string }) => {
     const conflict = isConflictCopyPath(n.path);
     return (
       <button
@@ -170,7 +186,14 @@ export function BrowseScreen({
         onPointerUp={press.clear}
       >
         {conflict ? <AlertTriangle className="m-warn" size={18} /> : <FileText size={18} />}
-        <span>{n.title}</span>
+        {n.rel ? (
+          <span className="m-row-txt">
+            <b>{n.title}</b>
+            <span>{n.rel}</span>
+          </span>
+        ) : (
+          <span>{n.title}</span>
+        )}
         {selected && <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} />}
       </button>
     );

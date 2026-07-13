@@ -281,7 +281,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
 export interface FolderListing {
   folders: Array<{ name: string; count: number }>;
-  notes: Array<{ path: string; title: string }>;
+  notes: Array<{ path: string; title: string; mtime?: number }>;
   /** Read-only databases (M4): .base files in this folder. */
   bases: Array<{ path: string; title: string }>;
 }
@@ -312,7 +312,7 @@ export const vaultOps = {
     );
     const notes = entries
       .filter((e) => !e.isDirectory && /\.md$/i.test(e.name))
-      .map((e) => ({ path: e.path, title: noteTitle(e.path) }))
+      .map((e) => ({ path: e.path, title: noteTitle(e.path), mtime: e.mtime }))
       .sort((a, b) => a.title.localeCompare(b.title));
     const bases = entries
       .filter((e) => !e.isDirectory && /\.base$/i.test(e.name))

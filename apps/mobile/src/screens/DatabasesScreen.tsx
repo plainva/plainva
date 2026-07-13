@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, noteDisplayName } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -83,7 +83,7 @@ export function DatabasesScreen({
                 onPointerUp={rowPress.clear}
               >
                 <Database className="m-accent" size={18} />
-                <span>{b.title}</span>
+                <span>{noteDisplayName(b.title)}</span>
                 <ChevronRight className="m-chevron" size={18} />
               </button>
             ))}

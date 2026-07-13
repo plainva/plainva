@@ -325,9 +325,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  margin-top: -26px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: var(--radius-lg);
   background: var(--m-primary);
@@ -1752,7 +1751,9 @@ textarea {
 
 .m-appbar {
   flex: none;
-  padding: 10px 18px 12px;
+  /* The large bars replace the top bar on Home/Today — they must carry the
+     same status-bar inset (native WebView draws edge-to-edge). */
+  padding: calc(10px + env(safe-area-inset-top)) 18px 12px;
 }
 .m-appbar-row {
   display: flex;
@@ -1835,6 +1836,9 @@ textarea {
 }
 .m-datestrip-day.is-selected .m-datestrip-dot {
   background: var(--m-on-primary);
+}
+.m-datestrip-day.is-selected .m-datestrip-dot.is-off {
+  background: transparent;
 }
 
 /* Appearance screen (mockup 9): inset segmented + font-size slider. */
