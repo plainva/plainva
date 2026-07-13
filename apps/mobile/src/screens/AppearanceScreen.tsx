@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft } from "lucide-react";
 import { AVAILABLE_THEMES, clampContentFontSize, PlainvaLogo } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
+import { FrequencyChips } from "../components/FrequencyChips";
+import { LCARS_VARIANTS } from "@plainva/ui";
 import {
   getMobileSettings,
   updateMobileSettings,
@@ -94,6 +96,20 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
           );
         })}
       </div>
+
+      {settings.unlockedThemeVariants.length > 0 && (
+        <>
+          <p className="m-sectionlabel">
+            {t("hailing.collection", {
+              count: settings.unlockedThemeVariants.length,
+              total: LCARS_VARIANTS.length,
+            })}
+          </p>
+          <div className="m-freqrow">
+            <FrequencyChips onChanged={() => setSettings(getMobileSettings())} />
+          </div>
+        </>
+      )}
 
       <p className="m-sectionlabel">{t("mobile.settingTheme")}</p>
       <div className="m-seg m-seg--inset">

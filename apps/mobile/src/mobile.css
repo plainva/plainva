@@ -1606,7 +1606,8 @@ textarea {
   gap: 2px;
   padding: 3px;
   margin: 0 0 12px;
-  background: var(--m-surface-container-high);
+  /* Theme-tinted track (mockup .seg) — the accent container, not neutral grey. */
+  background: var(--m-secondary-container);
   border-radius: var(--radius-pill);
   overflow-x: auto;
   scrollbar-width: none;
@@ -1616,17 +1617,33 @@ textarea {
 }
 .m-seg-item {
   flex: 1 0 auto;
-  padding: 6px 9px;
+  padding: 8px 12px;
+  border: none;
   border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-sm);
   font-weight: 650;
-  color: var(--text-muted);
+  color: var(--m-on-secondary-container);
   white-space: nowrap;
+  transition:
+    background var(--dur-2) var(--ease-effects),
+    color var(--dur-2) var(--ease-effects),
+    box-shadow var(--dur-2) var(--ease-effects);
 }
 .m-seg-item.is-on {
   background: var(--m-surface);
   color: var(--text-main);
   box-shadow: var(--shadow-1);
+  animation: m-seg-in var(--dur-2) var(--ease-spatial);
+}
+@keyframes m-seg-in {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* Property chips under the note title (mockup 2): tappable, open the sheet. */
@@ -1655,6 +1672,7 @@ textarea {
 /* Floating pencil FAB (mockups 1/2): 52px, above the tab bar on roots and
  * near the bottom edge on the note screen (no tab bar there). */
 .m-fab-float {
+  border: none;
   position: fixed;
   right: 16px;
   bottom: calc(26px + env(safe-area-inset-bottom));
@@ -1894,6 +1912,7 @@ textarea {
   gap: 7px;
 }
 .m-zoomer {
+  border: none;
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
@@ -2009,4 +2028,12 @@ textarea {
   padding: 0;
   display: grid;
   place-items: center;
+}
+
+/* Frequency chips on the appearance screen (collected LCARS variants). */
+.m-freqrow {
+  padding: 0 16px;
+}
+.m-freqrow .m-hail-chips {
+  padding: 2px 0 6px;
 }

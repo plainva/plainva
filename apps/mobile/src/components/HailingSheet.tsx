@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import { DEFAULT_THEME_NAME, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput, getThemeDef } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { FrequencyChips } from "./FrequencyChips";
 
 /**
  * Hailing frequencies (M3E package D5): the mobile counterpart of the desktop
@@ -112,31 +113,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
               />
               {t("hailing.lcarsActive")}
             </label>
-            <div className="m-hail-chips">
-              {LCARS_VARIANTS.filter((v) => s.unlockedThemeVariants.includes(v.id)).map((v) => {
-                const active = s.themeName === "lcars" && (s.themeVariants.lcars ?? "make-it-so") === v.id;
-                return (
-                  <button
-                    className={active ? "m-chip is-on" : "m-chip"}
-                    key={v.id}
-                    onClick={() => {
-                      const cur = getMobileSettings();
-                      const themeBefore =
-                        cur.themeName === "lcars" || cur.themeName === "win95" ? cur.themeBefore : cur.themeName;
-                      void updateMobileSettings({
-                        themeBefore,
-                        themeName: "lcars",
-                        themeVariants: { ...cur.themeVariants, lcars: v.id },
-                      }).then(onChanged);
-                    }}
-                    style={{ borderColor: v.accent }}
-                  >
-                    <span className="m-hail-dot" style={{ background: v.accent }} />
-                    {t(`themes.variants.${v.id}`, { defaultValue: v.label })}
-                  </button>
-                );
-              })}
-            </div>
+            <FrequencyChips onChanged={onChanged} />
           </>
         )}
         <div className="m-btnrow">
