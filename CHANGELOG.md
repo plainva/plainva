@@ -7,6 +7,39 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-07-13
+
+A follow-up release with sidebar and editor refinements, plus fixes from user
+reports (#9, #11).
+
+### Added
+
+- **Recently opened notes.** A strip above the file tree keeps your last few
+  notes one click away (#3).
+- **Databases tab.** A fourth view in the left sidebar (next to Files, Tags and
+  Bookmarks) lists every `.base` in the vault, grouped by folder — click one to
+  open it.
+- **Vault icon** next to the vault name in the file-tree header.
+- **The update notice is actionable.** When an update is available, the toast
+  now carries an **Install now & Restart** button that installs it directly.
+
+### Changed
+
+- **`index.md` sorts to the top of its folder** — below the sub-folders and
+  above the other files — instead of alphabetically among them (#9).
+- **Faster renames.** Renaming a file now reindexes only the affected paths
+  instead of the whole vault, so the sidebar updates without the lag (#9).
+
+### Fixed
+
+- **Markdown links no longer over-reach in the live preview.** A `[…]` before a
+  real `[text](url)` link on the same line — such as a footnote marker `[^1]` —
+  is no longer pulled into the link; the styling and the click target now stop
+  at the actual link. The reading view was already correct (#11).
+- **No stray grey background** on the calendar day cells in dark mode.
+- **Generated `index.md` sub-folder links** point at the sub-folder's own
+  `index.md`, so opening one in Obsidian no longer creates an empty note (#9).
+
 ## [0.2.2] — 2026-07-12
 
 A polish release: a batch of editor, sidebar and sync-settings refinements.
