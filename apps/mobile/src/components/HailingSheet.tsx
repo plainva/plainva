@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import { DEFAULT_THEME_NAME, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput, getThemeDef } from "@plainva/ui";
@@ -70,7 +71,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("hailing.prompt")}</p>
         <div className="m-field">
           <TextInput

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
 import {
@@ -165,7 +166,7 @@ export function PropertyEditSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("properties.editColumn", { column: columnLabel(column) })}</p>
 
         {locked && <p className="m-hint m-hint--inset">{t("properties.okfLockedHint")}</p>}

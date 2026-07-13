@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText, ListTree, Lock, Plus } from "lucide-react";
 import { inferType, parseHeadings, type Heading } from "@plainva/ui";
-import { mPrompt } from "../services/mobileDialogs";
+import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
@@ -16,6 +17,22 @@ const LOCKED = new Set(["type", "okf_version"]);
 
 /** plainva:-namespace fields (icon, stripe color) are edited from the note ⋮
  * menu — they are presentation, not user properties. */
+/** Authoring vocabulary for new note properties (base sheet parity). */
+const PROP_TYPES = [
+  "text",
+  "number",
+  "checkbox",
+  "date",
+  "datetime",
+  "select",
+  "multiselect",
+  "list",
+  "tags",
+  "url",
+  "email",
+  "phone",
+] as const;
+
 const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plainva.") || key.startsWith("plainva:");
 
 /**
@@ -36,6 +53,7 @@ export function NoteContextSheet({
   onOpenNote,
   onJumpToLine,
   onRestored,
+  onMutated,
 }: {
   vault: MobileVault;
   path: string;
@@ -45,6 +63,9 @@ export function NoteContextSheet({
   onJumpToLine: (line: number) => void;
   /** Reloads the editor after a version restore (package G). */
   onRestored: () => void;
+  /** Called after a property write so the open editor reloads from disk —
+   * otherwise its stale buffer overwrites the new frontmatter on save. */
+  onMutated: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
@@ -95,18 +116,27 @@ export function NoteContextSheet({
   };
 
   const addProp = () => {
-    void mPrompt({ title: t("editor.addProperty"), message: t("editor.key") }).then(({ value, cancelled }) => {
+    void (async () => {
+      const { value, cancelled } = await mPrompt({ title: t("editor.addProperty"), message: t("editor.key") });
       const key = value?.trim();
       if (cancelled || !key || LOCKED.has(key)) return;
-      setEdit({ notePath: path, col: key, input: "text", value: "", options: [] });
-    });
+      // Field type first (maintainer feedback) — the cell editor then opens
+      // with the matching input (date picker, checkbox, list, …).
+      const type = await mSelect({
+        title: t("properties.fieldType"),
+        options: PROP_TYPES.map((x) => ({ value: x, label: t(`properties.type_${x}`, { defaultValue: x }) })),
+        value: "text",
+      });
+      if (type === null) return;
+      setEdit({ notePath: path, col: key, input: type, value: "", options: [] });
+    })();
   };
 
   return (
     <>
       <div className="m-sheet-backdrop" onClick={onClose}>
         <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-          <div className="m-sheet-grip" />
+          <SheetGrip onClose={onClose} />
           <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
           <div className="m-seg">
             {(
@@ -204,7 +234,10 @@ export function NoteContextSheet({
           onCommit={(value) => {
             const target = edit;
             setEdit(null);
-            void commitCellValue(vault, target.notePath, target.col, value).then(() => setTick((n) => n + 1));
+            void commitCellValue(vault, target.notePath, target.col, value).then(() => {
+              setTick((n) => n + 1);
+              onMutated();
+            });
           }}
           rows={[]}
           target={edit}

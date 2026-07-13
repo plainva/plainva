@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SheetGrip } from "../components/SheetGrip";
 
 export interface RowAction {
   icon: ReactNode;
@@ -24,7 +25,7 @@ export function RowActionSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         {actions.map((a, i) => (
           <button key={i} className={a.danger ? "m-row m-danger" : "m-row"} onClick={a.onClick}>

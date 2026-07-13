@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, Search } from "lucide-react";
 import {
@@ -113,7 +114,7 @@ export function CellEditSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{col}</p>
 
         {isSelect && (

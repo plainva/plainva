@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Folder, Hash, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
@@ -340,7 +341,7 @@ export function BaseConfigSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("database.configure")}</p>
 
         {/* Data source (base-global, desktop contract: filters.and/or) */}

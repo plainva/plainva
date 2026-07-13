@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { SheetGrip } from "../components/SheetGrip";
 import {
   AlignCenter,
   AlignLeft,
@@ -52,7 +53,7 @@ export function TableMenuSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("editor.tableMenuTitle")}</p>
         {rows.map((r) => (
           <button

@@ -2037,3 +2037,72 @@ textarea {
 .m-freqrow .m-hail-chips {
   padding: 2px 0 6px;
 }
+
+/* ===== Feedback round 3 ===== */
+
+/* List rows: touch-sized (56px, 1rem titles) — they read desktop-dense before. */
+.m-row {
+  min-height: 56px;
+  font-size: 1rem;
+  gap: 15px;
+}
+.m-row > svg:first-child {
+  width: 20px;
+  height: 20px;
+}
+.m-row-txt b {
+  font-size: 1rem;
+}
+.m-row-txt > span {
+  font-size: 0.8125rem;
+}
+
+/* Custom doc icons in rows: fixed slot — the first-span flex rule must never
+ * stretch the emoji glyph and push the title away. */
+.m-row span.m-rowicon {
+  flex: 0 0 auto;
+  width: 22px;
+  display: grid;
+  place-items: center;
+}
+
+/* Bookmark chips on Home: touch-sized. */
+.m-chippill {
+  height: 38px;
+  padding: 0 15px;
+  font-size: 0.875rem;
+}
+
+/* Sheet search fields span the sheet. */
+.m-sheet .m-searchfield {
+  width: 100%;
+}
+.m-seg--sheet {
+  margin: 0 0 10px;
+}
+
+/* Icon grid variant: lucide glyphs center like emoji cells. */
+.m-emojigrid--icons button {
+  display: grid;
+  place-items: center;
+  color: var(--text-main);
+}
+
+/* TabHead eyebrow keeps row height even when empty (no jumping heads). */
+.m-appbar-eyebrow {
+  min-height: 16px;
+  display: inline-block;
+}
+
+/* Draggable grip: a wider hit target than the visual bar. */
+.m-sheet-grip--drag {
+  padding: 10px 40px;
+  margin: -8px auto 2px;
+  box-sizing: content-box;
+  background-clip: content-box;
+  touch-action: none;
+  cursor: grab;
+}
+.m-sheet {
+  transition: transform var(--dur-2) var(--ease-spatial);
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder } from "lucide-react";
 
@@ -40,7 +41,7 @@ export function CloudFolderPickerSheet({
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         <p className="m-hint m-hint--inset">/{path}</p>
         {path && (

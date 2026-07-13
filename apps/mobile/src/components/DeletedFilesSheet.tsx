@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileClock } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
@@ -64,7 +65,7 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("versions.deletedTitle")}</p>
         <p className="m-hint m-hint--inset">{t("versions.deletedHint")}</p>
         {groups === null && (

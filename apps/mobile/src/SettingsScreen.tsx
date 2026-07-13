@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
@@ -349,7 +350,7 @@ export function SettingsScreen({
       {okfInfo && (
         <div className="m-sheet-backdrop" onClick={() => setOkfInfo(false)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setOkfInfo(false)} />
             <p className="m-sheet-title">{t("okfInfo.title")}</p>
             <p className="m-hint m-hint--inset">{t("okfInfo.intro")}</p>
             <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.whatTitle")}</p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
 import { listTemplates, type TemplateItem } from "@plainva/ui";
@@ -39,7 +40,7 @@ export function TemplatePickSheet({
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         {items !== null && items.length === 0 && (
           <p className="m-hint m-hint--inset">{t("database.noTemplatesFound", { folder })}</p>

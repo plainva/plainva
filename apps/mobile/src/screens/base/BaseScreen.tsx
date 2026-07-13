@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
@@ -837,7 +838,7 @@ export function BaseScreen({
       {daySheet && (
         <div className="m-sheet-backdrop" onClick={() => setDaySheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setDaySheet(null)} />
             <p className="m-sheet-title">{daySheet.iso}</p>
             {daySheet.rows.map((r) => (
               <button

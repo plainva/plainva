@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import {
@@ -621,7 +622,7 @@ export function EditorHost({
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setTableSheet(null)} />
             <p className="m-sheet-title">{t("editor.slashTable")}</p>
             <Stepper
               label={t("mobile.tableCols")}
@@ -686,7 +687,7 @@ export function EditorHost({
       {dateMention && (
         <div className="m-sheet-backdrop" onClick={() => setDateMention(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setDateMention(null)} />
             <p className="m-sheet-title">{t("editor.atDatePick")}</p>
             <div className="m-field">
               <input onChange={(e) => setDateValue(e.target.value)} type="date" value={dateValue} />

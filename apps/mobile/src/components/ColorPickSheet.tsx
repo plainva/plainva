@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { SheetGrip } from "../components/SheetGrip";
 import { Trash2 } from "lucide-react";
 import { ACCENT_PALETTE } from "@plainva/ui";
 
@@ -22,7 +23,7 @@ export function ColorPickSheet({
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="m-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("colorPicker.title")}</p>
         <div className="m-colorgrid">
           {ACCENT_PALETTE.map((c) => (

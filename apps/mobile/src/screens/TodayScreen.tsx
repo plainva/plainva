@@ -103,17 +103,13 @@ export function TodayScreen({
   return (
     <div className="m-page" ref={ptrRef}>
       {ptrIndicator}
-      {onBack ? (
+      {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
             <ChevronLeft size={22} />
           </button>
           <h1>{t("mobile.tabToday")}</h1>
         </header>
-      ) : (
-        <div className="m-appbar">
-          <h1 className="m-appbar-title m-appbar-title--sub">{t("mobile.tabToday")}</h1>
-        </div>
       )}
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -13,9 +14,7 @@ import {
   Folder,
   FolderInput,
   FolderPlus,
-  MoreVertical,
   Pencil,
-  Search,
   Trash2,
   CheckSquare,
   X,
@@ -23,7 +22,6 @@ import {
 import { collapseContext, DocIcon, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { getMobileSettings } from "../services/mobileSettings";
-import { SyncIndicator } from "../components/SyncIndicator";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { confirmDeleteFile } from "../lib/deleteFile";
@@ -52,9 +50,6 @@ export function BrowseScreen({
   onOpenFolder,
   onOpenNote,
   onOpenBase,
-  onOpenSearch,
-  homeVaultName,
-  onOpenMore,
 }: {
   vault: MobileVault;
   folder: string;
@@ -63,11 +58,6 @@ export function BrowseScreen({
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
-  /** Home head (B3): the root shows a search pill that opens the search overlay. */
-  onOpenSearch?: () => void;
-  /** Vault name for the large home app bar (mockup 1). */
-  homeVaultName?: string;
-  onOpenMore?: () => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<
@@ -195,7 +185,9 @@ export function BrowseScreen({
         {conflict ? (
           <AlertTriangle className="m-warn" size={18} />
         ) : docIcons.get(n.path) ? (
-          <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={18} />
+          <span className="m-rowicon">
+            <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={20} />
+          </span>
         ) : (
           <FileText size={18} />
         )}
@@ -359,32 +351,9 @@ export function BrowseScreen({
     })();
   };
 
-  const isHome = !folder && !onBack;
   return (
-    <div className={isHome ? "m-page m-page--home" : "m-page"} ref={isHome ? undefined : ptrRef}>
-      {!isHome && ptrIndicator}
-      {isHome && (
-        <div className="m-appbar">
-          <div className="m-appbar-row">
-            <span className="m-appbar-eyebrow">{t("mobile.vaultEyebrow")}</span>
-            <span className="m-headactions">
-              <SyncIndicator />
-              {onOpenMore && (
-                <button aria-label={t("mobile.tabMore")} className="m-iconbtn" onClick={onOpenMore}>
-                  <MoreVertical size={20} />
-                </button>
-              )}
-            </span>
-          </div>
-          <h1 className="m-appbar-title">{homeVaultName ?? "Plainva"}</h1>
-          {onOpenSearch && (
-            <button className="m-searchpill" onClick={onOpenSearch}>
-              <Search size={17} />
-              <span>{t("mobile.searchHint")}</span>
-            </button>
-          )}
-        </div>
-      )}
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
       {onBack && (
         <header className="m-header">
           <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
@@ -398,8 +367,6 @@ export function BrowseScreen({
           </span>
         </header>
       )}
-      <div className="m-browse-body" ref={isHome ? ptrRef : undefined}>
-      {isHome && ptrIndicator}
       {!folder && conflicts.length > 0 && (
         <button
           className="m-conflictbanner"
@@ -533,11 +500,10 @@ export function BrowseScreen({
         </div>
       )}
 
-      </div>
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setSheet(null)} />
             <p className="m-sheet-title">{sheet.title}</p>
             <button
               className="m-row"
@@ -614,7 +580,7 @@ export function BrowseScreen({
       {conflictSheet && (
         <div className="m-sheet-backdrop" onClick={() => setConflictSheet(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setConflictSheet(null)} />
             <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
             <p className="m-hint m-hint--inset">{t("mobile.conflictHint")}</p>
             <button
@@ -644,7 +610,7 @@ export function BrowseScreen({
       {movePick && (
         <div className="m-sheet-backdrop" onClick={() => setMovePick(null)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setMovePick(null)} />
             <p className="m-sheet-title">{t("mobile.moveNoteTo", { name: movePick.title })}</p>
             {["", ...moveFolders].map((dest) => (
               <button

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   Calendar,
@@ -6,9 +7,7 @@ import {
   Database as DatabaseIcon,
   FileText,
   FolderPlus,
-  MoreVertical,
   Plus,
-  Search,
   StickyNote,
 } from "lucide-react";
 import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
@@ -28,7 +27,7 @@ import { getMobileSettings, updateMobileSettings } from "./services/mobileSettin
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
-import { SyncIndicator } from "./components/SyncIndicator";
+import { TabHead } from "./components/TabHead";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { NoteScreen } from "./screens/NoteScreen";
@@ -89,10 +88,6 @@ export default function App() {
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   const [quickCreate, setQuickCreate] = useState(false);
-  // Top-bar scroll elevation (B4): whichever screen scrolls its .m-page tells
-  // the bar to raise (surface-container + shadow); navigation resets it.
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => setScrolled(false), [nav]);
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
   const oauthListFolders = useCallback((p: string) => {
@@ -432,39 +427,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Home and Today carry their own large app bars (mockups 1/6). */}
-      {!top && nav.activeTab !== "notes" && nav.activeTab !== "today" && (
-        <header className={scrolled ? "m-topbar is-scrolled" : "m-topbar"}>
-          <span className="m-headtitle">
-            <activeDef.icon size={22} />
-            <h1>{t(activeDef.labelKey)}</h1>
-            <SyncIndicator />
-          </span>
-          <span className="m-headactions">
-            <button
-              aria-label={t("mobile.tabSearch")}
-              className="m-iconbtn"
-              onClick={() => push({ kind: "search", path: "" })}
-            >
-              <Search size={22} />
-            </button>
-            <button
-              aria-label={t("mobile.tabMore")}
-              className="m-iconbtn"
-              onClick={() => push({ kind: "more", path: "" })}
-            >
-              <MoreVertical size={22} />
-            </button>
-          </span>
-        </header>
+      {/* One shared large head on every tab root — title, search and ⋮ sit in
+          the same spot everywhere (maintainer feedback: nothing may jump). */}
+      {!top && (
+        <TabHead
+          eyebrow={nav.activeTab === "notes" ? t("mobile.vaultEyebrow") : undefined}
+          onMore={() => push({ kind: "more", path: "" })}
+          onSearch={() => push({ kind: "search", path: "" })}
+          title={nav.activeTab === "notes" ? vaultName : t(activeDef.labelKey)}
+        />
       )}
 
       <div
         className="m-screen"
-        onScrollCapture={(e) => {
-          const el = e.target as HTMLElement;
-          if (el.classList?.contains("m-page")) setScrolled(el.scrollTop > 2);
-        }}
       >
         {top?.kind === "tags" ? (
           <TagsScreen
@@ -555,12 +530,9 @@ export default function App() {
           <BrowseScreen
             bump={bump}
             folder=""
-            homeVaultName={vaultName}
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
-            onOpenMore={() => push({ kind: "more", path: "" })}
             onOpenNote={openNote}
-            onOpenSearch={() => push({ kind: "search", path: "" })}
             vault={vault}
           />
         ) : nav.activeTab === "today" ? (
@@ -613,7 +585,7 @@ export default function App() {
       {quickCreate && (
         <div className="m-sheet-backdrop" onClick={() => setQuickCreate(false)}>
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            <SheetGrip onClose={() => setQuickCreate(false)} />
             <p className="m-sheet-title">{t("mobile.quickCreate")}</p>
             <button
               className="m-row"

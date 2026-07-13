@@ -20,7 +20,7 @@ import {
   resolveNewItemTarget,
   serializeBaseConfig,
 } from "@plainva/ui";
-import { vaultOps, type MobileVault } from "./vaultService";
+import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { syncSoon } from "./syncService";
 
 /**
@@ -77,6 +77,9 @@ export async function commitCellValue(
   col: string,
   value: unknown,
 ): Promise<void> {
+  // The note may be open in the editor — land its pending keystrokes first
+  // so the frontmatter rewrite starts from the live text.
+  await noteSaver.flush(notePath);
   const text = await vaultOps.read(v, notePath);
   const fmResult = extractFrontmatter(parseMarkdownAst(text));
   const props: Record<string, unknown> = {

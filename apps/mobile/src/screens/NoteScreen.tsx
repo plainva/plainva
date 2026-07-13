@@ -56,7 +56,6 @@ export function NoteScreen({
   // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
   // flips into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
-  const [chips, setChips] = useState<Array<{ label: string; tag?: boolean }>>([]);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   useEffect(() => {
     let stale = false;
@@ -77,31 +76,6 @@ export function NoteScreen({
       stale = true;
     };
   }, [vault, path]);
-
-  // Property chips under the header (mockup 2): tags as #chips plus the first
-  // scalar frontmatter values; tapping any chip opens the context sheet.
-  useEffect(() => {
-    let stale = false;
-    const q = vault.queryService;
-    if (!q) return;
-    void q.getFileProperties(path).then((raw) => {
-      if (stale) return;
-      const out: Array<{ label: string; tag?: boolean }> = [];
-      const tags = raw.tags;
-      if (Array.isArray(tags)) for (const tg of tags.slice(0, 3)) out.push({ label: `#${String(tg)}`, tag: true });
-      for (const [k, v] of Object.entries(raw)) {
-        if (out.length >= 4) break;
-        if (k === "tags" || k === "type" || k === "okf_version" || k.startsWith("plainva")) continue;
-        const text = Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v);
-        if (!text) continue;
-        out.push({ label: `${k} · ${text.length > 24 ? `${text.slice(0, 24)}…` : text}` });
-      }
-      setChips(out);
-    });
-    return () => {
-      stale = true;
-    };
-  }, [vault, path, reloadTick, editing]);
 
   const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { path } }));
 
@@ -156,15 +130,6 @@ export function NoteScreen({
           )}
         </span>
       </header>
-      {!editing && chips.length > 0 && (
-        <div className="m-props" role="button" tabIndex={0} onClick={() => setInfo("props")}>
-          {chips.map((c, i) => (
-            <span className={c.tag ? "m-prop-chip is-tag" : "m-prop-chip"} key={i}>
-              {c.label}
-            </span>
-          ))}
-        </div>
-      )}
       {draft && (
         <div className="m-draftbanner">
           <span>
@@ -298,6 +263,12 @@ export function NoteScreen({
         <NoteContextSheet
           initialTab={info}
           onClose={() => setInfo(null)}
+          onMutated={() => {
+            void vaultOps.read(vault, path).then((text) => {
+              setDoc(text);
+              setReloadTick((n) => n + 1);
+            });
+          }}
           onJumpToLine={(line) =>
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
           }
