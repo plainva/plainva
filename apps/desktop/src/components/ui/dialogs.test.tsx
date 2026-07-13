@@ -138,6 +138,31 @@ describe("toastStore + ToastHost", () => {
     act(() => container.querySelector<HTMLButtonElement>(".pv-toast-x")!.click());
     expect(container.querySelectorAll(".pv-toast")).toHaveLength(0);
   });
+
+  it("progress toast stays put (no auto-dismiss) until dismissed, even after hover", () => {
+    render(<ToastHost />);
+    let id = 0;
+    act(() => {
+      id = toast.progress("Installiere…");
+    });
+    expect(container.querySelector(".pv-toast")!.textContent).toContain("Installiere…");
+
+    // A persistent toast must survive far past any auto-dismiss window…
+    act(() => vi.advanceTimersByTime(30000));
+    expect(container.querySelectorAll(".pv-toast")).toHaveLength(1);
+
+    // …and a hover in/out (pause then resume) must not re-arm a dismissal.
+    act(() => {
+      toast.pause(id);
+      toast.resume(id);
+      vi.advanceTimersByTime(30000);
+    });
+    expect(container.querySelectorAll(".pv-toast")).toHaveLength(1);
+
+    // Only an explicit dismiss removes it (the install path does this on error).
+    act(() => toast.dismiss(id));
+    expect(container.querySelectorAll(".pv-toast")).toHaveLength(0);
+  });
 });
 
 function render(el: React.ReactElement) {

@@ -21,6 +21,8 @@ export interface ToastItem {
   kind: ToastKind;
   message: string;
   action?: ToastAction;
+  /** Stays until dismissed explicitly (e.g. a running install) — no auto-dismiss. */
+  persistent?: boolean;
 }
 
 const AUTO_DISMISS_MS: Record<ToastKind, number> = {
@@ -48,11 +50,14 @@ function remove(id: number) {
   if (items.length !== before) emit();
 }
 
-function push(kind: ToastKind, message: string, action?: ToastAction): number {
+function push(kind: ToastKind, message: string, action?: ToastAction, persistent?: boolean): number {
   const id = nextId++;
-  items = [...items, { id, kind, message, action }];
-  // Actionable toasts linger longer so the user can reach the button.
-  timers.set(id, window.setTimeout(() => remove(id), action ? 12000 : AUTO_DISMISS_MS[kind]));
+  items = [...items, { id, kind, message, action, persistent }];
+  // Persistent toasts (e.g. a running install) stay until dismissed explicitly;
+  // actionable toasts linger longer so the user can reach the button.
+  if (!persistent) {
+    timers.set(id, window.setTimeout(() => remove(id), action ? 12000 : AUTO_DISMISS_MS[kind]));
+  }
   // Error/warning toasts double as the diagnostics trail (P4.2) — the export
   // shows what the user actually saw, without any note content.
   if (kind === "error" || kind === "warning") logDiagnostic(`toast.${kind}`, message);
@@ -65,6 +70,9 @@ export const toast = {
   success: (message: string, action?: ToastAction) => push("success", message, action),
   warning: (message: string, action?: ToastAction) => push("warning", message, action),
   error: (message: string, action?: ToastAction) => push("error", message, action),
+  /** A persistent toast (no auto-dismiss) for an ongoing operation — the caller
+   *  dismisses it when done (e.g. an update download that ends in a relaunch). */
+  progress: (message: string) => push("info", message, undefined, true),
   dismiss: remove,
   /** Hover pause: stop the auto-dismiss timer … */
   pause(id: number) {
@@ -76,7 +84,8 @@ export const toast = {
   },
   /** … and restart a short grace period on leave. */
   resume(id: number) {
-    if (!items.some((i) => i.id === id) || timers.has(id)) return;
+    const item = items.find((i) => i.id === id);
+    if (!item || item.persistent || timers.has(id)) return;
     timers.set(id, window.setTimeout(() => remove(id), 2000));
   },
   /** Test helper. */

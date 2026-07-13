@@ -71,8 +71,12 @@ export function scheduleStartupUpdateCheck(): void {
           toast.info(i18n.t("settings.updateAvailable", { version: update.version }), {
             label: i18n.t("settings.installUpdate"),
             run: () => {
-              toast.info(i18n.t("settings.installingUpdate"));
+              // Persistent toast: the download/install can take a while and ends
+              // in a relaunch, so it must not vanish after a few seconds — it
+              // stays up (through the restart) or is replaced by an error.
+              const installingId = toast.progress(i18n.t("settings.installingUpdate"));
               void downloadAndInstallUpdate(update).catch((e) => {
+                toast.dismiss(installingId);
                 toast.error(i18n.t("settings.updateInstallError", { error: String(e) }));
               });
             },
