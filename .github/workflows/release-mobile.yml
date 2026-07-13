@@ -51,7 +51,9 @@ jobs:
 
       - name: Decode keystore
         id: keystore
-        if: ${{ vars.ANDROID_SIGNING == 'true' || secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        # The step always runs; the body decodes the keystore only when the
+        # secret is set. (The `secrets` context is NOT available in `if:`
+        # conditions, so guarding the step with it breaks the workflow parse.)
         working-directory: apps/mobile/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
