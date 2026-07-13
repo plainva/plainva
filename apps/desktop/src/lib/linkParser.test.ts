@@ -24,6 +24,22 @@ describe('findLinkAtOffset', () => {
     expect(findLinkAtOffset(text, 39)).toEqual(null);
   });
 
+  it('does not swallow a preceding footnote/bracket into the real link (issue #11)', () => {
+    const text = 'An occasional post[^1] from [The Markdown Handbook](https://md-handbook.com/).';
+    const fn = text.indexOf('[^1]'); // the footnote marker
+    const from = text.indexOf(' from ') + 3; // inside "from"
+    const link = text.indexOf('[The'); // the real link
+    // The footnote and the words between it and the link are NOT part of a link.
+    expect(findLinkAtOffset(text, fn + 1)).toEqual(null);
+    expect(findLinkAtOffset(text, from)).toEqual(null);
+    // The real link resolves to just itself.
+    expect(findLinkAtOffset(text, link + 5)).toEqual({
+      type: 'markdown',
+      text: 'The Markdown Handbook',
+      target: 'https://md-handbook.com/',
+    });
+  });
+
   it('should find raw urls', () => {
     const text = "Visit https://example.com for more info.";
     expect(findLinkAtOffset(text, 15)).toEqual({ type: 'url', target: 'https://example.com' });

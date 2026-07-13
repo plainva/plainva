@@ -53,8 +53,10 @@ export function findLinkAtOffset(text: string, offset: number): ParsedLink | nul
     }
   }
 
-  // Check for Standard Links: [text](url)
-  const mdRegex = /\[(.*?)\]\((.*?)\)/g;
+  // Check for Standard Links: [text](url). The link TEXT must not contain a
+  // `]` — otherwise the match spans a preceding `[...]` (e.g. a footnote `[^1]`)
+  // into the real link and a tap on the footnote/text opens the link (issue #11).
+  const mdRegex = /\[([^\]\n]*?)\]\(([^)\n]*?)\)/g;
   while ((m = mdRegex.exec(text)) !== null) {
     if (offset >= m.index && offset <= m.index + m[0].length) {
       return { type: 'markdown', text: m[1], target: m[2] };

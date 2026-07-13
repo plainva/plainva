@@ -131,8 +131,11 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             matches.push({ start: matchStart, end: matchEnd, text: "wiki", target, hideRanges });
           }
           
-          // Match Standard Links: [text](url)
-          const mdRegex = /\[(.*?)\]\((.*?)\)/g;
+          // Match Standard Links: [text](url). The link TEXT must not contain a
+          // `]` (a real Markdown link's text can't) — otherwise the match spans
+          // across a preceding `[...]` such as a footnote `[^1]` into the real
+          // link, styling everything in between as one link (issue #11).
+          const mdRegex = /\[([^\]\n]*?)\]\(([^)\n]*?)\)/g;
           while ((match = mdRegex.exec(text)) !== null) {
             const matchStart = from + match.index;
             if (matchStart > 0 && view.state.sliceDoc(matchStart - 1, matchStart) === "!") {
