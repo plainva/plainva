@@ -209,6 +209,33 @@ textarea {
 .m-sectionlabel--inset {
   margin-left: 16px;
 }
+/* Config sheet clarity (E9): a hairline above each section header turns the
+   stacked config sections into distinct, scannable blocks. */
+.m-sheet--config .m-sectionlabel--inset {
+  margin-top: 16px;
+  padding-top: 12px;
+  margin-right: 16px;
+  border-top: 1px solid var(--m-outline);
+}
+/* Config sheet: tappable header for the collapsed sort/filter block. */
+.m-cfg-adv-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  margin: 16px 16px 4px;
+  padding: 12px 0 0;
+  border: none;
+  border-top: 1px solid var(--m-outline);
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  cursor: pointer;
+}
 
 /* ---- List items (M3 one-line list: 52px, state layer, no hard rules) ---- */
 

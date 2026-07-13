@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Folder, Hash, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Copy, Folder, Hash, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
@@ -91,6 +91,8 @@ export function BaseConfigSheet({
   // Data-source editing (R3.7): folder/tag clauses in filters.and/or —
   // identical contract to the desktop's source editor (base-global).
   const [pickSourceFolder, setPickSourceFolder] = useState<"and" | "or" | null>(null);
+  // Sort + filters collapse by default so the common config isn't buried (E9).
+  const [advOpen, setAdvOpen] = useState(false);
 
   const sourceList = (logic: "and" | "or"): any[] =>
     Array.isArray(config?.filters?.[logic]) ? config.filters[logic] : [];
@@ -340,7 +342,7 @@ export function BaseConfigSheet({
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="m-sheet m-sheet--config" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("database.configure")}</p>
 
@@ -349,45 +351,49 @@ export function BaseConfigSheet({
         {sourcesOf("and").length + sourcesOf("or").length === 0 && (
           <p className="m-hint m-hint--inset">{t("database.noSources")}</p>
         )}
-        {(["and", "or"] as const).map((logic) => (
-          <div key={logic}>
-            <p className="m-hint m-hint--inset">
-              {t(logic === "and" ? "database.matchAll" : "database.matchAny")}
-            </p>
-            {sourcesOf(logic).map(({ clause, idx }) => {
-              const parsed = parseSourceClause(clause);
-              const label = parsed?.type === "tag" ? t("database.tag") : t("database.folder");
-              let display = parsed?.value ?? clause;
-              if (parsed?.type === "tag" && !display.startsWith("#")) display = `#${display}`;
-              if (parsed?.type === "folder" && display === "/") display = `/ (${t("database.rootFolder")})`;
-              return (
-                <div className="m-row m-row--split" key={`${logic}-${idx}`}>
-                  <span className="m-row-main m-row--static">
-                    {parsed?.type === "tag" ? <Hash size={18} /> : <Folder size={18} />}
-                    <span>
-                      {label}: {display}
+        {(["and", "or"] as const).map((logic) =>
+          sourcesOf(logic).length === 0 ? null : (
+            <div key={logic}>
+              <p className="m-hint m-hint--inset">
+                {t(logic === "and" ? "database.matchAll" : "database.matchAny")}
+              </p>
+              {sourcesOf(logic).map(({ clause, idx }) => {
+                const parsed = parseSourceClause(clause);
+                const label = parsed?.type === "tag" ? t("database.tag") : t("database.folder");
+                let display = parsed?.value ?? clause;
+                if (parsed?.type === "tag" && !display.startsWith("#")) display = `#${display}`;
+                if (parsed?.type === "folder" && display === "/") display = `/ (${t("database.rootFolder")})`;
+                return (
+                  <div className="m-row m-row--split" key={`${logic}-${idx}`}>
+                    <span className="m-row-main m-row--static">
+                      {parsed?.type === "tag" ? <Hash size={18} /> : <Folder size={18} />}
+                      <span>
+                        {label}: {display}
+                      </span>
                     </span>
-                  </span>
-                  <button
-                    aria-label={t("common.delete")}
-                    className="m-iconbtn"
-                    onClick={() => removeSourceAt(logic, idx)}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              );
-            })}
-            <div className="m-config-actions">
-              <button className="m-chip" onClick={() => setPickSourceFolder(logic)}>
-                + {t("database.folder")}
-              </button>
-              <button className="m-chip" onClick={() => addTagSource(logic)}>
-                + {t("database.tag")}
-              </button>
+                    <button
+                      aria-label={t("common.delete")}
+                      className="m-iconbtn"
+                      onClick={() => removeSourceAt(logic, idx)}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ))}
+          ),
+        )}
+        {/* One add set (defaults to AND — the common case; existing OR sources
+            from the desktop still show above and stay deletable). */}
+        <div className="m-config-actions">
+          <button className="m-chip" onClick={() => setPickSourceFolder("and")}>
+            + {t("database.folder")}
+          </button>
+          <button className="m-chip" onClick={() => addTagSource("and")}>
+            + {t("database.tag")}
+          </button>
+        </div>
 
         {/* Views */}
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewOptions")}</p>
@@ -658,8 +664,23 @@ export function BaseConfigSheet({
           <span>{t("properties.addProperty")}</span>
         </button>
 
-        {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sort")}</p>
+        {/* Sort + filters collapse by default (E9 clarity) so the common
+            source/views/columns config isn't buried in a long scroll. */}
+        <button
+          type="button"
+          className="m-cfg-adv-toggle"
+          aria-expanded={advOpen}
+          onClick={() => setAdvOpen((o) => !o)}
+        >
+          <span>
+            {t("database.sort")} · {t("database.addFilter")}
+          </span>
+          {advOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {advOpen && (
+          <>
+            {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sort")}</p>
         {sortRules.map((rule, idx) => (
           <div className="m-row m-row--split" key={`${rule.property}-${idx}`}>
             <button
@@ -897,6 +918,8 @@ export function BaseConfigSheet({
             </button>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {pickSourceFolder && (
