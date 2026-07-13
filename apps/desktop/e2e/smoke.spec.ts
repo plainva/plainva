@@ -790,7 +790,10 @@ test('Create vault: the PARA template scaffolds OKF structure with managed index
     };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: /Neuen Vault erstellen|Create New Vault/ }).click();
+  // Two-button model (2026-07-13): action first, then the place question.
+  await page.getByRole('button', { name: /^(Neuer Vault|New Vault)$/ }).click();
+  await expect(page.getByText(/Wo soll Dein Vault liegen|Where should your vault live/)).toBeVisible();
+  await page.getByRole('button', { name: /Auf diesem Computer|On this computer/ }).click();
   // The chooser offers the empty vault plus the template cards.
   await expect(page.getByText(/Leerer Vault|Empty vault/)).toBeVisible();
   await page.getByRole('button', { name: /PARA/ }).click();
@@ -869,21 +872,25 @@ test('Online vault: chooser lists all providers; picking one opens the in-splash
     };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: /Online-Vault öffnen|Open Online Vault/ }).click();
+  // Two-button model (2026-07-13): "Open Vault" first, then the place question.
+  await page.getByRole('button', { name: /^(Vault öffnen|Open Vault)$/ }).click();
+  await expect(page.getByText(/Wo liegt Dein Vault|Where is your vault/)).toBeVisible();
+  await page.getByRole('button', { name: /Online-Vault|Online vault/ }).click();
 
-  // All five providers are offered; WebDAV leads to the connect form (and Back
-  // returns to the chooser, not the main view).
+  // All five providers are offered; WebDAV now runs through the SAME unified
+  // in-splash setup as the other four (E5) — no separate form/picker path.
   await expect(page.getByRole('button', { name: /OneDrive/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /S3/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Google Drive/ })).toBeVisible();
   await page.getByRole('button', { name: /WebDAV/ }).click();
-  await expect(page.getByText(/Mit WebDAV verbinden|Connect to WebDAV/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /WebDAV \/ Nextcloud/ })).toBeVisible();
+  await expect(page.getByPlaceholder('https://nextcloud.example.com/remote.php/webdav')).toBeVisible();
   await page.getByRole('button', { name: /Zurück|Back/ }).click();
 
   // The BYO handbook links sit under the provider grid; Google Drive stays BYO.
   await expect(page.getByRole('link', { name: 'Google Drive', exact: true })).toBeVisible();
 
-  // NEW flow: picking Dropbox opens the in-splash setup (CONNECT first), NOT a
+  // Picking Dropbox opens the in-splash setup (CONNECT first), NOT a
   // deep-link into Settings and NOT a local-folder dialog up front.
   await page.getByRole('button', { name: /Dropbox/ }).click();
   await expect(page.getByRole('heading', { name: /Dropbox verbinden|Connect Dropbox/ })).toBeVisible();
@@ -895,6 +902,55 @@ test('Online vault: chooser lists all providers; picking one opens the in-splash
   // local folder dialog — the whole point of the unified flow.
   await page.getByRole('button', { name: /S3/ }).click();
   await expect(page.getByPlaceholder('https://s3.eu-central-1.amazonaws.com')).toBeVisible();
+});
+
+test('Create vault online: place -> template -> connect; the template scaffolds into the local folder', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
+      if (cmd === 'plugin:dialog|open') return '/new-online-vault';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+
+  // Place -> template (the agreed order: Ort -> Vorlage -> Verbindung).
+  await page.getByRole('button', { name: /^(Neuer Vault|New Vault)$/ }).click();
+  await page.getByRole('button', { name: /Bei einem Online-Dienst|With an online service/ }).click();
+  await expect(page.getByText(/Leerer Vault|Empty vault/)).toBeVisible();
+  await page.getByRole('button', { name: /PARA/ }).click();
+
+  // The provider chooser carries the create-mode title.
+  await expect(page.getByRole('heading', { name: /Neuer Vault bei einem Online-Dienst|New vault with an online service/ })).toBeVisible();
+
+  // S3 keeps everything local until the picker (no OAuth loopback needed).
+  await page.getByRole('button', { name: /S3/ }).click();
+  const fields = page.locator('input.pv-field');
+  await fields.nth(0).fill('https://s3.example.com');
+  await fields.nth(1).fill('vaults');
+  await fields.nth(2).fill('auto');
+  await fields.nth(3).fill('AK');
+  await fields.nth(4).fill('SK');
+  await page.getByRole('button', { name: /^(Weiter|Continue)$/ }).click();
+
+  // The cloud folder picker opens against the (unmocked) network — dismiss it
+  // via Escape (a no-op if it already closed itself on the listing error); the
+  // createFolder row itself is unit-tested. The connected screen shows the
+  // chosen starter structure before the local folder is picked.
+  await expect(page.getByText(/Connected to|verbunden/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText(/\(PARA\)/)).toBeVisible();
+
+  // Local folder -> scaffold runs BEFORE the vault opens.
+  await page.getByRole('button', { name: /Lokalen Ordner wählen und öffnen|local folder/i }).click();
+  await page.waitForFunction(() => !!(window as any).mockFs['/new-online-vault/index.md'], undefined, { timeout: 10000 });
+  const files: string[] = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/new-online-vault/')));
+  expect(files.some((p) => /^\/new-online-vault\/[^/]+\/index\.md$/.test(p))).toBe(true);
+  expect(files.some((p) => /\.base$/.test(p))).toBe(true);
+
+  // The new vault actually opened (no splash anymore).
+  await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });
 });
 
 test('Sync error dialog: deep-links into the sync settings (broken connection recovery)', async ({ page }) => {

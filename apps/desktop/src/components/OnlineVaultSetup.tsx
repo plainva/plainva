@@ -7,7 +7,9 @@ import { credentialManager } from "../services/CredentialManager";
 import { authorizeDrive } from "../services/driveAuth";
 import { authorizeOneDrive } from "../services/oneDriveAuth";
 import { authorizeDropbox } from "../services/dropboxAuth";
+import { appConfirm } from "../services/appDialogs";
 import {
+  buildWebDavTarget,
   buildDriveTarget,
   buildOneDriveTarget,
   buildDropboxTarget,
@@ -15,25 +17,43 @@ import {
   type S3TargetCreds,
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
+import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
+import {
+  scaffoldVaultTemplate,
+  applyVaultTemplateSettings,
+  isVaultFolderEmpty,
+  type VaultTemplateDefinition,
+} from "../services/vaultTemplates";
 
-type Provider = "drive" | "onedrive" | "dropbox" | "s3";
+export type OnlineProvider = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
 
-// The freshly authorized (OAuth) / entered (S3) credentials, held in memory
-// until the local vault folder is chosen. refreshToken is mutable so a rotation
-// during folder browsing (OneDrive/Dropbox) is carried into the final save.
+// The freshly authorized (OAuth) / entered (WebDAV, S3) credentials, held in
+// memory until the local vault folder is chosen. refreshToken is mutable so a
+// rotation during folder browsing (OneDrive/Dropbox) is carried into the save.
 type Connected =
+  | { provider: "webdav"; url: string; user: string; pass: string }
   | { provider: "drive"; clientId: string; clientSecret: string; refreshToken: string }
   | { provider: "onedrive"; clientId: string; refreshToken: string }
   | { provider: "dropbox"; appKey: string; refreshToken: string }
   | { provider: "s3"; s3: S3TargetCreds };
 
 interface Props {
-  provider: Provider;
+  provider: OnlineProvider;
+  /**
+   * "open" (default) connects to an EXISTING cloud vault; "create" additionally
+   * scaffolds `template` into the chosen local folder BEFORE the credentials
+   * are bound — the first sync cycle then uploads the fresh structure into the
+   * (new) cloud folder (`enqueueLocalOnlyFiles` after the empty first pull).
+   */
+  mode?: "open" | "create";
+  /** Create mode only: the structure template chosen up front (null = empty vault). */
+  template?: VaultTemplateDefinition | null;
   onBack: () => void;
 }
 
-const providerLabelKey: Record<Provider, string> = {
+const providerLabelKey: Record<OnlineProvider, string> = {
+  webdav: "settings.providerWebDav",
   drive: "settings.providerDrive",
   onedrive: "settings.providerOneDrive",
   dropbox: "settings.providerDropbox",
@@ -41,18 +61,21 @@ const providerLabelKey: Record<Provider, string> = {
 };
 
 /**
- * Splash online-vault setup for the OAuth/key providers. Mirrors the WebDAV
- * onboarding: 1) connect (OAuth or enter keys), 2) pick the folder in the cloud,
- * 3) pick/create the local folder and open. The OAuth token is authorized
- * BEFORE a local folder exists (authorizeX returns it in memory) and only bound
- * to the chosen local folder at the end — this is the whole point of the
- * OAuth-without-vault-path change.
+ * Splash online-vault setup for ALL five providers (WebDAV joined the unified
+ * assistant with the create-online-vault work, 2026-07-13): 1) connect (OAuth
+ * or enter credentials), 2) pick — or newly create — the folder in the cloud,
+ * 3) pick/create the local folder and open. OAuth tokens are authorized BEFORE
+ * a local folder exists (in memory) and only bound to the chosen local folder
+ * at the end.
  */
-export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
+export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", template = null, onBack }) => {
   const { t } = useTranslation();
   const { openVault } = useVault();
 
   // Form state (only the fields this provider needs are shown/read).
+  const [webdavUrl, setWebdavUrl] = useState("");
+  const [webdavUser, setWebdavUser] = useState("");
+  const [webdavPass, setWebdavPass] = useState("");
   const [driveClientId, setDriveClientId] = useState("");
   const [driveClientSecret, setDriveClientSecret] = useState("");
   const [oneDriveClientId, setOneDriveClientId] = useState("");
@@ -74,20 +97,29 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
   const [error, setError] = useState<string | null>(null);
 
   const providerName = t(providerLabelKey[provider]);
+  const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
 
   const canConnect = (() => {
+    if (provider === "webdav") return !!webdavUrl.trim() && !!webdavUser.trim() && !!webdavPass;
     if (provider === "drive") return !!driveClientId && !!driveClientSecret;
     if (provider === "onedrive") return !!(oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID);
     if (provider === "dropbox") return !!(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY);
     return !!s3Endpoint && !!s3Bucket && !!s3AccessKeyId && !!s3SecretKey;
   })();
 
-  // Step 1: connect (OAuth) or gather keys (S3), then open the cloud folder picker.
+  // Step 1: connect (OAuth), test the credentials (WebDAV) or gather keys (S3),
+  // then open the cloud folder picker.
   const handleConnect = async () => {
     setBusy(true);
     setError(null);
     try {
-      if (provider === "drive") {
+      if (provider === "webdav") {
+        const creds = { url: webdavUrl.trim(), user: webdavUser.trim(), pass: webdavPass };
+        // Connection probe: a wrong host/credential pair (401, network, HTML
+        // landing page) must surface HERE, not in the picker.
+        await buildWebDavTarget(creds).listFolders("");
+        credsRef.current = { provider, ...creds };
+      } else if (provider === "drive") {
         const creds = await authorizeDrive({ clientId: driveClientId.trim(), clientSecret: driveClientSecret.trim() });
         credsRef.current = { provider, ...creds };
       } else if (provider === "onedrive") {
@@ -110,7 +142,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
         };
       }
       setConnected(true);
-      setPickerOpen(true); // open the cloud folder picker right away (WebDAV parity)
+      setPickerOpen(true); // open the cloud folder picker right away
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -123,6 +155,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
   const listFolders = useCallback((path: string): Promise<string[]> => {
     const c = credsRef.current;
     if (!c) return Promise.resolve([]);
+    if (c.provider === "webdav") return buildWebDavTarget(c).listFolders(path);
     if (c.provider === "drive") return buildDriveTarget(c).listFolders(path);
     if (c.provider === "onedrive") {
       return buildOneDriveTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).listFolders(path);
@@ -133,7 +166,25 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
     return buildS3Target(c.s3).listFolders(path);
   }, []);
 
-  // Step 3: pick/create the local folder, bind the credentials to it, open.
+  // The picker's "new folder" row (2026-07-13) — the create flow's way to give
+  // the fresh vault its own cloud folder; available while opening too (E6).
+  const createFolderAt = useCallback((path: string): Promise<void> => {
+    const c = credsRef.current;
+    if (!c) return Promise.resolve();
+    if (c.provider === "webdav") return buildWebDavTarget(c).createFolder(path);
+    if (c.provider === "drive") return buildDriveTarget(c).createFolder(path);
+    if (c.provider === "onedrive") {
+      return buildOneDriveTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).createFolder(path);
+    }
+    if (c.provider === "dropbox") {
+      return buildDropboxTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).createFolder(path);
+    }
+    return buildS3Target(c.s3).createFolder(path);
+  }, []);
+
+  // Step 3: pick/create the local folder, scaffold in create mode, bind the
+  // credentials to it, open. Scaffolding runs BEFORE the credentials exist on
+  // disk, so no sync can observe a half-written structure.
   const handlePickLocalAndOpen = async () => {
     const c = credsRef.current;
     if (!c) return;
@@ -142,8 +193,31 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
     setBusy(true);
     setError(null);
     try {
+      if (mode === "create") {
+        if (!(await isVaultFolderEmpty(localDir))) {
+          const proceed = await appConfirm({
+            title: t("splash.newVault"),
+            message: t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }),
+            kind: "warning",
+          });
+          if (!proceed) return;
+        }
+        const adapter = new TauriVaultAdapter(localDir);
+        await adapter.initialize();
+        await scaffoldVaultTemplate({
+          adapter,
+          template,
+          vaultName: getBasename(localDir),
+          subfoldersHeading: t("indexMd.subfoldersHeading"),
+        });
+        await applyVaultTemplateSettings(localDir, template);
+      }
       const folder = cloudFolder?.trim() || undefined;
-      if (c.provider === "drive") {
+      if (c.provider === "webdav") {
+        const base = c.url.replace(/\/+$/, "");
+        const url = folder ? `${base}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url;
+        await credentialManager.saveWebDavCredentials(localDir, { url, user: c.user, pass: c.pass });
+      } else if (c.provider === "drive") {
         await credentialManager.saveDriveCredentials(localDir, { clientId: c.clientId, clientSecret: c.clientSecret, refreshToken: c.refreshToken, rootFolderName: folder });
       } else if (c.provider === "onedrive") {
         await credentialManager.saveOneDriveCredentials(localDir, { clientId: c.clientId, refreshToken: c.refreshToken, rootFolderName: folder });
@@ -161,8 +235,16 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
     }
   };
 
-  const rootLabel =
-    provider === "drive" ? "Google Drive" : provider === "onedrive" ? "OneDrive" : provider === "dropbox" ? "Dropbox" : (s3Bucket.trim() || "S3");
+  const rootLabel = (() => {
+    if (provider === "webdav") {
+      try {
+        return new URL(webdavUrl).host || "WebDAV";
+      } catch {
+        return "WebDAV";
+      }
+    }
+    return provider === "drive" ? "Google Drive" : provider === "onedrive" ? "OneDrive" : provider === "dropbox" ? "Dropbox" : (s3Bucket.trim() || "S3");
+  })();
 
   return (
     <>
@@ -179,6 +261,19 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
         {!connected ? (
           <>
             {/* Step 1 — connect / enter credentials */}
+            {provider === "webdav" && (
+              <>
+                <Field label={t("splash.serverUrl")}>
+                  <input autoComplete="off" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav" className="pv-field" />
+                </Field>
+                <Field label={t("splash.username")}>
+                  <input autoComplete="off" value={webdavUser} onChange={(e) => setWebdavUser(e.target.value)} className="pv-field" />
+                </Field>
+                <Field label={t("splash.password")}>
+                  <input type="password" autoComplete="new-password" value={webdavPass} onChange={(e) => setWebdavPass(e.target.value)} className="pv-field" />
+                </Field>
+              </>
+            )}
             {provider === "drive" && (
               <>
                 <Field label={t("settings.clientId")}>
@@ -252,6 +347,12 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
               </button>
             </div>
 
+            {mode === "create" && (
+              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                {t("splash.createTemplateHint", { name: template?.name ?? t("splash.emptyVault") })}
+              </div>
+            )}
+
             <button onClick={handlePickLocalAndOpen} disabled={busy}
               className="pv-btn pv-btn--primary pv-btn--lg">
               <FolderOpen size={16} /> {t("splash.pickLocalAndOpen")}
@@ -266,6 +367,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, onBack }) => {
       {pickerOpen && (
         <SyncFolderPickerModal
           listFolders={listFolders}
+          createFolder={createFolderAt}
           rootLabel={rootLabel}
           allowRoot
           onSelect={(picked) => { setCloudFolder(picked); setPickerOpen(false); }}

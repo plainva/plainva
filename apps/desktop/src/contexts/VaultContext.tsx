@@ -756,7 +756,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "Select Vault Directory"
+      title: i18n.t("splash.selectVaultFolderTitle")
     });
 
     if (selected && typeof selected === "string") {

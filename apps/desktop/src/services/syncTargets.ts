@@ -1,4 +1,5 @@
 import {
+  WebDavSyncTarget,
   DriveSyncTarget,
   OneDriveSyncTarget,
   DropboxSyncTarget,
@@ -15,6 +16,10 @@ import { oneDriveFetch } from "./authFetch";
  * the caller passes `onRotate` to persist it (settings) or update the in-memory
  * copy (splash) — a dropped rotation kills the token.
  */
+
+export function buildWebDavTarget(creds: { url: string; user: string; pass: string }): WebDavSyncTarget {
+  return new WebDavSyncTarget({ ...creds }, httpFetch);
+}
 
 export function buildDriveTarget(creds: {
   clientId: string;

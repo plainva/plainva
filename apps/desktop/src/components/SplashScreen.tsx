@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { FolderOpen, Cloud, ArrowRight, Folder, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
+import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
-import { OnlineVaultSetup } from "./OnlineVaultSetup";
-import { credentialManager } from "../services/CredentialManager";
+import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfirm } from "../services/appDialogs";
 import { Checkbox } from "@plainva/ui";
@@ -31,16 +29,19 @@ import {
 export const SplashScreen: React.FC = () => {
   const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault } = useVault();
   const { t, i18n } = useTranslation();
-  const [showWebDavForm, setShowWebDavForm] = useState(false);
+  // Two-button model (2026-07-13): the ACTION (new/open) comes first, the
+  // PLACE (local/online) is the second step — order: place -> template ->
+  // connection. The chooser flags below form a tiny wizard, exactly one is on.
+  const [showCreateWhere, setShowCreateWhere] = useState(false);
+  const [showOpenWhere, setShowOpenWhere] = useState(false);
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [showOnlineChooser, setShowOnlineChooser] = useState(false);
-  const [onlineSetupProvider, setOnlineSetupProvider] = useState<"drive" | "onedrive" | "dropbox" | "s3" | null>(null);
+  const [createTarget, setCreateTarget] = useState<"local" | "online">("local");
+  const [onlineMode, setOnlineMode] = useState<"open" | "create">("open");
+  const [pendingTemplate, setPendingTemplate] = useState<VaultTemplateDefinition | null>(null);
+  const [onlineSetupProvider, setOnlineSetupProvider] = useState<OnlineProvider | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [url, setUrl] = useState("");
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [showPicker, setShowPicker] = useState(false);
   // Remove-recent dialog (E1 2026-07-09): list-only removal vs. forgetting all
   // per-vault app data; ZIP backups only via the explicit opt-in checkbox.
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
@@ -74,28 +75,31 @@ export const SplashScreen: React.FC = () => {
     }
   };
 
-  const handleWebDavNext = () => {
-    if (url && user && pass) setShowPicker(true);
-  };
-
-  const handleWebDavFolderSelected = async (remoteUrl: string) => {
-    setShowPicker(false);
-    const localDir = await open({ directory: true, multiple: false, title: t("splash.selectLocalFolderTitle") });
-    if (localDir && typeof localDir === "string") {
-      await credentialManager.saveWebDavCredentials(localDir, { url: remoteUrl, user, pass });
-      window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-      await openVault(localDir);
-    }
+  /**
+   * All five providers (WebDAV joined the unified assistant, 2026-07-13) follow
+   * the same pattern: connect -> pick/create the cloud folder -> pick/create
+   * the local folder -> open. In create mode OnlineVaultSetup additionally
+   * scaffolds the template picked in the previous step.
+   */
+  const handleOnlineProvider = (provider: OnlineProvider) => {
+    setShowOnlineChooser(false);
+    setOnlineSetupProvider(provider);
   };
 
   /**
-   * All four cloud providers now follow the WebDAV pattern (connect -> pick the
-   * cloud folder -> pick/create the local folder -> open) via OnlineVaultSetup,
-   * instead of the old "local folder first, then deep-link into Settings" flow.
+   * Template chooser result — the second step of "new vault" (place ->
+   * template -> destination): local scaffolds right away, online carries the
+   * template into the provider/connect assistant.
    */
-  const handleOnlineProvider = (provider: "drive" | "onedrive" | "dropbox" | "s3") => {
-    setShowOnlineChooser(false);
-    setOnlineSetupProvider(provider);
+  const handlePickTemplate = (template: VaultTemplateDefinition | null) => {
+    if (createTarget === "local") {
+      void handleCreateVault(template);
+      return;
+    }
+    setPendingTemplate(template);
+    setShowCreateChooser(false);
+    setOnlineMode("create");
+    setShowOnlineChooser(true);
   };
 
   // Honest onboarding (P3.12): OAuth providers without a central app
@@ -182,8 +186,80 @@ export const SplashScreen: React.FC = () => {
         {onlineSetupProvider ? (
           <OnlineVaultSetup
             provider={onlineSetupProvider}
+            mode={onlineMode}
+            template={pendingTemplate}
             onBack={() => { setOnlineSetupProvider(null); setShowOnlineChooser(true); }}
           />
+        ) : showCreateWhere ? (
+          <>
+            {/* Step 1 of "new vault": WHERE should it live? (place -> template -> destination) */}
+            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.newVault")}</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.newVaultWhere")}</p>
+
+            <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button
+                onClick={() => { setShowCreateWhere(false); setCreateTarget("local"); setShowCreateChooser(true); }}
+                className="pv-cardhover"
+                style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
+              >
+                <Laptop size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.locationLocal")}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.locationLocalDesc")}</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { setShowCreateWhere(false); setCreateTarget("online"); setShowCreateChooser(true); }}
+                className="pv-cardhover"
+                style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
+              >
+                <Cloud size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.locationOnline")}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.locationOnlineDesc")}</div>
+                </div>
+              </button>
+            </div>
+
+            <button onClick={() => setShowCreateWhere(false)} className="pv-btn pv-btn--secondary" style={{ width: "100%" }}>
+              {t("splash.back")}
+            </button>
+          </>
+        ) : showOpenWhere ? (
+          <>
+            {/* Step 1 of "open vault": local folder goes straight to the OS dialog. */}
+            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.openVault")}</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.openVaultWhere")}</p>
+
+            <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button
+                onClick={selectVault}
+                className="pv-cardhover"
+                style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
+              >
+                <Laptop size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.openLocalFolder")}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.openLocalFolderDesc")}</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { setShowOpenWhere(false); setOnlineMode("open"); setPendingTemplate(null); setShowOnlineChooser(true); }}
+                className="pv-cardhover"
+                style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
+              >
+                <Cloud size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.openOnlineExisting")}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.openOnlineExistingDesc")}</div>
+                </div>
+              </button>
+            </div>
+
+            <button onClick={() => setShowOpenWhere(false)} className="pv-btn pv-btn--secondary" style={{ width: "100%" }}>
+              {t("splash.back")}
+            </button>
+          </>
         ) : showCreateChooser ? (
           <>
             <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.createVault")}</h2>
@@ -192,7 +268,7 @@ export const SplashScreen: React.FC = () => {
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
             <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
               <button
-                onClick={() => handleCreateVault(null)}
+                onClick={() => handlePickTemplate(null)}
                 disabled={creating}
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px", opacity: creating ? 0.6 : 1 }}
@@ -212,7 +288,7 @@ export const SplashScreen: React.FC = () => {
               {getVaultTemplates(i18n.language).map((def) => (
                 <button
                   key={def.id}
-                  onClick={() => handleCreateVault(def)}
+                  onClick={() => handlePickTemplate(def)}
                   disabled={creating}
                   className="pv-cardhover"
                   style={{ ...templateCardStyle, opacity: creating ? 0.6 : 1 }}
@@ -237,7 +313,7 @@ export const SplashScreen: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setShowCreateChooser(false)}
+              onClick={() => { setShowCreateChooser(false); setShowCreateWhere(true); }}
               disabled={creating}
               className="pv-btn pv-btn--secondary"
               style={{ width: "100%" }}
@@ -247,7 +323,9 @@ export const SplashScreen: React.FC = () => {
           </>
         ) : showOnlineChooser ? (
           <>
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.openOnlineVault")}</h2>
+            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>
+              {onlineMode === "create" ? t("splash.newVaultOnlineTitle") : t("splash.openOnlineVault")}
+            </h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.onlineVaultDesc")}</p>
 
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
@@ -255,14 +333,7 @@ export const SplashScreen: React.FC = () => {
               {onlineProviders.map(({ id, name, desc, Icon, byo }) => (
                 <button
                   key={id}
-                  onClick={() => {
-                    if (id === "webdav") {
-                      setShowOnlineChooser(false);
-                      setShowWebDavForm(true);
-                    } else {
-                      handleOnlineProvider(id);
-                    }
-                  }}
+                  onClick={() => handleOnlineProvider(id)}
                   className="pv-cardhover"
                   style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
                 >
@@ -307,14 +378,18 @@ export const SplashScreen: React.FC = () => {
             )}
 
             <button
-              onClick={() => setShowOnlineChooser(false)}
+              onClick={() => {
+                setShowOnlineChooser(false);
+                if (onlineMode === "create") setShowCreateChooser(true);
+                else setShowOpenWhere(true);
+              }}
               className="pv-btn pv-btn--secondary"
               style={{ width: "100%" }}
             >
               {t("splash.back")}
             </button>
           </>
-        ) : !showWebDavForm ? (
+        ) : (
           <>
             {recentVaults.length > 0 && (
               <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "10px 10px 6px", marginBottom: "20px" }}>
@@ -355,28 +430,23 @@ export const SplashScreen: React.FC = () => {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              {/* Two buttons (2026-07-13): action first, the local/online place
+                  is the follow-up screen. "Open" keeps the primary slot the old
+                  open-folder button had (E2). */}
               <button
-                onClick={selectVault}
+                onClick={() => setShowOpenWhere(true)}
                 className="pv-btn pv-btn--primary"
                 style={{ width: "100%", height: 46, gap: 9 }}
               >
-                <FolderOpen size={17} />{t("splash.openFolder", { defaultValue: "Ordner öffnen" })}
+                <FolderOpen size={17} />{t("splash.openVault")}
               </button>
 
               <button
-                onClick={() => setShowOnlineChooser(true)}
+                onClick={() => { setCreateError(null); setShowCreateWhere(true); }}
                 className="pv-btn pv-btn--tonal"
                 style={{ width: "100%", height: 46, gap: 9 }}
               >
-                <Cloud size={16} />{t("splash.openOnlineVault")}
-              </button>
-
-              <button
-                onClick={() => { setCreateError(null); setShowCreateChooser(true); }}
-                className="pv-btn pv-btn--tonal"
-                style={{ width: "100%", height: 46, gap: 9 }}
-              >
-                <Plus size={16} />{t("splash.createVault", { defaultValue: "Neuen Vault erstellen" })}
+                <Plus size={16} />{t("splash.newVault")}
               </button>
             </div>
 
@@ -389,43 +459,9 @@ export const SplashScreen: React.FC = () => {
               </Checkbox>
             </div>
           </>
-        ) : (
-          <>
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.connectToWebDav")}</h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem", fontSize: "0.9rem" }}>{t("splash.connectToWebDavDesc")}</p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", background: "var(--bg-secondary)", padding: "1.5rem", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-color)" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.serverUrl")}</label>
-                <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav"
-                  className="pv-field" />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.username")}</label>
-                <input value={user} onChange={(e) => setUser(e.target.value)} className="pv-field" />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{t("splash.password")}</label>
-                <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} className="pv-field" />
-              </div>
-              <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
-                <button onClick={() => { setShowWebDavForm(false); setShowOnlineChooser(true); }}
-                  className="pv-btn pv-btn--secondary" style={{ flex: 1 }}>
-                  {t("splash.back")}
-                </button>
-                <button onClick={handleWebDavNext} disabled={!url || !user || !pass}
-                  className="pv-btn pv-btn--primary" style={{ flex: 1, gap: "0.5rem" }}>
-                  {t("splash.browseServer")} <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
-          </>
         )}
       </div>
 
-      {showPicker && (
-        <WebDavFolderPickerModal initialUrl={url} user={user} pass={pass} onSelect={handleWebDavFolderSelected} onCancel={() => setShowPicker(false)} />
-      )}
       {removeTarget !== null && (
         <Modal
           title={t("splash.removeDialogTitle")}
