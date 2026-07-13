@@ -10,9 +10,11 @@ import {
   type S3Credentials,
   type WebDavCredentials,
 } from "@plainva/core";
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices, scaffoldVaultTemplate, type VaultTemplateDefinition } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
+import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
+import { updateMobileSettings } from "./mobileSettings";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import {
   addVault,
@@ -173,6 +175,42 @@ export async function connectProvider(v: MobileVault, p: MobileSyncProvider): Pr
 }
 
 /**
+ * "New vault with an online service" (2026-07-13): like connectProvider, but
+ * the chosen structure template is scaffolded into the fresh container BEFORE
+ * the vault becomes active — the worker only starts after switchVault, so no
+ * cycle can observe a half-written structure. Against the (new, empty) cloud
+ * folder the first pull is empty and `enqueueLocalOnlyFiles` uploads the
+ * scaffold (the same first-sync path a filled local vault always takes).
+ */
+export async function createProviderVault(
+  v: MobileVault,
+  p: MobileSyncProvider,
+  opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
+): Promise<void> {
+  if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
+  const id = newVaultId();
+  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
+  await adapter.initialize();
+  await scaffoldVaultTemplate({
+    adapter,
+    template: opts.template,
+    vaultName: opts.vaultName,
+    subfoldersHeading: opts.subfoldersHeading,
+  });
+  const ts = opts.template?.settings;
+  if (ts) {
+    await updateMobileSettings({
+      ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
+      ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
+      ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
+    });
+  }
+  await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+  await addVault({ id, name: providerVaultName(p), provider: p.provider });
+  await switchVault(id);
+}
+
+/**
  * Pauses sync for a vault ("Trennen"): the worker stops but the stored
  * credentials stay, so resuming is one tap (no re-auth). Pausing a
  * non-active vault leaves the running worker alone.
@@ -297,16 +335,25 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
  * Lists remote folders under `path` for a NOT-yet-connected provider — feeds
  * the connect-time folder picker (#10). Builds a throwaway target from the
  * given credentials (Drive/OneDrive/Dropbox after OAuth, S3 from the form).
- * WebDAV has no `listFolders` (its URL already carries the path) → []. Passing
- * the SAME provider object across calls matters: OneDrive/Dropbox rotate the
- * refresh token on use, and `buildTarget`'s `onTokensRefreshed` mutates
- * `p.creds` in place, so the eventual connect uses the current token.
+ * WebDAV browses relative to the entered base URL (core listFolders since
+ * 2026-07-13). Passing the SAME provider object across calls matters:
+ * OneDrive/Dropbox rotate the refresh token on use, and `buildTarget`'s
+ * `onTokensRefreshed` mutates `p.creds` in place, so the eventual connect
+ * uses the current token.
  */
 export async function listProviderFolders(p: MobileSyncProvider, path: string): Promise<string[]> {
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const target = buildTarget(p, credKeyFor("probe"));
   return target.listFolders ? target.listFolders(path) : [];
+}
+
+/** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
+export async function createProviderFolder(p: MobileSyncProvider, path: string): Promise<void> {
+  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  const target = buildTarget(p, credKeyFor("probe"));
+  if (target.createFolder) await target.createFolder(path);
 }
 
 function startWorker(v: MobileVault, p: MobileSyncProvider): void {

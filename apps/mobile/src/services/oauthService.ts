@@ -8,9 +8,10 @@ import {
   exchangeOneDriveCode,
   generatePkcePair,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
+import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { connectProvider, type MobileSyncProvider } from "./syncService";
+import { connectProvider, createProviderVault, type MobileSyncProvider } from "./syncService";
 import { getMobileVault } from "./vaultService";
 
 /**
@@ -47,6 +48,13 @@ export interface OAuthExtras {
   clientSecret?: string;
   rootFolderName?: string;
   rootPath?: string;
+  /**
+   * "New vault in the cloud" (2026-07-13): the structure template picked
+   * BEFORE the browser roundtrip ("" = empty vault). Lives in the persisted
+   * transaction so a cold start during consent keeps the create context;
+   * absent = plain connect to an existing vault.
+   */
+  createTemplateId?: string;
 }
 
 interface PendingFlow {
@@ -111,6 +119,8 @@ async function loadPending(): Promise<PendingFlow | null> {
  * OneDrive/Dropbox refresh-token rotation during browsing stays on it.
  */
 let pendingConnect: MobileSyncProvider | null = null;
+/** Create-mode companion of pendingConnect (restored from the persisted flow). */
+let pendingCreateTemplateId: string | null = null;
 
 export function getPendingConnect(): MobileSyncProvider | null {
   return pendingConnect;
@@ -119,7 +129,9 @@ export function getPendingConnect(): MobileSyncProvider | null {
 /** Bind the chosen cloud folder and create the (fresh, isolated) vault. */
 export async function finishConnect(rootFolder: string): Promise<void> {
   const p = pendingConnect;
+  const createTemplateId = pendingCreateTemplateId;
   pendingConnect = null;
+  pendingCreateTemplateId = null;
   if (!p) return;
   const folder = rootFolder.trim() || undefined;
   let withFolder: MobileSyncProvider;
@@ -136,12 +148,24 @@ export async function finishConnect(rootFolder: string): Promise<void> {
     default:
       withFolder = p; // s3/webdav never reach the OAuth picker
   }
-  await connectProvider(await getMobileVault(), withFolder);
+  if (createTemplateId === null) {
+    await connectProvider(await getMobileVault(), withFolder);
+    return;
+  }
+  // Create mode: scaffold the pre-picked template into the fresh container
+  // before the vault activates; the first sync uploads it.
+  const template = getVaultTemplates(i18n.language).find((d) => d.id === createTemplateId) ?? null;
+  await createProviderVault(await getMobileVault(), withFolder, {
+    template,
+    vaultName: folder?.split("/").pop() || "Plainva",
+    subfoldersHeading: i18n.t("indexMd.subfoldersHeading"),
+  });
 }
 
 /** The user backed out of the folder pick — discard the token, create no vault. */
 export function cancelConnect(): void {
   pendingConnect = null;
+  pendingCreateTemplateId = null;
 }
 
 /** Opens the provider consent page in the system browser. */
@@ -259,6 +283,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     // Two-phase folder pick (#10): don't create the vault yet — hold the fresh
     // token and let the React host browse the cloud folders, then finishConnect.
     pendingConnect = mp;
+    pendingCreateTemplateId = flow.extras.createTemplateId ?? null;
     window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
   } catch (e) {
     toast.error(String(e instanceof Error ? e.message : e));

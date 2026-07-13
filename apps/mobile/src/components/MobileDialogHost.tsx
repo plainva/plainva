@@ -96,7 +96,10 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
                 dismissMobileDialog(dialog);
               }}
             >
-              <span>{opt.label}</span>
+              <span>
+                {opt.label}
+                {opt.desc && <span className="m-select-desc">{opt.desc}</span>}
+              </span>
               <span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />
             </button>
           ))}

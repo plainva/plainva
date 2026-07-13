@@ -757,6 +757,15 @@ textarea {
   font-weight: 600;
   font-size: 1rem;
 }
+/* Optional secondary line under a select-sheet option label (2026-07-13). */
+.m-select-desc {
+  display: block;
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--text-faint);
+  line-height: 1.35;
+  margin-top: 2px;
+  font-weight: 400;
+}
 .m-prop-key {
   color: var(--text-muted);
   flex: 0 0 auto;

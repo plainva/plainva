@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
-import { EmptyState, TextInput } from "@plainva/ui";
+import { EmptyState, TextInput, getVaultTemplates } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
-import { connectProvider, listProviderFolders, syncPossible, type MobileSyncProvider } from "./services/syncService";
+import {
+  connectProvider,
+  createProviderFolder,
+  createProviderVault,
+  listProviderFolders,
+  syncPossible,
+  type MobileSyncProvider,
+} from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import type { MobileVault } from "./services/vaultService";
@@ -26,9 +33,22 @@ const PROVIDER_OPTIONS: Array<{ value: ProviderId; label: string }> = [
  * form. Connecting creates a fresh, isolated vault container for that
  * cloud location and switches to it; per-vault actions (rename, pause,
  * delete) live on the vault detail screen.
+ *
+ * Create mode (2026-07-13, `createTemplateId` set — "" = empty vault): same
+ * form, but the fresh container is scaffolded with the pre-picked structure
+ * template before the first sync uploads it into the (new) cloud folder.
  */
-export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
-  const { t } = useTranslation();
+export function AddVaultScreen({
+  vault,
+  onBack,
+  createTemplateId,
+}: {
+  vault: MobileVault;
+  onBack: () => void;
+  createTemplateId?: string;
+}) {
+  const { t, i18n } = useTranslation();
+  const createMode = createTemplateId !== undefined;
   const [provider, setProvider] = useState<ProviderId>("webdav");
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
@@ -56,9 +76,12 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
       // (which creates and activates the new vault).
       // The cloud folder is chosen AFTER the browser returns a token (#10),
       // via the folder picker — there is no token to browse with beforehand.
+      // In create mode the template id travels in the persisted transaction,
+      // so it survives a cold start during consent.
       void beginOAuth(provider as OAuthProviderId, {
         clientId: driveClientId.trim() || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
+        ...(createMode ? { createTemplateId } : {}),
       })
         .catch((e) => setError(String(e)))
         .finally(() => setBusy(false));
@@ -90,15 +113,22 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
             provider: "webdav",
             creds: {
               ...p.creds,
-              url: folder ? p.creds.url.replace(/\/+$/, "") + "/" + folder : p.creds.url,
+              url: folder
+                ? p.creds.url.replace(/\/+$/, "") + "/" + folder.split("/").map(encodeURIComponent).join("/")
+                : p.creds.url,
             },
           }
         : p.provider === "s3"
           ? { provider: "s3", creds: { ...p.creds, prefix: folder || p.creds.prefix } }
           : p;
-    void connectProvider(vault, withRoot)
-      .catch((e) => setError(String(e)))
-      .finally(() => setBusy(false));
+    const run = createMode
+      ? createProviderVault(vault, withRoot, {
+          template: getVaultTemplates(i18n.language).find((d) => d.id === createTemplateId) ?? null,
+          vaultName: folder.split("/").pop() || "Plainva",
+          subfoldersHeading: t("indexMd.subfoldersHeading"),
+        })
+      : connectProvider(vault, withRoot);
+    void run.catch((e) => setError(String(e))).finally(() => setBusy(false));
   };
 
   const canConnect =
@@ -119,7 +149,7 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
         <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={20} />
         </button>
-        <h1>{t("mobile.vaultAdd")}</h1>
+        <h1>{createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")}</h1>
       </header>
 
       {!syncPossible(vault) ? (
@@ -258,6 +288,7 @@ export function AddVaultScreen({ vault, onBack }: { vault: MobileVault; onBack: 
       {pickFor && (
         <CloudFolderPickerSheet
           listFolders={(path) => listProviderFolders(pickFor, path)}
+          createFolder={(path) => createProviderFolder(pickFor, path)}
           onClose={() => setPickFor(null)}
           onPick={(folder) => connectAt(pickFor, folder)}
           title={t("settings.browseFolders")}

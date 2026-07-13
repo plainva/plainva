@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
-import { listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
+import { createProviderFolder, listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
@@ -93,6 +93,10 @@ export default function App() {
   const oauthListFolders = useCallback((p: string) => {
     const prov = getPendingConnect();
     return prov ? listProviderFolders(prov, p) : Promise.resolve([]);
+  }, []);
+  const oauthCreateFolder = useCallback((p: string) => {
+    const prov = getPendingConnect();
+    return prov ? createProviderFolder(prov, p) : Promise.resolve();
   }, []);
   const [fromTemplate, setFromTemplate] = useState(false);
   // The Android back listener registers once; it reads the live state here.
@@ -328,7 +332,33 @@ export default function App() {
     setOnboarded(true);
     void updateMobileSettings({ onboarded: true });
     if (connectCloud) {
-      push({ kind: "sync", path: "" });
+      // Cloud branch (2026-07-13): existing vault vs. a NEW vault in the cloud
+      // (order: place -> template -> connection, matching the desktop splash).
+      void (async () => {
+        const choice = await mSelect({
+          title: t("mobile.onboardingCloud"),
+          options: [
+            { value: "existing", label: t("mobile.onboardingCloudExisting"), desc: t("mobile.onboardingCloudExistingDesc") },
+            { value: "new", label: t("mobile.onboardingCloudNew"), desc: t("mobile.onboardingCloudNewDesc") },
+          ],
+          value: "existing",
+        });
+        if (choice === "existing") {
+          push({ kind: "sync", path: "" });
+        } else if (choice === "new") {
+          const defs = getVaultTemplates(i18n.language);
+          const pick = await mSelect({
+            title: t("mobile.templatePick"),
+            options: [
+              { value: "", label: t("splash.emptyVault") },
+              ...defs.map((d) => ({ value: d.id, label: d.name })),
+            ],
+            value: "",
+          });
+          if (pick === null) return;
+          push({ kind: "sync", path: "", createTemplateId: pick });
+        }
+      })();
       return;
     }
     // Local start: offer the shared structure templates (package I). Only a
@@ -366,16 +396,20 @@ export default function App() {
     })().catch((e) => console.error("template scaffold failed", e));
   };
 
-  // Create a NEW local vault on demand (Vaults section): name it, optionally
-  // pick a structure template (same offer as onboarding), then switch into it.
+  // Create a NEW vault on demand (Vaults section), 2026-07-13 order: place
+  // (on this device / online) -> structure template -> destination. The online
+  // branch hands the template to the connect screen; local continues here.
   const createVaultFlow = () => {
     void (async () => {
-      const { value: rawName, cancelled } = await mPrompt({
+      const where = await mSelect({
         title: t("mobile.vaultCreate"),
-        message: t("mobile.vaultCreateName"),
+        options: [
+          { value: "local", label: t("mobile.vaultLocal"), desc: t("mobile.vaultCreateLocalDesc") },
+          { value: "online", label: t("mobile.vaultCreateOnline"), desc: t("mobile.vaultCreateOnlineDesc") },
+        ],
+        value: "local",
       });
-      const name = rawName?.trim();
-      if (cancelled || !name) return;
+      if (where === null) return;
       const defs = getVaultTemplates(i18n.language);
       const pick = await mSelect({
         title: t("mobile.templatePick"),
@@ -385,6 +419,17 @@ export default function App() {
         ],
         value: "",
       });
+      if (pick === null) return;
+      if (where === "online") {
+        push({ kind: "sync", path: "", createTemplateId: pick });
+        return;
+      }
+      const { value: rawName, cancelled } = await mPrompt({
+        title: t("mobile.vaultCreate"),
+        message: t("mobile.vaultCreateName"),
+      });
+      const name = rawName?.trim();
+      if (cancelled || !name) return;
       await createLocalVault(name); // creates + switches to the new (seeded) vault
       const nv = await getMobileVault();
       const def = defs.find((d) => d.id === pick);
@@ -498,7 +543,7 @@ export default function App() {
         ) : top?.kind === "settings" ? (
           <SettingsScreen onBack={pop} onOpenAppearance={() => push({ kind: "appearance", path: "" })} vault={vault} />
         ) : top?.kind === "sync" ? (
-          <AddVaultScreen onBack={pop} vault={vault} />
+          <AddVaultScreen createTemplateId={top.createTemplateId} onBack={pop} vault={vault} />
         ) : top?.kind === "vault" ? (
           <VaultDetailScreen
             activeVault={vault}
@@ -621,6 +666,7 @@ export default function App() {
         <CloudFolderPickerSheet
           title={t("mobile.syncFolder")}
           listFolders={oauthListFolders}
+          createFolder={oauthCreateFolder}
           onPick={(folder) => { setOauthPick(false); void finishConnect(folder); }}
           onClose={() => { setOauthPick(false); cancelConnect(); }}
         />

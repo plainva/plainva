@@ -79,6 +79,12 @@ export interface NavEntry {
   path: string;
   /** Fresh .base entries open with the configure sheet up (E3 mini wizard). */
   configOpen?: boolean;
+  /**
+   * "sync" entries only (2026-07-13): opens the connect screen in CREATE mode
+   * carrying the pre-picked structure template id ("" = empty vault); absent =
+   * plain "connect existing vault".
+   */
+  createTemplateId?: string;
 }
 
 const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "appearance", "sync", "vault"]);

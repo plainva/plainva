@@ -9,6 +9,8 @@
 export interface MobileSelectOption {
   value: string;
   label: string;
+  /** Optional secondary line under the label (place/mode choices, 2026-07-13). */
+  desc?: string;
 }
 
 interface BaseRequest {
