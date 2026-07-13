@@ -570,7 +570,7 @@
    selected/active background has higher specificity and still wins, so the
    active row keeps its highlight without a hover flicker. Also a perf win on
    large trees (no per-mouseover style writes). */
-.pv-rowhover { transition: background var(--dur-1) var(--ease-1); }
+.pv-rowhover { background: transparent; transition: background var(--dur-1) var(--ease-1); }
 .pv-rowhover:hover:not(:disabled) { background: var(--state-hover); }
 
 /* Bordered "card" hover (e.g. splash vault/template cards): the row-hover's

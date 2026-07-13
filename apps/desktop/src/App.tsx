@@ -47,7 +47,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, CalendarDays, X, Vault } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, CalendarDays, X, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -872,7 +872,7 @@ function App() {
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
               <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={openInFocusedPane} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>
-                <Vault size={13} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
+                <FolderTree size={13} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {vaultPath ? (vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath) : ""}
                 </span>

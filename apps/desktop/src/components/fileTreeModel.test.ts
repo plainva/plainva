@@ -65,7 +65,7 @@ describe("flattenVisibleTree", () => {
     ]);
   });
 
-  it("puts a folder's own index.md first, before subfolders and files (Issue #9)", () => {
+  it("puts a folder's own index.md at the top of the files, below subfolders (Issue #9)", () => {
     const tree = buildTree([
       { path: "Notes/index.md", title: "Notes" },
       { path: "Notes/apple.md", title: "apple" },
@@ -73,20 +73,20 @@ describe("flattenVisibleTree", () => {
       { path: "index.md", title: "Home" },
       { path: "Atlas/Idee.md", title: "Idee" },
     ]);
-    // Root: its own index.md leads, then the folders A-Z.
+    // Root: folders A-Z first, then its own index.md at the top of the files.
     expect(flattenVisibleTree(tree, new Set()).map((v) => v.path)).toEqual([
-      "index.md",
       "Atlas",
       "Notes",
+      "index.md",
     ]);
-    // Inside "Notes": index.md first, then the Sub folder, then apple.md.
+    // Inside "Notes": the Sub folder first, then index.md, then apple.md.
     expect(flattenVisibleTree(tree, new Set(["Notes"])).map((v) => v.path)).toEqual([
-      "index.md",
       "Atlas",
       "Notes",
-      "Notes/index.md",
       "Notes/Sub",
+      "Notes/index.md",
       "Notes/apple.md",
+      "index.md",
     ]);
   });
 });
