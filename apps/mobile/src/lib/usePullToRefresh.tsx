@@ -58,6 +58,7 @@ export async function refreshVaultAction(): Promise<void> {
 export function usePullToRefresh(
   ref: React.RefObject<HTMLDivElement | null>,
   onRefresh: () => Promise<void> = refreshVaultAction,
+  enabled = true,
 ): ReactNode {
   const [pull, setPull] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -69,7 +70,7 @@ export function usePullToRefresh(
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !enabled) return;
     let startY = 0;
     let tracking = false;
     let dist = 0;
@@ -125,7 +126,7 @@ export function usePullToRefresh(
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 
   const visible = busy || pull > 8;
   return visible ? (

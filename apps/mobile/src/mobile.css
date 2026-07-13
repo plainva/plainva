@@ -762,27 +762,34 @@ textarea {
   text-align: left;
 }
 /* P6: base view switcher + cards/list renders */
+/* Segmented control (desktop parity): one pill-shaped tray, the active view a
+   raised sub-pill on the base surface — not individually outlined chips. */
 .m-viewpills {
-  display: flex;
-  gap: 8px;
-  padding: 0 0 10px;
+  display: inline-flex;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  margin: 0 0 10px;
   overflow-x: auto;
   scrollbar-width: none;
+  background: var(--m-surface-container);
+  border-radius: var(--radius-pill);
 }
 .m-viewpill {
-  padding: 7px 14px;
-  border: 1px solid var(--m-outline);
-  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-main);
+  color: var(--text-muted);
   font-size: 0.85rem;
+  font-weight: 500;
   white-space: nowrap;
 }
 .m-viewpill.is-active {
-  background: var(--m-secondary-container);
-  border-color: transparent;
+  background: var(--m-surface);
   color: var(--m-primary);
   font-weight: 600;
+  box-shadow: var(--shadow-1);
 }
 .m-basecards {
   display: grid;
@@ -1383,6 +1390,17 @@ textarea {
 .m-screen > *:not(.m-page--note) {
   animation: m-screen-in var(--dur-2) var(--ease-spatial) backwards;
 }
+/* Today enters with a plain fade instead of the shared horizontal overshoot:
+   its date strip auto-centers on mount, which fought the spring and read as a
+   strange bounce (maintainer). Higher specificity so it wins regardless of order. */
+@keyframes m-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.m-screen > .m-page.m-page--today {
+  animation: m-fade-in var(--dur-2) var(--ease-1) backwards;
+}
 
 /* Version history + conflict diff (package G): read-only line diff and raw
    preview. Change tints ride the shared callout/state tokens. */
@@ -1510,10 +1528,18 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-/* .base graph view (package F): the shared canvas fills the remaining page. */
+/* .base graph view (package F): the page becomes a non-scrolling flex column
+   so the canvas fills exactly the space left under the header/view pills — no
+   100dvh magic number, no page scroll to see it all. PTR is off here. */
+.m-page--basegraph {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
 .m-basegraph {
-  height: calc(100dvh - 240px);
-  min-height: 260px;
+  flex: 1;
+  min-height: 0;
   margin: 4px 8px;
   border-radius: var(--m-radius-card);
   overflow: hidden;

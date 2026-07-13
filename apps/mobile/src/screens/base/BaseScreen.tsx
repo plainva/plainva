@@ -89,13 +89,18 @@ export function BaseScreen({
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
   const [propEdit, setPropEdit] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
-  // Pull-to-refresh re-queries through the m-vault-changed listener below.
-  const ptrRef = useRef<HTMLDivElement>(null);
-  const ptrIndicator = usePullToRefresh(ptrRef);
-
   const config = loaded?.config;
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view: any = views[viewIndex] ?? {};
+  // Pull-to-refresh re-queries through the m-vault-changed listener below.
+  // Off on the graph view: its page is a non-scrolling flex column and the
+  // canvas owns one-finger drags (pan), so PTR would otherwise fire on a pan.
+  const ptrRef = useRef<HTMLDivElement>(null);
+  const ptrIndicator = usePullToRefresh(
+    ptrRef,
+    undefined,
+    String(view.plainva?.render ?? view.type ?? "table") !== "graph",
+  );
 
   useEffect(() => {
     let stale = false;
@@ -766,7 +771,7 @@ export function BaseScreen({
   };
 
   return (
-    <div className="m-page" ref={ptrRef}>
+    <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>
       {ptrIndicator}
       <button className="m-fab-float m-fab-float--above-tabs m-fab-float--pill" onClick={newItem}>
         <Plus size={18} /> {t("database.newItem", { defaultValue: "+" })}

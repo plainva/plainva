@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Trash2 } from "lucide-react";
 import { DocIcon } from "@plainva/ui";
@@ -50,8 +50,10 @@ export function TodayScreen({
   const ptrIndicator = usePullToRefresh(ptrRef);
 
   const stripRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // Land on today (the strip starts four weeks back).
+  useLayoutEffect(() => {
+    // Land on today (the strip starts four weeks back). Runs before paint so the
+    // strip is already centered when the enter animation plays — a post-paint
+    // scroll fought the animation and read as a bounce (maintainer).
     stripRef.current
       ?.querySelector(".is-selected")
       ?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -110,7 +112,7 @@ export function TodayScreen({
   };
 
   return (
-    <div className="m-page" ref={ptrRef}>
+    <div className="m-page m-page--today" ref={ptrRef}>
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
