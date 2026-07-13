@@ -1467,6 +1467,8 @@
     "vaultNotConnected": "Ten sejf nie jest już połączony.",
     "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze.",
     "vaultAdd": "Połącz sejf w chmurze",
+    "vaultCreate": "Utwórz vault",
+    "vaultCreateName": "Nazwa vaultu",
     "vaultDetails": "Szczegóły sejfu",
     "vaultUse": "Użyj tego sejfu",
     "vaultRename": "Zmień nazwę",

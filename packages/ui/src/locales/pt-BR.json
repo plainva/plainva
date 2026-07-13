@@ -1462,6 +1462,8 @@
     "vaultNotConnected": "Este cofre não está mais conectado.",
     "syncCreatesVaultHint": "Conectar cria um cofre novo e separado para este local na nuvem.",
     "vaultAdd": "Conectar um cofre na nuvem",
+    "vaultCreate": "Criar um vault",
+    "vaultCreateName": "Nome do vault",
     "vaultDetails": "Detalhes do cofre",
     "vaultUse": "Usar este cofre",
     "vaultRename": "Renomear",

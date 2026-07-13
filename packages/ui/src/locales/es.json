@@ -1462,6 +1462,8 @@
     "vaultNotConnected": "Esta bóveda ya no está conectada.",
     "syncCreatesVaultHint": "Conectar crea una bóveda nueva y separada para esta ubicación en la nube.",
     "vaultAdd": "Conectar una bóveda en la nube",
+    "vaultCreate": "Crear un vault",
+    "vaultCreateName": "Nombre del vault",
     "vaultDetails": "Detalles de la bóveda",
     "vaultUse": "Usar esta bóveda",
     "vaultRename": "Cambiar nombre",

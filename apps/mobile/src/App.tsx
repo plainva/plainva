@@ -11,7 +11,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
-import { vaultOps, getMobileVault, type MobileVault } from "./services/vaultService";
+import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
@@ -366,6 +366,49 @@ export default function App() {
     })().catch((e) => console.error("template scaffold failed", e));
   };
 
+  // Create a NEW local vault on demand (Vaults section): name it, optionally
+  // pick a structure template (same offer as onboarding), then switch into it.
+  const createVaultFlow = () => {
+    void (async () => {
+      const { value: rawName, cancelled } = await mPrompt({
+        title: t("mobile.vaultCreate"),
+        message: t("mobile.vaultCreateName"),
+      });
+      const name = rawName?.trim();
+      if (cancelled || !name) return;
+      const defs = getVaultTemplates(i18n.language);
+      const pick = await mSelect({
+        title: t("mobile.templatePick"),
+        options: [
+          { value: "", label: t("splash.emptyVault") },
+          ...defs.map((d) => ({ value: d.id, label: d.name })),
+        ],
+        value: "",
+      });
+      await createLocalVault(name); // creates + switches to the new (seeded) vault
+      const nv = await getMobileVault();
+      const def = defs.find((d) => d.id === pick);
+      if (def) {
+        await scaffoldVaultTemplate({
+          adapter: nv.files,
+          template: def,
+          vaultName: name,
+          subfoldersHeading: t("indexMd.subfoldersHeading"),
+        });
+        const ts = def.settings;
+        if (ts) {
+          await updateMobileSettings({
+            ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
+            ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
+            ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
+          });
+        }
+        await nv.indexer?.indexVaultFull();
+      }
+      window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    })().catch((e) => console.error("create vault failed", e));
+  };
+
   const quickNewFolder = () => {
     setQuickCreate(false);
     createFolderPrompt(vault, browseFolder(), t);
@@ -502,6 +545,7 @@ export default function App() {
           <MoreScreen
             activeVaultId={vault.vaultId}
             onAddVault={() => push({ kind: "sync", path: "" })}
+            onCreateVault={createVaultFlow}
             onBack={pop}
             onOpenScreen={(id) => push(SCREEN_ENTRY[id])}
             onOpenSettings={() => push({ kind: "settings", path: "" })}

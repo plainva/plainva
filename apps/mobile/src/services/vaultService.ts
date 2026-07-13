@@ -16,7 +16,9 @@ import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
+  addVault,
   getActiveVaultEntry,
+  newVaultId,
   removeVault,
   setActiveVault,
   LOCAL_VAULT_ID,
@@ -144,11 +146,26 @@ export async function deleteVault(id: string): Promise<void> {
   await removeVault(id);
 }
 
+/**
+ * Creates a NEW local vault (no provider): a fresh registry entry + its own
+ * container, then switches to it. The empty container is seeded on boot
+ * (freshlySeeded), so the caller may then offer a structure template.
+ */
+export async function createLocalVault(name: string): Promise<string> {
+  const id = newVaultId();
+  await addVault({ id, name });
+  await switchVault(id);
+  return id;
+}
+
 async function boot(entry: VaultEntry): Promise<MobileVault> {
-  const isLocal = entry.id === LOCAL_VAULT_ID;
-  // The pre-isolation sandbox keeps its paths; every connection vault gets
-  // its own filesystem root and its own database.
-  const adapter = new CapacitorVaultAdapter(isLocal ? "vault" : `vaults/${entry.id}`);
+  // The default local vault keeps the legacy container/db paths (existing
+  // data); every other vault — cloud OR an additional local vault — gets its
+  // own vaults/<id>. "Local" (no provider) means there is no remote to pull
+  // from, so an empty one is seeded (and may then be templated).
+  const isDefaultLocal = entry.id === LOCAL_VAULT_ID;
+  const isLocal = !entry.provider;
+  const adapter = new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
   await adapter.initialize();
 
   // A vault seeded THIS boot is brand new — the onboarding may offer the
@@ -181,7 +198,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
   let db: CapacitorSqliteAdapter | null = null;
   try {
-    db = new CapacitorSqliteAdapter(isLocal ? "plainva-index" : `plainva-${entry.id}`);
+    db = new CapacitorSqliteAdapter(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
     await db.initialize();
     await initializeSchema(db);
 

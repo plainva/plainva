@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Cloud,
   FolderClosed,
+  FolderPlus,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
@@ -23,6 +24,7 @@ export function MoreScreen({
   onBack,
   onOpenScreen,
   onAddVault,
+  onCreateVault,
   onOpenVault,
   onOpenSettings,
 }: {
@@ -30,6 +32,7 @@ export function MoreScreen({
   onBack: () => void;
   onOpenScreen: (id: TabScreenId) => void;
   onAddVault: () => void;
+  onCreateVault: () => void;
   onOpenVault: (id: string) => void;
   onOpenSettings: () => void;
 }) {
@@ -86,6 +89,11 @@ export function MoreScreen({
           </div>
         );
       })}
+      <button className="m-row" onClick={onCreateVault}>
+        <FolderPlus className="m-accent" size={18} />
+        <span>{t("mobile.vaultCreate")}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
       <button className="m-row" onClick={onAddVault}>
         <Cloud className="m-accent" size={18} />
         <span>{t("mobile.vaultAdd")}</span>

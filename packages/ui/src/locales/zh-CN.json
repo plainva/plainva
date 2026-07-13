@@ -1452,6 +1452,8 @@
     "vaultNotConnected": "此仓库已断开连接。",
     "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。",
     "vaultAdd": "连接云端仓库",
+    "vaultCreate": "创建 Vault",
+    "vaultCreateName": "Vault 名称",
     "vaultDetails": "仓库详情",
     "vaultUse": "使用此仓库",
     "vaultRename": "重命名",

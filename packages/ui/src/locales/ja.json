@@ -1452,6 +1452,8 @@
     "vaultNotConnected": "この保管庫は接続されていません。",
     "syncCreatesVaultHint": "接続すると、このクラウドの場所専用の新しい保管庫が作成されます。",
     "vaultAdd": "クラウド保管庫を接続",
+    "vaultCreate": "Vault を作成",
+    "vaultCreateName": "Vault の名前",
     "vaultDetails": "保管庫の詳細",
     "vaultUse": "この保管庫を使う",
     "vaultRename": "名前を変更",

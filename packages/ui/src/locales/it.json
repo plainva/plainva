@@ -1462,6 +1462,8 @@
     "vaultNotConnected": "Questo vault non è più connesso.",
     "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud.",
     "vaultAdd": "Collega un vault cloud",
+    "vaultCreate": "Crea un vault",
+    "vaultCreateName": "Nome del vault",
     "vaultDetails": "Dettagli del vault",
     "vaultUse": "Usa questo vault",
     "vaultRename": "Rinomina",

@@ -1457,6 +1457,8 @@
     "vaultNotConnected": "Deze kluis is niet meer verbonden.",
     "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie.",
     "vaultAdd": "Cloudkluis verbinden",
+    "vaultCreate": "Een vault maken",
+    "vaultCreateName": "Naam van de vault",
     "vaultDetails": "Kluisdetails",
     "vaultUse": "Deze kluis gebruiken",
     "vaultRename": "Naam wijzigen",
