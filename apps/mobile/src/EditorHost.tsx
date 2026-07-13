@@ -17,7 +17,6 @@ import {
   Plus,
   Quote,
   Redo2,
-  Slash,
   Strikethrough,
   Trash2,
   Undo2,
@@ -580,6 +579,11 @@ export function EditorHost({
       <div className="m-editor" ref={containerRef} />
       {editable && (
         <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
+          {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
+              trailing "/" glyph was unintuitive (maintainer feedback). */}
+          <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>
+            <Plus size={18} />
+          </button>
           <button aria-label="Bold" onClick={() => run((v) => toggleInlineMark(v, "**"))}>
             <Bold size={18} />
           </button>
@@ -612,9 +616,6 @@ export function EditorHost({
           </button>
           <button aria-label="Redo" onClick={() => run(redo)}>
             <Redo2 size={18} />
-          </button>
-          <button aria-label="Slash commands" className="is-primary" onClick={() => run(openSlashMenu)}>
-            <Slash size={18} />
           </button>
         </DockedToolbar>
       )}

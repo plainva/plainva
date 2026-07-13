@@ -4,16 +4,20 @@ import {
   Check,
   ChevronLeft,
   Code,
+  FolderInput,
   History,
   MoreVertical,
   Paintbrush,
   Pencil,
   Search,
+  Share2,
   SlidersHorizontal,
   Smile,
   Star,
   Trash2,
 } from "lucide-react";
+import { Share } from "@capacitor/share";
+import { markdownToPlainText } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -21,6 +25,7 @@ import { confirmDeleteFile } from "../lib/deleteFile";
 import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal";
 import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
 import { RowActionSheet } from "../components/RowActionSheet";
+import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { EditorHost } from "../EditorHost";
 
 /**
@@ -50,6 +55,7 @@ export function NoteScreen({
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
   const [menu, setMenu] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   // C4: live preview <-> raw markdown source (session mode, per note session).
   const [source, setSource] = useState(false);
@@ -91,6 +97,17 @@ export function NoteScreen({
       const dir = path.includes("/") ? `${path.slice(0, path.lastIndexOf("/"))}/` : "";
       await vaultOps.rename(vault, path, trimmed);
       onRenamed(`${dir}${trimmed}.md`);
+    })();
+  };
+
+  const share = () => {
+    void (async () => {
+      const body = markdownToPlainText((doc ?? "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+      try {
+        await Share.share({ title, text: `${title}\n\n${body}`.trim(), dialogTitle: t("mobile.share") });
+      } catch {
+        /* user dismissed the share sheet, or no share target */
+      }
     })();
   };
 
@@ -245,6 +262,22 @@ export function NoteScreen({
               },
             },
             {
+              icon: <FolderInput size={18} />,
+              label: t("mobile.moveNote"),
+              onClick: () => {
+                setMenu(false);
+                setMoving(true);
+              },
+            },
+            {
+              icon: <Share2 size={18} />,
+              label: t("mobile.share"),
+              onClick: () => {
+                setMenu(false);
+                share();
+              },
+            },
+            {
               icon: <Trash2 size={18} />,
               label: t("common.delete"),
               danger: true,
@@ -256,6 +289,19 @@ export function NoteScreen({
               },
             },
           ]}
+        />
+      )}
+
+      {moving && (
+        <FolderPickerSheet
+          onClose={() => setMoving(false)}
+          onPick={(folder) => {
+            void vaultOps.moveNote(vault, path, folder).then((newPath) => {
+              if (newPath !== path) onRenamed(newPath);
+            });
+          }}
+          title={t("mobile.moveTitle")}
+          vault={vault}
         />
       )}
 

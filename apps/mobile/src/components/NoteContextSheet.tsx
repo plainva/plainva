@@ -3,6 +3,7 @@ import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText, ListTree, Lock, Plus } from "lucide-react";
 import { inferType, parseHeadings, type Heading } from "@plainva/ui";
+import { extractFrontmatter, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -78,10 +79,18 @@ export function NoteContextSheet({
   useEffect(() => {
     let stale = false;
     void (async () => {
+      // Properties come STRAIGHT from the file, not the index: after a commit
+      // the index can lag a tick, and the panel must show the new key at once
+      // (maintainer: the added property stayed invisible). Backlinks still
+      // need the index — they span other notes.
+      const text = await vaultOps.read(vault, path).catch(() => "");
+      if (!stale) setHeadings(parseHeadings(text));
+      const fm = extractFrontmatter(parseMarkdownAst(text));
+      const raw = (fm.success && fm.data ? fm.data : {}) as Record<string, unknown>;
+      const rows = (Object.entries(raw) as Array<[string, unknown]>).filter(([k]) => !isHiddenProp(k));
+      if (!stale) setProps(rows);
       const q = vault.queryService;
       if (q) {
-        const raw = await q.getFileProperties(path);
-        const rows = (Object.entries(raw) as Array<[string, unknown]>).filter(([k]) => !isHiddenProp(k));
         const links = await q.getBacklinks(path);
         const bySource = new Map<string, number>();
         for (const l of links) bySource.set(l.source_path, (bySource.get(l.source_path) ?? 0) + 1);
@@ -90,13 +99,8 @@ export function NoteContextSheet({
           title: p.split("/").pop()!.replace(/\.md$/i, ""),
           count,
         }));
-        if (!stale) {
-          setProps(rows);
-          setBacklinks(bl);
-        }
+        if (!stale) setBacklinks(bl);
       }
-      const text = await vaultOps.read(vault, path).catch(() => "");
-      if (!stale) setHeadings(parseHeadings(text));
     })();
     return () => {
       stale = true;

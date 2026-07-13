@@ -431,7 +431,6 @@ export default function App() {
           the same spot everywhere (maintainer feedback: nothing may jump). */}
       {!top && (
         <TabHead
-          eyebrow={nav.activeTab === "notes" ? t("mobile.vaultEyebrow") : undefined}
           onMore={() => push({ kind: "more", path: "" })}
           onSearch={() => push({ kind: "search", path: "" })}
           title={nav.activeTab === "notes" ? vaultName : t(activeDef.labelKey)}

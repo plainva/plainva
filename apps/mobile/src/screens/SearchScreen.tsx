@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Search } from "lucide-react";
 import {
+  DocIcon,
   EmptyState,
   renderSnippetNodes,
   setPendingSearchJump,
@@ -38,10 +39,12 @@ export function SearchScreen({
   const [query, setQuery] = useState("");
   const debounced = useDebouncedValue(query, 150);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+    void vault.queryService?.getDocumentIcons().then(setDocIcons).catch(() => {});
+  }, [vault]);
   useEffect(() => {
     if (!vault.searchAvailable || !debounced.trim()) {
       setResults([]);
@@ -73,7 +76,13 @@ export function SearchScreen({
 
   const resultRow = (r: SearchResult) => (
     <button className="m-row m-result" key={r.path} onClick={() => openResult(r)}>
-      <FileText size={18} />
+      {docIcons.get(r.path) ? (
+        <span className="m-rowicon">
+          <DocIcon color={docIcons.get(r.path)!.color} icon={docIcons.get(r.path)!.icon} size={20} />
+        </span>
+      ) : (
+        <FileText size={18} />
+      )}
       <span>
         <span className="m-result-title">
           {r.titleHighlighted?.includes(mark)

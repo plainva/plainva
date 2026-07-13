@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Trash2 } from "lucide-react";
+import { DocIcon } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -40,6 +41,7 @@ export function TodayScreen({
   const [dailyExists, setDailyExists] = useState(false);
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
   const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
+  const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
   const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const settings = getMobileSettings();
@@ -74,6 +76,13 @@ export function TodayScreen({
 
   useEffect(() => {
     let stale = false;
+    // Custom note icons (desktop tree parity) — same source as Home/folders.
+    void vault.queryService
+      ?.getDocumentIcons()
+      .then((m) => {
+        if (!stale) setDocIcons(m);
+      })
+      .catch(() => {});
     void vault.files.exists(dailyPath).then((yes) => {
       if (!stale) setDailyExists(yes);
     });
@@ -156,7 +165,13 @@ export function TodayScreen({
             onPointerLeave={rowPress.clear}
             onPointerUp={rowPress.clear}
           >
-            <FileText className="m-accent" size={18} />
+            {docIcons.get(n.path) ? (
+              <span className="m-rowicon">
+                <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={20} />
+              </span>
+            ) : (
+              <FileText className="m-accent" size={18} />
+            )}
             <span className="m-row-txt">
               <b>{n.title}</b>
               <span>

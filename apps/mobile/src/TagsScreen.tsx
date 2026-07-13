@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
-import { EmptyState } from "@plainva/ui";
+import { DocIcon, EmptyState } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { type MobileVault } from "./services/vaultService";
 
@@ -30,6 +30,7 @@ export function TagsScreen({
   const { t } = useTranslation();
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   const [files, setFiles] = useState<Array<{ path: string; title: string }>>([]);
+  const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [open, setOpen] = useState<Set<string>>(new Set());
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -62,6 +63,9 @@ export function TagsScreen({
       void vault.queryService.getFilesByTag(tag).then((rows) => {
         if (!stale) setFiles(rows.map((r) => ({ path: r.path, title: r.title })));
       });
+      void vault.queryService.getDocumentIcons().then((m) => {
+        if (!stale) setDocIcons(m);
+      }).catch(() => {});
     } else {
       void vault.queryService.getAllTags().then((rows) => {
         if (!stale) setTags(rows);
@@ -86,7 +90,13 @@ export function TagsScreen({
       {tag ? (
         files.map((f) => (
           <button className="m-row" key={f.path} onClick={() => onOpenNote(f.path)}>
-            <FileText size={16} />
+            {docIcons.get(f.path) ? (
+              <span className="m-rowicon">
+                <DocIcon color={docIcons.get(f.path)!.color} icon={docIcons.get(f.path)!.icon} size={20} />
+              </span>
+            ) : (
+              <FileText size={16} />
+            )}
             <span>{f.title}</span>
           </button>
         ))
