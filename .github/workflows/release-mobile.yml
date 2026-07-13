@@ -71,6 +71,10 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # A unique, increasing versionCode per run — the manifest's fixed 1
+          # was already used by the first manual upload, and Play rejects a
+          # duplicate versionCode. versionName (0.1.0) is unaffected.
+          VERSION_CODE: ${{ github.run_number }}
         run: |
           # The gradle wrapper needs its execute bit on the Linux runner
           # (cap sync regenerates the android project; the checkout carries no
@@ -78,14 +82,36 @@ jobs:
           chmod +x ./gradlew
           if [ -f release.keystore ]; then
             ./gradlew bundleRelease assembleRelease \
+              -Pandroid.injected.version.code="$VERSION_CODE" \
               -Pandroid.injected.signing.store.file="$PWD/release.keystore" \
               -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
               -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
               -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
           else
             echo "No signing secrets — building unsigned release as a build check."
-            ./gradlew bundleRelease assembleRelease
+            ./gradlew bundleRelease assembleRelease -Pandroid.injected.version.code="$VERSION_CODE"
           fi
+
+      # Auto-upload to the Play internal test track when the service-account
+      # secret exists (secrets are NOT allowed in `if:`, so gate on a step
+      # output). The app must have been published once manually first — Play
+      # only lets the API bespeak an app that already exists in a track.
+      - name: Check Play upload secret
+        id: play
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SA_JSON" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Upload AAB to the Play internal test track
+        if: steps.play.outputs.present == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.plainva.app
+          releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
 
       - name: Draft GitHub release with artifacts
         uses: softprops/action-gh-release@v2
