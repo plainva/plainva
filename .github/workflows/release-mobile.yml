@@ -72,6 +72,10 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          # The gradle wrapper needs its execute bit on the Linux runner
+          # (cap sync regenerates the android project; the checkout carries no
+          # +x on Windows-authored files).
+          chmod +x ./gradlew
           if [ -f release.keystore ]; then
             ./gradlew bundleRelease assembleRelease \
               -Pandroid.injected.signing.store.file="$PWD/release.keystore" \
