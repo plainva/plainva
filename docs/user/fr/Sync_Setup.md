@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-11
+Dernière mise à jour : 2026-07-13
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -9,7 +9,8 @@ Quels services fonctionnent en général (aussi via WebDAV ou le client de burea
 ## Notions de base
 
 - La configuration se trouve sous **Paramètres → Vault → Synchronisation**. Le **Fournisseur de synchronisation** est choisi par vault : **Aucun (local uniquement)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Stockage compatible S3** — toujours exactement un par vault.
-- **Configurer un nouveau vault en ligne depuis l'écran d'accueil** : **Ouvrir un vault en ligne** vous guide en trois étapes identiques pour chaque fournisseur — **1. Se connecter** (s'identifier ou saisir les identifiants), **2. Choisir le dossier dans le cloud**, **3. Choisir ou créer le dossier local**. Vous pouvez aussi configurer la synchronisation à tout moment pour un vault déjà ouvert, depuis les Paramètres.
+- **Ouvrir un vault en ligne existant depuis l'écran d'accueil** : **Ouvrir un vault** → **Vault en ligne** vous guide, pour chaque fournisseur, par les mêmes trois étapes — **1. Se connecter** (s'identifier ou saisir les identifiants), **2. Choisir le dossier dans le cloud** (un nouveau dossier peut aussi y être créé via **Nouveau dossier**), **3. Choisir ou créer le dossier local**. Vous pouvez aussi configurer la synchronisation à tout moment pour un vault déjà ouvert, depuis les Paramètres.
+- **Créer un nouveau vault dans le cloud** : **Nouveau vault** → **Chez un service en ligne** — choisissez d'abord la structure de départ (vide ou un modèle comme PARA), puis connectez-vous et choisissez le dossier cible dans le cloud ou créez-le via **Nouveau dossier**, enfin le dossier local. La structure est créée dans le dossier local et envoyée automatiquement lors de la première synchronisation.
 - Les enregistrements locaux sont téléversés immédiatement ; Plainva vérifie les modifications distantes selon l'**Intervalle de synchronisation (secondes)** configuré.
 - Les modifications hors ligne sont mises en file d'attente et transférées au prochain contact ; la barre d'état affiche **En ligne**/**Hors ligne** et l'indicateur de synchronisation montre l'état (**Synchroniser maintenant** au clic). Lors d'une synchronisation longue ou initiale, la barre d'état affiche la progression sous forme de compteur (p. ex. **Sync 123/540**), pour que vous puissiez voir qu'elle parcourt le vault.
 - La première fois que vous connectez un vault en ligne, une note ponctuelle vous rappelle que la synchronisation initiale peut prendre du temps selon la taille du vault — vous pouvez continuer à travailler pendant ce temps.

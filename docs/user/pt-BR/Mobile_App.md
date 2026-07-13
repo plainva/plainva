@@ -1,6 +1,6 @@
 # O app mobile
 
-Stand: 2026-07-12
+Stand: 2026-07-13
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -22,7 +22,7 @@ Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (
 
 ## Sincronização
 
-Em **Mais** → **Cofres** você conecta um armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).
+Em **Mais** → **Cofres** você conecta um armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida: a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada pela primeira sincronização. No primeiro início do app, a opção (**"Conectar um cofre na nuvem"**) oferece a mesma escolha entre um vault existente e um novo vault na nuvem. Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).
 
 ## Rede de segurança
 

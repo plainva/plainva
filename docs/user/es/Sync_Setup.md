@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Stand: 2026-07-11
+Stand: 2026-07-13
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -9,7 +9,8 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 ## Fundamentos
 
 - La configuración vive en **Configuración → Vault → Sincronización**. El **Proveedor de sincronización** se elige por vault: **Ninguno (solo local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** o **Almacenamiento compatible con S3** — siempre exactamente uno por vault.
-- **Configurar un nuevo vault en línea desde la pantalla de bienvenida**: **Abrir vault en línea** te guía por los mismos tres pasos con cualquier proveedor — **1. Conectar** (inicia sesión o introduce las credenciales), **2. Elige la carpeta en la nube**, **3. Elige o crea la carpeta local**. También puedes configurar la sincronización de un vault ya abierto en cualquier momento desde Configuración.
+- **Abrir un vault en línea ya existente desde la pantalla de bienvenida**: **Abrir vault** → **Vault en línea** te guía por los mismos tres pasos con cualquier proveedor — **1. Conectar** (inicia sesión o introduce las credenciales), **2. Elige la carpeta en la nube** (ahí mismo también puedes crear una carpeta nueva mediante **Nueva carpeta**), **3. Elige o crea la carpeta local**. También puedes configurar la sincronización de un vault ya abierto en cualquier momento desde Configuración.
+- **Crear un nuevo vault en la nube**: **Nuevo vault** → **En un servicio en línea** — primero eliges la estructura inicial (vacía o una plantilla como PARA), luego te conectas y eliges la carpeta de destino en la nube o la creas mediante **Nueva carpeta**, y por último la carpeta local. La estructura se crea en la carpeta local y se sube automáticamente en la primera sincronización.
 - Los guardados locales se suben de inmediato; Plainva comprueba si hay cambios remotos en el **Intervalo de sincronización (segundos)** configurado.
 - Los cambios sin conexión se ponen en cola y se transfieren en el próximo contacto; la barra de estado muestra **En línea**/**Sin conexión** y el indicador de sincronización muestra el estado (**Sincronizar ahora** al hacer clic). Durante una sincronización larga o la primera vez, la barra de estado muestra el progreso como un contador (p. ej., **Sync 123/540**), para que veas cómo va recorriendo el vault.
 - La primera vez que conectas un vault en línea, un aviso puntual te recuerda que la sincronización inicial puede tardar un poco según el tamaño del vault — puedes seguir trabajando mientras se ejecuta.

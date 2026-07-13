@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-12
+Last updated: 2026-07-13
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -22,7 +22,7 @@ The **ⓘ** symbol opens the note's context sheet: properties (directly editable
 
 ## Sync
 
-Under **More** → **Vaults** you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).
+Under **More** → **Vaults** you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault onto the device; **Create new vault** first asks **On this device** or **With an online service** and then for the starter structure (empty or a template like PARA) — on the online path the connection follows, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded by the first sync. The first launch ("Connect to cloud") offers the same choice between an existing and a new cloud vault. Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).
 
 ## Safety net
 
