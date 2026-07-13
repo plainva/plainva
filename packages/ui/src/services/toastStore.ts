@@ -9,10 +9,18 @@ import { logDiagnostic } from "./diagnosticsLog";
  */
 export type ToastKind = "info" | "success" | "warning" | "error";
 
+/** Optional call-to-action rendered as a button in the toast (e.g. install an
+ *  update). Clicking runs `run` and dismisses the toast. */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 const AUTO_DISMISS_MS: Record<ToastKind, number> = {
@@ -40,10 +48,11 @@ function remove(id: number) {
   if (items.length !== before) emit();
 }
 
-function push(kind: ToastKind, message: string): number {
+function push(kind: ToastKind, message: string, action?: ToastAction): number {
   const id = nextId++;
-  items = [...items, { id, kind, message }];
-  timers.set(id, window.setTimeout(() => remove(id), AUTO_DISMISS_MS[kind]));
+  items = [...items, { id, kind, message, action }];
+  // Actionable toasts linger longer so the user can reach the button.
+  timers.set(id, window.setTimeout(() => remove(id), action ? 12000 : AUTO_DISMISS_MS[kind]));
   // Error/warning toasts double as the diagnostics trail (P4.2) — the export
   // shows what the user actually saw, without any note content.
   if (kind === "error" || kind === "warning") logDiagnostic(`toast.${kind}`, message);
@@ -52,10 +61,10 @@ function push(kind: ToastKind, message: string): number {
 }
 
 export const toast = {
-  info: (message: string) => push("info", message),
-  success: (message: string) => push("success", message),
-  warning: (message: string) => push("warning", message),
-  error: (message: string) => push("error", message),
+  info: (message: string, action?: ToastAction) => push("info", message, action),
+  success: (message: string, action?: ToastAction) => push("success", message, action),
+  warning: (message: string, action?: ToastAction) => push("warning", message, action),
+  error: (message: string, action?: ToastAction) => push("error", message, action),
   dismiss: remove,
   /** Hover pause: stop the auto-dismiss timer … */
   pause(id: number) {

@@ -32,6 +32,18 @@ export function ToastHost() {
           >
             <Icon size={16} className="pv-toast-ic" aria-hidden />
             <div className="pv-toast-msg">{item.message}</div>
+            {item.action && (
+              <button
+                type="button"
+                className="pv-toast-action"
+                onClick={() => {
+                  item.action!.run();
+                  toast.dismiss(item.id);
+                }}
+              >
+                {item.action.label}
+              </button>
+            )}
             <button
               type="button"
               className="pv-toast-x"

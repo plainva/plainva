@@ -66,7 +66,17 @@ export function scheduleStartupUpdateCheck(): void {
         if (!(await getAutoUpdateCheck())) return;
         const result = await checkForAppUpdate();
         if (result.status === "available") {
-          toast.info(i18n.t("settings.updateAvailableToast", { version: result.update.version }));
+          const update = result.update;
+          // Clickable toast (maintainer): the action installs the update directly.
+          toast.info(i18n.t("settings.updateAvailable", { version: update.version }), {
+            label: i18n.t("settings.installUpdate"),
+            run: () => {
+              toast.info(i18n.t("settings.installingUpdate"));
+              void downloadAndInstallUpdate(update).catch((e) => {
+                toast.error(i18n.t("settings.updateInstallError", { error: String(e) }));
+              });
+            },
+          });
         }
       } catch {
         // Silent by design.

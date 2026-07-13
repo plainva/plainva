@@ -391,6 +391,20 @@
   cursor: pointer;
 }
 .pv-toast-x:hover { background: var(--bg-hover); color: var(--text-main); }
+.pv-toast-action {
+  flex-shrink: 0;
+  align-self: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-color);
+  color: var(--accent-on);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pv-toast-action:hover { filter: brightness(1.05); }
 
 /* ---------------------------------------------------------------- tooltip */
 .pv-tooltip {
