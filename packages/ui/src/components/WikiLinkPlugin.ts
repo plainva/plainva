@@ -76,7 +76,10 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         // with the old line-level check, links never unfolded under the
         // keyboard caret (maintainer report 2026-07-06). Scans only the
         // visible ranges; same convention as the markdown decoration plugin.
-        const needsRebuild = update.docChanged || update.viewportChanged || (update.selectionSet && hideSyntax);
+        const editableNow = update.state.facet(EditorView.editable);
+        const needsRebuild = update.docChanged || update.viewportChanged
+          || (update.selectionSet && hideSyntax && editableNow)
+          || update.startState.facet(EditorView.editable) !== editableNow;
         if (needsRebuild) {
           this.decorations = this.buildDecorations(update.view);
         }
@@ -85,7 +88,11 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
       buildDecorations(view: EditorView) {
         const builder = new RangeSetBuilder<Decoration>();
         const selection = view.state.selection;
-        
+        // Reveal raw link syntax at the selection only while editable. On mobile
+        // the live preview is also read mode (editable off): selecting a link
+        // there keeps it rendered instead of popping [[...]] (maintainer).
+        const editable = view.state.facet(EditorView.editable);
+
           // Collect all link matches first
           // We need start, end, and ranges to hide
           const matches: { start: number, end: number, text: string, target: string, hideRanges?: {start: number, end: number}[] }[] = [];
@@ -186,7 +193,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             }
           }
           
-          if (hideSyntax && !isFocused && m.hideRanges && m.hideRanges.length === 2) {
+          if (hideSyntax && !(isFocused && editable) && m.hideRanges && m.hideRanges.length === 2) {
             // Live Preview: Hide markdown link syntax separately and style the rest
             const hr1 = m.hideRanges[0];
             const hr2 = m.hideRanges[1];
@@ -255,7 +262,6 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         return false;
       },
       touchend: (event, view) => {
-        lastPointerEvent.set(view, event.timeStamp);
         // Edit mode: a tap places the cursor; only the read-only view navigates.
         if (view.state.facet(EditorView.editable)) return false;
         const start = touchTapStart.get(view);
@@ -264,6 +270,11 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         if (!start || !end) return false;
         const moved = Math.hypot(end.clientX - start.x, end.clientY - start.y);
         if (moved > 10 || event.timeStamp - start.at > 700) return false; // scroll / long-press, not a tap
+        // Only a GENUINE tap marks the pipeline reachable (so the click fallback
+        // stands down). A scroll must NOT arm it — otherwise a later swallowed tap
+        // on a link would find the fallback wrongly disabled (maintainer: links
+        // not responding). Hence the stamp sits AFTER the scroll/long-press check.
+        lastPointerEvent.set(view, event.timeStamp);
         if (openLinkAtCoords(view, end.clientX, end.clientY, false, onOpenPath, event.timeStamp)) {
           event.preventDefault();
           return true;

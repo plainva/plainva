@@ -141,9 +141,36 @@ function makeLink(label: string, onActivate: (e: MouseEvent) => void): HTMLAncho
       e.stopPropagation();
     }
   });
+  // Touch: the cell editor opens on mousedown and native WebViews (WKWebView)
+  // don't reliably synthesize a click on the link, so open on a genuine tap
+  // here. preventDefault() suppresses the synthetic click; the timestamp dedupes
+  // any click that still slips through so the link never opens twice.
+  let tapX = 0;
+  let tapY = 0;
+  let lastTapAt = -1;
+  a.addEventListener(
+    "touchstart",
+    (e) => {
+      const t = e.touches[0];
+      if (t) {
+        tapX = t.clientX;
+        tapY = t.clientY;
+      }
+    },
+    { passive: true },
+  );
+  a.addEventListener("touchend", (e) => {
+    const t = e.changedTouches[0];
+    if (!t || Math.hypot(t.clientX - tapX, t.clientY - tapY) > 10) return; // scroll, not a tap
+    e.preventDefault();
+    e.stopPropagation();
+    lastTapAt = e.timeStamp;
+    onActivate(e as unknown as MouseEvent);
+  });
   a.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (lastTapAt >= 0 && e.timeStamp - lastTapAt < 700) return; // already handled by the tap
     onActivate(e);
   });
   return a;

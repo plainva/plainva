@@ -289,6 +289,9 @@ class TableWidget extends WidgetType {
     const wireCell = (cell: HTMLTableCellElement, kind: "header" | "body", rowIndex: number, colIndex: number) => {
       cell.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return; // left button only; right opens the menu
+        // Read-only (mobile read mode): a cell tap must not open the editor —
+        // the cell's own links (they stopPropagation) still handle their taps.
+        if (!view.state.facet(EditorView.editable)) return;
         e.preventDefault();
         e.stopPropagation();
         openCellEditor(cell, kind, rowIndex, colIndex);
@@ -426,8 +429,15 @@ export function markdownDecorationPlugin(isLive: boolean) {
         let needsRebuild = update.docChanged || update.viewportChanged
           || syntaxTree(update.startState) !== syntaxTree(update.state);
         // Live mode reveals only the span under the cursor, so any caret move
-        // (even within a line) must rebuild the decorations.
-        if (!needsRebuild && update.selectionSet && isLive) {
+        // (even within a line) must rebuild the decorations — but only while the
+        // editor is EDITABLE. On mobile the live preview is also the read mode
+        // (editable off); a selection there must not pop raw syntax, so no rebuild.
+        const editableNow = update.state.facet(EditorView.editable);
+        if (!needsRebuild && update.selectionSet && isLive && editableNow) {
+          needsRebuild = true;
+        }
+        // Toggling read <-> edit (editable) must rebuild so the reveal follows.
+        if (update.startState.facet(EditorView.editable) !== editableNow) {
           needsRebuild = true;
         }
         if (needsRebuild) {
@@ -441,11 +451,15 @@ export function markdownDecorationPlugin(isLive: boolean) {
           const tree = syntaxTree(state);
 
           // Lines that contain the cursor/selection — in live mode we keep their
-          // raw markdown visible so the user can edit it.
-          const activeLines = isLive ? activeLineSet(state) : new Set<number>();
-          // True when the selection touches [from, to] — used for "notion" token reveal.
+          // raw markdown visible so the user can edit it, but ONLY when editable.
+          // On mobile the live preview is also the read mode (editable off):
+          // selecting text there must keep the rendered form, not the raw markers.
+          const revealRaw = isLive && state.facet(EditorView.editable);
+          const activeLines = revealRaw ? activeLineSet(state) : new Set<number>();
+          // True when the selection touches [from, to] — used for "notion" token
+          // reveal; also gated on editable so read-mode selection reveals nothing.
           const cursorInRange = (from: number, to: number) =>
-            state.selection.ranges.some((r) => r.from <= to && r.to >= from);
+            revealRaw && state.selection.ranges.some((r) => r.from <= to && r.to >= from);
 
           const quoteLineClass = new Map<number, string>();
           const hrLines = new Set<number>();

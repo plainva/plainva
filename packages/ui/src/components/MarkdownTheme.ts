@@ -148,6 +148,13 @@ export const editorTheme = EditorView.theme({
   ".cm-md-table tbody tr:nth-child(even)": {
     backgroundColor: "var(--active-line-bg)",
   },
+  // Links inside rendered table cells (shared; was desktop-only in App.css, so
+  // mobile table links had no cursor:pointer/underline and looked unclickable).
+  ".cm-md-cell-link": {
+    color: "var(--wiki-link-color, var(--accent-color))",
+    textDecoration: "underline",
+    cursor: "pointer",
+  },
   // Inline cell editing (TS3): a native <input> opens in place on click.
   ".cm-md-table-input": {
     width: "100%",

@@ -175,12 +175,8 @@ button.pv-doc-header-icon:hover {
   caret-color: transparent;
 }
 
-/* Links inside rendered table cells (live preview widget). */
-.cm-md-cell-link {
-  color: var(--wiki-link-color, var(--accent-color));
-  text-decoration: underline;
-  cursor: pointer;
-}
+/* Links inside rendered table cells are styled by the shared MarkdownTheme
+   (packages/ui) so mobile gets cursor:pointer/underline too. */
 
 /* HTML comments in live mode — visible but dimmed (e.g. the invisible
    list separator `<!-- -->` inserted by block drag). */
