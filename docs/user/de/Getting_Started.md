@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-11
+Stand: 2026-07-13
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -20,7 +20,7 @@ Unter **Kürzliche Vaults** findest Du alles, was Du schon einmal geöffnet hast
 
 ## Die Oberfläche
 
-- **Linke Seitenleiste** — drei Ansichten: **Dateien** (der Dateibaum), **Tags** (alle `#tags` im Vault) und **Lesezeichen**. Oben sitzt der große **Neu**-Knopf (Neue Notiz, daneben **Weitere Optionen** für Neuer Ordner, Neue Base, Tageseintrag). Unten: Vault-Wechsler, **Tägliche Notiz öffnen** und **Einstellungen**. Ein Klick auf das Doppelpfeil-Symbol neben den drei Ansichten klappt alle Ordner auf einmal ein oder aus, und **Im Dateibaum anzeigen** im ⋮-Menü des Editors zeigt die geöffnete Notiz direkt im Baum.
+- **Linke Seitenleiste** — vier Ansichten: **Dateien** (der Dateibaum), **Tags** (alle `#tags` im Vault), **Lesezeichen** und **Datenbanken** (jede `.base` im Vault, nach Ordner gruppiert — ein Klick öffnet sie). Oben sitzt der große **Neu**-Knopf (Neue Notiz, daneben **Weitere Optionen** für Neuer Ordner, Neue Base, Tageseintrag). Unten: Vault-Wechsler, **Tägliche Notiz öffnen** und **Einstellungen**. Ein Klick auf das Doppelpfeil-Symbol neben den Ansichten klappt alle Ordner auf einmal ein oder aus, und **Im Dateibaum anzeigen** im ⋮-Menü des Editors zeigt die geöffnete Notiz direkt im Baum.
 - **Titelleiste** — Deine geöffneten Tabs. Tabs lassen sich per Drag umsortieren und zwischen Editor-Bereichen verschieben.
 - **Editor-Bereich** — hier liest und schreibst Du. Über das Tab-Menü (**Rechts teilen** / **Unten teilen**) oder die Kürzel `Strg+Alt+V` / `Strg+Alt+S` teilst Du den Editor in zwei Bereiche (Split), z. B. für Notiz + Datenbank nebeneinander.
 - **Rechte Seitenleiste** — vier Abschnitte, per Drag umsortierbar: **Kalender** (Tagesnotizen), **Gliederung** (Überschriften der aktiven Notiz), **Backlinks** (wer verlinkt hierher) und **Eigenschaften** (das Frontmatter der Notiz).

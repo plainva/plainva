@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Stand: 2026-07-11
+Stand: 2026-07-13
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -20,7 +20,7 @@ Ao iniciar, a tela de boas-vindas recebe você:
 
 ## A interface
 
-- **Barra lateral esquerda** — três visualizações: **Arquivos** (a árvore de arquivos), **Tags** (todas as `#tags` do vault) e **Favoritos**. No topo fica o grande botão **Novo** (Nova nota, mais **Mais opções** para Nova pasta, Nova base, Nota diária). Embaixo: o seletor de vault, **Abrir nota diária** e **Configurações**. O botão de seta dupla ao lado das três visualizações recolhe ou expande todas as pastas de uma vez, e **Mostrar na árvore de arquivos** no menu ⋮ do editor mostra a nota aberta diretamente na árvore.
+- **Barra lateral esquerda** — quatro visualizações: **Arquivos** (a árvore de arquivos), **Tags** (todas as `#tags` do vault), **Favoritos** e **Bancos de dados** (cada `.base` do vault, agrupado por pasta — clique para abrir). No topo fica o grande botão **Novo** (Nova nota, mais **Mais opções** para Nova pasta, Nova base, Nota diária). Embaixo: o seletor de vault, **Abrir nota diária** e **Configurações**. O botão de seta dupla ao lado das quatro visualizações recolhe ou expande todas as pastas de uma vez, e **Mostrar na árvore de arquivos** no menu ⋮ do editor mostra a nota aberta diretamente na árvore.
 - **Barra de título** — suas abas abertas. As abas podem ser reordenadas arrastando e movidas entre painéis do editor.
 - **Área do editor** — onde você lê e escreve. Pelo menu da aba (**Dividir à direita** / **Dividir abaixo**) ou pelos atalhos `Ctrl+Alt+V` / `Ctrl+Alt+S` você divide o editor em dois painéis, por exemplo uma nota ao lado de um banco de dados.
 - **Barra lateral direita** — quatro seções, reordenáveis por arrastar: **Calendário** (notas diárias), **Estrutura** (títulos da nota ativa), **Backlinks** (quem faz link para cá) e **Propriedades** (o frontmatter da nota).

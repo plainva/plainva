@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Stand: 2026-07-11
+Stand: 2026-07-13
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -20,7 +20,7 @@ Al iniciar, la pantalla de bienvenida te saluda:
 
 ## La interfaz
 
-- **Barra lateral izquierda** — tres vistas: **Archivos** (el árbol de archivos), **Etiquetas** (todas las `#etiquetas` del vault) y **Marcadores**. Arriba está el gran botón **Nuevo** (Nueva nota, además de **Más opciones** para Nueva carpeta, Nueva base, Nota diaria). Abajo: el selector de vaults, **Abrir nota diaria** y **Configuración**. El botón de doble flecha junto a las tres vistas contrae o expande todas las carpetas de una vez, y **Mostrar en el árbol de archivos** en el menú ⋮ del editor muestra la nota abierta directamente en el árbol.
+- **Barra lateral izquierda** — cuatro vistas: **Archivos** (el árbol de archivos), **Etiquetas** (todas las `#etiquetas` del vault), **Marcadores** y **Bases de datos** (cada `.base` del vault, agrupada por carpeta — haz clic para abrirla). Arriba está el gran botón **Nuevo** (Nueva nota, además de **Más opciones** para Nueva carpeta, Nueva base, Nota diaria). Abajo: el selector de vaults, **Abrir nota diaria** y **Configuración**. El botón de doble flecha junto a las cuatro vistas contrae o expande todas las carpetas de una vez, y **Mostrar en el árbol de archivos** en el menú ⋮ del editor muestra la nota abierta directamente en el árbol.
 - **Barra de título** — tus pestañas abiertas. Las pestañas se pueden reordenar arrastrándolas y mover entre paneles del editor.
 - **Área del editor** — donde lees y escribes. A través del menú de la pestaña (**Dividir a la derecha** / **Dividir abajo**) o los atajos `Ctrl+Alt+V` / `Ctrl+Alt+S` divides el editor en dos paneles, por ejemplo una nota junto a una base de datos.
 - **Barra lateral derecha** — cuatro secciones, reordenables por arrastre: **Calendario** (notas diarias), **Esquema** (encabezados de la nota activa), **Retroenlaces** (quién enlaza aquí) y **Propiedades** (el frontmatter de la nota).

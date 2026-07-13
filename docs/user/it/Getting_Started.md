@@ -1,6 +1,6 @@
 # Per iniziare
 
-Stand: 2026-07-11
+Stand: 2026-07-13
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -20,7 +20,7 @@ All'avvio, la schermata di benvenuto ti accoglie con:
 
 ## L'interfaccia
 
-- **Barra laterale sinistra** — tre viste: **File** (l'albero dei file), **Tag** (tutti i `#tag` nel vault) e **Segnalibri**. In alto si trova il grande pulsante **Nuovo** (Nuova nota, più **Altre opzioni** per Nuova cartella, Nuovo database, Nota giornaliera). In basso: il selettore del vault, **Apri nota giornaliera** e **Impostazioni**. Il pulsante a doppia freccia accanto alle tre viste comprime o espande tutte le cartelle in una volta, e **Mostra nell'albero dei file** nel menu ⋮ dell'editor mostra la nota aperta direttamente nell'albero.
+- **Barra laterale sinistra** — quattro viste: **File** (l'albero dei file), **Tag** (tutti i `#tag` nel vault), **Segnalibri** e **Database** (ogni `.base` nel vault, raggruppato per cartella — un clic per aprirlo). In alto si trova il grande pulsante **Nuovo** (Nuova nota, più **Altre opzioni** per Nuova cartella, Nuovo database, Nota giornaliera). In basso: il selettore del vault, **Apri nota giornaliera** e **Impostazioni**. Il pulsante a doppia freccia accanto alle quattro viste comprime o espande tutte le cartelle in una volta, e **Mostra nell'albero dei file** nel menu ⋮ dell'editor mostra la nota aperta direttamente nell'albero.
 - **Barra del titolo** — le tue schede aperte. Le schede possono essere riordinate trascinandole e spostate tra i riquadri dell'editor.
 - **Area dell'editor** — dove leggi e scrivi. Tramite il menu della scheda (**Dividi a destra** / **Dividi in basso**) o le scorciatoie `Ctrl+Alt+V` / `Ctrl+Alt+S` dividi l'editor in due riquadri, ad es. una nota accanto a un database.
 - **Barra laterale destra** — quattro sezioni, riordinabili trascinandole: **Calendario** (note giornaliere), **Struttura** (i titoli della nota attiva), **Backlink** (chi collega qui) e **Proprietà** (il frontmatter della nota).

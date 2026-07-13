@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-11
+Stan na: 2026-07-13
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -20,7 +20,7 @@ Po uruchomieniu wita ekran powitalny:
 
 ## Interfejs
 
-- **Lewy pasek boczny** — trzy widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie) i **Zakładki**. Na górze znajduje się duży przycisk **Nowy** (Nowa notatka, obok **Więcej opcji** dla Nowy folder, Nowa baza, Notatka dzienna). Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**. Przycisk z podwójną strzałką obok trzech widoków zwija lub rozwija wszystkie foldery naraz, a **Pokaż w drzewie plików** w menu ⋮ edytora pokazuje otwartą notatkę bezpośrednio w drzewie.
+- **Lewy pasek boczny** — cztery widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie), **Zakładki** i **Bazy danych** (każda `.base` w vaulcie, pogrupowana według folderu — kliknij, aby ją otworzyć). Na górze znajduje się duży przycisk **Nowy** (Nowa notatka, obok **Więcej opcji** dla Nowy folder, Nowa baza, Notatka dzienna). Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**. Przycisk z podwójną strzałką obok czterech widoków zwija lub rozwija wszystkie foldery naraz, a **Pokaż w drzewie plików** w menu ⋮ edytora pokazuje otwartą notatkę bezpośrednio w drzewie.
 - **Pasek tytułu** — otwarte karty. Karty można przeciągać, zmieniając ich kolejność, oraz przenosić między panelami edytora.
 - **Obszar edytora** — tu czytasz i piszesz. Przez menu karty (**Podziel w prawo** / **Podziel w dół**) lub skróty `Ctrl+Alt+V` / `Ctrl+Alt+S` dzielisz edytor na dwa panele, np. notatkę obok bazy danych.
 - **Prawy pasek boczny** — cztery sekcje, których kolejność można zmieniać przez przeciąganie: **Kalendarz** (notatki dzienne), **Konspekt** (nagłówki aktywnej notatki), **Linki zwrotne** (kto tu linkuje) i **Właściwości** (frontmatter notatki).
