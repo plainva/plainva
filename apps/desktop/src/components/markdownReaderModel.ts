@@ -45,7 +45,27 @@ export function resolveRelativeTarget(sourcePath: string, href: string): Relativ
   return { kind: isFolder ? "folder" : "file", path: segs.join("/") };
 }
 
-const HTML_COMMENT_NODE_RE = /^\s*(?:<!--[\s\S]*?-->\s*)+$/;
+/** True if `s` is nothing but HTML comments and whitespace. Linear scan (no
+ * regex backtracking) so a crafted node value cannot cause catastrophic
+ * matching — replaces the ReDoS-prone /^\s*(?:<!--[\s\S]*?-->\s*)+$/. */
+export function isHtmlCommentOnly(s: string): boolean {
+  const n = s.length;
+  let i = 0;
+  let sawComment = false;
+  while (i < n) {
+    while (i < n && /\s/.test(s[i])) i++; // per-char test is O(1), no backtracking
+    if (i >= n) break;
+    if (s.startsWith("<!--", i)) {
+      const end = s.indexOf("-->", i + 4);
+      if (end < 0) return false; // unterminated comment
+      i = end + 3;
+      sawComment = true;
+    } else {
+      return false; // non-comment, non-whitespace content
+    }
+  }
+  return sawComment;
+}
 
 interface MdastNodeLike {
   type?: string;
@@ -62,7 +82,7 @@ export function remarkStripHtmlComments() {
     const walk = (node: MdastNodeLike) => {
       if (!Array.isArray(node.children)) return;
       node.children = node.children.filter(
-        (child) => !(child.type === "html" && HTML_COMMENT_NODE_RE.test(String(child.value ?? "")))
+        (child) => !(child.type === "html" && isHtmlCommentOnly(String(child.value ?? "")))
       );
       for (const child of node.children) walk(child);
     };

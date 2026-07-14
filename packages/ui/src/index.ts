@@ -27,6 +27,7 @@ export * from "./lib/markdownToPlainText";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";
+export * from "./lib/safeUrl";
 export * from "./lib/searchJump";
 export * from "./lib/searchSnippet";
 export * from "./lib/taskToggle";

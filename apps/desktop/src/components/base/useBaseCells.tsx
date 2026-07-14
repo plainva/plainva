@@ -9,7 +9,7 @@ import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } fr
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
-import { segmentInlineText } from "@plainva/ui";
+import { segmentInlineText, safeHref } from "@plainva/ui";
 import { parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
@@ -389,12 +389,12 @@ export function useBaseCells({
         {segments.map((seg, i) => {
           if (seg.type === "text") return <span key={i}>{seg.text}</span>;
           if (seg.type === "url") {
-            return <a key={i} href={seg.target} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{seg.target}</a>;
+            return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{seg.target}</a>;
           }
           if (seg.type === "markdown") {
             const label = seg.text || seg.target;
             if (/^https?:\/\//.test(seg.target)) {
-              return <a key={i} href={seg.target} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
+              return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
             }
             return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(decodeURIComponent(seg.target), e); }}>{label}</span>;
           }
@@ -470,7 +470,7 @@ export function useBaseCells({
       // Contact types (P7): the value opens the matching handler, like the
       // markdown panel's external-link button.
       const href = input === "email" ? `mailto:${val}` : `tel:${val}`;
-      displayVal = <a href={href} style={{ color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>{val}</a>;
+      displayVal = <a href={safeHref(href)} style={{ color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>{val}</a>;
     } else if (Array.isArray(val)) {
       // Generic list (tags / untyped list): show as neutral chips instead of a comma string.
       displayVal = <span className="pv-chips">{val.map((v, i) => renderChip(String(v), undefined, i, undefined, true))}</span>;

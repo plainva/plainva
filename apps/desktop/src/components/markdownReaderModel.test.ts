@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { remarkBrToBreak, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
+import { isHtmlCommentOnly, remarkBrToBreak, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
 
 describe("resolveRelativeTarget", () => {
   it("resolves same-folder and encoded links against the source file", () => {
@@ -72,5 +72,28 @@ describe("remarkStripHtmlComments", () => {
     expect((tree.children[0] as { children: { value?: string }[] }).children.map((c) => c.value)).toEqual(["Hallo ", "Welt"]);
     expect((tree.children[1] as { value?: string }).value).toBe("<!-- bleibt sichtbar -->");
     expect((tree.children[2] as { value?: string }).value).toBe("<div>echtes HTML</div>");
+  });
+});
+
+describe("isHtmlCommentOnly", () => {
+  it("accepts comment-only content with surrounding whitespace", () => {
+    expect(isHtmlCommentOnly("<!-- x -->")).toBe(true);
+    expect(isHtmlCommentOnly("  <!-- a -->\n <!-- b -->  ")).toBe(true);
+    expect(isHtmlCommentOnly("<!--multi\nline-->")).toBe(true);
+  });
+
+  it("rejects whitespace-only, unterminated and mixed content", () => {
+    expect(isHtmlCommentOnly("   ")).toBe(false);
+    expect(isHtmlCommentOnly("")).toBe(false);
+    expect(isHtmlCommentOnly("<!-- open")).toBe(false);
+    expect(isHtmlCommentOnly("<!-- a --> text")).toBe(false);
+    expect(isHtmlCommentOnly("<div></div>")).toBe(false);
+  });
+
+  it("stays linear on adversarial input (no catastrophic backtracking)", () => {
+    const evil = "<!--" + " ".repeat(50000); // long, never terminated
+    const start = performance.now();
+    expect(isHtmlCommentOnly(evil)).toBe(false);
+    expect(performance.now() - start).toBeLessThan(100);
   });
 });

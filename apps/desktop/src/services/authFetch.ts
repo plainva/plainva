@@ -20,7 +20,15 @@ export const oneDriveFetch = async (
 ): Promise<Response> => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
-  if (url.startsWith(MS_TOKEN_HOST) && method === "POST") {
+  // Match the token host by exact origin, not startsWith: a look-alike such as
+  // https://login.microsoftonline.com.evil.com would pass a prefix check.
+  let origin = "";
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    /* malformed URL — not the token host */
+  }
+  if (origin === MS_TOKEN_HOST && method === "POST") {
     const body = typeof init?.body === "string" ? init.body : "";
     const res = await invoke<{ status: number; body: string }>("oauth_token_request", { url, body });
     return new Response(res.body, { status: res.status });
