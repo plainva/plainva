@@ -45,6 +45,12 @@ export interface GraphEngineOptions {
    * (base graph, context graph) keep that behavior.
    */
   lassoOnEmptyDrag?: boolean;
+  /**
+   * When true, Alt+drag on a node moves it together with its directly connected
+   * neighbors (adjacency, depth 1). Enabled on the vault map; the moved set is
+   * pinned via onNodesDragEnd exactly like a lasso group move.
+   */
+  linkedDrag?: boolean;
 }
 
 interface RenderNode extends SceneNode {
@@ -747,6 +753,8 @@ export function createGraphScene(
     moved: boolean;
     overNode?: string | null;
     additive?: boolean;
+    /** Alt+drag linked-neighbor move (for cursor feedback only). */
+    linked?: boolean;
   }
   let drag: DragState | null = null;
   let lasso: { x0: number; y0: number; x1: number; y1: number } | null = null;
@@ -772,18 +780,24 @@ export function createGraphScene(
       // Ctrl/Cmd click WITHOUT movement keeps its click semantics (see up).
       drag = { ...common, mode: "pan", nodeId: hit?.id };
     } else if (hit && ev.button === 0) {
-      // Node drag. If the node is part of a multi-selection, move the group;
-      // pin the start position of every selected node so the delta is exact.
-      const groupStart =
-        selection.has(hit.id) && selection.size > 1
-          ? new Map(
-              [...selection].map((id) => {
-                const n = nodeById.get(id);
-                return [id, { x: n ? n.x : hit.x, y: n ? n.y : hit.y }] as const;
-              })
-            )
-          : undefined;
-      drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null };
+      // Node drag. Alt+drag (where enabled) moves the node together with its
+      // directly connected neighbors; otherwise, a node inside a multi-selection
+      // moves the whole selection. Start positions are pinned so the delta is exact.
+      const linked = options.linkedDrag === true && ev.altKey;
+      const groupIds = linked
+        ? [hit.id, ...(adjacency.get(hit.id) ?? [])]
+        : selection.has(hit.id) && selection.size > 1
+          ? [...selection]
+          : null;
+      const groupStart = groupIds
+        ? new Map(
+            groupIds.map((id) => {
+              const n = nodeById.get(id);
+              return [id, { x: n ? n.x : hit.x, y: n ? n.y : hit.y }] as const;
+            })
+          )
+        : undefined;
+      drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null, linked };
     } else if (!hit && ev.button === 0 && options.lassoOnEmptyDrag) {
       // Empty-area left-drag = lasso selection (views with multi-selection).
       drag = { ...common, mode: "lasso", additive: ev.shiftKey };
@@ -792,7 +806,8 @@ export function createGraphScene(
       // Empty-area drag without the lasso opt-in = pan.
       drag = { ...common, mode: "pan", nodeId: hit?.id };
     }
-    canvas.style.cursor = drag.mode === "pan" ? "grabbing" : drag.mode === "lasso" ? "crosshair" : "";
+    canvas.style.cursor =
+      drag.mode === "pan" ? "grabbing" : drag.mode === "lasso" ? "crosshair" : drag.linked ? "move" : "";
   }
 
   function onPointerMove(ev: PointerEvent): void {

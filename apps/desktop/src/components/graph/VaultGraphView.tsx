@@ -332,7 +332,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const scene = createGraphScene(canvas, depsRef, { lassoOnEmptyDrag: true });
+    const scene = createGraphScene(canvas, depsRef, { lassoOnEmptyDrag: true, linkedDrag: true });
     sceneRef.current = scene;
     // Some host environments swallow native contextmenu on canvas (observed
     // in the E2E harness): a plain right-button pointerup is the fallback

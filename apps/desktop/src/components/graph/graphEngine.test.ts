@@ -263,6 +263,46 @@ describe("graphEngine", () => {
     expect(scene.getNodePositions().get("right.md")).toEqual(rightBefore);
   });
 
+  it("Alt+drag moves a node with its direct neighbors when linkedDrag is enabled", () => {
+    scene.destroy();
+    scene = createGraphScene(canvas, depsRef, { linkedDrag: true });
+    scene.setData(NODES, EDGES);
+    const onNodesDragEnd = vi.fn();
+    const onNodeDragEnd = vi.fn();
+    depsRef.current = { ...deps, onNodesDragEnd, onNodeDragEnd };
+
+    // Alt+drag center.md by world (40, 20). Its linked neighbors (right/below)
+    // shift by the same delta; the nearby-but-UNLINKED node stays put.
+    const nearBefore = scene.getNodePositions().get("near.md");
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100, altKey: true });
+    pointer(canvas, "pointermove", { clientX: 140, clientY: 120, altKey: true });
+    pointer(canvas, "pointerup", { clientX: 140, clientY: 120, altKey: true });
+
+    expect(onNodeDragEnd).not.toHaveBeenCalled();
+    expect(onNodesDragEnd).toHaveBeenCalledTimes(1);
+    const moves = onNodesDragEnd.mock.calls[0][0] as { id: string; x: number; y: number }[];
+    expect(moves.map((m) => m.id).sort()).toEqual(["below.md", "center.md", "right.md"]);
+    const byId = Object.fromEntries(moves.map((m) => [m.id, m]));
+    expect(byId["center.md"]).toEqual({ id: "center.md", x: 140, y: 120 });
+    expect(byId["right.md"]).toEqual({ id: "right.md", x: 340, y: 120 });
+    expect(byId["below.md"]).toEqual({ id: "below.md", x: 140, y: 320 });
+    expect(scene.getNodePositions().get("near.md")).toEqual(nearBefore);
+  });
+
+  it("Alt+drag stays a single-node drag when linkedDrag is not enabled", () => {
+    // Default scene (no linkedDrag): Alt is ignored, only the node moves.
+    const onNodesDragEnd = vi.fn();
+    const onNodeDragEnd = vi.fn();
+    depsRef.current = { ...deps, onNodesDragEnd, onNodeDragEnd };
+    const rightBefore = scene.getNodePositions().get("right.md");
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 100, altKey: true });
+    pointer(canvas, "pointermove", { clientX: 130, clientY: 100, altKey: true });
+    pointer(canvas, "pointerup", { clientX: 130, clientY: 100, altKey: true });
+    expect(onNodesDragEnd).not.toHaveBeenCalled();
+    expect(onNodeDragEnd).toHaveBeenCalledWith("center.md", 130, 100);
+    expect(scene.getNodePositions().get("right.md")).toEqual(rightBefore);
+  });
+
   it("pans on background drag and zooms around the wheel position", () => {
     pointer(canvas, "pointerdown", { clientX: 500, clientY: 500 });
     pointer(canvas, "pointermove", { clientX: 520, clientY: 470 });
