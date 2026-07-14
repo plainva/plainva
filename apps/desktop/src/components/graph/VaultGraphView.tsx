@@ -253,8 +253,15 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       reducedMotion: () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches,
       onNodeDoubleClick: (id) => {
         if (id.startsWith("folder:")) {
+          // Toggle: a collapsed bubble unfolds into a container circle; a
+          // double-click on the container RIM (the only hit zone) folds it back.
           const folder = id.slice(7);
-          setExpanded((prev) => new Set(prev).add(folder));
+          setExpanded((prev) => {
+            const next = new Set(prev);
+            if (next.has(folder)) next.delete(folder);
+            else next.add(folder);
+            return next;
+          });
         } else {
           onOpenPath(id);
         }
@@ -309,12 +316,17 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       },
       onNodeDragEnd: (id, x, y) => {
         if (!pinMode) return; // OFF: keep the session position, don't persist it
+        if (id.startsWith("folder:") && expanded.has(id.slice(7))) return; // containers derive from content
         graphState?.setPin(PIN_CONTEXT, id, { x, y });
         setPinsTick((n) => n + 1);
       },
       onNodesDragEnd: (moves) => {
         if (!pinMode) return;
-        for (const m of moves) graphState?.setPin(PIN_CONTEXT, m.id, { x: m.x, y: m.y });
+        // Containers are never pinned — their circle always recomputes around
+        // the (pinned) children, so pinning the content is enough.
+        const leaves = moves.filter((m) => !(m.id.startsWith("folder:") && expanded.has(m.id.slice(7))));
+        if (leaves.length === 0) return;
+        for (const m of leaves) graphState?.setPin(PIN_CONTEXT, m.id, { x: m.x, y: m.y });
         setPinsTick((n) => n + 1);
       },
       onLassoSelect: (ids, additive) => {
@@ -606,7 +618,13 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   // ---- render --------------------------------------------------------------------
 
   return (
-    <div data-testid="vault-graph-view" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
+    <div
+      data-testid="vault-graph-view"
+      // Canvas content is not in the DOM; this mirrors the container count as a
+      // testable affordance (E2E: unfolding a folder produces a container).
+      data-containers={sceneModel?.nodes.filter((n) => n.container).length ?? 0}
+      style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}
+    >
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", borderBottom: "1px solid var(--border-color-light)" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-muted)", fontWeight: 700, fontSize: "var(--text-sm)" }}>
           <Waypoints size={15} />

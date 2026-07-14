@@ -6,7 +6,9 @@ import {
   hashSeed,
   logRadius,
   packCircles,
+  packHierarchy,
   resolveCollisions,
+  type HybridPackChild,
 } from "@plainva/ui";
 
 describe("graphLayout", () => {
@@ -132,5 +134,138 @@ describe("graphLayout", () => {
     expect(out.get("fixed")).toEqual({ x: 0, y: 0 });
     expect(out.get("free")!.x).not.toBe(1); // pushed off the fixed node
     expect(resolveCollisions([], { seed: "empty" }).size).toBe(0);
+  });
+});
+
+describe("packHierarchy", () => {
+  const leaf = (id: string, size = 10, pin?: { x: number; y: number }): HybridPackChild => ({ id, size, pin });
+  const container = (id: string, children: HybridPackChild[]): HybridPackChild => ({ id, children });
+
+  /** Every child circle must sit fully inside its container circle. */
+  function expectEnclosed(
+    result: ReturnType<typeof packHierarchy>,
+    containerId: string,
+    children: { id: string; r: number }[]
+  ) {
+    const c = result.positions.get(containerId)!;
+    const cr = result.radii.get(containerId)!;
+    for (const child of children) {
+      const p = result.positions.get(child.id)!;
+      const dist = Math.hypot(p.x - c.x, p.y - c.y);
+      expect(dist + child.r).toBeLessThanOrEqual(cr + 0.001);
+    }
+  }
+
+  const TREE: HybridPackChild[] = [
+    container("folder:P", [
+      leaf("P/a.md", 8),
+      leaf("P/b.md", 8),
+      container("folder:P/Sub", [leaf("P/Sub/deep.md", 6), leaf("P/Sub/other.md", 6)]),
+    ]),
+    leaf("root.md", 9),
+    leaf("folder:Q", 20),
+  ];
+  const EDGES = [
+    { source: "P/a.md", target: "P/b.md" },
+    { source: "P/a.md", target: "root.md" },
+    { source: "P/Sub/deep.md", target: "P/Sub/other.md" },
+  ];
+
+  it("is deterministic and input-order invariant", () => {
+    const one = packHierarchy(TREE, EDGES, { seed: "s" });
+    const two = packHierarchy(TREE, EDGES, { seed: "s" });
+    expect([...one.positions.entries()]).toEqual([...two.positions.entries()]);
+    expect([...one.radii.entries()]).toEqual([...two.radii.entries()]);
+
+    // Same tree with shuffled child order lays out identically (order is
+    // normalized by id inside).
+    const shuffled: HybridPackChild[] = [
+      leaf("folder:Q", 20),
+      container("folder:P", [
+        container("folder:P/Sub", [leaf("P/Sub/other.md", 6), leaf("P/Sub/deep.md", 6)]),
+        leaf("P/b.md", 8),
+        leaf("P/a.md", 8),
+      ]),
+      leaf("root.md", 9),
+    ];
+    const three = packHierarchy(shuffled, EDGES, { seed: "s" });
+    expect(three.positions.get("P/a.md")).toEqual(one.positions.get("P/a.md"));
+    expect(three.radii.get("folder:P")).toEqual(one.radii.get("folder:P"));
+  });
+
+  it("encloses every child in its container, recursively, without sibling overlap", () => {
+    const res = packHierarchy(TREE, EDGES, { seed: "s" });
+    const subR = res.radii.get("folder:P/Sub")!;
+    expectEnclosed(res, "folder:P/Sub", [
+      { id: "P/Sub/deep.md", r: 6 },
+      { id: "P/Sub/other.md", r: 6 },
+    ]);
+    expectEnclosed(res, "folder:P", [
+      { id: "P/a.md", r: 8 },
+      { id: "P/b.md", r: 8 },
+      { id: "folder:P/Sub", r: subR },
+    ]);
+    // Direct siblings inside folder:P keep clear of each other.
+    const pairs: [string, number][] = [
+      ["P/a.md", 8],
+      ["P/b.md", 8],
+      ["folder:P/Sub", subR],
+    ];
+    for (let i = 0; i < pairs.length; i++) {
+      for (let j = i + 1; j < pairs.length; j++) {
+        const a = res.positions.get(pairs[i][0])!;
+        const b = res.positions.get(pairs[j][0])!;
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(pairs[i][1] + pairs[j][1] - 1);
+      }
+    }
+  });
+
+  it("pulls linked leaves closer than unlinked ones within a container", () => {
+    const kids = ["a", "b", "c", "d", "e", "f"].map((id) => leaf(`F/${id}.md`, 8));
+    const tree = [container("folder:F", kids)];
+    const chain = [
+      { source: "F/a.md", target: "F/b.md" },
+      { source: "F/b.md", target: "F/c.md" },
+      { source: "F/c.md", target: "F/d.md" },
+      { source: "F/d.md", target: "F/e.md" },
+      { source: "F/e.md", target: "F/f.md" },
+    ];
+    const res = packHierarchy(tree, chain, { seed: "chain" });
+    const d = (p: string, q: string) => {
+      const a = res.positions.get(p)!;
+      const b = res.positions.get(q)!;
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    expect(d("F/a.md", "F/b.md")).toBeLessThan(d("F/a.md", "F/f.md"));
+  });
+
+  it("keeps a pinned leaf exactly at its pin and grows the container around it", () => {
+    const tree = [
+      container("folder:P", [leaf("P/a.md", 8, { x: 900, y: -400 }), leaf("P/b.md", 8), leaf("P/c.md", 8)]),
+      leaf("root.md", 9),
+    ];
+    const res = packHierarchy(tree, [], { seed: "pin" });
+    expect(res.positions.get("P/a.md")).toEqual({ x: 900, y: -400 });
+    // The container follows its content: the far pin sits inside the circle.
+    expectEnclosed(res, "folder:P", [
+      { id: "P/a.md", r: 8 },
+      { id: "P/b.md", r: 8 },
+      { id: "P/c.md", r: 8 },
+    ]);
+    // Unpinned siblings stay clear of the pinned leaf.
+    const a = res.positions.get("P/a.md")!;
+    for (const other of ["P/b.md", "P/c.md"]) {
+      const p = res.positions.get(other)!;
+      expect(Math.hypot(a.x - p.x, a.y - p.y)).toBeGreaterThan(15);
+    }
+  });
+
+  it("centers a single child and pads the container radius", () => {
+    const res = packHierarchy([container("folder:One", [leaf("One/x.md", 12)])], [], { seed: "one", padding: 14 });
+    const c = res.positions.get("folder:One")!;
+    const x = res.positions.get("One/x.md")!;
+    expect(Math.hypot(c.x - x.x, c.y - x.y)).toBeLessThan(0.001);
+    expect(res.radii.get("folder:One")).toBeCloseTo(12 + 14, 5);
+    expect(packHierarchy([], [], { seed: "empty" }).positions.size).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
-import { hierarchy, pack } from "d3-hierarchy";
+import { hierarchy, pack, packEnclose } from "d3-hierarchy";
 
 /**
  * Deterministic layouts for the graph views (decision E6): d3-force runs
@@ -227,4 +227,238 @@ export function arcPositions(
 export function logRadius(value: number, opts: { min: number; max: number; k: number }): number {
   const v = value > 0 ? value : 0;
   return Math.max(opts.min, Math.min(opts.max, opts.min + opts.k * Math.log2(v + 1)));
+}
+
+// ---- recursive hybrid packing (vault map A4) ---------------------------------
+
+export interface HybridPackLeaf {
+  id: string;
+  /** Collision/render radius. */
+  size: number;
+  /** Absolute pinned position — kept exactly; enclosing containers recompute
+   *  around it (the container follows its content, never the other way). */
+  pin?: { x: number; y: number };
+}
+
+export interface HybridPackContainer {
+  id: string;
+  children: HybridPackChild[];
+}
+
+export type HybridPackChild = HybridPackLeaf | HybridPackContainer;
+
+export interface HybridPackResult {
+  /** Absolute center per leaf AND per container. */
+  positions: Map<string, { x: number; y: number }>;
+  /** Enclosing radius per container id (content + padding). */
+  radii: Map<string, number>;
+}
+
+function isPackContainer(child: HybridPackChild): child is HybridPackContainer {
+  return (child as HybridPackContainer).children !== undefined;
+}
+
+/** Smallest enclosing circle over child circles; d3's packEnclose is
+ *  deterministic since v2 (seeded LCG instead of a random shuffle). */
+function encloseCircles(circles: { x: number; y: number; r: number }[]): { x: number; y: number; r: number } {
+  if (circles.length === 0) return { x: 0, y: 0, r: 0 };
+  return packEnclose(circles.map((c) => ({ ...c })));
+}
+
+/**
+ * Recursive hybrid layout for the vault map (plan A4): every unfolded folder is
+ * a container circle that ENCLOSES its content. Per container the direct
+ * children (leaf notes, collapsed-folder bubbles, sub-containers) are laid out
+ * with the seeded force run — links keep the knowledge-net character — and the
+ * container radius is the smallest enclosing circle plus padding, computed
+ * bottom-up. Edges are given at LEAF level; each one acts exactly once, at the
+ * lowest common container of its endpoints, mapped onto that level's children.
+ *
+ * Pins are absolute and win unconditionally; afterwards a bottom-up reflow
+ * re-separates each container's children (pinned leaves and containers holding
+ * pinned leaves stay fixed, moved sub-containers shift their subtree rigidly)
+ * and recomputes every enclosing circle, so a container always wraps its
+ * (possibly far-dragged) children. Deterministic: seeded per container id,
+ * child order is normalized by id.
+ */
+export function packHierarchy(
+  topChildren: HybridPackChild[],
+  edges: ForceLayoutEdge[],
+  opts: { seed: string; padding?: number }
+): HybridPackResult {
+  const padding = opts.padding ?? 14;
+  const positions = new Map<string, { x: number; y: number }>();
+  const radii = new Map<string, number>();
+
+  // ---- structure maps --------------------------------------------------------
+  // NUL-prefixed sentinel (built at runtime so no raw control byte lands in the source).
+  const TOP = String.fromCharCode(0) + "top";
+  const leafById = new Map<string, HybridPackLeaf>();
+  const containerById = new Map<string, HybridPackContainer>();
+  /** Container chain from the top down to (excluding) the node itself. */
+  const chainOf = new Map<string, string[]>();
+  const walk = (children: HybridPackChild[], chain: string[]): void => {
+    for (const child of children) {
+      chainOf.set(child.id, chain);
+      if (isPackContainer(child)) {
+        containerById.set(child.id, child);
+        walk(child.children, [...chain, child.id]);
+      } else {
+        leafById.set(child.id, child);
+      }
+    }
+  };
+  walk(topChildren, []);
+
+  // ---- level edges: each leaf edge acts once, at the LCA container -----------
+  const levelEdges = new Map<string, ForceLayoutEdge[]>();
+  for (const e of edges) {
+    if (!leafById.has(e.source) || !leafById.has(e.target) || e.source === e.target) continue;
+    const cs = chainOf.get(e.source)!;
+    const ct = chainOf.get(e.target)!;
+    let depth = 0;
+    while (depth < cs.length && depth < ct.length && cs[depth] === ct[depth]) depth++;
+    const lca = depth === 0 ? TOP : cs[depth - 1];
+    const a = depth < cs.length ? cs[depth] : e.source;
+    const b = depth < ct.length ? ct[depth] : e.target;
+    if (a === b) continue;
+    const list = levelEdges.get(lca) ?? [];
+    list.push({ source: a, target: b });
+    levelEdges.set(lca, list);
+  }
+
+  // ---- phase 1: bottom-up relative layout + enclosing radius -----------------
+  /** Child positions relative to the container center. */
+  const relPos = new Map<string, Map<string, { x: number; y: number }>>();
+
+  const layoutLevel = (
+    levelId: string,
+    children: HybridPackChild[],
+    sizeOfChild: (c: HybridPackChild) => number
+  ): Map<string, { x: number; y: number }> => {
+    // Normalize child order so the layout is input-order invariant.
+    const kids = [...children].sort((a, b) => a.id.localeCompare(b.id)).map((c) => ({ id: c.id, size: sizeOfChild(c) }));
+    if (kids.length === 0) return new Map();
+    if (kids.length === 1) return new Map([[kids[0].id, { x: 0, y: 0 }]]);
+    const avg = kids.reduce((s, k) => s + k.size, 0) / kids.length;
+    const spread = Math.min(70, Math.max(24, avg * 1.5));
+    const forced = computeForceLayout(kids, levelEdges.get(levelId) ?? [], {
+      seed: `${opts.seed}:${levelId}`,
+      spread,
+    }).positions;
+    // Tighten residual overlaps with the real radii (the force run separates
+    // via collide, this pass guarantees it with the exact sizes).
+    return resolveCollisions(
+      kids.map((k) => {
+        const p = forced.get(k.id)!;
+        return { id: k.id, x: p.x, y: p.y, size: k.size };
+      }),
+      { seed: `${opts.seed}:c:${levelId}`, padding: Math.min(padding, 8) }
+    );
+  };
+
+  const layoutContainer = (container: HybridPackContainer): number => {
+    const childRadius = (c: HybridPackChild): number => (isPackContainer(c) ? layoutContainer(c) : c.size);
+    // Resolve sub-containers FIRST (post-order) so their radii feed this level.
+    const sizes = new Map(container.children.map((c) => [c.id, childRadius(c)] as const));
+    const local = layoutLevel(container.id, container.children, (c) => sizes.get(c.id)!);
+    const circles = container.children.map((c) => {
+      const p = local.get(c.id)!;
+      return { x: p.x, y: p.y, r: sizes.get(c.id)! };
+    });
+    const enc = encloseCircles(circles);
+    const rel = new Map<string, { x: number; y: number }>();
+    for (const c of container.children) {
+      const p = local.get(c.id)!;
+      rel.set(c.id, { x: p.x - enc.x, y: p.y - enc.y });
+    }
+    relPos.set(container.id, rel);
+    const r = enc.r + padding;
+    radii.set(container.id, r);
+    return r;
+  };
+
+  const topSizes = new Map(
+    topChildren.map((c) => [c.id, isPackContainer(c) ? layoutContainer(c) : c.size] as const)
+  );
+  const topLocal = layoutLevel(TOP, topChildren, (c) => topSizes.get(c.id)!);
+
+  // ---- phase 2: resolve to absolute positions (top-down) ---------------------
+  const place = (child: HybridPackChild, x: number, y: number): void => {
+    positions.set(child.id, { x, y });
+    if (isPackContainer(child)) {
+      const rel = relPos.get(child.id)!;
+      for (const sub of child.children) {
+        const p = rel.get(sub.id)!;
+        place(sub, x + p.x, y + p.y);
+      }
+    }
+  };
+  for (const child of topChildren) {
+    const p = topLocal.get(child.id)!;
+    place(child, p.x, p.y);
+  }
+
+  // ---- phase 3: pins override, then reflow so containers wrap their content --
+  let anyPin = false;
+  for (const leaf of leafById.values()) {
+    if (leaf.pin) {
+      positions.set(leaf.id, { x: leaf.pin.x, y: leaf.pin.y });
+      anyPin = true;
+    }
+  }
+  if (!anyPin) return { positions, radii };
+
+  const containsPinned = (container: HybridPackContainer): boolean =>
+    container.children.some((c) => (isPackContainer(c) ? containsPinned(c) : !!c.pin));
+
+  const shiftSubtree = (container: HybridPackContainer, dx: number, dy: number): void => {
+    for (const c of container.children) {
+      // Pinned leaves NEVER move — that is the fixed-guard's contract; a fixed
+      // container is not shifted at all, so this only runs on pin-free content.
+      const p = positions.get(c.id)!;
+      positions.set(c.id, { x: p.x + dx, y: p.y + dy });
+      if (isPackContainer(c)) shiftSubtree(c, dx, dy);
+    }
+  };
+
+  const reflowLevel = (levelId: string, children: HybridPackChild[]): void => {
+    // Post-order: sub-containers reflow first, their new circles feed this level.
+    for (const c of children) if (isPackContainer(c)) reflowLevel(c.id, c.children);
+    const items: CollisionItem[] = children.map((c) => {
+      const p = positions.get(c.id)!;
+      const containerChild = isPackContainer(c);
+      return {
+        id: c.id,
+        x: p.x,
+        y: p.y,
+        size: containerChild ? radii.get(c.id)! : (c as HybridPackLeaf).size,
+        fixed: containerChild ? containsPinned(c) : !!(c as HybridPackLeaf).pin,
+      };
+    });
+    const relaxed = resolveCollisions(items, { seed: `${opts.seed}:r:${levelId}`, padding: Math.min(padding, 8) });
+    for (const c of children) {
+      const before = positions.get(c.id)!;
+      const after = relaxed.get(c.id)!;
+      const dx = after.x - before.x;
+      const dy = after.y - before.y;
+      if (dx === 0 && dy === 0) continue;
+      positions.set(c.id, { x: after.x, y: after.y });
+      if (isPackContainer(c)) shiftSubtree(c, dx, dy);
+    }
+    if (levelId !== TOP) {
+      // Recompute this container's enclosing circle around the final children.
+      const enc = encloseCircles(
+        children.map((c) => {
+          const p = positions.get(c.id)!;
+          return { x: p.x, y: p.y, r: isPackContainer(c) ? radii.get(c.id)! : (c as HybridPackLeaf).size };
+        })
+      );
+      positions.set(levelId, { x: enc.x, y: enc.y });
+      radii.set(levelId, enc.r + padding);
+    }
+  };
+  reflowLevel(TOP, topChildren);
+
+  return { positions, radii };
 }

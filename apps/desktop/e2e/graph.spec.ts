@@ -284,6 +284,27 @@ test('empty-area drag lassoes multiple nodes; the pin needle toggles the mode', 
   await expect(pin).toHaveAttribute('aria-pressed', 'false');
 });
 
+test('unfolding a folder wraps its notes in a container circle; collapsing removes it', async ({ page }) => {
+  await openVault(page);
+  await openVaultMap(page);
+  await expect(page.getByTestId('graph-stat-notes')).toContainText('4');
+
+  // Collapsed map: the P folder is a bubble, no containers yet (A4).
+  const map = page.getByTestId('vault-graph-view');
+  await expect(map).toHaveAttribute('data-containers', '0');
+
+  // Unfold every folder: P becomes a container circle enclosing P/a.md. The
+  // note count is unchanged — the container is structure, not content.
+  await page.getByTestId('graph-expand-all').click();
+  await expect(map).toHaveAttribute('data-containers', '1');
+  await expect(page.getByTestId('graph-stat-notes')).toContainText('4');
+
+  // Collapse-all folds the container back into a bubble (the same toggle the
+  // rim double-click drives; the rim geometry itself is unit-tested).
+  await page.getByTestId('graph-collapse-all').click();
+  await expect(map).toHaveAttribute('data-containers', '0');
+});
+
 test('cleanup panel scans mentions and links one into the source note', async ({ page }) => {
   await openVault(page);
   await openVaultMap(page);

@@ -69,6 +69,8 @@ const LABEL_APPARENT_RADIUS = 9;
 /** Icons appear a bit earlier than labels. */
 const ICON_APPARENT_RADIUS = 6;
 const EDGE_HIT_TOLERANCE = 6;
+/** Containers hit-test on their RIM only, this many screen px wide. */
+const RIM_HIT_TOLERANCE = 10;
 
 export interface GraphScene {
   setData(nodes: SceneNode[], edges: SceneEdge[], opts?: { animate?: boolean }): void;
@@ -103,6 +105,10 @@ export function createGraphScene(
   let adjacency = new Map<string, Set<string>>();
   let edgeLane = new Map<string, number>();
   let tree: Quadtree<RenderNode> | null = null;
+  /** Visible container circles, ascending by radius (innermost rim wins). */
+  let containerRims: RenderNode[] = [];
+  /** Container id -> ids of every node inside it (transitive, via parent). */
+  let containerMembers = new Map<string, string[]>();
   let transform: SceneTransform = { x: 0, y: 0, k: 1 };
   const selection = new Set<string>();
   let keyboardFocus: string | null = null;
@@ -173,10 +179,24 @@ export function createGraphScene(
   }
 
   function rebuildIndex(): void {
+    // Containers stay OUT of the quadtree: their interior must never win a hit
+    // over the children inside, only the rim is a target (tested separately).
     tree = quadtree<RenderNode>()
       .x((d) => d.cx)
       .y((d) => d.cy)
-      .addAll(nodes.filter((n) => !n.hidden));
+      .addAll(nodes.filter((n) => !n.hidden && !n.container));
+    containerRims = nodes.filter((n) => n.container && !n.hidden).sort((a, b) => a.size - b.size);
+    containerMembers = new Map();
+    for (const n of nodes) {
+      let parent = n.parent;
+      let guard = 0;
+      while (parent && guard++ < 100) {
+        const list = containerMembers.get(parent) ?? [];
+        list.push(n.id);
+        containerMembers.set(parent, list);
+        parent = nodeById.get(parent)?.parent;
+      }
+    }
     adjacency = new Map();
     edgeLane = new Map();
     const pairSeen = new Map<string, number>();
@@ -197,13 +217,25 @@ export function createGraphScene(
   }
 
   function nodeAt(worldX: number, worldY: number): RenderNode | null {
-    if (!tree) return null;
-    const candidate = tree.find(worldX, worldY, 64);
-    if (!candidate || candidate.hidden) return null;
-    const dx = candidate.cx - worldX;
-    const dy = candidate.cy - worldY;
-    const hitRadius = candidate.size + 4 / transform.k;
-    return dx * dx + dy * dy <= hitRadius * hitRadius ? candidate : null;
+    // Innermost wins: regular nodes (children) first, then container RIMS from
+    // the smallest circle outward — a click inside a container hits the child
+    // under it or nothing, never the container's interior. Views without
+    // containers (context/base graph) take the exact pre-A4 path.
+    if (tree) {
+      const candidate = tree.find(worldX, worldY, 64);
+      if (candidate && !candidate.hidden) {
+        const dx = candidate.cx - worldX;
+        const dy = candidate.cy - worldY;
+        const hitRadius = candidate.size + 4 / transform.k;
+        if (dx * dx + dy * dy <= hitRadius * hitRadius) return candidate;
+      }
+    }
+    const rimTol = RIM_HIT_TOLERANCE / transform.k;
+    for (const c of containerRims) {
+      const dist = Math.hypot(c.cx - worldX, c.cy - worldY);
+      if (Math.abs(dist - c.size) <= rimTol) return c;
+    }
+    return null;
   }
 
   function edgeAt(worldX: number, worldY: number): SceneEdge | null {
@@ -382,7 +414,10 @@ export function createGraphScene(
     // and its neighborhood stays lit for navigation (maintainer request
     // 2026-07-14).
     const anchorCandidate = hoverNode ?? keyboardFocus ?? (selection.size === 1 ? [...selection][0] : null);
-    const bloomAnchor = anchorCandidate && nodeById.has(anchorCandidate) ? anchorCandidate : null;
+    // Containers never anchor the bloom: they have no edges, so anchoring one
+    // would dim the whole scene for a mere rim hover/selection.
+    const anchorNode = anchorCandidate ? nodeById.get(anchorCandidate) : undefined;
+    const bloomAnchor = anchorNode && !anchorNode.container ? anchorCandidate : null;
     const bloomSet = bloomAnchor ? adjacency.get(bloomAnchor) ?? null : null;
     const nodeBloom = (id: string): number =>
       !bloomAnchor || id === bloomAnchor || (bloomSet ? bloomSet.has(id) : false) ? 1 : 0.35;
@@ -401,6 +436,42 @@ export function createGraphScene(
     const edgeCrowdFactor = densityFade * zoomFade;
 
     drawDotGrid(w, h);
+
+    // ---- container circles (behind everything, outermost first) ----
+    // Unfolded folders wrap their content: thin rim + translucent tint + the
+    // name at the inner top edge (labels pass). Edges intentionally run OVER
+    // the tint (direct note-to-note lines, plan A4); flat themes (Win95, high
+    // contrast: glowIntensity 0) draw the plain rim without the tint.
+    const containersSorted = nodes
+      .filter((n) => n.container && !n.hidden && inView(n.cx, n.cy, n.size))
+      .sort((a, b) => b.size - a.size);
+    for (const c of containersSorted) {
+      const selected = selection.has(c.id);
+      const focused = keyboardFocus === c.id;
+      const hovered = hoverNode === c.id;
+      const a0 = (c.dimmed ? 0.15 : 1) * (c.appear ?? 1);
+      if (c.heat != null && c.heat > 0 && !c.dimmed) {
+        ctx.globalAlpha = a0 * (0.05 + c.heat * 0.08);
+        ctx.fillStyle = tokens.accent;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (tokens.glowIntensity > 0) {
+        ctx.globalAlpha = a0 * 0.06;
+        ctx.fillStyle = tokens.accent;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = a0 * (selected || focused || hovered ? 0.95 : 0.45);
+      ctx.strokeStyle = tokens.accent;
+      ctx.lineWidth = (selected || focused ? 2.2 : hovered ? 1.8 : 1.2) / transform.k;
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, c.size, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
 
     // ---- edges (below nodes) ----
     for (const e of edges) {
@@ -501,10 +572,10 @@ export function createGraphScene(
       }
     }
 
-    // ---- node shapes (pass 1) ----
+    // ---- node shapes (pass 1; containers already painted behind) ----
     const visibleSorted: RenderNode[] = [];
     for (const n of nodes) {
-      if (n.hidden || !inView(n.cx, n.cy, n.size)) continue;
+      if (n.hidden || n.container || !inView(n.cx, n.cy, n.size)) continue;
       visibleSorted.push(n);
     }
     for (const n of visibleSorted) {
@@ -635,8 +706,9 @@ export function createGraphScene(
     // ---- labels (pass 2, decluttered) ----
     // Priority: interaction states first, then bigger nodes; a label is skipped
     // when its box would overlap an already placed one (report #2: no more
-    // label soup — hover always reveals).
-    const labelOrder = [...visibleSorted].sort((a, b) => {
+    // label soup — hover always reveals). Containers label at their inner top
+    // edge (the center belongs to their content).
+    const labelOrder = [...visibleSorted, ...containersSorted].sort((a, b) => {
       const sa = selection.has(a.id) || keyboardFocus === a.id || hoverNode === a.id ? 1 : 0;
       const sb = selection.has(b.id) || keyboardFocus === b.id || hoverNode === b.id ? 1 : 0;
       if (sa !== sb) return sb - sa;
@@ -661,7 +733,9 @@ export function createGraphScene(
       const text = n.label;
       const tw = ctx.measureText(text).width;
       const lx = n.cx - tw / 2;
-      const ly = isFolder ? n.cy - fontPx * 0.8 : n.cy + n.size + 3 / transform.k;
+      // Containers anchor their label just inside the top of the circle.
+      const anchorY = n.container ? n.cy - n.size + fontPx * 1.4 : n.cy;
+      const ly = isFolder ? anchorY - fontPx * 0.8 : n.cy + n.size + 3 / transform.k;
       const box = { x: lx - 2, y: ly - 1, w: tw + 4, h: fontPx * (isFolder ? 2.4 : 1.3) + 2 };
       const overlaps = placed.some((p) => box.x < p.x + p.w && box.x + box.w > p.x && box.y < p.y + p.h && box.y + box.h > p.y);
       if (overlaps && !stateShown) continue;
@@ -673,11 +747,11 @@ export function createGraphScene(
       if (isFolder) {
         ctx.fillStyle = tokens.textMain;
         ctx.textBaseline = "middle";
-        ctx.fillText(text, n.cx, n.cy - fontPx * 0.35);
+        ctx.fillText(text, n.cx, anchorY - fontPx * 0.35);
         if (n.badge != null) {
           ctx.fillStyle = tokens.textMuted;
           ctx.font = `${fontPx * 0.85}px ${tokens.fontUi}`;
-          ctx.fillText(String(n.badge), n.cx, n.cy + fontPx * 0.85);
+          ctx.fillText(String(n.badge), n.cx, anchorY + fontPx * 0.85);
         }
       } else {
         // Pill behind highlighted labels so they stay readable over edges/grid.
@@ -753,7 +827,7 @@ export function createGraphScene(
     moved: boolean;
     overNode?: string | null;
     additive?: boolean;
-    /** Alt+drag linked-neighbor move (for cursor feedback only). */
+    /** Group move with a "move" cursor: Alt+drag neighbors or container+content. */
     linked?: boolean;
   }
   let drag: DragState | null = null;
@@ -780,15 +854,19 @@ export function createGraphScene(
       // Ctrl/Cmd click WITHOUT movement keeps its click semantics (see up).
       drag = { ...common, mode: "pan", nodeId: hit?.id };
     } else if (hit && ev.button === 0) {
-      // Node drag. Alt+drag (where enabled) moves the node together with its
-      // directly connected neighbors; otherwise, a node inside a multi-selection
-      // moves the whole selection. Start positions are pinned so the delta is exact.
-      const linked = options.linkedDrag === true && ev.altKey;
-      const groupIds = linked
-        ? [hit.id, ...(adjacency.get(hit.id) ?? [])]
-        : selection.has(hit.id) && selection.size > 1
-          ? [...selection]
-          : null;
+      // Node drag. A container (grabbed at its rim) moves together with its
+      // whole content; Alt+drag (where enabled) moves the node together with
+      // its directly connected neighbors; otherwise, a node inside a
+      // multi-selection moves the whole selection. Start positions are pinned
+      // so the delta is exact.
+      const linked = options.linkedDrag === true && ev.altKey && !hit.container;
+      const groupIds = hit.container
+        ? [hit.id, ...(containerMembers.get(hit.id) ?? [])]
+        : linked
+          ? [hit.id, ...(adjacency.get(hit.id) ?? [])]
+          : selection.has(hit.id) && selection.size > 1
+            ? [...selection]
+            : null;
       const groupStart = groupIds
         ? new Map(
             groupIds.map((id) => {
@@ -797,7 +875,7 @@ export function createGraphScene(
             })
           )
         : undefined;
-      drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null, linked };
+      drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null, linked: linked || hit.container === true };
     } else if (!hit && ev.button === 0 && options.lassoOnEmptyDrag) {
       // Empty-area left-drag = lasso selection (views with multi-selection).
       drag = { ...common, mode: "lasso", additive: ev.shiftKey };
@@ -817,7 +895,7 @@ export function createGraphScene(
       const hitId = hit?.id ?? null;
       if (hitId !== hoverNode) {
         hoverNode = hitId;
-        if (hitId) {
+        if (hitId && !hit?.container) {
           pulseNode = hitId;
           pulseStart = performance.now();
         }
@@ -869,8 +947,10 @@ export function createGraphScene(
           n.y = drag.nodeStartY! + dyWorld;
           n.cx = n.x;
           n.cy = n.y;
+          // Container rims are not connect targets — dropping a dragged note
+          // on one must keep the plain move (pin), not restore its position.
           const over = nodeAt(world.x, world.y);
-          drag.overNode = over && over.id !== n.id ? over.id : null;
+          drag.overNode = over && over.id !== n.id && !over.container ? over.id : null;
           requestRender();
         }
       }
@@ -1042,7 +1122,9 @@ export function createGraphScene(
   }
 
   function moveFocus(direction: "up" | "down" | "left" | "right"): void {
-    const visible = nodes.filter((n) => !n.hidden);
+    // Containers are excluded from arrow-key navigation: their center belongs
+    // to their content, jumping "onto" one would feel like a dead stop.
+    const visible = nodes.filter((n) => !n.hidden && !n.container);
     if (visible.length === 0) return;
     if (!keyboardFocus || !nodeById.get(keyboardFocus)) {
       setKeyboardFocus(visible[0].id);
@@ -1266,6 +1348,15 @@ function sceneToSVG(
     )}">`
   );
   parts.push(`<rect x="${minX}" y="${minY}" width="${maxX - minX}" height="${maxY - minY}" fill="${tokens.bgPrimary}"/>`);
+  // Container circles behind everything (outermost first), rim only.
+  for (const n of [...visible].filter((x) => x.container).sort((a, b) => b.size - a.size)) {
+    parts.push(
+      `<circle cx="${n.cx}" cy="${n.cy}" r="${n.size}" fill="none" stroke="${tokens.accent}" stroke-opacity="0.5" opacity="${n.dimmed ? 0.15 : 1}"/>`
+    );
+    parts.push(
+      `<text x="${n.cx}" y="${n.cy - n.size + Math.max(10, n.size * 0.1)}" font-size="${Math.max(10, n.size * 0.08)}" text-anchor="middle" fill="${tokens.textMain}" opacity="${n.dimmed ? 0.25 : 1}">${escapeXml(n.label)}</text>`
+    );
+  }
   for (const e of edges) {
     if (e.hidden) continue;
     const a = nodeById.get(e.source);
@@ -1281,6 +1372,7 @@ function sceneToSVG(
     );
   }
   for (const n of visible) {
+    if (n.container) continue; // rims already painted behind the edges
     const chip = n.colorToken != null ? tokens.chips[n.colorToken % tokens.chips.length] : null;
     const fill = n.color ?? chip?.bg ?? tokens.bgSecondary;
     const stroke = chip?.fg ?? tokens.border;

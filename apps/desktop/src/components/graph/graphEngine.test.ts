@@ -361,3 +361,110 @@ describe("graphEngine", () => {
     expect(onNodeClick).not.toHaveBeenCalled();
   });
 });
+
+/** Container circles (vault map A4): rim-only hit testing, innermost wins,
+ *  dragging a container moves its content. Views without containers are
+ *  covered by the suite above — their path is unchanged. */
+describe("graphEngine containers", () => {
+  const CONTAINER_NODES: SceneNode[] = [
+    { id: "folder:P", label: "P", shape: "folder", container: true, size: 100, x: 100, y: 100 },
+    { id: "P/a.md", label: "a", shape: "note", size: 10, x: 100, y: 100, parent: "folder:P" },
+    { id: "P/b.md", label: "b", shape: "note", size: 10, x: 150, y: 100, parent: "folder:P" },
+    { id: "out.md", label: "out", shape: "note", size: 10, x: 400, y: 400 },
+  ];
+
+  let canvas: HTMLCanvasElement;
+  let deps: GraphEngineDeps;
+  let depsRef: { current: GraphEngineDeps };
+  let scene: GraphScene;
+
+  beforeEach(() => {
+    shimEnvironment();
+    canvas = makeCanvas();
+    deps = { reducedMotion: () => true };
+    depsRef = { current: deps };
+    scene = createGraphScene(canvas, depsRef, { lassoOnEmptyDrag: true, linkedDrag: true });
+    scene.setData(CONTAINER_NODES, []);
+  });
+
+  afterEach(() => {
+    scene.destroy();
+    canvas.remove();
+  });
+
+  it("hits the child inside a container, never the container's interior", () => {
+    expect(scene.nodeAtClient(100, 100)).toBe("P/a.md");
+    expect(scene.nodeAtClient(150, 100)).toBe("P/b.md");
+    // Empty interior spot: no child in reach, rim far away -> nothing.
+    expect(scene.nodeAtClient(100, 40)).toBeNull();
+  });
+
+  it("hits the container on its rim only", () => {
+    expect(scene.nodeAtClient(100, 200)).toBe("folder:P"); // bottom rim
+    expect(scene.nodeAtClient(200, 100)).toBe("folder:P"); // right rim
+    expect(scene.nodeAtClient(100, 215)).toBeNull(); // just outside the tolerance
+  });
+
+  it("prefers the innermost rim when containers nest", () => {
+    scene.setData(
+      [
+        { id: "folder:P", label: "P", shape: "folder", container: true, size: 100, x: 100, y: 100 },
+        { id: "folder:P/Sub", label: "Sub", shape: "folder", container: true, size: 50, x: 100, y: 100, parent: "folder:P" },
+        { id: "P/Sub/deep.md", label: "deep", shape: "note", size: 8, x: 100, y: 100, parent: "folder:P/Sub" },
+      ],
+      []
+    );
+    expect(scene.nodeAtClient(100, 150)).toBe("folder:P/Sub"); // inner rim
+    expect(scene.nodeAtClient(100, 200)).toBe("folder:P"); // outer rim
+    expect(scene.nodeAtClient(100, 100)).toBe("P/Sub/deep.md"); // child beats both interiors
+  });
+
+  it("dragging a container at its rim moves the container with its whole content", () => {
+    const onNodesDragEnd = vi.fn();
+    const onNodeDragEnd = vi.fn();
+    depsRef.current = { ...deps, onNodesDragEnd, onNodeDragEnd };
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 200 }); // bottom rim
+    pointer(canvas, "pointermove", { clientX: 130, clientY: 200 });
+    pointer(canvas, "pointerup", { clientX: 130, clientY: 200 });
+    expect(onNodeDragEnd).not.toHaveBeenCalled();
+    expect(onNodesDragEnd).toHaveBeenCalledTimes(1);
+    const moves = onNodesDragEnd.mock.calls[0][0] as { id: string; x: number; y: number }[];
+    expect(moves.map((m) => m.id).sort()).toEqual(["P/a.md", "P/b.md", "folder:P"]);
+    const byId = Object.fromEntries(moves.map((m) => [m.id, m]));
+    expect(byId["folder:P"]).toMatchObject({ x: 130, y: 100 });
+    expect(byId["P/a.md"]).toMatchObject({ x: 130, y: 100 });
+    expect(byId["P/b.md"]).toMatchObject({ x: 180, y: 100 });
+    expect(scene.getNodePositions().get("out.md")).toEqual({ x: 400, y: 400 });
+  });
+
+  it("double-clicking the rim fires onNodeDoubleClick for the container", () => {
+    const onNodeDoubleClick = vi.fn();
+    depsRef.current = { ...deps, onNodeDoubleClick };
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 200 });
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 200 });
+    pointer(canvas, "pointerdown", { clientX: 100, clientY: 200 });
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 200 });
+    expect(onNodeDoubleClick).toHaveBeenCalledWith("folder:P");
+  });
+
+  it("dropping a dragged note on a container rim stays a plain move, not a connect", () => {
+    const onNodeDragEnd = vi.fn();
+    const onNodeDropOnNode = vi.fn();
+    depsRef.current = { ...deps, onNodeDragEnd, onNodeDropOnNode };
+    pointer(canvas, "pointerdown", { clientX: 400, clientY: 400 }); // out.md
+    pointer(canvas, "pointermove", { clientX: 100, clientY: 200 }); // onto the rim
+    pointer(canvas, "pointerup", { clientX: 100, clientY: 200 });
+    expect(onNodeDropOnNode).not.toHaveBeenCalled();
+    expect(onNodeDragEnd).toHaveBeenCalledWith("out.md", 100, 200);
+    expect(scene.getNodePositions().get("out.md")).toEqual({ x: 100, y: 200 });
+  });
+
+  it("keeps arrow-key navigation on regular nodes and exports container rims as unfilled SVG circles", () => {
+    scene.setKeyboardFocus("P/a.md");
+    scene.moveFocus("right");
+    expect(scene.getKeyboardFocus()).toBe("P/b.md"); // never lands on folder:P
+    const svg = scene.toSVG();
+    expect(svg).toContain('fill="none"');
+    expect(svg).toContain(">P<"); // container label serialized
+  });
+});

@@ -1,6 +1,6 @@
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { isReservedOkfName } from "@plainva/core";
-import { computeForceLayout, logRadius, packCircles, resolveCollisions } from "./graphLayout";
+import { logRadius, packHierarchy, type HybridPackChild, type HybridPackContainer } from "./graphLayout";
 import type { SceneEdge, SceneEdgeStyle, SceneNode } from "./graphTypes";
 
 /**
@@ -9,6 +9,13 @@ import type { SceneEdge, SceneEdgeStyle, SceneNode } from "./graphTypes";
  * folder chain is expanded, else by its topmost UNexpanded ancestor folder.
  * Edges are re-mapped onto representatives and bundled — the hairball cannot
  * exist because collapsed regions are single bubbles by construction.
+ *
+ * Layout (A4 recursive packing): every unfolded folder becomes a CONTAINER
+ * circle that encloses its content — sub-containers, collapsed-folder bubbles
+ * and notes nest recursively like a map. Within each container the children
+ * arrange by their links (hybrid: packed containers, force-laid notes); the
+ * container's center/radius always derive from its (possibly pinned/dragged)
+ * children, never the other way around.
  */
 
 export interface VaultMapFilters {
@@ -39,7 +46,9 @@ export type VaultMapOverlay =
 
 export interface VaultMapInput {
   graph: VaultGraph;
-  overview: FolderOverview;
+  /** No longer read by the scene (containers derive from the folder chains);
+   *  still accepted so the views' existing call sites stay unchanged. */
+  overview?: FolderOverview;
   expanded: Set<string>;
   pins: Record<string, { x: number; y: number }>;
   icons: Map<string, { icon: string; color?: string }>;
@@ -61,10 +70,6 @@ export interface VaultMapScene {
 }
 
 export const DEFAULT_EDGE_KINDS: GraphEdgeKind[] = ["wikilink", "embed", "markdown-link", "property"];
-
-function topSegment(folder: string): string {
-  return folder === "" ? "" : folder.split("/")[0];
-}
 
 /** Topmost unexpanded ancestor folder of a path, or the path itself. */
 export function representativeOf(path: string, folder: string, expanded: Set<string>): string {
@@ -102,12 +107,15 @@ export function effectiveDate(path: string, graph: VaultGraph, dates: Map<string
 }
 
 export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
-  const { graph, overview, expanded, pins, icons, filters, focus, overlay, seed } = input;
+  const { graph, expanded, pins, icons, filters, focus, overlay, seed } = input;
   const hideReserved = input.showIndexNotes !== true;
 
   // ---- representatives -------------------------------------------------------
   const noteReps = new Map<string, string>(); // note path -> rep id
   const repMembers = new Map<string, string[]>(); // folder rep -> member note paths
+  // Unfolded folders on the way to a visible leaf become container circles;
+  // collect their transitive note members while walking each note's chain.
+  const containerNotes = new Map<string, string[]>(); // "folder:F" -> note paths
   let noteCount = 0;
   for (const node of graph.nodes.values()) {
     if (node.mode === "attachment") continue;
@@ -119,6 +127,17 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
       const list = repMembers.get(rep) ?? [];
       list.push(node.path);
       repMembers.set(rep, list);
+    }
+    if (node.folder !== "") {
+      let acc = "";
+      for (const part of node.folder.split("/")) {
+        acc = acc ? `${acc}/${part}` : part;
+        if (!expanded.has(acc)) break;
+        const key = `folder:${acc}`;
+        const list = containerNotes.get(key) ?? [];
+        list.push(node.path);
+        containerNotes.set(key, list);
+      }
     }
   }
 
@@ -157,80 +176,44 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   };
   const anyFilter = filters.query !== "" || filters.okfType !== null || filters.tagPaths !== null;
 
-  const folderCounts = new Map<string, number>();
-  for (const f of overview.folders) {
-    // Recursive count: sum of direct counts of the folder and its subfolders.
-    for (const g of overview.folders) {
-      if (g.folder === f.folder || g.folder.startsWith(`${f.folder}/`)) {
-        folderCounts.set(f.folder, (folderCounts.get(f.folder) ?? 0) + g.noteCount);
-      }
-    }
-  }
-
   const entityIds: string[] = [];
   for (const rep of new Set([...noteReps.values()])) entityIds.push(rep);
 
-  // ---- layout ----------------------------------------------------------------
-  // Top groups: first path segment ("" = root bucket). Pack the groups, then
-  // force-lay the group members inside their circle.
-  const groupOf = (id: string): string =>
-    id.startsWith("folder:") ? topSegment(id.slice(7)) : topSegment(graph.nodes.get(id)?.folder ?? "");
-  const groups = new Map<string, string[]>();
+  // ---- layout (A4 recursive packing) -------------------------------------------
+  // Tree: unfolded folders are containers, leaves are self-represented notes
+  // and collapsed-folder bubbles. packHierarchy force-lays each level by its
+  // links, encloses every container around its children (bottom-up) and lets
+  // pinned leaves win — the container circle then reflows around them.
+  const parentFolderOf = (folder: string): string =>
+    folder.includes("/") ? folder.substring(0, folder.lastIndexOf("/")) : "";
+  const containerIds = [...containerNotes.keys()].sort(); // parents sort before children
+  const treeContainers = new Map<string, HybridPackContainer>();
+  const topChildren: HybridPackChild[] = [];
+  const parentIdOf = new Map<string, string | undefined>(); // node id -> enclosing container id
+  for (const cid of containerIds) treeContainers.set(cid, { id: cid, children: [] });
+  for (const cid of containerIds) {
+    const parent = parentFolderOf(cid.slice(7));
+    const host = parent === "" ? undefined : treeContainers.get(`folder:${parent}`);
+    if (host) host.children.push(treeContainers.get(cid)!);
+    else topChildren.push(treeContainers.get(cid)!);
+    parentIdOf.set(cid, host?.id);
+  }
   for (const id of entityIds) {
-    const g = groupOf(id);
-    const list = groups.get(g) ?? [];
-    list.push(id);
-    groups.set(g, list);
+    const folder = id.startsWith("folder:") ? parentFolderOf(id.slice(7)) : (graph.nodes.get(id)?.folder ?? "");
+    const leaf: HybridPackChild = { id, size: sizeOf(id), pin: pins[id] };
+    const host = folder === "" ? undefined : treeContainers.get(`folder:${folder}`);
+    if (host) host.children.push(leaf);
+    else topChildren.push(leaf);
+    parentIdOf.set(id, host?.id);
   }
-  const groupWeight = (g: string): number => (g === "" ? Math.max(1, overview.rootNotes.length) : (folderCounts.get(g) ?? 1));
-  const packed = packCircles(
-    [...groups.keys()].sort().map((g) => ({ id: g === "" ? "@root" : g, count: groupWeight(g) })),
-    { radius: 90 * Math.sqrt(Math.max(4, noteCount)) }
+  const packed = packHierarchy(
+    topChildren,
+    graph.edges
+      .map((e) => ({ source: noteReps.get(e.source) ?? e.source, target: noteReps.get(e.target) ?? e.target }))
+      .filter((e) => e.source !== e.target),
+    { seed: `${seed}:pack` }
   );
-  const groupCircle = new Map<string, { x: number; y: number; r: number }>();
-  for (const c of packed) groupCircle.set(c.id === "@root" ? "" : c.id, c);
-
-  const positions = new Map<string, { x: number; y: number }>();
-  for (const [g, members] of groups) {
-    const circle = groupCircle.get(g) ?? { x: 0, y: 0, r: 200 };
-    if (members.length === 1) {
-      positions.set(members[0], { x: circle.x, y: circle.y });
-      continue;
-    }
-    const layout = computeForceLayout(
-      members.map((id) => ({ id, size: sizeOf(id) })),
-      graph.edges
-        .map((e) => ({ source: noteReps.get(e.source) ?? e.source, target: noteReps.get(e.target) ?? e.target }))
-        .filter((e) => groups.get(g)!.includes(e.source) && groups.get(g)!.includes(e.target)),
-      { seed: `${seed}:${g}`, spread: Math.min(70, 22 + circle.r / Math.max(2, Math.sqrt(members.length))) }
-    );
-    // Scale into the circle.
-    let maxDist = 1;
-    for (const p of layout.positions.values()) maxDist = Math.max(maxDist, Math.hypot(p.x, p.y));
-    const scale = (circle.r * 0.85) / maxDist;
-    for (const [id, p] of layout.positions) {
-      positions.set(id, { x: circle.x + p.x * scale, y: circle.y + p.y * scale });
-    }
-  }
-  for (const [id, pin] of Object.entries(pins)) {
-    if (positions.has(id)) positions.set(id, { x: pin.x, y: pin.y });
-  }
-
-  // Collision relaxation per group (report 2026-07-14): the "scale into circle"
-  // step scales positions but not radii, so forceCollide's separation can come
-  // back as overlap. Re-separate each group with the real render sizes; pinned
-  // nodes stay fixed. Per-group so clusters don't bleed into each other.
-  for (const [g, members] of groups) {
-    if (members.length < 2) continue;
-    const resolved = resolveCollisions(
-      members.map((id) => {
-        const p = positions.get(id) ?? { x: 0, y: 0 };
-        return { id, x: p.x, y: p.y, size: sizeOf(id), fixed: !!pins[id] };
-      }),
-      { seed: `${seed}:collide:${g}`, padding: 4, iterations: 30 }
-    );
-    for (const [id, p] of resolved) positions.set(id, p);
-  }
+  const positions = packed.positions;
 
   // ---- edges (bundled on representatives) -------------------------------------
   const bundleMap = new Map<string, { source: string; target: string; styles: Map<SceneEdgeStyle, number>; width: number; label?: string }>();
@@ -341,6 +324,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         badge: visibleMembers.length,
         x: pos.x,
         y: pos.y,
+        parent: parentIdOf.get(id),
         pinned: !!pins[id],
         dimmed: anyFilter && !memberMatch,
         hidden: focusHidden || (overlay.mode === "replay" && visibleMembers.length === 0),
@@ -359,12 +343,48 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         colorToken: typeColor(info.okfType),
         x: pos.x,
         y: pos.y,
+        parent: parentIdOf.get(id),
         pinned: !!pins[id],
         dimmed: anyFilter && !matches(id),
         hidden: focusHidden || !replayVisible(id),
         heat: overlay.mode === "heatmap" ? heatOf(info.mtime, overlay.now) : null,
       });
     }
+  }
+
+  // Container circles for unfolded folders: enclose their content, painted
+  // behind the edges; visibility/heat/dimming derive from the transitive note
+  // members. Never pinned — the circle always follows its children.
+  for (const cid of containerIds) {
+    const folder = cid.slice(7);
+    const members = containerNotes.get(cid) ?? [];
+    const memberMatch = !anyFilter || members.some((m) => matches(m));
+    const visibleMembers = overlay.mode === "replay" ? members.filter((m) => replayVisible(m)) : members;
+    const heat =
+      overlay.mode === "heatmap" && visibleMembers.length > 0
+        ? Math.max(...visibleMembers.map((m) => heatOf(graph.nodes.get(m)?.mtime ?? 0, overlay.now)))
+        : null;
+    const focusHidden = visibleSet
+      ? !members.some((m) => {
+          const rep = noteReps.get(m);
+          return rep ? visibleSet.has(rep) : false;
+        })
+      : false;
+    const pos = positions.get(cid) ?? { x: 0, y: 0 };
+    nodes.push({
+      id: cid,
+      label: folder.split("/").pop() ?? folder,
+      shape: "folder",
+      container: true,
+      size: packed.radii.get(cid) ?? 40,
+      badge: visibleMembers.length,
+      x: pos.x,
+      y: pos.y,
+      parent: parentIdOf.get(cid),
+      dimmed: anyFilter && !memberMatch,
+      hidden: focusHidden || (overlay.mode === "replay" && visibleMembers.length === 0),
+      heat,
+    });
   }
 
   const edges: SceneEdge[] = [];

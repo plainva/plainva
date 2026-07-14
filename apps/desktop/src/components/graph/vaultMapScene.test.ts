@@ -87,18 +87,48 @@ describe("buildVaultMapScene", () => {
     expect(scene.stats).toEqual({ notes: 5, links: 3 });
   });
 
-  it("unfolds an expanded folder into its notes and keeps deeper levels bundled", () => {
+  it("unfolds an expanded folder into a container that encloses its notes and deeper bubbles", () => {
     const scene = buildVaultMapScene(inputOf(NODES, EDGES, { expanded: new Set(["P"]) }));
-    const ids = new Set(scene.nodes.map((n) => n.id));
-    expect(ids.has("P/a.md")).toBe(true);
-    expect(ids.has("P/b.md")).toBe(true);
-    expect(ids.has("folder:P/Sub")).toBe(true); // one level only
-    expect(ids.has("folder:P")).toBe(false);
+    const byId = new Map(scene.nodes.map((n) => [n.id, n]));
+    expect(byId.has("P/a.md")).toBe(true);
+    expect(byId.has("P/b.md")).toBe(true);
+    expect(byId.get("folder:P/Sub")!.container).toBeUndefined(); // one level only -> bubble
+    // The unfolded folder is a CONTAINER circle now (A4), not gone.
+    const p = byId.get("folder:P")!;
+    expect(p.container).toBe(true);
+    expect(p.shape).toBe("folder");
+    expect(p.badge).toBe(3); // transitive notes: a, b, deep
+    // Every child sits fully inside the container circle, and carries parent.
+    for (const childId of ["P/a.md", "P/b.md", "folder:P/Sub"]) {
+      const c = byId.get(childId)!;
+      expect(c.parent).toBe("folder:P");
+      expect(Math.hypot(c.x - p.x, c.y - p.y) + c.size).toBeLessThanOrEqual(p.size + 0.001);
+    }
+    expect(byId.get("root.md")!.parent).toBeUndefined();
     const ab = scene.edges.find((e) => [e.source, e.target].sort().join() === "P/a.md,P/b.md")!;
     expect(ab.style).toBe("link"); // note-to-note keeps its kind
+    // No edges ever attach to the container itself.
+    expect(scene.edges.some((e) => e.source === "folder:P" || e.target === "folder:P")).toBe(false);
   });
 
-  it("is deterministic and honors pins", () => {
+  it("nests containers recursively when a subfolder is expanded too", () => {
+    const scene = buildVaultMapScene(inputOf(NODES, EDGES, { expanded: new Set(["P", "P/Sub"]) }));
+    const byId = new Map(scene.nodes.map((n) => [n.id, n]));
+    const p = byId.get("folder:P")!;
+    const sub = byId.get("folder:P/Sub")!;
+    expect(p.container).toBe(true);
+    expect(sub.container).toBe(true);
+    expect(sub.parent).toBe("folder:P");
+    expect(sub.badge).toBe(1); // deep.md
+    // The sub-container circle sits fully inside its parent's circle …
+    expect(Math.hypot(sub.x - p.x, sub.y - p.y) + sub.size).toBeLessThanOrEqual(p.size + 0.001);
+    // … and the deep note sits inside the sub-container.
+    const deep = byId.get("P/Sub/deep.md")!;
+    expect(deep.parent).toBe("folder:P/Sub");
+    expect(Math.hypot(deep.x - sub.x, deep.y - sub.y) + deep.size).toBeLessThanOrEqual(sub.size + 0.001);
+  });
+
+  it("is deterministic and honors pins; the container reflows around a pinned child", () => {
     const one = buildVaultMapScene(inputOf(NODES, EDGES, { expanded: new Set(["P"]) }));
     const two = buildVaultMapScene(inputOf(NODES, EDGES, { expanded: new Set(["P"]) }));
     expect(one.nodes).toEqual(two.nodes);
@@ -108,6 +138,10 @@ describe("buildVaultMapScene", () => {
     );
     const a = pinned.nodes.find((n) => n.id === "P/a.md")!;
     expect(a).toMatchObject({ x: 777, y: -5, pinned: true });
+    // The container follows its (far-dragged) child instead of losing it.
+    const p = pinned.nodes.find((n) => n.id === "folder:P")!;
+    expect(p.pinned).toBeFalsy(); // containers are never pinned themselves
+    expect(Math.hypot(a.x - p.x, a.y - p.y) + a.size).toBeLessThanOrEqual(p.size + 0.001);
   });
 
   it("dims filter misses and folders without matching members", () => {
@@ -146,9 +180,12 @@ describe("buildVaultMapScene", () => {
       inputOf(NODES, EDGES, { expanded: new Set(["P", "P/Sub"]), focus: { seed: "P/a.md", depth: 1 } })
     );
     const visible = scene.nodes.filter((n) => !n.hidden).map((n) => n.id).sort();
-    expect(visible).toEqual(["P/a.md", "P/b.md", "folder:Q"]);
+    // folder:P stays visible as the container around the visible a/b; the
+    // Sub container hides with its only (hidden) note.
+    expect(visible).toEqual(["P/a.md", "P/b.md", "folder:P", "folder:Q"]);
     // root.md links only to deep.md -> outside depth 1 from a.md.
     expect(scene.nodes.find((n) => n.id === "root.md")!.hidden).toBe(true);
+    expect(scene.nodes.find((n) => n.id === "folder:P/Sub")!.hidden).toBe(true);
   });
 
   it("focus on a folder that then gets expanded shows the folder's contents, not an empty graph", () => {

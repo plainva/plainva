@@ -33,6 +33,14 @@ export interface SceneNode {
   flag?: "orphan" | "broken" | null;
   /** Folder bubbles: number badge (note count). */
   badge?: number;
+  /**
+   * Unfolded folder rendered as a translucent container circle that encloses
+   * its children (vault map recursive packing). Containers paint behind the
+   * edges, only their RIM is hit-testable, and dragging one moves its content.
+   */
+  container?: boolean;
+  /** Id of the enclosing container node, if any (drag-group membership). */
+  parent?: string;
 }
 
 export interface SceneEdge {
