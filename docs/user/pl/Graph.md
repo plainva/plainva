@@ -1,6 +1,6 @@
 # Graf
 
-Stan na: 2026-07-10
+Stan na: 2026-07-14
 
 Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jest połączone, czego brakuje — i możesz działać na tym bezpośrednio. Istnieje JEDEN silnik grafu w trzech odsłonach.
 
@@ -21,6 +21,7 @@ Narzędzia na pasku nagłówka:
 
 - Style krawędzi na pierwszy rzut oka (legenda, w lewym dolnym rogu): **relacje** to ciągłe linie akcentu z etykietą, **linki** są przerywane, **osadzenia** kropkowane.
 - **Szukaj** przyciemnia wszystko, co nie pasuje. Filtruj według **typu** (OKF) i **tagu**; rodzaje krawędzi (**Linki**, **Relacje**, **Osadzenia**) przełącza się pojedynczo.
+- Notatki przeglądowe zarządzane przez Plainva (`index.md` i `log.md`) są domyślnie ukryte — linkują niemal do wszystkiego i przeciążyłyby graf; dotyczy to również grafu kontekstowego i grafu bazy danych. Na mapie sejfu przywracasz je przyciskiem **Filtry** za pomocą pola wyboru **Pokaż index.md**.
 - **Skup na zaznaczeniu** zawęża mapę do wybranej notatki plus 1–3 kroki sąsiedztwa.
 - **Mapa ciepła** rozjaśnia niedawno edytowane notatki (7/30/90 dni) — „nad czym ostatnio pracowałem?”.
 - **Podróż w czasie** pokazuje notatki według daty utworzenia; suwak odtwarza wzrost Twojego sejfu. Data pochodzi z właściwości `date`/`datum`, w przeciwnym razie z daty utworzenia pliku (przybliżenie dla sejfów wyłącznie w chmurze).

@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-07-10
+Dernière mise à jour : 2026-07-14
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -21,6 +21,7 @@ Outils dans la barre d'en-tête :
 
 - Styles d'arête en un coup d'œil (légende, en bas à gauche) : les **relations** sont des lignes d'accent pleines avec une étiquette, les **liens** sont en tirets, les **intégrations** en pointillés.
 - **Rechercher** atténue tout ce qui ne correspond pas. Filtrez par **type** (OKF) et **tag** ; les types d'arêtes (**Liens**, **Relations**, **Intégrations**) se basculent individuellement.
+- Les notes de synthèse gérées par Plainva (`index.md` et `log.md`) sont masquées par défaut — elles renvoient vers presque tout et surchargeraient sinon le graphe ; cela vaut aussi pour le graphe contextuel et le graphe de base de données. Dans la carte du coffre, réaffichez-les via le bouton **Filtres** avec la case **Afficher index.md**.
 - **Focus sur la sélection** réduit la carte à une note sélectionnée plus 1 à 3 sauts de voisinage.
 - **Carte de chaleur** met en lumière les notes modifiées récemment (7/30/90 jours) — « sur quoi je travaillais ? ».
 - **Voyage dans le temps** affiche les notes selon leur date de création ; le curseur rejoue la croissance de votre coffre. La date provient d'une propriété `date`/`datum`, sinon de la date de création du fichier (une approximation pour les coffres uniquement dans le cloud).

@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-07-10
+Laatst bijgewerkt: 2026-07-14
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -21,6 +21,7 @@ Hulpmiddelen in de kopbalk:
 
 - Edge-stijlen in één oogopslag (legenda, linksonder): **relaties** zijn doorgetrokken accentlijnen met een label, **koppelingen** zijn gestreept, **insluitingen** gestippeld.
 - **Zoeken (dimt de rest)** dimt alles wat niet overeenkomt. **Filteren op type** (OKF) en **Filteren op tag**; edge-soorten (**Koppelingen**, **Relaties**, **Insluitingen**) schakel je individueel in of uit.
+- Door Plainva beheerde overzichtsnotities (`index.md` en `log.md`) worden standaard verborgen — ze linken naar bijna alles en zouden de graaf anders overladen; dat geldt ook voor de contextgraaf en de databasegraaf. In de vault-kaart haal je ze terug via de knop **Filters** met het selectievakje **index.md tonen**.
 - **Focus op selectie** beperkt de kaart tot een geselecteerde notitie plus 1–3 stappen in de buurt.
 - **Warmtekaart** laat recent bewerkte notities oplichten (7/30/90 dagen) — "waar werkte ik aan?"
 - **Tijdreis** toont notities op hun aanmaakdatum; de schuifregelaar speelt de groei van je vault opnieuw af. De datum komt uit een `date`/`datum`-eigenschap, anders uit de bestandsaanmaakdatum (een benadering voor alleen-cloud-vaults).

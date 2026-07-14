@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-07-10
+Stand: 2026-07-14
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -21,6 +21,7 @@ Werkzeuge in der Kopfleiste:
 
 - Kantenstile auf einen Blick (Legende unten links): **Relationen** sind durchgezogene Akzent-Linien mit Beschriftung, **Links** gestrichelt, **Embeds** gepunktet.
 - **Suchen** dimmt alles, was nicht passt. Filter nach **Typ** (OKF) und **Tag**; Kantenarten (**Links**, **Relationen**, **Embeds**) sind einzeln zuschaltbar.
+- Von Plainva verwaltete Übersichtsnotizen (`index.md` und `log.md`) blendet der Graph standardmäßig aus — sie verlinken auf fast alles und würden ihn sonst überladen; das gilt auch für den Kontext-Graph und den Datenbank-Graph. In der Vault-Karte holst Du sie über den Knopf **Filter** mit der Checkbox **index.md anzeigen** zurück.
 - **Fokus auf Auswahl** reduziert die Karte auf eine gewählte Notiz plus 1–3 Nachbarschafts-Sprünge.
 - **Heatmap** hellt zuletzt bearbeitete Notizen auf (7/30/90 Tage) — „Woran habe ich zuletzt gearbeitet?"
 - **Zeitreise** blendet Notizen nach ihrem Entstehungsdatum ein; der Schieberegler spielt das Wachstum Deines Vaults ab. Das Datum stammt aus einer `date`-/`datum`-Eigenschaft, sonst aus dem Datei-Erstelldatum (bei reinen Cloud-Vaults eine Näherung).

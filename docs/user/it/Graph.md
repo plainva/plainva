@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-10
+Stand: 2026-07-14
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -21,6 +21,7 @@ Strumenti nella barra dell'intestazione:
 
 - Stili degli archi a colpo d'occhio (legenda, in basso a sinistra): le **relazioni** sono linee di accento continue con un'etichetta, i **collegamenti** sono tratteggiati, gli **incorporamenti** sono punteggiati.
 - **Cerca** attenua tutto ciò che non corrisponde. Filtra per **tipo** (OKF) e **tag**; i tipi di arco (**Collegamenti**, **Relazioni**, **Incorporamenti**) si attivano/disattivano singolarmente.
+- Le note di panoramica gestite da Plainva (`index.md` e `log.md`) sono nascoste per impostazione predefinita — collegano quasi tutto e sovraccaricherebbero altrimenti il grafo; questo vale anche per il grafo contestuale e il grafo del database. Nella mappa del vault, le recuperi tramite il pulsante **Filtri** con la casella **Mostra index.md**.
 - **Focus sulla selezione** riduce la mappa a una nota selezionata più 1–3 salti di vicinato.
 - **Mappa di calore** illumina le note modificate di recente (7/30/90 giorni) — "su cosa stavo lavorando?"
 - **Viaggio nel tempo** mostra le note in base alla loro data di creazione; il cursore riproduce la crescita del tuo vault. La data proviene da una proprietà `date`/`datum`, altrimenti dalla data di creazione del file (un'approssimazione per i vault solo cloud).

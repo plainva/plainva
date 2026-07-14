@@ -1,6 +1,6 @@
 # Graph
 
-Last updated: 2026-07-10
+Last updated: 2026-07-14
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -21,6 +21,7 @@ Tools in the header bar:
 
 - Edge styles at a glance (legend, bottom left): **relations** are solid accent lines with a label, **links** are dashed, **embeds** dotted.
 - **Search** dims everything that does not match. Filter by **type** (OKF) and **tag**; edge kinds (**Links**, **Relations**, **Embeds**) toggle individually.
+- Plainva-managed overview notes (`index.md` and `log.md`) are hidden by default — they link to almost everything and would otherwise clutter the graph; this also applies to the context graph and the database graph. In the vault map, bring them back via the **Filters** button with the **Show index.md** checkbox.
 - **Focus on selection** reduces the map to a selected note plus 1–3 neighborhood hops.
 - **Heatmap** brightens recently edited notes (7/30/90 days) — "what was I working on?"
 - **Time travel** shows notes by their creation date; the slider replays your vault's growth. The date comes from a `date`/`datum` property, else from the file creation date (an approximation for cloud-only vaults).
