@@ -91,6 +91,13 @@ export interface GraphScene {
   /** Arrow-key navigation to the angularly best neighbor. */
   moveFocus(direction: "up" | "down" | "left" | "right"): void;
   getNodePositions(): Map<string, { x: number; y: number }>;
+  /**
+   * Centers the viewport on a node's TARGET position and zooms out just far
+   * enough for its circle to fit (never zooms in — the user's zoom level is
+   * context). Instant like zoomToFit, no camera tween: the position animation
+   * glides the content into the frame instead. Unfold/collapse camera-follow.
+   */
+  revealNode(id: string, paddingPx?: number): void;
   nodeAtClient(clientX: number, clientY: number): string | null;
   clientToWorld(clientX: number, clientY: number): { x: number; y: number };
   requestRender(): void;
@@ -1343,6 +1350,20 @@ export function createGraphScene(
         x: (w - spanX * k) / 2 - minX * k,
         y: (h - spanY * k) / 2 - minY * k,
       };
+      depsRef.current.onZoomChange?.(k);
+      requestRender();
+    },
+    revealNode(id, paddingPx = 60) {
+      const n = nodeById.get(id);
+      if (!n || n.hidden) return;
+      const { w, h } = cssSize();
+      if (w <= 4 || h <= 4) return;
+      // Target geometry: the camera lands where the node is HEADING, and the
+      // position/radius animation glides the content into the frame.
+      const r = Math.max(1, n.tsize);
+      const fitK = Math.min((w - paddingPx * 2) / (2 * r), (h - paddingPx * 2) / (2 * r));
+      const k = Math.min(transform.k, Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, fitK)));
+      transform = { k, x: w / 2 - n.x * k, y: h / 2 - n.y * k };
       depsRef.current.onZoomChange?.(k);
       requestRender();
     },

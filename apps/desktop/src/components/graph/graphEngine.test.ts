@@ -469,6 +469,31 @@ describe("graphEngine containers", () => {
     expect(scene.getNodePositions().get("out.md")).toEqual({ x: 100, y: 200 });
   });
 
+  it("revealNode centers the target and only zooms OUT when the circle would not fit", () => {
+    // Small node, current zoom 1: keep the zoom, just center (800x600 canvas).
+    scene.setData(
+      [
+        { id: "folder:P", label: "P", shape: "folder", container: true, size: 100, x: 1000, y: 500 },
+        { id: "big", label: "big", shape: "folder", container: true, size: 400, x: -2000, y: 0 },
+      ],
+      []
+    );
+    scene.setTransform({ x: 0, y: 0, k: 1 });
+    scene.revealNode("folder:P");
+    expect(scene.getTransform()).toMatchObject({ k: 1, x: 400 - 1000, y: 300 - 500 });
+
+    // Huge container: zoom out just enough (min((800-120)/800, (600-120)/800) = 0.6).
+    scene.revealNode("big");
+    const t = scene.getTransform();
+    expect(t.k).toBeCloseTo(0.6, 5);
+    expect(t.x).toBeCloseTo(400 - -2000 * 0.6, 5);
+    expect(t.y).toBeCloseTo(300 - 0 * 0.6, 5);
+
+    // Unknown or hidden ids are a no-op.
+    scene.revealNode("ghost");
+    expect(scene.getTransform().k).toBeCloseTo(0.6, 5);
+  });
+
   it("keeps arrow-key navigation on regular nodes and exports container rims as unfilled SVG circles", () => {
     scene.setKeyboardFocus("P/a.md");
     scene.moveFocus("right");

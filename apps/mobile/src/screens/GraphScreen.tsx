@@ -38,6 +38,9 @@ export function GraphScreen({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<GraphScene | null>(null);
   const depsRef = useRef<GraphEngineDeps>({});
+  // Camera follow for fold/unfold: the tapped folder id, consumed by the
+  // next scene rebuild.
+  const pendingRevealRef = useRef<string | null>(null);
   const [data, setData] = useState<{ graph: VaultGraph; overview: FolderOverview } | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -72,7 +75,11 @@ export function GraphScreen({
     depsRef.current.onNodeClick = (id) => {
       if (!id) return;
       if (id.startsWith("folder:")) {
+        // Toggle + camera follow: the tapped folder (bubble or container rim)
+        // moves into the viewport after the rebuild instead of the map
+        // landing at an arbitrary spot (feedback 2026-07-14).
         const folder = id.slice(7);
+        pendingRevealRef.current = id;
         setExpanded((prev) => {
           const next = new Set(prev);
           if (next.has(folder)) next.delete(folder);
@@ -154,7 +161,8 @@ export function GraphScreen({
   }, [data]);
 
   // Scene data: rebuilt on expand/collapse and search; the fit runs only on
-  // the first build so panning/expanding never yanks the viewport.
+  // the first build so panning/expanding never yanks the viewport — except
+  // the camera FOLLOWS a just-toggled folder (pendingRevealRef).
   const fittedRef = useRef(false);
   useEffect(() => {
     const scene = sceneRef.current;
@@ -179,6 +187,11 @@ export function GraphScreen({
     if (!fittedRef.current) {
       fittedRef.current = true;
       scene.zoomToFit(30);
+    }
+    const reveal = pendingRevealRef.current;
+    if (reveal) {
+      pendingRevealRef.current = null;
+      scene.revealNode(reveal, 40);
     }
   }, [data, expanded, query, okfType, tagPaths, edgeKinds]);
 

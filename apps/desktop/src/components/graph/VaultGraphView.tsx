@@ -104,6 +104,9 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const sceneRef = useRef<GraphScene | null>(null);
   const depsRef = useRef<GraphEngineDeps>({});
   const fitOnceRef = useRef(false);
+  // Camera follow for fold/unfold: the toggled folder id, consumed by the
+  // next setData; "@fit" refits everything (expand/collapse all).
+  const pendingRevealRef = useRef<string | null>(null);
 
   // ---- data -------------------------------------------------------------------
 
@@ -254,8 +257,11 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       onNodeDoubleClick: (id) => {
         if (id.startsWith("folder:")) {
           // Toggle: a collapsed bubble unfolds into a container circle; a
-          // double-click on the container RIM (the only hit zone) folds it back.
+          // double-click on the container RIM (the only hit zone) folds it
+          // back. The camera follows the toggled folder (feedback 2026-07-14:
+          // unfolding used to leave the viewport at an arbitrary spot).
           const folder = id.slice(7);
+          pendingRevealRef.current = id;
           setExpanded((prev) => {
             const next = new Set(prev);
             if (next.has(folder)) next.delete(folder);
@@ -381,6 +387,12 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     if (!fitOnceRef.current) {
       scene.zoomToFit();
       fitOnceRef.current = true;
+    }
+    const reveal = pendingRevealRef.current;
+    if (reveal) {
+      pendingRevealRef.current = null;
+      if (reveal === "@fit") scene.zoomToFit();
+      else scene.revealNode(reveal);
     }
   }, [flaggedScene]);
 
@@ -516,8 +528,14 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
 
   const expandAllFolders = useCallback(() => {
     if (!data) return;
+    pendingRevealRef.current = "@fit";
     setExpanded(new Set(data.overview.folders.map((f) => f.folder)));
   }, [data]);
+
+  const collapseAllFolders = useCallback(() => {
+    pendingRevealRef.current = "@fit";
+    setExpanded(new Set());
+  }, []);
 
   const exportScene = useCallback(
     async (format: "png" | "svg") => {
@@ -834,7 +852,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           {t("graph.expandAll", { defaultValue: "Alles entfalten" })}
         </button>
         {expanded.size > 0 && (
-          <button className="pv-btn pv-btn--ghost pv-btn--sm" onClick={() => setExpanded(new Set())} data-testid="graph-collapse-all">
+          <button className="pv-btn pv-btn--ghost pv-btn--sm" onClick={collapseAllFolders} data-testid="graph-collapse-all">
             {t("graph.collapseAll", { defaultValue: "Alle Ordner einklappen" })}
           </button>
         )}
@@ -883,17 +901,21 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         <GraphFolderMenu
           state={folderMenu}
           onClose={() => setFolderMenu(null)}
-          onToggleExpand={() =>
+          onToggleExpand={() => {
+            pendingRevealRef.current = `folder:${folderMenu.folder}`;
             setExpanded((prev) => {
               const next = new Set(prev);
               if (next.has(folderMenu.folder)) next.delete(folderMenu.folder);
               else next.add(folderMenu.folder);
               return next;
-            })
-          }
-          onExpandOnlyThis={() => setExpanded(new Set([folderMenu.folder]))}
+            });
+          }}
+          onExpandOnlyThis={() => {
+            pendingRevealRef.current = `folder:${folderMenu.folder}`;
+            setExpanded(new Set([folderMenu.folder]));
+          }}
           onFocusFolder={() => setFocus({ seed: `folder:${folderMenu.folder}`, depth: 1 })}
-          onCollapseAll={() => setExpanded(new Set())}
+          onCollapseAll={collapseAllFolders}
         />
       )}
       {edgeMenu && (
