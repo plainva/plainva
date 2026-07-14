@@ -1,5 +1,5 @@
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force";
-import { hierarchy, pack, packEnclose } from "d3-hierarchy";
+import { hierarchy, pack, packEnclose, packSiblings } from "d3-hierarchy";
 
 /**
  * Deterministic layouts for the graph views (decision E6): d3-force runs
@@ -56,7 +56,21 @@ export interface LayoutResult {
 export function computeForceLayout(
   nodes: ForceLayoutNode[],
   edges: ForceLayoutEdge[],
-  opts: { seed: string; iterations?: number; spread?: number; stableStarts?: boolean }
+  opts: {
+    seed: string;
+    iterations?: number;
+    spread?: number;
+    stableStarts?: boolean;
+    /** Pre-seeded start positions (id -> point); missing ids fall back to the ring. */
+    starts?: Map<string, { x: number; y: number }>;
+    /**
+     * Refinement mode for heterogenous circle packing (vault-map levels):
+     * springs rest at rim-to-rim distance instead of center-to-center (a small
+     * bubble linked to a huge container settles at its rim, not inside it),
+     * charge softens and centering strengthens so a dense start stays dense.
+     */
+    packedLayout?: boolean;
+  }
 ): LayoutResult {
   const random = createSeededRandom(hashSeed(opts.seed));
   const spread = opts.spread ?? 60;
@@ -66,6 +80,7 @@ export function computeForceLayout(
     // stableStarts hashes the start from the node ID instead, so adding or
     // removing one node no longer shifts every other start position — a small
     // index update moves the map a little, not "wildly everywhere" (vault map).
+    const start = opts.starts?.get(n.id);
     let angle: number;
     let radius: number;
     if (opts.stableStarts) {
@@ -79,8 +94,8 @@ export function computeForceLayout(
     return {
       id: n.id,
       index: i,
-      x: n.fx ?? Math.cos(angle) * radius,
-      y: n.fy ?? Math.sin(angle) * radius,
+      x: n.fx ?? start?.x ?? Math.cos(angle) * radius,
+      y: n.fy ?? start?.y ?? Math.sin(angle) * radius,
       fx: n.fx,
       fy: n.fy,
       size: n.size,
@@ -91,18 +106,23 @@ export function computeForceLayout(
     .filter((e) => idSet.has(e.source) && idSet.has(e.target) && e.source !== e.target)
     .map((e) => ({ source: e.source, target: e.target }));
 
+  const packed = opts.packedLayout === true;
   const sim = forceSimulation(simNodes as any)
     .randomSource(random)
     .force(
       "link",
       forceLink(simEdges as any)
         .id((d: any) => d.id)
-        .distance(spread * 1.6)
-        .strength(0.4)
+        .distance(
+          packed
+            ? (l: any) => (l.source.size ?? 8) + (l.target.size ?? 8) + spread * 0.9
+            : spread * 1.6
+        )
+        .strength(packed ? 0.25 : 0.4)
     )
-    .force("charge", forceManyBody().strength(-spread * 2.5))
-    .force("x", forceX(0).strength(0.05))
-    .force("y", forceY(0).strength(0.05))
+    .force("charge", forceManyBody().strength(packed ? -spread * 1.2 : -spread * 2.5))
+    .force("x", forceX(0).strength(packed ? 0.08 : 0.05))
+    .force("y", forceY(0).strength(packed ? 0.08 : 0.05))
     .force(
       "collide",
       forceCollide()
@@ -352,23 +372,43 @@ export function packHierarchy(
     const kids = [...children].sort((a, b) => a.id.localeCompare(b.id)).map((c) => ({ id: c.id, size: sizeOfChild(c) }));
     if (kids.length === 0) return new Map();
     if (kids.length === 1) return new Map([[kids[0].id, { x: 0, y: 0 }]]);
+    const gap = Math.min(padding, 8);
+
+    // 1) Deterministic dense packing as the base arrangement: biggest children
+    //    in the center, small ones around them (size order, id tie-break).
+    //    This is what keeps a level COMPACT no matter how heterogenous the
+    //    radii are — the old ring starts overlapped a freshly unfolded huge
+    //    sub-container and the collision force catapulted the siblings far out
+    //    (feedback 2026-07-14: "parent bubble becomes gigantic").
+    //    packSiblings appends along a spiral, so a new small child lands at
+    //    the rim without moving the existing ones — calm across rebuilds.
+    const packOrder = [...kids].sort((a, b) => b.size - a.size || a.id.localeCompare(b.id));
+    const circles = packOrder.map((k) => ({ id: k.id, r: k.size + gap, x: 0, y: 0 }));
+    packSiblings(circles);
+    const packedPos = new Map(circles.map((c) => [c.id, { x: c.x, y: c.y }]));
+
+    // 2) No links inside this level -> the dense pack IS the layout.
+    const edgesAtLevel = levelEdges.get(levelId) ?? [];
+    if (edgesAtLevel.length === 0) return packedPos;
+
+    // 3) Link-aware refinement FROM the packed starts (hybrid decision):
+    //    rim-to-rim springs pull linked children next to each other while the
+    //    softened charge/strong centering keep the arrangement dense.
     const avg = kids.reduce((s, k) => s + k.size, 0) / kids.length;
     const spread = Math.min(70, Math.max(24, avg * 1.5));
-    const forced = computeForceLayout(kids, levelEdges.get(levelId) ?? [], {
+    const forced = computeForceLayout(kids, edgesAtLevel, {
       seed: `${opts.seed}:${levelId}`,
       spread,
-      // Hash-per-id starts: an index update (one note more or less) must not
-      // reshuffle the whole level — the map stays calm across rebuilds.
-      stableStarts: true,
+      starts: packedPos,
+      packedLayout: true,
     }).positions;
-    // Tighten residual overlaps with the real radii (the force run separates
-    // via collide, this pass guarantees it with the exact sizes).
+    // 4) Exact separation with the real radii.
     return resolveCollisions(
       kids.map((k) => {
         const p = forced.get(k.id)!;
         return { id: k.id, x: p.x, y: p.y, size: k.size };
       }),
-      { seed: `${opts.seed}:c:${levelId}`, padding: Math.min(padding, 8) }
+      { seed: `${opts.seed}:c:${levelId}`, padding: gap }
     );
   };
 

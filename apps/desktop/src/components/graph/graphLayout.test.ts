@@ -265,6 +265,38 @@ describe("packHierarchy", () => {
     expect(d("F/a.md", "F/b.md")).toBeLessThan(d("F/a.md", "F/f.md"));
   });
 
+  it("keeps a level dense when a huge sub-container sits among small siblings", () => {
+    // Feedback 2026-07-14 ("parent bubble becomes gigantic"): unfolding a big
+    // sub-container used to catapult the small siblings far out (ring starts
+    // overlapped the giant, the collision force threw them away) and the
+    // enclosing parent circle exploded. The dense packSiblings base keeps the
+    // level compact — with and without links on the level.
+    const subNotes = Array.from({ length: 24 }, (_, i) => leaf(`A/Sub/n${i}.md`, 7));
+    const smalls = Array.from({ length: 8 }, (_, i) => leaf(`A/s${i}.md`, 8));
+    const tree = [container("folder:A", [container("folder:A/Sub", subNotes), ...smalls])];
+
+    const noLinks = packHierarchy(tree, [], { seed: "dense" });
+    const subR = noLinks.radii.get("folder:A/Sub")!;
+    expectEnclosed(
+      noLinks,
+      "folder:A",
+      [{ id: "folder:A/Sub", r: subR }, ...smalls.map((s) => ({ id: (s as { id: string }).id, r: 8 }))]
+    );
+    // Near the packing optimum: the giant plus one ring of small siblings.
+    expect(noLinks.radii.get("folder:A")!).toBeLessThan(subR * 2);
+
+    const withLinks = packHierarchy(
+      tree,
+      [
+        { source: "A/s0.md", target: "A/Sub/n0.md" },
+        { source: "A/s1.md", target: "A/Sub/n1.md" },
+        { source: "A/s2.md", target: "A/s3.md" },
+      ],
+      { seed: "dense" }
+    );
+    expect(withLinks.radii.get("folder:A")!).toBeLessThan(withLinks.radii.get("folder:A/Sub")! * 2.2);
+  });
+
   it("keeps a pinned leaf exactly at its pin and grows the container around it", () => {
     const tree = [
       container("folder:P", [leaf("P/a.md", 8, { x: 900, y: -400 }), leaf("P/b.md", 8), leaf("P/c.md", 8)]),
