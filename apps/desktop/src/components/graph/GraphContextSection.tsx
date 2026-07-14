@@ -126,7 +126,8 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
         }
 
         if (alive) {
-          setData({ neighborhood, graph, suggestions });
+          // Always hidden in the context graph — no toggle in this view.
+          setData({ neighborhood, graph, suggestions, showIndexNotes: false });
           setPreviews(previewMap);
         }
       } catch {

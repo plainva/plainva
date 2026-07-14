@@ -1312,6 +1312,7 @@
     "kindRelations": "Relations",
     "kindEmbeds": "Embeds",
     "focusOn": "Focus on selection",
+    "showIndexNotes": "Show index.md",
     "focusActive": "Focus (depth {{depth}})",
     "focusDepth": "Focus depth",
     "focusOff": "Clear focus",

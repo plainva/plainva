@@ -107,6 +107,8 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
       pins: graphState?.getPins(pinContext) ?? {},
       seed: pinContext,
       labelForKey: (k) => columnLabel(k, t, dbConfig),
+      // Always hidden in the base graph view — no toggle in this view.
+      showIndexNotes: false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, dbData, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, graphState, pinContext, pinsTick]);

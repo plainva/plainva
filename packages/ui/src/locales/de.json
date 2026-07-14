@@ -1312,6 +1312,7 @@
     "kindRelations": "Relationen",
     "kindEmbeds": "Embeds",
     "focusOn": "Fokus auf Auswahl",
+    "showIndexNotes": "index.md anzeigen",
     "focusActive": "Fokus (Tiefe {{depth}})",
     "focusDepth": "Fokus-Tiefe",
     "focusOff": "Fokus aufheben",

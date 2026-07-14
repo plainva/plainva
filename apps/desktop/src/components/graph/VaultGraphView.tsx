@@ -74,6 +74,11 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   }, [showFilters]);
   const [tagPaths, setTagPaths] = useState<Set<string> | null>(null);
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(new Set(DEFAULT_EDGE_KINDS));
+  // Managed index.md/log.md are hidden by default (they link to everything);
+  // the toggle is remembered device-locally.
+  const [showIndexNotes, setShowIndexNotes] = useState<boolean>(
+    () => typeof localStorage !== "undefined" && localStorage.getItem("plainva-graph-show-index") === "1"
+  );
   const [focus, setFocus] = useState<{ seed: string; depth: number } | null>(null);
   const [overlayMode, setOverlayMode] = useState<"normal" | "heatmap" | "replay">("normal");
   // Sampled ONCE when the heatmap toggles on (render must stay pure).
@@ -184,12 +189,13 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       icons: data.icons,
       filters: { query: query.trim().toLowerCase(), okfType, tagPaths, edgeKinds },
       focus,
+      showIndexNotes,
       overlay,
       seed: `vault:${vaultPath ?? ""}:${hashSeed(vaultPath ?? "")}`,
     });
     // pinsTick re-runs after drag-pinning.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, expanded, query, okfType, tagPaths, edgeKinds, focus, overlay, graphState, vaultPath, pinsTick]);
+  }, [data, expanded, query, okfType, tagPaths, edgeKinds, focus, showIndexNotes, overlay, graphState, vaultPath, pinsTick]);
 
   // Cleanup overlay flags ride on top of the scene (P7).
   const flaggedScene: VaultMapScene | null = useMemo(() => {
@@ -653,6 +659,19 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
                   {label}
                 </label>
               ))}
+              <label className="pv-checkrow" style={{ gap: "var(--space-1)", fontSize: "var(--text-sm)" }}>
+                <input
+                  type="checkbox"
+                  className="pv-check"
+                  checked={showIndexNotes}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setShowIndexNotes(on);
+                    if (typeof localStorage !== "undefined") localStorage.setItem("plainva-graph-show-index", on ? "1" : "0");
+                  }}
+                />
+                {t("graph.showIndexNotes", { defaultValue: "index.md anzeigen" })}
+              </label>
             </div>
           )}
         </span>

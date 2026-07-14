@@ -164,6 +164,26 @@ describe("buildVaultMapScene", () => {
     expect(visible).toContain("P/b.md");
   });
 
+  it("hides OKF reserved notes (index.md/log.md) by default and reveals them on demand", () => {
+    const withIndex = [node("root.md"), node("P/a.md"), node("P/index.md"), node("P/log.md")];
+    const withIndexEdges = [edge("P/a.md", "P/index.md"), edge("P/a.md", "root.md")];
+
+    const hidden = buildVaultMapScene(inputOf(withIndex, withIndexEdges, { expanded: new Set(["P"]) }));
+    const hiddenIds = new Set(hidden.nodes.map((n) => n.id));
+    expect(hiddenIds.has("P/index.md")).toBe(false);
+    expect(hiddenIds.has("P/log.md")).toBe(false);
+    expect(hiddenIds.has("P/a.md")).toBe(true);
+    // The index.md's edge to a.md is dropped with it.
+    expect(hidden.edges.some((e) => [e.source, e.target].includes("P/index.md"))).toBe(false);
+
+    const shown = buildVaultMapScene(
+      inputOf(withIndex, withIndexEdges, { expanded: new Set(["P"]), showIndexNotes: true })
+    );
+    const shownIds = new Set(shown.nodes.map((n) => n.id));
+    expect(shownIds.has("P/index.md")).toBe(true);
+    expect(shownIds.has("P/log.md")).toBe(true);
+  });
+
   it("heatmap sets recency heat; replay hides notes newer than the cutoff", () => {
     const DAY = 24 * 60 * 60 * 1000;
     const now = 1000 * DAY;

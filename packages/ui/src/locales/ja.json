@@ -1310,6 +1310,7 @@
     "kindRelations": "リレーション",
     "kindEmbeds": "埋め込み",
     "focusOn": "選択にフォーカス",
+    "showIndexNotes": "index.md を表示",
     "focusActive": "フォーカス（深さ {{depth}}）",
     "focusDepth": "フォーカスの深さ",
     "focusOff": "フォーカス解除",

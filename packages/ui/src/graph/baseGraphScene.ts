@@ -1,4 +1,5 @@
 import type { VaultGraph } from "@plainva/core";
+import { isReservedOkfName } from "@plainva/core";
 import { computeForceLayout, logRadius } from "@plainva/ui";
 import type { SceneEdge, SceneNode } from "@plainva/ui";
 
@@ -24,13 +25,19 @@ export interface BaseGraphSceneInput {
   seed: string;
   /** Localized edge label for a relation property key (defaults to the raw key). */
   labelForKey?: (key: string) => string;
+  /** When not true, OKF-reserved notes (index.md, log.md) are hidden as row/external nodes. */
+  showIndexNotes?: boolean;
 }
 
 /** Pure scene construction for the base graph view (unit-tested). */
 export function buildBaseGraphScene(input: BaseGraphSceneInput): { nodes: SceneNode[]; edges: SceneEdge[] } {
-  const { rows, graph, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, pins, seed } = input;
+  const { rows, graph, edgeKeys, showWikiLinks, showExternal, showIncoming, colorBy, sizeBy, pins, seed, showIndexNotes } = input;
   const relLabel = input.labelForKey ?? ((k: string) => k);
-  const rowPaths = new Set<string>(rows.map((r) => String(r["file.path"] ?? "")).filter(Boolean));
+  const rowPaths = new Set<string>(
+    rows
+      .map((r) => String(r["file.path"] ?? ""))
+      .filter((path) => path && (showIndexNotes || !isReservedOkfName(path)))
+  );
 
   // Color mapping: distinct select values -> chip indices in first-seen order.
   const colorIndex = new Map<string, number>();
@@ -90,6 +97,7 @@ export function buildBaseGraphScene(input: BaseGraphSceneInput): { nodes: SceneN
     edges.push(edge);
   };
   for (const e of graph.edges) {
+    if (!showIndexNotes && (isReservedOkfName(e.source) || isReservedOkfName(e.target))) continue;
     const sourceInRows = rowPaths.has(e.source);
     const targetInRows = rowPaths.has(e.target);
     if (sourceInRows) {

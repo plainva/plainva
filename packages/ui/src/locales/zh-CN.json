@@ -1310,6 +1310,7 @@
     "kindRelations": "关联",
     "kindEmbeds": "嵌入",
     "focusOn": "聚焦所选",
+    "showIndexNotes": "显示 index.md",
     "focusActive": "聚焦（深度 {{depth}}）",
     "focusDepth": "聚焦深度",
     "focusOff": "取消聚焦",

@@ -1,4 +1,5 @@
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
+import { isReservedOkfName } from "@plainva/core";
 import { computeForceLayout, logRadius, packCircles, resolveCollisions } from "./graphLayout";
 import type { SceneEdge, SceneEdgeStyle, SceneNode } from "./graphTypes";
 
@@ -46,6 +47,9 @@ export interface VaultMapInput {
   focus: VaultMapFocus | null;
   overlay: VaultMapOverlay;
   seed: string;
+  /** Show OKF reserved notes (index.md/log.md). Default false — they are
+   *  folder-listing infrastructure and link to everything, cluttering the graph. */
+  showIndexNotes?: boolean;
 }
 
 export interface VaultMapScene {
@@ -99,6 +103,7 @@ export function effectiveDate(path: string, graph: VaultGraph, dates: Map<string
 
 export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   const { graph, overview, expanded, pins, icons, filters, focus, overlay, seed } = input;
+  const hideReserved = input.showIndexNotes !== true;
 
   // ---- representatives -------------------------------------------------------
   const noteReps = new Map<string, string>(); // note path -> rep id
@@ -106,6 +111,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   let noteCount = 0;
   for (const node of graph.nodes.values()) {
     if (node.mode === "attachment") continue;
+    if (hideReserved && isReservedOkfName(node.path)) continue;
     noteCount++;
     const rep = representativeOf(node.path, node.folder, expanded);
     noteReps.set(node.path, rep);
@@ -120,6 +126,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   // notes. Summed once (O(E)); the same sizes feed the collision relaxation.
   const degree = new Map<string, number>();
   for (const e of graph.edges) {
+    if (hideReserved && (isReservedOkfName(e.source) || isReservedOkfName(e.target))) continue;
     degree.set(e.source, (degree.get(e.source) ?? 0) + (e.count ?? 1));
     degree.set(e.target, (degree.get(e.target) ?? 0) + (e.count ?? 1));
   }
@@ -231,6 +238,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   let linkTotal = 0;
   for (const e of graph.edges) {
     if (!filters.edgeKinds.has(e.kind)) continue;
+    if (hideReserved && (isReservedOkfName(e.source) || isReservedOkfName(e.target))) continue;
     linkTotal += e.count;
     const s = noteReps.get(e.source) ?? e.source;
     const t = noteReps.get(e.target) ?? e.target;

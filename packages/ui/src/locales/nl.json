@@ -1312,6 +1312,7 @@
     "kindRelations": "Relaties",
     "kindEmbeds": "Insluitingen",
     "focusOn": "Focus op selectie",
+    "showIndexNotes": "index.md tonen",
     "focusActive": "Focus (diepte {{depth}})",
     "focusDepth": "Focusdiepte",
     "focusOff": "Focus opheffen",

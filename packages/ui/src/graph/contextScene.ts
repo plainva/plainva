@@ -1,4 +1,5 @@
 import type { GraphNeighborhood, GraphSuggestion, VaultGraph } from "@plainva/core";
+import { isReservedOkfName } from "@plainva/core";
 import { arcPositions, logRadius, resolveCollisions } from "./graphLayout";
 import type { SceneEdge, SceneNode } from "./graphTypes";
 
@@ -11,6 +12,8 @@ export interface ContextData {
   neighborhood: GraphNeighborhood;
   graph: VaultGraph;
   suggestions: GraphSuggestion[];
+  /** When not true, OKF-reserved notes (index.md, log.md) are hidden as neighbor/zone nodes. */
+  showIndexNotes?: boolean;
 }
 
 const MAX_PER_ZONE = 8;
@@ -29,7 +32,7 @@ export function buildContextScene(
   activePath: string,
   pins: Record<string, { x: number; y: number }> = {}
 ): { nodes: SceneNode[]; edges: SceneEdge[] } {
-  const { neighborhood, graph } = data;
+  const { neighborhood, graph, showIndexNotes } = data;
   const centerInfo = graph.nodes.get(activePath);
   const nodes: SceneNode[] = [];
   const edges: SceneEdge[] = [];
@@ -98,7 +101,13 @@ export function buildContextScene(
   if (isIndexNote) {
     const ownFolder = folder;
     const children = [...graph.nodes.values()]
-      .filter((n) => n.folder === ownFolder && n.path !== activePath && n.mode !== "attachment")
+      .filter(
+        (n) =>
+          n.folder === ownFolder &&
+          n.path !== activePath &&
+          n.mode !== "attachment" &&
+          (showIndexNotes || !isReservedOkfName(n.path))
+      )
       .slice(0, MAX_PER_ZONE);
     const positions = arcPositions(children.length, {
       centerX: 0,
@@ -130,8 +139,10 @@ export function buildContextScene(
   for (const e of neighborhood.edges) {
     const style: SceneEdge["style"] = e.kind === "property" ? "property" : e.kind === "embed" ? "embed" : "link";
     if (e.target === activePath && e.source !== activePath) {
+      if (!showIndexNotes && isReservedOkfName(e.source)) continue;
       incoming.push({ path: e.source, label: e.propertyKey ?? undefined, style, width: e.count });
     } else if (e.source === activePath && e.target !== activePath) {
+      if (!showIndexNotes && isReservedOkfName(e.target)) continue;
       outgoing.push({ path: e.target, label: e.propertyKey ?? undefined, style, width: e.count });
     }
   }
