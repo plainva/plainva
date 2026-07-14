@@ -233,7 +233,7 @@ export class VaultQueryService {
       JOIN files f ON f.id = l.source_id
       WHERE l.target_path LIKE ? ESCAPE '\\'
     `;
-    const likeQuery = `%${targetBasename?.replace(/[%_]/g, '\\$&')}%`;
+    const likeQuery = `%${targetBasename?.replace(/[\\%_]/g, '\\$&')}%`;
     const candidateLinks = await this.db.query<LinkRecord>(sql, [likeQuery]);
 
     // 2. Fetch all file paths to resolve links correctly

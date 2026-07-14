@@ -265,7 +265,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
   /** Folder lookup by name under a parent — null when it does not exist. */
   private async findFolder(name: string, parentId: string): Promise<string | null> {
-    const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
+    const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
     const listUrl = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`;
     const res = await this.authedFetch("GET", listUrl);
     if (!res.ok) throw new Error(`Drive folder lookup failed: ${res.status} ${res.statusText}`);
@@ -368,7 +368,7 @@ export class DriveSyncTarget implements ISyncTarget {
     // the folder object and Drive deletes it recursively).
     const parentId = await this.resolveFolderIdReadOnly(folder);
     if (parentId === null) return null;
-    const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
+    const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
     const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)`;
     const res = await this.authedFetch("GET", url);
     if (!res.ok) throw new Error(`Drive file lookup failed: ${res.status} ${res.statusText}`);

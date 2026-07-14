@@ -259,7 +259,7 @@ describe("S3SyncTarget", () => {
         if (url.includes("continuation-token=tok-1")) {
           return res({ body: prefixesXml("", ["alpha/"]) });
         }
-        return res({ body: prefixesXml("", ["vault/", "media%test/".replace("%", "&amp;")], "tok-1") });
+        return res({ body: prefixesXml("", ["vault/", "media&amp;test/"], "tok-1") });
       });
       const names = await target.listFolders("");
       expect(names).toEqual(["alpha", "media&test", "vault"]);

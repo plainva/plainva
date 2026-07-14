@@ -42,7 +42,14 @@ export function BaseGalleryView({
     <div style={{ position: "relative" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem", padding: "1rem" }}>
         {dbData.map((row, idx) => {
-          const coverUrl = coverImageProperty && row[coverImageProperty] ? String(row[coverImageProperty]) : null;
+          const coverRaw = coverImageProperty && row[coverImageProperty] ? String(row[coverImageProperty]) : null;
+          // A foreign vault could put an unsafe scheme in the cover property. An
+          // <img> never executes javascript:, but keep the src to safe schemes:
+          // a relative path (no scheme) or an http(s)/blob/data-image URL.
+          const coverUrl =
+            coverRaw && (!/^[a-z][a-z0-9+.-]*:/i.test(coverRaw.trim()) || /^(?:https?:|blob:|data:image\/)/i.test(coverRaw.trim()))
+              ? coverRaw
+              : null;
           return (
             <div
               key={row['file.path'] || idx}
