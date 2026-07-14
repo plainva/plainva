@@ -14,6 +14,9 @@
   --accent-color: #0033CC;
   --accent-color-hover: #001F80;
   --accent-on: #FFFFFF;
+  /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
+  --graph-glow-intensity: 0;
+  --graph-edge-curvature: 0;
   --border-color: #000000;
   --border-color-light: #4D4D4D;
   --error-bg: #FFE8E8;
@@ -55,6 +58,9 @@
   --accent-color: #FFD500;
   --accent-color-hover: #FFE866;
   --accent-on: #000000;
+  /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
+  --graph-glow-intensity: 0;
+  --graph-edge-curvature: 0;
   --border-color: #FFFFFF;
   --border-color-light: #B3B3B3;
   --error-bg: #330000;

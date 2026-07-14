@@ -28,6 +28,9 @@
   --accent-color: #000080;
   --accent-color-hover: #1F1F9E;
   --accent-on: #FFFFFF;
+  /* Graph: flat theme — no node glow, straight (uncurved) edges. */
+  --graph-glow-intensity: 0;
+  --graph-edge-curvature: 0;
   --border-color: #808080;
   --border-color-light: #A6A6A6;
   --error-bg: #FFE4E4;

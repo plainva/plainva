@@ -27,6 +27,16 @@ export interface GraphThemeTokens {
   chips: { bg: string; fg: string }[];
   statusError: string;
   statusWarning: string;
+  /** Accent pre-mixed with a fixed alpha (0.30 / 0) for glow rings and halos —
+   *  computed once per theme change so the canvas never parses colors per frame. */
+  accentGlowStrong: string;
+  accentGlowSoft: string;
+  /** 0 = all decorative effects (glow, gradient highlight) off; default 1.
+   *  Win95 / high-contrast set 0; phosphor / LCARS may set >1. */
+  glowIntensity: number;
+  /** Quadratic edge bend as a fraction of node distance; 0 = straight edges
+   *  (retro/utilitarian themes), default ~0.16. */
+  edgeCurvature: number;
 }
 
 const THEME_ATTRIBUTES = ["data-theme", "data-theme-name", "data-theme-variant", "data-density"];
@@ -35,22 +45,61 @@ let cache: GraphThemeTokens | null = null;
 let observer: MutationObserver | null = null;
 const listeners = new Set<() => void>();
 
+/**
+ * Parses a #rgb / #rrggbb / rgb() / rgba() theme color into an rgba() string
+ * with the given alpha. Runs once per theme change (not per frame) so glow
+ * gradients can fade to transparent without a color literal in the canvas code.
+ */
+function toRgba(color: string, alpha: number): string {
+  const c = color.trim();
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  const hex = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const h = hex[1];
+    if (h.length === 3) {
+      r = parseInt(h[0] + h[0], 16);
+      g = parseInt(h[1] + h[1], 16);
+      b = parseInt(h[2] + h[2], 16);
+    } else {
+      r = parseInt(h.slice(0, 2), 16);
+      g = parseInt(h.slice(2, 4), 16);
+      b = parseInt(h.slice(4, 6), 16);
+    }
+  } else {
+    const m = c.match(/rgba?\(([^)]+)\)/i);
+    if (m) {
+      const parts = m[1].split(",").map((p) => Number.parseFloat(p));
+      r = parts[0] || 0;
+      g = parts[1] || 0;
+      b = parts[2] || 0;
+    }
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function read(): GraphThemeTokens {
   const style = getComputedStyle(document.documentElement);
   const v = (name: string) => style.getPropertyValue(name).trim();
+  const readNumber = (name: string, fallback: number): number => {
+    const n = Number.parseFloat(v(name));
+    return Number.isFinite(n) ? n : fallback;
+  };
   const chips: { bg: string; fg: string }[] = [];
   for (let i = 0; i < 8; i++) {
     chips.push({ bg: v(`--chip-${i}-bg`), fg: v(`--chip-${i}-fg`) });
   }
   const durRaw = v("--dur-2");
   const durationMs = Number.parseFloat(durRaw) || 180;
+  const accent = v("--accent-color");
   return {
     bgPrimary: v("--bg-primary"),
     bgSecondary: v("--bg-secondary"),
     textMain: v("--text-main"),
     textMuted: v("--text-muted"),
     textFaint: v("--text-faint"),
-    accent: v("--accent-color"),
+    accent,
     accentOn: v("--accent-on"),
     border: v("--border-color"),
     fontUi: v("--font-ui") || "sans-serif",
@@ -58,6 +107,10 @@ function read(): GraphThemeTokens {
     chips,
     statusError: v("--error-text") || v("--accent-color"),
     statusWarning: v("--warning-text") || v("--accent-color"),
+    accentGlowStrong: toRgba(accent, 0.3),
+    accentGlowSoft: toRgba(accent, 0),
+    glowIntensity: readNumber("--graph-glow-intensity", 1),
+    edgeCurvature: readNumber("--graph-edge-curvature", 0.16),
   };
 }
 
