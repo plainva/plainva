@@ -44,7 +44,9 @@ import {
   redo,
   serializeTable,
   setColumnAlign,
-  templateInsertText,
+  interpolateTemplateBody,
+  extractTemplatePrompts,
+  finalizeTemplate,
   toggleInlineMark,
   toggleLinePrefix,
   undo,
@@ -62,6 +64,7 @@ import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuShee
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { noteSaver, vaultOps, type MobileVault } from "./services/vaultService";
 import { syncSoon } from "./services/syncService";
+import { mPrompt } from "./services/mobileDialogs";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -527,14 +530,23 @@ export function EditorHost({
     setTemplatePick(null);
     void (async () => {
       const raw = await vaultOps.read(vault, item.path);
+      const stem = (path.split("/").pop() ?? "").replace(/\.md$/i, "");
+      // Interpolate the body, then ask for {{prompt:…}} values and resolve the
+      // {{cursor}} caret before inserting.
+      const body = interpolateTemplateBody(raw, stem);
+      const answers: Record<string, string> = {};
+      for (const label of extractTemplatePrompts(body)) {
+        const { value, cancelled } = await mPrompt({ title: label });
+        if (cancelled) return;
+        answers[label] = value ?? "";
+      }
+      const { text, cursor } = finalizeTemplate(body, answers);
       const view = sessionRef.current?.view;
       if (!view || at === null) return;
       const pos = Math.min(at, view.state.doc.length);
-      const stem = (path.split("/").pop() ?? "").replace(/\.md$/i, "");
-      const text = templateInsertText(raw, stem);
       view.dispatch({
         changes: { from: pos, insert: text },
-        selection: { anchor: pos + text.length },
+        selection: { anchor: pos + (cursor ?? text.length) },
         userEvent: "input",
       });
       view.focus();

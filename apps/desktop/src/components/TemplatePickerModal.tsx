@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { templateInsertText, useFocusTrap } from "@plainva/ui";
+import { interpolateTemplateBody, extractTemplatePrompts, finalizeTemplate, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
+import { appPrompt } from "../services/appDialogs";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -61,11 +62,21 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
     try {
       const raw = await vaultAdapter.readTextFile(templatePath);
       // Inserting INTO a note: strip the template's frontmatter (inert
-      // mid-document) and interpolate {{title}} with the hosting note's name.
+      // mid-document), interpolate {{title}} with the hosting note's name, then
+      // ask for any {{prompt:…}} values and resolve the {{cursor}} caret.
       const activePath = activeDocument.get().path;
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
-      const content = templateInsertText(raw, title);
-      window.dispatchEvent(new CustomEvent("plainva-insert-text", { detail: { text: content } }));
+      const body = interpolateTemplateBody(raw, title);
+      const answers: Record<string, string> = {};
+      for (const label of extractTemplatePrompts(body)) {
+        const value = await appPrompt({ title: label });
+        if (value === null) return; // cancelled → abort the insert
+        answers[label] = value;
+      }
+      const { text, cursor } = finalizeTemplate(body, answers);
+      window.dispatchEvent(
+        new CustomEvent("plainva-insert-text", { detail: { text, cursorOffset: cursor ?? undefined } }),
+      );
       onClose();
     } catch (e) {
       console.error("Fehler beim Laden des Templates", e);

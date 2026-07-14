@@ -641,10 +641,11 @@ export const Editor: React.FC<{
 
   useEffect(() => {
     const handleInsertText = (e: Event) => {
-      const customEvent = e as CustomEvent<{ text: string }>;
+      const customEvent = e as CustomEvent<{ text: string; cursorOffset?: number }>;
       const view = sessionRef.current?.view;
       if (view) {
         const textToInsert = customEvent.detail.text;
+        const { cursorOffset } = customEvent.detail;
         const selection = view.state.selection.main;
         view.dispatch({
           changes: {
@@ -652,11 +653,10 @@ export const Editor: React.FC<{
             to: selection.to,
             insert: textToInsert,
           },
-          selection: { anchor: selection.from + textToInsert.length },
+          // A template can mark the caret with {{cursor}}; otherwise land at the end.
+          selection: { anchor: selection.from + (cursorOffset ?? textToInsert.length) },
         });
         view.focus();
-        // Trigger a change to update state since CodeMirror handles it internally but we need content state to reflect it eventually
-        // Actually onChange will fire and update content automatically
       }
     };
     window.addEventListener("plainva-insert-text", handleInsertText);

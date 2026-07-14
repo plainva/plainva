@@ -371,7 +371,20 @@ describe("DropboxSyncTarget.listFolders (settings picker, 2026-07-06)", () => {
   });
 
   it("throws on a failed listing", async () => {
-    const { target } = makeTarget(async () => res({}, { status: 500 }));
-    await expect(target.listFolders("")).rejects.toThrow("Dropbox folder listing failed: 500");
+    // A 500 is a retryable read: fetchWithRetry backs off with real setTimeout
+    // between the (up to 4) attempts. Drive those waits with fake timers so the
+    // test cannot race vitest's 5s timeout under load — this was the flaky-CI
+    // source on main (DropboxSyncTarget.test.ts timeout).
+    vi.useFakeTimers();
+    try {
+      const { target } = makeTarget(async () => res({}, { status: 500 }));
+      const assertion = expect(target.listFolders("")).rejects.toThrow(
+        "Dropbox folder listing failed: 500"
+      );
+      await vi.runAllTimersAsync();
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

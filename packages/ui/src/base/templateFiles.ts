@@ -16,13 +16,56 @@ export type TemplateListAdapter = {
   listDir(path: string): Promise<Array<{ path: string; isDirectory: boolean }>>;
 };
 
-/** Template placeholders ({{date}}, {{time}}, {{title}}) — shared with the
- * editor's template picker so both interpolate identically. */
-export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
+/** Templater-lite tokens resolved at INSERT time — they need per-insert input,
+ * unlike date/time/title: a caret marker and named value prompts. */
+const CURSOR_TOKEN = "{{cursor}}";
+const PROMPT_RE = /\{\{prompt:([^}]+)\}\}/g;
+
+/** date/time/title interpolation only — the always-resolvable placeholders. */
+function interpolateDates(content: string, title: string, now: Date): string {
   return content
     .replace(/{{date}}/g, format(now, "yyyy-MM-dd"))
     .replace(/{{time}}/g, format(now, "HH:mm"))
     .replace(/{{title}}/g, title);
+}
+
+/** Unique {{prompt:Label}} labels in first-seen order — what to ask the user
+ * before an interactive insert. */
+export function extractTemplatePrompts(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of text.matchAll(PROMPT_RE)) {
+    const label = m[1].trim();
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      out.push(label);
+    }
+  }
+  return out;
+}
+
+export interface FinalizedTemplate {
+  /** Text with {{prompt:…}} filled (missing → empty) and every {{cursor}} removed. */
+  text: string;
+  /** Offset of the FIRST {{cursor}} in `text`, or null if there was none. */
+  cursor: number | null;
+}
+
+/** Fills {{prompt:Label}} from `answers` and extracts the first {{cursor}} as a
+ * caret offset; ALL {{cursor}} markers are stripped so no literal token can leak
+ * into a note. Pure — assumes date/title were already interpolated. */
+export function finalizeTemplate(text: string, answers: Record<string, string> = {}): FinalizedTemplate {
+  const filled = text.replace(PROMPT_RE, (_m, label: string) => answers[label.trim()] ?? "");
+  const at = filled.indexOf(CURSOR_TOKEN);
+  return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
+}
+
+/** Placeholders for creating/seeding a note: date/time/title PLUS the
+ * insert-time tokens resolved non-interactively ({{cursor}} stripped,
+ * {{prompt}} blanked) so a "new note from template" never leaves a literal
+ * token behind. Shared with the editor's template picker. */
+export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
+  return finalizeTemplate(interpolateDates(content, title, now)).text;
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */
@@ -49,12 +92,31 @@ export async function listTemplates(adapter: TemplateListAdapter, folder: string
 
 const LEADING_FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 
+/** Interpolated template BODY for an interactive insert: frontmatter stripped,
+ * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
+ * extractTemplatePrompts → ask the user → finalizeTemplate. */
+export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
+  return interpolateDates(raw.replace(LEADING_FRONTMATTER, ""), title, now);
+}
+
+/** Insert-into-note parts WITH caret placement (prompts already answered). */
+export function templateInsertParts(
+  raw: string,
+  title: string,
+  answers: Record<string, string> = {},
+  now: Date = new Date()
+): FinalizedTemplate {
+  return finalizeTemplate(interpolateTemplateBody(raw, title, now), answers);
+}
+
 /**
  * Text a template contributes when inserted INTO an existing note (slash
  * command "insert template"): the template's own frontmatter would be inert
- * garbage mid-document, so it is stripped; placeholders interpolate against
- * the hosting note's title.
+ * garbage mid-document, so it is stripped; placeholders interpolate against the
+ * hosting note's title, and {{cursor}}/{{prompt}} are resolved (stripped/blank)
+ * so they never leak. Callers wanting caret/prompt handling use
+ * templateInsertParts + extractTemplatePrompts.
  */
 export function templateInsertText(raw: string, title: string, now: Date = new Date()): string {
-  return applyTemplatePlaceholders(raw.replace(LEADING_FRONTMATTER, ""), title, now);
+  return templateInsertParts(raw, title, {}, now).text;
 }
