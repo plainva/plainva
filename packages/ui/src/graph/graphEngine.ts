@@ -51,6 +51,9 @@ interface RenderNode extends SceneNode {
   /** Animated current position (lerps toward x/y). */
   cx: number;
   cy: number;
+  /** 0..1 fade-in on first appearance; new nodes ease from transparent. Only
+   *  affects alpha, never position or hit-testing. */
+  appear: number;
 }
 
 const MIN_ZOOM = 0.05;
@@ -99,6 +102,9 @@ export function createGraphScene(
   let keyboardFocus: string | null = null;
   let hoverNode: string | null = null;
   let hoverEdge: string | null = null;
+  // Announce pulse: a brief expanding ring drawn when a node becomes hovered.
+  let pulseNode: string | null = null;
+  let pulseStart = 0;
   let destroyed = false;
   let frame = 0;
   let animFrame = 0;
@@ -221,21 +227,23 @@ export function createGraphScene(
       for (const n of nodes) {
         n.cx = n.x;
         n.cy = n.y;
+        n.appear = 1;
       }
       rebuildIndex();
       requestRender();
       return;
     }
     const duration = tokens.durationMs;
-    const starts = nodes.map((n) => ({ n, sx: n.cx, sy: n.cy }));
+    const starts = nodes.map((n) => ({ n, sx: n.cx, sy: n.cy, sa: n.appear ?? 1 }));
     const t0 = performance.now();
     const step = (now: number) => {
       if (destroyed) return;
       const t = Math.min(1, (now - t0) / duration);
       const ease = 1 - (1 - t) * (1 - t);
-      for (const { n, sx, sy } of starts) {
+      for (const { n, sx, sy, sa } of starts) {
         n.cx = sx + (n.x - sx) * ease;
         n.cy = sy + (n.y - sy) * ease;
+        n.appear = sa + (1 - sa) * ease;
       }
       rebuildIndex();
       draw();
@@ -499,7 +507,7 @@ export function createGraphScene(
       const hovered = hoverNode === n.id;
       const color = nodeColor(n);
       const bloomMul = nodeBloom(n.id);
-      const a0 = n.dimmed ? 0.15 : bloomMul;
+      const a0 = (n.dimmed ? 0.15 : bloomMul) * (n.appear ?? 1);
       ctx.globalAlpha = a0;
 
       // Aura: full for interaction states, subtle for well-connected hubs.
@@ -589,6 +597,32 @@ export function createGraphScene(
         ctx.beginPath();
         ctx.arc(n.cx + n.size * 0.8, n.cy - n.size * 0.8, Math.max(1.5, n.size * 0.14), 0, Math.PI * 2);
         ctx.fill();
+      }
+    }
+
+    // Announce pulse: a brief expanding ring when a node becomes hovered.
+    // Fires once on hover-enter, self-terminates, gated by reduced motion + glow.
+    if (
+      pulseNode &&
+      tokens.glowIntensity > 0 &&
+      depsRef.current.reducedMotion?.() !== true
+    ) {
+      const pn = nodeById.get(pulseNode);
+      const elapsed = performance.now() - pulseStart;
+      const PULSE_DURATION = 260;
+      if (pn && elapsed < PULSE_DURATION) {
+        const p = elapsed / PULSE_DURATION;
+        ctx.save();
+        ctx.globalAlpha = (1 - p) * 0.5;
+        ctx.strokeStyle = tokens.accent;
+        ctx.lineWidth = 1.5 / transform.k;
+        ctx.beginPath();
+        ctx.arc(pn.cx, pn.cy, pn.size + (4 + p * 12) / transform.k, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        requestRender();
+      } else {
+        pulseNode = null;
       }
     }
 
@@ -768,6 +802,10 @@ export function createGraphScene(
       const hitId = hit?.id ?? null;
       if (hitId !== hoverNode) {
         hoverNode = hitId;
+        if (hitId) {
+          pulseNode = hitId;
+          pulseStart = performance.now();
+        }
         depsRef.current.onNodeHover?.(hitId);
         requestRender();
       }
@@ -1052,7 +1090,12 @@ export function createGraphScene(
       const previous = nodeById;
       nodes = nextNodes.map((n) => {
         const prev = previous.get(n.id);
-        return { ...n, cx: prev ? prev.cx : n.x, cy: prev ? prev.cy : n.y };
+        return {
+          ...n,
+          cx: prev ? prev.cx : n.x,
+          cy: prev ? prev.cy : n.y,
+          appear: prev ? prev.appear : opts?.animate ? 0 : 1,
+        };
       });
       nodeById = new Map(nodes.map((n) => [n.id, n]));
       edges = nextEdges.slice();
@@ -1064,6 +1107,7 @@ export function createGraphScene(
         for (const n of nodes) {
           n.cx = n.x;
           n.cy = n.y;
+          n.appear = 1;
         }
         rebuildIndex();
         requestRender();
