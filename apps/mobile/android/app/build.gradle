@@ -7,7 +7,11 @@ android {
         applicationId "com.plainva.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // versionCode comes from the VERSION_CODE env (github.run_number in CI,
+        // fallback 1 for local/debug builds). The -Pandroid.injected.version.code
+        // override did not take effect, so the AAB kept the hardcoded 1 and Play
+        // rejected it as already used by the first manual 0.1.0 upload.
+        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
         versionName "0.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
