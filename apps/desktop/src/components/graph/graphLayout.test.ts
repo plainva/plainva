@@ -42,6 +42,32 @@ describe("graphLayout", () => {
     }
   });
 
+  it("stableStarts keeps existing nodes calmer when the membership changes", () => {
+    // Feedback 2026-07-14 ("wild jumping"): with index-based starts, ONE new
+    // node shifts every start position behind it and the whole level lands
+    // elsewhere. Hash-per-id starts keep survivors near their previous spots.
+    const base = Array.from({ length: 12 }, (_, i) => ({ id: `n${i}`, size: 8 }));
+    const edges = Array.from({ length: 8 }, (_, i) => ({ source: `n${i}`, target: `n${(i + 2) % 12}` }));
+    const withNew = [{ id: "aaa-new", size: 8 }, ...base]; // sorts first -> max index shift
+    const avgDrift = (stableStarts: boolean) => {
+      const one = computeForceLayout(base, edges, { seed: "s", stableStarts }).positions;
+      const two = computeForceLayout(withNew, edges, { seed: "s", stableStarts }).positions;
+      let sum = 0;
+      for (const n of base) {
+        const p = one.get(n.id)!;
+        const q = two.get(n.id)!;
+        sum += Math.hypot(p.x - q.x, p.y - q.y);
+      }
+      return sum / base.length;
+    };
+    expect(avgDrift(true)).toBeLessThan(avgDrift(false));
+
+    // Still fully deterministic per seed.
+    const a = computeForceLayout(base, edges, { seed: "s", stableStarts: true });
+    const b = computeForceLayout(base, edges, { seed: "s", stableStarts: true });
+    expect([...a.positions.entries()]).toEqual([...b.positions.entries()]);
+  });
+
   it("keeps pinned nodes exactly at their pin", () => {
     const { positions } = computeForceLayout(
       [

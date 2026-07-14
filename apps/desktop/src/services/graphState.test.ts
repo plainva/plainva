@@ -35,7 +35,9 @@ describe("graphState", () => {
 
   it("loads pins and dismissed keys, treats corrupt files as empty", async () => {
     const good = new GraphStateStore(
-      fakeAdapter(JSON.stringify({ version: 1, pins: { vault: { "a.md": { x: 1, y: 2 } } }, dismissedSuggestions: ["k"] }))
+      fakeAdapter(
+        JSON.stringify({ version: 1, vaultLayout: 2, pins: { vault: { "a.md": { x: 1, y: 2 } } }, dismissedSuggestions: ["k"] })
+      )
     );
     await good.load();
     expect(good.getPins("vault")).toEqual({ "a.md": { x: 1, y: 2 } });
@@ -48,6 +50,42 @@ describe("graphState", () => {
     const missing = new GraphStateStore(fakeAdapter());
     await missing.load();
     expect(missing.getPins("vault")).toEqual({});
+  });
+
+  it("drops flat-era vault pins once (layout generation migration), keeping other contexts", async () => {
+    // A pre-A4 file has no vaultLayout stamp: its vault-map pins live in the
+    // FLAT layout's coordinate space and would blow up the container circles.
+    const adapter = fakeAdapter(
+      JSON.stringify({
+        version: 1,
+        pins: {
+          vault: { "a.md": { x: 2000, y: -1500 }, "folder:P": { x: 900, y: 900 } },
+          "context:n.md": { "b.md": { x: 3, y: 4 } },
+          "base:x#v": { "c.md": { x: 5, y: 6 } },
+        },
+        dismissedSuggestions: [],
+      })
+    );
+    const store = new GraphStateStore(adapter);
+    await store.load();
+    expect(store.getPins("vault")).toEqual({}); // discarded
+    expect(store.getPins("context:n.md")).toEqual({ "b.md": { x: 3, y: 4 } }); // untouched
+    expect(store.getPins("base:x#v")).toEqual({ "c.md": { x: 5, y: 6 } }); // untouched
+    // The migration persists the stamped file so it never runs again.
+    await vi.advanceTimersByTimeAsync(900);
+    const file = JSON.parse(adapter.written[".plainva/graph.json"]);
+    expect(file.vaultLayout).toBe(2);
+    expect(file.pins.vault).toBeUndefined();
+
+    // A current-generation file is NOT rewritten on load.
+    const current = fakeAdapter(
+      JSON.stringify({ version: 1, vaultLayout: 2, pins: { vault: { "a.md": { x: 1, y: 2 } } }, dismissedSuggestions: [] })
+    );
+    const stamped = new GraphStateStore(current);
+    await stamped.load();
+    await vi.advanceTimersByTimeAsync(900);
+    expect(stamped.getPins("vault")).toEqual({ "a.md": { x: 1, y: 2 } });
+    expect(current.written[".plainva/graph.json"]).toBeUndefined();
   });
 
   it("persists debounced writes to .plainva/graph.json and drops empty pin buckets", async () => {

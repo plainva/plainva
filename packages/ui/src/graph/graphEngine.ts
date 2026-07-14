@@ -1,5 +1,5 @@
 import { quadtree, type Quadtree } from "d3-quadtree";
-import { getGraphThemeTokens, subscribeGraphThemeTokens, type GraphThemeTokens } from "./themeTokens";
+import { getGraphThemeTokens, subscribeGraphThemeTokens, toRgba, type GraphThemeTokens } from "./themeTokens";
 import type { NodePointerEvent, SceneEdge, SceneNode, SceneTransform } from "./graphTypes";
 
 /**
@@ -60,6 +60,12 @@ interface RenderNode extends SceneNode {
   /** 0..1 fade-in on first appearance; new nodes ease from transparent. Only
    *  affects alpha, never position or hit-testing. */
   appear: number;
+  /**
+   * Target radius. `size` (inherited) is the ANIMATED radius the whole draw
+   * and hit-test path reads — container circles grow/shrink smoothly toward
+   * tsize instead of snapping when their content reflows.
+   */
+  tsize: number;
 }
 
 const MIN_ZOOM = 0.05;
@@ -126,8 +132,18 @@ export function createGraphScene(
   // MIN_ZOOM and the scene "renders" invisibly off-screen (report #1).
   let pendingFitPadding: number | null = null;
   let tokens: GraphThemeTokens = getGraphThemeTokens();
+  /** Dome-shading colors derived ONCE per theme change (never per frame):
+   *  the folder bubbles/containers get a light-from-top-left plastic touch. */
+  const buildShade = (t: GraphThemeTokens) => ({
+    light: toRgba(t.accentOn, 0.2),
+    lightOff: toRgba(t.accentOn, 0),
+    rimLight: toRgba(t.accentOn, 0.4),
+    innerShadow: toRgba(t.textMain, 0.2),
+  });
+  let shade = buildShade(tokens);
   const unsubscribeTheme = subscribeGraphThemeTokens(() => {
     tokens = getGraphThemeTokens();
+    shade = buildShade(tokens);
     requestRender();
   });
 
@@ -222,7 +238,9 @@ export function createGraphScene(
     // under it or nothing, never the container's interior. Views without
     // containers (context/base graph) take the exact pre-A4 path.
     if (tree) {
-      const candidate = tree.find(worldX, worldY, 64);
+      // Search radius grows with zoom-out so hover stays usable on a wide view
+      // (64 world units shrink below the hit tolerance at small k).
+      const candidate = tree.find(worldX, worldY, 64 + 8 / transform.k);
       if (candidate && !candidate.hidden) {
         const dx = candidate.cx - worldX;
         const dy = candidate.cy - worldY;
@@ -266,22 +284,24 @@ export function createGraphScene(
         n.cx = n.x;
         n.cy = n.y;
         n.appear = 1;
+        n.size = n.tsize;
       }
       rebuildIndex();
       requestRender();
       return;
     }
     const duration = tokens.durationMs;
-    const starts = nodes.map((n) => ({ n, sx: n.cx, sy: n.cy, sa: n.appear ?? 1 }));
+    const starts = nodes.map((n) => ({ n, sx: n.cx, sy: n.cy, sa: n.appear ?? 1, ss: n.size }));
     const t0 = performance.now();
     const step = (now: number) => {
       if (destroyed) return;
       const t = Math.min(1, (now - t0) / duration);
       const ease = 1 - (1 - t) * (1 - t);
-      for (const { n, sx, sy, sa } of starts) {
+      for (const { n, sx, sy, sa, ss } of starts) {
         n.cx = sx + (n.x - sx) * ease;
         n.cy = sy + (n.y - sy) * ease;
         n.appear = sa + (1 - sa) * ease;
+        n.size = ss + (n.tsize - ss) * ease;
       }
       rebuildIndex();
       draw();
@@ -458,11 +478,32 @@ export function createGraphScene(
         ctx.fill();
       }
       if (tokens.glowIntensity > 0) {
-        ctx.globalAlpha = a0 * 0.06;
-        ctx.fillStyle = tokens.accent;
+        // Glass-dome tint: transparent center densifying toward the rim, plus
+        // a light arc at the top left and an inner shadow at the bottom right
+        // — the plastic depth cue (flat themes keep the plain rim only).
+        const dome = ctx.createRadialGradient(c.cx, c.cy, c.size * 0.5, c.cx, c.cy, c.size);
+        dome.addColorStop(0, tokens.accentGlowSoft);
+        dome.addColorStop(0.78, tokens.accentGlowSoft);
+        dome.addColorStop(1, tokens.accentGlowStrong);
+        ctx.globalAlpha = a0 * 0.75;
+        ctx.fillStyle = dome;
         ctx.beginPath();
         ctx.arc(c.cx, c.cy, c.size, 0, Math.PI * 2);
         ctx.fill();
+        const arcWidth = Math.max(1.6 / transform.k, c.size * 0.02);
+        ctx.lineCap = "round";
+        ctx.globalAlpha = a0 * 0.9;
+        ctx.strokeStyle = shade.rimLight;
+        ctx.lineWidth = arcWidth;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.size - arcWidth * 0.8, Math.PI * 1.08, Math.PI * 1.62);
+        ctx.stroke();
+        ctx.globalAlpha = a0 * 0.55;
+        ctx.strokeStyle = shade.innerShadow;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.size - arcWidth * 0.8, Math.PI * 0.08, Math.PI * 0.62);
+        ctx.stroke();
+        ctx.lineCap = "butt";
       }
       ctx.globalAlpha = a0 * (selected || focused || hovered ? 0.95 : 0.45);
       ctx.strokeStyle = tokens.accent;
@@ -604,16 +645,55 @@ export function createGraphScene(
       }
 
       if (n.shape === "folder") {
-        // Folder bubble: soft accent-tinted disc, name centered inside.
+        // Folder bubble: soft accent-tinted disc, name centered inside. With
+        // glow, a dome gradient (light from the top left) plus a lower-right
+        // inner shadow arc give it the same plastic depth as the note discs.
         ctx.globalAlpha = (a0) * 0.09;
         ctx.fillStyle = tokens.accent;
         ctx.beginPath();
         ctx.arc(n.cx, n.cy, n.size, 0, Math.PI * 2);
         ctx.fill();
+        if (tokens.glowIntensity > 0) {
+          // Saturation dome: the tint thins toward the top-left light core and
+          // densifies toward the lower right — reads as curvature in light AND
+          // dark themes (a white highlight alone vanishes on light surfaces).
+          const dome = ctx.createRadialGradient(
+            n.cx - n.size * 0.35,
+            n.cy - n.size * 0.38,
+            n.size * 0.15,
+            n.cx,
+            n.cy,
+            n.size * 1.05
+          );
+          dome.addColorStop(0, tokens.accentGlowSoft);
+          dome.addColorStop(1, tokens.accentGlowStrong);
+          ctx.globalAlpha = a0 * 0.6;
+          ctx.fillStyle = dome;
+          ctx.beginPath();
+          ctx.arc(n.cx, n.cy, n.size, 0, Math.PI * 2);
+          ctx.fill();
+          // Small specular sheen (as on note discs) + a thin lower shade arc.
+          ctx.globalAlpha = a0 * 0.14;
+          ctx.fillStyle = tokens.accentOn;
+          ctx.beginPath();
+          ctx.arc(n.cx - n.size * 0.32, n.cy - n.size * 0.35, n.size * 0.36, 0, Math.PI * 2);
+          ctx.fill();
+          const arcWidth = Math.max(1 / transform.k, n.size * 0.035);
+          ctx.lineCap = "round";
+          ctx.globalAlpha = a0 * 0.3;
+          ctx.strokeStyle = shade.innerShadow;
+          ctx.lineWidth = arcWidth;
+          ctx.beginPath();
+          ctx.arc(n.cx, n.cy, n.size - arcWidth, Math.PI * 0.16, Math.PI * 0.58);
+          ctx.stroke();
+          ctx.lineCap = "butt";
+        }
         ctx.globalAlpha = (n.dimmed ? 0.2 : 0.5) * bloomMul;
         ctx.strokeStyle = selected || focused || hovered ? tokens.accent : tokens.accent;
         if (selected || focused || hovered) ctx.globalAlpha = 0.95;
         ctx.lineWidth = (selected || focused ? 2.2 : hovered ? 1.8 : 1.3) / transform.k;
+        ctx.beginPath();
+        ctx.arc(n.cx, n.cy, n.size, 0, Math.PI * 2);
         ctx.stroke();
         continue;
       }
@@ -1189,6 +1269,9 @@ export function createGraphScene(
         const prev = previous.get(n.id);
         return {
           ...n,
+          tsize: n.size,
+          // Surviving nodes keep their animated radius and lerp toward tsize.
+          size: prev ? prev.size : n.size,
           cx: prev ? prev.cx : n.x,
           cy: prev ? prev.cy : n.y,
           appear: prev ? prev.appear : opts?.animate ? 0 : 1,
@@ -1205,6 +1288,7 @@ export function createGraphScene(
           n.cx = n.x;
           n.cy = n.y;
           n.appear = 1;
+          n.size = n.tsize;
         }
         rebuildIndex();
         requestRender();
@@ -1216,6 +1300,7 @@ export function createGraphScene(
       Object.assign(n, patch);
       if (patch.x != null) n.cx = patch.x;
       if (patch.y != null) n.cy = patch.y;
+      if (patch.size != null) n.tsize = patch.size;
       rebuildIndex();
       requestRender();
     },
@@ -1242,10 +1327,12 @@ export function createGraphScene(
       let maxX = -Infinity;
       let maxY = -Infinity;
       for (const n of visible) {
-        minX = Math.min(minX, n.x - n.size);
-        minY = Math.min(minY, n.y - n.size);
-        maxX = Math.max(maxX, n.x + n.size);
-        maxY = Math.max(maxY, n.y + n.size);
+        // Fit the TARGET geometry (x/y/tsize) so a fit during an animation
+        // frames where the scene is heading, not a transient in-between state.
+        minX = Math.min(minX, n.x - n.tsize);
+        minY = Math.min(minY, n.y - n.tsize);
+        maxX = Math.max(maxX, n.x + n.tsize);
+        maxY = Math.max(maxY, n.y + n.tsize);
       }
       const { w, h } = cssSize();
       const spanX = Math.max(1, maxX - minX);

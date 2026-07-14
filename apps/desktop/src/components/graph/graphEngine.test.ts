@@ -118,6 +118,16 @@ describe("graphEngine", () => {
     c.remove();
   });
 
+  it("keeps the animated radius in sync (reduced motion + patchNode grow)", () => {
+    // `size` is the animated radius the hit test reads; under reduced motion
+    // it must land on the target immediately, and a size patch retargets it.
+    scene.setData([{ id: "n.md", label: "n", shape: "note", size: 10, x: 500, y: 500 }], []);
+    expect(scene.nodeAtClient(505, 500)).toBe("n.md");
+    scene.patchNode("n.md", { size: 30 });
+    expect(scene.nodeAtClient(528, 500)).toBe("n.md"); // grown radius hit-testable
+    expect(scene.nodeAtClient(545, 500)).toBeNull();
+  });
+
   it("preserves the viewport transform across setData/patchNode (only zoomToFit moves the view)", () => {
     // A data or pin rebuild must never re-center the view — the base/context
     // graph views rely on this so dragging a node does not jump the viewport.

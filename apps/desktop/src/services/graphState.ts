@@ -17,6 +17,15 @@ export interface GraphPin {
 
 interface GraphStateFile {
   version: 1;
+  /**
+   * Layout generation the "vault" pin context was captured in. 2 = recursive
+   * container packing (A4). Pins from the old FLAT vault-map layout live in a
+   * coordinate space that is meaningless under the container layout (they
+   * inflate the enclosing circles and scatter the top level), so load() drops
+   * that one context ONCE when the stamp is older. Base/context pins are
+   * untouched — their layouts did not change.
+   */
+  vaultLayout?: number;
   pins: Record<string, Record<string, GraphPin>>;
   /**
    * Per-context pin mode. Absent/true = ON (dragging a node remembers its
@@ -31,9 +40,12 @@ interface GraphStateFile {
 
 const FILE_PATH = ".plainva/graph.json";
 const WRITE_DEBOUNCE_MS = 800;
+/** Bump when the vault-map layout changes coordinate semantics. */
+const VAULT_LAYOUT_GENERATION = 2;
+const VAULT_PIN_CONTEXT = "vault";
 
 function emptyState(): GraphStateFile {
-  return { version: 1, pins: {}, dismissedSuggestions: [] };
+  return { version: 1, vaultLayout: VAULT_LAYOUT_GENERATION, pins: {}, dismissedSuggestions: [] };
 }
 
 export function suggestionKey(reason: string, source: string, target: string): string {
@@ -58,6 +70,7 @@ export class GraphStateStore {
       if (parsed && typeof parsed === "object" && parsed.version === 1) {
         this.state = {
           version: 1,
+          vaultLayout: typeof parsed.vaultLayout === "number" ? parsed.vaultLayout : undefined,
           pins: typeof parsed.pins === "object" && parsed.pins !== null ? (parsed.pins as GraphStateFile["pins"]) : {},
           pinModes:
             typeof parsed.pinModes === "object" && parsed.pinModes !== null
@@ -73,6 +86,16 @@ export class GraphStateStore {
       }
     } catch {
       this.state = emptyState();
+    }
+    // One-time migration: vault-map pins captured under an older layout
+    // generation are dropped (their coordinates are meaningless in the
+    // recursive-packing layout and blow the container circles up). Only
+    // persisted when something was actually discarded.
+    if (this.state.vaultLayout !== VAULT_LAYOUT_GENERATION) {
+      const hadVaultPins = !!this.state.pins[VAULT_PIN_CONTEXT];
+      delete this.state.pins[VAULT_PIN_CONTEXT];
+      this.state.vaultLayout = VAULT_LAYOUT_GENERATION;
+      if (hadVaultPins) this.persistSoon();
     }
     this.emit();
   }

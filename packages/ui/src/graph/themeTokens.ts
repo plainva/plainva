@@ -51,8 +51,9 @@ const listeners = new Set<() => void>();
  * Parses a #rgb / #rrggbb / rgb() / rgba() theme color into an rgba() string
  * with the given alpha. Runs once per theme change (not per frame) so glow
  * gradients can fade to transparent without a color literal in the canvas code.
+ * Exported for the engine's folder dome-shading gradients (token colors only).
  */
-function toRgba(color: string, alpha: number): string {
+export function toRgba(color: string, alpha: number): string {
   const c = color.trim();
   let r = 0;
   let g = 0;

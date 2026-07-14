@@ -56,14 +56,26 @@ export interface LayoutResult {
 export function computeForceLayout(
   nodes: ForceLayoutNode[],
   edges: ForceLayoutEdge[],
-  opts: { seed: string; iterations?: number; spread?: number }
+  opts: { seed: string; iterations?: number; spread?: number; stableStarts?: boolean }
 ): LayoutResult {
   const random = createSeededRandom(hashSeed(opts.seed));
   const spread = opts.spread ?? 60;
   const simNodes = nodes.map((n, i) => {
-    // Deterministic phyllotaxis-ish start ring so the initial state is stable.
-    const angle = i * 2.399963229728653; // golden angle
-    const radius = spread * Math.sqrt(i + 1);
+    // Deterministic start positions. Default: phyllotaxis ring by INDEX (the
+    // historical behavior — context/base scenes keep their exact layouts).
+    // stableStarts hashes the start from the node ID instead, so adding or
+    // removing one node no longer shifts every other start position — a small
+    // index update moves the map a little, not "wildly everywhere" (vault map).
+    let angle: number;
+    let radius: number;
+    if (opts.stableStarts) {
+      const h = hashSeed(`${opts.seed}:${n.id}`);
+      angle = ((h % 4096) / 4096) * Math.PI * 2;
+      radius = spread * (0.5 + (((h >>> 12) % 4096) / 4096) * 3.5);
+    } else {
+      angle = i * 2.399963229728653; // golden angle
+      radius = spread * Math.sqrt(i + 1);
+    }
     return {
       id: n.id,
       index: i,
@@ -345,6 +357,9 @@ export function packHierarchy(
     const forced = computeForceLayout(kids, levelEdges.get(levelId) ?? [], {
       seed: `${opts.seed}:${levelId}`,
       spread,
+      // Hash-per-id starts: an index update (one note more or less) must not
+      // reshuffle the whole level — the map stays calm across rebuilds.
+      stableStarts: true,
     }).positions;
     // Tighten residual overlaps with the real radii (the force run separates
     // via collide, this pass guarantees it with the exact sizes).
