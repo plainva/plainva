@@ -193,8 +193,17 @@ async function openVault(page: any) {
 }
 
 async function openVaultMap(page: any) {
-  await page.keyboard.press('Control+Shift+G');
-  await expect(page.getByTestId('vault-graph-view')).toBeVisible();
+  // The graph shortcut can be missed right after load (the handlers may not be
+  // wired yet) — retry pressing it until the map opens, but never re-press once
+  // it is visible (so it can't open a second graph tab). Fixes a long-standing
+  // flake in this helper.
+  const map = page.getByTestId('vault-graph-view');
+  await expect(async () => {
+    if (!(await map.isVisible())) {
+      await page.keyboard.press('Control+Shift+G');
+    }
+    await expect(map).toBeVisible({ timeout: 4000 });
+  }).toPass({ timeout: 20000 });
 }
 
 test('context graph section shows suggestions and accepting one writes a real wiki link', async ({ page }) => {

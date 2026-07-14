@@ -375,6 +375,17 @@ export function createGraphScene(
     const edgeBloom = (e: SceneEdge): number =>
       !bloomAnchor || e.source === bloomAnchor || e.target === bloomAnchor ? 1 : 0.18;
 
+    // Edge crowd damping (maintainer report 2026-07-14): in a dense hairball each
+    // resting edge is drawn fainter the more edges are visible (and fainter still
+    // when zoomed out) so overlapping edges don't smear into solid bands — the
+    // cluster shape stays legible. Hover/selection (bloom) restores the relevant
+    // edges to full strength.
+    let visibleEdgeCount = 0;
+    for (const e of edges) if (!e.hidden) visibleEdgeCount++;
+    const densityFade = Math.max(0.3, Math.min(1, 1000 / Math.max(1, visibleEdgeCount)));
+    const zoomFade = Math.max(0.5, Math.min(1, transform.k / 0.5));
+    const edgeCrowdFactor = densityFade * zoomFade;
+
     drawDotGrid(w, h);
 
     // ---- edges (below nodes) ----
@@ -395,7 +406,12 @@ export function createGraphScene(
               ? 0.55
               : 0.45;
       if (emphasized) ctx.globalAlpha = 1;
-      ctx.globalAlpha *= edgeBloom(e);
+      else {
+        ctx.globalAlpha *= edgeBloom(e);
+        // Only thin the resting hairball; a focused node's bloomed neighborhood
+        // must stay crisp.
+        if (!bloomAnchor) ctx.globalAlpha *= edgeCrowdFactor;
+      }
       const ctrl = edgeControl(a, b, e.id);
       // Trim the curve to the node rims so it never runs under (and, on the
       // translucent folder bubbles, THROUGH) the discs, and so an arrowhead sits
