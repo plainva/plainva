@@ -129,4 +129,49 @@ describe("buildContextScene", () => {
     expect(overflow.label).toBe("+3");
     expect(scene.edges.filter((e) => e.id.startsWith("in:")).length).toBe(8);
   });
+
+  it("relaxes overlaps so neighbors never collide with the folder chain (report 2026-07-14)", () => {
+    // The reported case: a note >=2 folders deep AND with multiple in/out links —
+    // this used to place association nodes right on top of the folder-chain nodes.
+    const g = graphOf(
+      [
+        node("A/B/focus.md"),
+        node("A/index.md"),
+        node("A/B/index.md"),
+        node("in1.md"),
+        node("in2.md"),
+        node("in3.md"),
+        node("out1.md"),
+        node("out2.md"),
+        node("out3.md"),
+      ],
+      [
+        edge("in1.md", "A/B/focus.md"),
+        edge("in2.md", "A/B/focus.md"),
+        edge("in3.md", "A/B/focus.md"),
+        edge("A/B/focus.md", "out1.md"),
+        edge("A/B/focus.md", "out2.md"),
+        edge("A/B/focus.md", "out3.md"),
+      ]
+    );
+    const scene = buildContextScene(
+      {
+        graph: g,
+        neighborhood: { center: "A/B/focus.md", nodes: [...g.nodes.values()], edges: g.edges, truncated: false },
+        suggestions: [],
+      },
+      "A/B/focus.md"
+    );
+    // No two rendered discs overlap (center distance >= r1 + r2) — the exact bug.
+    const ns = scene.nodes;
+    expect(ns.length).toBeGreaterThan(6);
+    for (let i = 0; i < ns.length; i++) {
+      for (let j = i + 1; j < ns.length; j++) {
+        const dist = Math.hypot(ns[i].x - ns[j].x, ns[i].y - ns[j].y);
+        expect(dist).toBeGreaterThanOrEqual(ns[i].size + ns[j].size - 1);
+      }
+    }
+    // Focus stays centered even after relaxation.
+    expect(scene.nodes.find((n) => n.id === "A/B/focus.md")).toMatchObject({ x: 0, y: 0 });
+  });
 });

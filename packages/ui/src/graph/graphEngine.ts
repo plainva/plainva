@@ -306,6 +306,18 @@ export function createGraphScene(
     const inView = (x: number, y: number, r: number) =>
       x + r > viewLeft - margin && x - r < viewRight + margin && y + r > viewTop - margin && y - r < viewBottom + margin;
 
+    // Focus bloom (report 2026-07-14): hovering a node fades everything outside
+    // its neighborhood so the local structure stands out. Uses the adjacency
+    // index the engine already maintains; hover only (keyboard focus keeps its
+    // ring). Nodes/edges outside the bloom are drawn at reduced alpha, still
+    // fully hit-testable.
+    const bloomAnchor = hoverNode && nodeById.has(hoverNode) ? hoverNode : null;
+    const bloomSet = bloomAnchor ? adjacency.get(bloomAnchor) ?? null : null;
+    const nodeBloom = (id: string): number =>
+      !bloomAnchor || id === bloomAnchor || (bloomSet ? bloomSet.has(id) : false) ? 1 : 0.35;
+    const edgeBloom = (e: SceneEdge): number =>
+      !bloomAnchor || e.source === bloomAnchor || e.target === bloomAnchor ? 1 : 0.18;
+
     drawDotGrid(w, h);
 
     // ---- edges (below nodes) ----
@@ -326,6 +338,7 @@ export function createGraphScene(
               ? 0.55
               : 0.45;
       if (emphasized) ctx.globalAlpha = 1;
+      ctx.globalAlpha *= edgeBloom(e);
       ctx.strokeStyle = emphasized ? tokens.accent : edgeStroke(e);
       const base = e.style === "structure" ? 0.7 : e.style === "property" ? 1.4 : 1.1;
       ctx.lineWidth = (base + Math.min(4, e.width - 1) * 0.5 + (emphasized ? 0.7 : 0)) / transform.k;
@@ -368,26 +381,28 @@ export function createGraphScene(
       const focused = keyboardFocus === n.id;
       const hovered = hoverNode === n.id;
       const color = nodeColor(n);
-      ctx.globalAlpha = n.dimmed ? 0.15 : 1;
+      const bloomMul = nodeBloom(n.id);
+      const a0 = n.dimmed ? 0.15 : bloomMul;
+      ctx.globalAlpha = a0;
 
       // Heat halo behind the node (heatmap overlay).
       if (n.heat != null && n.heat > 0 && !n.dimmed) {
-        ctx.globalAlpha = 0.12 + n.heat * 0.28;
+        ctx.globalAlpha = (0.12 + n.heat * 0.28) * bloomMul;
         ctx.fillStyle = tokens.accent;
         ctx.beginPath();
         ctx.arc(n.cx, n.cy, n.size * (1.4 + n.heat * 0.5), 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = n.dimmed ? 0.15 : 1;
+        ctx.globalAlpha = a0;
       }
 
       if (n.shape === "folder") {
         // Folder bubble: soft accent-tinted disc, name centered inside.
-        ctx.globalAlpha = (n.dimmed ? 0.15 : 1) * 0.09;
+        ctx.globalAlpha = (a0) * 0.09;
         ctx.fillStyle = tokens.accent;
         ctx.beginPath();
         ctx.arc(n.cx, n.cy, n.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = n.dimmed ? 0.2 : 0.5;
+        ctx.globalAlpha = (n.dimmed ? 0.2 : 0.5) * bloomMul;
         ctx.strokeStyle = selected || focused || hovered ? tokens.accent : tokens.accent;
         if (selected || focused || hovered) ctx.globalAlpha = 0.95;
         ctx.lineWidth = (selected || focused ? 2.2 : hovered ? 1.8 : 1.3) / transform.k;
@@ -411,12 +426,12 @@ export function createGraphScene(
         ctx.textBaseline = "middle";
         ctx.fillText(n.icon!, n.cx, n.cy + n.size * 0.05);
       } else {
-        ctx.globalAlpha = (n.dimmed ? 0.15 : 1) * 0.9;
+        ctx.globalAlpha = (a0) * 0.9;
         ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(n.cx, n.cy, n.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = n.dimmed ? 0.15 : 1;
+        ctx.globalAlpha = a0;
         if (selected || focused || hovered) {
           ctx.strokeStyle = tokens.accent;
           ctx.lineWidth = (selected || focused ? 2.6 : 2) / transform.k;

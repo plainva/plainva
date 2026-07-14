@@ -107,6 +107,56 @@ export function computeForceLayout(
   return { positions };
 }
 
+export interface CollisionItem {
+  id: string;
+  x: number;
+  y: number;
+  /** Render radius (world units). */
+  size: number;
+  /** Kept exactly in place (focus note, pinned nodes). */
+  fixed?: boolean;
+}
+
+/**
+ * Collision-only relaxation: pushes overlapping nodes apart WITHOUT link/charge/
+ * center forces, so a hand-designed zone layout (context graph: parents above,
+ * children below, associations at the sides) keeps its shape — only overlaps are
+ * resolved. Seeded like computeForceLayout (deterministic, then discarded); fixed
+ * items are pinned via fx/fy and never move. Cheap enough for the ~30-node
+ * context graph and per-group vault-map passes.
+ */
+export function resolveCollisions(
+  items: CollisionItem[],
+  opts: { seed: string; padding?: number; iterations?: number }
+): Map<string, { x: number; y: number }> {
+  const out = new Map<string, { x: number; y: number }>();
+  if (items.length === 0) return out;
+  const random = createSeededRandom(hashSeed(opts.seed));
+  const padding = opts.padding ?? 6;
+  const simNodes = items.map((it) => ({
+    id: it.id,
+    x: it.x,
+    y: it.y,
+    fx: it.fixed ? it.x : undefined,
+    fy: it.fixed ? it.y : undefined,
+    size: it.size,
+  }));
+  const sim = forceSimulation(simNodes as any)
+    .randomSource(random)
+    .force(
+      "collide",
+      forceCollide()
+        .radius((d: any) => d.size + padding)
+        .strength(1)
+        .iterations(3)
+    )
+    .stop();
+  const iterations = opts.iterations ?? 40;
+  for (let i = 0; i < iterations; i++) sim.tick();
+  for (const n of simNodes as any[]) out.set(n.id, { x: n.x, y: n.y });
+  return out;
+}
+
 export interface PackItem {
   id: string;
   /** Weight (note count); packs to area. */
@@ -165,4 +215,16 @@ export function arcPositions(
     });
   }
   return out;
+}
+
+/**
+ * Node radius as a log2-compressed function of a magnitude (connection degree,
+ * folder note count). Grows visibly across many orders of magnitude but flattens
+ * softly toward `max` instead of hard-saturating early (the old sqrt+cap
+ * saturated already at ~64 notes). `value` is a non-negative count; the +1 keeps
+ * a zero-magnitude node at exactly `min`.
+ */
+export function logRadius(value: number, opts: { min: number; max: number; k: number }): number {
+  const v = value > 0 ? value : 0;
+  return Math.max(opts.min, Math.min(opts.max, opts.min + opts.k * Math.log2(v + 1)));
 }

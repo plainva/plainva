@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { arcPositions, computeForceLayout, createSeededRandom, hashSeed, packCircles } from "@plainva/ui";
+import {
+  arcPositions,
+  computeForceLayout,
+  createSeededRandom,
+  hashSeed,
+  logRadius,
+  packCircles,
+  resolveCollisions,
+} from "@plainva/ui";
 
 describe("graphLayout", () => {
   it("seeded random is deterministic per seed", () => {
@@ -86,5 +94,43 @@ describe("graphLayout", () => {
     const three = arcPositions(3, { centerX: 0, centerY: 0, radius: 10, startAngle: 0, endAngle: Math.PI });
     expect(three[0].x).toBeCloseTo(10, 5);
     expect(three[2].x).toBeCloseTo(-10, 5);
+  });
+
+  it("logRadius grows monotonically over magnitudes and clamps at the ends", () => {
+    const opts = { min: 6, max: 34, k: 2 };
+    expect(logRadius(0, opts)).toBe(6); // zero magnitude sits at min
+    expect(logRadius(1, opts)).toBeGreaterThan(6);
+    expect(logRadius(10, opts)).toBeGreaterThan(logRadius(1, opts));
+    expect(logRadius(1000, opts)).toBeGreaterThan(logRadius(10, opts));
+    expect(logRadius(1e9, opts)).toBe(34); // hard cap, no runaway "giant circle"
+    expect(logRadius(-5, opts)).toBe(6); // defensive on negative input
+  });
+
+  it("resolveCollisions separates overlapping nodes and is deterministic", () => {
+    const items = [
+      { id: "a", x: 0, y: 0, size: 10 },
+      { id: "b", x: 2, y: 0, size: 10 }, // heavily overlapping
+    ];
+    const one = resolveCollisions(items, { seed: "sep", padding: 6 });
+    const two = resolveCollisions(items, { seed: "sep", padding: 6 });
+    expect(one.get("a")).toEqual(two.get("a")); // deterministic
+    expect(one.get("b")).toEqual(two.get("b"));
+    const a = one.get("a")!;
+    const b = one.get("b")!;
+    // Required center distance ~= (10+6)+(10+6) = 32; allow slack from finite ticks.
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(28);
+  });
+
+  it("resolveCollisions keeps fixed nodes exactly in place", () => {
+    const out = resolveCollisions(
+      [
+        { id: "fixed", x: 0, y: 0, size: 10, fixed: true },
+        { id: "free", x: 1, y: 0, size: 10 },
+      ],
+      { seed: "fix", padding: 6 }
+    );
+    expect(out.get("fixed")).toEqual({ x: 0, y: 0 });
+    expect(out.get("free")!.x).not.toBe(1); // pushed off the fixed node
+    expect(resolveCollisions([], { seed: "empty" }).size).toBe(0);
   });
 });

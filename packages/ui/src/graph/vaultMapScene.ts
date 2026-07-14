@@ -1,5 +1,5 @@
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
-import { computeForceLayout, packCircles } from "./graphLayout";
+import { computeForceLayout, logRadius, packCircles, resolveCollisions } from "./graphLayout";
 import type { SceneEdge, SceneEdgeStyle, SceneNode } from "./graphTypes";
 
 /**
@@ -116,6 +116,19 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
     }
   }
 
+  // Connection degree per note — log2-compressed node size (self-represented
+  // notes size by degree, folder bubbles by their recursive member count).
+  // Summed once (O(E)); the same sizes feed the collision relaxation below.
+  const degree = new Map<string, number>();
+  for (const e of graph.edges) {
+    degree.set(e.source, (degree.get(e.source) ?? 0) + (e.count ?? 1));
+    degree.set(e.target, (degree.get(e.target) ?? 0) + (e.count ?? 1));
+  }
+  const sizeOf = (id: string): number =>
+    id.startsWith("folder:")
+      ? logRadius((repMembers.get(id) ?? []).length, { min: 12, max: 42, k: 2.2 })
+      : logRadius(degree.get(id) ?? 0, { min: 4.5, max: 15, k: 1.6 });
+
   // Visible entities: folder reps + self-represented notes; plus EXPANDED
   // folders whose direct children are visible (they render as ring-less
   // anchors only through their children, so no node for them).
@@ -173,7 +186,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
       continue;
     }
     const layout = computeForceLayout(
-      members.map((id) => ({ id, size: id.startsWith("folder:") ? 26 : 9 })),
+      members.map((id) => ({ id, size: sizeOf(id) })),
       graph.edges
         .map((e) => ({ source: noteReps.get(e.source) ?? e.source, target: noteReps.get(e.target) ?? e.target }))
         .filter((e) => groups.get(g)!.includes(e.source) && groups.get(g)!.includes(e.target)),
@@ -189,6 +202,22 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   }
   for (const [id, pin] of Object.entries(pins)) {
     if (positions.has(id)) positions.set(id, { x: pin.x, y: pin.y });
+  }
+
+  // Collision relaxation per group (report 2026-07-14): the "scale into circle"
+  // step scales positions but not radii, so forceCollide's separation can come
+  // back as overlap. Re-separate each group with the real render sizes; pinned
+  // nodes stay fixed. Per-group so clusters don't bleed into each other.
+  for (const [g, members] of groups) {
+    if (members.length < 2) continue;
+    const resolved = resolveCollisions(
+      members.map((id) => {
+        const p = positions.get(id) ?? { x: 0, y: 0 };
+        return { id, x: p.x, y: p.y, size: sizeOf(id), fixed: !!pins[id] };
+      }),
+      { seed: `${seed}:collide:${g}`, padding: 4, iterations: 30 }
+    );
+    for (const [id, p] of resolved) positions.set(id, p);
   }
 
   // ---- edges (bundled on representatives) -------------------------------------
@@ -277,7 +306,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         id,
         label: folder.split("/").pop() ?? folder,
         shape: "folder",
-        size: Math.min(48, 16 + Math.sqrt(members.length) * 4),
+        size: sizeOf(id),
         badge: visibleMembers.length,
         x: pos.x,
         y: pos.y,
@@ -293,7 +322,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         id,
         label: info.title,
         shape: info.mode === "attachment" ? "attachment" : "note",
-        size: 9,
+        size: sizeOf(id),
         icon: icons.get(id)?.icon,
         color: icons.get(id)?.color,
         colorToken: typeColor(info.okfType),

@@ -1,5 +1,5 @@
 import type { VaultGraph } from "@plainva/core";
-import { computeForceLayout } from "@plainva/ui";
+import { computeForceLayout, logRadius } from "@plainva/ui";
 import type { SceneEdge, SceneNode } from "@plainva/ui";
 
 /**
@@ -43,7 +43,11 @@ export function buildBaseGraphScene(input: BaseGraphSceneInput): { nodes: SceneN
     return colorIndex.get(key)!;
   };
 
-  // Size mapping: sqrt-scaled 8..20 over the number property's range.
+  // Size mapping: WITH an explicit number property, sqrt-scaled 8..20 over its
+  // range; WITHOUT one, fall back to the in-view connection degree (filled by the
+  // edge loop below) so every base graph is differentiated out of the box instead
+  // of drawing every row at the same radius (maintainer report 2026-07-14).
+  const viewDegree = new Map<string, number>();
   let sizeMin = Infinity;
   let sizeMax = -Infinity;
   if (sizeBy) {
@@ -56,7 +60,10 @@ export function buildBaseGraphScene(input: BaseGraphSceneInput): { nodes: SceneN
     }
   }
   const sizeOf = (row: any): number => {
-    if (!sizeBy || !Number.isFinite(sizeMin) || sizeMax <= sizeMin) return 10;
+    if (!sizeBy || !Number.isFinite(sizeMin) || sizeMax <= sizeMin) {
+      const path = String(row["file.path"] ?? "");
+      return logRadius(viewDegree.get(path) ?? 0, { min: 8, max: 20, k: 1.6 });
+    }
     const v = Number(row[sizeBy]);
     if (!Number.isFinite(v)) return 8;
     return 8 + Math.sqrt((v - sizeMin) / (sizeMax - sizeMin)) * 12;
@@ -70,6 +77,8 @@ export function buildBaseGraphScene(input: BaseGraphSceneInput): { nodes: SceneN
   const externalNodes = new Set<string>();
   const bundle = new Map<string, SceneEdge>();
   const addEdge = (source: string, target: string, style: "property" | "link", rawKey: string, label: string | undefined, count: number) => {
+    viewDegree.set(source, (viewDegree.get(source) ?? 0) + count);
+    viewDegree.set(target, (viewDegree.get(target) ?? 0) + count);
     const key = `${source} ${target} ${rawKey}`;
     const existing = bundle.get(key);
     if (existing) {
