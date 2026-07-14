@@ -37,6 +37,8 @@ export interface GraphThemeTokens {
   /** Quadratic edge bend as a fraction of node distance; 0 = straight edges
    *  (retro/utilitarian themes), default ~0.16. */
   edgeCurvature: number;
+  /** Faint edge darkening for the screen-space vignette (text tone @ low alpha). */
+  vignetteTint: string;
 }
 
 const THEME_ATTRIBUTES = ["data-theme", "data-theme-name", "data-theme-variant", "data-density"];
@@ -111,6 +113,7 @@ function read(): GraphThemeTokens {
     accentGlowSoft: toRgba(accent, 0),
     glowIntensity: readNumber("--graph-glow-intensity", 1),
     edgeCurvature: readNumber("--graph-edge-curvature", 0.16),
+    vignetteTint: toRgba(v("--text-main"), 0.05),
   };
 }
 

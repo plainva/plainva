@@ -116,17 +116,22 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
     }
   }
 
-  // Connection degree per note — log2-compressed node size (self-represented
-  // notes size by degree, folder bubbles by their recursive member count).
-  // Summed once (O(E)); the same sizes feed the collision relaxation below.
+  // Connection degree per note — log2-compressed node size for self-represented
+  // notes. Summed once (O(E)); the same sizes feed the collision relaxation.
   const degree = new Map<string, number>();
   for (const e of graph.edges) {
     degree.set(e.source, (degree.get(e.source) ?? 0) + (e.count ?? 1));
     degree.set(e.target, (degree.get(e.target) ?? 0) + (e.count ?? 1));
   }
+  // Folder bubbles scale RELATIVE to the biggest folder in view (sqrt for
+  // area-like perception) so folders differ visibly even when every count is
+  // large (e.g. 233 vs 73). The biggest maps to the cap, so a giant vault never
+  // produces a runaway circle (maintainer report 2026-07-14).
+  let folderMax = 1;
+  for (const members of repMembers.values()) folderMax = Math.max(folderMax, members.length);
   const sizeOf = (id: string): number =>
     id.startsWith("folder:")
-      ? logRadius((repMembers.get(id) ?? []).length, { min: 12, max: 42, k: 2.2 })
+      ? 10 + 34 * Math.sqrt(Math.min(1, (repMembers.get(id) ?? []).length / folderMax))
       : logRadius(degree.get(id) ?? 0, { min: 4.5, max: 15, k: 1.6 });
 
   // Visible entities: folder reps + self-represented notes; plus EXPANDED
