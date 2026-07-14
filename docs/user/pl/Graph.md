@@ -33,6 +33,7 @@ Praca na mapie:
 - Kliknięcie prawym przyciskiem na pustym miejscu: **Nowa notatka**, Resetuj układ, **Eksportuj jako PNG/SVG**.
 - Kliknięcie wiązki krawędzi między folderami wyświetla poszczególne linki; najechanie na krawędź pokazuje zdanie, w którym żyje link.
 - **Przeciągnięcie na pustym miejscu** rysuje prostokąt zaznaczenia i oznacza wiele notatek (Shift+przeciągnięcie rozszerza istniejące zaznaczenie); przeciągnij później jeden z zaznaczonych węzłów, a przesuną się wszystkie razem. Stopka umożliwia dodanie zakładki lub usunięcie zaznaczenia.
+- **Alt+przeciągnięcie węzła** przesuwa go razem z jego bezpośrednio połączonymi sąsiadami — notatka i wszystko, co jest jeden krok dalej, przemieszczają się jako grupa; węzeł, który tylko znajduje się w pobliżu, ale nie jest połączony, pozostaje na miejscu.
 
 ## Porządkowanie
 

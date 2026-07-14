@@ -33,6 +33,7 @@ Arbeiten auf der Karte:
 - Rechtsklick auf freie Fläche: **Neue Notiz**, Layout zurücksetzen, **Als PNG/SVG exportieren**.
 - Klick auf ein Kanten-Bündel zwischen Ordnern listet die einzelnen Verknüpfungen; beim Überfahren einer Kante zeigt ein Tooltip den Satz, in dem der Link steht.
 - **Ziehen auf freier Fläche** spannt ein Auswahlrechteck auf und markiert mehrere Notizen (Umschalt+Ziehen erweitert eine bestehende Auswahl); ziehst Du danach einen der markierten Knoten, verschieben sich alle gemeinsam. Die Fußzeile bietet Lesezeichen/Löschen für die Auswahl.
+- **Alt+Ziehen auf einem Knoten** verschiebt ihn samt seinen direkt verbundenen Nachbarn — die Notiz und alles, was einen Schritt entfernt liegt, bewegt sich als Gruppe; ein Knoten, der nur räumlich daneben liegt, aber nicht verlinkt ist, bleibt stehen.
 
 ## Aufräumen
 

@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Stand: 2026-07-11
+Stand: 2026-07-14
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -82,6 +82,8 @@ Cada nota puede llevar un icono (al estilo Notion, encima del título, también 
 ## Plantillas
 
 Configura una **Carpeta de plantillas** en **Configuración → Vault → Contenido y estructura** (**Elegir carpeta…** junto al campo permite elegir la carpeta directamente en el vault). Después inserta plantillas con `Ctrl+Alt+T` o el comando de barra oblicua **Insertar plantilla**. Las plantillas definen por completo el contenido de los archivos nuevos — incluido el frontmatter: si una plantilla trae su propio `type`, gana la plantilla. Al insertar en una nota existente, el frontmatter de la plantilla se omite: solo se inserta el contenido.
+
+**Marcadores de posición**: las plantillas interpolan `{{title}}` (el título de la nota), `{{date}}` y `{{time}}`. Al *insertar* una plantilla se resuelven dos más: `{{cursor}}` marca dónde queda el cursor después, y `{{prompt:Label}}` te pide un valor (mostrado como *Label*) e inserta tu respuesta. Al crear una *nueva* nota a partir de una plantilla, `{{cursor}}` se omite y cualquier `{{prompt:…}}` queda vacío.
 
 Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`) ofrece **Crear nueva plantilla** (se abre una plantilla nueva para editarla) y **Guardar la nota actual como plantilla** (copia la nota abierta en la carpeta de plantillas). Las plantillas son archivos Markdown normales — edítalas, renómbralas o elimínalas directamente en el árbol de archivos.
 

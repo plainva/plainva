@@ -33,6 +33,7 @@ Working on the map:
 - Right-click empty space: **New note**, Reset layout, **Export as PNG/SVG**.
 - Clicking an edge bundle between folders lists the individual links; hovering an edge shows the sentence the link lives in.
 - **Dragging on empty space** draws a selection rectangle and marks multiple notes (Shift+drag extends an existing selection); drag one of the marked nodes afterwards and they all move together. The footer offers bookmark/delete for the selection.
+- **Alt+drag a node** moves it together with its directly linked neighbours — the note and everything one hop away reposition as a group; a node that merely sits nearby but is not linked stays put.
 
 ## Cleaning up
 

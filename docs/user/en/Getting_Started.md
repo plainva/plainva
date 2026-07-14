@@ -1,6 +1,6 @@
 # Getting Started
 
-Last reviewed: 2026-07-13
+Last reviewed: 2026-07-14
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -19,7 +19,7 @@ On launch, the welcome screen greets you:
 
 ## The interface
 
-- **Left sidebar** — four views: **Files** (the file tree), **Tags** (all `#tags` in the vault), **Bookmarks** and **Databases** (every `.base` in the vault, grouped by folder — click one to open it). At the top sits the big **New** button (New Note, plus **More options** for New Folder, New Base, Daily Note). At the bottom: the vault switcher, **Open Daily Note** and **Settings**. The double-chevron button next to the three views collapses or expands all folders at once, and **Reveal in file tree** in the editor's ⋮ menu jumps straight to the open note in the tree.
+- **Left sidebar** — four views: **Files** (the file tree), **Tags** (all `#tags` in the vault), **Bookmarks** and **Databases** (every `.base` in the vault, grouped by folder — click one to open it). At the top sits the big **New** button (New Note, plus **More options** for New Folder, New Base, Daily Note). At the bottom: the vault switcher, **Open Daily Note** and **Settings**. The double-chevron button next to the three views collapses or expands all folders at once, and **Reveal in file tree** in the editor's ⋮ menu jumps straight to the open note in the tree. In the **Files** view, a header shows the current vault's name and icon, and a **Recently opened** strip above the tree gives one-click access to the notes you had open most recently.
 - **Title bar** — your open tabs. Tabs can be reordered by dragging and moved between editor panes.
 - **Editor area** — where you read and write. Via the tab menu (**Split right** / **Split down**) or the shortcuts `Ctrl+Alt+V` / `Ctrl+Alt+S` you split the editor into two panes, e.g. a note next to a database.
 - **Right sidebar** — four sections, reorderable by drag: **Calendar** (daily notes), **Outline** (headings of the active note), **Backlinks** (who links here) and **Properties** (the note's frontmatter).
@@ -46,6 +46,7 @@ You can also toggle between **Readable width** and **Full width**.
 - **Context menu:** includes **Rename** (updates links vault-wide), **Duplicate**, **Open in split (right)** / **Open in split (bottom)**, **Add bookmark**, **Copy Path**, **Show in File Manager**, **Delete**.
 - **Multi-selection:** deleting asks once for all items, duplicating and moving by drag work on the whole selection. Deleted items go to the operating system's trash.
 - New notes automatically start with a `# Heading` derived from the file name.
+- A folder's own `index.md` (its overview) sorts to the **top** of that folder in the tree, above its subfolders and files — not alphabetically among the other notes.
 
 ## Daily notes
 
@@ -57,7 +58,7 @@ In the calendar, the **Today** button returns to the current month; clicking the
 
 **Settings** (gear icon at the bottom of the leftmost action rail, or `Ctrl+,`) close via the **X** in the top right, `Esc` or a click outside the window. Changes are saved immediately and automatically — only sync credentials are applied deliberately via **Save**/**Connect** (see [Sync Setup](Sync_Setup.md)). Settings come in two parts:
 
-- **App** — everything that applies app-wide, in five areas. **Appearance**: the **Theme** picker as preview cards — besides **Petrol** (the default) you get **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Paper** (E-Ink-like, maximally calm), **Sepia** (warm paper), **Forest**, **Midnight** (OLED black), **High Contrast** and **Phosphor Green**/**Phosphor Amber** (retro terminal with subtle scanlines); plus the **Mode** (**Light**/**Dark**/**System Default**; single-mode themes such as **Midnight** pin the mode, and the light/dark switch in the title bar pauses while they are active), **Language**, **Density** and **Interface zoom**. **Editor & notes**: **Default view**, **Content font size** and **Content font**. **Startup & behavior**: open the last vault automatically, compatibility warnings. **Updates**: Plainva quietly checks for new versions on startup and shows a notice when one is found — opt out via **Check for updates on startup**. **About & diagnostics**: version details, the **OS keychain** status, **Performance metrics**, **Export diagnostics…** (no note content) and **Report a problem**. Keyboard shortcuts stay reachable any time via `F1` or **Show keyboard shortcuts** in the bottom left.
+- **App** — everything that applies app-wide, in five areas. **Appearance**: the **Theme** picker as preview cards — besides **Petrol** (the default) you get **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Paper** (E-Ink-like, maximally calm), **Sepia** (warm paper), **Forest**, **Midnight** (OLED black), **High Contrast** and **Phosphor Green**/**Phosphor Amber** (retro terminal with subtle scanlines); plus the **Mode** (**Light**/**Dark**/**System Default**; single-mode themes such as **Midnight** pin the mode, and the light/dark switch in the title bar pauses while they are active), **Language**, **Density** and **Interface zoom**. **Editor & notes**: **Default view**, **Content font size** and **Content font**. **Startup & behavior**: open the last vault automatically, compatibility warnings. **Updates**: Plainva quietly checks for new versions on startup and shows a notice when one is found — click it to download and install the update straight away (it stays up until Plainva restarts). Opt out via **Check for updates on startup**. **About & diagnostics**: version details, the **OS keychain** status, **Performance metrics**, **Export diagnostics…** (no note content) and **Report a problem**. Keyboard shortcuts stay reachable any time via `F1` or **Show keyboard shortcuts** in the bottom left.
 - **Vault** — the vault picker sits as a dropdown above; below it, four areas per vault: **Sync** (see [Sync Setup](Sync_Setup.md)), **Content & structure** (**Daily Notes & Templates** including the **Template Folder**, **OKF (Open Knowledge Format)** — see [OKF](OKF.md) — and **Extended databases**), **Backup & version history** and **Maintenance** (**Rebuild index**, restore deleted files, vault statistics).
 
 ## Customizing the interface

@@ -33,6 +33,7 @@ Lavorare sulla mappa:
 - Clic destro su uno spazio vuoto: **Nuova nota**, Reimposta layout, **Esporta come PNG/SVG**.
 - Cliccare su un fascio di archi tra cartelle elenca i singoli link; passare il mouse su un arco mostra la frase in cui vive il link.
 - **Trascinare su uno spazio vuoto** apre un rettangolo di selezione e contrassegna più note (Shift+trascina estende una selezione esistente); trascinando poi uno dei nodi contrassegnati, si spostano tutti insieme. Il piè di pagina offre segnalibro/elimina per la selezione.
+- **Alt+trascinare un nodo** lo sposta insieme ai suoi vicini collegati direttamente — la nota e tutto ciò che si trova a un salto di distanza si riposizionano come gruppo; un nodo che si trova semplicemente nelle vicinanze ma non è collegato resta fermo.
 
 ## Pulizia
 

@@ -33,6 +33,7 @@ Travailler sur la carte :
 - Clic droit sur un espace vide : **Nouvelle note**, Réinitialiser la disposition, **Exporter en PNG/SVG**.
 - Cliquer sur un faisceau d'arêtes entre des dossiers liste les liens individuels ; survoler une arête montre la phrase où vit le lien.
 - **Glisser sur un espace vide** trace un rectangle de sélection et marque plusieurs notes (Maj+glisser étend une sélection existante) ; faites ensuite glisser un des nœuds marqués et ils se déplacent tous ensemble. Le pied de page propose signet/suppression pour la sélection.
+- **Alt+glisser un nœud** le déplace avec ses voisins directement liés — la note et tout ce qui se trouve à un saut de distance se repositionnent en groupe ; un nœud qui se trouve simplement à proximité mais qui n'est pas lié reste en place.
 
 ## Nettoyage
 

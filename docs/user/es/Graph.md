@@ -33,6 +33,7 @@ Trabajando en el mapa:
 - Clic derecho en un espacio vacío: **Nueva nota**, Restablecer disposición, **Exportar como PNG/SVG**.
 - Al hacer clic en un haz de aristas entre carpetas se listan los enlaces individuales; al pasar el cursor sobre una arista se muestra la frase en la que vive el enlace.
 - **Arrastrar sobre un espacio vacío** dibuja un rectángulo de selección y marca varias notas (Mayús+arrastrar amplía una selección existente); arrastra después uno de los nodos marcados y todos se moverán juntos. El pie de página ofrece marcador/eliminar para la selección.
+- **Alt+arrastrar un nodo** lo mueve junto con sus vecinos directamente enlazados — la nota y todo lo que está a un salto de distancia se reposicionan como grupo; un nodo que solo está cerca en el espacio, pero no enlazado, permanece en su sitio.
 
 ## Limpieza
 

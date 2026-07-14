@@ -33,6 +33,7 @@ Werken op de kaart:
 - Rechtsklik op lege ruimte: **Nieuwe notitie**, **Lay-out herstellen**, **Exporteren als PNG/SVG**.
 - Klikken op een edge-bundel tussen mappen toont de afzonderlijke links; hoveren over een edge toont de zin waarin de link staat.
 - **Slepen op lege ruimte** spant een selectierechthoek op en markeert meerdere notities (Shift+slepen breidt een bestaande selectie uit); sleep je daarna een van de gemarkeerde nodes, dan verplaatsen ze zich allemaal samen. De voettekst biedt bladwijzer/verwijderen voor de selectie.
+- **Alt+slepen op een node** verplaatst hem samen met zijn direct gelinkte buren — de notitie en alles wat één stap verderop ligt, verplaatst zich als groep; een node die toevallig in de buurt ligt maar niet gelinkt is, blijft staan.
 
 ## Opruimen
 

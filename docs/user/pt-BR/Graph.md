@@ -33,6 +33,7 @@ Trabalhando no mapa:
 - Clique com o botão direito em uma área vazia: **Nova nota**, Redefinir layout, **Exportar como PNG/SVG**.
 - Clicar em um feixe de links entre pastas lista os links individuais; passar o mouse sobre um link mostra a frase em que ele aparece.
 - **Arrastar em uma área vazia** desenha um retângulo de seleção e marca várias notas (Shift+arrastar estende uma seleção existente); arraste depois um dos nós marcados e todos se movem juntos. O rodapé permite adicionar aos favoritos ou excluir a seleção.
+- **Alt+arrastar um nó** o move junto com seus vizinhos diretamente vinculados — a nota e tudo o que está a um salto de distância se reposicionam como um grupo; um nó que apenas está próximo no espaço, mas não está vinculado, permanece parado.
 
 ## Limpando
 
