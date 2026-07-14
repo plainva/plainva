@@ -253,7 +253,23 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
   // ---- focus (hide everything outside seed + depth hops) ----------------------
   let visibleSet: Set<string> | null = null;
   if (focus) {
-    const seedRep = noteReps.get(focus.seed) ?? focus.seed;
+    // Resolve the focus seed to its currently visible representative(s). A folder
+    // seed whose folder is now EXPANDED has no node of its own, so the focus
+    // follows INTO the folder: seed from the reps of its now-visible members
+    // instead of losing the seed (report 2026-07-14: focus + expand = empty graph).
+    const entitySet = new Set(entityIds);
+    let seedReps: string[];
+    if (focus.seed.startsWith("folder:") && expanded.has(focus.seed.slice(7))) {
+      const folder = focus.seed.slice(7);
+      const inside = new Set<string>();
+      for (const [path, rep] of noteReps) {
+        const f = graph.nodes.get(path)?.folder ?? "";
+        if (f === folder || f.startsWith(`${folder}/`)) inside.add(rep);
+      }
+      seedReps = [...inside];
+    } else {
+      seedReps = [noteReps.get(focus.seed) ?? focus.seed];
+    }
     const adj = new Map<string, Set<string>>();
     for (const b of bundleMap.values()) {
       if (!adj.has(b.source)) adj.set(b.source, new Set());
@@ -261,20 +277,22 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
       adj.get(b.source)!.add(b.target);
       adj.get(b.target)!.add(b.source);
     }
-    visibleSet = new Set([seedRep]);
-    let frontier = [seedRep];
+    const seen = new Set(seedReps);
+    let frontier = [...seedReps];
     for (let d = 0; d < focus.depth; d++) {
       const next: string[] = [];
       for (const id of frontier) {
         for (const n of adj.get(id) ?? []) {
-          if (!visibleSet.has(n)) {
-            visibleSet.add(n);
+          if (!seen.has(n)) {
+            seen.add(n);
             next.push(n);
           }
         }
       }
       frontier = next;
     }
+    // Guard: never apply a focus that would hide EVERY visible node.
+    visibleSet = [...seen].some((id) => entitySet.has(id)) ? seen : null;
   }
 
   // ---- nodes -------------------------------------------------------------------

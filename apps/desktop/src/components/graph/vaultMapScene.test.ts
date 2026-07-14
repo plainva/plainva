@@ -151,6 +151,19 @@ describe("buildVaultMapScene", () => {
     expect(scene.nodes.find((n) => n.id === "root.md")!.hidden).toBe(true);
   });
 
+  it("focus on a folder that then gets expanded shows the folder's contents, not an empty graph", () => {
+    // Regression (2026-07-14): seed = folder:P, then P expanded. folder:P no longer
+    // has a node of its own, so the old code hid EVERYTHING. Now the focus follows
+    // into the folder and seeds from its now-visible members.
+    const scene = buildVaultMapScene(
+      inputOf(NODES, EDGES, { expanded: new Set(["P"]), focus: { seed: "folder:P", depth: 1 } })
+    );
+    const visible = scene.nodes.filter((n) => !n.hidden).map((n) => n.id);
+    expect(visible.length).toBeGreaterThan(0); // not empty
+    expect(visible).toContain("P/a.md");
+    expect(visible).toContain("P/b.md");
+  });
+
   it("heatmap sets recency heat; replay hides notes newer than the cutoff", () => {
     const DAY = 24 * 60 * 60 * 1000;
     const now = 1000 * DAY;
