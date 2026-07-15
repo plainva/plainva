@@ -1,13 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { highlightCodeToTokens, type HighlightedToken } from "@plainva/ui";
 
-// Read-view fenced code block (#10): a themed container with a language label
-// and a copy button. (Live/source highlighting is handled by CodeMirror's
-// codeLanguages; the read view keeps a clean monospace block.)
+// Read-view fenced code block (#10/#13): a themed container with a language
+// label and a copy button. Syntax highlighting mirrors the live editor — the
+// grammar is lazy-loaded from the SAME @codemirror/language-data table and the
+// SAME highlighters paint the tokens (see @plainva/ui highlightCodeToTokens).
+// Until the grammar arrives (or for an unknown language) the raw text renders,
+// so a code block is never blank or broken.
 export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lang }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const [tokens, setTokens] = useState<HighlightedToken[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setTokens(null);
+    void highlightCodeToTokens(code, lang)
+      .then((result) => {
+        if (alive) setTokens(result);
+      })
+      .catch(() => {
+        if (alive) setTokens(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [code, lang]);
+
   const copy = () => {
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
@@ -30,7 +51,15 @@ export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lan
         </button>
       </div>
       <pre style={{ margin: 0, padding: "0.8em 1em", overflowX: "auto" }}>
-        <code style={{ fontFamily: "monospace", fontSize: "0.9em", color: "var(--text-main)", background: "transparent" }}>{code}</code>
+        <code style={{ fontFamily: "monospace", fontSize: "0.9em", color: "var(--text-main)", background: "transparent" }}>
+          {tokens
+            ? tokens.map((token, i) =>
+                token.cls
+                  ? <span key={i} className={token.cls}>{token.text}</span>
+                  : <React.Fragment key={i}>{token.text}</React.Fragment>,
+              )
+            : code}
+        </code>
       </pre>
     </div>
   );
