@@ -1593,6 +1593,10 @@
     "settingTemplateFolder": "Carpeta de plantillas"
   },
   "tasks": {
+    "hideFromView": "Ocultar de las tareas",
+    "showInView": "Volver a mostrar en tareas",
+    "showHidden": "Mostrar ocultas",
+    "hideTemplates": "Ocultar plantillas",
     "title": "Tareas",
     "open": "Abiertas",
     "done": "Hechas",

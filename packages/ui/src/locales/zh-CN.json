@@ -1581,6 +1581,10 @@
     "settingTemplateFolder": "模板文件夹"
   },
   "tasks": {
+    "hideFromView": "从任务中隐藏",
+    "showInView": "重新在任务中显示",
+    "showHidden": "显示已隐藏",
+    "hideTemplates": "隐藏模板",
     "title": "任务",
     "open": "未完成",
     "done": "已完成",

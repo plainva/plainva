@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-07-07
+Stan na: 2026-07-15
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -89,15 +89,16 @@ Każdy klucz frontmatter to jedna właściwość. Zapisz wartość w natywnej fo
 
 ### Przestrzeń nazw `plainva:` w notatkach
 
-Dodatki dotyczące wyłącznie prezentacji są zgrupowane pod jednym kluczem `plainva:`, dzięki czemu inne edytory mogą je ignorować:
+Specyficzne dla Plainva dodatki do notatek są zgrupowane pod jednym kluczem `plainva:`, dzięki czemu inne edytory mogą je ignorować:
 
 | Klucz | Wartość | Znaczenie |
 |---|---|---|
 | `icon` | grafem emoji lub `lucide:<nazwa-kebab>` | Ikona dokumentu (w stylu Notion) |
 | `icon_color` | kolor hex (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tonacja ikony `lucide:` (emoji ją ignorują) |
 | `header_color` | kolor hex | Pasek nagłówka na pełną szerokość |
+| `tasks` | `false` | Wyklucza pola wyboru tej notatki z [widoku Zadania](Tasks.md) |
 
-Wszystkie trzy są opcjonalne. Jeśli nie zapisujesz żadnego z nich, pomiń klucz `plainva:` całkowicie. Nieprawidłowe wartości są ignorowane przy odczycie, nigdy traktowane jako błąd.
+Wszystkie te pola są opcjonalne. Jeśli nie zapisujesz żadnego z nich, pomiń klucz `plainva:` całkowicie. Nieprawidłowe wartości są ignorowane przy odczycie, nigdy traktowane jako błąd.
 
 ### Linki
 

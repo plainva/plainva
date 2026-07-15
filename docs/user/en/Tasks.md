@@ -37,6 +37,25 @@ Click a task's **checkbox** to toggle it between open and done. The change is wr
 
 If a note changed since the list was built, an out-of-date toggle is skipped and the list refreshes — use the **refresh** button at the top right to reload at any time.
 
+## Hiding notes from the Tasks view
+
+Some notes hold checkboxes that are never "real" tasks — **templates** above all. To keep them out of the list, a note can exclude itself. The truth stays in the file: the exclusion is a frontmatter field in the note, not a hidden app setting. It syncs, is visible in Obsidian, and can be checked with any text editor:
+
+```yaml
+---
+plainva:
+  tasks: false
+---
+```
+
+You do not have to write this field by hand:
+
+- **Hide from tasks** — an eye icon sits at the right of each note's header row; one click writes the marker into that note and hides it.
+- **Show hidden** — this option in the filter bar brings the hidden notes back (dimmed), each with an icon to **show it again** (which removes the marker).
+- **Hide templates** — if your template folder holds notes with checkboxes, a **Hide templates** button appears at the top right and stamps the marker into all of them at once.
+
+Newly created templates carry the marker automatically. When you create a note **from** a template, it is removed again — the new note is real content and shows its tasks normally.
+
 ## Obsidian compatibility
 
 Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds a special syntax: the same `- [ ]` lines render as checkboxes in Obsidian and read cleanly in any editor. The `📅 date` and `#tag` conventions are the common Obsidian-Tasks style, but they are just text in your note.

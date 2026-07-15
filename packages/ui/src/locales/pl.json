@@ -1599,6 +1599,10 @@
     "settingTemplateFolder": "Folder szablonów"
   },
   "tasks": {
+    "hideFromView": "Ukryj z zadań",
+    "showInView": "Pokaż ponownie w zadaniach",
+    "showHidden": "Pokaż ukryte",
+    "hideTemplates": "Ukryj szablony",
     "title": "Zadania",
     "open": "Otwarte",
     "done": "Ukończone",

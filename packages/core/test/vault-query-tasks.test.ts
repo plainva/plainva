@@ -28,4 +28,20 @@ describe("VaultQueryService.listTasks", () => {
     const tasks = await new VaultQueryService(db).listTasks();
     expect(tasks[0].title).toBe("Todo");
   });
+
+  it("marks a note excluded when its frontmatter carries plainva.tasks: false", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [
+      [
+        { path: "Templates/Weekly.md", title: "Weekly", content: "---\nplainva:\n  tasks: false\n---\n- [ ] placeholder" },
+        { path: "Real.md", title: "Real", content: "---\nplainva:\n  tasks: true\n---\n- [ ] do it" },
+        { path: "Plain.md", title: "Plain", content: "- [ ] no frontmatter" },
+      ],
+    ];
+    const tasks = await new VaultQueryService(db).listTasks();
+    const excludedByPath = Object.fromEntries(tasks.map((t) => [t.path, t.excluded]));
+    expect(excludedByPath["Templates/Weekly.md"]).toBe(true);
+    expect(excludedByPath["Real.md"]).toBe(false);
+    expect(excludedByPath["Plain.md"]).toBe(false);
+  });
 });

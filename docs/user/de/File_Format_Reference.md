@@ -89,15 +89,16 @@ Der „aktive" Wert einer Auswählen-/Status-Eigenschaft ist einfach dieser Skal
 
 ### Der `plainva:`-Namespace in Notizen
 
-Reine Präsentations-Extras liegen gebündelt unter einem einzigen `plainva:`-Schlüssel, damit andere Editoren sie ignorieren können:
+Plainva-spezifische Notiz-Extras liegen gebündelt unter einem einzigen `plainva:`-Schlüssel, damit andere Editoren sie ignorieren können:
 
 | Schlüssel | Wert | Bedeutung |
 |---|---|---|
 | `icon` | Emoji-Grapheme oder `lucide:<kebab-name>` | Dokument-Icon (Notion-artig) |
 | `icon_color` | Hex-Farbe (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tönung für ein `lucide:`-Icon (Emojis ignorieren sie) |
 | `header_color` | Hex-Farbe | Farbstreifen über die volle Breite |
+| `tasks` | `false` | Schließt die Checkboxen dieser Notiz aus der [Aufgabenansicht](Tasks.md) aus |
 
-Alle drei sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
+Alle davon sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
 
 ### Links
 

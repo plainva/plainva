@@ -110,6 +110,24 @@ export function setFrontmatterPath(
 }
 
 /**
+ * Reads the value at a nested frontmatter path (e.g. ["plainva", "tasks"]).
+ * Read-only and total: returns undefined when the content has no parseable
+ * frontmatter, the path is empty, or the key is absent — it never throws, so
+ * hot read paths (task/graph aggregation) can call it per note safely.
+ */
+export function readFrontmatterPath(content: string, path: readonly string[]): unknown {
+  if (path.length === 0) return undefined;
+  let split: SplitDocument;
+  try {
+    split = splitDocument(content);
+  } catch {
+    return undefined;
+  }
+  if (!split.hadFrontmatter || split.doc.contents === null) return undefined;
+  return split.doc.getIn(path);
+}
+
+/**
  * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
  * its children (`old/sub` -> `new/sub`) — mutating the scalar values in place so
  * the list format, order, other keys and comments are preserved. Returns the

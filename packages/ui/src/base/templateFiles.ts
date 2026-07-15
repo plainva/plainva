@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { deleteFrontmatterPath } from "@plainva/core";
 
 /**
  * Template file helpers (moved from the desktop newItemFlow in R3 so the
@@ -65,7 +66,15 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
  * {{prompt}} blanked) so a "new note from template" never leaves a literal
  * token behind. Shared with the editor's template picker. */
 export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
-  return finalizeTemplate(interpolateDates(content, title, now)).text;
+  const filled = finalizeTemplate(interpolateDates(content, title, now)).text;
+  // `plainva.tasks: false` opts the TEMPLATE out of the Tasks view; a note
+  // created from it is real content, so the marker must not carry over (else
+  // the new note's tasks would be hidden). Malformed frontmatter → leave as-is.
+  try {
+    return deleteFrontmatterPath(filled, ["plainva", "tasks"]);
+  } catch {
+    return filled;
+  }
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */

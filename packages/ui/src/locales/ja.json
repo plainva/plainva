@@ -1581,6 +1581,10 @@
     "settingTemplateFolder": "テンプレートフォルダー"
   },
   "tasks": {
+    "hideFromView": "タスクから隠す",
+    "showInView": "タスクに再表示",
+    "showHidden": "非表示を表示",
+    "hideTemplates": "テンプレートを隠す",
     "title": "タスク",
     "open": "未完了",
     "done": "完了",

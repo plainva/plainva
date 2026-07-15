@@ -1,4 +1,4 @@
-import type { IVaultAdapter } from "@plainva/core";
+import { setFrontmatterPath, type IVaultAdapter } from "@plainva/core";
 import { getTemplateFolder } from "./newItemFlow";
 import { buildNewNoteContent, getConfiguredNoteType } from "./newNote";
 
@@ -42,7 +42,14 @@ export async function createNewTemplate(
   const folder = await getTemplateFolder(vaultPath);
   if (!(await ensureFolder(adapter, folder))) return null;
   const path = await uniqueTemplatePath(adapter, folder, stem);
-  await adapter.writeTextFile(path, buildNewNoteContent(await getConfiguredNoteType(vaultPath), "{{title}}"));
+  // A template opts itself out of the Tasks view (`plainva.tasks: false`);
+  // applyTemplatePlaceholders strips the marker again for notes created from it.
+  const content = setFrontmatterPath(
+    buildNewNoteContent(await getConfiguredNoteType(vaultPath), "{{title}}"),
+    ["plainva", "tasks"],
+    false,
+  );
+  await adapter.writeTextFile(path, content);
   return path;
 }
 
@@ -61,6 +68,15 @@ export async function saveNoteAsTemplate(
   const base = notePath.split("/").pop() ?? notePath;
   const stem = base.replace(/\.md$/i, "");
   const path = await uniqueTemplatePath(adapter, folder, stem);
-  await adapter.writeTextFile(path, await adapter.readTextFile(notePath));
+  const raw = await adapter.readTextFile(notePath);
+  let content: string;
+  try {
+    // Mark the saved template as excluded from the Tasks view; the source note
+    // is arbitrary, so fall back to a verbatim copy on malformed frontmatter.
+    content = setFrontmatterPath(raw, ["plainva", "tasks"], false);
+  } catch {
+    content = raw;
+  }
+  await adapter.writeTextFile(path, content);
   return path;
 }

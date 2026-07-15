@@ -1,6 +1,6 @@
 # File Format Reference
 
-Stand: 2026-07-07
+Stand: 2026-07-15
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -89,15 +89,16 @@ Il valore "attivo" di una proprietà Selezione/Stato è solo quel semplice scala
 
 ### Il namespace `plainva:` nelle note
 
-Gli extra puramente di presentazione sono raggruppati sotto un'unica chiave `plainva:` così che altri editor possano ignorarli:
+Gli extra specifici di Plainva sono raggruppati sotto un'unica chiave `plainva:` così che altri editor possano ignorarli:
 
 | Chiave | Valore | Significato |
 |---|---|---|
 | `icon` | grafema emoji, oppure `lucide:<nome-kebab>` | Icona del documento (stile Notion) |
 | `icon_color` | colore esadecimale (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tinta per un'icona `lucide:` (le emoji la ignorano) |
 | `header_color` | colore esadecimale | Striscia di intestazione a tutta larghezza |
+| `tasks` | `false` | Esclude le caselle di controllo di questa nota dalla [vista Attività](Tasks.md) |
 
-Tutte e tre sono opzionali. Se non ne scrivi nessuna, ometti del tutto la chiave `plainva:`. I valori non validi vengono ignorati in lettura, mai trattati come errore.
+Tutte queste sono opzionali. Se non ne scrivi nessuna, ometti del tutto la chiave `plainva:`. I valori non validi vengono ignorati in lettura, mai trattati come errore.
 
 ### Link
 

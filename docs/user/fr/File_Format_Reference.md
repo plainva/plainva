@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-07-07
+Dernière mise à jour : 2026-07-15
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -89,15 +89,16 @@ La valeur « active » d'une propriété Sélection/Statut est simplement ce sca
 
 ### L'espace de noms `plainva:` dans les notes
 
-Les extras purement liés à la présentation sont regroupés sous une seule clé `plainva:` afin que les autres éditeurs puissent les ignorer :
+Les extras de note propres à Plainva sont regroupés sous une seule clé `plainva:` afin que les autres éditeurs puissent les ignorer :
 
 | Clé | Valeur | Signification |
 |---|---|---|
 | `icon` | grapheme emoji, ou `lucide:<nom-kebab>` | Icône du document (façon Notion) |
 | `icon_color` | couleur hex (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Teinte pour une icône `lucide:` (les emojis l'ignorent) |
 | `header_color` | couleur hex | Bandeau d'en-tête pleine largeur |
+| `tasks` | `false` | Exclut les cases à cocher de cette note de la [vue Tâches](Tasks.md) |
 
-Les trois sont facultatives. Si vous n'en écrivez aucune, omettez entièrement la clé `plainva:`. Les valeurs invalides sont ignorées à la lecture, jamais traitées comme une erreur.
+Toutes sont facultatives. Si vous n'en écrivez aucune, omettez entièrement la clé `plainva:`. Les valeurs invalides sont ignorées à la lecture, jamais traitées comme une erreur.
 
 ### Liens
 

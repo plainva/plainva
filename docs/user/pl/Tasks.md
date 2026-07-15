@@ -37,6 +37,25 @@ Kliknij **pole wyboru** zadania, aby przełączyć je między stanem otwartym a 
 
 Jeśli notatka zmieniła się od momentu zbudowania listy, nieaktualne przełączenie jest pomijane, a lista się odświeża — przycisk **odśwież** w prawym górnym rogu pozwala przeładować listę w każdej chwili.
 
+## Ukrywanie notatek z widoku Zadania
+
+Niektóre notatki zawierają pola wyboru, które nigdy nie są „prawdziwymi" zadaniami — przede wszystkim **szablony**. Aby trzymać je z dala od listy, notatka może wykluczyć samą siebie. Prawda pozostaje w pliku: wykluczenie to pole frontmatter w notatce, a nie ukryte ustawienie aplikacji. Synchronizuje się, jest widoczne w Obsidian i można je sprawdzić w dowolnym edytorze tekstu:
+
+```yaml
+---
+plainva:
+  tasks: false
+---
+```
+
+Nie musisz zapisywać tego pola ręcznie:
+
+- **Ukryj z zadań** — ikona oka znajduje się po prawej stronie wiersza nagłówka każdej notatki; jedno kliknięcie zapisuje znacznik w tej notatce i ją ukrywa.
+- **Pokaż ukryte** — ta opcja na pasku filtrów przywraca ukryte notatki (przyciemnione), każda z ikoną **Pokaż ponownie w zadaniach** (która usuwa znacznik).
+- **Ukryj szablony** — jeśli Twój folder szablonów zawiera notatki z polami wyboru, w prawym górnym rogu pojawia się przycisk **Ukryj szablony**, który jednocześnie zapisuje znacznik we wszystkich nich.
+
+Nowo utworzone szablony automatycznie niosą znacznik. Gdy tworzysz notatkę **z** szablonu, znacznik jest ponownie usuwany — nowa notatka to prawdziwa treść i normalnie pokazuje swoje zadania.
+
 ## Zgodność z Obsidian
 
 Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie dodaje specjalnej składni: te same linie `- [ ]` renderują się jako pola wyboru w Obsidian i czytelnie wyświetlają się w dowolnym edytorze. Konwencje `📅 data` i `#tag` to typowy styl wtyczki Obsidian Tasks, ale w Twojej notatce są to zwykły tekst.

@@ -6,6 +6,7 @@ import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_ST
 import { scanTasks, type ScannedTask } from "./taskScan.js";
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
 import { contentHasTag } from "./renameTag.js";
+import { readFrontmatterPath } from "../frontmatter-surgical.js";
 
 export interface FileRecord {
   id: string;
@@ -43,6 +44,9 @@ export interface RelationSource {
 export interface TaskRecord extends ScannedTask {
   path: string;
   title: string;
+  /** True when the note opts out of task aggregation (`plainva.tasks: false`
+   * in its frontmatter) — the view hides these by default. */
+  excluded: boolean;
 }
 
 /** One note that contains matches for a vault-wide find (B6). */
@@ -240,9 +244,16 @@ export class VaultQueryService {
     const out: TaskRecord[] = [];
     for (const r of rows) {
       if (!r.path) continue;
+      const content = r.content ?? "";
+      const scanned = scanTasks(content);
+      if (scanned.length === 0) continue;
       const title = r.title || r.path.split("/").pop()!.replace(/\.md$/i, "");
-      for (const task of scanTasks(r.content ?? "")) {
-        out.push({ path: r.path, title, ...task });
+      // Truth stays in the file: a note opts out of task aggregation by carrying
+      // `plainva.tasks: false` in its frontmatter (templates, drafts, …). The
+      // frontmatter parse only runs for notes that actually contain tasks.
+      const excluded = readFrontmatterPath(content, ["plainva", "tasks"]) === false;
+      for (const task of scanned) {
+        out.push({ path: r.path, title, excluded, ...task });
       }
     }
     return out;

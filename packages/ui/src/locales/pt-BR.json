@@ -1593,6 +1593,10 @@
     "settingTemplateFolder": "Pasta de modelos"
   },
   "tasks": {
+    "hideFromView": "Ocultar das tarefas",
+    "showInView": "Mostrar nas tarefas novamente",
+    "showHidden": "Mostrar ocultas",
+    "hideTemplates": "Ocultar modelos",
     "title": "Tarefas",
     "open": "Abertas",
     "done": "Concluídas",

@@ -1587,6 +1587,10 @@
     "settingTemplateFolder": "Template folder"
   },
   "tasks": {
+    "hideFromView": "Hide from tasks",
+    "showInView": "Show in tasks again",
+    "showHidden": "Show hidden",
+    "hideTemplates": "Hide templates",
     "title": "Tasks",
     "open": "Open",
     "done": "Done",

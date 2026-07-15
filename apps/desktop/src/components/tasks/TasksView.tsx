@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText } from "lucide-react";
-import { scanTasks, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton } from "@plainva/ui";
-import { useVault } from "../../contexts/VaultContext";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye } from "lucide-react";
+import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
+import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button } from "@plainva/ui";
+import { useVault, templateFolderKey } from "../../contexts/VaultContext";
+import { getSettingsStore } from "../../services/settingsStore";
 
 interface Props {
   /** Open a note (the search-jump store already carries the line to reveal). */
@@ -19,10 +20,15 @@ type StatusFilter = "open" | "done" | "all";
  * marker back through the shared toggleTaskAtIndex + an atomic write; a click on
  * the task opens the note and jumps to the line. OKF-safe: tasks are ordinary
  * Markdown list items, never touched beyond the single `[ ]`/`[x]` character.
+ *
+ * A note opts out of aggregation with `plainva.tasks: false` in its frontmatter
+ * (the truth stays in the file, syncs, is visible in Obsidian). The view hides
+ * such notes by default and offers one-click hide/show per note plus a bulk
+ * "hide templates" that stamps the marker into the template folder's notes.
  */
 export function TasksView({ onOpenPath }: Props) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, fileTreeVersion } = useVault();
+  const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<StatusFilter>("open");
@@ -30,6 +36,8 @@ export function TasksView({ onOpenPath }: Props) {
   const [folder, setFolder] = useState("");
   const [tag, setTag] = useState("");
   const [dueOnly, setDueOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
@@ -59,24 +67,56 @@ export function TasksView({ onOpenPath }: Props) {
     };
   }, [queryService, fileTreeVersion, refreshTick]);
 
+  useEffect(() => {
+    if (!vaultPath) return;
+    let alive = true;
+    getSettingsStore()
+      .then((s) => s.get<string>(templateFolderKey(vaultPath)))
+      .then((v) => {
+        if (alive) setTemplateFolder(v || "Templates");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+
+  const visibleTasks = useMemo(
+    () => (showHidden ? tasks : tasks.filter((tk) => !tk.excluded)),
+    [tasks, showHidden]
+  );
+
   const allFolders = useMemo(() => {
     const s = new Set<string>();
-    for (const tk of tasks) {
+    for (const tk of visibleTasks) {
       const i = tk.path.lastIndexOf("/");
       if (i > 0) s.add(tk.path.slice(0, i));
     }
     return [...s].sort();
-  }, [tasks]);
+  }, [visibleTasks]);
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
-    for (const tk of tasks) for (const g of tk.tags) s.add(g);
+    for (const tk of visibleTasks) for (const g of tk.tags) s.add(g);
     return [...s].sort();
-  }, [tasks]);
+  }, [visibleTasks]);
+
+  // Not-yet-excluded notes under the template folder — the "hide templates"
+  // bulk action targets exactly these (and the button hides once none remain).
+  const templateNotePaths = useMemo(() => {
+    const base = templateFolder.replace(/\/+$/, "");
+    if (!base) return [] as string[];
+    const prefix = base + "/";
+    const s = new Set<string>();
+    for (const tk of tasks) {
+      if (!tk.excluded && (tk.path === base || tk.path.startsWith(prefix))) s.add(tk.path);
+    }
+    return [...s];
+  }, [tasks, templateFolder]);
 
   const filtered = useMemo(() => {
     const q = text.trim().toLowerCase();
-    return tasks.filter((tk) => {
+    return visibleTasks.filter((tk) => {
       if (status === "open" && tk.done) return false;
       if (status === "done" && !tk.done) return false;
       if (folder && tk.path !== folder && !tk.path.startsWith(folder + "/")) return false;
@@ -85,14 +125,14 @@ export function TasksView({ onOpenPath }: Props) {
       if (q && !tk.text.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [tasks, status, folder, tag, dueOnly, text]);
+  }, [visibleTasks, status, folder, tag, dueOnly, text]);
 
   const groups = useMemo(() => {
-    const m = new Map<string, { title: string; items: TaskRecord[] }>();
+    const m = new Map<string, { title: string; excluded: boolean; items: TaskRecord[] }>();
     for (const tk of filtered) {
       const g = m.get(tk.path);
       if (g) g.items.push(tk);
-      else m.set(tk.path, { title: tk.title, items: [tk] });
+      else m.set(tk.path, { title: tk.title, excluded: tk.excluded, items: [tk] });
     }
     return [...m.entries()];
   }, [filtered]);
@@ -120,6 +160,31 @@ export function TasksView({ onOpenPath }: Props) {
     },
     [vaultAdapter]
   );
+
+  // Writes/removes the `plainva.tasks: false` opt-out marker in the note's
+  // frontmatter (through the adapter's atomic + backup chain), then optimistically
+  // updates the local state; a metadata re-index re-derives it from disk.
+  const setNoteExcluded = useCallback(
+    async (path: string, excluded: boolean) => {
+      if (!vaultAdapter) return;
+      try {
+        const raw = await vaultAdapter.readTextFile(path);
+        const next = excluded
+          ? setFrontmatterPath(raw, ["plainva", "tasks"], false)
+          : deleteFrontmatterPath(raw, ["plainva", "tasks"]);
+        if (next !== raw) await vaultAdapter.writeTextFile(path, next);
+        setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
+      } catch (e) {
+        console.error("[TasksView] toggling note exclusion failed", path, e);
+        setRefreshTick((x) => x + 1);
+      }
+    },
+    [vaultAdapter]
+  );
+
+  const hideAllTemplates = useCallback(async () => {
+    for (const p of templateNotePaths) await setNoteExcluded(p, true);
+  }, [templateNotePaths, setNoteExcluded]);
 
   const open = useCallback(
     (task: TaskRecord) => {
@@ -154,6 +219,11 @@ export function TasksView({ onOpenPath }: Props) {
         <strong style={{ fontSize: "1rem" }}>{t("tasks.title", { defaultValue: "Aufgaben" })}</strong>
         <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{filtered.length}</span>
         <div style={{ flex: 1 }} />
+        {templateNotePaths.length > 0 && (
+          <Button variant="ghost" onClick={() => void hideAllTemplates()}>
+            {t("tasks.hideTemplates", { defaultValue: "Vorlagen ausblenden" })}
+          </Button>
+        )}
         <IconButton label={t("tasks.refresh", { defaultValue: "Aktualisieren" })} onClick={() => setRefreshTick((x) => x + 1)}>
           <RefreshCw size={15} />
         </IconButton>
@@ -187,6 +257,10 @@ export function TasksView({ onOpenPath }: Props) {
           <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
           {t("tasks.dueOnly", { defaultValue: "Nur mit Fälligkeit" })}
         </label>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer" }}>
+          <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
+          {t("tasks.showHidden", { defaultValue: "Ausgeblendete anzeigen" })}
+        </label>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
@@ -203,6 +277,7 @@ export function TasksView({ onOpenPath }: Props) {
                 border: "1px solid var(--border-color)",
                 borderRadius: "var(--radius-md)",
                 overflow: "hidden",
+                opacity: group.excluded ? 0.55 : 1,
               }}
             >
               <div
@@ -235,6 +310,18 @@ export function TasksView({ onOpenPath }: Props) {
                 >
                   {group.items.length}
                 </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void setNoteExcluded(path, !group.excluded);
+                  }}
+                  aria-label={group.excluded ? t("tasks.showInView", { defaultValue: "Wieder in Aufgaben einblenden" }) : t("tasks.hideFromView", { defaultValue: "Aus Aufgaben ausblenden" })}
+                  title={group.excluded ? t("tasks.showInView", { defaultValue: "Wieder in Aufgaben einblenden" }) : t("tasks.hideFromView", { defaultValue: "Aus Aufgaben ausblenden" })}
+                  style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
+                >
+                  {group.excluded ? <Eye size={14} /> : <EyeOff size={14} />}
+                </button>
               </div>
               <div style={{ padding: "0.25rem 0 0.35rem" }}>
                 {group.items.map((task) => (

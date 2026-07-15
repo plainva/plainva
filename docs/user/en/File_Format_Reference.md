@@ -89,15 +89,16 @@ The "active" value of a Select/Status property is just that plain scalar. The *p
 
 ### The `plainva:` namespace in notes
 
-Presentation-only extras are bundled under a single `plainva:` key so other editors can ignore them:
+Plainva-specific note extras are bundled under a single `plainva:` key so other editors can ignore them:
 
 | Key | Value | Meaning |
 |---|---|---|
 | `icon` | emoji grapheme, or `lucide:<kebab-name>` | Document icon (Notion-style) |
 | `icon_color` | hex color (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tint for a `lucide:` icon (emoji ignore it) |
 | `header_color` | hex color | Full-width header stripe |
+| `tasks` | `false` | Exclude this note's checkboxes from the [Tasks view](Tasks.md) |
 
-All three are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
+All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
 
 ### Links
 

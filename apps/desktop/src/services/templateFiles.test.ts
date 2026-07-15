@@ -36,6 +36,16 @@ describe("templateInsertText (shared insert-into-note contract)", () => {
       "A/A 2026-07-11",
     );
   });
+
+  it("applyTemplatePlaceholders strips a template's plainva.tasks opt-out (a derived note shows its tasks)", () => {
+    const raw = "---\ntype: Note\nplainva:\n  tasks: false\n---\n# {{title}}\n- [ ] do it";
+    const out = applyTemplatePlaceholders(raw, "Meeting", now);
+    expect(out).not.toContain("tasks: false");
+    expect(out).not.toContain("plainva");
+    expect(out).toContain("type: Note");
+    expect(out).toContain("# Meeting");
+    expect(out).toContain("- [ ] do it");
+  });
 });
 
 describe("Templater-lite tokens ({{cursor}}, {{prompt}})", () => {

@@ -60,11 +60,20 @@ describe("templateActions", () => {
     expect(files.size).toBe(0);
   });
 
-  it("copies a note verbatim into the template folder, source untouched", async () => {
-    files.set("Projekte/Plan.md", "---\ntype: Note\n---\n\n# Plan\n\nBody with [[Link]] and ![[img.png]]\n");
+  it("saves a note as a template with a Tasks-view opt-out marker, source untouched", async () => {
+    const source = "---\ntype: Note\n---\n\n# Plan\n\nBody with [[Link]] and ![[img.png]]\n";
+    files.set("Projekte/Plan.md", source);
     const path = await saveNoteAsTemplate(fakeAdapter(files), "/vault", "Projekte/Plan.md");
     expect(path).toBe("Templates/Plan.md");
-    expect(files.get("Templates/Plan.md")).toBe(files.get("Projekte/Plan.md"));
+    // The source note is never touched.
+    expect(files.get("Projekte/Plan.md")).toBe(source);
+    // The saved template gains `plainva.tasks: false` (so it stays out of the
+    // Tasks view) but keeps type and body verbatim.
+    const saved = files.get("Templates/Plan.md")!;
+    expect(saved).toContain("tasks: false");
+    expect(saved).toContain("type: Note");
+    expect(saved).toContain("# Plan");
+    expect(saved).toContain("Body with [[Link]] and ![[img.png]]");
   });
 
   it("numbers template copies on collision", async () => {

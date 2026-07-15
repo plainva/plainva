@@ -37,6 +37,25 @@ Cliquez sur la **case à cocher** d'une tâche pour basculer entre ouverte et te
 
 Si une note a changé depuis la construction de la liste, un basculement obsolète est ignoré et la liste s'actualise — utilisez le bouton **actualiser** en haut à droite pour recharger à tout moment.
 
+## Masquer des notes de la vue Tâches
+
+Certaines notes contiennent des cases à cocher qui ne sont jamais de « vraies » tâches — les **modèles** en premier lieu. Pour les tenir à l'écart de la liste, une note peut s'exclure elle-même. La vérité reste dans le fichier : l'exclusion est un champ de frontmatter dans la note, pas un réglage caché de l'application. Elle se synchronise, est visible dans Obsidian et peut être vérifiée avec n'importe quel éditeur de texte :
+
+```yaml
+---
+plainva:
+  tasks: false
+---
+```
+
+Vous n'avez pas besoin d'écrire ce champ à la main :
+
+- **Masquer des tâches** — une icône en forme d'œil se trouve à droite de la ligne d'en-tête de chaque note ; un clic écrit le marqueur dans cette note et la masque.
+- **Afficher les masqués** — cette option dans la barre de filtres fait réapparaître les notes masquées (estompées), chacune avec une icône **Réafficher dans les tâches** qui retire le marqueur.
+- **Masquer les modèles** — si votre dossier de modèles contient des notes avec des cases à cocher, un bouton **Masquer les modèles** apparaît en haut à droite et appose le marqueur sur toutes en une fois.
+
+Les modèles nouvellement créés portent le marqueur automatiquement. Quand vous créez une note **à partir** d'un modèle, il est retiré à nouveau — la nouvelle note est du contenu réel et affiche normalement ses tâches.
+
 ## Compatibilité Obsidian
 
 Les tâches sont des cases à cocher GFM (GitHub-Flavored Markdown) ordinaires. Plainva n'ajoute jamais de syntaxe spéciale : les mêmes lignes `- [ ]` se rendent comme des cases à cocher dans Obsidian et se lisent proprement dans n'importe quel éditeur. Les conventions `📅 date` et `#tag` correspondent au style courant d'Obsidian-Tasks, mais ce ne sont que du texte dans votre note.

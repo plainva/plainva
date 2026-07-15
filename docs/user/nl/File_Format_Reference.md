@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-07-07
+Laatst bijgewerkt: 2026-07-15
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -89,15 +89,16 @@ De "actieve" waarde van een Selectie-/Status-eigenschap is precies die platte sc
 
 ### De `plainva:`-namespace in notities
 
-Presentatie-extra's zijn gebundeld onder één enkele `plainva:`-sleutel, zodat andere editors ze kunnen negeren:
+Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plainva:`-sleutel, zodat andere editors ze kunnen negeren:
 
 | Sleutel | Waarde | Betekenis |
 |---|---|---|
 | `icon` | emoji-grafeem, of `lucide:<kebab-naam>` | Documenticoon (Notion-stijl) |
 | `icon_color` | hexkleur (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tint voor een `lucide:`-icoon (emoji's negeren dit) |
 | `header_color` | hexkleur | Headerstreep over de volle breedte |
+| `tasks` | `false` | Sluit de selectievakjes van deze notitie uit van de [Taken-weergave](Tasks.md) |
 
-Alle drie zijn optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
+Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
 
 ### Links
 

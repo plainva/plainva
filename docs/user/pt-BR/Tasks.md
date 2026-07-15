@@ -37,6 +37,25 @@ Clique na **caixa de seleção** de uma tarefa para alternar entre aberta e conc
 
 Se uma nota mudou desde que a lista foi construída, uma alternância desatualizada é ignorada e a lista é atualizada — use o botão **Atualizar** no canto superior direito para recarregar a qualquer momento.
 
+## Ocultando notas da visualização de Tarefas
+
+Algumas notas contêm caixas de seleção que nunca são tarefas "reais" — **modelos**, acima de tudo. Para mantê-las fora da lista, uma nota pode se excluir. A verdade permanece no arquivo: a exclusão é um campo de frontmatter na nota, não uma configuração oculta do app. Ela sincroniza, é visível no Obsidian e pode ser verificada com qualquer editor de texto:
+
+```yaml
+---
+plainva:
+  tasks: false
+---
+```
+
+Você não precisa escrever esse campo manualmente:
+
+- **Ocultar das tarefas** — um ícone de olho fica à direita da linha de cabeçalho de cada nota; um clique grava o marcador nessa nota e a oculta.
+- **Mostrar ocultas** — esta opção na barra de filtros traz de volta as notas ocultas (esmaecidas), cada uma com um ícone para **Mostrar nas tarefas novamente** (que remove o marcador).
+- **Ocultar modelos** — se sua pasta de modelos contém notas com caixas de seleção, um botão **Ocultar modelos** aparece no canto superior direito e grava o marcador em todas elas de uma só vez.
+
+Modelos recém-criados carregam o marcador automaticamente. Quando você cria uma nota **a partir de** um modelo, ele é removido novamente — a nova nota é conteúdo real e mostra suas tarefas normalmente.
+
 ## Compatibilidade com o Obsidian
 
 As tarefas são caixas de seleção comuns do GFM (GitHub-Flavored Markdown). O Plainva nunca adiciona uma sintaxe especial: as mesmas linhas `- [ ]` são renderizadas como caixas de seleção no Obsidian e são lidas corretamente em qualquer editor. As convenções `📅 data` e `#tag` são o estilo comum do Obsidian-Tasks, mas são apenas texto na sua nota.

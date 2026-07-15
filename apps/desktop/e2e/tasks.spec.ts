@@ -156,3 +156,23 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /done thing/ })).toBeVisible();
 });
+
+test('hiding a note writes plainva.tasks: false and drops it until "show hidden"', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
+
+  // Hide the Todo group via its eye button (writes the opt-out marker to disk).
+  await page.getByRole('button', { name: /Hide from tasks|Aus Aufgaben ausblenden/ }).first().click();
+
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']))
+    .toContain('tasks: false');
+
+  // Its tasks leave the default view...
+  await expect(page.getByRole('button', { name: /buy milk/ })).toHaveCount(0);
+
+  // ...and "show hidden" brings the note back (dimmed, with a re-show affordance).
+  await page.getByRole('checkbox', { name: /Show hidden|Ausgeblendete anzeigen/ }).check();
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
+});

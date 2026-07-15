@@ -1593,6 +1593,10 @@
     "settingTemplateFolder": "Dossier des modèles"
   },
   "tasks": {
+    "hideFromView": "Masquer des tâches",
+    "showInView": "Réafficher dans les tâches",
+    "showHidden": "Afficher les masqués",
+    "hideTemplates": "Masquer les modèles",
     "title": "Tâches",
     "open": "Ouvertes",
     "done": "Terminées",

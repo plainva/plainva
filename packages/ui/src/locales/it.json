@@ -1593,6 +1593,10 @@
     "settingTemplateFolder": "Cartella dei modelli"
   },
   "tasks": {
+    "hideFromView": "Nascondi dalle attività",
+    "showInView": "Mostra di nuovo nelle attività",
+    "showHidden": "Mostra nascoste",
+    "hideTemplates": "Nascondi modelli",
     "title": "Attività",
     "open": "Aperte",
     "done": "Completate",

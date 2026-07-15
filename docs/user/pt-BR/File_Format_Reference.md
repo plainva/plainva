@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Stand: 2026-07-07
+Stand: 2026-07-15
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -89,15 +89,16 @@ O valor "ativo" de uma propriedade de Seleção/Status é apenas esse escalar si
 
 ### O namespace `plainva:` em notas
 
-Extras exclusivamente de apresentação são agrupados sob uma única chave `plainva:` para que outros editores possam ignorá-los:
+Extras específicos do Plainva para notas são agrupados sob uma única chave `plainva:` para que outros editores possam ignorá-los:
 
 | Chave | Valor | Significado |
 |---|---|---|
 | `icon` | grafema de emoji, ou `lucide:<nome-kebab>` | Ícone do documento (estilo Notion) |
 | `icon_color` | cor hex (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tonalidade para um ícone `lucide:` (emojis a ignoram) |
 | `header_color` | cor hex | Faixa de cabeçalho em largura total |
+| `tasks` | `false` | Exclui as caixas de seleção desta nota da [visualização de Tarefas](Tasks.md) |
 
-Todos os três são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
+Todos são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
 
 ### Links
 

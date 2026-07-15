@@ -1587,6 +1587,10 @@
     "settingTemplateFolder": "Vorlagen-Ordner"
   },
   "tasks": {
+    "hideFromView": "Aus Aufgaben ausblenden",
+    "showInView": "Wieder in Aufgaben einblenden",
+    "showHidden": "Ausgeblendete anzeigen",
+    "hideTemplates": "Vorlagen ausblenden",
     "title": "Aufgaben",
     "open": "Offen",
     "done": "Erledigt",

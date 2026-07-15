@@ -37,6 +37,25 @@ Haz clic en la **casilla** de una tarea para alternarla entre abierta y hecha. E
 
 Si una nota cambió desde que se generó la lista, un cambio de estado obsoleto se omite y la lista se actualiza — usa el botón **Actualizar** de arriba a la derecha para recargar en cualquier momento.
 
+## Ocultar notas de la vista Tareas
+
+Algunas notas contienen casillas que nunca son tareas "reales" — sobre todo las **plantillas**. Para mantenerlas fuera de la lista, una nota puede excluirse a sí misma. La verdad se queda en el archivo: la exclusión es un campo de frontmatter en la nota, no un ajuste oculto de la aplicación. Se sincroniza, es visible en Obsidian y se puede comprobar con cualquier editor de texto:
+
+```yaml
+---
+plainva:
+  tasks: false
+---
+```
+
+No tienes que escribir este campo a mano:
+
+- **Ocultar de las tareas** — un icono de ojo se encuentra a la derecha de la fila de encabezado de cada nota; un clic escribe el marcador en esa nota y la oculta.
+- **Mostrar ocultas** — esta opción en la barra de filtros trae de vuelta las notas ocultas (atenuadas), cada una con un icono **Volver a mostrar en tareas** que elimina el marcador.
+- **Ocultar plantillas** — si tu carpeta de plantillas contiene notas con casillas, aparece un botón **Ocultar plantillas** arriba a la derecha que estampa el marcador en todas ellas a la vez.
+
+Las plantillas recién creadas llevan el marcador automáticamente. Cuando creas una nota **a partir de** una plantilla, se elimina de nuevo — la nota nueva es contenido real y muestra sus tareas con normalidad.
+
 ## Compatibilidad con Obsidian
 
 Las tareas son casillas GFM (GitHub-Flavored Markdown) normales. Plainva nunca añade una sintaxis especial: las mismas líneas `- [ ]` se renderizan como casillas en Obsidian y se leen con claridad en cualquier editor. Las convenciones `📅 date` y `#tag` son el estilo habitual de Obsidian-Tasks, pero son solo texto en tu nota.
