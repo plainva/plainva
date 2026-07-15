@@ -33,6 +33,10 @@ Plainva follows a strict rule: **every file it writes must still open in Obsidia
 
 Note that the guarantee runs one way: Obsidian can always **open** what Plainva writes, but once a vault uses Plainva features (`.base` extensions such as boards or relations, managed `index.md` files), **editing** those specific files in Obsidian can break that functionality — Obsidian does not know the `plainva:` extensions. Notes without Plainva extensions can be edited anywhere, anytime. Details in the [FAQ](docs/user/en/FAQ.md#can-i-use-plainva-and-obsidian-side-by-side).
 
+## Automation & scripting
+
+Plainva has no code-plugin sandbox — the vault *is* the interface. Every file is plain Markdown or YAML with an open, documented format, so any script, CLI tool or AI agent can read and write your vault directly and safely, with no Plainva-specific API to learn. See the guide's [Automation & Scripts](docs/user/en/Automation_and_Scripts.md) page and the machine-oriented [file format reference](docs/user/en/File_Format_Reference.md). (A dedicated in-app plugin system remains a separate post-1.0 idea.)
+
 ## Download & install
 
 Grab the installer for your platform from the [Releases page](https://github.com/plainva/plainva/releases). Updates are delivered in-app (signed, with an opt-out).

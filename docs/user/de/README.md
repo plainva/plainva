@@ -13,6 +13,7 @@ Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-
 | [Datenbanken (.base)](Databases_Base.md) | Notizen als Datenbank ansehen — Ansichten, Filter, Eigenschaften, Relationen, neue Einträge (ähnlich Notion, aber dateibasiert) |
 | [OKF](OKF.md) | Das Open Knowledge Format: `type`, `okf_version`, index.md-Verwaltung und die optionale Vault-Konvertierung |
 | [Dateiformat-Referenz](File_Format_Reference.md) | Das genaue Dateiformat jeder Vault-Datei — für Werkzeuge, Skripte oder eine KI, die Notizen und `.base`-Dateien direkt bearbeitet |
+| [Automatisierung & Skripte](Automation_and_Scripts.md) | Plainva ohne Plugins erweitern: wie Skripte, CLI-Werkzeuge und KI-Agenten einen Vault sicher lesen und schreiben |
 | [Backups & Versionsverlauf](Backups_and_Versioning.md) | Automatische Datei-Versionen, Wiederherstellen (auch gelöschter Dateien) und tägliche ZIP-Sicherungen des Vaults |
 | [Die mobile App](Mobile_App.md) | Plainva auf Android und iOS: Aufbau, Bearbeiten, Datenbanken, Sync und Sicherheitsnetz |
 | [Sync einrichten](Sync_Setup.md) | Schritt für Schritt je Anbieter: WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3 |
