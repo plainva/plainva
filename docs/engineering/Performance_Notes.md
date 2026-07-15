@@ -38,7 +38,7 @@ Deterministically seeded (comparable runs): ~sqrt(n) folders, OKF frontmatter, ~
 ## Structural changes from the P2 sprint (2026-07-05)
 
 - **Indexes**: `links(source_id)`, `properties(file_id)` (eliminates CASCADE full scans on every save), `files(title COLLATE NOCASE)` (wiki link resolution without a table scan).
-- **Indexer bulk pass**: 3 upfront SELECTs per file replaced with 3 queries per RUN; links/tags/properties as multi-row INSERTs (chunk size 150); deletions as IN batches. Order of magnitude for a 10k vault: from ~150-400k down to ~40-80k IPC roundtrips; the optional Rust bulk command (a real transaction) remains a follow-up option if the native measurement still needs it.
+- **Indexer bulk pass**: 3 upfront SELECTs per file replaced with 3 queries per RUN; links/tags/properties as multi-row INSERTs (chunk size 150); deletions as IN batches. Order of magnitude for a 10k vault: from ~150-400k down to ~40-80k IPC roundtrips; the Rust bulk command (a real transaction) is now delivered and wired for the cold full-scan — see "Cold-index bulk batch" below.
 - **Incremental watcher**: event paths are indexed individually (`VaultIndexer.indexPath`); folder cases and floods (>50 paths) fall back to a full scan. Pure echoes (unchanged mtime) no longer trigger a re-render.
 - **Sync tick**: `SyncStateRepository.getAllStates()` loads the state once per cycle (previously 1 SELECT per remote file every 15 s); `base_text` is deliberately left out (a conflict case loads it specifically).
 - **Link resolver corpus index**: `buildLinkTargetIndex` + `resolveLinkTargetIndexed` make graph load, backlinks, and reverse columns O(links) instead of O(links × files). (Follow-up 2026-07-06: `GraphService.loadGraph` initially did NOT use the index — it still did a single-shot resolve per link row; since the follow-up package, loadGraph builds the index once per run, and likewise `convertWikilinksToMarkdownLinks` once per document.)
@@ -70,9 +70,11 @@ Readings: warm starts, incremental indexing and search stay FAR inside their
 budgets at every realistic profile — the warm-index work (fix D) and the FTS
 design carry (20k warm start is under 1 s). The COLD full index is the hot
 spot, and the heavy profiles settle the open question: **20k breaches the
-60 s budget outright (151 s), so the Rust bulk-insert command (real SQL
-transaction instead of the JS mutex) is now a REQUIRED follow-up, no longer
-just designated.** The `large` profile (5k deliberately huge notes) is an
+60 s budget outright (151 s), which made the Rust bulk-insert command (a real
+SQL transaction instead of the JS mutex) a hard requirement — now DELIVERED as
+`db_batch` and wired for the cold full-scan (see "Cold-index bulk batch"
+below); re-measure 20k natively to confirm it drops under budget.** The `large`
+profile (5k deliberately huge notes) is an
 extreme stress case, not a realistic vault: cold indexing balloons to ~15 min
 (FTS insert cost scales with content bytes), a single changed huge file costs
 ~350 ms to re-index (async after save — acceptable), and the PHRASE search
@@ -81,6 +83,36 @@ many megabyte-sized notes show up, phrase-search cost and per-file FTS
 chunking join the bulk-insert follow-up. JSON outputs live in the maintainer
 workspace scratchpad; re-run via
 `pnpm --filter @plainva/core run benchmark -- --files 20000 --runs 3`.
+
+## Cold-index bulk batch (B3, 2026-07-15)
+
+The cold full-scan (`VaultIndexer.indexVaultFull`) used to issue one `execute()`
+per row — one IPC hop, one pooled-connection checkout, one auto-commit each —
+which is what put the 20k cold index at 151 s. Its writes (files/fts/links/tags/
+properties rows plus the new-file sync_state upsert) now go through a recording
+sink and are flushed as ONE atomic transaction per bounded chunk via the native
+`db_batch` command (`src-tauri/src/db_batch.rs`): a single connection runs an
+ordered statement batch with BEGIN/COMMIT and ROLLBACK on any error, using the
+`sqlx` that `tauri-plugin-sql` already links (no second SQLite). This gives both
+atomicity (a crash mid-scan rolls the chunk back) and far fewer IPC hops.
+
+Verified in the harness: `cargo test --lib db_batch` (commit/rollback atomicity,
+FK cascade inside the batch, param types, 1000-row bulk) and a TS
+statement-equivalence test (`vault-indexer-batch.test.ts`) proving the batch
+carries EXACTLY the same writes, in the same order, as the per-statement path —
+so only delivery changes, not content. Adapters without `runBatch` (tests,
+non-Tauri) fall back to per-statement writes via `runStatementsAtomic`.
+
+Native follow-up (needs the built app — not runnable in the harness):
+- **Re-measure the 20k cold index** and fill the table below; confirm it drops
+  under the 60 s budget. If a second connection to the same WAL file shows lock
+  contention under a real cold index, tune `busy_timeout` / the flush chunk size
+  (`FLUSH_AT` in `indexVaultFull`).
+- **SyncQueue atomicity is still open.** The 6 `SyncQueue` transactions read
+  mid-transaction and branch in JS (e.g. `markSynced` deletes then reads), so a
+  pure write batch cannot express them — they stay on the JS mutex. Making them
+  truly atomic needs a pinned cross-invoke transaction handle (begin/exec/query/
+  commit on ONE held connection), a larger, separate native change.
 
 ## Native measurements (maintainer, to be added)
 
@@ -92,7 +124,7 @@ workspace scratchpad; re-run via
 | File switch (sidebar open) | | | | |
 | Search (typing -> result) | | | | |
 
-Open follow-up candidates after measurement: Rust bulk insert command with a real transaction (the JS `transaction()` is just a mutex), base view virtualization (from ~1-2k rows), graph layout chunking/worker (>2-3k visible nodes), FTS contentless (index DB size).
+Open follow-up candidates after measurement: SyncQueue pinned-transaction atomicity (see "Cold-index bulk batch" — the cold index's bulk batch is delivered; the read-interleaved queue ops still ride the JS mutex), base view virtualization (from ~1-2k rows), graph layout chunking/worker (>2-3k visible nodes), FTS contentless (index DB size).
 
 ## Mobile baseline (M3E package A10, 2026-07-12)
 

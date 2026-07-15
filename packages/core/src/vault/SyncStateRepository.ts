@@ -85,8 +85,15 @@ export class SyncStateRepository {
     return rows.length > 0 ? rows[0].path : null;
   }
 
-  async updateLocalHashAndBaseText(path: string, localSha256: string, baseText: string): Promise<void> {
-    await this.db.execute(
+  // `writer` lets the bulk indexer record this pure-write upsert into its atomic
+  // batch (defaults to the live adapter, so every other caller is unchanged).
+  async updateLocalHashAndBaseText(
+    path: string,
+    localSha256: string,
+    baseText: string,
+    writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
+  ): Promise<void> {
+    await writer.execute(
       `INSERT INTO sync_state (path, local_sha256, base_text)
        VALUES (?, ?, ?)
        ON CONFLICT(path) DO UPDATE SET local_sha256 = excluded.local_sha256, base_text = excluded.base_text`,
@@ -102,8 +109,12 @@ export class SyncStateRepository {
    * silently drop the user's unsynced edits. The base advances only on real sync
    * (push/pull) or initial indexing of a brand-new file.
    */
-  async updateLocalHash(path: string, localSha256: string): Promise<void> {
-    await this.db.execute(
+  async updateLocalHash(
+    path: string,
+    localSha256: string,
+    writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
+  ): Promise<void> {
+    await writer.execute(
       `INSERT INTO sync_state (path, local_sha256)
        VALUES (?, ?)
        ON CONFLICT(path) DO UPDATE SET local_sha256 = excluded.local_sha256`,

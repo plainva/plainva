@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 mod atomic_write;
 mod backup;
+mod db_batch;
 
 // OS keychain bridge (ADR 0005, phase 5.1 A6).
 //
@@ -337,7 +338,8 @@ pub fn run() {
             print_webview,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
-            backup::create_vault_zip
+            backup::create_vault_zip,
+            db_batch::db_batch
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

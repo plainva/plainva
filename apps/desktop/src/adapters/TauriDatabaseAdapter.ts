@@ -1,5 +1,6 @@
-import { IDatabaseAdapter } from "@plainva/core";
+import { BatchStatement, IDatabaseAdapter } from "@plainva/core";
 import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 
 export class TauriDatabaseAdapter implements IDatabaseAdapter {
   private db: Database | null = null;
@@ -85,5 +86,22 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
     } finally {
       unlock();
     }
+  }
+
+  /**
+   * Runs an ordered batch of write statements as ONE atomic SQLite transaction
+   * via the native `db_batch` command (BEGIN/COMMIT, ROLLBACK on error). It opens
+   * its own short-lived connection to the same DB file — safe under WAL — so a
+   * whole cold-index worth of writes travels in a single IPC hop instead of one
+   * execute() per row. Serialized with `transaction()` by callers that hold the
+   * JS mutex around the flush; on any failure the native side rolls back and this
+   * throws (callers fall back to per-statement writes via runStatementsAtomic).
+   */
+  async runBatch(statements: BatchStatement[]): Promise<void> {
+    if (statements.length === 0) return;
+    await invoke("db_batch", {
+      dbPath: this.dbPath,
+      statements: statements.map((s) => ({ sql: s.sql, params: s.params ?? [] })),
+    });
   }
 }

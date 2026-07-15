@@ -41,3 +41,4 @@ export * from "./sync/SyncEngine.js";
 export * from "./sync/SyncWorker.js";
 export * from "./db/IDatabaseAdapter.js";
 export * from "./db/Schema.js";
+export * from "./db/batch.js";

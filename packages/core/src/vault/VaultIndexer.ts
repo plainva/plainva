@@ -1,10 +1,20 @@
 import { IVaultAdapter, VaultFileInfo } from "./IVaultAdapter.js";
-import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { runStatementsAtomic } from "../db/batch.js";
 import { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
+
+/**
+ * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
+ * statements into a buffer and flushes them as ONE atomic batch instead of issuing
+ * one IPC execute() per row; every other path passes no writer and keeps writing
+ * directly to the adapter. A stray execute during the scan's event-loop yields is
+ * NOT captured — only the bulk helpers that receive the sink are redirected.
+ */
+type SqlWriter = { execute(query: string, params?: unknown[]): Promise<void> };
 async function sha256Hash(text: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
@@ -126,12 +136,17 @@ export class VaultIndexer {
    * Multi-row INSERT in chunks. 150 rows × up to 6 params stays safely under
    * SQLite's conservative 999-host-parameter floor.
    */
-  private async executeBatch(prefix: string, rowPlaceholders: string, rows: unknown[][]): Promise<void> {
+  private async executeBatch(
+    prefix: string,
+    rowPlaceholders: string,
+    rows: unknown[][],
+    writer: SqlWriter = this.dbAdapter
+  ): Promise<void> {
     if (rows.length === 0) return;
     const CHUNK = 150;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const slice = rows.slice(i, i + CHUNK);
-      await this.dbAdapter.execute(
+      await writer.execute(
         prefix + slice.map(() => rowPlaceholders).join(", "),
         slice.flat() as unknown[]
       );
@@ -165,7 +180,11 @@ export class VaultIndexer {
    * Useful for bulk indexing. Always re-reads the file from disk so the index
    * matches exactly what is on disk (incl. content the adapter may have merged).
    */
-  private async _indexFileInternal(fileInfo: VaultFileInfo, lookups?: BulkIndexLookups): Promise<void> {
+  private async _indexFileInternal(
+    fileInfo: VaultFileInfo,
+    lookups?: BulkIndexLookups,
+    writer: SqlWriter = this.dbAdapter
+  ): Promise<void> {
     const fileId = await this.generateFileId(fileInfo.path);
     const content = await this.vaultAdapter.readTextFile(fileInfo.path);
     const sha256 = await sha256Hash(content);
@@ -299,18 +318,18 @@ export class VaultIndexer {
       }
 
       // Delete existing data for this file
-      await this.dbAdapter.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
-      await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path = ?`, [fileInfo.path]);
+      await writer.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
+      await writer.execute(`DELETE FROM fts_notes WHERE path = ?`, [fileInfo.path]);
 
       // Insert into files
-      await this.dbAdapter.execute(
+      await writer.execute(
         `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, indexedSyncState]
       );
 
       // Insert into fts_notes
-      await this.dbAdapter.execute(
+      await writer.execute(
         `INSERT INTO fts_notes (content, title, path) VALUES (?, ?, ?)`,
         [content, title, fileInfo.path]
       );
@@ -319,7 +338,7 @@ export class VaultIndexer {
       // We must not overwrite local_sha256 for existing files during index,
       // as it would destroy the knowledge of the "base text" for 3-way merges.
       if (!oldSyncState) {
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content);
+        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
       }
 
       // Insert links (rows built above): ONE multi-row batch — inserting row
@@ -327,14 +346,16 @@ export class VaultIndexer {
       await this.executeBatch(
         `INSERT INTO links (source_id, target_path, target_raw, link_type, anchor, property_key) VALUES `,
         `(?, ?, ?, ?, ?, ?)`,
-        linkRows
+        linkRows,
+        writer
       );
 
       // Insert tags
       await this.executeBatch(
         `INSERT OR IGNORE INTO tags (file_id, tag) VALUES `,
         `(?, ?)`,
-        tags.map((tag) => [fileId, tag.name])
+        tags.map((tag) => [fileId, tag.name]),
+        writer
       );
 
       // Insert properties
@@ -349,18 +370,19 @@ export class VaultIndexer {
         await this.executeBatch(
           `INSERT INTO properties (file_id, key, value, type) VALUES `,
           `(?, ?, ?, ?)`,
-          propRows
+          propRows,
+          writer
         );
       }
     } catch (e) {
       console.warn(`Failed to parse and index ${fileInfo.path}:`, e);
-      await this.dbAdapter.execute(
+      await writer.execute(
         `INSERT OR REPLACE INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?)`,
         [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
       );
       if (!oldSyncState) {
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content);
+        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
       }
     }
 
@@ -377,7 +399,11 @@ export class VaultIndexer {
    * get change-detected and — via the new/external callbacks — enqueued for sync. No
    * FTS/links/tags/properties parsing and no base_text (binary has no 3-way merge).
    */
-  private async _indexAttachmentInternal(fileInfo: VaultFileInfo, lookups?: BulkIndexLookups): Promise<void> {
+  private async _indexAttachmentInternal(
+    fileInfo: VaultFileInfo,
+    lookups?: BulkIndexLookups,
+    writer: SqlWriter = this.dbAdapter
+  ): Promise<void> {
     const fileId = await this.generateFileId(fileInfo.path);
     // Text-like non-.md files (e.g. `.base`, `.canvas`) must be hashed the SAME way the
     // conflict-aware adapter and sync worker hash them — a text hash of the decoded
@@ -424,8 +450,8 @@ export class VaultIndexer {
       this.pendingExternalMods.push({ path: fileInfo.path, oldHash: oldSyncState.local_sha256, newHash: sha256 });
     }
 
-    await this.dbAdapter.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
-    await this.dbAdapter.execute(
+    await writer.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
+    await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", indexedSyncState]
@@ -434,10 +460,10 @@ export class VaultIndexer {
     if (isNewLocalFile) {
       if (textLike && textContent !== null) {
         // Text-like file: store a base_text so it is mergeable, matching the write path.
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, textContent);
+        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, textContent, writer);
       } else {
         // Byte hash only — true binary files have no base_text.
-        await this.syncRepo.updateLocalHash(fileInfo.path, sha256);
+        await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
       }
       this.pendingNewLocalFiles.push(fileInfo.path);
     }
@@ -575,6 +601,31 @@ export class VaultIndexer {
     const lookups = await this.loadBulkLookups();
 
     await this.dbAdapter.transaction(async () => {
+      // The cold full-scan's writes (file/fts/links/tags/properties rows + the
+      // sync_state upsert for new files) are recorded into a buffer and flushed as
+      // ONE atomic batch instead of one execute() — one IPC hop, one pooled
+      // connection checkout, one auto-commit — per row, which dominated the 20k
+      // cold-index budget (Performance_Notes). Reads are pre-loaded in `lookups`,
+      // so the batch needs no interleaved reads. Flushed in bounded chunks so a
+      // huge vault does not hold every statement in memory or in one giant IPC
+      // payload. When the adapter has no runBatch (tests, non-Tauri), the buffer
+      // is replayed statement-by-statement in the exact same order — behavior is
+      // unchanged, only the delivery differs.
+      const batch: BatchStatement[] = [];
+      const sink: SqlWriter = {
+        execute: (query: string, params: unknown[] = []) => {
+          batch.push({ sql: query, params });
+          return Promise.resolve();
+        },
+      };
+      const FLUSH_AT = 4000;
+      const flushIfLarge = async () => {
+        if (batch.length >= FLUSH_AT) {
+          await runStatementsAtomic(this.dbAdapter, batch);
+          batch.length = 0;
+        }
+      };
+
       // Process deletions. We deliberately do NOT delete sync_state here: a file gone
       // from disk may need a remote delete pushed first (otherwise the next pull would
       // resurrect it). sync_state is cleaned only after the remote delete succeeds; the
@@ -588,9 +639,10 @@ export class VaultIndexer {
           const pathSlice = filesToDelete.slice(k, k + CHUNK);
           const marks = idSlice.map(() => "?").join(", ");
           // Cascades to links, tags, properties
-          await this.dbAdapter.execute(`DELETE FROM files WHERE id IN (${marks})`, idSlice);
-          await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path IN (${marks})`, pathSlice);
+          await sink.execute(`DELETE FROM files WHERE id IN (${marks})`, idSlice);
+          await sink.execute(`DELETE FROM fts_notes WHERE path IN (${marks})`, pathSlice);
         }
+        await flushIfLarge();
       }
 
       // Process markdown indexing
@@ -603,7 +655,8 @@ export class VaultIndexer {
           // Yield to event loop to allow UI updates
           await new Promise(r => setTimeout(r, 0));
         }
-        await this._indexFileInternal(file, lookups);
+        await this._indexFileInternal(file, lookups, sink);
+        await flushIfLarge();
         i++;
       }
 
@@ -611,9 +664,13 @@ export class VaultIndexer {
       let j = 0;
       for (const file of attachmentsToIndex) {
         if (j % 20 === 0) await new Promise(r => setTimeout(r, 0));
-        await this._indexAttachmentInternal(file, lookups);
+        await this._indexAttachmentInternal(file, lookups, sink);
+        await flushIfLarge();
         j++;
       }
+
+      // Flush the tail (all writes when runBatch is unavailable).
+      await runStatementsAtomic(this.dbAdapter, batch);
     });
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest
