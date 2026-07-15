@@ -64,7 +64,8 @@ pnpm install --frozen-lockfile
 
 pnpm --filter desktop tauri dev     # run the desktop app
 pnpm test && pnpm lint && pnpm typecheck   # checks
-pnpm --filter desktop test:e2e      # Playwright E2E
+pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
+pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
 
 The repo is a pnpm/Turborepo monorepo: `apps/desktop` (Tauri v2 + React + CodeMirror 6), `packages/core` (vault logic: indexing, sync, merge — UI-free and heavily unit-tested), `docs/` (user guide, ADRs, engineering notes).
