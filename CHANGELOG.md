@@ -12,6 +12,11 @@ reaches 1.0.
 - **Delete key in the file tree.** With one or more items selected, `Delete`
   moves the selection to the trash — macOS also honours `⌘`+Backspace — through
   the same confirmation as the right-click menu (#13).
+- **Syntax highlighting in the reading view.** Fenced code blocks with a
+  language are now colorized in the reading view too — not just the live
+  editor — with language-aware highlighting (CSS, HTML, JavaScript and many
+  more). The grammar loads on demand, so only the languages a note actually
+  uses are fetched (#13).
 
 ### Fixed
 

@@ -383,6 +383,42 @@ test('Code block: language grammar lazy-loads on demand', async ({ page }) => {
   await expect(page.locator('.cm-content span').filter({ hasText: /^def$/ }).first()).toBeVisible({ timeout: 30000 });
 });
 
+test('Code block: the read view highlights fenced code too (issue #13)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/ReadHighlight.md'] =
+      "# Styles\n\n```css\na { color: red; }\n```\n\n```js\nconst answer = 42;\n```\n";
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('ReadHighlight', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('ReadHighlight', { exact: true }).click();
+
+  // The code renders in the editor first…
+  await expect(page.locator('.cm-line', { hasText: 'color: red' }).first()).toBeVisible();
+
+  // …switch to the read view (BookOpen toggle)…
+  await page.getByTitle(/Lesemodus|Read Mode/).first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader).toBeVisible();
+  // The code block renders (raw text is present)…
+  await expect(reader.locator('pre code', { hasText: 'color: red' }).first()).toBeVisible();
+
+  // …and it is syntax-highlighted, just like the editor: the grammar loads on
+  // demand from the SAME @codemirror/language-data table and wraps tokens in
+  // highlight spans. 30s: a cold dynamic import under full-suite load.
+  await expect(reader.locator('pre code span').first()).toBeVisible({ timeout: 30000 });
+
+  // The tokens are actually COLORED (the highlight stylesheet was injected),
+  // not merely wrapped: at least one token differs from the base text color.
+  const isColored = await reader.locator('pre code span').evaluateAll((spans) =>
+    spans.some((span) => {
+      const code = span.closest('code');
+      return !!code && getComputedStyle(span).color !== getComputedStyle(code).color;
+    }),
+  );
+  expect(isColored).toBe(true);
+});
+
 // --- File tree: folder selection targets "+ Neu", new notes start with an H1 (UI-UX P6/P7) ---
 test('File tree: selected folder receives the + Neu note, which starts with an H1', async ({ page }) => {
   await page.addInitScript(() => {

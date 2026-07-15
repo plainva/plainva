@@ -90,6 +90,7 @@ export * from "./components/blockHandles";
 export * from "./components/blockModel";
 export * from "./components/blockTransforms";
 export * from "./components/callouts";
+export * from "./components/codeHighlight";
 export * from "./components/documentHeader";
 export * from "./components/editorCompletion";
 export * from "./components/editorSession";
