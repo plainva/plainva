@@ -85,6 +85,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
   return (
     <Modal
       onClose={onClose}
+      size="md"
       title={t("findReplace.title", { defaultValue: "Im Vault suchen & ersetzen" })}
       footer={
         <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
@@ -98,7 +99,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: "min(90vw, 34rem)" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             autoFocus
@@ -124,7 +125,15 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
           {optChip("regex", t("search.regexp", { defaultValue: "Regex" }))}
         </div>
 
-        <div style={{ maxHeight: "45vh", overflowY: "auto", borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
+        <div
+          style={{
+            maxHeight: "42vh",
+            overflowY: "auto",
+            borderTop: results !== null ? "1px solid var(--border-color)" : "none",
+            paddingTop: results !== null ? 8 : 0,
+            marginTop: results !== null ? 2 : 0,
+          }}
+        >
           {results === null ? null : results.length === 0 ? (
             <div style={{ color: "var(--text-muted)", padding: "1.2rem", textAlign: "center", fontSize: "0.9rem" }}>
               {t("findReplace.noMatches", { defaultValue: "Keine Treffer" })}
