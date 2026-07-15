@@ -2,9 +2,53 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button } from "@plainva/ui";
+import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+
+const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
+const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
+const inlineMarkStyle: React.CSSProperties = { background: "var(--highlight-bg)", color: "inherit", borderRadius: "var(--radius-xs)" };
+
+/** Renders the inline-markdown token tree to React nodes. In the Tasks view the
+ * whole row opens the note, so links render as their (tinted) display text —
+ * never as separate interactive elements nested inside the row button. */
+function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode[] {
+  return nodes.map((n, i) => {
+    const key = `${keyPrefix}${i}`;
+    switch (n.kind) {
+      case "text": return <span key={key}>{n.text}</span>;
+      case "br": return <br key={key} />;
+      case "code": return <code key={key} style={inlineCodeStyle}>{n.text}</code>;
+      case "strong": return <strong key={key}>{renderInlineNodes(n.children, `${key}.`)}</strong>;
+      case "em": return <em key={key}>{renderInlineNodes(n.children, `${key}.`)}</em>;
+      case "strike": return <del key={key}>{renderInlineNodes(n.children, `${key}.`)}</del>;
+      case "strongEm": return <strong key={key}><em>{renderInlineNodes(n.children, `${key}.`)}</em></strong>;
+      case "highlight": return <mark key={key} style={inlineMarkStyle}>{renderInlineNodes(n.children, `${key}.`)}</mark>;
+      case "wikiLink": return <span key={key} style={inlineLinkStyle}>{n.display}</span>;
+      case "link": return <span key={key} style={inlineLinkStyle}>{n.label}</span>;
+      case "url": return <span key={key} style={inlineLinkStyle}>{n.href}</span>;
+      default: return null;
+    }
+  });
+}
+
+/** Task line without the `#tags` and `📅 date` — those already render as chips
+ * and a due pill, so they must not appear twice in the text. */
+function stripTaskMeta(text: string): string {
+  return text
+    .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "")
+    .replace(/(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/** Task text rendered as inline markdown (bold/italic/code/==highlight==/links),
+ * meta stripped; falls back to the raw text, then the empty label. */
+function renderTaskText(text: string, emptyLabel: string): React.ReactNode {
+  const shown = stripTaskMeta(text) || text;
+  return shown ? renderInlineNodes(parseInlineMarkdown(shown)) : emptyLabel;
+}
 
 interface Props {
   /** Open a note (the search-jump store already carries the line to reveal). */
@@ -339,7 +383,7 @@ export function TasksView({ onOpenPath }: Props) {
                       onClick={() => open(task)}
                       style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
                     >
-                      {task.text || t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                      {renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}
                       {task.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
                           <CalendarClock size={11} /> {task.due}
