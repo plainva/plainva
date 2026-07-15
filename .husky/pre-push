@@ -1,4 +1,6 @@
-# Mirror the full CI (lint + typecheck + unit tests + E2E/axe).
+# Mirror the full CI (lint + typecheck + unit tests + E2E/axe + production-build
+# smoke). `test:all` ends with the desktop `smoke:prod`, which builds the bundle
+# and asserts it boots under `vite preview` (v0.3.0 production-only white-screen).
 # Note: this checks the WORKING TREE, not the pushed commit — with multi-file
 # features still run `git add -A` (after reviewing `git status`) so no file is
 # left behind (see CI lesson from 2026-06-30, missing blockTransforms.ts).

@@ -54,6 +54,18 @@ jobs:
           pnpm lint
           pnpm test
 
+      # Production-build smoke before we cut installers (v0.3.0 shipped a
+      # production-only white-screen). Run once on Linux: the web bundle under
+      # test is OS-independent and the check runs in Playwright's Chromium, not
+      # the platform webview, so a single leg covers all three installers.
+      - name: Install Playwright Browsers (smoke)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+
+      - name: Production build smoke
+        if: matrix.platform == 'ubuntu-22.04'
+        run: xvfb-run pnpm --filter desktop run smoke:prod
+
       - name: Build Tauri App
         # tauri-action v1 (migrated from v0). The inputs we use (tagName,
         # releaseName, releaseBody, releaseDraft, prerelease, args) are unchanged;

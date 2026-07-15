@@ -75,6 +75,15 @@ jobs:
       - name: E2E tests
         run: xvfb-run pnpm --filter desktop run test:e2e
 
+      # Production-build smoke (v0.3.0 white-screen guard): the E2E suite above
+      # runs ONLY against the Vite dev server, so production-only startup
+      # failures — module init order, minification, code-splitting, CSP — are
+      # structurally invisible to it (that class of bug shipped in v0.3.0). This
+      # serves the bundle produced by "Desktop web build" via `vite preview` and
+      # asserts the app boots and renders its first screen with no uncaught error.
+      - name: Production build smoke
+        run: xvfb-run pnpm --filter desktop run test:e2e:prod
+
   rust:
     name: Rust checks
     runs-on: ubuntu-latest

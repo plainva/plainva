@@ -13,7 +13,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "test:all": "turbo run test && pnpm --filter desktop test:e2e",
+    "test:all": "turbo run test && pnpm --filter desktop test:e2e && pnpm --filter desktop smoke:prod",
     "typecheck": "turbo run typecheck",
     "prepare": "husky"
   },

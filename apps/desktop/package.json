@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:prod": "playwright test --config playwright.prod.config.ts",
+    "smoke:prod": "pnpm build && pnpm test:e2e:prod",
     "test:native": "wdio run ./wdio.conf.ts"
   },
   "dependencies": {
