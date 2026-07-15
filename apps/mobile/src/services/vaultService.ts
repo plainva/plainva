@@ -28,6 +28,7 @@ import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
 import { getMobileSettings } from "./mobileSettings";
+import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   applyTemplatePlaceholders,
   parseBookmarksFile,
@@ -623,7 +624,16 @@ export const vaultOps = {
     return path;
   },
 
-  async resolveWikiTarget(v: MobileVault, target: string): Promise<string | null> {
+  async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
+    if (!target.trim()) return null;
+    // Path-style target (markdown relative/absolute link, incl. generated
+    // index.md links): resolve against the host folder, then the vault root.
+    // This used to match by note TITLE only, so markdown links never opened on
+    // mobile (maintainer, 2026-07-15).
+    for (const c of relativeLinkCandidates(target, hostPath)) {
+      if (await v.files.exists(c)) return c;
+    }
+    // Bare wiki target ([[Note]]): match by note title.
     const name = target.split("#")[0].split("|")[0].trim().toLowerCase();
     const all = await v.files.listDir("", true);
     for (const e of all) {

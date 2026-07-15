@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   markdownToPlainText,
+  getPlatformServices,
   buildNoteEmbedCoreExtension,
   applyBlockAction,
   buildMarkdownTable,
@@ -121,12 +122,15 @@ export function EditorHost({
       hostPath: path,
       onOpenPath: (p) => onOpenNote(p),
       openWikiTarget: (target) => {
-        void vaultOps.resolveWikiTarget(vault, target).then((resolved) => {
+        void vaultOps.resolveWikiTarget(vault, target, path).then((resolved) => {
           if (resolved) onOpenNote(resolved);
         });
       },
       openExternalUrl: (url) => {
-        window.open(url, "_blank", "noopener");
+        // Route external URLs (table-cell / embed links) through platform
+        // services (@capacitor/browser). window.open does NOT reliably reach
+        // the system browser inside the native WebView (see main.tsx).
+        void getPlatformServices().openExternal(url);
       },
       handlePaste: () => false,
       handleDrop: () => false,
@@ -162,7 +166,7 @@ export function EditorHost({
                     break;
                   }
                 }
-                if (!resolved) resolved = await vaultOps.resolveWikiTarget(vault, bare);
+                if (!resolved) resolved = await vaultOps.resolveWikiTarget(vault, bare, path);
                 if (stale) return;
                 const card = document.createElement("button");
                 card.type = "button";

@@ -269,3 +269,44 @@ describe("live preview decorations", () => {
     expect(lineWith(session, "Text")).toBe("Alpha Text Omega");
   });
 });
+
+// Link taps resolve from the HIT ELEMENT, not from coordinates (maintainer,
+// Android + iOS, 2026-07-15): posAtCoords() + re-parsing the raw line
+// mis-resolved most links on touch WebViews, so only the odd one opened while
+// structurally identical links did not. The target now lives on the
+// .cm-wiki-link element. jsdom has no layout/coordinates — which is exactly why
+// the OLD coordinate path could not open a link here at all — so this exercises
+// the element path directly.
+describe("wiki link taps (read mode)", () => {
+  const clickLink = (session: EditorSession, display: string) => {
+    const span = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")]
+      .find((s) => (s.textContent ?? "") === display);
+    expect(span, `no rendered .cm-wiki-link for "${display}"`).toBeTruthy();
+    span!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  };
+
+  it("tags each link span with its target and opens whichever was tapped", () => {
+    const { session, deps } = makeSession("live", "- [[Alpha]]\n- [[Beta]]\n- [[Gamma]]\n", false);
+    const spans = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")];
+    expect(spans.map((s) => s.getAttribute("data-link-target"))).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(spans.every((s) => s.getAttribute("data-link-type") === "wiki")).toBe(true);
+
+    // Every identical link opens its OWN target — the "one of many works" bug
+    // cannot recur once the target is carried by the element that was hit.
+    clickLink(session, "Beta");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Beta", false);
+    clickLink(session, "Gamma");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Gamma", false);
+    clickLink(session, "Alpha");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Alpha", false);
+    expect(deps.current.openWikiTarget).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not navigate from a link tap while the note is editable", () => {
+    const { session, deps } = makeSession("live", "- [[Alpha]]\n", true);
+    session.view.contentDOM
+      .querySelector<HTMLElement>(".cm-wiki-link")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(deps.current.openWikiTarget).not.toHaveBeenCalled();
+  });
+});

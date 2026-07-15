@@ -20,8 +20,72 @@ const touchTapStart = new WeakMap<EditorView, { x: number; y: number; at: number
 const lastPointerEvent = new WeakMap<EditorView, number>();
 const lastLinkNav = new WeakMap<EditorView, { at: number; target: string }>();
 
-/** Resolves the link under (x, y) and opens it. Returns true when a link was
- * opened (callers preventDefault). Shared by mousedown, touchend and click. */
+type LinkKind = "wiki" | "markdown" | "url";
+
+/** Opens a resolved (type, target). Wiki + relative markdown links navigate
+ * in-app via onOpenPath; http(s) links and bare URLs go to the system browser.
+ * lastLinkNav dedupes the same-target re-fire of one physical tap. */
+function openParsedLink(
+  view: EditorView,
+  type: LinkKind,
+  target: string,
+  newTab: boolean,
+  onOpenPath: (linkText: string, newTab: boolean) => void,
+  timeStamp: number,
+): boolean {
+  const last = lastLinkNav.get(view);
+  if (last && last.target === target && timeStamp - last.at < 900) {
+    return true; // duplicate event of the same physical tap — swallow, don't re-open
+  }
+  if (type === "wiki") {
+    onOpenPath(target, newTab);
+  } else if (type === "markdown") {
+    if (target.startsWith("http://") || target.startsWith("https://")) {
+      getPlatformServices().openExternal(target).catch((err) => {
+        toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+      });
+    } else {
+      onOpenPath(target, newTab);
+    }
+  } else if (type === "url") {
+    getPlatformServices().openExternal(target).catch((err) => {
+      toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
+    });
+  } else {
+    return false;
+  }
+  lastLinkNav.set(view, { at: timeStamp, target });
+  return true;
+}
+
+/** PRIMARY path: read the link straight off the tapped `.cm-wiki-link`
+ * element via its data attributes — NO coordinate round-trip. This is what
+ * makes taps reliable on touch WebViews: posAtCoords() + re-parsing the raw
+ * line mis-resolved most links (a tap landed just outside the [[…]] offset
+ * range), so only the odd link opened while structurally identical ones did
+ * not — on BOTH Android and iOS (maintainer, 2026-07-15). The DOM element that
+ * was actually hit already carries its target, so there is nothing to mis-map. */
+function openLinkFromEl(
+  node: EventTarget | null,
+  view: EditorView,
+  newTab: boolean,
+  onOpenPath: (linkText: string, newTab: boolean) => void,
+  timeStamp: number,
+): boolean {
+  const el = node instanceof Node
+    ? (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement))
+    : null;
+  const span = el ? el.closest<HTMLElement>(".cm-wiki-link") : null;
+  if (!span) return false;
+  const target = span.getAttribute("data-link-target");
+  const type = span.getAttribute("data-link-type") as LinkKind | null;
+  if (!target || !type) return false;
+  return openParsedLink(view, type, target, newTab, onOpenPath, timeStamp);
+}
+
+/** FALLBACK path: resolve the link under (x, y) by document offset. Kept for
+ * the rare tap that lands just beside the glyph and for ctrl/cmd+click that
+ * means to hit a link under the pointer. */
 function openLinkAtCoords(
   view: EditorView,
   x: number,
@@ -35,29 +99,7 @@ function openLinkAtCoords(
   const line = view.state.doc.lineAt(pos);
   const link = findLinkAtOffset(line.text, pos - line.from);
   if (!link) return false;
-  const last = lastLinkNav.get(view);
-  if (last && last.target === link.target && timeStamp - last.at < 900) {
-    return true; // duplicate event of the same physical tap — swallow, don't re-open
-  }
-  if (link.type === "wiki") {
-    onOpenPath(link.target, newTab);
-  } else if (link.type === "markdown") {
-    if (link.target.startsWith("http://") || link.target.startsWith("https://")) {
-      getPlatformServices().openExternal(link.target).catch((err) => {
-        toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-      });
-    } else {
-      onOpenPath(link.target, newTab);
-    }
-  } else if (link.type === "url") {
-    getPlatformServices().openExternal(link.target).catch((err) => {
-      toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
-    });
-  } else {
-    return false;
-  }
-  lastLinkNav.set(view, { at: timeStamp, target: link.target });
-  return true;
+  return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp);
 }
 
 export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) => void, hideSyntax: boolean) {
@@ -95,7 +137,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
 
           // Collect all link matches first
           // We need start, end, and ranges to hide
-          const matches: { start: number, end: number, text: string, target: string, hideRanges?: {start: number, end: number}[] }[] = [];
+          const matches: { start: number, end: number, type: LinkKind, target: string, hideRanges?: {start: number, end: number}[] }[] = [];
 
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.sliceDoc(from, to);
@@ -128,7 +170,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             }
             const target = rawTarget.split("#")[0];
             
-            matches.push({ start: matchStart, end: matchEnd, text: "wiki", target, hideRanges });
+            matches.push({ start: matchStart, end: matchEnd, type: "wiki", target, hideRanges });
           }
           
           // Match Standard Links: [text](url). The link TEXT must not contain a
@@ -150,7 +192,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             const suffixStart = matchStart + 1 + displayText.length;
             hideRanges.push({ start: suffixStart, end: matchEnd }); // hide `](url)`
             
-            matches.push({ start: matchStart, end: matchEnd, text: displayText, target, hideRanges });
+            matches.push({ start: matchStart, end: matchEnd, type: "markdown", target, hideRanges });
           }
 
           // Match raw URLs: https://...
@@ -168,7 +210,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             }
             
             if (!overlaps) {
-              matches.push({ start: matchStart, end: matchEnd, text: match[0], target: match[0] });
+              matches.push({ start: matchStart, end: matchEnd, type: "url", target: match[0] });
             }
           }
         }
@@ -205,13 +247,19 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
             
             // The text between the hidden parts gets the class
             if (hr1.end < hr2.start) {
-              builder.add(hr1.end, hr2.start, Decoration.mark({ class: "cm-wiki-link" }));
+              builder.add(hr1.end, hr2.start, Decoration.mark({
+                class: "cm-wiki-link",
+                attributes: { "data-link-target": m.target, "data-link-type": m.type },
+              }));
             }
             
             builder.add(hr2.start, hr2.end, Decoration.replace({}));
           } else {
             // When focused or in source mode, show raw text but apply styling
-            const markDec = Decoration.mark({ class: "cm-wiki-link" });
+            const markDec = Decoration.mark({
+              class: "cm-wiki-link",
+              attributes: { "data-link-target": m.target, "data-link-type": m.type },
+            });
             builder.add(m.start, m.end, markDec);
           }
         }
@@ -232,24 +280,14 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
       mousedown: (event, view) => {
         if (event.button !== 0) return false; // only left click
         lastPointerEvent.set(view, event.timeStamp);
-
-        let targetNode = event.target as Node | null;
-        if (targetNode && targetNode.nodeType === Node.TEXT_NODE) {
-          targetNode = targetNode.parentNode;
+        const newTab = event.ctrlKey || event.metaKey;
+        // Primary: the target lives on the tapped .cm-wiki-link element itself.
+        if (openLinkFromEl(event.target, view, newTab, onOpenPath, event.timeStamp)) {
+          event.preventDefault();
+          return true;
         }
-        
-        if (!targetNode || !(targetNode instanceof HTMLElement)) {
-          return false;
-        }
-        
-        const target = targetNode as HTMLElement;
-
-        // Use closest to ensure we catch clicks on nested elements or the span itself
-        const isClickable = target.closest('.cm-wiki-link') !== null;
-        const wantsToNavigate = isClickable || event.ctrlKey || event.metaKey;
-
-        // posAtCoords is much more reliable for mouse events than posAtDOM
-        if (wantsToNavigate && openLinkAtCoords(view, event.clientX, event.clientY, event.ctrlKey || event.metaKey, onOpenPath, event.timeStamp)) {
+        // Ctrl/Cmd+click may mean a link under the pointer even off the glyph.
+        if (newTab && openLinkAtCoords(view, event.clientX, event.clientY, true, onOpenPath, event.timeStamp)) {
           event.preventDefault();
           return true;
         }
@@ -278,7 +316,10 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         // on a link would find the fallback wrongly disabled (maintainer: links
         // not responding). Hence the stamp sits AFTER the scroll/long-press check.
         lastPointerEvent.set(view, event.timeStamp);
-        if (openLinkAtCoords(view, end.clientX, end.clientY, false, onOpenPath, event.timeStamp)) {
+        // Read the target off the hit element first (reliable on every WebView);
+        // fall back to the coordinate lookup only if the tap missed the span.
+        if (openLinkFromEl(event.target, view, false, onOpenPath, event.timeStamp)
+          || openLinkAtCoords(view, end.clientX, end.clientY, false, onOpenPath, event.timeStamp)) {
           event.preventDefault();
           return true;
         }
@@ -294,7 +335,8 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         if (view.state.facet(EditorView.editable)) return false;
         const seen = lastPointerEvent.get(view);
         if (seen !== undefined && event.timeStamp - seen < 1500) return false; // normal pipeline handled this tap
-        if (openLinkAtCoords(view, event.clientX, event.clientY, false, onOpenPath, event.timeStamp)) {
+        if (openLinkFromEl(event.target, view, false, onOpenPath, event.timeStamp)
+          || openLinkAtCoords(view, event.clientX, event.clientY, false, onOpenPath, event.timeStamp)) {
           event.preventDefault();
           return true;
         }
