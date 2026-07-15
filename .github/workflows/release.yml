@@ -55,7 +55,13 @@ jobs:
           pnpm test
 
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
+        # tauri-action v1 (migrated from v0). The inputs we use (tagName,
+        # releaseName, releaseBody, releaseDraft, prerelease, args) are unchanged;
+        # v1 only drops includeRelease/includeDebug/auto-init and renames
+        # assetNamePattern (none of which we set). Note: v1's latest.json uses the
+        # GitHub asset URL instead of browser_download_url — verified against a
+        # throwaway pre-release so the in-app updater still resolves.
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
