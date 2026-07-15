@@ -63,7 +63,7 @@ Per provider, a file round trip (create → appears on device B → change on B 
 ## 7. Automated coverage (run, do not skip)
 
 - [ ] Full local CI (`CI=1 git push` runs lint + typecheck + unit + Playwright E2E incl. axe a11y checks at zero violations).
-- [ ] WebDriver smoke (`@wdio/tauri-service`, hardening plan P8): start → open vault → type → save → restart → content present. Windows/Linux/macOS as available.
+- [ ] WebDriver smoke (B2/P8): build the app, then `pnpm --filter desktop test:native` (or dispatch `.github/workflows/native-smoke.yml`) — start → vault auto-opens → type → save → restart → content present. Windows/Linux/macOS as available. See `WebDriver_Smoke.md`.
 - [ ] `cargo test` + `cargo clippy -- -D warnings` in `apps/desktop/src-tauri`.
 
 ## Results

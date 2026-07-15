@@ -1,0 +1,59 @@
+name: Native Smoke
+
+# Native WebDriver smoke (hardening plan B2 / P8): build the Tauri app and drive
+# the REAL binary through @wdio/tauri-service (WebView2 on Windows, WebKitGTK on
+# Linux) — the coverage the mocked Playwright suites cannot give (the gap that
+# let the macOS print bug, issue #6, ship). Dispatch-only: a native build per
+# push is too slow, and this is a release gate, not a per-commit check.
+# See docs/engineering/WebDriver_Smoke.md. This workflow has not run in the AI
+# harness (no native build there) — verify it on the first dispatch.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: System deps (Tauri + WebKitGTK WebDriver)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+      - run: pnpm install --frozen-lockfile
+      - name: Build web assets
+        run: pnpm --filter desktop build
+      - name: Build debug binary
+        run: pnpm --filter desktop exec tauri build --debug --no-bundle
+      - name: Native smoke
+        run: xvfb-run --auto-servernum pnpm --filter desktop test:native
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+      - run: pnpm install --frozen-lockfile
+      - name: Build web assets
+        run: pnpm --filter desktop build
+      - name: Build debug binary
+        run: pnpm --filter desktop exec tauri build --debug --no-bundle
+      - name: Native smoke
+        run: pnpm --filter desktop test:native

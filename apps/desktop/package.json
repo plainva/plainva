@@ -11,7 +11,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:native": "wdio run ./wdio.conf.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -66,9 +67,15 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "@wdio/cli": "9",
+    "@wdio/local-runner": "9",
+    "@wdio/mocha-framework": "9",
+    "@wdio/spec-reporter": "9",
+    "@wdio/tauri-service": "1",
     "jsdom": "^29.1.1",
     "typescript": "~6.0.3",
     "vite": "^8.1.4",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "webdriverio": "9"
   }
 }

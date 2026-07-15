@@ -29,6 +29,19 @@ export default tseslint.config(
     },
   },
   {
+    // Native WebDriver smoke (B2): mocha globals + node; not part of the app build.
+    files: ["apps/desktop/wdio/**/*.ts", "apps/desktop/wdio.conf.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.mocha,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
     files: ["packages/core/src/**/*.ts", "packages/core/test/**/*.ts"],
     languageOptions: {
       globals: {

@@ -1,6 +1,6 @@
 # Native WebDriver Smoke (hardening P8.2)
 
-Last reviewed: 2026-07-11
+Last reviewed: 2026-07-15
 
 The Playwright suites run against a mocked `__TAURI_INTERNALS__` and prove UI
 logic, not the native app. The macOS print bug (issue #6) showed exactly what
@@ -29,28 +29,41 @@ write command, the SQLite index, and session restore. OS dialogs (print,
 keychain prompts, folder pickers) can NOT be driven by WebDriver — those stay
 in the manual §6 of the Release Gate Checklist.
 
-## Setup sketch (first implementation session)
+## How to run it (B2 scaffold)
+
+The scaffold is committed. From `apps/desktop`, build the binary once, then run:
 
 ```bash
-pnpm add -D -w @wdio/cli @wdio/tauri-service @wdio/mocha-framework
-# apps/desktop/wdio.conf.ts: services: [["tauri", { tauriApp: "<path to binary>" }]]
-# spec: apps/desktop/wdio/smoke.e2e.ts implementing the flow above
-pnpm exec wdio run apps/desktop/wdio.conf.ts
+pnpm --filter desktop tauri build --debug   # produces target/debug/plainva-desktop(.exe)
+pnpm --filter desktop test:native           # wdio run ./wdio.conf.ts
 ```
 
-Notes for the implementer:
-- The app must be BUILT first (`pnpm tauri build --debug` is fine); the
-  service launches the produced binary, not the dev server.
-- Point the app at a THROWAWAY vault directory (env var or CLI arg) so the
-  smoke never touches a real vault; delete it between runs.
-- Windows needs Edge WebDriver matching the installed WebView2 when falling
-  back to bare `tauri-driver`; the embedded-server route avoids that.
-- CI: run as a MANUAL/nightly job, not per-push (a native build per push is
-  too slow); macOS needs a `macos-latest` runner.
+Files:
+- `apps/desktop/wdio.conf.ts` — `services: ["@wdio/tauri-service"]`, mocha, the
+  binary path (override with `PLAINVA_TAURI_BINARY`; `PLAINVA_TAURI_PROFILE`
+  picks debug/release). `onPrepare` creates a THROWAWAY vault and writes the
+  Tauri store (`<appConfig>/plainva-settings.json`) with `lastVaultPath` +
+  `autoOpenLastVault: true`, so the app opens it on launch without the OS folder
+  picker; `onComplete` deletes the vault.
+- `apps/desktop/wdio/smoke.e2e.ts` — the single flow above.
+- `.github/workflows/native-smoke.yml` — `workflow_dispatch`, builds the debug
+  binary and runs `test:native` on Windows and Linux (Linux installs
+  `webkit2gtk-driver`).
+
+Notes:
+- The service uses the `embedded` driver (WebDriver inside the app) on all
+  platforms — the only way to exercise the WKWebView build on macOS.
+- Not run in the mocked Vitest/Playwright harness (no native build there).
+- OS dialogs (print, keychain, folder picker) stay in §6 of the Release Gate
+  Checklist — WebDriver cannot drive them.
 
 ## Status
 
-- [x] Tooling decided and documented (this file), checklist §7 references it.
-- [ ] First local spike on Windows (implementer session — needs a native build).
-- [ ] Linux run (CI runner or VM).
-- [ ] macOS run (`macos-latest` CI runner; no local device exists).
+- [x] Tooling decided and documented (this file); checklist §7 references it.
+- [x] Scaffold committed (B2): `wdio.conf.ts`, `wdio/smoke.e2e.ts`, `test:native`
+  script, `@wdio/tauri-service` devDep, `native-smoke.yml` dispatch workflow.
+- [ ] First green run on Windows (native build required) — dispatch the workflow
+  or run the two commands above locally. Verify the selectors and the
+  "restart reopens the note" assumption on the first real run.
+- [ ] Linux run (the workflow's ubuntu job, or a VM).
+- [ ] macOS run (`macos-latest` runner via the workflow; no local device exists).
