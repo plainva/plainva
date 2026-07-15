@@ -93,6 +93,9 @@ export const Editor: React.FC<{
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<EditorViewMode>(() => resolveViewModeForPath(activePath));
+  // Remembers the last editing sub-mode (live/source) so Mod+E restores it when
+  // toggling back out of reading mode (default: live preview).
+  const lastEditModeRef = useRef<EditorViewMode>("live");
   // Readable line length (#1): "narrow" centers the text column like the read view;
   // "full" uses the whole pane. Persisted globally (like Obsidian's setting).
   const [editorWidth, setEditorWidth] = useState<'narrow' | 'full'>(
@@ -711,6 +714,39 @@ export const Editor: React.FC<{
     return () => window.removeEventListener("plainva-print-active", onPrint);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActivePane, viewMode]);
+
+  // Toggle the view mode from the global keyboard shortcuts: Mod+E flips
+  // reading↔editing (restoring the last edit sub-mode), Mod+Shift+E flips live
+  // preview↔source. Only the active pane reacts; managed OKF index.md stays
+  // locked to reading.
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      if (!isActivePane || managedIndex) return;
+      const axis = (e as CustomEvent).detail?.axis as "read" | "source" | undefined;
+      let next: EditorViewMode | null = null;
+      if (axis === "read") {
+        if (viewMode === "read") next = lastEditModeRef.current || "live";
+        else { lastEditModeRef.current = viewMode; next = "read"; }
+      } else if (axis === "source") {
+        next = viewMode === "source" ? "live" : "source";
+      }
+      if (next && next !== viewMode) {
+        setViewMode(next);
+        if (activePath) rememberSessionViewMode(activePath, next);
+      }
+    };
+    window.addEventListener("plainva-toggle-view-mode", onToggle);
+    return () => window.removeEventListener("plainva-toggle-view-mode", onToggle);
+  }, [isActivePane, managedIndex, viewMode, activePath]);
+
+  // Rename the active note from the global F2 shortcut (mirrors the ⋮ menu,
+  // including the save-flush + link-update chain).
+  useEffect(() => {
+    const onRename = () => { if (isActivePane) void handleMenuRename(); };
+    window.addEventListener("plainva-rename-active", onRename);
+    return () => window.removeEventListener("plainva-rename-active", onRename);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActivePane]);
 
   // Open the calendar at the caret when the @-menu's "Datum wählen…" is chosen.
   useEffect(() => {

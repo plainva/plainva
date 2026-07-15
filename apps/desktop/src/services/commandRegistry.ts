@@ -49,14 +49,24 @@ export interface CommandDeps {
   createTemplate: () => void;
   /** Copies the active note into the template folder (issue #6 follow-up). */
   saveActiveAsTemplate: () => void;
+  /** Toggles the active editor between reading and editing (Mod+E). */
+  toggleReadEdit: () => void;
+  /** Toggles the active editor between live preview and Markdown source (Mod+Shift+E). */
+  toggleSourceMode: () => void;
+  /** Renames the active note (F2). */
+  renameActive: () => void;
+  /** Closes the active tab (Mod+W). */
+  closeActiveTab: () => void;
+  /** Reopens the last closed tab (Mod+Shift+T). */
+  reopenClosedTab: () => void;
 }
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
   return [
-    { id: "new-note", titleKey: "common.newNote", titleDefault: "Neue Notiz", run: () => d.newItem("file") },
+    { id: "new-note", titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N", run: () => d.newItem("file") },
     { id: "new-folder", titleKey: "common.newFolder", titleDefault: "Neuer Ordner", run: () => d.newItem("folder") },
     { id: "new-base", titleKey: "fileTree.newBaseHere", titleDefault: "Neue Datenbank (.base)", run: () => d.newItem("base") },
-    { id: "daily-note", titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", run: d.openDailyNote },
+    { id: "daily-note", titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D", run: d.openDailyNote },
     { id: "open-file", titleKey: "editor.openFile", titleDefault: "Datei öffnen", hint: "Mod+O", run: d.openQuickSwitcher },
     { id: "insert-template", titleKey: "shortcuts.insertTemplate", titleDefault: "Vorlage einfügen", hint: "Mod+Alt+T", run: d.openTemplatePicker },
     { id: "template-new", titleKey: "database.createTemplate", titleDefault: "Neue Vorlage erstellen", run: d.createTemplate },
@@ -69,6 +79,11 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "toggle-left-sidebar", titleKey: "shortcuts.toggleLeftSidebar", titleDefault: "Linke Seitenleiste umschalten", hint: "Mod+Alt+B", run: d.toggleLeftSidebar },
     { id: "toggle-right-sidebar", titleKey: "shortcuts.toggleRightSidebar", titleDefault: "Rechte Seitenleiste umschalten", hint: "Mod+Alt+R", run: d.toggleRightSidebar },
     { id: "focus-mode", titleKey: "shortcuts.toggleFocusMode", titleDefault: "Fokus-Modus umschalten", run: d.toggleFocusMode },
+    { id: "toggle-read-edit", titleKey: "shortcuts.toggleReadEdit", titleDefault: "Lesen/Bearbeiten umschalten", hint: "Mod+E", run: d.toggleReadEdit, isAvailable: () => d.canPrint() },
+    { id: "toggle-source", titleKey: "shortcuts.toggleSourceMode", titleDefault: "Quelltext-Modus umschalten", hint: "Mod+Shift+E", run: d.toggleSourceMode, isAvailable: () => d.canPrint() },
+    { id: "rename-active", titleKey: "common.rename", titleDefault: "Umbenennen", hint: "F2", run: d.renameActive, isAvailable: () => { const p = d.activePath(); return !!p && !p.startsWith("plainva://"); } },
+    { id: "close-tab", titleKey: "shortcuts.closeTab", titleDefault: "Tab schließen", hint: "Mod+W", run: d.closeActiveTab },
+    { id: "reopen-tab", titleKey: "shortcuts.reopenTab", titleDefault: "Geschlossenen Tab öffnen", hint: "Mod+Shift+T", run: d.reopenClosedTab },
     { id: "toggle-theme", titleKey: "titlebar.toggleTheme", titleDefault: "Hell/Dunkel umschalten", run: d.toggleTheme, isAvailable: () => !d.themeTogglePinned() },
     { id: "open-settings", titleKey: "shortcuts.openSettings", titleDefault: "Einstellungen öffnen", hint: "Mod+,", run: d.openSettings },
     { id: "show-shortcuts", titleKey: "shortcuts.showShortcuts", titleDefault: "Tastaturkürzel anzeigen", hint: "F1", run: d.openShortcuts },

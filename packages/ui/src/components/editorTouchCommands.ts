@@ -127,3 +127,79 @@ export function insertWikiLink(view: EditorView): void {
 export function openFindPanel(view: EditorView): void {
   openSearchPanel(view);
 }
+
+/** The lines spanned by the current selection ranges (1-based, sorted). */
+function selectedLines(view: EditorView): number[] {
+  const { state } = view;
+  const lines = new Set<number>();
+  for (const r of state.selection.ranges) {
+    for (let pos = r.from; pos <= r.to; ) {
+      const line = state.doc.lineAt(pos);
+      lines.add(line.number);
+      if (line.to >= r.to) break;
+      pos = line.to + 1;
+    }
+  }
+  return [...lines].sort((a, b) => a - b);
+}
+
+/**
+ * Sets (or removes, for level 0) an ATX heading prefix on the selected lines.
+ * Keyboard shortcuts bind Mod+Shift+1/2/3 to levels 1–3 and Mod+Shift+0 to 0.
+ */
+export function setHeadingLevel(view: EditorView, level: number): void {
+  const { state } = view;
+  const next = level <= 0 ? "" : "#".repeat(Math.min(6, level)) + " ";
+  const changes: { from: number; to: number; insert: string }[] = [];
+  for (const n of selectedLines(view)) {
+    const line = state.doc.line(n);
+    const m = /^#{1,6}\s/.exec(line.text);
+    const cur = m ? m[0] : "";
+    if (cur === next) continue;
+    changes.push({ from: line.from, to: line.from + cur.length, insert: next });
+  }
+  if (changes.length) view.dispatch({ changes, userEvent: "input" });
+  view.focus();
+}
+
+/**
+ * Wraps the selection in a Markdown link `[text]()` with the caret placed
+ * inside the parentheses (Mod+K, matching Obsidian/Notion/VS Code). An empty
+ * selection inserts `[]()` ready to type the label.
+ */
+export function insertMarkdownLink(view: EditorView): void {
+  const { state } = view;
+  const r = state.selection.main;
+  const text = state.sliceDoc(r.from, r.to);
+  view.dispatch({
+    changes: { from: r.from, to: r.to, insert: `[${text}]()` },
+    // caret between "(" and ")": from + "[" + text + "]" + "("
+    selection: EditorSelection.cursor(r.from + text.length + 3),
+    userEvent: "input",
+  });
+  view.focus();
+}
+
+/**
+ * Toggles the task checkbox on the current line (Mod+Enter): `[ ]`↔`[x]` on a
+ * task line, adds `[ ] ` to a bare list item, or turns plain text into a task.
+ */
+export function toggleTaskLine(view: EditorView): void {
+  const { state } = view;
+  const line = state.doc.lineAt(state.selection.main.head);
+  const indent = (/^\s*/.exec(line.text)![0]) || "";
+  const rest = line.text.slice(indent.length);
+  const markAt = line.from + indent.length + 2; // after "- "
+  let change: { from: number; to: number; insert: string };
+  if (/^[-*+] \[ \] /.test(rest)) {
+    change = { from: markAt, to: markAt + 3, insert: "[x]" };
+  } else if (/^[-*+] \[[xX]\] /.test(rest)) {
+    change = { from: markAt, to: markAt + 3, insert: "[ ]" };
+  } else if (/^[-*+] /.test(rest)) {
+    change = { from: markAt, to: markAt, insert: "[ ] " };
+  } else {
+    change = { from: line.from + indent.length, to: line.from + indent.length, insert: "- [ ] " };
+  }
+  view.dispatch({ changes: change, userEvent: "input" });
+  view.focus();
+}

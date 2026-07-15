@@ -1,6 +1,6 @@
 import type { i18n as I18nInstance } from "i18next";
 import { Annotation, Compartment, EditorState, Extension, Prec, Transaction } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -28,6 +28,30 @@ import { countWords } from "../lib/wordCount";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { markdownToHtml } from "../lib/markdownToHtml";
 import type { EditorTriggerDeps } from "./editorTriggers";
+import {
+  toggleInlineMark,
+  insertMarkdownLink,
+  setHeadingLevel,
+  toggleTaskLine,
+} from "./editorTouchCommands";
+
+/**
+ * Selection-based Markdown formatting shortcuts (desktop keyboard). Letters are
+ * matched by CodeMirror's keymap; heading digits (Mod+Shift+1..3/0) are handled
+ * via event.code in the keydown handler below, since a shifted digit reports as
+ * a punctuation key on many keyboard layouts.
+ */
+const formattingKeymap: KeyBinding[] = [
+  { key: "Mod-b", run: (v) => { toggleInlineMark(v, "**"); return true; } },
+  { key: "Mod-i", run: (v) => { toggleInlineMark(v, "*"); return true; } },
+  { key: "Mod-Shift-s", run: (v) => { toggleInlineMark(v, "~~"); return true; } },
+  { key: "Mod-Shift-h", run: (v) => { toggleInlineMark(v, "=="); return true; } },
+  { key: "Mod-k", run: (v) => { insertMarkdownLink(v); return true; } },
+  { key: "Mod-Enter", run: (v) => { toggleTaskLine(v); return true; } },
+];
+
+/** Mod+Shift+<digit> → heading level, keyed by layout-independent event.code. */
+const HEADING_BY_CODE: Record<string, number> = { Digit0: 0, Digit1: 1, Digit2: 2, Digit3: 3 };
 
 /**
  * Copy handler for live preview (#1): write BOTH text/plain (markers stripped)
@@ -284,12 +308,27 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     listIndentPlugin(),
     // Markdown list auto-continuation (#10): Enter/Tab/Shift-Tab.
     Prec.high(keymap.of(listKeymap)),
+    // Selection formatting shortcuts (bold/italic/strike/highlight/link/task).
+    keymap.of(formattingKeymap),
     // Smart paste (#10): clipboard image -> embed; URL over selection -> link.
     // OS file drops (P3.2): images embed, other files copy in + link. Text
     // drags carry no files and fall through to CodeMirror's own handling.
     EditorView.domEventHandlers({
       paste: (event, view) => deps.current.handlePaste(event, view),
       drop: (event, view) => deps.current.handleDrop(event, view),
+      keydown: (event, view) => {
+        // Heading level via layout-independent event.code: Mod+Shift+1..3 set,
+        // Mod+Shift+0 clears. Letters are handled by formattingKeymap above.
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey) {
+          const level = HEADING_BY_CODE[event.code];
+          if (level !== undefined) {
+            setHeadingLevel(view, level);
+            event.preventDefault();
+            return true;
+          }
+        }
+        return false;
+      },
     }),
     // Foldable headings & callouts (#10).
     markdownFolding(),

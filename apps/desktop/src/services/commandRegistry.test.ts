@@ -28,6 +28,11 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     exportActiveMarkdown: vi.fn(),
     createTemplate: vi.fn(),
     saveActiveAsTemplate: vi.fn(),
+    toggleReadEdit: vi.fn(),
+    toggleSourceMode: vi.fn(),
+    renameActive: vi.fn(),
+    closeActiveTab: vi.fn(),
+    reopenClosedTab: vi.fn(),
     ...overrides,
   };
 }

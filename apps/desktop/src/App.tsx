@@ -15,7 +15,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { isImagePath, parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
+import { isImagePath, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -291,6 +291,57 @@ function App() {
     }
   }, [leftCollapsed, rightCollapsed, focusReturn]);
 
+  // --- Keyboard-shortcut handlers -------------------------------------------
+  // Stable identities (useStableHandler) so the single global keydown listener
+  // never re-subscribes; each reads the latest render's layout/active state.
+  const closedTabsRef = useRef<string[]>([]);
+  // Records a closed tab's path so Mod+Shift+T can reopen it (wired through the
+  // tab strips + Mod+W; bulk closes via closeTabsByPrefix are left untracked).
+  const trackClose = useStableHandler((paneIndex: number, index: number) => {
+    const tab = layout.panes[paneIndex]?.tabs[index];
+    const path = tab?.history[tab.historyIndex];
+    if (path) {
+      closedTabsRef.current.push(path);
+      if (closedTabsRef.current.length > 25) closedTabsRef.current.shift();
+    }
+    closeTab(paneIndex, index);
+  });
+  const closeActiveTab = useStableHandler(() => {
+    if (activePane) trackClose(layout.activePaneIndex, activePane.activeIndex);
+  });
+  const reopenClosedTab = useStableHandler(() => {
+    const path = closedTabsRef.current.pop();
+    if (path) openInFocusedPane(path, true);
+  });
+  const cycleTab = useStableHandler((dir: number) => {
+    const pane = activePane;
+    if (!pane || pane.tabs.length < 2) return;
+    const n = pane.tabs.length;
+    selectTab(layout.activePaneIndex, (pane.activeIndex + dir + n) % n);
+  });
+  const goToTab = useStableHandler((index: number) => {
+    const pane = activePane;
+    if (!pane) return;
+    const n = pane.tabs.length;
+    const i = index < 0 ? n - 1 : index;
+    if (i >= 0 && i < n) selectTab(layout.activePaneIndex, i);
+  });
+  const navBack = useStableHandler(() => navigateTab(layout.activePaneIndex, -1));
+  const navForward = useStableHandler(() => navigateTab(layout.activePaneIndex, 1));
+  const openNewTabPrompt = useStableHandler(() => { setQuickSwitcherNewTab(true); setShowQuickSwitcher(true); });
+  const dispatchNewNote = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })));
+  const toggleReadEdit = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "read" } })));
+  const toggleSourceMode = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "source" } })));
+  const renameActiveNote = useStableHandler(() => {
+    if (activePath && !isVirtualPath(activePath)) window.dispatchEvent(new CustomEvent("plainva-rename-active"));
+  });
+  const flushSave = useStableHandler(() => {
+    if (activePath && !isVirtualPath(activePath)) {
+      window.dispatchEvent(new CustomEvent("plainva-flush-pending-save", { detail: { path: activePath } }));
+      toast.info(t("shortcuts.savedToast", { defaultValue: "Gespeichert" }));
+    }
+  });
+
   // Load recent paths
   useEffect(() => {
     if (vaultPath) {
@@ -523,7 +574,8 @@ function App() {
     if (!vaultPath) return;
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && !e.altKey && (e.key === "o" || e.key === "k")) {
+      if (mod && !e.altKey && e.key === "o") {
+        // Mod+K is now "insert link" in the editor; the switcher keeps Mod+O.
         e.preventDefault();
         setShowQuickSwitcher(true);
       } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "p") {
@@ -555,6 +607,62 @@ function App() {
       } else if (mod && e.altKey && e.key.toLowerCase() === "r") {
         e.preventDefault();
         toggleRightSidebar();
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "n") {
+        // New note in the tree-selected folder (issue #13).
+        e.preventDefault();
+        dispatchNewNote();
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
+        // Toggle reading ↔ editing (issue #13; Mod+E is Obsidian's standard,
+        // Mod+R is reserved as the reload guard).
+        e.preventDefault();
+        toggleReadEdit();
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+        // Toggle live preview ↔ Markdown source.
+        e.preventDefault();
+        toggleSourceMode();
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "t") {
+        // New tab: pick the note to open in a fresh tab.
+        e.preventDefault();
+        openNewTabPrompt();
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        reopenClosedTab();
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        closeActiveTab();
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "d") {
+        // Today's daily note (a dedicated listener owns the daily-note helper).
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("plainva-open-daily-today"));
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "p") {
+        // Command-palette alias for VS Code muscle memory (Mod+P also works).
+        e.preventDefault();
+        setShowCommandPalette(true);
+      } else if (mod && e.altKey && !e.shiftKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        navBack();
+      } else if (mod && e.altKey && !e.shiftKey && e.key === "ArrowRight") {
+        e.preventDefault();
+        navForward();
+      } else if (e.ctrlKey && !e.metaKey && e.key === "Tab") {
+        // Cycle tabs — Ctrl(+Shift)+Tab on every OS (browser convention).
+        e.preventDefault();
+        cycleTab(e.shiftKey ? -1 : 1);
+      } else if (mod && !e.altKey && !e.shiftKey && e.key >= "1" && e.key <= "9") {
+        // Jump to tab 1–8; 9 = last tab.
+        e.preventDefault();
+        goToTab(e.key === "9" ? -1 : Number(e.key) - 1);
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "s") {
+        // Autosave flush + confirmation, so Mod+S does not feel like a no-op.
+        e.preventDefault();
+        flushSave();
+      } else if (e.key === "F2" && !mod && !e.altKey) {
+        // Rename the active note (skip while typing in a form field).
+        const tag = document.activeElement?.tagName;
+        if (tag !== "INPUT" && tag !== "TEXTAREA") {
+          e.preventDefault();
+          renameActiveNote();
+        }
       } else if (mod && !e.altKey && (e.key === "+" || e.key === "=")) {
         // UI zoom (issue #5 a11y follow-up). "=" covers US layouts where the
         // plus sign shares the key; Tauri ships with browser zoom hotkeys
@@ -577,7 +685,7 @@ function App() {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openInFocusedPane, toggleRightSidebar]);
+  }, [vaultPath, splitEditor, openInFocusedPane, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -665,6 +773,15 @@ function App() {
       console.error("Failed to open today's daily note", e);
     }
   };
+
+  // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
+  // the non-memoized daily helper); this stable wrapper opens today's note.
+  const openDailyTodayStable = useStableHandler(() => { void openTodayDailyNote(); });
+  useEffect(() => {
+    const h = () => openDailyTodayStable();
+    window.addEventListener("plainva-open-daily-today", h);
+    return () => window.removeEventListener("plainva-open-daily-today", h);
+  }, [openDailyTodayStable]);
 
   // Which of the given calendar days already have a daily note (for the dots).
   const loadMarkedDates = useCallback(async (dates: Date[]) => {
@@ -758,7 +875,7 @@ function App() {
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
         activeIndex={activePane.activeIndex}
         onSelectTab={(i) => selectTab(layout.activePaneIndex, i)}
-        onCloseTab={(i) => closeTab(layout.activePaneIndex, i)}
+        onCloseTab={(i) => trackClose(layout.activePaneIndex, i)}
         onNewTab={() => { setQuickSwitcherNewTab(true); setShowQuickSwitcher(true); }}
         onTabContextMenu={(i, x, y) => setTabMenu({ paneIndex: layout.activePaneIndex, tabIndex: i, x, y })}
         leftWidth={leftCollapsed ? 0 : leftSidebarWidth}
@@ -1030,7 +1147,7 @@ function App() {
                     tabs={pane.tabs.map((tb) => tb.history[tb.historyIndex])}
                     activeIndex={pane.activeIndex}
                     onSelect={(idx) => selectTab(i, idx)}
-                    onClose={(idx) => closeTab(i, idx)}
+                    onClose={(idx) => trackClose(i, idx)}
                     onContextMenu={(idx, x, y) => setTabMenu({ paneIndex: i, tabIndex: idx, x, y })}
                     onMoveTab={moveTabTo}
                     onSplitWithTab={splitEditorWithTab}
@@ -1212,6 +1329,11 @@ function App() {
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
             toggleFocusMode,
+            toggleReadEdit,
+            toggleSourceMode,
+            renameActive: renameActiveNote,
+            closeActiveTab,
+            reopenClosedTab,
             toggleTheme: () => { void toggleLightDark(); },
             themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
             openSettings: () => setShowSettings(true),
@@ -1273,7 +1395,7 @@ function App() {
           onSplitVertical={() => splitEditorWithTab("vertical", tabMenu.paneIndex, tabMenu.tabIndex)}
           onSplitHorizontal={() => splitEditorWithTab("horizontal", tabMenu.paneIndex, tabMenu.tabIndex)}
           activeDirection={activeSplitDirection}
-          onCloseTab={() => closeTab(tabMenu.paneIndex, tabMenu.tabIndex)}
+          onCloseTab={() => trackClose(tabMenu.paneIndex, tabMenu.tabIndex)}
           onClose={() => setTabMenu(null)}
           onShowVersionHistory={(() => {
             const tab = layout.panes[tabMenu.paneIndex]?.tabs[tabMenu.tabIndex];
