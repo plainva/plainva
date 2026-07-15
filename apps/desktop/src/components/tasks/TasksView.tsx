@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock } from "lucide-react";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText } from "lucide-react";
 import { scanTasks, type TaskRecord } from "@plainva/core";
 import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -196,38 +196,77 @@ export function TasksView({ onOpenPath }: Props) {
           </div>
         ) : (
           groups.map(([path, group]) => (
-            <div key={path}>
+            <div
+              key={path}
+              style={{
+                margin: "0 0.7rem 0.6rem",
+                border: "1px solid var(--border-color)",
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+              }}
+            >
               <div
                 onClick={() => onOpenPath(path, false)}
                 title={path}
-                style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", padding: "0.5rem 0.9rem 0.15rem", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "0.4rem 0.6rem",
+                  background: "var(--bg-secondary)",
+                  borderLeft: "3px solid var(--accent-color)",
+                  cursor: "pointer",
+                }}
               >
-                {noteDisplayName(group.title)}
+                <FileText size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                <span style={{ fontWeight: 500, fontSize: "0.85rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {noteDisplayName(group.title)}
+                </span>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    flexShrink: 0,
+                    fontSize: "0.72rem",
+                    padding: "0.05rem 0.45rem",
+                    borderRadius: "var(--radius-pill)",
+                    background: "color-mix(in srgb, var(--accent-color) 16%, transparent)",
+                    color: "var(--accent-color)",
+                  }}
+                >
+                  {group.items.length}
+                </span>
               </div>
-              {group.items.map((task) => (
-                <div key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.9rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => toggle(task)}
-                    aria-label={task.done ? t("tasks.done", { defaultValue: "Erledigt" }) : t("tasks.open", { defaultValue: "Offen" })}
-                    style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: task.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0 }}
-                  >
-                    {task.done ? <CheckSquare size={16} /> : <Square size={16} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => open(task)}
-                    style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
-                  >
-                    {task.text || t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
-                    {task.due ? (
-                      <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 2, fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        <CalendarClock size={12} /> {task.due}
-                      </span>
-                    ) : null}
-                  </button>
-                </div>
-              ))}
+              <div style={{ padding: "0.25rem 0 0.35rem" }}>
+                {group.items.map((task) => (
+                  <div key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(task)}
+                      aria-label={task.done ? t("tasks.done", { defaultValue: "Erledigt" }) : t("tasks.open", { defaultValue: "Offen" })}
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: task.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0 }}
+                    >
+                      {task.done ? <CheckSquare size={16} /> : <Square size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => open(task)}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
+                    >
+                      {task.text || t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                      {task.due ? (
+                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          <CalendarClock size={11} /> {task.due}
+                        </span>
+                      ) : null}
+                      {task.tags.map((g) => (
+                        <span key={g} style={{ marginLeft: 6, display: "inline-block", fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          #{g}
+                        </span>
+                      ))}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))
         )}
