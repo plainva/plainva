@@ -4,6 +4,8 @@ import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
 import { scanTasks, type ScannedTask } from "./taskScan.js";
+import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
+import { contentHasTag } from "./renameTag.js";
 
 export interface FileRecord {
   id: string;
@@ -41,6 +43,15 @@ export interface RelationSource {
 export interface TaskRecord extends ScannedTask {
   path: string;
   title: string;
+}
+
+/** One note that contains matches for a vault-wide find (B6). */
+export interface VaultFindResult {
+  path: string;
+  title: string;
+  matchCount: number;
+  /** Up to `limitPerNote` matches with line context, for the preview. */
+  matches: TextMatch[];
 }
 
 export class VaultQueryService {
@@ -233,6 +244,50 @@ export class VaultQueryService {
       for (const task of scanTasks(r.content ?? "")) {
         out.push({ path: r.path, title, ...task });
       }
+    }
+    return out;
+  }
+
+  /**
+   * Vault-wide find (B6 preview): every note whose text matches, with a capped
+   * set of matches (line context) each. Reads note text from the FTS index (no
+   * extra file I/O); the actual replace re-reads each file so the write is always
+   * against the current on-disk content.
+   */
+  async findInVault(query: string, opts: FindReplaceOptions = {}, limitPerNote = 100): Promise<VaultFindResult[]> {
+    if (!query) return [];
+    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+      `SELECT path, title, content FROM fts_notes`,
+      [],
+    );
+    const out: VaultFindResult[] = [];
+    for (const r of rows) {
+      if (!r.path) continue;
+      const matches = findMatchesInText(r.content ?? "", query, opts);
+      if (matches.length === 0) continue;
+      out.push({
+        path: r.path,
+        title: r.title || r.path.split("/").pop()!.replace(/\.md$/i, ""),
+        matchCount: matches.length,
+        matches: matches.slice(0, limitPerNote),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Paths of every note carrying the tag (exact or a `tag/sub` child), in the
+   * body or the frontmatter (B6 tag rename). Reads text from the FTS index; the
+   * caller re-reads each candidate before rewriting it.
+   */
+  async findNotesWithTag(tag: string): Promise<string[]> {
+    const rows = await this.db.query<{ path: string; content: string | null }>(
+      `SELECT path, content FROM fts_notes`,
+      [],
+    );
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.path && contentHasTag(r.content ?? "", tag)) out.push(r.path);
     }
     return out;
   }

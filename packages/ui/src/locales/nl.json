@@ -1598,5 +1598,20 @@
     "refresh": "Vernieuwen",
     "empty": "Geen taken",
     "openTasks": "Taken openen"
+  },
+  "findReplace": {
+    "title": "Zoeken en vervangen in de vault",
+    "findPlaceholder": "Zoeken…",
+    "replacePlaceholder": "Vervangen door…",
+    "replaceIn": "Vervangen in {{notes}} notities",
+    "replaced": "{{hits}} treffers vervangen in {{notes}} notities",
+    "noMatches": "Geen treffers"
+  },
+  "tags": {
+    "renameTag": "Tag hernoemen",
+    "renameMessage": "Nieuwe naam voor #{{tag}} (in de hele vault):",
+    "renameAction": "Hernoemen",
+    "renameDone": "#{{old}} hernoemd naar #{{new}} in {{notes}} notities",
+    "renameHint": "Rechtsklik: tag hernoemen"
   }
 }

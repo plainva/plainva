@@ -25,6 +25,7 @@ import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
+const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { BaseViewer } from "./components/BaseViewer";
 import { QuickSwitcher } from "./components/QuickSwitcher";
@@ -172,6 +173,7 @@ function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   // Fill the dialog's conflict rows from the index whenever it opens (P3.11).
@@ -534,6 +536,10 @@ function App() {
         e.preventDefault();
         // New tab (report #10) — never replace the currently open file.
         openInFocusedPane(GRAPH_TAB_PATH, true);
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
+        // Vault-wide find & replace (B6); the in-editor panel keeps Mod+F.
+        e.preventDefault();
+        setShowFindReplace(true);
       } else if (mod && e.altKey && e.key.toLowerCase() === "v") {
         // Split shortcuts use Mod+Alt+<letter> like the template shortcut. V/S avoid
         // AltGr-produced characters on German keyboards and the macOS Cmd+Alt+H "Hide
@@ -1210,6 +1216,7 @@ function App() {
             themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
             openSettings: () => setShowSettings(true),
             openShortcuts: () => setShowShortcuts(true),
+            openFindReplace: () => setShowFindReplace(true),
             activePath: () => activePath,
             showVersionHistory: (path) => setVersionHistoryTarget({ path }),
             backupNow: () => window.dispatchEvent(new CustomEvent("plainva-backup-now")),
@@ -1252,6 +1259,11 @@ function App() {
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+        {showFindReplace && (
+          <Suspense fallback={null}>
+            <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />
+          </Suspense>
+        )}
       </Suspense>
       <QuickSwitcher isOpen={showQuickSwitcher} onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); normalizeNow(); }} onOpenPath={(p) => openInFocusedPane(p, quickSwitcherNewTab)} recentPaths={recentPaths} />
       {tabMenu && (

@@ -1,6 +1,6 @@
 # Recherche
 
-Dernière mise à jour : 2026-07-06
+Dernière mise à jour : 2026-07-15
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
@@ -39,9 +39,15 @@ Sous les résultats de nom apparaît en plus le groupe **Contenu** : les notes d
 - Options : **respecter la casse**, **mot entier**, **regex**.
 - **Remplacer** : remplacer des résultats individuels (**remplacer**) ou **tout remplacer**.
 
+### Dans tout le vault
+
+`Ctrl/Cmd+Shift+F` (ou **Rechercher et remplacer dans le vault** dans la palette de commandes) recherche dans toutes les notes à la fois. Saisissez un terme, appuyez sur **Rechercher**, et les résultats apparaissent regroupés par note avec une ligne de contexte chacune. Tapez un remplacement, décochez les notes que vous souhaitez exclure, puis **Remplacer dans N notes** réécrit le reste — chaque note est réécrite de manière sûre (écriture atomique + un instantané de version), de sorte qu'un aperçu obsolète ne peut jamais écraser un contenu plus récent. Respecter la casse, mot entier et regex fonctionnent aussi ici ; en mode regex, les références arrière `$1`/`$2` sont disponibles dans le remplacement.
+
 ## Tags
 
 La vue **Tags** de la barre latérale liste tous les `#tags` du vault avec un nombre de résultats ; un clic affiche les **Fichiers avec #tag**. Les tags fonctionnent dans le texte (`#projet`) et dans le frontmatter (`tags: [projet]`). Le champ de recherche de la barre latérale filtre aussi la liste des tags.
+
+**Renommer un tag** dans tout le vault : faites un clic droit sur un tag dans la vue **Tags** et saisissez un nouveau nom. Plainva réécrit le tag partout — dans le corps des notes (`#tag` et ses sous-tags `#tag/child`) et dans le frontmatter (`tags:`) — en réécrivant chaque note concernée par le même chemin sûr. Les tags sans rapport qui contiennent simplement le nom (par exemple `#area/tag`) restent inchangés.
 
 ## Naviguer dans une note
 

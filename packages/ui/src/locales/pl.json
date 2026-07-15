@@ -1610,5 +1610,20 @@
     "refresh": "Odśwież",
     "empty": "Brak zadań",
     "openTasks": "Otwórz zadania"
+  },
+  "findReplace": {
+    "title": "Znajdź i zamień w całym vault",
+    "findPlaceholder": "Znajdź…",
+    "replacePlaceholder": "Zamień na…",
+    "replaceIn": "Zamień w {{notes}} notatkach",
+    "replaced": "Zamieniono {{hits}} dopasowań w {{notes}} notatkach",
+    "noMatches": "Brak dopasowań"
+  },
+  "tags": {
+    "renameTag": "Zmień nazwę tagu",
+    "renameMessage": "Nowa nazwa dla #{{tag}} (w całym vault):",
+    "renameAction": "Zmień nazwę",
+    "renameDone": "Zmieniono #{{old}} na #{{new}} w {{notes}} notatkach",
+    "renameHint": "Prawy przycisk: zmień nazwę tagu"
   }
 }

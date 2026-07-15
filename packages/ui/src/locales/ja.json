@@ -1592,5 +1592,20 @@
     "refresh": "更新",
     "empty": "タスクなし",
     "openTasks": "タスクを開く"
+  },
+  "findReplace": {
+    "title": "Vault 全体で検索と置換",
+    "findPlaceholder": "検索…",
+    "replacePlaceholder": "置換後…",
+    "replaceIn": "{{notes}} 件のノートで置換",
+    "replaced": "{{notes}} 件のノートで {{hits}} 件を置換しました",
+    "noMatches": "一致なし"
+  },
+  "tags": {
+    "renameTag": "タグの名前を変更",
+    "renameMessage": "#{{tag}} の新しい名前（Vault 全体）：",
+    "renameAction": "名前を変更",
+    "renameDone": "{{notes}} 件のノートで #{{old}} を #{{new}} に変更しました",
+    "renameHint": "右クリック：タグの名前を変更"
   }
 }

@@ -1604,5 +1604,20 @@
     "refresh": "Atualizar",
     "empty": "Nenhuma tarefa",
     "openTasks": "Abrir tarefas"
+  },
+  "findReplace": {
+    "title": "Localizar e substituir no vault",
+    "findPlaceholder": "Localizar…",
+    "replacePlaceholder": "Substituir por…",
+    "replaceIn": "Substituir em {{notes}} notas",
+    "replaced": "{{hits}} correspondências substituídas em {{notes}} notas",
+    "noMatches": "Nenhuma correspondência"
+  },
+  "tags": {
+    "renameTag": "Renomear tag",
+    "renameMessage": "Novo nome para #{{tag}} (em todo o vault):",
+    "renameAction": "Renomear",
+    "renameDone": "#{{old}} renomeada para #{{new}} em {{notes}} notas",
+    "renameHint": "Clique com o botão direito: renomear tag"
   }
 }

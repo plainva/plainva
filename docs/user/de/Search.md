@@ -1,6 +1,6 @@
 # Suche
 
-Stand: 2026-07-06
+Stand: 2026-07-15
 
 Plainva bietet drei Suchwege: die Volltextsuche über den ganzen Vault, den Schnellwechsel zum Datei-Öffnen und Suchen & Ersetzen innerhalb einer Notiz.
 
@@ -39,9 +39,15 @@ Unter den Namens-Treffern erscheint zusätzlich die Gruppe **Inhalt**: Notizen, 
 - Optionen: **Groß/klein**, **ganzes Wort**, **Regex**.
 - **Ersetzen**: einzelne Treffer **ersetzen** oder **alle ersetzen**.
 
+### Im ganzen Vault
+
+`Strg/Cmd+Umschalt+F` (oder **Im Vault suchen & ersetzen** in der Befehls-Palette) durchsucht alle Notizen auf einmal. Suchtext eingeben, **Suchen** drücken — die Treffer erscheinen nach Notiz gruppiert mit je einer Kontextzeile. Ersetzungstext eingeben, einzelne Notizen bei Bedarf abwählen, und **In N Notizen ersetzen** schreibt den Rest um — jede Notiz wird sicher zurückgeschrieben (atomarer Schreibvorgang + Versions-Schnappschuss), sodass eine veraltete Vorschau nie neueren Inhalt überschreibt. Groß/klein, ganzes Wort und Regex gelten auch hier; im Regex-Modus stehen `$1`/`$2`-Rückverweise in der Ersetzung zur Verfügung.
+
 ## Tags
 
 Die Seitenleisten-Ansicht **Tags** listet alle `#tags` des Vaults mit Trefferzahl; ein Klick zeigt die **Dateien mit #tag**. Tags funktionieren im Text (`#projekt`) und im Frontmatter (`tags: [projekt]`). Das Suchfeld der Seitenleiste filtert die Tag-Liste mit.
+
+**Ein Tag umbenennen** — im ganzen Vault: Rechtsklick auf ein Tag in der **Tags**-Ansicht und einen neuen Namen eingeben. Plainva schreibt das Tag überall um — in den Notiz-Texten (`#tag` und seine `#tag/kind`-Unter-Tags) und im Frontmatter (`tags:`) — und speichert jede betroffene Notiz über denselben sicheren Weg. Fremde Tags, die den Namen nur enthalten (etwa `#bereich/tag`), bleiben unangetastet.
 
 ## Navigation in der Notiz
 

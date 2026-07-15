@@ -1604,5 +1604,20 @@
     "refresh": "Actualiser",
     "empty": "Aucune tâche",
     "openTasks": "Ouvrir les tâches"
+  },
+  "findReplace": {
+    "title": "Rechercher et remplacer dans le vault",
+    "findPlaceholder": "Rechercher…",
+    "replacePlaceholder": "Remplacer par…",
+    "replaceIn": "Remplacer dans {{notes}} notes",
+    "replaced": "{{hits}} occurrences remplacées dans {{notes}} notes",
+    "noMatches": "Aucun résultat"
+  },
+  "tags": {
+    "renameTag": "Renommer l’étiquette",
+    "renameMessage": "Nouveau nom pour #{{tag}} (dans tout le vault) :",
+    "renameAction": "Renommer",
+    "renameDone": "#{{old}} renommée en #{{new}} dans {{notes}} notes",
+    "renameHint": "Clic droit : renommer l’étiquette"
   }
 }

@@ -1598,5 +1598,20 @@
     "refresh": "Refresh",
     "empty": "No tasks",
     "openTasks": "Open tasks"
+  },
+  "findReplace": {
+    "title": "Find & replace in vault",
+    "findPlaceholder": "Find…",
+    "replacePlaceholder": "Replace with…",
+    "replaceIn": "Replace in {{notes}} notes",
+    "replaced": "Replaced {{hits}} matches in {{notes}} notes",
+    "noMatches": "No matches"
+  },
+  "tags": {
+    "renameTag": "Rename tag",
+    "renameMessage": "New name for #{{tag}} (across the whole vault):",
+    "renameAction": "Rename",
+    "renameDone": "Renamed #{{old}} to #{{new}} in {{notes}} notes",
+    "renameHint": "Right-click: rename tag"
   }
 }

@@ -1,6 +1,6 @@
 # Ricerca
 
-Stand: 2026-07-06
+Stand: 2026-07-15
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
@@ -39,9 +39,15 @@ Sotto i risultati sul nome, il selettore rapido mostra anche un gruppo **Contenu
 - Opzioni: **maiuscole/minuscole**, **parola intera**, **regex**.
 - **Sostituisci**: sostituisci singoli risultati (**sostituisci**) o **sostituisci tutto**.
 
+### In tutto il vault
+
+`Ctrl/Cmd+Shift+F` (oppure **Trova e sostituisci nel vault** nella palette dei comandi) cerca contemporaneamente in tutte le note. Inserisci un termine, premi **Trova**, e i risultati compaiono raggruppati per nota con una riga di contesto ciascuno. Digita una sostituzione, deseleziona le note che vuoi escludere, e **Sostituisci in N note** riscrive le altre — ogni nota viene salvata in modo sicuro (scrittura atomica + uno snapshot di versione), così un'anteprima non aggiornata non può mai sovrascrivere contenuti più recenti. Anche qui funzionano maiuscole/minuscole, parola intera e regex; in modalità regex nella sostituzione sono disponibili i riferimenti `$1`/`$2`.
+
 ## Tag
 
 La vista della barra laterale **Tag** elenca tutti i `#tag` nel vault con un conteggio dei risultati; un clic mostra i **File con #tag**. I tag funzionano nel testo (`#project`) e nel frontmatter (`tags: [project]`). Il campo di ricerca della barra laterale filtra anche l'elenco dei tag.
+
+**Rinomina un tag** in tutto il vault: fai clic destro su un tag nella vista **Tag** e inserisci un nuovo nome. Plainva riscrive il tag ovunque — nel corpo delle note (`#tag` e i suoi sottotag `#tag/child`) e nel frontmatter (`tags:`) — salvando ogni nota interessata attraverso lo stesso percorso sicuro. I tag non correlati che contengono semplicemente il nome (per esempio `#area/tag`) restano invariati.
 
 ## Navigare all'interno di una nota
 

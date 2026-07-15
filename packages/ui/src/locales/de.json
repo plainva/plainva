@@ -1598,5 +1598,20 @@
     "refresh": "Aktualisieren",
     "empty": "Keine Aufgaben",
     "openTasks": "Aufgaben öffnen"
+  },
+  "findReplace": {
+    "title": "Im Vault suchen & ersetzen",
+    "findPlaceholder": "Suchtext…",
+    "replacePlaceholder": "Ersetzen durch…",
+    "replaceIn": "In {{notes}} Notizen ersetzen",
+    "replaced": "{{hits}} Treffer in {{notes}} Notizen ersetzt",
+    "noMatches": "Keine Treffer"
+  },
+  "tags": {
+    "renameTag": "Tag umbenennen",
+    "renameMessage": "Neuer Name für #{{tag}} (im ganzen Vault):",
+    "renameAction": "Umbenennen",
+    "renameDone": "#{{old}} in {{notes}} Notizen zu #{{new}} umbenannt",
+    "renameHint": "Rechtsklick: Tag umbenennen"
   }
 }

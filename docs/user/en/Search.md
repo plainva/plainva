@@ -1,6 +1,6 @@
 # Search
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-15
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
@@ -39,9 +39,15 @@ Below the name hits the switcher also shows a **Content** group: notes whose tex
 - Options: **match case**, **by word**, **regexp**.
 - **Replace**: replace single matches (**replace**) or **replace all**.
 
+### Across the whole vault
+
+`Ctrl/Cmd+Shift+F` (or **Find & replace in vault** in the command palette) searches every note at once. Enter a term, press **Find**, and the matches appear grouped by note with a line of context each. Type a replacement, untick any note you want to leave out, and **Replace in N notes** rewrites the rest — each note is written back safely (atomic write + a version snapshot), so a stale preview can never overwrite newer content. Match case, whole word and regex work here too; in regex mode `$1`/`$2` backreferences are available in the replacement.
+
 ## Tags
 
 The sidebar view **Tags** lists all `#tags` in the vault with a hit count; a click shows the **Files with #tag**. Tags work in the text (`#project`) and in the frontmatter (`tags: [project]`). The sidebar's search field filters the tag list as well.
+
+**Rename a tag** right across the vault: right-click a tag in the **Tags** view and enter a new name. Plainva rewrites the tag everywhere — in note bodies (`#tag` and its `#tag/child` subtags) and in the frontmatter (`tags:`) — writing each affected note back through the same safe path. Unrelated tags that merely contain the name (for example `#area/tag`) are left alone.
 
 ## Navigating within a note
 

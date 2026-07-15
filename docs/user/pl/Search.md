@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-07-06
+Stan na: 2026-07-15
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -39,9 +39,15 @@ Poniżej trafień w nazwie przełącznik pokazuje dodatkowo grupę **Treść**: 
 - Opcje: **wielkość liter**, **całe wyrazy**, **regexp**.
 - **Zamień**: zamień pojedyncze trafienia (**zamień**) lub **zamień wszystko**.
 
+### W całym vaulcie
+
+`Ctrl/Cmd+Shift+F` (albo **Znajdź i zamień w vaulcie** w palecie poleceń) przeszukuje od razu wszystkie notatki. Wpisz termin, naciśnij **Znajdź**, a dopasowania pojawią się pogrupowane według notatki, każde z linią kontekstu. Wpisz zamiennik, odznacz notatki, które chcesz pominąć, a **Zamień w N notatkach** przepisze resztę — każda notatka jest zapisywana z powrotem w bezpieczny sposób (zapis atomowy + migawka wersji), dzięki czemu nieaktualny podgląd nigdy nie nadpisze nowszej treści. Wielkość liter, całe wyrazy i regexp działają też tutaj; w trybie regexp w zamienniku dostępne są odwołania wsteczne `$1`/`$2`.
+
 ## Tagi
 
 Widok paska bocznego **Tagi** wyświetla wszystkie `#tagi` w vaulcie z liczbą wystąpień; kliknięcie pokazuje **Pliki z #tag**. Tagi działają w tekście (`#projekt`) oraz we frontmatter (`tags: [projekt]`). Pole wyszukiwania paska bocznego filtruje też listę tagów.
+
+**Zmiana nazwy tagu** obejmuje od razu cały vault: kliknij prawym przyciskiem myszy tag w widoku **Tagi** i wpisz nową nazwę. Plainva przepisuje tag wszędzie — w tekście notatek (`#tag` oraz jego podtagi `#tag/child`) i we frontmatter (`tags:`) — zapisując każdą dotkniętą notatkę z powrotem tą samą bezpieczną drogą. Niepowiązane tagi, które jedynie zawierają tę nazwę (na przykład `#area/tag`), pozostają nietknięte.
 
 ## Nawigacja w notatce
 

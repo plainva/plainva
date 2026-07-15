@@ -1,6 +1,6 @@
 # Buscar
 
-Stand: 2026-07-06
+Stand: 2026-07-15
 
 Plainva ofrece tres formas de buscar: búsqueda de texto completo en todo el vault, el selector rápido para abrir archivos, y buscar y reemplazar dentro de una nota.
 
@@ -39,9 +39,15 @@ Debajo de las coincidencias de nombre, el selector muestra además un grupo **Co
 - Opciones: **mayús/minús**, **palabra completa**, **regex**.
 - **Reemplazar**: reemplaza coincidencias individuales (**reemplazar**) o **reemplazar todo**.
 
+### En todo el vault
+
+`Ctrl/Cmd+Shift+F` (o **Buscar y reemplazar en el vault** en la paleta de comandos) busca en todas las notas a la vez. Escribe un término, pulsa **Buscar**, y las coincidencias aparecen agrupadas por nota, con una línea de contexto cada una. Escribe un reemplazo, desmarca cualquier nota que quieras dejar fuera, y **Reemplazar en N notas** reescribe el resto — cada nota se guarda de forma segura (escritura atómica + un snapshot de versión), así que una vista previa obsoleta nunca puede sobrescribir contenido más reciente. Mayús/minús, palabra completa y regex también funcionan aquí; en modo regex, las referencias inversas `$1`/`$2` están disponibles en el reemplazo.
+
 ## Etiquetas
 
 La vista **Etiquetas** de la barra lateral lista todas las `#etiquetas` del vault con un recuento de coincidencias; un clic muestra los **Archivos con #etiqueta**. Las etiquetas funcionan en el texto (`#proyecto`) y en el frontmatter (`tags: [proyecto]`). El campo de búsqueda de la barra lateral también filtra la lista de etiquetas.
+
+**Renombrar una etiqueta** en todo el vault: haz clic derecho en una etiqueta de la vista **Etiquetas** e introduce un nuevo nombre. Plainva reescribe la etiqueta en todas partes — en el cuerpo de las notas (`#tag` y sus etiquetas anidadas `#tag/child`) y en el frontmatter (`tags:`) — guardando cada nota afectada por la misma vía segura. Las etiquetas no relacionadas que simplemente contienen ese nombre (por ejemplo, `#area/tag`) permanecen intactas.
 
 ## Navegar dentro de una nota
 

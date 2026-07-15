@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Hash, ChevronRight, ChevronDown, FileText } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
+import { renameTagInText, isValidTagName } from "@plainva/core";
+import { appPrompt, appMessage } from "../services/appDialogs";
 
 interface TagTreeProps {
   onSelectPath: (path: string, newTab?: boolean) => void;
@@ -13,7 +15,7 @@ interface TagTreeProps {
 
 export function TagTree({ onSelectPath, filter }: TagTreeProps) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion } = useVault();
+  const { queryService, fileTreeVersion, vaultAdapter, triggerFileTreeUpdate } = useVault();
   const [tagTree, setTagTree] = useState<Record<string, TagNode>>({});
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [filesForTag, setFilesForTag] = useState<{path: string, title: string}[]>([]);
@@ -103,6 +105,42 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     });
   };
 
+  // Vault-wide tag rename (B6): right-click a tag -> new name -> rewrite every
+  // note that carries it (frontmatter + inline #tag, plus its `tag/sub` children)
+  // through the adapter's atomic + backup chain.
+  const handleRenameTag = async (fullTag: string) => {
+    if (!queryService || !vaultAdapter) return;
+    const next = await appPrompt({
+      title: t("tags.renameTag", { defaultValue: "Tag umbenennen" }),
+      message: t("tags.renameMessage", { defaultValue: "Neuer Name für #{{tag}} (im ganzen Vault):", tag: fullTag }),
+      initial: fullTag,
+      confirmLabel: t("tags.renameAction", { defaultValue: "Umbenennen" }),
+    });
+    if (next === null) return;
+    const newName = next.replace(/^#/, "").trim();
+    if (!isValidTagName(newName) || newName === fullTag) return;
+    const candidates = await queryService.findNotesWithTag(fullTag);
+    let notes = 0;
+    for (const path of candidates) {
+      try {
+        const fresh = await vaultAdapter.readTextFile(path);
+        const res = renameTagInText(fresh, fullTag, newName);
+        if (res.changed && res.content !== fresh) {
+          await vaultAdapter.writeTextFile(path, res.content);
+          notes += 1;
+        }
+      } catch {
+        // Skip a note that cannot be read/written; the rest still apply.
+      }
+    }
+    triggerFileTreeUpdate?.();
+    setSelectedTag(null);
+    await appMessage({
+      title: t("tags.renameTag", { defaultValue: "Tag umbenennen" }),
+      message: t("tags.renameDone", { defaultValue: "#{{old}} in {{notes}} Notizen zu #{{new}} umbenannt", old: fullTag, new: newName, notes }),
+    });
+  };
+
   const renderNode = (node: TagNode, level: number) => {
     const hasChildren = Object.keys(node.children).length > 0;
     const isSelected = selectedTag === node.fullTag;
@@ -121,8 +159,10 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
             color: isSelected ? 'var(--text-main)' : 'var(--text-muted)'
           }}
           onClick={() => setSelectedTag(node.fullTag)}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); void handleRenameTag(node.fullTag); }}
+          title={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
         >
-          <div 
+          <div
             style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onClick={(e) => {
               if (hasChildren) {

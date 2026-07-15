@@ -22,6 +22,8 @@ export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
 export * from "./vault/VaultQueryService.js";
 export * from "./vault/taskScan.js";
+export * from "./vault/findReplace.js";
+export * from "./vault/renameTag.js";
 export * from "./vault/GraphService.js";
 export * from "./vault/LinkResolver.js";
 

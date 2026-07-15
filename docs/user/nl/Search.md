@@ -1,6 +1,6 @@
 # Zoeken
 
-Laatst bijgewerkt: 2026-07-06
+Laatst bijgewerkt: 2026-07-15
 
 Plainva biedt drie manieren om te zoeken: volledige-tekstzoekfunctie over de hele vault, de snelkiezer om bestanden te openen, en zoeken & vervangen binnen een notitie.
 
@@ -39,9 +39,15 @@ Onder de naams-treffers toont de snelkiezer bovendien de groep **Inhoud**: notit
 - Opties: **hoofdlettergevoelig**, **heel woord**, **regex**.
 - **Vervangen**: enkele treffers **vervangen** of **alles vervangen**.
 
+### In de hele vault
+
+`Ctrl/Cmd+Shift+F` (of **Zoeken en vervangen in de vault** in de opdrachtenpalet) doorzoekt alle notities tegelijk. Voer een term in, druk op **Zoeken**, en de treffers verschijnen gegroepeerd per notitie met telkens een regel context. Typ een vervanging, vink notities uit die je wilt overslaan, en **Vervangen in N notities** herschrijft de rest — elke notitie wordt veilig teruggeschreven (atomair geschreven, met een snapshot), zodat een verouderd voorbeeld nooit nieuwere inhoud kan overschrijven. Hoofdlettergevoelig, heel woord en regex werken hier ook; in regexmodus zijn `$1`/`$2`-terugverwijzingen beschikbaar in de vervanging.
+
 ## Tags
 
 De zijbalkweergave **Tags** toont alle `#tags` van de vault met trefferaantal; een klik toont de **Bestanden met #tag**. Tags werken in de tekst (`#project`) en in de frontmatter (`tags: [project]`). Het zoekveld van de zijbalk filtert ook de tagslijst.
+
+**Een tag hernoemen** werkt in de hele vault ineens: rechtsklik op een tag in de weergave **Tags** en voer een nieuwe naam in. Plainva herschrijft de tag overal — in de tekst van notities (`#tag` en de geneste `#tag/child`-tags) en in de frontmatter (`tags:`) — en schrijft elke betrokken notitie terug via hetzelfde veilige pad. Tags die de naam toevallig alleen bevatten (bijvoorbeeld `#area/tag`) blijven ongemoeid.
 
 ## Navigeren binnen een notitie
 

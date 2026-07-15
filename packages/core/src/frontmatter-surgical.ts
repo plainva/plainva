@@ -110,6 +110,62 @@ export function setFrontmatterPath(
 }
 
 /**
+ * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
+ * its children (`old/sub` -> `new/sub`) — mutating the scalar values in place so
+ * the list format, order, other keys and comments are preserved. Returns the
+ * content unchanged (and changed=false) when there is no parseable frontmatter or
+ * no matching tag. The inline `#tag` rewrite in the body is the caller's job.
+ */
+export function renameFrontmatterTag(
+  content: string,
+  oldTag: string,
+  newTag: string
+): { content: string; changed: boolean } {
+  const o = oldTag.replace(/^#/, "");
+  const n = newTag.replace(/^#/, "");
+  if (!o || !n || o === n) return { content, changed: false };
+  let split: SplitDocument;
+  try {
+    split = splitDocument(content);
+  } catch {
+    return { content, changed: false };
+  }
+  if (!split.hadFrontmatter || !isMap(split.doc.contents)) return { content, changed: false };
+
+  let changed = false;
+  const renamed = (v: unknown): unknown => {
+    if (typeof v !== "string") return v;
+    if (v === o) {
+      changed = true;
+      return n;
+    }
+    if (v.startsWith(o + "/")) {
+      changed = true;
+      return n + v.slice(o.length);
+    }
+    return v;
+  };
+
+  for (const key of ["tags", "tag"]) {
+    const node = split.doc.contents.get(key, true);
+    if (isSeq(node)) {
+      for (const item of node.items) {
+        if (isScalar(item)) {
+          const nv = renamed(item.value);
+          if (nv !== item.value) item.value = nv;
+        }
+      }
+    } else if (isScalar(node)) {
+      const nv = renamed(node.value);
+      if (nv !== node.value) node.value = nv;
+    }
+  }
+
+  if (!changed) return { content, changed: false };
+  return { content: joinDocument(split), changed: true };
+}
+
+/**
  * Deletes a nested key. Parent maps that become empty through this deletion
  * are removed as well (an empty `plainva:` namespace should not linger).
  * Returns the content unchanged if the path does not exist.

@@ -1592,5 +1592,20 @@
     "refresh": "刷新",
     "empty": "没有任务",
     "openTasks": "打开任务"
+  },
+  "findReplace": {
+    "title": "在整个 vault 中查找和替换",
+    "findPlaceholder": "查找…",
+    "replacePlaceholder": "替换为…",
+    "replaceIn": "在 {{notes}} 个笔记中替换",
+    "replaced": "已在 {{notes}} 个笔记中替换 {{hits}} 处匹配",
+    "noMatches": "没有匹配项"
+  },
+  "tags": {
+    "renameTag": "重命名标签",
+    "renameMessage": "为 #{{tag}} 设置新名称（在整个 vault 中）：",
+    "renameAction": "重命名",
+    "renameDone": "已在 {{notes}} 个笔记中将 #{{old}} 重命名为 #{{new}}",
+    "renameHint": "右键：重命名标签"
   }
 }
