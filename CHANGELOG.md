@@ -7,16 +7,56 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-15
+
+A feature release: a whole new Tasks view, a redesigned graph with a recursive
+folder map, a big keyboard-shortcut expansion with a new F1 help window,
+vault-wide find & replace, and creating a vault directly in the cloud — plus
+fixes from user reports (#13). No format changes; existing vaults and `.base`
+files are untouched.
+
 ### Added
 
+- **Tasks view.** A virtual tab collects every checkbox across the whole vault,
+  grouped by note, with status / text / folder / tag / due filters. The task
+  text renders inline markdown, and a note (for example a template) can keep
+  itself out of the list with `plainva.tasks: false` in its frontmatter — the
+  marker lives in the file, not a hidden app registry.
+- **A rebuilt keyboard-shortcut system and a new F1 help window.** A large set
+  of new editor and global shortcuts — bold/italic/strikethrough/highlight,
+  headings, new note, read/edit and source toggles, tab management, day note and
+  more — plus an F1 window that lists them by area with search, mouse and gesture
+  help, and automatic OS detection (⌘/⌥ vs Ctrl/Alt) (#13).
+- **Vault-wide find & replace** (`Mod+Shift+F`) with a per-note preview and
+  regex support, and **renaming a tag across the whole vault** from the Tags
+  sidebar.
+- **Create a new vault directly on a cloud provider** (Google Drive, OneDrive,
+  Dropbox, S3 or WebDAV) with a structure template. The start screen now opens
+  with two buttons (Open / New) and a place step, and the cloud folder pickers
+  gained a "New folder" row.
+- **Syntax highlighting in the reading view.** Fenced code blocks with a
+  language are colorized in the reading view too — not just the live editor —
+  with language-aware highlighting (CSS, HTML, JavaScript and many more), loaded
+  on demand (#13).
 - **Delete key in the file tree.** With one or more items selected, `Delete`
   moves the selection to the trash — macOS also honours `⌘`+Backspace — through
   the same confirmation as the right-click menu (#13).
-- **Syntax highlighting in the reading view.** Fenced code blocks with a
-  language are now colorized in the reading view too — not just the live
-  editor — with language-aware highlighting (CSS, HTML, JavaScript and many
-  more). The grammar loads on demand, so only the languages a note actually
-  uses are fetched (#13).
+- **Automation & scripting guide** in the user handbook, describing how scripts,
+  the command line or AI agents can read and write a vault safely through plain
+  files and the open format.
+
+### Changed
+
+- **The graph was redesigned** across the context graph, vault map and `.base`
+  graph: an overlap-free layout, node sizes that reflect how connected each note
+  is, focus bloom, curved flow edges with arrowheads and subtle motion. Alt+drag
+  moves a node together with its linked neighbours, `index.md`/`log.md` are
+  hidden by default (with a reveal toggle), and the vault map now packs folders
+  recursively into nested circles — the camera follows the folder you open.
+- **The update-install toast stays up** until the app relaunches (or an error),
+  instead of disappearing after five seconds.
+- **Faster cold indexing.** The initial vault index writes each chunk as a
+  single atomic transactional batch instead of one statement per row.
 
 ### Fixed
 
@@ -25,6 +65,19 @@ reaches 1.0.
   right-click, so it changed the selection the moment the context menu opened and
   the bulk delete never acted on the whole group. The tree's multi-select toggle
   is now `⌘` on macOS and `Ctrl` on Windows/Linux (#13).
+- **The vault find & replace dialog** is wider and no longer shows a stray
+  divider above an empty result list.
+- **Security hardening** (CodeQL): full Drive-query and SQL `LIKE` escaping, a
+  gallery cover-image scheme guard, and safer hrefs and token-host checks.
+
+### Mobile (unreleased test builds)
+
+- **Note links are tappable again.** Links were resolved by mapping the tap
+  coordinates back to a document offset, which mis-resolved most links on touch
+  WebViews while the odd one worked; the target now rides on the link element
+  and is read straight off the tap. Markdown relative links — including
+  generated `index.md` listing links — resolve too, and external table/embed
+  links open through the system browser.
 
 ## [0.2.3] — 2026-07-13
 
