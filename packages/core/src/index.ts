@@ -21,6 +21,7 @@ export * from "./vault/QueueingVaultAdapter.js";
 export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
 export * from "./vault/VaultQueryService.js";
+export * from "./vault/taskScan.js";
 export * from "./vault/GraphService.js";
 export * from "./vault/LinkResolver.js";
 

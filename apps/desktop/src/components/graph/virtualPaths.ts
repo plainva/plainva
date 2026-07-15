@@ -7,6 +7,7 @@
  */
 
 export const GRAPH_TAB_PATH = "plainva://graph";
+export const TASKS_TAB_PATH = "plainva://tasks";
 
 export function isVirtualPath(path: string | null | undefined): boolean {
   return typeof path === "string" && path.startsWith("plainva://");

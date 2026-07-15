@@ -1591,5 +1591,18 @@
     "settingFolders": "Carpetas",
     "settingInboxFolder": "Carpeta de entrada",
     "settingTemplateFolder": "Carpeta de plantillas"
+  },
+  "tasks": {
+    "title": "Tareas",
+    "open": "Abiertas",
+    "done": "Hechas",
+    "all": "Todas",
+    "filterText": "Filtrar tareas…",
+    "allFolders": "Todas las carpetas",
+    "allTags": "Todas las etiquetas",
+    "dueOnly": "Con fecha límite",
+    "refresh": "Actualizar",
+    "empty": "Sin tareas",
+    "openTasks": "Abrir tareas"
   }
 }

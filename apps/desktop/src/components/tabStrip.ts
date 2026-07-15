@@ -23,6 +23,7 @@ import { noteDisplayName } from "@plainva/ui";
  *  localized label where they have i18n access (plan Graph D1). */
 export function tabLabel(path: string): string {
   if (path === "plainva://graph") return "Graph";
+  if (path === "plainva://tasks") return "Tasks";
   return noteDisplayName(path) || "Untitled";
 }
 

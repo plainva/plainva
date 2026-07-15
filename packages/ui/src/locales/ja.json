@@ -1579,5 +1579,18 @@
     "settingFolders": "フォルダー",
     "settingInboxFolder": "インボックスフォルダー",
     "settingTemplateFolder": "テンプレートフォルダー"
+  },
+  "tasks": {
+    "title": "タスク",
+    "open": "未完了",
+    "done": "完了",
+    "all": "すべて",
+    "filterText": "タスクを絞り込み…",
+    "allFolders": "すべてのフォルダー",
+    "allTags": "すべてのタグ",
+    "dueOnly": "期限あり",
+    "refresh": "更新",
+    "empty": "タスクなし",
+    "openTasks": "タスクを開く"
   }
 }

@@ -1585,5 +1585,18 @@
     "settingFolders": "Mappen",
     "settingInboxFolder": "Inbox-map",
     "settingTemplateFolder": "Sjablonenmap"
+  },
+  "tasks": {
+    "title": "Taken",
+    "open": "Open",
+    "done": "Klaar",
+    "all": "Alle",
+    "filterText": "Taken filteren…",
+    "allFolders": "Alle mappen",
+    "allTags": "Alle tags",
+    "dueOnly": "Met einddatum",
+    "refresh": "Vernieuwen",
+    "empty": "Geen taken",
+    "openTasks": "Taken openen"
   }
 }

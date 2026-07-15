@@ -23,6 +23,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | Configurer la synchronisation Google Drive avec vos propres identifiants |
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Configurer la synchronisation OneDrive et Dropbox avec votre propre inscription d'application |
 | [Recherche](Search.md) | Recherche en texte intégral, sélecteur rapide, rechercher & remplacer, tags |
+| [Tâches](Tasks.md) | La vue des tâches à l'échelle du vault : chaque case à cocher de vos notes, avec des filtres par état, étiquette, dossier et échéance, et une bascule en un clic |
 | [Graphe](Graph.md) | Graphe contextuel, carte du coffre avec mode de nettoyage et voyage dans le temps, le graphe comme vue de base de données |
 | [Raccourcis clavier](Keyboard_Shortcuts.md) | Tous les raccourcis clavier en un coup d'œil |
 | [FAQ & dépannage](FAQ.md) | Questions courantes : compatibilité Obsidian, fichiers en conflit, sauvegardes et plus |

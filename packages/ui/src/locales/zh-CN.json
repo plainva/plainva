@@ -1579,5 +1579,18 @@
     "settingFolders": "文件夹",
     "settingInboxFolder": "收件箱文件夹",
     "settingTemplateFolder": "模板文件夹"
+  },
+  "tasks": {
+    "title": "任务",
+    "open": "未完成",
+    "done": "已完成",
+    "all": "全部",
+    "filterText": "筛选任务…",
+    "allFolders": "所有文件夹",
+    "allTags": "所有标签",
+    "dueOnly": "有截止日期",
+    "refresh": "刷新",
+    "empty": "没有任务",
+    "openTasks": "打开任务"
   }
 }

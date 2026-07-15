@@ -24,7 +24,8 @@ import { DatabasesList } from "./components/DatabasesList";
 import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
-import { GRAPH_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { BaseViewer } from "./components/BaseViewer";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
@@ -228,9 +229,9 @@ function App() {
   // Right-sidebar visibility is remembered PER VIEW KIND (hardening P7.2):
   // the vault map defaults to collapsed (canvas wants the space), notes and
   // bases keep their own last choice. The legacy global key is the fallback.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" =>
-    p === GRAPH_TAB_PATH ? "graph" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks"): boolean => {
     const v = localStorage.getItem(`plainva-right-collapsed-${kind}`);
     if (v !== null) return v === "1";
     if (kind === "graph") return true;
@@ -769,6 +770,7 @@ function App() {
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
         onOpenGraph={() => openInFocusedPane(GRAPH_TAB_PATH, true)}
+        onOpenTasks={() => openInFocusedPane(TASKS_TAB_PATH, true)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -1038,6 +1040,10 @@ function App() {
                           onToggleBookmark={toggleBookmark}
                         />
                       </Suspense>
+                    ) : path === TASKS_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                      </Suspense>
                     ) : isImagePath(path) ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <ImageViewer
@@ -1195,6 +1201,7 @@ function App() {
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
             openGraph: () => openInFocusedPane(GRAPH_TAB_PATH, true),
+            openTasks: () => openInFocusedPane(TASKS_TAB_PATH, true),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),

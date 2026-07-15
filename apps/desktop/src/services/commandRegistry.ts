@@ -23,6 +23,7 @@ export interface CommandDeps {
   openQuickSwitcher: () => void;
   openTemplatePicker: () => void;
   openGraph: () => void;
+  openTasks: () => void;
   split: (direction: "vertical" | "horizontal") => void;
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
@@ -60,6 +61,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "template-new", titleKey: "database.createTemplate", titleDefault: "Neue Vorlage erstellen", run: d.createTemplate },
     { id: "template-from-note", titleKey: "editor.saveAsTemplate", titleDefault: "Aktuelle Notiz als Vorlage speichern", run: d.saveActiveAsTemplate, isAvailable: () => d.canPrint() },
     { id: "open-graph", titleKey: "graph.open", titleDefault: "Graph öffnen", hint: "Mod+Shift+G", run: d.openGraph },
+    { id: "open-tasks", titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run: d.openTasks },
     { id: "split-vertical", titleKey: "shortcuts.splitVertical", titleDefault: "Editor rechts teilen", hint: "Mod+Alt+V", run: () => d.split("vertical") },
     { id: "split-horizontal", titleKey: "shortcuts.splitHorizontal", titleDefault: "Editor unten teilen", hint: "Mod+Alt+S", run: () => d.split("horizontal") },
     { id: "toggle-left-sidebar", titleKey: "shortcuts.toggleLeftSidebar", titleDefault: "Linke Seitenleiste umschalten", hint: "Mod+Alt+B", run: d.toggleLeftSidebar },

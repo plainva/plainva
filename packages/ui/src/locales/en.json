@@ -1585,5 +1585,18 @@
     "settingFolders": "Folders",
     "settingInboxFolder": "Inbox folder",
     "settingTemplateFolder": "Template folder"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "open": "Open",
+    "done": "Done",
+    "all": "All",
+    "filterText": "Filter tasks…",
+    "allFolders": "All folders",
+    "allTags": "All tags",
+    "dueOnly": "With due date",
+    "refresh": "Refresh",
+    "empty": "No tasks",
+    "openTasks": "Open tasks"
   }
 }

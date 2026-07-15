@@ -1585,5 +1585,18 @@
     "settingFolders": "Ordner",
     "settingInboxFolder": "Inbox-Ordner",
     "settingTemplateFolder": "Vorlagen-Ordner"
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "open": "Offen",
+    "done": "Erledigt",
+    "all": "Alle",
+    "filterText": "Aufgaben filtern…",
+    "allFolders": "Alle Ordner",
+    "allTags": "Alle Tags",
+    "dueOnly": "Nur mit Fälligkeit",
+    "refresh": "Aktualisieren",
+    "empty": "Keine Aufgaben",
+    "openTasks": "Aufgaben öffnen"
   }
 }

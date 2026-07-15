@@ -1591,5 +1591,18 @@
     "settingFolders": "Pastas",
     "settingInboxFolder": "Pasta de entrada",
     "settingTemplateFolder": "Pasta de modelos"
+  },
+  "tasks": {
+    "title": "Tarefas",
+    "open": "Abertas",
+    "done": "Concluídas",
+    "all": "Todas",
+    "filterText": "Filtrar tarefas…",
+    "allFolders": "Todas as pastas",
+    "allTags": "Todas as tags",
+    "dueOnly": "Com vencimento",
+    "refresh": "Atualizar",
+    "empty": "Nenhuma tarefa",
+    "openTasks": "Abrir tarefas"
   }
 }

@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
-import { GRAPH_TAB_PATH } from "./graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
@@ -70,7 +70,7 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
                 <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={15} />
               </span>
             )}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{path === GRAPH_TAB_PATH ? t("rightPanel.graph", { defaultValue: "Graph" }) : tabLabel(path)}</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{path === GRAPH_TAB_PATH ? t("rightPanel.graph", { defaultValue: "Graph" }) : path === TASKS_TAB_PATH ? t("tasks.title", { defaultValue: "Aufgaben" }) : tabLabel(path)}</span>
             {dirtyPaths.has(path) && <span className="pv-tab-dirty" aria-hidden="true" />}
             <span
               aria-hidden="true"

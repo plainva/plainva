@@ -1597,5 +1597,18 @@
     "settingFolders": "Foldery",
     "settingInboxFolder": "Folder skrzynki",
     "settingTemplateFolder": "Folder szablonów"
+  },
+  "tasks": {
+    "title": "Zadania",
+    "open": "Otwarte",
+    "done": "Ukończone",
+    "all": "Wszystkie",
+    "filterText": "Filtruj zadania…",
+    "allFolders": "Wszystkie foldery",
+    "allTags": "Wszystkie tagi",
+    "dueOnly": "Z terminem",
+    "refresh": "Odśwież",
+    "empty": "Brak zadań",
+    "openTasks": "Otwórz zadania"
   }
 }

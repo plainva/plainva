@@ -1591,5 +1591,18 @@
     "settingFolders": "Dossiers",
     "settingInboxFolder": "Dossier de la boîte de réception",
     "settingTemplateFolder": "Dossier des modèles"
+  },
+  "tasks": {
+    "title": "Tâches",
+    "open": "Ouvertes",
+    "done": "Terminées",
+    "all": "Toutes",
+    "filterText": "Filtrer les tâches…",
+    "allFolders": "Tous les dossiers",
+    "allTags": "Toutes les étiquettes",
+    "dueOnly": "Avec échéance",
+    "refresh": "Actualiser",
+    "empty": "Aucune tâche",
+    "openTasks": "Ouvrir les tâches"
   }
 }

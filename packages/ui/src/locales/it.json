@@ -1591,5 +1591,18 @@
     "settingFolders": "Cartelle",
     "settingInboxFolder": "Cartella Inbox",
     "settingTemplateFolder": "Cartella dei modelli"
+  },
+  "tasks": {
+    "title": "Attività",
+    "open": "Aperte",
+    "done": "Completate",
+    "all": "Tutte",
+    "filterText": "Filtra attività…",
+    "allFolders": "Tutte le cartelle",
+    "allTags": "Tutti i tag",
+    "dueOnly": "Con scadenza",
+    "refresh": "Aggiorna",
+    "empty": "Nessuna attività",
+    "openTasks": "Apri attività"
   }
 }

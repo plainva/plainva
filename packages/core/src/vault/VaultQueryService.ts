@@ -3,6 +3,7 @@ import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilt
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
+import { scanTasks, type ScannedTask } from "./taskScan.js";
 
 export interface FileRecord {
   id: string;
@@ -32,6 +33,12 @@ export interface LinkRecord {
 }
 
 export interface RelationSource {
+  path: string;
+  title: string;
+}
+
+/** One task checkbox found anywhere in the vault, with the note it lives in. */
+export interface TaskRecord extends ScannedTask {
   path: string;
   title: string;
 }
@@ -206,6 +213,28 @@ export class VaultQueryService {
     return rows
       .filter((r) => !!r.path)
       .map((r) => ({ path: r.path, title: r.title || r.path.split("/").pop()!.replace(/\.base$/i, "") }));
+  }
+
+  /**
+   * Every GFM task checkbox in the vault (B4 vault-wide Tasks view). Reads the
+   * note text straight from the FTS index (no extra file I/O) and extracts task
+   * lines with {@link scanTasks}; each task keeps its note path/title and the
+   * document-order ordinal that toggleTaskAtIndex needs to flip it back.
+   */
+  async listTasks(): Promise<TaskRecord[]> {
+    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+      `SELECT path, title, content FROM fts_notes`,
+      [],
+    );
+    const out: TaskRecord[] = [];
+    for (const r of rows) {
+      if (!r.path) continue;
+      const title = r.title || r.path.split("/").pop()!.replace(/\.md$/i, "");
+      for (const task of scanTasks(r.content ?? "")) {
+        out.push({ path: r.path, title, ...task });
+      }
+    }
+    return out;
   }
 
   /**
