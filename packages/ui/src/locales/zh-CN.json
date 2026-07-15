@@ -943,6 +943,7 @@
     "savedToast": "已保存",
     "newNoteFolder": "在所选文件夹中新建笔记",
     "renameFile": "重命名当前笔记",
+    "deleteSelection": "删除选中的文件或文件夹",
     "navBack": "后退（导航历史）",
     "navForward": "前进（导航历史）",
     "toggleReadEdit": "切换阅读 ↔ 编辑",

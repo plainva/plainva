@@ -435,6 +435,34 @@ test('File tree: Ctrl-selection deletes both notes after a single confirm', asyn
   await expect(aside.getByText('Beta', { exact: true })).not.toBeVisible();
 });
 
+// --- File tree: the Delete key removes the current selection (Issue #13) ---
+test('File tree: the Delete key deletes the multi-selection after one confirm', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Beta.md': '# Beta\n',
+      '/test-vault/Gamma.md': '# Gamma\n',
+      // Keep the two deletions under the 20% large-deletion threshold (E2).
+      ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`/test-vault/Fill-${i}.md`, `# F${i}\n`])),
+    });
+  });
+  await page.goto('/');
+  const aside = page.getByTestId('file-tree');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Build a two-note selection with Ctrl+click (opens no note, so nothing steals
+  // keyboard focus from the tree), then delete it with the keyboard — no menu.
+  await aside.getByText('Beta', { exact: true }).click({ modifiers: ['Control'] });
+  await aside.getByText('Gamma', { exact: true }).click({ modifiers: ['Control'] });
+  await page.keyboard.press('Delete');
+  // ONE in-app confirm for the whole selection, exactly like the menu path.
+  await page.locator('.pv-modal-footer button.pv-btn--danger').click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => /\/(Beta|Gamma)\.md$/.test(k)).length), { timeout: 8000 })
+    .toBe(0);
+  await expect(aside.getByText('Beta', { exact: true })).not.toBeVisible();
+});
+
 // --- File tree: a large share of the vault asks a second, sharper time (E2 2026-07-09) ---
 test('File tree: deleting a large share of the vault shows the second prompt', async ({ page }) => {
   await page.addInitScript(() => {

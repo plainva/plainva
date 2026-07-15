@@ -945,6 +945,7 @@
     "savedToast": "Gespeichert",
     "newNoteFolder": "Neue Notiz im gewählten Ordner",
     "renameFile": "Aktive Notiz umbenennen",
+    "deleteSelection": "Ausgewählte Dateien oder Ordner löschen",
     "navBack": "Zurück (Navigationsverlauf)",
     "navForward": "Vor (Navigationsverlauf)",
     "toggleReadEdit": "Lesen ↔ Bearbeiten umschalten",

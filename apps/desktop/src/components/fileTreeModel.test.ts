@@ -3,6 +3,7 @@ import {
   ancestorsOf,
   applyClickSelection,
   buildTree,
+  clickSelectionMode,
   collectFolderPaths,
   copyCandidate,
   flattenVisibleTree,
@@ -120,6 +121,45 @@ describe("applyClickSelection", () => {
   it("range without a resolvable anchor behaves like a single click", () => {
     const res = applyClickSelection(new Set(), null, visible, "Bilder", "range");
     expect([...res.selection]).toEqual(["Bilder"]);
+  });
+});
+
+describe("clickSelectionMode", () => {
+  const WIN = false;
+  const MAC = true;
+  const ev = (m: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }> = {}) => ({
+    shiftKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    ...m,
+  });
+
+  it("a plain click selects on both platforms", () => {
+    expect(clickSelectionMode(ev(), WIN)).toBe("single");
+    expect(clickSelectionMode(ev(), MAC)).toBe("single");
+  });
+
+  it("Shift ranges on both platforms", () => {
+    expect(clickSelectionMode(ev({ shiftKey: true }), WIN)).toBe("range");
+    expect(clickSelectionMode(ev({ shiftKey: true }), MAC)).toBe("range");
+  });
+
+  it("the toggle modifier is Ctrl on Windows/Linux — the Super key never toggles", () => {
+    expect(clickSelectionMode(ev({ ctrlKey: true }), WIN)).toBe("toggle");
+    expect(clickSelectionMode(ev({ metaKey: true }), WIN)).toBe("single");
+  });
+
+  it("the toggle modifier is ⌘ on macOS; Ctrl+click is the OS right-click, not a toggle (Issue #13)", () => {
+    expect(clickSelectionMode(ev({ metaKey: true }), MAC)).toBe("toggle");
+    // The heart of the macOS bug: Ctrl+click must NOT flip the selection — it is
+    // the secondary-click gesture, so the click is a no-op the contextmenu owns.
+    expect(clickSelectionMode(ev({ ctrlKey: true }), MAC)).toBe("none");
+    expect(clickSelectionMode(ev({ ctrlKey: true, shiftKey: true }), MAC)).toBe("none");
+  });
+
+  it("Shift wins over the toggle modifier (a contiguous range)", () => {
+    expect(clickSelectionMode(ev({ shiftKey: true, ctrlKey: true }), WIN)).toBe("range");
+    expect(clickSelectionMode(ev({ shiftKey: true, metaKey: true }), MAC)).toBe("range");
   });
 });
 

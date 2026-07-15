@@ -26,7 +26,7 @@ Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier*
 | `F2` | Renommer la note active |
 | `Ctrl+Alt+Gauche` / `Ctrl+Alt+Droite` | Retour / Avancer (historique de navigation) |
 
-Dans l'arborescence de fichiers : le **clic** sélectionne et ouvre, `Ctrl`+clic bascule la sélection (sélection multiple), `Shift`+clic sélectionne une plage, le **clic central** ouvre un fichier dans un nouvel onglet, le **glisser** déplace des fichiers, et le **clic droit** ouvre le menu contextuel.
+Dans l'arborescence de fichiers : le **clic** sélectionne et ouvre, `Ctrl`+clic bascule la sélection (sélection multiple), `Shift`+clic sélectionne une plage, le **clic central** ouvre un fichier dans un nouvel onglet, le **glisser** déplace des fichiers, le **clic droit** ouvre le menu contextuel, et `Suppr` déplace la sélection vers la corbeille.
 
 ## Affichage, fenêtres et onglets
 

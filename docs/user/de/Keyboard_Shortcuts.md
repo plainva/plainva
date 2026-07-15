@@ -26,7 +26,7 @@ Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du 
 | `F2` | Aktive Notiz umbenennen |
 | `Strg+Alt+Links` / `Strg+Alt+Rechts` | Zurück / Vor (Navigationsverlauf) |
 
-Im Dateibaum: **Klick** wählt aus und öffnet, `Strg`+Klick schaltet eine Mehrfachauswahl um, `Umschalt`+Klick wählt einen Bereich, **mittlere Maustaste** öffnet eine Datei in neuem Tab, **Ziehen** verschiebt Dateien, **Rechtsklick** öffnet das Kontextmenü.
+Im Dateibaum: **Klick** wählt aus und öffnet, `Strg`+Klick schaltet eine Mehrfachauswahl um, `Umschalt`+Klick wählt einen Bereich, **mittlere Maustaste** öffnet eine Datei in neuem Tab, **Ziehen** verschiebt Dateien, **Rechtsklick** öffnet das Kontextmenü, `Entf` verschiebt die Auswahl in den Papierkorb.
 
 ## Ansicht, Fenster & Tabs
 

@@ -7,6 +7,20 @@ reaches 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Delete key in the file tree.** With one or more items selected, `Delete`
+  moves the selection to the trash — macOS also honours `⌘`+Backspace — through
+  the same confirmation as the right-click menu (#13).
+
+### Fixed
+
+- **Selecting a group of files and deleting works on macOS.** `Ctrl`+click was
+  treated as a selection toggle on every platform, but on macOS it is the system
+  right-click, so it changed the selection the moment the context menu opened and
+  the bulk delete never acted on the whole group. The tree's multi-select toggle
+  is now `⌘` on macOS and `Ctrl` on Windows/Linux (#13).
+
 ## [0.2.3] — 2026-07-13
 
 A follow-up release with sidebar and editor refinements, plus fixes from user
