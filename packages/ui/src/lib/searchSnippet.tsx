@@ -8,22 +8,31 @@ import { VaultQueryService } from "@plainva/core";
  * (`<b>`, `<script>`, …) therefore stays literal text.
  */
 
-const START = VaultQueryService.SNIPPET_MARK_START;
-const END = VaultQueryService.SNIPPET_MARK_END;
+// Read the sentinels LAZILY (not at module top level): in the production bundle
+// this module can evaluate before VaultQueryService is initialized, and a
+// top-level `VaultQueryService.SNIPPET_MARK_START` read then throws and
+// white-screens the whole app at startup. Module ordering differs from the dev
+// server, so dev never hit it. Reading at call time is immune to the ordering.
+const marks = () => ({
+  START: VaultQueryService.SNIPPET_MARK_START,
+  END: VaultQueryService.SNIPPET_MARK_END,
+});
 
 /** True when the string carries at least one match marker — used to tell
  *  "file name" hits (marker in the highlighted title) from content hits. */
 export function hasSnippetMark(text: string | null | undefined): boolean {
-  return typeof text === "string" && text.includes(START);
+  return typeof text === "string" && text.includes(marks().START);
 }
 
 /** Removes stray sentinels (defense in depth for pathological content). */
 export function stripSnippetMarks(text: string): string {
+  const { START, END } = marks();
   return text.split(START).join("").split(END).join("");
 }
 
 /** Sentinel-marked string -> React nodes with <mark> around the matches. */
 export function renderSnippetNodes(text: string): React.ReactNode[] {
+  const { START, END } = marks();
   const nodes: React.ReactNode[] = [];
   const parts = text.split(START);
   if (parts[0]) nodes.push(stripSnippetMarks(parts[0]));
