@@ -945,6 +945,7 @@
     "savedToast": "Saved",
     "newNoteFolder": "New note in the selected folder",
     "renameFile": "Rename the active note",
+    "deleteSelection": "Delete the selected files or folders",
     "navBack": "Back (navigation history)",
     "navForward": "Forward (navigation history)",
     "toggleReadEdit": "Toggle reading ↔ editing",

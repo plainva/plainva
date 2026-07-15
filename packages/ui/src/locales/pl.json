@@ -949,6 +949,7 @@
     "savedToast": "Zapisano",
     "newNoteFolder": "Nowa notatka w wybranym folderze",
     "renameFile": "Zmień nazwę aktywnej notatki",
+    "deleteSelection": "Usuń zaznaczone pliki lub foldery",
     "navBack": "Wstecz (historia nawigacji)",
     "navForward": "Do przodu (historia nawigacji)",
     "toggleReadEdit": "Przełącz czytanie ↔ edycję",

@@ -947,6 +947,7 @@
     "savedToast": "Salvato",
     "newNoteFolder": "Nuova nota nella cartella selezionata",
     "renameFile": "Rinomina la nota attiva",
+    "deleteSelection": "Elimina i file o le cartelle selezionati",
     "navBack": "Indietro (cronologia di navigazione)",
     "navForward": "Avanti (cronologia di navigazione)",
     "toggleReadEdit": "Alterna lettura ↔ modifica",

@@ -154,6 +154,29 @@ export function applyClickSelection(
   return { selection: new Set([path]), anchor: path };
 }
 
+export type ClickSelectionMode = "single" | "toggle" | "range" | "none";
+
+/**
+ * Which selection gesture a mouse click carries, resolved per platform. Shift
+ * ranges; the platform's multi-select modifier toggles. That modifier is ⌘
+ * (metaKey) on macOS and Ctrl elsewhere — critically NOT `ctrlKey || metaKey`:
+ * on macOS Ctrl+click is the OS secondary-click that opens the context menu,
+ * so treating Ctrl as a toggle there flips the row out of the selection the
+ * instant the menu opens, which is why "select a group and delete" never
+ * worked on macOS (Issue #13). Such a Ctrl-modified click on macOS is reported
+ * as "none": the contextmenu handler already owns it, and the stray `click`
+ * some WebViews still emit must move nothing and open nothing.
+ */
+export function clickSelectionMode(
+  e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+  isMac: boolean,
+): ClickSelectionMode {
+  if (isMac && e.ctrlKey && !e.metaKey) return "none";
+  if (e.shiftKey) return "range";
+  const toggle = isMac ? e.metaKey : e.ctrlKey;
+  return toggle ? "toggle" : "single";
+}
+
 /** Drops paths nested inside another selected folder — bulk ops act on roots. */
 export function pruneNestedPaths(paths: Iterable<string>): string[] {
   const list = [...paths].sort();

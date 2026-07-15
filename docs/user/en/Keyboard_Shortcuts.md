@@ -26,7 +26,7 @@ Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shor
 | `F2` | Rename the active note |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Back / forward (navigation history) |
 
-In the file tree: **click** selects and opens, `Ctrl`+click toggles a multi-selection, `Shift`+click selects a range, **middle-click** opens a file in a new tab, **drag** moves files, and **right-click** opens the context menu.
+In the file tree: **click** selects and opens, `Ctrl`+click toggles a multi-selection, `Shift`+click selects a range, **middle-click** opens a file in a new tab, **drag** moves files, **right-click** opens the context menu, and `Delete` moves the selection to the trash.
 
 ## View, windows & tabs
 

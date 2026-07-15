@@ -26,7 +26,7 @@ Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para a
 | `F2` | Renomear a nota ativa |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Voltar / avançar (histórico de navegação) |
 
-Na árvore de arquivos: **clique** seleciona e abre, `Ctrl`+clique alterna uma seleção múltipla, `Shift`+clique seleciona um intervalo, **clique com o botão do meio** abre um arquivo em uma nova aba, **arrastar** move arquivos, e **clique com o botão direito** abre o menu de contexto.
+Na árvore de arquivos: **clique** seleciona e abre, `Ctrl`+clique alterna uma seleção múltipla, `Shift`+clique seleciona um intervalo, **clique com o botão do meio** abre um arquivo em uma nova aba, **arrastar** move arquivos, **clique com o botão direito** abre o menu de contexto, e `Delete` move a seleção para a lixeira.
 
 ## Visualização, janelas e abas
 

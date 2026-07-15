@@ -943,6 +943,7 @@
     "savedToast": "保存しました",
     "newNoteFolder": "選択したフォルダーに新規ノートを作成",
     "renameFile": "アクティブなノートの名前を変更",
+    "deleteSelection": "選択したファイルまたはフォルダーを削除",
     "navBack": "戻る（ナビゲーション履歴）",
     "navForward": "進む（ナビゲーション履歴）",
     "toggleReadEdit": "閲覧 ↔ 編集を切り替え",

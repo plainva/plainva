@@ -26,7 +26,7 @@ Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**
 | `F2` | Rinomina la nota attiva |
 | `Ctrl+Alt+Sinistra` / `Ctrl+Alt+Destra` | Indietro / Avanti (cronologia di navigazione) |
 
-Nell'albero dei file: **clic** seleziona e apre, `Ctrl`+clic attiva/disattiva una selezione multipla, `Shift`+clic seleziona un intervallo, **clic centrale** apre un file in una nuova scheda, **trascinare** sposta i file e **clic destro** apre il menu contestuale.
+Nell'albero dei file: **clic** seleziona e apre, `Ctrl`+clic attiva/disattiva una selezione multipla, `Shift`+clic seleziona un intervallo, **clic centrale** apre un file in una nuova scheda, **trascinare** sposta i file, **clic destro** apre il menu contestuale e `Canc` sposta la selezione nel cestino.
 
 ## Vista, finestre e schede
 

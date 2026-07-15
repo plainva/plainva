@@ -26,7 +26,7 @@ Stan na: 2026-07-15
 | `F2` | Zmień nazwę aktywnej notatki |
 | `Ctrl+Alt+Lewo` / `Ctrl+Alt+Prawo` | Wstecz / Do przodu (historia nawigacji) |
 
-W drzewie plików: **kliknięcie** wybiera i otwiera, `Ctrl`+klik przełącza zaznaczenie (wielokrotny wybór), `Shift`+klik zaznacza zakres, **kliknięcie środkowym przyciskiem** otwiera plik w nowej karcie, **przeciąganie** przenosi pliki, a **kliknięcie prawym przyciskiem** otwiera menu kontekstowe.
+W drzewie plików: **kliknięcie** wybiera i otwiera, `Ctrl`+klik przełącza zaznaczenie (wielokrotny wybór), `Shift`+klik zaznacza zakres, **kliknięcie środkowym przyciskiem** otwiera plik w nowej karcie, **przeciąganie** przenosi pliki, **kliknięcie prawym przyciskiem** otwiera menu kontekstowe, a `Delete` przenosi zaznaczenie do kosza.
 
 ## Widok, okna i karty
 

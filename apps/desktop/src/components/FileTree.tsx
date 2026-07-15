@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { appConfirm } from "../services/appDialogs";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { toast } from "@plainva/ui";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
@@ -32,6 +32,7 @@ import {
   ancestorsOf,
   applyClickSelection,
   buildTree,
+  clickSelectionMode,
   collectFolderPaths,
   flattenVisibleTree,
   parentOf,
@@ -40,7 +41,12 @@ import {
   sortedChildren,
   type TreeNode,
 } from "./fileTreeModel";
+import { detectMac } from "./WindowControls";
 import { useTranslation } from "react-i18next";
+
+// The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
+// elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
+const IS_MAC = detectMac();
 
 const isConflictPath = (p: string) => p.includes(".CONFLICT-");
 
@@ -383,6 +389,9 @@ export const FileTree: React.FC<{
   // Shift ranges over the visible rows; the anchor is the last plain target.
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  // Root element of the tree — the Delete-key shortcut only fires while focus
+  // is inside it (or nowhere), never while another surface owns the keyboard.
+  const treeRootRef = useRef<HTMLDivElement>(null);
 
   // The sidebar owns the search box (plan Suche P3); the built-in fallback
   // field is gone — without an externalQuery the tree simply shows everything.
@@ -548,11 +557,20 @@ export const FileTree: React.FC<{
   };
 
   const handleItemClick = useStableHandler((path: string, isFolder: boolean, e: React.MouseEvent) => {
-    const mode = e.shiftKey ? "range" : e.ctrlKey || e.metaKey ? "toggle" : "single";
+    const mode = clickSelectionMode(e, IS_MAC);
+    // macOS Ctrl+click is a right-click: the contextmenu handler owns it, this
+    // click must change nothing (see clickSelectionMode / Issue #13).
+    if (mode === "none") return;
     const res = applyClickSelection(selection, selectionAnchor, visibleEntries, path, mode);
     setSelection(res.selection);
     setSelectionAnchor(res.anchor);
-    if (mode !== "single") return; // Ctrl/Shift only select — no open, no toggle
+    if (mode !== "single") {
+      // A multi-select gesture keeps the user in the tree — focus it so the
+      // Delete-key shortcut targets this selection. (A plain open below instead
+      // hands focus to the editor, so Delete there edits text, never files.)
+      treeRootRef.current?.focus();
+      return;
+    }
     if (isFolder) toggleFolder(path);
     else handleOpen(path, false);
   });
@@ -917,6 +935,37 @@ export const FileTree: React.FC<{
     }
   };
 
+  // Delete-key shortcut for the tree (Issue #13): remove the current selection
+  // through the SAME confirmation as the context menu — one file via handleDelete,
+  // several via handleBulkDelete. Scoped tightly so it never fires while typing,
+  // while a dialog/menu is open, or when another surface (the editor) owns the
+  // keyboard. The Delete key works on every OS; macOS also honours ⌘+Backspace
+  // (Finder's delete idiom), with the plain Delete key as forward-delete.
+  const handleTreeDeleteKey = useStableHandler((e: KeyboardEvent) => {
+    const isDeleteKey =
+      (e.key === "Delete" && !e.ctrlKey && !e.metaKey && !e.altKey) ||
+      (IS_MAC && e.key === "Backspace" && e.metaKey && !e.ctrlKey && !e.altKey);
+    if (!isDeleteKey || selection.size === 0) return;
+    // The inline rename/new-item inputs, the context menu and any app dialog all
+    // own the keyboard while they are open.
+    if (renamingItemParams || newItemParams || contextMenu || dialogStore.get()) return;
+    // Never hijack a Delete meant for a text field or the editor.
+    const el = document.activeElement as HTMLElement | null;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+    // Only when the tree is the active surface: focus inside it, or nowhere
+    // (clicking a row blurs to <body>, since the rows are not focusable).
+    if (el && el !== document.body && !treeRootRef.current?.contains(el)) return;
+    e.preventDefault();
+    const sel = [...selection];
+    if (sel.length > 1) void handleBulkDelete(sel);
+    else void handleDelete(sel[0], folderPaths.has(sel[0]));
+  });
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleTreeDeleteKey);
+    return () => window.removeEventListener("keydown", handleTreeDeleteKey);
+  }, [handleTreeDeleteKey]);
+
   const handleDragStart = useStableHandler((e: React.DragEvent, path: string) => {
     if (isConflictPath(path)) {
       e.preventDefault();
@@ -1238,7 +1287,11 @@ export const FileTree: React.FC<{
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-secondary)" }}
+      ref={treeRootRef}
+      // Programmatically focusable (not in the tab order) so multi-select can
+      // make the tree the keyboard surface for the Delete shortcut.
+      tabIndex={-1}
+      style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-secondary)", outline: "none" }}
       onContextMenu={(e) => {
         // If clicking on the empty background of the tree, open context menu for root
         if (e.target === e.currentTarget) {

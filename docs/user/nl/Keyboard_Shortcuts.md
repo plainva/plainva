@@ -26,7 +26,7 @@ Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het
 | `F2` | De actieve notitie hernoemen |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Terug / vooruit (navigatiegeschiedenis) |
 
-In de bestandsboom: **klik** selecteert en opent, `Ctrl`+klik schakelt de multiselectie, `Shift`+klik selecteert een bereik, **middelklik** opent een bestand in een nieuw tabblad, **slepen** verplaatst bestanden en **rechtsklik** opent het contextmenu.
+In de bestandsboom: **klik** selecteert en opent, `Ctrl`+klik schakelt de multiselectie, `Shift`+klik selecteert een bereik, **middelklik** opent een bestand in een nieuw tabblad, **slepen** verplaatst bestanden, **rechtsklik** opent het contextmenu en `Delete` verplaatst de selectie naar de prullenbak.
 
 ## Weergave, vensters & tabbladen
 

@@ -26,7 +26,7 @@ Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir e
 | `F2` | Renombrar la nota activa |
 | `Ctrl+Alt+Izquierda` / `Ctrl+Alt+Derecha` | Atrás / Adelante (historial de navegación) |
 
-En el árbol de archivos: **clic** selecciona y abre, `Ctrl`+clic alterna una selección múltiple, `Shift`+clic selecciona un rango, **clic central** abre un archivo en una pestaña nueva, **arrastrar** mueve archivos y **clic derecho** abre el menú contextual.
+En el árbol de archivos: **clic** selecciona y abre, `Ctrl`+clic alterna una selección múltiple, `Shift`+clic selecciona un rango, **clic central** abre un archivo en una pestaña nueva, **arrastrar** mueve archivos, **clic derecho** abre el menú contextual y `Supr` mueve la selección a la papelera.
 
 ## Vista, ventanas y pestañas
 
