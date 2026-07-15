@@ -112,7 +112,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ onClose }) => {
   const active = SHORTCUT_CATEGORIES.find((c) => c.id === activeId) ?? SHORTCUT_CATEGORIES[0];
 
   return (
-    <Modal onClose={onClose} title={t("shortcuts.title")} size="xl" testId="shortcuts-modal">
+    <Modal onClose={onClose} title={t("shortcuts.title")} size="lg" testId="shortcuts-modal">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("shortcuts.subtitle")}</p>
 
@@ -153,7 +153,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ onClose }) => {
           </div>
         )}
 
-        <div style={{ maxHeight: "min(58vh, 520px)", overflowY: "auto", paddingRight: "var(--space-1)" }}>
+        <div style={{ maxHeight: "calc(86vh - 16rem)", overflowY: "auto", paddingRight: "var(--space-1)" }}>
           {q ? (
             searchHits && searchHits.total > 0 ? (
               <>
