@@ -1703,6 +1703,7 @@
     "conflictKeepOriginal": "Aktuelle Notiz behalten",
     "lastSync": "Zuletzt synchronisiert: {{time}}",
     "baseEmpty": "Keine Einträge in dieser Ansicht.",
+    "noteContext": "Notiz-Details",
     "conflictPreserved": "Konflikt: Deine Änderungen wurden als Konfliktkopie gesichert.",
     "saveRetry": "Speichern fehlgeschlagen — neuer Versuch läuft im Hintergrund.",
     "noteMissing": "Diese Notiz wurde nicht gefunden.",

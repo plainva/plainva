@@ -1697,6 +1697,7 @@
     "conflictKeepOriginal": "保留当前笔记",
     "lastSync": "上次同步：{{time}}",
     "baseEmpty": "没有符合此视图的条目。",
+    "noteContext": "笔记详情",
     "conflictPreserved": "冲突：你的更改已保存为冲突副本。",
     "saveRetry": "保存失败——正在后台重试。",
     "noteMissing": "找不到此笔记。",

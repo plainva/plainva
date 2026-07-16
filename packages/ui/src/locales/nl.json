@@ -1703,6 +1703,7 @@
     "conflictKeepOriginal": "Huidige notitie behouden",
     "lastSync": "Laatst gesynchroniseerd: {{time}}",
     "baseEmpty": "Geen items komen overeen met deze weergave.",
+    "noteContext": "Notitiedetails",
     "conflictPreserved": "Conflict: je wijzigingen zijn opgeslagen als conflictkopie.",
     "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond.",
     "noteMissing": "Deze notitie is niet gevonden.",

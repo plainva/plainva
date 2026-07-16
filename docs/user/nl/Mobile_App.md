@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-07-13
+Laatst bijgewerkt: 2026-07-16
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -14,7 +14,7 @@ Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Ma
 
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
 
-Het pictogram **ⓘ** opent de Notitie-info van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, Markdown-bron, zoeken binnen de notitie en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen.
+De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
 
 ## Databases (`.base`)
 

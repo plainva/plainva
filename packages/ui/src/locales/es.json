@@ -1709,6 +1709,7 @@
     "conflictKeepOriginal": "Conservar la nota actual",
     "lastSync": "Última sincronización: {{time}}",
     "baseEmpty": "Ninguna entrada coincide con esta vista.",
+    "noteContext": "Detalles de la nota",
     "conflictPreserved": "Conflicto: tus cambios se guardaron como copia de conflicto.",
     "saveRetry": "Error al guardar; se reintentará en segundo plano.",
     "noteMissing": "No se encontró esta nota.",

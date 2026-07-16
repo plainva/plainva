@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-13
+Last updated: 2026-07-16
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -14,7 +14,7 @@ Plainva is also available as an app for Android and iOS. It works on the same Ma
 
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
 
-The **ⓘ** symbol opens the note's context sheet: properties (directly editable), backlinks, outline, Markdown source, in-note search and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore.
+The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
 
 ## Databases (`.base`)
 

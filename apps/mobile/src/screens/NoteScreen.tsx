@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Bookmark,
   Check,
   ChevronLeft,
   Code,
   FolderInput,
-  History,
   MoreVertical,
   Paintbrush,
+  PanelRight,
   Pencil,
   FileX,
   Search,
   Share2,
-  SlidersHorizontal,
   Smile,
-  Star,
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
@@ -30,11 +29,15 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { EditorHost } from "../EditorHost";
 
 /**
- * Note view (M3E mockup 2/3): read-first. Reading shows back · title · star ·
- * ⋮ plus a pencil FAB; editing collapses the bar to back · title · tonal
- * check. File actions (icon, stripe, source toggle, find, rename, delete)
- * live in the ⋮ sheet; properties render as a tappable chip row that opens
- * the context sheet.
+ * Note view (M3E mockup 2/3): read-first. Reading shows back · title ·
+ * bookmark · context · ⋮ plus a pencil FAB; editing collapses the bar to
+ * back · title · tonal check. The context button opens the context sheet
+ * (properties · backlinks · outline · graph · history — the mobile right
+ * sidebar), so the former ⋮ entries for properties and version history
+ * moved out of the menu (2026-07-16). The bookmark uses the same Bookmark
+ * glyph as every other bookmark surface (tab bar, bookmark rows, desktop).
+ * Remaining file actions (icon, stripe, source toggle, find, rename,
+ * delete) live in the ⋮ sheet; property chips still open the sheet too.
  */
 export function NoteScreen({
   vault,
@@ -138,7 +141,16 @@ export function NoteScreen({
                 void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
               }
             >
-              <Star fill={marked ? "currentColor" : "none"} size={20} />
+              <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
+            </button>
+          )}
+          {!editing && (
+            <button
+              aria-label={t("mobile.noteContext")}
+              className="m-iconbtn"
+              onClick={() => setInfo("props")}
+            >
+              <PanelRight size={20} />
             </button>
           )}
           {!editing && (
@@ -227,22 +239,6 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 editorEvent("m-editor-pick-color");
-              },
-            },
-            {
-              icon: <SlidersHorizontal size={18} />,
-              label: t("rightPanel.properties"),
-              onClick: () => {
-                setMenu(false);
-                setInfo("props");
-              },
-            },
-            {
-              icon: <History size={18} />,
-              label: t("versions.title"),
-              onClick: () => {
-                setMenu(false);
-                setInfo("history");
               },
             },
             {

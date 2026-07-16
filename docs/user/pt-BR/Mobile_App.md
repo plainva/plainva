@@ -1,6 +1,6 @@
 # O app mobile
 
-Stand: 2026-07-13
+Stand: 2026-07-16
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -14,7 +14,7 @@ O Plainva também está disponível como aplicativo para Android e iOS. Ele func
 
 As notas abrem **renderizadas e somente leitura**; o lápis no canto superior direito muda para o modo de edição (com uma barra de ferramentas acima do teclado: formatação, listas, link wiki, comandos de barra, inserir foto). Incorporações `![[Nota]]` aparecem como cartões de pré-visualização tocáveis.
 
-O símbolo **ⓘ** abre o painel de contexto da nota: propriedades (diretamente editáveis), backlinks, estrutura, código-fonte Markdown, busca na nota e o **histórico de versões** — cada edição cria automaticamente snapshots que você pode inspecionar, comparar e restaurar.
+O botão **Detalhes da nota** no cabeçalho (entre o marcador e o menu ⋮) abre o painel de contexto da nota: propriedades (diretamente editáveis), backlinks, estrutura, grafo e o **histórico de versões** — cada edição cria automaticamente snapshots que você pode inspecionar, comparar e restaurar. O código-fonte Markdown e a busca na nota ficam no menu ⋮.
 
 ## Bancos de dados (`.base`)
 

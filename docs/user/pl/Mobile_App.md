@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-13
+Stan na: 2026-07-16
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -14,7 +14,7 @@ Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych sa
 
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
 
-Ikona **ⓘ** otwiera Informacje o notatce: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, źródło Markdown, wyszukiwanie w notatce oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać.
+Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
 
 ## Bazy danych (`.base`)
 

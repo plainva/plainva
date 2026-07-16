@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-07-13
+Dernière mise à jour : 2026-07-16
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -14,7 +14,7 @@ Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle 
 
 Les notes s'ouvrent **rendues et en lecture seule** ; le crayon en haut à droite bascule en mode d'édition (avec une barre d'outils au-dessus du clavier : mise en forme, listes, lien wiki, commandes slash, insertion de photo). Les inclusions `![[Note]]` apparaissent sous forme de cartes d'aperçu à toucher.
 
-Le symbole **ⓘ** ouvre la fiche contextuelle de la note : propriétés (directement modifiables), liens entrants, plan, source Markdown, recherche dans la note et l'**historique des versions** — chaque modification crée automatiquement des instantanés que vous pouvez consulter, comparer et restaurer.
+Le bouton **Détails de la note** dans l'en-tête (entre le marque-page et le menu ⋮) ouvre la fiche contextuelle de la note : propriétés (directement modifiables), liens entrants, plan, graphe et l'**historique des versions** — chaque modification crée automatiquement des instantanés que vous pouvez consulter, comparer et restaurer. La source Markdown et la recherche dans la note se trouvent dans le menu ⋮.
 
 ## Bases de données (`.base`)
 
