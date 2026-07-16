@@ -13,6 +13,22 @@ export function wikiTargetForPath(path: string, allFilePaths: string[]): string 
 }
 
 /**
+ * Extension-preserving variant of wikiTargetForPath for non-`.md` targets
+ * (`.base` today): the bare file name when it is unique vault-wide, else the
+ * full path. wikiTargetForPath is `.md`-centric — it strips/compares `.md`
+ * basenames, so it would neither keep a `.base` extension in the link text
+ * nor detect collisions between same-named `.base` files.
+ */
+export function wikiTargetForFile(path: string, allFilePaths: string[]): string {
+  const base = path.split(/[/\\]/).pop()!;
+  const baseNorm = base.toLowerCase().normalize("NFC");
+  const collision = allFilePaths.some(
+    (p) => p !== path && (p.split(/[/\\]/).pop() ?? "").toLowerCase().normalize("NFC") === baseNorm
+  );
+  return collision ? path : base;
+}
+
+/**
  * Precompiled resolution corpus (P2.3): callers that resolve MANY links against
  * the same file list (graph load, backlinks, reverse-relation columns) build
  * this once and get O(1) lookups instead of an O(files) scan per link — the

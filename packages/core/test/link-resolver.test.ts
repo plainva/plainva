@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveLinkTarget, buildLinkTargetIndex, resolveLinkTargetIndexed, wikiTargetForPath } from "../src/vault/LinkResolver.js";
+import { resolveLinkTarget, buildLinkTargetIndex, resolveLinkTargetIndexed, wikiTargetForPath, wikiTargetForFile } from "../src/vault/LinkResolver.js";
 
 describe("LinkResolver", () => {
   const corpus = ["Notes/Alpha.md", "Beta.md", "Deep/Sub/Gamma.md", "Other/Gamma.md", "Tasks.base"];
@@ -48,6 +48,22 @@ describe("LinkResolver", () => {
     it("wikiTargetForPath detects collisions across unicode forms", () => {
       const target = wikiTargetForPath(`A/${nfcName}.md`, [`A/${nfcName}.md`, `B/${nfdName}.md`]);
       expect(target).toBe(`A/${nfcName}`); // qualified, because the basename collides
+    });
+  });
+
+  describe("wikiTargetForFile (extension-preserving targets, e.g. .base)", () => {
+    it("returns the bare file name — WITH extension — when unique vault-wide", () => {
+      expect(wikiTargetForFile("Projects/Tasks.base", ["Projects/Tasks.base", "Notes/Tasks.md"])).toBe("Tasks.base");
+      expect(wikiTargetForFile("Tasks.base", ["Tasks.base"])).toBe("Tasks.base");
+    });
+
+    it("qualifies when another file shares the basename (case-/unicode-insensitive)", () => {
+      expect(
+        wikiTargetForFile("Projects/Tasks.base", ["Projects/Tasks.base", "Archive/tasks.BASE"])
+      ).toBe("Projects/Tasks.base");
+      const nfc = "Käse.base";
+      const nfd = "Käse.base";
+      expect(wikiTargetForFile(`A/${nfc}`, [`A/${nfc}`, `B/${nfd}`])).toBe(`A/${nfc}`);
     });
   });
 });

@@ -1,5 +1,7 @@
 import { format } from "date-fns";
+import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath } from "@plainva/core";
+import { frontmatterBlockOf } from "../services/docMeta";
 
 /**
  * Template file helpers (moved from the desktop newItemFlow in R3 so the
@@ -67,11 +69,14 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
  * token behind. Shared with the editor's template picker. */
 export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
   const filled = finalizeTemplate(interpolateDates(content, title, now)).text;
-  // `plainva.tasks: false` opts the TEMPLATE out of the Tasks view; a note
-  // created from it is real content, so the marker must not carry over (else
-  // the new note's tasks would be hidden). Malformed frontmatter → leave as-is.
+  // Template-only plainva keys must not carry over into created notes:
+  // `plainva.tasks: false` opts the TEMPLATE out of the Tasks view (a note
+  // created from it is real content) and `plainva.templateFor` scopes the
+  // TEMPLATE to databases (a created entry is not a template). Other plainva
+  // keys (icon, header color) stay intentionally inheritable. Malformed
+  // frontmatter → leave as-is.
   try {
-    return deleteFrontmatterPath(filled, ["plainva", "tasks"]);
+    return deleteFrontmatterPath(deleteFrontmatterPath(filled, ["plainva", "tasks"]), TEMPLATE_FOR_PATH);
   } catch {
     return filled;
   }
@@ -97,6 +102,125 @@ export async function listTemplates(adapter: TemplateListAdapter, folder: string
     console.warn("[templateFiles] listing templates failed", folder, e);
   }
   return items.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/**
+ * Database scoping of templates (plan Vorlagen-Datenbank-Zuordnung 2026-07-16):
+ * `plainva.templateFor` on a template lists wiki links to the `.base` files the
+ * template belongs to. Deliberately inside the plainva namespace — Obsidian
+ * stays inert, the properties panel hides it and the link index skips it (no
+ * backlink noise on the `.base`; renames are carried by a dedicated sweep).
+ */
+export const TEMPLATE_FOR_PATH = ["plainva", "templateFor"] as const;
+
+export interface ScopedTemplateItem extends TemplateItem {
+  /** Anchor-/alias-free templateFor targets; [] = unscoped template. */
+  templateFor: string[];
+}
+
+export type ScopedTemplateListAdapter = TemplateListAdapter & {
+  readTextFile(path: string): Promise<string>;
+};
+
+/** Inner target of one templateFor entry — accepts "[[X#a|alias]]" and bare
+ * strings; null for non-strings and blanks. */
+function templateForTargetOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  let inner = value.trim();
+  const wiki = /^\[\[([^[\]]+)\]\]$/.exec(inner);
+  if (wiki) inner = wiki[1];
+  const pipe = inner.indexOf("|");
+  if (pipe !== -1) inner = inner.slice(0, pipe);
+  const anchor = inner.search(/[#^]/);
+  if (anchor !== -1) inner = inner.slice(0, anchor);
+  inner = inner.trim();
+  return inner || null;
+}
+
+/** templateFor targets of a template's raw text; [] when absent or the
+ * frontmatter is unparseable (a broken template must never break the menu). */
+export function parseTemplateForTargets(content: string): string[] {
+  const block = frontmatterBlockOf(content);
+  if (!block) return [];
+  let fm: unknown;
+  try {
+    fm = parseYaml(block);
+  } catch {
+    return [];
+  }
+  if (typeof fm !== "object" || fm === null || Array.isArray(fm)) return [];
+  const ns = (fm as Record<string, unknown>)[TEMPLATE_FOR_PATH[0]];
+  if (typeof ns !== "object" || ns === null || Array.isArray(ns)) return [];
+  const raw = (ns as Record<string, unknown>)[TEMPLATE_FOR_PATH[1]];
+  const list = Array.isArray(raw) ? raw : raw == null || raw === "" ? [] : [raw];
+  return list.map(templateForTargetOf).filter((t): t is string => t !== null);
+}
+
+const normalizedVaultPath = (p: string) => p.replace(/\\/g, "/").normalize("NFC").toLowerCase();
+
+/**
+ * True when one of the templateFor targets points at `basePath`: the full
+ * vault-relative path, or — bare form — the file name. The basename fallback
+ * keeps assignments valid across pure folder moves of the `.base`. Two
+ * same-named `.base` files both match a bare target (write paths qualify on
+ * collision, see wikiTargetForFile); qualified targets match exactly.
+ */
+export function templateMatchesBase(targets: readonly string[], basePath: string): boolean {
+  if (targets.length === 0) return false;
+  const full = normalizedVaultPath(basePath);
+  const name = full.split("/").pop() ?? full;
+  return targets.some((t) => {
+    const tn = normalizedVaultPath(t);
+    return tn === full || tn === name;
+  });
+}
+
+/** listTemplates plus each template's templateFor scope (unreadable files
+ * count as unscoped — the menu must never fail over one broken template). */
+export async function listTemplatesScoped(
+  adapter: ScopedTemplateListAdapter,
+  folder: string
+): Promise<ScopedTemplateItem[]> {
+  const items = await listTemplates(adapter, folder);
+  return Promise.all(
+    items.map(async (item) => {
+      let templateFor: string[] = [];
+      try {
+        templateFor = parseTemplateForTargets(await adapter.readTextFile(item.path));
+      } catch {
+        /* unreadable template — unscoped */
+      }
+      return { ...item, templateFor };
+    })
+  );
+}
+
+export interface TemplateGroups<T extends TemplateItem = ScopedTemplateItem> {
+  /** Default view: templates assigned to this base ∪ the base's default template. */
+  forBase: T[];
+  /** Everything else — unassigned and assigned-elsewhere — behind "show all". */
+  others: T[];
+}
+
+/**
+ * Menu model of the base "new item" dropdown (decisions E2 + D1 of the plan):
+ * unassigned templates are NOT part of the default view; the base's default
+ * template is ALWAYS visible — the main "+ entry" button uses it regardless
+ * of the filter, so hiding it would create entries with an invisible template.
+ */
+export function groupTemplatesForBase<T extends ScopedTemplateItem>(
+  items: readonly T[],
+  basePath: string,
+  defaultTemplate: string | null
+): TemplateGroups<T> {
+  const forBase: T[] = [];
+  const others: T[] = [];
+  for (const item of items) {
+    const isDefault = defaultTemplate !== null && item.path === defaultTemplate;
+    if (isDefault || templateMatchesBase(item.templateFor, basePath)) forBase.push(item);
+    else others.push(item);
+  }
+  return { forBase, others };
 }
 
 const LEADING_FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
