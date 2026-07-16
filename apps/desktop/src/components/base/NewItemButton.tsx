@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useFixedPopover } from "@plainva/ui";
-import { Plus, ChevronDown, Check, Star, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import type { TemplateItem } from "../../services/newItemFlow";
+import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
 
 type TFn = (key: string, opts?: any) => string;
 
@@ -11,17 +11,23 @@ type TFn = (key: string, opts?: any) => string;
  * model): the main button creates a new item with the base's default template;
  * the chevron opens a dropdown with the vault templates ("use once" per row,
  * star = set as the base's default), "create template" and the storage-folder
- * setting. All persistence goes through the host's callbacks.
+ * setting. Since plan Vorlagen-Datenbank-Zuordnung (P2/D3) the list is grouped
+ * by assignment: templates assigned to THIS base (plus its default template)
+ * show by default, everything else sits behind "show all templates", and each
+ * row carries a quick-assign toggle. All persistence goes through the host's
+ * callbacks.
  */
 export function NewItemButton({
   t,
   disabled,
   busy,
+  basePath,
   currentFolder,
   defaultTemplate,
   loadTemplates,
   onCreate,
   onSetDefaultTemplate,
+  onToggleAssign,
   onCreateTemplate,
   onChangeFolder,
   onOpenTemplatesFolder,
@@ -29,13 +35,17 @@ export function NewItemButton({
   t: TFn;
   disabled?: boolean;
   busy?: boolean;
+  /** Vault-relative path of the `.base` this menu belongs to (grouping anchor). */
+  basePath: string;
   /** Resolved storage folder (shown in the menu), or null when not decided yet. */
   currentFolder: string | null;
   /** Vault-relative path of the base's default template, or null. */
   defaultTemplate: string | null;
-  loadTemplates: () => Promise<{ folder: string; items: TemplateItem[] }>;
+  loadTemplates: () => Promise<{ folder: string; items: ScopedTemplateItem[] }>;
   onCreate: (templatePath: string | null) => void;
   onSetDefaultTemplate: (path: string | null) => void;
+  /** Quick-assign toggle (plan D3): writes/removes the templateFor link for THIS base. */
+  onToggleAssign?: (templatePath: string, assign: boolean) => void | Promise<void>;
   onCreateTemplate: () => void;
   onChangeFolder: () => void;
   /** Reveal the template folder in the file tree (manage: edit/rename/delete there). */
@@ -44,11 +54,18 @@ export function NewItemButton({
   const [open, setOpen] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
   const popRef = useFixedPopover(open, splitRef, { minWidth: 240 });
-  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [templates, setTemplates] = useState<ScopedTemplateItem[]>([]);
   const [templateFolder, setTemplateFolder] = useState<string>("");
+  // "Show all templates" expander; collapses again whenever the menu closes.
+  const [showAll, setShowAll] = useState(false);
+  // Bumped after a quick-assign write so the open menu re-reads the scopes.
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setShowAll(false);
+      return;
+    }
     let alive = true;
     loadTemplates()
       .then(({ folder, items }) => {
@@ -58,12 +75,20 @@ export function NewItemButton({
       })
       .catch(() => { if (alive) setTemplates([]); });
     return () => { alive = false; };
-  }, [open, loadTemplates]);
+  }, [open, loadTemplates, reloadTick]);
 
   // One row per template choice (null = without template). The check marks the
-  // base's current default; the star sets/clears it without creating anything.
-  const templateRow = (path: string | null, title: string) => {
+  // base's current default; the star sets/clears it without creating anything;
+  // the database toggle assigns/unassigns the template to THIS base (plan D3 —
+  // it writes plainva.templateFor in the template file, then the open menu
+  // re-reads so the row moves between the groups).
+  const templateRow = (tpl: ScopedTemplateItem | null, title: string) => {
+    const path = tpl?.path ?? null;
     const isDefault = defaultTemplate === path;
+    const isAssigned = tpl ? templateMatchesBase(tpl.templateFor, basePath) : false;
+    const assignLabel = isAssigned
+      ? t("database.unassignTemplate", { defaultValue: "Zuordnung zu dieser Datenbank entfernen" })
+      : t("database.assignTemplate", { defaultValue: "Dieser Datenbank zuordnen" });
     return (
       <div key={path ?? "__none__"} style={{ display: "flex", alignItems: "center" }}>
         <button type="button" className="pv-menu-item" style={{ flex: 1, minWidth: 0 }}
@@ -73,6 +98,24 @@ export function NewItemButton({
           <span style={{ width: 14, display: "inline-flex", flexShrink: 0 }}>{isDefault && <Check size={13} aria-hidden="true" />}</span>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
         </button>
+        {tpl && onToggleAssign && (
+          <button
+            type="button"
+            className="pv-icon-btn"
+            aria-label={assignLabel}
+            title={assignLabel}
+            aria-pressed={isAssigned}
+            style={{ flexShrink: 0, color: isAssigned ? "var(--accent-color)" : "var(--text-muted)" }}
+            onClick={() => {
+              void (async () => {
+                await onToggleAssign(tpl.path, !isAssigned);
+                setReloadTick((n) => n + 1);
+              })();
+            }}
+          >
+            <Database size={13} fill={isAssigned ? "currentColor" : "none"} />
+          </button>
+        )}
         <button
           type="button"
           className="pv-icon-btn"
@@ -90,6 +133,10 @@ export function NewItemButton({
       </div>
     );
   };
+
+  // Menu model (decisions E2 + D1): assigned templates plus the base's default
+  // template show by default; everything else sits behind "show all".
+  const groups = groupTemplatesForBase(templates, basePath, defaultTemplate);
 
   return (
     <div ref={splitRef} className="pv-splitbtn" style={{ position: "relative" }}>
@@ -122,11 +169,30 @@ export function NewItemButton({
               {t("database.templatesSection", { defaultValue: "Vorlagen" })}
             </div>
             {templateRow(null, t("database.noTemplate", { defaultValue: "Ohne Vorlage" }))}
-            {templates.map((tpl) => templateRow(tpl.path, tpl.title))}
+            {groups.forBase.map((tpl) => templateRow(tpl, tpl.title))}
+            {templates.length > 0 && groups.forBase.length === 0 && (
+              <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem", color: "var(--text-faint)" }}>
+                {t("database.noAssignedTemplates", { defaultValue: "Noch keine Vorlage dieser Datenbank zugeordnet" })}
+              </div>
+            )}
             {templates.length === 0 && (
               <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem", color: "var(--text-faint)" }}>
                 {t("database.noTemplatesFound", { folder: templateFolder, defaultValue: "Keine Vorlagen in „{{folder}}“" })}
               </div>
+            )}
+            {groups.others.length > 0 && !showAll && (
+              <button type="button" className="pv-menu-item" aria-expanded={false} onClick={() => setShowAll(true)}>
+                <ChevronRight size={14} style={{ flexShrink: 0 }} />
+                {t("database.showAllTemplates", { n: groups.others.length, defaultValue: "Alle Vorlagen anzeigen ({{n}})" })}
+              </button>
+            )}
+            {groups.others.length > 0 && showAll && (
+              <>
+                <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+                  {t("database.allTemplatesSection", { defaultValue: "Weitere Vorlagen" })}
+                </div>
+                {groups.others.map((tpl) => templateRow(tpl, tpl.title))}
+              </>
             )}
             <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
             <button type="button" className="pv-menu-item" onClick={() => { setOpen(false); onCreateTemplate(); }}>

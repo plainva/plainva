@@ -272,6 +272,56 @@ export async function retargetTemplateForInFolder(opts: {
   return { changedPaths, renamed };
 }
 
+/**
+ * Adds a templateFor assignment onto `basePath` (no-op when a stored entry
+ * already matches it). The link text is collision-safe via wikiTargetForFile;
+ * existing entries are kept verbatim. Malformed frontmatter → unchanged.
+ */
+export function addTemplateForAssignment(
+  content: string,
+  basePath: string,
+  allFilePaths: readonly string[]
+): { content: string; changed: boolean } {
+  const raw = rawTemplateForOf(content);
+  const values = raw ? raw.values : [];
+  const targets = values
+    .map(templateForTargetOf)
+    .filter((t): t is string => t !== null);
+  if (templateMatchesBase(targets, basePath)) return { content, changed: false };
+  const link = `[[${wikiTargetForFile(basePath, [...allFilePaths])}]]`;
+  try {
+    return { content: setFrontmatterPath(content, TEMPLATE_FOR_PATH, [...values, link]), changed: true };
+  } catch {
+    return { content, changed: false };
+  }
+}
+
+/**
+ * Removes every templateFor entry pointing at `basePath` (path or bare-name
+ * match). Deletes the key — and an emptied plainva map — when nothing is left.
+ */
+export function removeTemplateForAssignment(
+  content: string,
+  basePath: string
+): { content: string; changed: boolean } {
+  const raw = rawTemplateForOf(content);
+  if (!raw) return { content, changed: false };
+  const kept = raw.values.filter((v) => {
+    const t = templateForTargetOf(v);
+    return t === null || !templateMatchesBase([t], basePath);
+  });
+  if (kept.length === raw.values.length) return { content, changed: false };
+  try {
+    const next =
+      kept.length === 0
+        ? deleteFrontmatterPath(content, TEMPLATE_FOR_PATH)
+        : setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar && kept.length === 1 ? kept[0] : kept);
+    return { content: next, changed: true };
+  } catch {
+    return { content, changed: false };
+  }
+}
+
 export interface TemplateGroups<T extends TemplateItem = ScopedTemplateItem> {
   /** Default view: templates assigned to this base ∪ the base's default template. */
   forBase: T[];

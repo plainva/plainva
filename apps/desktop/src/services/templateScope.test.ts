@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  addTemplateForAssignment,
   applyTemplatePlaceholders,
   groupTemplatesForBase,
   listTemplatesScoped,
   parseTemplateForTargets,
+  removeTemplateForAssignment,
   templateMatchesBase,
   type ScopedTemplateItem,
   type ScopedTemplateListAdapter,
@@ -114,6 +116,44 @@ describe("applyTemplatePlaceholders strips plainva.templateFor (leak guard)", ()
     expect(applyTemplatePlaceholders("Hello {{title}}", "World", now)).toBe("Hello World");
     const malformed = "---\nplainva: [unclosed\n---\nBody {{title}}\n";
     expect(applyTemplatePlaceholders(malformed, "X", now)).toBe("---\nplainva: [unclosed\n---\nBody X\n");
+  });
+});
+
+describe("add/removeTemplateForAssignment (quick-assign + target-databases dialog)", () => {
+  const files = ["db/Tasks.base", "Other/Tasks.base", "Meetings.base", "Note.md"];
+
+  it("appends a collision-safe link and keeps existing entries verbatim", () => {
+    const raw = '---\nplainva:\n  templateFor:\n    - "[[Meetings.base]]"\n---\nBody\n';
+    const res = addTemplateForAssignment(raw, "db/Tasks.base", files);
+    expect(res.changed).toBe(true);
+    // Two same-named Tasks.base exist in the vault → the link is qualified.
+    expect(parseTemplateForTargets(res.content)).toEqual(["Meetings.base", "db/Tasks.base"]);
+  });
+
+  it("is a no-op when an entry already matches (bare form covers any folder)", () => {
+    const bare = '---\nplainva:\n  templateFor: "[[Tasks.base]]"\n---\n';
+    expect(addTemplateForAssignment(bare, "db/Tasks.base", files).changed).toBe(false);
+  });
+
+  it("creates the namespace on an unassigned template", () => {
+    const res = addTemplateForAssignment("# Body\n", "Meetings.base", files);
+    expect(res.changed).toBe(true);
+    expect(parseTemplateForTargets(res.content)).toEqual(["Meetings.base"]);
+  });
+
+  it("removes matching entries and deletes an emptied plainva namespace", () => {
+    const raw = '---\ntype: Note\nplainva:\n  templateFor:\n    - "[[Meetings.base]]"\n---\nBody\n';
+    const res = removeTemplateForAssignment(raw, "Meetings.base");
+    expect(res.changed).toBe(true);
+    expect(res.content).not.toContain("plainva");
+    expect(res.content).toContain("type: Note");
+  });
+
+  it("keeps entries for other bases and reports no change when nothing matches", () => {
+    const raw = '---\nplainva:\n  templateFor:\n    - "[[Meetings.base]]"\n    - "[[Tasks.base]]"\n---\n';
+    const res = removeTemplateForAssignment(raw, "Meetings.base");
+    expect(parseTemplateForTargets(res.content)).toEqual(["Tasks.base"]);
+    expect(removeTemplateForAssignment(raw, "Unrelated.base").changed).toBe(false);
   });
 });
 

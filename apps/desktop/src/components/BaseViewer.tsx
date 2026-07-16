@@ -20,10 +20,11 @@ import {
   buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
-  listTemplates,
+  listTemplatesScoped,
   nextItemName,
   relationPrefill,
 } from "../services/newItemFlow";
+import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
@@ -687,22 +688,57 @@ export function BaseViewer({
     saveConfig(nc);
   };
 
-  // Stable identity: the dropdown re-loads the list each time it opens.
+  // Stable identity: the dropdown re-loads the list each time it opens. The
+  // scoped variant reads each template's plainva.templateFor so the menu can
+  // group by assignment (plan Vorlagen-Datenbank-Zuordnung P2).
   const loadTemplatesForMenu = useCallback(async () => {
     if (!vaultPath) return { folder: "Templates", items: [] };
     const folder = await getTemplateFolder(vaultPath);
     if (!vaultAdapter) return { folder, items: [] };
-    return { folder, items: await listTemplates(vaultAdapter, folder) };
+    return { folder, items: await listTemplatesScoped(vaultAdapter, folder) };
   }, [vaultAdapter, vaultPath]);
+
+  // Quick-assign toggle in the dropdown (plan D3): writes/removes ONE wiki
+  // link in the template's plainva.templateFor — same data the "target
+  // databases" dialog on the template edits.
+  const toggleTemplateAssignment = useCallback(
+    async (templatePath: string, assign: boolean) => {
+      if (!vaultAdapter) return;
+      try {
+        const content = await vaultAdapter.readTextFile(templatePath);
+        let result: { content: string; changed: boolean };
+        if (assign) {
+          const rows = queryService
+            ? await queryService.db.query<{ path: string }>(`SELECT path FROM files`)
+            : [];
+          result = addTemplateForAssignment(content, activePath, rows.map((r) => r.path));
+        } else {
+          result = removeTemplateForAssignment(content, activePath);
+        }
+        if (!result.changed) return;
+        await vaultAdapter.writeTextFile(templatePath, result.content);
+        if (indexer) await applyIndexChanges(indexer, { added: [templatePath] }).catch(() => {});
+      } catch (e) {
+        console.error("[BaseViewer] toggling template assignment failed", e);
+      }
+    },
+    [vaultAdapter, queryService, indexer, activePath]
+  );
 
   // "Neue Vorlage erstellen": a fresh OKF note in the vault's template folder,
   // opened as a regular tab for editing (not the peek — templates are edited,
-  // not filled in).
+  // not filled in). Created from THIS database, it starts assigned to it (P3).
   const createTemplate = async () => {
     if (!vaultAdapter || !vaultPath) return;
     try {
       const { createNewTemplate } = await import("../services/templateActions");
-      const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
+      const rows = queryService
+        ? await queryService.db.query<{ path: string }>(`SELECT path FROM files`)
+        : [];
+      const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"), {
+        basePath: activePath,
+        allFilePaths: rows.map((r) => r.path),
+      });
       if (!path) return;
       if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       onOpenPath?.(path, true);
@@ -1664,9 +1700,11 @@ export function BaseViewer({
           t={t}
           disabled={!dbConfig || !!error}
           busy={newItemBusy}
+          basePath={activePath}
           currentFolder={dbConfig ? resolveNewItemTarget(dbConfig).folder : null}
           defaultTemplate={typeof dbConfig?.newItemTemplate === "string" && dbConfig.newItemTemplate ? dbConfig.newItemTemplate : null}
           loadTemplates={loadTemplatesForMenu}
+          onToggleAssign={toggleTemplateAssignment}
           onCreate={(tpl) => { void createNewItem(tpl); }}
           onSetDefaultTemplate={setDefaultTemplate}
           onCreateTemplate={() => { void createTemplate(); }}

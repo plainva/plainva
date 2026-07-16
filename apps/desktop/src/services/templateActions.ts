@@ -1,4 +1,5 @@
 import { setFrontmatterPath, type IVaultAdapter } from "@plainva/core";
+import { addTemplateForAssignment } from "@plainva/ui";
 import { getTemplateFolder } from "./newItemFlow";
 import { buildNewNoteContent, getConfiguredNoteType } from "./newNote";
 
@@ -33,22 +34,29 @@ async function uniqueTemplatePath(adapter: TemplateFsAdapter, folder: string, st
  * path (null when the folder cannot be created). Seeds `# {{title}}` so the
  * template is not blank AND notes created from it inherit their file name as
  * the H1 — {{title}} is interpolated by the new-item flow at creation time.
+ * When created FROM a database, `assignTo` starts the template assigned to it
+ * (plainva.templateFor, plan Vorlagen-Datenbank-Zuordnung P3): zero friction
+ * for the most common case.
  */
 export async function createNewTemplate(
   adapter: TemplateFsAdapter,
   vaultPath: string,
-  stem: string
+  stem: string,
+  assignTo?: { basePath: string; allFilePaths: readonly string[] }
 ): Promise<string | null> {
   const folder = await getTemplateFolder(vaultPath);
   if (!(await ensureFolder(adapter, folder))) return null;
   const path = await uniqueTemplatePath(adapter, folder, stem);
   // A template opts itself out of the Tasks view (`plainva.tasks: false`);
   // applyTemplatePlaceholders strips the marker again for notes created from it.
-  const content = setFrontmatterPath(
+  let content = setFrontmatterPath(
     buildNewNoteContent(await getConfiguredNoteType(vaultPath), "{{title}}"),
     ["plainva", "tasks"],
     false,
   );
+  if (assignTo) {
+    content = addTemplateForAssignment(content, assignTo.basePath, assignTo.allFilePaths).content;
+  }
   await adapter.writeTextFile(path, content);
   return path;
 }

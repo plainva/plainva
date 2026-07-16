@@ -13,9 +13,18 @@ import { withOkfDefaults } from "./newNote";
  */
 
 // Item naming moved to @plainva/ui (R4), template listing/placeholders in
-// R3 — both shared with the mobile shell.
-export { baseStemOf, nextItemName, applyTemplatePlaceholders, listTemplates } from "@plainva/ui";
-export type { TemplateItem } from "@plainva/ui";
+// R3 — both shared with the mobile shell. The database-scope helpers (plan
+// Vorlagen-Datenbank-Zuordnung) live there too so both shells filter alike.
+export {
+  baseStemOf,
+  nextItemName,
+  applyTemplatePlaceholders,
+  listTemplates,
+  listTemplatesScoped,
+  groupTemplatesForBase,
+  templateMatchesBase,
+} from "@plainva/ui";
+export type { TemplateItem, ScopedTemplateItem } from "@plainva/ui";
 
 /**
  * Pre-fill values from the base's simple AND-filters so a new item is not

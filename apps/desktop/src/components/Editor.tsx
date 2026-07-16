@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -40,6 +40,7 @@ import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { getTemplateFolder } from "../services/newItemFlow";
+import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
@@ -266,6 +267,28 @@ export const Editor: React.FC<{
   const [dateMention, setDateMention] = useState<{ x: number; y: number; pos: number } | null>(null);
   // `/`-menu "Datenbank einbetten" opens the .base picker; embed lands at `pos` (#8).
   const [basePicker, setBasePicker] = useState<{ pos: number } | null>(null);
+  // "Ziel-Datenbanken…" dialog of a template note (plan Vorlagen-Datenbank-
+  // Zuordnung P3); the ⋮ entry only shows for notes inside the template folder.
+  const [showTemplateTargets, setShowTemplateTargets] = useState(false);
+  const [isTemplateFile, setIsTemplateFile] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setShowTemplateTargets(false);
+    if (!vaultPath || !activePath || !activePath.toLowerCase().endsWith(".md")) {
+      setIsTemplateFile(false);
+      return;
+    }
+    getTemplateFolder(vaultPath)
+      .then((folder) => {
+        if (alive) setIsTemplateFile(activePath.startsWith(folder + "/"));
+      })
+      .catch(() => {
+        if (alive) setIsTemplateFile(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activePath, vaultPath]);
   // Floating formatting toolbar over a non-empty selection (#5).
   const [selToolbar, setSelToolbar] = useState<{ x: number; y: number; above: boolean } | null>(null);
   // Block handle menu (#7): opened from a block's drag grip.
@@ -1554,6 +1577,11 @@ export const Editor: React.FC<{
               <MenuItem icon={<Copy size={15} />} onSelect={() => { void handleMenuDuplicate(); }}>
                 {t("fileTree.duplicate")}
               </MenuItem>
+              {isTemplateFile && (
+                <MenuItem icon={<Database size={15} />} data-testid="editor-menu-template-targets" onSelect={() => setShowTemplateTargets(true)}>
+                  {t("editor.templateTargets", "Ziel-Datenbanken…")}
+                </MenuItem>
+              )}
               {onToggleBookmark && (
                 <MenuItem icon={<Bookmark size={15} fill={isBookmarked ? "currentColor" : "none"} />} onSelect={onToggleBookmark}>
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
@@ -1596,6 +1624,10 @@ export const Editor: React.FC<{
           </div>
         </div>
       </div>
+      )}
+
+      {showTemplateTargets && activePath && (
+        <TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} />
       )}
 
       {conflictInfo && (
