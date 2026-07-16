@@ -149,6 +149,22 @@ export interface EditorSessionConfig {
    * update and the keyboard comes back (mobile finding, 2026-07-11).
    */
   editable?: boolean;
+  /**
+   * Touch-device input profile (mobile shell, 2026-07-16). Two effects:
+   * (1) drawSelection stays OFF, so the WebView renders its NATIVE selection
+   *     with the platform handles. CM's drawn selection hides the native one
+   *     (`::selection { background: transparent !important }`) and ships its
+   *     own handles only on iOS — on Android that left read-mode selections
+   *     invisible and un-expandable ("only one word selectable") and edit-mode
+   *     selection glitchy. (Multi-cursor rendering is lost; irrelevant on touch.)
+   * (2) the contentDOM re-enables the virtual keyboard's smartness
+   *     (autocapitalize / autocorrect / writing suggestions) that CM6
+   *     hard-disables by default — auto-capitalization after a sentence and
+   *     GBoard suggestions did nothing in the app. Spellcheck stays off by
+   *     decision (no squiggles under Markdown syntax). Desktop leaves this
+   *     unset and keeps CM's defaults.
+   */
+  touchInput?: boolean;
 }
 
 /** Marks transactions that adopt externally produced text (watcher/sync/merge). */
@@ -293,9 +309,25 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
 
   const extensions: Extension = [
     EditorView.contentAttributes.of({ "aria-label": "Markdown Editor" }),
+    // Touch profile (see EditorSessionConfig.touchInput): later facet values
+    // override CM6's hard-coded autocorrect/autocapitalize/writingsuggestions
+    // ="off" defaults on the contentDOM.
+    cfg.touchInput
+      ? EditorView.contentAttributes.of({
+          autocapitalize: "sentences",
+          autocorrect: "on",
+          writingsuggestions: "true",
+        })
+      : [],
     // Same base setup (and package) the @uiw host used; the three gutter
-    // switches moved into the mode compartment below.
-    basicSetup({ lineNumbers: false, foldGutter: false, highlightActiveLineGutter: false }),
+    // switches moved into the mode compartment below. The touch profile drops
+    // drawSelection so the platform draws (and can extend) the selection.
+    basicSetup({
+      lineNumbers: false,
+      foldGutter: false,
+      highlightActiveLineGutter: false,
+      ...(cfg.touchInput ? { drawSelection: false } : {}),
+    }),
     keymap.of([indentWithTab]),
     // The old host's container theme: the scroller fills the pane height.
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),

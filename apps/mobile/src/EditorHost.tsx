@@ -240,6 +240,8 @@ export function EditorHost({
       // flipping the raw contenteditable attribute was rewritten by CM on the
       // next update, so a tap re-opened the keyboard (finding 2026-07-11).
       editable: editableRef.current,
+      // Native selection handles + virtual-keyboard smartness (2026-07-16).
+      touchInput: true,
     });
     sessionRef.current = session;
     // The load-time snapshot IS the persisted disk state for this path (the

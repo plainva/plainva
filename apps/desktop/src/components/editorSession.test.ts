@@ -81,7 +81,12 @@ function baseDeps(): EditorSessionDeps {
 }
 
 const open: EditorSession[] = [];
-function makeSession(mode: "live" | "source" = "live", doc = DOC, editable?: boolean) {
+function makeSession(
+  mode: "live" | "source" = "live",
+  doc = DOC,
+  editable?: boolean,
+  touchInput?: boolean
+) {
   const deps = { current: baseDeps() };
   const parent = document.createElement("div");
   document.body.appendChild(parent);
@@ -94,6 +99,7 @@ function makeSession(mode: "live" | "source" = "live", doc = DOC, editable?: boo
     headerTexts: HEADER_TEXTS,
     deps,
     editable,
+    touchInput,
   });
   open.push(session);
   return { session, deps };
@@ -105,6 +111,29 @@ afterEach(() => {
 });
 
 describe("editorSession", () => {
+  it("touchInput profile re-enables keyboard smartness and drops the drawn selection (2026-07-16)", () => {
+    const { session } = makeSession("live", DOC, undefined, true);
+    const content = session.view.contentDOM;
+    // CM6 hard-disables these on the contentDOM; the touch profile overrides
+    // them so auto-capitalization/autocorrect/suggestions work on device.
+    expect(content.getAttribute("autocapitalize")).toBe("sentences");
+    expect(content.getAttribute("autocorrect")).toBe("on");
+    expect(content.getAttribute("writingsuggestions")).toBe("true");
+    // Spellcheck stays off by decision (no squiggles under markdown syntax).
+    expect(content.getAttribute("spellcheck")).toBe("false");
+    // drawSelection's layers are gone -> the platform renders the NATIVE
+    // selection (with its handles) instead of CM's drawn one.
+    expect(session.view.dom.querySelector(".cm-selectionLayer")).toBeNull();
+  });
+
+  it("the desktop default keeps CM6's input defaults and the drawn selection", () => {
+    const { session } = makeSession("live");
+    const content = session.view.contentDOM;
+    expect(content.getAttribute("autocorrect")).toBe("off");
+    expect(content.getAttribute("autocapitalize")).toBe("off");
+    expect(session.view.dom.querySelector(".cm-selectionLayer")).not.toBeNull();
+  });
+
   it("keeps the parsed syntax tree across a live→source→live switch", () => {
     const { session } = makeSession("live");
     const len = session.view.state.doc.length;

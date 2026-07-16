@@ -67,6 +67,16 @@ input,
 textarea {
   -webkit-user-select: text;
   user-select: text;
+  /* Re-enable the selection callout/handles the app chrome disables above —
+     without this, long-press word selection could not be extended (2026-07-16). */
+  -webkit-touch-callout: default;
+}
+
+/* With drawSelection off (touchInput profile) the platform paints ::selection
+   itself; theme it so the native highlight stays legible on every theme. */
+.cm-content ::selection,
+.cm-content::selection {
+  background: color-mix(in srgb, var(--accent-color) 30%, transparent);
 }
 
 .m-app {
