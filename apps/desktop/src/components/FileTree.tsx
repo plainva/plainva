@@ -21,6 +21,7 @@ import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
 import { isImagePath } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -813,6 +814,11 @@ export const FileTree: React.FC<{
         oldPath,
         newName: renamingName,
         isFolder,
+        // .base renames sweep templateFor assignments in the template folder (plan P4).
+        templateFolder:
+          !isFolder && oldPath.toLowerCase().endsWith(".base") && vaultPath
+            ? await getTemplateFolder(vaultPath)
+            : undefined,
       });
       if (!result.ok) {
         if (result.reason === "unchanged") setRenamingItemParams(null);

@@ -331,8 +331,12 @@ export class VaultQueryService {
     const likeQuery = `%${targetBasename?.replace(/[\\%_]/g, '\\$&')}%`;
     const candidateLinks = await this.db.query<LinkRecord>(sql, [likeQuery]);
 
-    // 2. Fetch all file paths to resolve links correctly
-    const allFilesRows = await this.db.query<{path: string}>(`SELECT path FROM files WHERE mode != 'attachment'`);
+    // 2. Fetch all file paths to resolve links correctly. `.base` files are
+    // indexed as attachments but ARE legitimate link targets (embeds, template
+    // assignments) — without them in the corpus a link onto a .base could
+    // never resolve, so backlinks stayed empty and renames silently broke
+    // every reference.
+    const allFilesRows = await this.db.query<{path: string}>(`SELECT path FROM files WHERE mode != 'attachment' OR path LIKE '%.base'`);
     const allFilePaths = allFilesRows.map(r => r.path);
 
     // 3. Resolve each link and filter by exact match to targetPath. The corpus

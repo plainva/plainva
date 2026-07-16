@@ -39,6 +39,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { getTemplateFolder } from "../services/newItemFlow";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
@@ -171,7 +172,15 @@ export const Editor: React.FC<{
       // Write any pending debounced save FIRST — after the rename it would
       // resurrect the old path (same handshake the version restore uses).
       await requestSaveFlush(activePath);
-      const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: activePath, newName: next, isFolder: false });
+      const result = await renameToName({
+        adapter: vaultAdapter,
+        queryService: queryService ?? null,
+        oldPath: activePath,
+        newName: next,
+        isFolder: false,
+        // .base renames sweep templateFor assignments in the template folder (plan P4).
+        templateFolder: activePath.toLowerCase().endsWith(".base") && vaultPath ? await getTemplateFolder(vaultPath) : undefined,
+      });
       if (!result.ok) {
         if (result.reason === "already-exists") toast.error(t("dialogs.alreadyExistsMsg"));
         else if (result.reason === "invalid-name") toast.error(t("dialogs.invalidNameMsg"));

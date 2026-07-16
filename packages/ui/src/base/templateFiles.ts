@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 
 /**
@@ -193,6 +193,83 @@ export async function listTemplatesScoped(
       return { ...item, templateFor };
     })
   );
+}
+
+/** Raw templateFor value of a frontmatter block: the stored strings plus
+ * whether the value was a scalar (kept scalar on rewrite). Null when absent
+ * or unparseable. */
+function rawTemplateForOf(content: string): { values: unknown[]; scalar: boolean } | null {
+  const block = frontmatterBlockOf(content);
+  if (!block) return null;
+  let fm: unknown;
+  try {
+    fm = parseYaml(block);
+  } catch {
+    return null;
+  }
+  if (typeof fm !== "object" || fm === null || Array.isArray(fm)) return null;
+  const ns = (fm as Record<string, unknown>)[TEMPLATE_FOR_PATH[0]];
+  if (typeof ns !== "object" || ns === null || Array.isArray(ns)) return null;
+  const raw = (ns as Record<string, unknown>)[TEMPLATE_FOR_PATH[1]];
+  if (raw == null || raw === "") return null;
+  return Array.isArray(raw) ? { values: raw, scalar: false } : { values: [raw], scalar: true };
+}
+
+export interface TemplateForSweepResult {
+  /** Template files whose assignment was rewritten (caller re-indexes these). */
+  changedPaths: string[];
+  /** Number of rewritten templateFor entries across all templates. */
+  renamed: number;
+}
+
+/**
+ * Carries `plainva.templateFor` assignments across a `.base` rename (plan P4):
+ * the plainva namespace is deliberately absent from the link index, so the
+ * regular backlink-driven rename chain cannot see these links — this dedicated
+ * sweep over the template folder is the only carrier. Bare entries stay bare
+ * (new file name; qualified on collision), qualified entries stay qualified.
+ * Broken/unreadable templates are skipped — a rename must never fail over one.
+ */
+export async function retargetTemplateForInFolder(opts: {
+  adapter: ScopedTemplateListAdapter & { writeTextFile(path: string, content: string): Promise<void> };
+  folder: string;
+  oldBasePath: string;
+  newBasePath: string;
+  /** Vault file list for collision-safe bare targets; the pre-rename list is
+   * fine — oldBasePath is swapped for newBasePath internally. */
+  allFilePaths: readonly string[];
+}): Promise<TemplateForSweepResult> {
+  const { adapter, folder, oldBasePath, newBasePath } = opts;
+  const adjusted = opts.allFilePaths.map((p) => (p === oldBasePath ? newBasePath : p));
+  const bareTarget = wikiTargetForFile(newBasePath, adjusted);
+  const changedPaths: string[] = [];
+  let renamed = 0;
+
+  for (const item of await listTemplates(adapter, folder)) {
+    try {
+      const content = await adapter.readTextFile(item.path);
+      const raw = rawTemplateForOf(content);
+      if (!raw) continue;
+      let changed = 0;
+      const next = raw.values.map((value) => {
+        const target = templateForTargetOf(value);
+        if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
+        changed++;
+        const qualified = target.includes("/") || target.includes("\\");
+        return `[[${qualified ? newBasePath : bareTarget}]]`;
+      });
+      if (changed === 0) continue;
+      await adapter.writeTextFile(
+        item.path,
+        setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next)
+      );
+      changedPaths.push(item.path);
+      renamed += changed;
+    } catch {
+      /* skip broken template — the rename itself must go through */
+    }
+  }
+  return { changedPaths, renamed };
 }
 
 export interface TemplateGroups<T extends TemplateItem = ScopedTemplateItem> {

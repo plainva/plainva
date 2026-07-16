@@ -71,15 +71,20 @@ export async function renameFileWithLinkUpdates(opts: {
 
   if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed, changedPaths: [] };
 
-  const newBase = newPath.split(/[/\\]/).pop()!.replace(/\.md$/i, "");
+  const newBasename = newPath.split(/[/\\]/).pop()!;
+  const isNote = newBasename.toLowerCase().endsWith(".md");
+  const newBase = newBasename.replace(/\.md$/i, "");
   const newWikiQualified = newPath.replace(/\.md$/i, "");
   // Bare wikilinks resolve by basename vault-wide: qualify when the new
-  // basename is not unique (e.g. many index.md files).
+  // basename is not unique (e.g. many index.md files). Non-.md renames keep
+  // their extension in the link text (`[[Tasks.base]]`), so their collision
+  // check compares the full basename instead of the `.md`-appended stem.
+  const collisionKey = isNote ? `${newBase.toLowerCase()}.md` : newBasename.toLowerCase();
   const baseCollision = allPaths.some(
     (p) =>
       p !== oldPath &&
       p !== newPath &&
-      p.split(/[/\\]/).pop()?.toLowerCase() === `${newBase.toLowerCase()}.md`
+      p.split(/[/\\]/).pop()?.toLowerCase() === collisionKey
   );
 
   const newTargetFor = (raw: string): string => {

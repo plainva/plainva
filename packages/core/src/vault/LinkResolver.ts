@@ -81,29 +81,45 @@ export function resolveLinkTargetIndexed(
   // Find all files that end with the target. The basename bucket is a strict
   // superset of the old full-scan candidates (endsWith("/…/name.md") implies
   // the same basename), so filtering the bucket is behavior-identical.
-  const suffix = "/" + targetWithMd;
-  const basename = targetWithMd.split(/[/\\]/).pop() ?? targetWithMd;
-  const candidates = index.byBasename.get(basename) ?? [];
-  const possiblePaths = candidates.filter(p => {
-    const nfc = p.normalize("NFC");
-    return nfc.endsWith(suffix) || nfc === targetWithMd;
-  });
+  const fromCandidates = (targetNorm: string): string | null => {
+    const suffix = "/" + targetNorm;
+    const basename = targetNorm.split(/[/\\]/).pop() ?? targetNorm;
+    const candidates = index.byBasename.get(basename) ?? [];
+    const possiblePaths = candidates.filter(p => {
+      const nfc = p.normalize("NFC");
+      return nfc.endsWith(suffix) || nfc === targetNorm;
+    });
 
-  if (possiblePaths.length === 0) return null;
-  if (possiblePaths.length === 1) return possiblePaths[0];
+    if (possiblePaths.length === 0) return null;
+    if (possiblePaths.length === 1) return possiblePaths[0];
 
-  // Multiple matches: prefer the one in the same folder as the source
-  const sourceFolder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
-  const sameFolderMatch = possiblePaths.find(p => {
-    const pFolder = p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "";
-    return pFolder === sourceFolder;
-  });
+    // Multiple matches: prefer the one in the same folder as the source
+    const sourceFolder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
+    const sameFolderMatch = possiblePaths.find(p => {
+      const pFolder = p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "";
+      return pFolder === sourceFolder;
+    });
 
-  if (sameFolderMatch) return sameFolderMatch;
+    if (sameFolderMatch) return sameFolderMatch;
 
-  // Otherwise, prefer the shortest path
-  possiblePaths.sort((a, b) => a.length - b.length);
-  return possiblePaths[0];
+    // Otherwise, prefer the shortest path
+    possiblePaths.sort((a, b) => a.length - b.length);
+    return possiblePaths[0];
+  };
+
+  const viaMd = fromCandidates(targetWithMd);
+  if (viaMd !== null) return viaMd;
+
+  // Targets that name a non-.md file explicitly ("Tasks.base") can never match
+  // through the `.md`-appending path above ("Tasks.base.md" does not exist),
+  // which silently broke every backlink/rename resolution onto `.base` files.
+  // Try the raw form as a basename/suffix lookup — LAST, so the resolution of
+  // `.md`-style targets stays byte-identical (pinned by tests).
+  const rawBasename = query.split(/[/\\]/).pop() ?? query;
+  if (!query.toLowerCase().endsWith(".md") && /\.[A-Za-z0-9]+$/.test(rawBasename)) {
+    return fromCandidates(query);
+  }
+  return null;
 }
 
 /** Single-shot variant; hot loops should build the index once instead. */

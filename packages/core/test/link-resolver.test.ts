@@ -23,6 +23,20 @@ describe("LinkResolver", () => {
     expect(resolveLinkTargetIndexed("x.md", "Missing", index)).toBeNull();
   });
 
+  it("resolves explicit non-.md targets (.base) by bare name and suffix — the backlink/rename prerequisite", () => {
+    const paths = ["db/Tasks.base", "Notes/A.md"];
+    expect(resolveLinkTarget("x.md", "Tasks.base", paths)).toBe("db/Tasks.base");
+    expect(resolveLinkTarget("x.md", "db/Tasks.base", paths)).toBe("db/Tasks.base");
+    expect(resolveLinkTarget("x.md", "Other.base", paths)).toBeNull();
+    // Extension-less targets never hit the raw fallback (notes-only world stays identical).
+    expect(resolveLinkTarget("x.md", "Tasks", paths)).toBeNull();
+  });
+
+  it("never lets the raw-extension fallback shadow `.md` resolution", () => {
+    // "v1.2" looks extension-qualified but must keep resolving to "v1.2.md".
+    expect(resolveLinkTarget("x.md", "v1.2", ["v1.2.md"])).toBe("v1.2.md");
+  });
+
   describe("NFC/NFD unicode forms (macOS file names, P3.7)", () => {
     // "Käse": NFC uses U+00E4, NFD uses "a" + U+0308 — byte-different, same text.
     const nfcName = "Käse";

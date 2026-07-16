@@ -6,6 +6,12 @@ function makeAdapter(initial: Record<string, string | Uint8Array>) {
   const files = new Map<string, string | Uint8Array>(Object.entries(initial));
   const adapter: FileActionAdapter = {
     exists: async (p) => files.has(p),
+    listDir: async (p) => {
+      const prefix = p.replace(/\/+$/, "") + "/";
+      return [...files.keys()]
+        .filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes("/"))
+        .map((path) => ({ path, isDirectory: false }));
+    },
     readTextFile: async (p) => {
       const v = files.get(p);
       if (typeof v !== "string") throw new Error(`not a text file: ${p}`);
@@ -66,6 +72,56 @@ describe("renameToName", () => {
     expect(r).toEqual({ ok: false, reason: "already-exists" });
     expect(files.get("A.md")).toBe("a");
     expect(files.get("B.md")).toBe("b");
+  });
+
+  it("routes .base renames through the link updater AND sweeps templateFor assignments", async () => {
+    const { adapter, files } = makeAdapter({
+      "db/Tasks.base": "views: []",
+      "Note.md": "Embedded: ![[Tasks.base]]",
+      "Templates": "DIR",
+      "Templates/Task.md": '---\nplainva:\n  templateFor:\n    - "[[Tasks.base]]"\n---\n# {{title}}\n',
+      "Templates/Other.md": '---\nplainva:\n  templateFor: "[[Other.base]]"\n---\nx',
+    });
+    const queryService = {
+      getBacklinks: async () => [
+        { source_path: "Note.md", target_path: "Tasks.base", link_type: "embed", anchor: null, property_key: null },
+      ],
+      db: { query: async () => [...files.keys()].filter((p) => p !== "Templates").map((path) => ({ path })) },
+    } as never;
+    const r = await renameToName({
+      adapter,
+      queryService,
+      oldPath: "db/Tasks.base",
+      newName: "Projekte.base",
+      isFolder: false,
+      templateFolder: "Templates",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.newPath).toBe("db/Projekte.base");
+      // Body embed retargeted (E5 — this silently broke before).
+      expect(files.get("Note.md")).toContain("![[Projekte.base]]");
+      // templateFor assignment swept (P4 — deliberately not in the link index).
+      expect(files.get("Templates/Task.md")).toContain("[[Projekte.base]]");
+      expect(files.get("Templates/Task.md")).not.toContain("Tasks.base");
+      // Assignments to OTHER bases stay untouched.
+      expect(files.get("Templates/Other.md")).toContain("[[Other.base]]");
+      expect(r.changedPaths).toContain("Note.md");
+      expect(r.changedPaths).toContain("Templates/Task.md");
+      expect(r.renamedLinks).toBe(2);
+      expect(r.linkUpdateFailed).toBe(false);
+    }
+  });
+
+  it("skips the templateFor sweep when no template folder is provided (plain .base link update)", async () => {
+    const { adapter, files } = makeAdapter({ "db/Tasks.base": "views: []" });
+    const queryService = {
+      getBacklinks: async () => [],
+      db: { query: async () => [...files.keys()].map((path) => ({ path })) },
+    } as never;
+    const r = await renameToName({ adapter, queryService, oldPath: "db/Tasks.base", newName: "X.base", isFolder: false });
+    expect(r.ok).toBe(true);
+    expect(files.has("db/X.base")).toBe(true);
   });
 
   it("renames folders without touching extensions", async () => {
