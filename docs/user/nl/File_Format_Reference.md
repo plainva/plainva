@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-07-15
+Laatst bijgewerkt: 2026-07-16
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -97,8 +97,11 @@ Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plai
 | `icon_color` | hexkleur (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tint voor een `lucide:`-icoon (emoji's negeren dit) |
 | `header_color` | hexkleur | Headerstreep over de volle breedte |
 | `tasks` | `false` | Sluit de selectievakjes van deze notitie uit van de [Taken-weergave](Tasks.md) |
+| `templateFor` | lijst van wiki-links naar `.base`-bestanden | Wijst een **sjabloon** toe aan de genoemde databases (alleen relevant voor notities in de sjablonenmap) |
 
 Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
+
+`templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
 
 ### Links
 

@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-07-07
+Last reviewed: 2026-07-16
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -97,8 +97,11 @@ Plainva-specific note extras are bundled under a single `plainva:` key so other 
 | `icon_color` | hex color (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tint for a `lucide:` icon (emoji ignore it) |
 | `header_color` | hex color | Full-width header stripe |
 | `tasks` | `false` | Exclude this note's checkboxes from the [Tasks view](Tasks.md) |
+| `templateFor` | list of wiki links to `.base` files | Assigns a **template** to the listed databases (meaningful only for notes inside the template folder) |
 
 All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
+
+`templateFor` is the field contract of the template assignment (see [databases](Databases_Base.md)): on a note inside the template folder it lists the databases whose **Entry** menu shows the template by default. Values are whole wiki links including the `.base` extension — bare (`"[[Tasks.base]]"` matches the file of that name in any folder, so it survives pure folder moves) or path-qualified (`"[[Projekte/Tasks.base]]"` matches exactly that path). Plainva writes bare links and only qualifies when two same-named `.base` files exist. A scalar instead of a list is tolerated. When an entry is created from the template, `templateFor` — unlike the other `plainva:` keys — is **not** copied into the new note.
 
 ### Links
 

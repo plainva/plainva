@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-07-07
+Stand: 2026-07-16
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -97,8 +97,11 @@ Plainva-spezifische Notiz-Extras liegen gebündelt unter einem einzigen `plainva
 | `icon_color` | Hex-Farbe (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tönung für ein `lucide:`-Icon (Emojis ignorieren sie) |
 | `header_color` | Hex-Farbe | Farbstreifen über die volle Breite |
 | `tasks` | `false` | Schließt die Checkboxen dieser Notiz aus der [Aufgabenansicht](Tasks.md) aus |
+| `templateFor` | Liste von Wiki-Links auf `.base`-Dateien | Ordnet eine **Vorlage** den genannten Datenbanken zu (nur für Notizen im Vorlagen-Ordner von Bedeutung) |
 
 Alle davon sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
+
+`templateFor` ist der Feldvertrag der Vorlagen-Zuordnung (siehe [Datenbanken](Databases_Base.md)): Auf einer Notiz im Vorlagen-Ordner listet es die Datenbanken, in deren **Eintrag**-Menü die Vorlage standardmäßig erscheint. Die Werte sind ganze Wiki-Links inklusive `.base`-Endung — bare (`"[[Tasks.base]]"` matcht die Datei dieses Namens in jedem Ordner, überlebt also reine Ordner-Verschiebungen) oder pfad-qualifiziert (`"[[Projekte/Tasks.base]]"` matcht exakt diesen Pfad). Plainva schreibt bare Links und qualifiziert nur, wenn zwei gleichnamige `.base`-Dateien existieren. Ein Skalar statt einer Liste wird toleriert. Beim Erstellen eines Eintrags aus der Vorlage wird `templateFor` — anders als die übrigen `plainva:`-Schlüssel — **nicht** in die neue Notiz übernommen.
 
 ### Links
 

@@ -1,6 +1,6 @@
 # File Format Reference
 
-Stand: 2026-07-15
+Stand: 2026-07-16
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -97,8 +97,11 @@ Gli extra specifici di Plainva sono raggruppati sotto un'unica chiave `plainva:`
 | `icon_color` | colore esadecimale (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tinta per un'icona `lucide:` (le emoji la ignorano) |
 | `header_color` | colore esadecimale | Striscia di intestazione a tutta larghezza |
 | `tasks` | `false` | Esclude le caselle di controllo di questa nota dalla [vista Attività](Tasks.md) |
+| `templateFor` | elenco di wiki-link a file `.base` | Assegna un **modello** ai database elencati (rilevante solo per le note all'interno della cartella dei modelli) |
 
 Tutte queste sono opzionali. Se non ne scrivi nessuna, ometti del tutto la chiave `plainva:`. I valori non validi vengono ignorati in lettura, mai trattati come errore.
+
+`templateFor` è il contratto di campo dell'assegnazione dei modelli (vedi [Database (.base)](Databases_Base.md)): su una nota all'interno della cartella dei modelli elenca i database il cui menu **Voce** mostra il modello per impostazione predefinita. I valori sono wiki-link completi, estensione `.base` inclusa — bare (`"[[Tasks.base]]"` corrisponde al file con quel nome in qualsiasi cartella, quindi sopravvive ai semplici spostamenti di cartella) oppure qualificati con il percorso (`"[[Projekte/Tasks.base]]"` corrisponde esattamente a quel percorso). Plainva scrive link bare e li qualifica solo quando esistono due file `.base` con lo stesso nome. Uno scalare al posto di un elenco è tollerato. Quando una voce viene creata dal modello, `templateFor` — a differenza delle altre chiavi `plainva:` — **non** viene copiato nella nuova nota.
 
 ### Link
 

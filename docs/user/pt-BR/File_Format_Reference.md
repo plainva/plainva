@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Stand: 2026-07-15
+Stand: 2026-07-16
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -97,8 +97,11 @@ Extras específicos do Plainva para notas são agrupados sob uma única chave `p
 | `icon_color` | cor hex (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Tonalidade para um ícone `lucide:` (emojis a ignoram) |
 | `header_color` | cor hex | Faixa de cabeçalho em largura total |
 | `tasks` | `false` | Exclui as caixas de seleção desta nota da [visualização de Tarefas](Tasks.md) |
+| `templateFor` | lista de links wiki para arquivos `.base` | Atribui um **modelo** aos bancos de dados listados (só faz sentido para notas dentro da pasta de modelos) |
 
 Todos são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
+
+`templateFor` é o contrato de campo da atribuição de modelo (veja [Bancos de Dados (.base)](Databases_Base.md)): em uma nota dentro da pasta de modelos, ele lista os bancos de dados cujo menu **Entrada** mostra o modelo por padrão. Os valores são links wiki completos, incluindo a extensão `.base` — sem qualificação (`"[[Tasks.base]]"` corresponde ao arquivo desse nome em qualquer pasta, portanto continua funcionando mesmo que o arquivo apenas mude de pasta) ou qualificados por caminho (`"[[Projekte/Tasks.base]]"` corresponde exatamente a esse caminho). O Plainva grava links sem qualificação e só os qualifica por caminho quando existem dois arquivos `.base` com o mesmo nome. Um escalar em vez de uma lista é tolerado. Ao criar um item a partir do modelo, `templateFor` — diferente das demais chaves `plainva:` — **não** é copiado para a nova nota.
 
 ### Links
 

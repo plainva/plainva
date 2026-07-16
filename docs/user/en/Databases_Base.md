@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-08
+Last reviewed: 2026-07-16
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -84,6 +84,7 @@ The **Entry** button at the top left (formerly **New**; clearly separate from th
 - The file name follows the pattern `{database name}_{running number}` (spaces become `_`); the note starts with a matching heading and inherits the database's tag sources and simple filter values so it appears in the view immediately. The peek window then opens for filling in.
 - **Storage folder**: new items always land in a designated folder. If the database has no folder source, a dialog walks you through creating one once; with several folder sources you pick once. Change it anytime via the arrow menu on the button → **Change storage folder…**.
 - **Templates**: the arrow menu (**Templates and storage folder**) lists the templates from your vault's template folder — use one once, star it via **Set as default** (then every click on **Entry** uses it for this database), or **Create new template** (a new template starts with a `# {{title}}` heading, so entries created from it inherit their file name as the H1). The same menu also offers **Open templates folder**, which reveals the template folder in the file tree — templates are ordinary notes you can edit, rename or delete there.
+- **Templates per database**: templates can be assigned to databases. By default the arrow menu only shows the templates assigned to this database (plus its default template); everything else is reachable via **Show all templates (n)**. Assign right there — the database icon on each row reads **Assign to this database** or **Remove assignment to this database** — or on the template itself: the editor's ⋮ menu offers **Target databases…**, a dialog with a search field where you assign the template to any number of databases. A template created from a database via **Create new template** starts assigned to it. The assignment is stored as a `plainva.templateFor` list in the template's frontmatter (see the [file format reference](File_Format_Reference.md)); it is never copied into entries created from the template, and renaming a `.base` carries the assignments along. The **Insert template** slash command deliberately stays unfiltered — it inserts text into an existing note and has no database context.
 - **Template placeholders**: templates interpolate `{{title}}`, `{{date}}` and `{{time}}`. When you *insert* a template into a note (the **Insert template** slash command / `Mod+Alt+T`), two more are resolved: `{{cursor}}` marks where the cursor lands after inserting, and `{{prompt:Label}}` asks you for a value (labelled *Label*) and inserts your answer. Creating a *new* note from a template strips `{{cursor}}` and leaves any `{{prompt:…}}` blank.
 
 ## Everyday usage

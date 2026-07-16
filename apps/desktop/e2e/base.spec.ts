@@ -1153,6 +1153,9 @@ test('Base "Neu" templates: create with a template once and set it as default', 
   // KEEP its half-pill shape (regression: :last-child lost to the popover div).
   await expect(chevron).toHaveCSS('border-top-left-radius', '0px');
   await expect(chevron).toHaveCSS('border-bottom-left-radius', '0px');
+  // The template is not assigned to this base, so it sits behind the expander
+  // (plan Vorlagen-Datenbank-Zuordnung, decision E2).
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
   await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
 
   await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
@@ -1164,10 +1167,69 @@ test('Base "Neu" templates: create with a template once and set it as default', 
   // Star = base default template, persisted under views[0].plainva.
   await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
   await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ }).click();
   await page.getByRole('button', { name: /Als Standard setzen|Set as default/ }).last().click();
   const base = await page.evaluate(() => (window as any).mockFs['/test-vault/Cockpit.base']);
   expect(base).toContain('newItemTemplate');
   expect(base).toContain('Projektvorlage.md');
+
+  // D1: as the base's DEFAULT template it moves into the primary group of the
+  // still-open menu — and the expander disappears because nothing else is left.
+  await expect(page.getByRole('button', { name: 'Projektvorlage', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ })).toHaveCount(0);
+});
+
+test('Template-database assignment: quick-assign regroups the menu, entries never inherit templateFor, new templates auto-assign', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+
+  const chevron = page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ });
+  await chevron.click();
+  // Unassigned template: empty-state hint, row only behind the expander.
+  await expect(page.getByText(/Noch keine Vorlage dieser Datenbank zugeordnet|No template assigned to this database yet/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Projektvorlage', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /Alle Vorlagen anzeigen \(1\)|Show all templates \(1\)/ }).click();
+  await expect(page.getByRole('button', { name: 'Projektvorlage', exact: true })).toBeVisible();
+
+  // Quick-assign (plan D3) writes plainva.templateFor into the template file…
+  await page.getByRole('button', { name: /Dieser Datenbank zuordnen|Assign to this database/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Templates/Projektvorlage.md']))
+    .toContain('[[Cockpit.base]]');
+  // …and the reloaded menu shows the row in the primary group, expander gone.
+  await expect(page.getByText(/Noch keine Vorlage dieser Datenbank zugeordnet|No template assigned to this database yet/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Projektvorlage', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Alle Vorlagen anzeigen|Show all templates/ })).toHaveCount(0);
+
+  // An entry created from the assigned template must NOT inherit templateFor.
+  await page.getByRole('button', { name: 'Projektvorlage', exact: true }).click();
+  await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  const item = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
+  expect(item).toContain('type: Projekt');
+  expect(item).not.toContain('templateFor');
+  await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
+
+  // "Create new template" from this base starts assigned to it (plan P3).
+  await page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ }).click();
+  await page.getByRole('button', { name: /Neue Vorlage erstellen|Create new template/ }).click();
+  await expect
+    .poll(async () =>
+      await page.evaluate(() =>
+        Object.keys((window as any).mockFs).some(
+          (k) => k.startsWith('/test-vault/Templates/') && !k.includes('Projektvorlage')
+        )
+      )
+    )
+    .toBe(true);
+  const newTpl = await page.evaluate(() => {
+    const key = Object.keys((window as any).mockFs).find(
+      (k) => k.startsWith('/test-vault/Templates/') && !k.includes('Projektvorlage')
+    );
+    return key ? (window as any).mockFs[key] : '';
+  });
+  expect(newTpl).toContain('templateFor');
+  expect(newTpl).toContain('[[Cockpit.base]]');
 });
 
 // --- Filter groups (plan Base-Neu P10) --------------------------------------

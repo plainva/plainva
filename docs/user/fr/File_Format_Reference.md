@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-07-15
+Dernière mise à jour : 2026-07-16
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -97,8 +97,11 @@ Les extras de note propres à Plainva sont regroupés sous une seule clé `plain
 | `icon_color` | couleur hex (`#rgb` / `#rrggbb` / `#rrggbbaa`) | Teinte pour une icône `lucide:` (les emojis l'ignorent) |
 | `header_color` | couleur hex | Bandeau d'en-tête pleine largeur |
 | `tasks` | `false` | Exclut les cases à cocher de cette note de la [vue Tâches](Tasks.md) |
+| `templateFor` | liste de liens wiki vers des fichiers `.base` | Associe un **modèle** aux bases de données listées (pertinent seulement pour les notes à l'intérieur du dossier de modèles) |
 
 Toutes sont facultatives. Si vous n'en écrivez aucune, omettez entièrement la clé `plainva:`. Les valeurs invalides sont ignorées à la lecture, jamais traitées comme une erreur.
+
+`templateFor` est le contrat de champ de l'association de modèle (voir [bases de données](Databases_Base.md)) : sur une note à l'intérieur du dossier de modèles, il liste les bases de données dont le menu **Entrée** affiche le modèle par défaut. Les valeurs sont des liens wiki complets, extension `.base` incluse — nus (`"[[Tasks.base]]"` correspond au fichier de ce nom dans n'importe quel dossier, et survit donc à un simple déplacement de dossier) ou qualifiés par un chemin (`"[[Projekte/Tasks.base]]"` correspond exactement à ce chemin). Plainva écrit des liens nus et ne les qualifie que lorsque deux fichiers `.base` de même nom existent. Un scalaire à la place d'une liste est toléré. Quand un élément est créé à partir du modèle, `templateFor` — contrairement aux autres clés `plainva:` — n'est **pas** copié dans la nouvelle note.
 
 ### Liens
 
