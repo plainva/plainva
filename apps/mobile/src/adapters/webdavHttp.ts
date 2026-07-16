@@ -54,9 +54,49 @@ function bytesToB64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+function abortError(signal: AbortSignal): Error {
+  const reason = (signal as { reason?: unknown }).reason;
+  if (reason instanceof Error) return reason;
+  return typeof DOMException !== "undefined"
+    ? new DOMException("The operation was aborted.", "AbortError")
+    : Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+}
+
+/**
+ * Settles as soon as EITHER the plugin call settles or `signal` aborts. The
+ * sync targets wrap every request in a timeout AbortController; the browser
+ * fetch honours it, but the Capacitor bridge has no cancellation channel —
+ * ignoring the signal here disabled every provider's request timeout on
+ * device, so one hung native call wedged the SyncWorker until a force-close
+ * (its `isSyncing` flag never cleared and every manual trigger became a
+ * no-op). Rejecting on abort frees the awaiting cycle; the orphaned native
+ * call is bounded by the plugin-side timeouts (OkHttp callTimeout /
+ * URLSession resource timeout) and its late result is discarded. A response
+ * the JS side never observes is exactly the "upload committed but base not
+ * advanced" case the sync engine's pending-push journal detects.
+ */
+function raceAbort<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    call.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      }
+    );
+  });
+}
+
 const nativeFetch: typeof fetch = async (input, init) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const signal = init?.signal ?? null;
+  if (signal?.aborted) throw abortError(signal);
   const method = (init?.method ?? "GET").toUpperCase();
   const headers: Record<string, string> = {};
   if (init?.headers) new Headers(init.headers).forEach((v, k) => (headers[k] = v));
@@ -87,7 +127,8 @@ const nativeFetch: typeof fetch = async (input, init) => {
     throw new Error("unsupported request body type for native WebDAV fetch");
   }
 
-  const res = await WebDavHttp.request({ url, method, headers, body, bodyBase64 });
+  const call = WebDavHttp.request({ url, method, headers, body, bodyBase64 });
+  const res = signal ? await raceAbort(call, signal) : await call;
   const bytes = b64ToBytes(res.bodyBase64);
   const nullBody = res.status === 204 || res.status === 205 || res.status === 304;
   // b64ToBytes allocates fresh, so .buffer is exactly the payload.

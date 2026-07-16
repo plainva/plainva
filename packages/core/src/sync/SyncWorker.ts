@@ -75,11 +75,38 @@ const MAX_BACKOFF_MS = 5 * 60 * 1000;
 /**
  * How many incremental (cursor) pulls to run between full listings for change-token
  * providers (Drive). The periodic full listing re-seeds the adapter's id<->path caches,
- * catches remotely-created files whose parent a bare change cannot resolve, and runs the
+ * catches remote changes a bare change entry cannot resolve, and runs the
  * authoritative missing-from-listing deletion mirror. At the 15 s default this is a full
  * listing roughly every 5 minutes; every cycle in between is one cheap changes.list call.
  */
 const FULL_LISTING_EVERY_N_CYCLES = 20;
+
+/**
+ * Wall-clock ceiling between full listings. The cycle counter above assumes
+ * uninterrupted foreground polling; on mobile the WebView's timers freeze in
+ * the background, so 20 cycles can take hours of calendar time and the
+ * safety-net listing practically never came around (maintainer report,
+ * 2026-07-16). Measured against real time instead, the first cycle after a
+ * long background pause runs a full listing immediately.
+ */
+const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Stale-cycle watchdog (defense in depth behind the per-request timeouts): a
+ * cycle whose awaited work stops making progress — a platform bridge that
+ * lost a response, so the fetch promise never settles — would leave
+ * `isSyncing` set forever and turn every future trigger into a no-op (the
+ * mobile freeze class, 2026-07-16). Progress is measured as cycle ACTIVITY
+ * (per-file reconcile steps, progress emissions), not total duration, so a
+ * legitimately long first sync never trips it. After WARN ms of inactivity
+ * the status surfaces the problem; after ABANDON ms the cycle is written off
+ * and the worker frees itself. An abandoned cycle is invalidated via the
+ * cycle generation: its remaining loop guards stop at the next boundary and
+ * its cleanup no-ops, so it cannot double-schedule against the fresh cycle.
+ */
+const CYCLE_STALE_WARN_MS = 10 * 60 * 1000;
+const CYCLE_STALE_ABANDON_MS = 15 * 60 * 1000;
+const WATCHDOG_TICK_MS = 60 * 1000;
 
 /**
  * Emit onFilesChanged in chunks of this many paths while the cycle is still running.
@@ -261,14 +288,31 @@ export class SyncWorker {
    */
   private cursor?: string;
   private cyclesSinceFull = 0;
+  /** Wall-clock time of the last successful full listing (see FULL_LISTING_MAX_AGE_MS). */
+  private lastFullListingAt = 0;
+  /**
+   * Monotonic cycle generation. Each executeCycle() claims the next value; the
+   * watchdog invalidates a stale cycle by bumping it, which turns the zombie's
+   * loop guards false and makes its cleanup a no-op (see CYCLE_STALE_*).
+   */
+  private activeCycleGen = 0;
+  private watchdogId: any;
+  private lastCycleActivityAt = 0;
+  private staleWarned = false;
 
   private emitProgress(phase: "pull" | "push", current: number, total: number) {
+    this.noteCycleActivity();
     if (!this.onProgress || total <= 0) return;
     const now = Date.now();
     // Always emit the final tick; throttle the rest so no-op polls stay quiet.
     if (current < total && now - this.lastProgressAt < 150) return;
     this.lastProgressAt = now;
     this.onProgress({ phase, current, total });
+  }
+
+  /** Marks cycle liveness for the stale-cycle watchdog. */
+  private noteCycleActivity() {
+    this.lastCycleActivityAt = Date.now();
   }
 
   constructor(
@@ -329,8 +373,22 @@ export class SyncWorker {
     this.triggerImmediate();
   }
 
+  /**
+   * Manual "sync now" entry point: unblocks stuck/backed-off queue operations,
+   * drops the incremental cursor and syncs immediately with a full listing.
+   * A user's explicit sync tap needs all three — a bare trigger neither
+   * surfaces brand-new remote files (cursor pulls cannot always resolve them)
+   * nor revives pushes parked in manual-intervention after repeated failures,
+   * and mobile has no other button that would (2026-07-16).
+   */
+  public async fullResync(): Promise<void> {
+    this.cursor = undefined;
+    await this.retryFailed();
+  }
+
   public stop() {
     this.isRunning = false;
+    this.disarmWatchdog();
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = undefined;
@@ -431,18 +489,26 @@ export class SyncWorker {
   private async executeCycle() {
     if (!this.isRunning || this.isSyncing) return;
     this.isSyncing = true;
+    const gen = ++this.activeCycleGen;
+    this.armWatchdog(gen);
     const cycle = (async () => {
       try {
-        await this.runCycle();
+        await this.runCycle(gen);
       } finally {
-        this.isSyncing = false;
-        if (this.isRunning) {
-          if (this.pendingSyncRequest) {
-            this.pendingSyncRequest = false;
-            // Schedule immediately instead of next interval
-            this.timeoutId = setTimeout(() => this.executeCycle(), 0);
-          } else {
-            this.scheduleNext();
+        // A watchdog abandon bumped the generation and already freed the
+        // worker — a zombie cycle settling later must not clear the fresh
+        // cycle's state or double-schedule.
+        if (this.activeCycleGen === gen) {
+          this.disarmWatchdog();
+          this.isSyncing = false;
+          if (this.isRunning) {
+            if (this.pendingSyncRequest) {
+              this.pendingSyncRequest = false;
+              // Schedule immediately instead of next interval
+              this.timeoutId = setTimeout(() => this.executeCycle(), 0);
+            } else {
+              this.scheduleNext();
+            }
           }
         }
       }
@@ -452,6 +518,50 @@ export class SyncWorker {
       await cycle;
     } finally {
       if (this.currentCycle === cycle) this.currentCycle = null;
+    }
+  }
+
+  /**
+   * Arms the stale-cycle watchdog for cycle `gen` (see CYCLE_STALE_*): warn
+   * after prolonged INACTIVITY, then abandon the cycle — reset `isSyncing`,
+   * invalidate the zombie via the generation bump and schedule a fresh cycle.
+   * With working per-request timeouts this never fires; it exists so a
+   * platform bridge that loses a response (the request promise never settles)
+   * cannot wedge the worker until an app restart.
+   */
+  private armWatchdog(gen: number) {
+    this.disarmWatchdog();
+    this.lastCycleActivityAt = Date.now();
+    this.staleWarned = false;
+    const tick = () => {
+      if (!this.isSyncing || this.activeCycleGen !== gen || !this.isRunning) return;
+      const idleMs = Date.now() - this.lastCycleActivityAt;
+      if (idleMs >= CYCLE_STALE_ABANDON_MS) {
+        console.error(
+          `[SyncWorker] abandoning a sync cycle after ${Math.round(idleMs / 60000)} min without activity (a request the platform never answered)`
+        );
+        this.activeCycleGen++;
+        this.isSyncing = false;
+        this.pendingSyncRequest = false;
+        this.cursor = undefined; // re-establish ground truth on recovery
+        this.setStatus("error", "sync cycle was unresponsive and has been abandoned; retrying");
+        this.scheduleNext();
+        return;
+      }
+      if (idleMs >= CYCLE_STALE_WARN_MS && !this.staleWarned) {
+        this.staleWarned = true;
+        console.warn(`[SyncWorker] sync cycle has shown no activity for ${Math.round(idleMs / 60000)} min`);
+        this.setStatus("error", "sync cycle appears stuck; it will be abandoned if it stays unresponsive");
+      }
+      this.watchdogId = setTimeout(tick, WATCHDOG_TICK_MS);
+    };
+    this.watchdogId = setTimeout(tick, WATCHDOG_TICK_MS);
+  }
+
+  private disarmWatchdog() {
+    if (this.watchdogId) {
+      clearTimeout(this.watchdogId);
+      this.watchdogId = undefined;
     }
   }
 
@@ -711,7 +821,12 @@ export class SyncWorker {
     }
   }
 
-  public async runCycle() {
+  public async runCycle(gen = this.activeCycleGen) {
+    // Cycle liveness: false once the worker stops OR the watchdog abandoned
+    // THIS cycle (generation bump). Every loop boundary below checks it, so a
+    // zombie cycle whose hung await eventually settles stops writing at the
+    // next opportunity instead of racing the fresh cycle.
+    const alive = () => this.isRunning && this.activeCycleGen === gen;
     // Paths changed locally by THIS cycle plus the emission cursor for chunked
     // onFilesChanged delivery. Hoisted out of the try so the finally can flush
     // whatever was already written before an abort: sync_state advances per file,
@@ -743,6 +858,7 @@ export class SyncWorker {
     let pullFailureCount = 0;
     let consecutivePullFailures = 0;
     const guardPullStep = async (path: string, step: () => Promise<void>) => {
+      this.noteCycleActivity();
       try {
         await step();
         consecutivePullFailures = 0;
@@ -767,7 +883,12 @@ export class SyncWorker {
       // changed since the last cursor — a single cheap changes.list instead of walking the
       // whole tree every cycle — with a periodic full listing as a safety net. Every other
       // provider (no getStartCursor) always takes the full-listing path, exactly as before.
-      const doFullListing = !this.cursor || this.cyclesSinceFull >= FULL_LISTING_EVERY_N_CYCLES;
+      const doFullListing =
+        !this.cursor ||
+        this.cyclesSinceFull >= FULL_LISTING_EVERY_N_CYCLES ||
+        // Wall-clock safety net: background pauses freeze the cycle counter,
+        // so measure real time too (see FULL_LISTING_MAX_AGE_MS).
+        (this.lastFullListingAt > 0 && Date.now() - this.lastFullListingAt >= FULL_LISTING_MAX_AGE_MS);
       let seededCursor: string | undefined;
       if (doFullListing && this.target.getStartCursor) {
         // Fetch the change token BEFORE the listing so the next incremental pull OVERLAPS
@@ -820,7 +941,7 @@ export class SyncWorker {
       );
       let pullIdx = 0;
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
-        if (!this.isRunning) break;
+        if (!alive()) break;
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
@@ -839,20 +960,20 @@ export class SyncWorker {
 
       // 2b. Mirror remote deletions.
       let deletionMirroringSuspended: string | null = null;
-      if (this.isRunning && !doFullListing) {
+      if (alive() && !doFullListing) {
         // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
         // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
         // here — a cursor pull lists only CHANGED files, so every unchanged file would look
         // "missing" and get destroyed. Act only on the explicit list, with the same
         // per-file safety (never delete a locally-modified file).
         for (const path of pullResult.deleted ?? []) {
-          if (!this.isRunning) break;
+          if (!alive()) break;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
           await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
         }
-      } else if (this.isRunning && remotePaths.size > 0) {
+      } else if (alive() && remotePaths.size > 0) {
         // FULL listing: derive deletions from files we confirmed before that are now
         // missing. Only run on a non-empty listing so a transient empty/failed listing can
         // never trigger a mass local delete.
@@ -876,13 +997,13 @@ export class SyncWorker {
           console.warn(`[SyncWorker] ${deletionMirroringSuspended}`);
         } else {
           for (const { path } of missing) {
-            if (!this.isRunning) break;
+            if (!alive()) break;
             await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
           }
         }
       }
 
-      if (!this.isRunning) return;
+      if (!alive()) return;
 
       // Everything pulled so far must be visible before the (potentially long) push
       // phase starts; the finally below only backstops aborts.
@@ -927,7 +1048,7 @@ export class SyncWorker {
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
       await this.engine.processQueue(
-        () => !this.isRunning,
+        () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
         { skipDeletes: deletionsHeld !== null }
       );
@@ -949,10 +1070,21 @@ export class SyncWorker {
         if (doFullListing) {
           this.cursor = seededCursor;
           this.cyclesSinceFull = 0;
+          this.lastFullListingAt = Date.now();
         } else {
           if (pullResult.nextCursor) this.cursor = pullResult.nextCursor;
           this.cyclesSinceFull++;
         }
+      }
+
+      // The cursor pull saw changes it could not resolve on its own (a brand-new
+      // file in an unknown folder, a remote folder rename/move/trash): drop the
+      // cursor and follow up with a full listing right away instead of leaving
+      // the change invisible until the periodic safety net.
+      if (!doFullListing && pullResult.needsFullListing) {
+        console.log("[SyncWorker] cursor pull could not resolve every change; scheduling a full listing");
+        this.cursor = undefined;
+        this.pendingSyncRequest = true;
       }
 
       // First fully-clean pull: the remote base is now established for files that exist

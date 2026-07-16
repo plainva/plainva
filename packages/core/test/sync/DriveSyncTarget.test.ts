@@ -164,6 +164,99 @@ describe("DriveSyncTarget", () => {
     expect(nextCursor).toBe("cursor-2");
   });
 
+  describe("cursor pull resolves NEW remote files via parents (2026-07-16)", () => {
+    /**
+     * Shared fixture: a seeded tree (root: a.md + folder "Notes"/b.md + an
+     * internal ".plainva" folder), then one changes.list page per test. Before
+     * the fix every brand-new remote file was dropped by the cursor pull and
+     * stayed invisible until the next full listing — which on mobile
+     * effectively only runs on app resume.
+     */
+    const seedAndPull = async (changes: any[]) => {
+      let phase: "list" | "changes" = "list";
+      const { target } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (phase === "list") {
+          if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+          if (init.method === "GET" && u.includes("root-folder")) {
+            return res({ files: [
+              { id: "f-a", name: "a.md", md5Checksum: "h-a" },
+              { id: "fld-notes", name: "Notes", mimeType: FOLDER_MIME },
+              { id: "fld-plainva", name: ".plainva", mimeType: FOLDER_MIME },
+            ] });
+          }
+          if (init.method === "GET" && u.includes("fld-notes")) {
+            return res({ files: [{ id: "f-b", name: "b.md", md5Checksum: "h-b" }] });
+          }
+        }
+        if (u.includes("/drive/v3/changes?")) {
+          expect(decodeURIComponent(u)).toContain("parents"); // the fix needs parents in fields=
+          return res({ changes, newStartPageToken: "cursor-2" });
+        }
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+      await target.pull();
+      phase = "changes";
+      return target.pull("cursor-1");
+    };
+
+    it("a brand-new file in a KNOWN folder resolves to its path (no full listing needed)", async () => {
+      const { etagMap, needsFullListing } = await seedAndPull([
+        { fileId: "f-new", file: { id: "f-new", name: "new.md", md5Checksum: "h-new", parents: ["fld-notes"] } },
+      ]);
+      expect(etagMap.get("Notes/new.md")).toBe("h-new");
+      expect(needsFullListing).toBeUndefined();
+    });
+
+    it("a new folder + a file inside it resolve within ONE cursor pull", async () => {
+      const { etagMap, needsFullListing } = await seedAndPull([
+        { fileId: "fld-sub", file: { id: "fld-sub", name: "Sub", mimeType: FOLDER_MIME, parents: ["fld-notes"] } },
+        { fileId: "f-c", file: { id: "f-c", name: "c.md", md5Checksum: "h-c", parents: ["fld-sub"] } },
+      ]);
+      expect(etagMap.get("Notes/Sub/c.md")).toBe("h-c");
+      expect(needsFullListing).toBeUndefined();
+    });
+
+    it("a new file under an UNKNOWN parent requests a full listing instead of being dropped silently", async () => {
+      const { etagMap, needsFullListing } = await seedAndPull([
+        { fileId: "f-x", file: { id: "f-x", name: "x.md", md5Checksum: "h-x", parents: ["fld-elsewhere"] } },
+      ]);
+      expect(etagMap.size).toBe(0);
+      expect(needsFullListing).toBe(true);
+    });
+
+    it("changes under internal folders (.plainva) are ignored WITHOUT forcing a full listing", async () => {
+      const { etagMap, needsFullListing } = await seedAndPull([
+        { fileId: "fld-bak", file: { id: "fld-bak", name: "backups", mimeType: FOLDER_MIME, parents: ["fld-plainva"] } },
+        { fileId: "f-db", file: { id: "f-db", name: "vault.db", md5Checksum: "h-db", parents: ["fld-bak"] } },
+      ]);
+      expect(etagMap.size).toBe(0);
+      expect(needsFullListing).toBeUndefined();
+    });
+
+    it("a KNOWN folder rename/move requests a full listing (children paths went stale)", async () => {
+      const { needsFullListing } = await seedAndPull([
+        { fileId: "fld-notes", file: { id: "fld-notes", name: "Renamed", mimeType: FOLDER_MIME, parents: ["root-folder"] } },
+      ]);
+      expect(needsFullListing).toBe(true);
+    });
+
+    it("a KNOWN folder trashed requests a full listing (children get no change entries)", async () => {
+      const { needsFullListing } = await seedAndPull([
+        { fileId: "fld-notes", file: { id: "fld-notes", name: "Notes", mimeType: FOLDER_MIME, trashed: true, parents: ["root-folder"] } },
+      ]);
+      expect(needsFullListing).toBe(true);
+    });
+
+    it("a KNOWN file rename keeps reconciling under the established path but requests a full listing", async () => {
+      const { etagMap, needsFullListing } = await seedAndPull([
+        { fileId: "f-a", file: { id: "f-a", name: "renamed.md", md5Checksum: "h-a2", parents: ["root-folder"] } },
+      ]);
+      expect(etagMap.get("a.md")).toBe("h-a2"); // established path, as before
+      expect(needsFullListing).toBe(true);
+    });
+  });
+
   it("refreshes the access token on a 401 and retries", async () => {
     let folderLookups = 0;
     let refreshed = false;

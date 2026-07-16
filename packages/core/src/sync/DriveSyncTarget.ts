@@ -97,6 +97,20 @@ export class DriveSyncTarget implements ISyncTarget {
   private idToPath = new Map<string, string>();
   /** Relative folder path ("" = root) -> Drive folder id. */
   private folderToId = new Map<string, string>();
+  /**
+   * Drive folder id -> relative folder path (reverse of folderToId). Lets a
+   * cursor pull resolve a BRAND-NEW file's path from its `parents[0]` — before
+   * this, every remotely created file stayed invisible until the next full
+   * listing, which on mobile practically only runs on app resume (2026-07-16).
+   */
+  private folderIdToPath = new Map<string, string>();
+  /**
+   * Ids of internal folders (.plainva, .git, … — see isInternalFolderName)
+   * and their descendants. Changes under these must be skipped silently, NOT
+   * escalate to a full listing: a desktop client mirroring `.plainva/` onto
+   * the same remote would otherwise force a full listing on every backup write.
+   */
+  private ignoredFolderIds = new Set<string>();
 
   /** Optional hook so the app can persist a refreshed access token. */
   public onTokenRefreshed?: (accessToken: string, expiresInSec?: number) => void | Promise<void>;
@@ -218,7 +232,7 @@ export class DriveSyncTarget implements ISyncTarget {
       parentId = await this.findOrCreateFolder(segment, parentId);
     }
     this.rootFolderId = parentId;
-    this.folderToId.set("", this.rootFolderId);
+    this.cacheFolder("", this.rootFolderId);
     return this.rootFolderId;
   }
 
@@ -312,7 +326,7 @@ export class DriveSyncTarget implements ISyncTarget {
       }
       const found = await this.findFolder(seg, parentId);
       if (!found) return null;
-      this.folderToId.set(acc, found);
+      this.cacheFolder(acc, found);
       parentId = found;
     }
     return parentId;
@@ -336,7 +350,7 @@ export class DriveSyncTarget implements ISyncTarget {
         continue;
       }
       parentId = await this.findOrCreateFolder(seg, parentId);
-      this.folderToId.set(acc, parentId);
+      this.cacheFolder(acc, parentId);
     }
     return parentId;
   }
@@ -357,6 +371,12 @@ export class DriveSyncTarget implements ISyncTarget {
     const id = this.pathToId.get(path);
     if (id) this.idToPath.delete(id);
     this.pathToId.delete(path);
+  }
+
+  /** Records a folder in BOTH directions (see folderIdToPath). */
+  private cacheFolder(path: string, id: string): void {
+    this.folderToId.set(path, id);
+    this.folderIdToPath.set(id, path);
   }
 
   private async findFileId(filePath: string): Promise<string | null> {
@@ -499,8 +519,10 @@ export class DriveSyncTarget implements ISyncTarget {
     this.pathToId.clear();
     this.idToPath.clear();
     this.folderToId.clear();
+    this.folderIdToPath.clear();
+    this.ignoredFolderIds.clear();
     const rootId = await this.getRootFolderId();
-    this.folderToId.set("", rootId);
+    this.cacheFolder("", rootId);
     const etagMap = new Map<string, string>();
     await this.listFolder(rootId, "", etagMap);
     return { etagMap };
@@ -523,8 +545,11 @@ export class DriveSyncTarget implements ISyncTarget {
         if (f.mimeType === FOLDER_MIME) {
           // Never walk device-local/VCS trees (.plainva backups, .git, …): they are not
           // vault content and only slow the listing down. See INTERNAL_FOLDER_NAMES.
-          if (isInternalFolderName(f.name)) continue;
-          this.folderToId.set(path, f.id);
+          if (isInternalFolderName(f.name)) {
+            this.ignoredFolderIds.add(f.id);
+            continue;
+          }
+          this.cacheFolder(path, f.id);
           await this.listFolder(f.id, path, etagMap);
         } else if (isGoogleNative(f.mimeType)) {
           // Google-native files (Docs/Sheets/Slides/...) have no binary content and
@@ -545,12 +570,13 @@ export class DriveSyncTarget implements ISyncTarget {
     const deleted: string[] = [];
     let pageToken: string | undefined = cursor;
     let nextCursor = cursor;
+    let needsFullListing = false;
 
     do {
       const params = new URLSearchParams({
         pageToken: pageToken as string,
         fields:
-          "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,md5Checksum,modifiedTime,mimeType,trashed))",
+          "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,md5Checksum,modifiedTime,mimeType,trashed,parents))",
       });
       const res = await this.authedFetch("GET", `${DRIVE_API}/changes?${params.toString()}`);
       if (!res.ok) throw new Error(`Drive changes.list failed: ${res.status} ${res.statusText}`);
@@ -567,16 +593,79 @@ export class DriveSyncTarget implements ISyncTarget {
           if (known) {
             deleted.push(known);
             this.uncachePath(known);
+          } else if (this.folderIdToPath.has(ch.fileId)) {
+            // A known FOLDER vanished: Drive emits no individual change entries
+            // for its (implicitly trashed) children, so only a full listing's
+            // missing-from-listing mirror can propagate those deletions.
+            needsFullListing = true;
           }
+          this.ignoredFolderIds.delete(ch.fileId);
           continue;
         }
         const f = ch.file;
-        if (!f || f.mimeType === FOLDER_MIME || isGoogleNative(f.mimeType)) continue;
-        // For a known id we keep the established path; a brand-new id whose parent
-        // folder we can't resolve from a single change is reconciled on the next
-        // full listing (documented limit — full nested-path reconstruction from a
-        // bare change is maintainer-verified against the live API).
-        const path = known;
+        if (!f) continue;
+
+        if (f.mimeType === FOLDER_MIME) {
+          if (this.ignoredFolderIds.has(ch.fileId)) continue;
+          if (isInternalFolderName(f.name)) {
+            this.ignoredFolderIds.add(ch.fileId);
+            continue;
+          }
+          const parentId = f.parents?.[0];
+          if (parentId && this.ignoredFolderIds.has(parentId)) {
+            // New folder inside an internal tree (.plainva/…): ignore the whole subtree.
+            this.ignoredFolderIds.add(ch.fileId);
+            continue;
+          }
+          const knownFolderPath = this.folderIdToPath.get(ch.fileId);
+          const parentPath = parentId !== undefined ? this.folderIdToPath.get(parentId) : undefined;
+          if (knownFolderPath !== undefined) {
+            // A KNOWN folder changed. A rename/move silently invalidates every
+            // cached child path — resolvable only by a full listing.
+            const expected =
+              parentPath !== undefined ? (parentPath ? `${parentPath}/${f.name}` : f.name) : undefined;
+            if (expected !== undefined && expected !== knownFolderPath) needsFullListing = true;
+          } else if (parentPath !== undefined) {
+            // Brand-new folder in a known parent: register it so files created
+            // inside it (their changes follow chronologically) resolve below.
+            this.cacheFolder(parentPath ? `${parentPath}/${f.name}` : f.name, ch.fileId);
+          } else {
+            // New folder under an unknown parent (created together with its
+            // parent in one go, or outside our cached tree): full listing.
+            needsFullListing = true;
+          }
+          continue;
+        }
+
+        if (isGoogleNative(f.mimeType)) continue;
+
+        let path = known;
+        if (path !== undefined) {
+          // Known file: keep the established path for reconcile, but detect a
+          // remote rename/move (name/parent no longer matching) — the content
+          // would otherwise keep landing under the stale local path until the
+          // periodic full listing.
+          const parentId = f.parents?.[0];
+          const parentPath = parentId !== undefined ? this.folderIdToPath.get(parentId) : undefined;
+          if (parentPath !== undefined) {
+            const expected = parentPath ? `${parentPath}/${f.name}` : f.name;
+            if (expected !== path) needsFullListing = true;
+          }
+        } else {
+          // Brand-new file: resolve its path via the parent folder (2026-07-16).
+          // Before this, new remote files were dropped here and stayed invisible
+          // until the next full listing — on mobile effectively until app resume.
+          const parentId = f.parents?.[0];
+          if (parentId && this.ignoredFolderIds.has(parentId)) continue;
+          const parentPath = parentId !== undefined ? this.folderIdToPath.get(parentId) : undefined;
+          if (parentPath === undefined) {
+            needsFullListing = true;
+            continue;
+          }
+          path = parentPath ? `${parentPath}/${f.name}` : f.name;
+          this.cachePath(path, ch.fileId);
+        }
+
         if (path && !path.includes(".CONFLICT")) {
           etagMap.set(path, f.md5Checksum || f.modifiedTime || f.id);
         }
@@ -586,7 +675,7 @@ export class DriveSyncTarget implements ISyncTarget {
       if (json.newStartPageToken) nextCursor = json.newStartPageToken;
     } while (pageToken);
 
-    return { etagMap, deleted, nextCursor };
+    return { etagMap, deleted, nextCursor, needsFullListing: needsFullListing || undefined };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

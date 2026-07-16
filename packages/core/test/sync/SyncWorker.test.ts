@@ -892,6 +892,129 @@ describe("SyncWorker", () => {
     // The full-listing branch calls pull() with no argument at all.
     expect(target.pull.mock.calls.at(-1)).toEqual([]);
   });
+
+  describe("mobile responsiveness + freeze recovery (2026-07-16)", () => {
+    it("fullResync resets stuck queue ops, drops the cursor and full-lists immediately", async () => {
+      worker["cursor"] = "c1";
+
+      await worker.fullResync();
+      await worker["currentCycle"];
+      worker.stop();
+
+      expect(queue.resetStuckOperations).toHaveBeenCalled();
+      expect(target.pull).toHaveBeenCalledTimes(1);
+      expect(target.pull.mock.calls[0]).toEqual([]); // full listing, not pull("c1")
+    });
+
+    it("forces a full listing once the last one is older than the wall-clock ceiling", async () => {
+      // The cycle counter freezes with the WebView in the background; wall-clock
+      // time does not — a stale cursor session must re-list on the first cycle back.
+      worker["cursor"] = "c1";
+      worker["lastFullListingAt"] = Date.now() - 11 * 60_000;
+      await worker.runCycle();
+      expect(target.pull.mock.calls[0]).toEqual([]);
+    });
+
+    it("stays on the cheap cursor pull while the last full listing is fresh", async () => {
+      worker["cursor"] = "c1";
+      worker["lastFullListingAt"] = Date.now() - 60_000;
+      target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: [], nextCursor: "c2" });
+      await worker.runCycle();
+      expect(target.pull.mock.calls[0]).toEqual(["c1"]);
+    });
+
+    it("drops the cursor and queues an immediate follow-up when the cursor pull could not resolve a change", async () => {
+      worker["cursor"] = "c1";
+      worker["lastFullListingAt"] = Date.now();
+      target.pull.mockResolvedValueOnce({
+        etagMap: new Map(),
+        deleted: [],
+        nextCursor: "c2",
+        needsFullListing: true,
+      });
+
+      await worker.runCycle();
+
+      expect(worker["cursor"]).toBeUndefined();
+      expect(worker["pendingSyncRequest"]).toBe(true);
+    });
+
+    it("watchdog warns on a stuck cycle, abandons it after the inactivity ceiling and revives the worker", async () => {
+      vi.useFakeTimers();
+      try {
+        let pullCalls = 0;
+        // A request the platform never answers: the pull promise never settles,
+        // which used to leave isSyncing=true forever (only a force-close helped).
+        target.pull = vi.fn(() => {
+          pullCalls++;
+          return new Promise(() => {});
+        });
+        const statuses: Array<{ s: string; e?: string }> = [];
+        worker.onStatusChange = (s, e) => statuses.push({ s, e });
+        worker["isRunning"] = false; // start() guards on an already-running worker
+        worker.start();
+        await vi.advanceTimersByTimeAsync(0); // flush resetStuckOperations -> first cycle
+        expect(pullCalls).toBe(1);
+        expect(worker["isSyncing"]).toBe(true);
+
+        // 10 min of inactivity: warn, but do not abandon yet.
+        await vi.advanceTimersByTimeAsync(10 * 60_000);
+        expect(statuses.some((x) => x.s === "error" && /stuck/i.test(x.e ?? ""))).toBe(true);
+        expect(worker["isSyncing"]).toBe(true);
+
+        // 15 min of inactivity: the cycle is written off and the worker frees
+        // itself (checked exactly at the abandon tick, before the fresh cycle
+        // scheduled right after starts and re-enters syncing).
+        await vi.advanceTimersByTimeAsync(5 * 60_000);
+        expect(statuses.some((x) => x.s === "error" && /abandoned/i.test(x.e ?? ""))).toBe(true);
+        expect(worker["isSyncing"]).toBe(false);
+        expect(worker["cursor"]).toBeUndefined();
+
+        // A fresh cycle was scheduled — the worker is responsive again without a restart.
+        await vi.advanceTimersByTimeAsync(200);
+        expect(pullCalls).toBe(2);
+        worker.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a healthy long first sync never trips the watchdog (activity resets the idle clock)", async () => {
+      vi.useFakeTimers();
+      try {
+        // pull resolves promptly; the cycle then reconciles files one by one,
+        // each step taking 5 min of wall clock but BUMPING cycle activity.
+        target.pull = vi.fn().mockResolvedValue({
+          etagMap: new Map([
+            ["a.md", "e1"],
+            ["b.md", "e2"],
+            ["c.md", "e3"],
+            ["d.md", "e4"],
+          ]),
+        });
+        target.download = vi.fn(
+          () =>
+            new Promise<Uint8Array>((resolve) => {
+              setTimeout(() => resolve(new TextEncoder().encode("x")), 5 * 60_000);
+            })
+        );
+        const statuses: Array<{ s: string; e?: string }> = [];
+        worker.onStatusChange = (s, e) => statuses.push({ s, e });
+        worker["isRunning"] = false;
+        worker.start();
+        await vi.advanceTimersByTimeAsync(0);
+
+        // 4 files x 5 min = 20 min total cycle time, activity every 5 min.
+        await vi.advanceTimersByTimeAsync(21 * 60_000);
+
+        expect(statuses.some((x) => /abandoned/i.test(x.e ?? ""))).toBe(false);
+        expect(statuses.some((x) => x.s === "idle")).toBe(true); // the cycle completed
+        worker.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
 
 async function sha(text: string): Promise<string> {

@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -80,6 +81,17 @@ public class WebDavHttpPlugin extends Plugin {
 
     private static final OkHttpClient client = new OkHttpClient.Builder()
         .followRedirects(true)
+        // Explicit timeouts: OkHttp's callTimeout defaults to 0 (UNBOUNDED).
+        // After a network switch or a Doze transition a call can sit in limbo
+        // forever; the awaiting sync cycle then never returns and the worker
+        // wedges until a force-close (maintainer report 2026-07-16). The
+        // socket timeouts bound each phase, callTimeout bounds the whole call
+        // (redirect chains, slow trickle) — above the JS-side 120 s request
+        // signal, so the JS abort normally fires first.
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(180, TimeUnit.SECONDS)
         // Network interceptor: runs per HOP, so a redirect to a foreign host
         // is rejected even though followRedirects is on.
         .addNetworkInterceptor(chain -> {

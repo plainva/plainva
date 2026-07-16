@@ -237,10 +237,12 @@ export async function purgeCredentials(vaultId: string): Promise<void> {
 }
 
 export function syncNow(): void {
-  // Full listing, not a bare cursor cycle: brand-new remote files only
-  // arrive through a listing, and on mobile the periodic one (every 20
-  // foreground cycles) practically never comes around (Pixel report).
-  worker?.triggerFullListing();
+  // Full resync, not a bare cursor cycle: brand-new remote files only arrive
+  // through a listing, and pushes parked in manual-intervention/backoff after
+  // repeated failures must be revived by the user's explicit action — mobile
+  // has no other button that would (2026-07-16). fullResync = reset stuck
+  // queue ops + drop the cursor + immediate cycle.
+  void worker?.fullResync();
 }
 
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -271,6 +273,16 @@ export async function stopSyncAndDrain(): Promise<void> {
   if (w) await w.stopAndDrain();
 }
 
+/**
+ * Per-request timeout handed to every sync target on device. The native
+ * bridge delivers a response in one piece (no streaming), so — unlike the
+ * desktop, where the 30 s default only bounds the header phase — this signal
+ * bounds the WHOLE transfer. 120 s keeps large attachment up/downloads on
+ * slow mobile links alive while still guaranteeing that no single request
+ * can wedge a sync cycle for longer (the freeze class fixed 2026-07-16).
+ */
+const MOBILE_REQUEST_TIMEOUT_MS = 120_000;
+
 function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson). AWAITED and
@@ -283,7 +295,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   };
   switch (p.provider) {
     case "s3":
-      return new S3SyncTarget(p.creds, webdavFetch);
+      return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS);
     case "drive":
       return new DriveSyncTarget(
         {
@@ -293,6 +305,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
           rootFolderName: p.creds.rootFolderName,
         },
         webdavFetch,
+        MOBILE_REQUEST_TIMEOUT_MS,
       );
     case "onedrive": {
       const target = new OneDriveSyncTarget(
@@ -302,6 +315,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
           rootFolderName: p.creds.rootFolderName,
         },
         webdavFetch,
+        MOBILE_REQUEST_TIMEOUT_MS,
       );
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
@@ -318,6 +332,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
           rootPath: p.creds.rootPath,
         },
         webdavFetch,
+        MOBILE_REQUEST_TIMEOUT_MS,
       );
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
@@ -327,7 +342,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
       return target;
     }
     default:
-      return new WebDavSyncTarget(p.creds, webdavFetch);
+      return new WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS);
   }
 }
 

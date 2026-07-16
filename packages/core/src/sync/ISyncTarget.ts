@@ -42,6 +42,15 @@ export interface PullResult {
    * change tokens (WebDAV).
    */
   nextCursor?: string;
+  /**
+   * Optional: the cursor pull saw changes it could NOT resolve to vault paths
+   * (a brand-new file under a folder the id caches don't know, a remote folder
+   * rename/move/trash whose children get no individual change entries). The
+   * worker reacts by dropping the cursor and following up with a full listing
+   * immediately instead of leaving the change invisible until the periodic
+   * safety-net listing.
+   */
+  needsFullListing?: boolean;
 }
 
 export interface ISyncTarget {
