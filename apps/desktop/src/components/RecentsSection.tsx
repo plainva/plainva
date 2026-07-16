@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useDocumentTitles } from "../hooks/useDocumentTitles";
+import { virtualTabMeta } from "./graph/virtualPaths";
 
 interface Props {
   /** Most-recently-opened vault paths (MRU order). */
@@ -39,14 +40,23 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
         {t("sidebar.recent")}
       </div>
       {shown.map((path) => {
+        // Virtual views (vault map, tasks) are legitimate recents entries but
+        // are not vault files: show their localized name + dedicated icon
+        // instead of the raw pseudo-path basename ("graph"/"tasks").
+        const virtual = virtualTabMeta(path);
+        const VirtualIcon = virtual?.icon;
         const isBase = /\.base$/i.test(path);
         const meta = docTitles.get(path);
         const attachment = meta?.mode === "attachment" && !isBase;
         const basename = path.split(/[/\\]/).pop() ?? path;
-        const displayName = attachment ? (meta?.title || basename) : stripNoteExtension(meta?.title || basename);
+        const displayName = virtual
+          ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel })
+          : attachment ? (meta?.title || basename) : stripNoteExtension(meta?.title || basename);
         const iconEntry = docIcons.get(path);
 
-        const iconNode = isBase ? (
+        const iconNode = VirtualIcon ? (
+          <VirtualIcon size={14} style={{ opacity: 0.7 }} />
+        ) : isBase ? (
           <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={14} />
         ) : attachment ? (
           <Paperclip size={14} style={{ opacity: 0.7 }} />

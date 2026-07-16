@@ -9,6 +9,7 @@ import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { getConfiguredNoteType, buildNewNoteContent } from "../services/newNote";
 import { toast } from "@plainva/ui";
+import { virtualTabMeta } from "./graph/virtualPaths";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -228,6 +229,11 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
             <div style={{ padding: '8px 0' }}>
               {!query && <div style={{ padding: '4px 16px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t("quickSwitcher.recentFiles")}</div>}
               {results.map((item, idx) => {
+                // Virtual views (vault map, tasks) can appear among the
+                // recents: show their localized name + dedicated icon instead
+                // of the raw pseudo-path basename.
+                const virtual = virtualTabMeta(item.path);
+                const VirtualIcon = virtual?.icon;
                 // Group headers (P3.3c), mirroring the sidebar search: "file
                 // name" before the fuzzy hits, "content" before the FTS hits —
                 // only when both groups exist.
@@ -253,8 +259,8 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                   onMouseEnter={() => setSelectedIndex(idx)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-                    {item.isRecent ? <Clock size={14} color="var(--text-muted)" /> : item.isContentHit ? <FileText size={14} color="var(--text-muted)" /> : <FileIcon size={14} color="var(--text-muted)" />}
-                    <span style={{ fontWeight: 500 }}>{item.title || item.path.split('/').pop()}</span>
+                    {VirtualIcon ? <VirtualIcon size={14} color="var(--text-muted)" /> : item.isRecent ? <Clock size={14} color="var(--text-muted)" /> : item.isContentHit ? <FileText size={14} color="var(--text-muted)" /> : <FileIcon size={14} color="var(--text-muted)" />}
+                    <span style={{ fontWeight: 500 }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : (item.title || item.path.split('/').pop())}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                       {item.path}
                     </span>

@@ -6,6 +6,7 @@ import { PlainvaLogo } from "@plainva/ui";
 import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
+import { virtualTabMeta } from "./graph/virtualPaths";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
@@ -134,6 +135,10 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
       <div data-pv-tabstrip={paneIndex} role="tablist" aria-label={t("titlebar.openTabs", { defaultValue: "Geöffnete Dateien" })} style={{ display: "flex", alignItems: "stretch", minWidth: 0, overflowX: "auto", height: "100%" }} className="tabstrip">
         {tabs.map((path, i) => {
           const active = i === activeIndex;
+          // Virtual views (vault map, tasks) carry a localized name and a
+          // dedicated icon instead of the raw pseudo path.
+          const virtual = virtualTabMeta(path);
+          const VirtualIcon = virtual?.icon;
           return (
             <div
               key={`${path}-${i}`}
@@ -161,12 +166,16 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
               onMouseOver={(e) => { if (!active) e.currentTarget.style.color = "var(--titlebar-fg)"; }}
               onMouseOut={(e) => { if (!active) e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
             >
-              {docIcons.get(path) && isRenderableDocIcon(docIcons.get(path)!.icon) && (
+              {VirtualIcon ? (
+                <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
+                  <VirtualIcon size={15} />
+                </span>
+              ) : docIcons.get(path) && isRenderableDocIcon(docIcons.get(path)!.icon) ? (
                 <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
                   <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={15} />
                 </span>
-              )}
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{tabLabel(path)}</span>
+              ) : null}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : tabLabel(path)}</span>
               {dirtyPaths.has(path) && <span className="pv-tab-dirty" aria-hidden="true" />}
               <span
                 aria-hidden="true"

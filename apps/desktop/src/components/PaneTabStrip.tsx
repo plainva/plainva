@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { virtualTabMeta } from "./graph/virtualPaths";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
@@ -38,6 +38,10 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
     >
       {tabs.map((path, i) => {
         const active = i === activeIndex;
+        // Virtual views (vault map, tasks) carry a localized name and a
+        // dedicated icon instead of the raw pseudo path.
+        const virtual = virtualTabMeta(path);
+        const VirtualIcon = virtual?.icon;
         return (
           <div
             key={`${path}-${i}`}
@@ -65,12 +69,16 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
             onMouseOver={(e) => { if (!active) e.currentTarget.style.color = "var(--text-main)"; }}
             onMouseOut={(e) => { if (!active) e.currentTarget.style.color = "var(--text-muted)"; }}
           >
-            {docIcons.get(path) && isRenderableDocIcon(docIcons.get(path)!.icon) && (
+            {VirtualIcon ? (
+              <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
+                <VirtualIcon size={15} />
+              </span>
+            ) : docIcons.get(path) && isRenderableDocIcon(docIcons.get(path)!.icon) ? (
               <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
                 <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={15} />
               </span>
-            )}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{path === GRAPH_TAB_PATH ? t("rightPanel.graph", { defaultValue: "Graph" }) : path === TASKS_TAB_PATH ? t("tasks.title", { defaultValue: "Aufgaben" }) : tabLabel(path)}</span>
+            ) : null}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : tabLabel(path)}</span>
             {dirtyPaths.has(path) && <span className="pv-tab-dirty" aria-hidden="true" />}
             <span
               aria-hidden="true"
