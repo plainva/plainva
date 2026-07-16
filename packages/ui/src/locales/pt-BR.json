@@ -1709,6 +1709,7 @@
     "conflictKeepOriginal": "Manter a nota atual",
     "lastSync": "Última sincronização: {{time}}",
     "baseEmpty": "Nenhuma entrada corresponde a esta visão.",
+    "conflictPreserved": "Conflito: suas alterações foram salvas como cópia de conflito.",
     "saveRetry": "Falha ao salvar — tentando novamente em segundo plano.",
     "noteMissing": "Esta nota não foi encontrada.",
     "tabDatabases": "Bancos de dados",

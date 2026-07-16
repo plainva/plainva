@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { conflictOriginalPath, isConflictCopyPath } from "@plainva/ui";
+import { conflictCopyPath, conflictOriginalPath, isConflictCopyPath } from "@plainva/ui";
 
 describe("conflict copy path mapping (P3.11)", () => {
   it("maps a conflict copy back to its original", () => {
@@ -20,5 +20,16 @@ describe("conflict copy path mapping (P3.11)", () => {
   it("detects conflict copies", () => {
     expect(isConflictCopyPath("a.CONFLICT-2026-07-05T12-30-00-000Z.md")).toBe(true);
     expect(isConflictCopyPath("a.md")).toBe(false);
+  });
+
+  it("conflictCopyPath builds the worker grammar and round-trips (2026-07-16)", () => {
+    const stamp = new Date("2026-07-16T09:15:30.123Z");
+    expect(conflictCopyPath("Notes/a.md", stamp)).toBe("Notes/a.CONFLICT-2026-07-16T09-15-30-123Z.md");
+    expect(conflictCopyPath("noext", stamp)).toBe("noext.CONFLICT-2026-07-16T09-15-30-123Z");
+    for (const p of ["Notes/a.md", "Tasks.base", "noext", "v1.2/notes.v2.md"]) {
+      const copy = conflictCopyPath(p, stamp);
+      expect(isConflictCopyPath(copy)).toBe(true);
+      expect(conflictOriginalPath(copy)).toBe(p);
+    }
   });
 });

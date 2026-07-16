@@ -132,6 +132,49 @@ describe("SyncEngine", () => {
     expect(params[3]).toBe("shaV1");             // guard = marker at push start
   });
 
+  it("persists the push journal BEFORE the upload and clears it once the base advanced (2026-07-16)", async () => {
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    vault.files.set("note.md", new TextEncoder().encode("v1 content"));
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([]); // getSyncState: no prior state
+
+    // The journal must already be on disk while the upload is in flight — that
+    // is the whole point (a lost response/killed app leaves it behind).
+    let journaledAtPushTime = false;
+    target.pushHook = async () => {
+      journaledAtPushTime = db.queries.some(
+        (q) => q.query.includes("pending_push_sha") && q.query.includes("INSERT INTO sync_state")
+      );
+    };
+
+    await engine.processQueue();
+
+    expect(journaledAtPushTime).toBe(true);
+    // Round-trip completed: the journal entry is retired again.
+    expect(db.queries.some((q) => q.query.includes("SET pending_push_sha = NULL"))).toBe(true);
+  });
+
+  it("keeps the push journal when the upload fails (the reconcile may meet its echo)", async () => {
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    vault.files.set("note.md", new TextEncoder().encode("v1 content"));
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([]); // getSyncState: no prior state
+    target.failPaths.add("note.md");
+
+    await engine.processQueue();
+
+    expect(db.queries.some(
+      (q) => q.query.includes("pending_push_sha") && q.query.includes("INSERT INTO sync_state")
+    )).toBe(true);
+    expect(db.queries.some((q) => q.query.includes("SET pending_push_sha = NULL"))).toBe(false);
+  });
+
   it("applies exponential backoff on failure", async () => {
     db.mockedResults.push([
       { id: 2, file_path: "fail.md", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 }

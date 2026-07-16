@@ -4,6 +4,13 @@ import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { isTextFile } from "./fileType.js";
 
+async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export class SyncEngine {
   private readonly maxRetryCount = 5;
   /**
@@ -63,13 +70,10 @@ export class SyncEngine {
               const state = this.stateRepo ? await this.stateRepo.getSyncState(op.file_path) : null;
               expectedLocalSha = state?.local_sha256 ?? null;
               op.content = await this.vault.readBinaryFile(op.file_path);
+              const currentSha = await sha256Bytes(op.content);
 
               // Skip push if local content is identical to base_sha256 (e.g. from a recent pull)
               if (state && state.base_sha256) {
-                 const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", op.content as BufferSource);
-                 const hashArray = Array.from(new Uint8Array(hashBuffer));
-                 const currentSha = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-
                  if (currentSha === state.base_sha256 && state.remote_etag) {
                    // Already in sync with the server, skip push.
                    await this.queue.markSynced(op.id, op.file_path, op.file_path);
@@ -102,6 +106,17 @@ export class SyncEngine {
                    }
                  }
               }
+
+              // Push journal (2026-07-16): persist the content hash BEFORE the
+              // upload starts. If the app dies (or the response is lost) after
+              // the server committed the write but before the base advanced
+              // below, the next reconcile finds the remote content equal to
+              // this journal entry and adopts it as our own echo instead of
+              // 3-way-merging it against the stale base — which fabricated
+              // .CONFLICT files from nothing but typing with pauses.
+              if (this.stateRepo) {
+                await this.stateRepo.setPendingPushSha(op.file_path, currentSha);
+              }
             } catch (err: any) {
               if (err.name === 'VaultFileNotFoundError') {
                 // File deleted before we could sync the write. Skip this op.
@@ -132,6 +147,9 @@ export class SyncEngine {
             throw err;
           }
           op = { ...op, operation: "write", file_path: op.new_path, new_path: undefined, content };
+          if (this.stateRepo) {
+            await this.stateRepo.setPendingPushSha(op.file_path, await sha256Bytes(content));
+          }
           result = await this.target.push(op);
         }
         const syncedPath = op.operation === "rename" && op.new_path ? op.new_path : op.file_path;
@@ -154,9 +172,7 @@ export class SyncEngine {
            }
 
            if (op.operation === "write" && op.content) {
-             const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", op.content as BufferSource);
-             const hashArray = Array.from(new Uint8Array(hashBuffer));
-             const shaStr = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+             const shaStr = await sha256Bytes(op.content);
 
              // Advance the merge base to the just-pushed content. This MUST happen even
              // when the server returns no ETag on PUT: if the base never advances, the next
@@ -177,6 +193,9 @@ export class SyncEngine {
              } else {
                await this.stateRepo.updateLocalHashGuarded(syncedPath, shaStr, expectedLocalSha);
              }
+             // The push round-trip completed and the base advanced: retire the
+             // push-journal entry (see setPendingPushSha above).
+             await this.stateRepo.clearPendingPushSha(syncedPath);
            }
         }
         consecutiveFailures = 0;

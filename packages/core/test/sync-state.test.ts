@@ -53,6 +53,37 @@ describe("SyncStateRepository", () => {
     expect(db.queries[0].params).toEqual(["note.md"]);
   });
 
+  it("setPendingPushSha upserts the push-journal entry (2026-07-16)", async () => {
+    await repo.setPendingPushSha("note.md", "sha-p1");
+    expect(db.queries.length).toBe(1);
+    const q = db.queries[0];
+    expect(q.query).toContain("INSERT INTO sync_state (path, pending_push_sha)");
+    expect(q.query).toContain("ON CONFLICT(path) DO UPDATE SET pending_push_sha = excluded.pending_push_sha");
+    expect(q.params).toEqual(["note.md", "sha-p1"]);
+  });
+
+  it("clearPendingPushSha nulls the journal entry without touching other columns", async () => {
+    await repo.clearPendingPushSha("note.md");
+    expect(db.queries.length).toBe(1);
+    expect(db.queries[0].query).toBe("UPDATE sync_state SET pending_push_sha = NULL WHERE path = ?");
+    expect(db.queries[0].params).toEqual(["note.md"]);
+  });
+
+  it("updateBaseText advances ONLY the merge base text (echo adoption)", async () => {
+    await repo.updateBaseText("note.md", "echo content");
+    expect(db.queries.length).toBe(1);
+    const q = db.queries[0];
+    expect(q.query).toContain("INSERT INTO sync_state (path, base_text)");
+    expect(q.query).toContain("ON CONFLICT(path) DO UPDATE SET base_text = excluded.base_text");
+    expect(q.query).not.toContain("local_sha256");
+    expect(q.params).toEqual(["note.md", "echo content"]);
+  });
+
+  it("getAllStates loads pending_push_sha into the per-cycle snapshot", async () => {
+    await repo.getAllStates();
+    expect(db.queries[0].query).toContain("pending_push_sha");
+  });
+
   it("updateRemoteState upserts remote state even without an existing row", async () => {
     await repo.updateRemoteState("note.md", "etag", "id", 100);
     expect(db.queries.length).toBe(1);

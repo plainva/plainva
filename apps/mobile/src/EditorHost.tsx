@@ -63,7 +63,14 @@ import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
-import { noteSaver, vaultOps, type MobileVault } from "./services/vaultService";
+import {
+  getLastPersistedText,
+  noteSaver,
+  rememberPersistedText,
+  vaultOps,
+  type MobileVault,
+} from "./services/vaultService";
+import { conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { syncSoon } from "./services/syncService";
 import { mPrompt } from "./services/mobileDialogs";
 
@@ -235,6 +242,10 @@ export function EditorHost({
       editable: editableRef.current,
     });
     sessionRef.current = session;
+    // The load-time snapshot IS the persisted disk state for this path (the
+    // rare draft-restore case self-corrects on the first save). Needed by the
+    // external-update guard below to tell our own echo from foreign content.
+    rememberPersistedText(path, initialDoc);
     // Search jump (P4): a parked jump from the search tab selects and
     // reveals the first occurrence once the session exists (rAF so the
     // first layout pass has happened before scrolling).
@@ -249,7 +260,73 @@ export function EditorHost({
         }
       });
     }
+
+    // External-update guard (2026-07-16, desktop 3e parity): a sync pull or
+    // auto-merge that rewrote THIS note used to be ignored entirely — the
+    // events were dispatched but nobody listened, so the next debounced save
+    // silently overwrote the foreign version, and the worker's reconcile
+    // preserved a stale typing-pause snapshot as .CONFLICT instead.
+    const handleExternalUpdate = async () => {
+      const s = sessionRef.current;
+      if (!s) return;
+      let disk: string;
+      try {
+        disk = await vaultOps.read(vault, path);
+      } catch {
+        return; // deleted/renamed under us; the tree refresh handles that
+      }
+      const draft = s.view.state.doc.toString();
+      const lastPersisted = getLastPersistedText(path);
+      const dirty =
+        noteSaver.hasPending(path) || (lastPersisted !== null && draft !== lastPersisted);
+      if (!dirty) {
+        // Clean buffer: realign to whatever reached the disk.
+        if (disk !== draft) {
+          s.applyExternalText(disk);
+          rememberPersistedText(path, disk);
+        }
+        return;
+      }
+      const action = decideDirtyExternalUpdate({ disk, draft, lastPersisted });
+      if (action === "realign") {
+        rememberPersistedText(path, disk);
+        return;
+      }
+      if (action === "own-echo") return; // our own save came back; keep typing
+      // preserve-conflict: a genuinely different version is on disk. Preserve
+      // the draft as a .CONFLICT sibling, adopt the disk version and drop the
+      // queued save (it would overwrite the foreign version right back).
+      noteSaver.discard(path);
+      try {
+        await vault.files.writeTextFile(conflictCopyPath(path), draft);
+      } catch (e) {
+        console.error("[EditorHost] preserving conflict copy failed", e);
+      }
+      sessionRef.current?.applyExternalText(disk);
+      rememberPersistedText(path, disk);
+      toast.warning(t("mobile.conflictPreserved"));
+    };
+    const onExternalUpdate = (ev: Event) => {
+      if ((ev as CustomEvent).detail?.path !== path) return;
+      void handleExternalUpdate();
+    };
+    const onAutoMerged = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { path?: string; mergedText?: string } | undefined;
+      if (d?.path !== path || typeof d.mergedText !== "string") return;
+      // Our save was 3-way-merged with a concurrent disk change. A clean
+      // buffer adopts the merge result; a dirty one keeps typing — its next
+      // save runs through the same merge chain and converges.
+      if (!noteSaver.hasPending(path)) {
+        sessionRef.current?.applyExternalText(d.mergedText);
+        rememberPersistedText(path, d.mergedText);
+      }
+    };
+    window.addEventListener("m-external-update", onExternalUpdate);
+    window.addEventListener("m-auto-merged", onAutoMerged);
+
     return () => {
+      window.removeEventListener("m-external-update", onExternalUpdate);
+      window.removeEventListener("m-auto-merged", onAutoMerged);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path);

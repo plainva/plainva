@@ -44,6 +44,15 @@ export interface SaveCoordinator<C> {
   flush(path?: string): Promise<void>;
   flushAll(): Promise<void>;
   hasPending(path?: string): boolean;
+  /**
+   * Drops the pending snapshot for a path WITHOUT writing it (2026-07-16).
+   * Used by the external-update conflict path: the draft was preserved as a
+   * .CONFLICT copy and the on-disk version adopted — the queued save must not
+   * overwrite it right back. An already in-flight write cannot be recalled,
+   * but dropping the entry prevents any further write (incl. latest-wins
+   * re-queues) of the discarded snapshot.
+   */
+  discard(path: string): void;
 }
 
 export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveCoordinator<C> {
@@ -137,6 +146,15 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
 
     hasPending(path?: string): boolean {
       return path === undefined ? entries.size > 0 : entries.has(path);
+    },
+
+    discard(path: string): void {
+      const entry = entries.get(path);
+      if (!entry) return;
+      clearTimers(entry);
+      // run()'s completion handlers re-check entries.get(path) === entry, so a
+      // deleted entry can neither re-run (latest-wins) nor re-arm a retry.
+      entries.delete(path);
     },
   };
 }

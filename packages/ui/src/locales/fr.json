@@ -1709,6 +1709,7 @@
     "conflictKeepOriginal": "Garder la note actuelle",
     "lastSync": "Dernière synchronisation : {{time}}",
     "baseEmpty": "Aucune entrée ne correspond à cette vue.",
+    "conflictPreserved": "Conflit : vos modifications ont été enregistrées comme copie de conflit.",
     "saveRetry": "Échec de l'enregistrement — nouvelle tentative en arrière-plan.",
     "noteMissing": "Cette note est introuvable.",
     "tabDatabases": "Bases de données",

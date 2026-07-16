@@ -55,6 +55,44 @@ describe("saveCoordinator", () => {
     expect(c.hasPending("A.md")).toBe(false);
   });
 
+  it("discard drops a debounced snapshot without writing it (2026-07-16)", async () => {
+    const writes: string[] = [];
+    const c = createSaveCoordinator<string>({
+      debounceMs: 10,
+      write: async (_ctx, _path, text) => {
+        writes.push(text);
+      },
+    });
+    c.schedule("v", "A.md", "draft");
+    c.discard("A.md"); // conflict path: the draft went to a .CONFLICT copy instead
+    await vi.advanceTimersByTimeAsync(100);
+    expect(writes).toEqual([]);
+    expect(c.hasPending("A.md")).toBe(false);
+  });
+
+  it("discard during an in-flight write prevents the latest-wins re-queue", async () => {
+    const finished: string[] = [];
+    let release: (() => void) | null = null;
+    const c = createSaveCoordinator<string>({
+      debounceMs: 10,
+      write: (_ctx, _path, text) =>
+        new Promise<void>((resolve) => {
+          release = () => {
+            finished.push(text);
+            resolve();
+          };
+        }),
+    });
+    c.schedule("v", "A.md", "first");
+    await vi.advanceTimersByTimeAsync(10); // first write in flight
+    c.schedule("v", "A.md", "second"); // newer snapshot queued behind it
+    c.discard("A.md"); // …but the conflict path discards it
+    release!();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(finished).toEqual(["first"]); // "second" was never written
+    expect(c.hasPending("A.md")).toBe(false);
+  });
+
   it("keeps the text pending on failure, reports the error and retries with backoff", async () => {
     const errors: number[] = [];
     let failuresLeft = 2;

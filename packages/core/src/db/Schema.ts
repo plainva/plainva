@@ -89,7 +89,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       base_etag TEXT,
       remote_id TEXT,
       last_sync_ts INTEGER,
-      base_text TEXT
+      base_text TEXT,
+      pending_push_sha TEXT
     );`,
 
     `CREATE TABLE IF NOT EXISTS meta (
@@ -154,6 +155,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   try {
     await db.execute(`ALTER TABLE files ADD COLUMN ctime INTEGER;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Push journal (2026-07-16): the content hash persisted BEFORE an upload
+    // starts, cleared once the base advanced. Lets the reconcile recognise its
+    // own upload coming back ("echo") when the push response was lost.
+    await db.execute(`ALTER TABLE sync_state ADD COLUMN pending_push_sha TEXT;`);
   } catch {
     // Column might already exist
   }

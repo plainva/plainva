@@ -1697,6 +1697,7 @@
     "conflictKeepOriginal": "現在のノートを維持",
     "lastSync": "最終同期: {{time}}",
     "baseEmpty": "このビューに一致する項目はありません。",
+    "conflictPreserved": "競合：変更は競合コピーとして保存されました。",
     "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。",
     "noteMissing": "このノートが見つかりません。",
     "tabDatabases": "データベース",

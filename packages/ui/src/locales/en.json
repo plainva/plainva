@@ -1703,6 +1703,7 @@
     "conflictKeepOriginal": "Keep the current note",
     "lastSync": "Last synced: {{time}}",
     "baseEmpty": "No entries match this view.",
+    "conflictPreserved": "Conflict: your edits were saved as a conflict copy.",
     "saveRetry": "Saving failed — retrying in the background.",
     "noteMissing": "This note could not be found.",
     "tabDatabases": "Databases",

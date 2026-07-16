@@ -16,3 +16,16 @@ export function conflictOriginalPath(conflictPath: string): string | null {
   if (bare) return bare[1];
   return null;
 }
+
+/**
+ * Builds a conflict-copy sibling path for `path` — the same grammar the sync
+ * worker uses (`<base>.CONFLICT-<iso-stamp><ext>`), so conflictOriginalPath
+ * and the conflict banners resolve editor-preserved drafts identically.
+ */
+export function conflictCopyPath(path: string, now: Date = new Date()): string {
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  const extMatch = path.match(/(\.[^.]+)$/);
+  const ext = extMatch ? extMatch[1] : "";
+  const base = extMatch ? path.substring(0, path.length - ext.length) : path;
+  return `${base}.CONFLICT-${timestamp}${ext}`;
+}

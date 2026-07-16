@@ -9,6 +9,15 @@ export interface SyncState {
   remote_id: string | null;
   last_sync_ts: number | null;
   base_text: string | null;
+  /**
+   * Push journal (2026-07-16): the content hash of the last upload we STARTED
+   * for this path, persisted before the network call and cleared once the
+   * base advanced after a confirmed push. Survives a killed app / lost
+   * response, so the next reconcile can recognise the remote content as our
+   * own upload ("echo") instead of merging it against a stale base — which
+   * used to produce .CONFLICT files out of nothing but typing with pauses.
+   */
+  pending_push_sha: string | null;
 }
 
 export class SyncStateRepository {
@@ -51,7 +60,7 @@ export class SyncStateRepository {
    */
   async getAllStates(): Promise<Map<string, SyncState>> {
     const rows = await this.db.query<SyncState>(
-      `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts FROM sync_state`
+      `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts, pending_push_sha FROM sync_state`
     );
     const map = new Map<string, SyncState>();
     for (const row of rows) {
@@ -189,6 +198,39 @@ export class SyncStateRepository {
          base_sha256 = excluded.base_sha256,
          base_etag = excluded.base_etag`,
       [path, baseSha256, baseEtag]
+    );
+  }
+
+  /**
+   * Records the content hash of an upload we are ABOUT to start (see
+   * SyncState.pending_push_sha). Persisted before the network call so a lost
+   * response / killed app leaves the journal entry behind for the reconcile.
+   */
+  async setPendingPushSha(path: string, sha256: string): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, pending_push_sha)
+       VALUES (?, ?)
+       ON CONFLICT(path) DO UPDATE SET pending_push_sha = excluded.pending_push_sha`,
+      [path, sha256]
+    );
+  }
+
+  /** Clears the push journal entry once the pushed base is fully recorded (or adopted as an echo). */
+  async clearPendingPushSha(path: string): Promise<void> {
+    await this.db.execute(`UPDATE sync_state SET pending_push_sha = NULL WHERE path = ?`, [path]);
+  }
+
+  /**
+   * Advances ONLY the merge base text — used when the reconcile adopts our own
+   * echoed upload as the new common ancestor while the local file (and its
+   * local_sha256 marker) stay ahead with unsynced edits.
+   */
+  async updateBaseText(path: string, baseText: string): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, base_text)
+       VALUES (?, ?)
+       ON CONFLICT(path) DO UPDATE SET base_text = excluded.base_text`,
+      [path, baseText]
     );
   }
 

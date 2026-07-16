@@ -38,6 +38,8 @@ describe("SyncWorker", () => {
       updateLocalHashGuarded: vi.fn().mockResolvedValue(undefined),
       updateRemoteState: vi.fn().mockResolvedValue(undefined),
       updateBaseState: vi.fn().mockResolvedValue(undefined),
+      updateBaseText: vi.fn().mockResolvedValue(undefined),
+      clearPendingPushSha: vi.fn().mockResolvedValue(undefined),
       deleteSyncState: vi.fn().mockResolvedValue(undefined),
       getBaseText: vi.fn().mockResolvedValue(null)
     };
@@ -893,6 +895,63 @@ describe("SyncWorker", () => {
     expect(target.pull.mock.calls.at(-1)).toEqual([]);
   });
 
+  describe("own-push echo adoption via the push journal (2026-07-16)", () => {
+    it("adopts its own echoed push instead of fabricating a .CONFLICT", async () => {
+      // The upload of P1 committed remotely (new etag) but the response was
+      // lost (app killed/backgrounded); the user kept typing (P2 on disk).
+      // Without the journal this merged P1 against the stale base and wrote a
+      // .CONFLICT holding the typing-pause snapshot — the maintainer report.
+      const p1 = "note v1 (pushed, response lost)";
+      const p2 = "note v1 (pushed, response lost)\nplus newer typing";
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["note.md", "etag-p1"]]) });
+      target.download.mockResolvedValueOnce(new TextEncoder().encode(p1));
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue(p2);
+      stateRepo.getAllStates.mockResolvedValueOnce(new Map([["note.md", {
+        local_sha256: await sha(p2),
+        base_sha256: "sha-p0-stale",
+        base_etag: "etag-p0",
+        remote_etag: "etag-p0",
+        pending_push_sha: await sha(p1),
+      }]]));
+
+      await worker.runCycle();
+
+      // No conflict copy, the (newer) local file untouched…
+      expect(vault.writeTextFile).not.toHaveBeenCalled();
+      // …the echo became the new common ancestor…
+      expect(stateRepo.updateBaseText).toHaveBeenCalledWith("note.md", p1);
+      expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(p1), "etag-p1");
+      expect(stateRepo.clearPendingPushSha).toHaveBeenCalledWith("note.md");
+      // …and the newer local content is (re-)queued for push.
+      expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    });
+
+    it("a genuinely foreign remote change still preserves a .CONFLICT despite a stale journal entry", async () => {
+      const foreign = "someone else's version";
+      const local = "my diverged local version";
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([["note.md", "etag-x"]]) });
+      target.download.mockResolvedValueOnce(new TextEncoder().encode(foreign));
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue(local);
+      stateRepo.getAllStates.mockResolvedValueOnce(new Map([["note.md", {
+        local_sha256: await sha(local),
+        base_sha256: "sha-p0-stale",
+        base_etag: "etag-p0",
+        remote_etag: "etag-p0",
+        pending_push_sha: await sha("what we pushed, NOT what came back"),
+      }]]));
+
+      await worker.runCycle();
+
+      const conflictWrite = vault.writeTextFile.mock.calls.find(([p]: [string]) => p.includes(".CONFLICT"));
+      expect(conflictWrite).toBeDefined();
+      expect(conflictWrite![1]).toBe(local);
+      expect(vault.writeTextFile).toHaveBeenCalledWith("note.md", foreign);
+      expect(stateRepo.clearPendingPushSha).not.toHaveBeenCalled();
+    });
+  });
+
   describe("mobile responsiveness + freeze recovery (2026-07-16)", () => {
     it("fullResync resets stuck queue ops, drops the cursor and full-lists immediately", async () => {
       worker["cursor"] = "c1";
@@ -979,36 +1038,31 @@ describe("SyncWorker", () => {
       }
     });
 
-    it("a healthy long first sync never trips the watchdog (activity resets the idle clock)", async () => {
+    it("cycle ACTIVITY resets the watchdog idle clock — a slow but alive cycle is never abandoned", async () => {
+      // The watchdog measures INACTIVITY, not total duration: a long first
+      // sync bumps activity on every per-file step (guardPullStep /
+      // emitProgress), so 25 min of wall clock with steady progress must
+      // neither warn nor abandon. (Simulated via noteCycleActivity — mixing
+      // fake timers with real crypto digests inside a full runCycle races
+      // the virtual clock against real async work and flakes under load.)
       vi.useFakeTimers();
       try {
-        // pull resolves promptly; the cycle then reconciles files one by one,
-        // each step taking 5 min of wall clock but BUMPING cycle activity.
-        target.pull = vi.fn().mockResolvedValue({
-          etagMap: new Map([
-            ["a.md", "e1"],
-            ["b.md", "e2"],
-            ["c.md", "e3"],
-            ["d.md", "e4"],
-          ]),
-        });
-        target.download = vi.fn(
-          () =>
-            new Promise<Uint8Array>((resolve) => {
-              setTimeout(() => resolve(new TextEncoder().encode("x")), 5 * 60_000);
-            })
-        );
+        target.pull = vi.fn(() => new Promise(() => {})); // the cycle "runs" the whole test
         const statuses: Array<{ s: string; e?: string }> = [];
         worker.onStatusChange = (s, e) => statuses.push({ s, e });
         worker["isRunning"] = false;
         worker.start();
         await vi.advanceTimersByTimeAsync(0);
+        expect(worker["isSyncing"]).toBe(true);
 
-        // 4 files x 5 min = 20 min total cycle time, activity every 5 min.
-        await vi.advanceTimersByTimeAsync(21 * 60_000);
+        for (let i = 0; i < 5; i++) {
+          await vi.advanceTimersByTimeAsync(5 * 60_000);
+          worker["noteCycleActivity"](); // per-file progress, every 5 virtual minutes
+        }
 
-        expect(statuses.some((x) => /abandoned/i.test(x.e ?? ""))).toBe(false);
-        expect(statuses.some((x) => x.s === "idle")).toBe(true); // the cycle completed
+        // 25 min total, but idle never reached the 10-min warn threshold.
+        expect(statuses.some((x) => /stuck|abandoned/i.test(x.e ?? ""))).toBe(false);
+        expect(worker["isSyncing"]).toBe(true);
         worker.stop();
       } finally {
         vi.useRealTimers();

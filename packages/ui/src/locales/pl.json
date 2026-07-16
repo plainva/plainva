@@ -1715,6 +1715,7 @@
     "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
     "lastSync": "Ostatnia synchronizacja: {{time}}",
     "baseEmpty": "Żadne wpisy nie pasują do tego widoku.",
+    "conflictPreserved": "Konflikt: Twoje zmiany zapisano jako kopię konfliktu.",
     "saveRetry": "Zapis nie powiódł się — ponawianie w tle.",
     "noteMissing": "Nie znaleziono tej notatki.",
     "tabDatabases": "Bazy danych",

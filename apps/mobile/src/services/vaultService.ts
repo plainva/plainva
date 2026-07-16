@@ -160,6 +160,9 @@ export async function createLocalVault(name: string): Promise<string> {
 }
 
 async function boot(entry: VaultEntry): Promise<MobileVault> {
+  // Paths are vault-relative: a stale lastPersisted entry from another vault
+  // must never classify this vault's disk content as our own echo.
+  clearPersistedTextCache();
   // The default local vault keeps the legacy container/db paths (existing
   // data); every other vault — cloud OR an additional local vault — gets its
   // own vaults/<id>. "Local" (no provider) means there is no remote to pull
@@ -650,6 +653,26 @@ export const vaultOps = {
 };
 
 /**
+ * Text of the editor's last own write (or load) per path — the mobile side of
+ * the desktop's lastPersisted tracking (2026-07-16). decideDirtyExternalUpdate
+ * compares the on-disk content against this to tell our own save echo from a
+ * genuinely foreign version reaching the disk (sync pull, auto-merge).
+ */
+const lastPersistedText = new Map<string, string>();
+
+export function rememberPersistedText(path: string, text: string): void {
+  lastPersistedText.set(path, text);
+}
+
+export function getLastPersistedText(path: string): string | null {
+  return lastPersistedText.get(path) ?? null;
+}
+
+export function clearPersistedTextCache(): void {
+  lastPersistedText.clear();
+}
+
+/**
  * Shared note-save coordinator (hardening P2 mobile, finding M1): owns the
  * pending text outside any component lifecycle — single-flight per note,
  * latest-write-wins revisions, retry with backoff, and the text survives
@@ -658,7 +681,10 @@ export const vaultOps = {
  * keep running silently in the background.
  */
 export const noteSaver = createSaveCoordinator<MobileVault>({
-  write: (vault, path, text) => vaultOps.save(vault, path, text),
+  write: async (vault, path, text) => {
+    await vaultOps.save(vault, path, text);
+    rememberPersistedText(path, text);
+  },
   onSchedule: (vault, path, text) => writeDraft(vault, path, text),
   onSaved: (path, vault) => {
     clearDraft(vault, path);

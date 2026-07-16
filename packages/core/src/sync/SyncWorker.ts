@@ -636,6 +636,16 @@ export class SyncWorker {
       localShaAtRead = localSha;
       if (localSha === remoteSha) {
         writeNeeded = false; // identical content
+      } else if (state?.pending_push_sha && remoteSha === state.pending_push_sha) {
+        // Own-push echo (2026-07-16, see reconcilePulledFile): the local bytes
+        // are newer unsynced work — keep them, adopt the echoed content as the
+        // base and re-queue the local push instead of writing a .CONFLICT.
+        console.log(`[SyncWorker] adopting own echoed binary push for ${path} (response was lost)`);
+        await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
+        await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+        await this.stateRepo.clearPendingPushSha(path);
+        await this.queue.queueWrite(path);
+        return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         writeNeeded = true; // local unchanged since base -> fast-forward to remote
       } else {
@@ -754,6 +764,22 @@ export class SyncWorker {
 
       if (localSha === remoteSha) {
         mergedContent = remoteContent; // identical content
+      } else if (state?.pending_push_sha && remoteSha === state.pending_push_sha) {
+        // Own-push echo (2026-07-16): the remote content IS the upload whose
+        // response we lost (app killed/backgrounded mid-push, timed-out call
+        // that the server still committed). The local file already carries
+        // NEWER edits typed since then. Merging the echo against the stale
+        // base fabricated a .CONFLICT holding the typing-pause snapshot and
+        // reset the main file — instead, adopt the echo as the new common
+        // ancestor, leave the local file untouched and (re-)queue its push
+        // (the original queue op may have been consumed before the kill).
+        console.log(`[SyncWorker] adopting own echoed push for ${path} (response was lost)`);
+        await this.stateRepo.updateBaseText(path, remoteContent);
+        await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+        await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
+        await this.stateRepo.clearPendingPushSha(path);
+        await this.queue.queueWrite(path);
+        return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         mergedContent = remoteContent; // local unchanged since base -> fast-forward
       } else if (state && state.base_sha256) {
