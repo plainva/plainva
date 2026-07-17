@@ -1776,6 +1776,10 @@
     "phMath": "数式",
     "phEmbed": "埋め込みコンテンツ",
     "sortActive": "並べ替えルールが有効のため、手動での配置はできません。",
-    "cardMenu": "カードメニュー"
+    "cardMenu": "カードメニュー",
+    "capturePlaceholder": "メモを書く…",
+    "labels": "ラベル",
+    "addLabel": "ラベルを検索…",
+    "newLabel": "「{{name}}」を作成"
   }
 }

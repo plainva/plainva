@@ -17,6 +17,7 @@ import {
 } from "@plainva/ui";
 import {
   baseStemOf,
+  buildCaptureContent,
   buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
@@ -24,6 +25,7 @@ import {
   nextItemName,
   relationPrefill,
 } from "../services/newItemFlow";
+import { captureFileName } from "@plainva/ui";
 import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -672,6 +674,56 @@ export function BaseViewer({
       return;
     }
     await doCreateItem(dbConfig, target.folder, target.inheritTags, template);
+  };
+
+  // Quick capture (plan Pinboard P4): Enter in the board's capture field
+  // creates a Keep-style sticky note — the typed text IS the body (no
+  // template, no auto-H1), named after its first words (timestamp-free
+  // fallback: the base's item naming). The new card floats on top via ctime
+  // (§3); no peek opens — capture stays in the flow.
+  const quickCapture = async (text: string): Promise<boolean> => {
+    if (!dbConfig || !vaultAdapter || !vaultPath || newItemBusy) return false;
+    const target = resolveNewItemTarget(dbConfig);
+    if (!target.folder) {
+      setFolderDialog({ mode: target.pending === "choice" ? "choice" : "setup", pendingTemplate: undefined });
+      return false;
+    }
+    setNewItemBusy(true);
+    try {
+      const dir = target.folder.replace(/\/+$/, "");
+      const withDir = (n: string) => (dir ? dir + "/" : "") + n + ".md";
+      const stem = captureFileName(text);
+      let name: string;
+      if (stem) {
+        name = stem;
+        for (let n = 2; await vaultAdapter.exists(withDir(name)).catch(() => false); n++) {
+          name = `${stem} ${n}`;
+        }
+      } else {
+        name = await nextItemName(baseStemOf(activePath), dbData.length, (n) =>
+          vaultAdapter.exists(withDir(n)).catch(() => false)
+        );
+      }
+      const path = withDir(name);
+      const content = buildCaptureContent({
+        text,
+        noteType: await getConfiguredNoteType(vaultPath),
+        inheritTags: target.inheritTags,
+      });
+      await vaultAdapter.writeTextFile(path, content);
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
+      triggerFileTreeUpdate();
+      notifyFileOps([{ type: "create", path }]);
+      window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+      setRefreshTick((n) => n + 1);
+      return true;
+    } catch (e) {
+      console.error("[BaseViewer] quick capture failed", e);
+      toast.error(String((e as { message?: string })?.message ?? e));
+      return false;
+    } finally {
+      setNewItemBusy(false);
+    }
   };
 
   const confirmFolderDialog = async (folder: string) => {
@@ -1645,10 +1697,12 @@ export function BaseViewer({
       return (
         <BasePinboardView
           dbData={scopedData}
+          dbConfig={dbConfig}
           activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
           onPatchView={patchActiveView}
           onOpenNote={requestOpen}
           onOpenInSplit={onOpenInSplit}
+          onQuickCapture={quickCapture}
           embedded={embedded}
         />
       );

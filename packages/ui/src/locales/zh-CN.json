@@ -1776,6 +1776,10 @@
     "phMath": "公式",
     "phEmbed": "嵌入内容",
     "sortActive": "排序规则已启用——手动排列已停用。",
-    "cardMenu": "卡片菜单"
+    "cardMenu": "卡片菜单",
+    "capturePlaceholder": "写个便签…",
+    "labels": "标签",
+    "addLabel": "搜索标签…",
+    "newLabel": "创建“{{name}}”"
   }
 }

@@ -1782,6 +1782,10 @@
     "phMath": "Formel",
     "phEmbed": "Eingebetteter Inhalt",
     "sortActive": "Sortierregel aktiv — manuelles Anordnen ist deaktiviert.",
-    "cardMenu": "Karten-Menü"
+    "cardMenu": "Karten-Menü",
+    "capturePlaceholder": "Notiz schreiben…",
+    "labels": "Labels",
+    "addLabel": "Label suchen…",
+    "newLabel": "„{{name}}“ anlegen"
   }
 }

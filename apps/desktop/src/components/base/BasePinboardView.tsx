@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Columns2, ExternalLink, Pin, PinOff, Trash2 } from "lucide-react";
+import { Check, Columns2, ExternalLink, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import {
   DocIcon,
@@ -12,22 +12,26 @@ import {
   PALETTE_SWATCH,
   applyPin,
   applyUnpin,
+  chipClass,
   distributeCards,
   dropSlotAt,
+  filterCardPaths,
   isRenderableDocIcon,
   loadImageBlob,
   noteDisplayName,
   orderCards,
   parseNoteCard,
+  parseSourceClause,
   pinboardColumnCount,
   resolveVaultRelative,
   spliceIntoSequence,
+  splitMultiValue,
   toast,
   toggleTaskAtIndex,
   type ParsedNoteCard,
   type PinboardDropSlot,
 } from "@plainva/ui";
-import { setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
+import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
 import { confirmDeletion } from "../../services/deleteConfirm";
@@ -61,6 +65,8 @@ interface CardVM {
   parsed: ParsedNoteCard;
   title: string | null;
   data: NoteCardData;
+  /** The query row (label property values live here in property mode). */
+  row: any;
 }
 
 function CardImage({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
@@ -102,18 +108,24 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
 
 export function BasePinboardView({
   dbData,
+  dbConfig,
   activeView,
   onPatchView,
   onOpenNote,
   onOpenInSplit,
+  onQuickCapture,
   embedded,
 }: {
   dbData: any[];
+  /** Full config (sources for the source-tag exclusion, columns for label options). */
+  dbConfig: any;
   /** The active view object (pinboardOrder/pinboardPinned/sort live here). */
   activeView: any;
   onPatchView: (patch: Record<string, unknown>) => void;
   onOpenNote: (path: string, ev?: { ctrlKey?: boolean; metaKey?: boolean }) => void;
   onOpenInSplit?: (path: string) => void;
+  /** Quick capture (P4): resolves true when the note was created. */
+  onQuickCapture?: (text: string) => Promise<boolean>;
   /** Embedded boards are read-mostly (D5): no drag reorder, no capture. */
   embedded?: boolean;
 }) {
@@ -142,7 +154,7 @@ export function BasePinboardView({
       const data = cardData[path] ?? { content: "", tags: [], ctime: null };
       const parsed = parseNoteCard(data.content, { dropLeadingH1: true });
       const title = parsed.fmTitle ?? parsed.leadingH1 ?? null; // titleless like Keep otherwise
-      map.set(path, { path, mtime: Number(row["file.mtime"] ?? 0), parsed, title, data });
+      map.set(path, { path, mtime: Number(row["file.mtime"] ?? 0), parsed, title, data, row });
     }
     return map;
   }, [dbData, cardData]);
@@ -162,6 +174,55 @@ export function BasePinboardView({
     const rows = paths.map((p) => ({ path: p, ctime: cards.get(p)?.data.ctime ?? null, mtime: cards.get(p)?.mtime ?? 0 }));
     return orderCards(rows, order, pinnedList);
   }, [hasSort, paths, cards, order, pinnedList]);
+
+  // ── Labels & chip bar (P4): tags (default) or a multiselect property ──
+  const filterByRaw = typeof activeView?.pinboardFilterBy === "string" ? activeView.pinboardFilterBy : "tags";
+  const labelProp = filterByRaw !== "tags" ? filterByRaw.replace(/^note\./, "") : null;
+  // Tags that ARE the board's source sit on every card — useless as chips.
+  const sourceTags = useMemo(() => {
+    const set = new Set<string>();
+    const scan = (list: any[]) => {
+      for (const f of Array.isArray(list) ? list : []) {
+        const s = parseSourceClause(f);
+        if (s?.type === "tag") set.add(s.value);
+      }
+    };
+    scan(dbConfig?.filters?.and);
+    scan(dbConfig?.filters?.or);
+    return set;
+  }, [dbConfig]);
+  const labelsByPath = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const [p, vm] of cards) {
+      if (labelProp) {
+        m.set(p, splitMultiValue(vm.row?.[labelProp]).map(String));
+      } else {
+        m.set(p, vm.data.tags.filter((t) => !sourceTags.has(t)));
+      }
+    }
+    return m;
+  }, [cards, labelProp, sourceTags]);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const labelOptions: { value: string; color?: string }[] = useMemo(
+    () => (labelProp && Array.isArray(dbConfig?.columns?.[labelProp]?.options) ? dbConfig.columns[labelProp].options : []),
+    [dbConfig, labelProp],
+  );
+  const chipEntries = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const labels of labelsByPath.values()) for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
+    // Curated options keep their configured order (property mode), the rest
+    // sorts by frequency then name.
+    const curated = labelOptions.map((o) => o.value).filter((v) => counts.has(v));
+    const rest = [...counts.keys()].filter((v) => !curated.includes(v)).sort((a, b) => (counts.get(b)! - counts.get(a)!) || a.localeCompare(b));
+    return [...curated, ...rest].map((value) => ({ value, count: counts.get(value) ?? 0, color: labelOptions.find((o) => o.value === value)?.color }));
+  }, [labelsByPath, labelOptions]);
+  const visibleSections = useMemo(
+    () => ({
+      pinned: filterCardPaths(sections.pinned, labelsByPath, selectedLabels),
+      unpinned: filterCardPaths(sections.unpinned, labelsByPath, selectedLabels),
+    }),
+    [sections, labelsByPath, selectedLabels],
+  );
 
   // ── Masonry: container width -> column count; card heights via ONE observer ──
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -225,12 +286,14 @@ export function BasePinboardView({
   }, []);
 
   const columnCount = pinboardColumnCount(containerWidth, CARD_WIDTH, GAP);
+  // The chip-FILTERED sequences render; ordering/drag splice into the full
+  // sections so hidden cards keep their positions (D3).
   const columns = useMemo(
     () => ({
-      pinned: distributeCards(sections.pinned, heights, columnCount),
-      unpinned: distributeCards(sections.unpinned, heights, columnCount),
+      pinned: distributeCards(visibleSections.pinned, heights, columnCount),
+      unpinned: distributeCards(visibleSections.unpinned, heights, columnCount),
     }),
-    [sections, columnCount, heights],
+    [visibleSections, columnCount, heights],
   );
 
   // ── Writes: every card mutation re-reads the file, writes through the
@@ -301,6 +364,54 @@ export function BasePinboardView({
       toast.error(t("dialogs.deleteErrorMsg", { error: err?.message ?? String(err) }));
     }
   }, [vaultAdapter, indexer, syncWorker, t, triggerFileTreeUpdate]);
+
+  // ── Label editing (P4): tags mode writes the frontmatter tags list, property
+  //    mode the multiselect value — both through the surgical updater and the
+  //    adapter chain. Inline #tags show but cannot be removed here (they live
+  //    in the text); the popover disables them.
+  const [labelEdit, setLabelEdit] = useState<{ path: string; x: number; y: number; fmTags: string[] | null } | null>(null);
+  const [labelQuery, setLabelQuery] = useState("");
+  const openLabelEditor = useCallback(async (path: string, at: { x: number; y: number }) => {
+    setLabelQuery("");
+    if (labelProp) {
+      setLabelEdit({ path, x: at.x, y: at.y, fmTags: null });
+      return;
+    }
+    let fmTags: string[] = [];
+    try {
+      const fresh = vaultAdapter ? await vaultAdapter.readTextFile(path) : "";
+      const raw = readFrontmatterPath(fresh, ["tags"]);
+      fmTags = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
+    } catch {
+      /* missing file — the self-heal drops the card on the next query */
+    }
+    setLabelEdit({ path, x: at.x, y: at.y, fmTags });
+  }, [labelProp, vaultAdapter]);
+
+  const toggleLabel = useCallback(async (path: string, label: string, add: boolean) => {
+    if (!vaultAdapter) return;
+    try {
+      const fresh = await vaultAdapter.readTextFile(path);
+      let next: string;
+      if (labelProp) {
+        const current = splitMultiValue(readFrontmatterPath(fresh, [labelProp])).map(String);
+        const list = add ? (current.includes(label) ? current : [...current, label]) : current.filter((v) => v !== label);
+        next = list.length > 0 ? setFrontmatterPath(fresh, [labelProp], list) : deleteFrontmatterPath(fresh, [labelProp]);
+      } else {
+        const raw = readFrontmatterPath(fresh, ["tags"]);
+        const current = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" && raw ? [raw] : [];
+        const list = add ? (current.includes(label) ? current : [...current, label]) : current.filter((v) => v !== label);
+        next = list.length > 0 ? setFrontmatterPath(fresh, ["tags"], list) : deleteFrontmatterPath(fresh, ["tags"]);
+        setLabelEdit((s) => (s && s.path === path ? { ...s, fmTags: list } : s));
+      }
+      if (next !== fresh) {
+        await vaultAdapter.writeTextFile(path, next);
+        await afterCardWrite(path, true); // tags/properties are index metadata
+      }
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e));
+    }
+  }, [vaultAdapter, labelProp, afterCardWrite]);
 
   // ── Drag reorder (splice semantics, D3); disabled when a sort rule is set ──
   const canDrag = !hasSort && !embedded;
@@ -379,6 +490,10 @@ export function BasePinboardView({
   // ── Context menu ──
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
 
+  // ── Quick capture field (P4) ──
+  const [captureText, setCaptureText] = useState("");
+  const [captureBusy, setCaptureBusy] = useState(false);
+
   const cardLabels = useMemo(
     () => ({
       table: t("pinboard.phTable", { defaultValue: "Tabelle" }),
@@ -443,6 +558,18 @@ export function BasePinboardView({
             <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 28, background: "linear-gradient(transparent, var(--bg-secondary))" }} />
           )}
         </div>
+        {(labelsByPath.get(path) ?? []).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+            {(labelsByPath.get(path) ?? []).slice(0, 4).map((l) => (
+              <span key={l} className={labelProp ? chipClass(l, labelOptions.find((o) => o.value === l)?.color) : undefined} style={labelProp ? { fontSize: "var(--text-xs)" } : { fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-pill)", padding: "0 7px" }}>
+                {labelProp ? l : `#${l}`}
+              </span>
+            ))}
+            {(labelsByPath.get(path) ?? []).length > 4 && (
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>+{(labelsByPath.get(path) ?? []).length - 4}</span>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="pv-pinboard-pin"
@@ -487,16 +614,78 @@ export function BasePinboardView({
     </div>
   );
 
-  if (!dbData || dbData.length === 0) {
-    return <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>;
-  }
-
   const menuVm = menu ? cards.get(menu.path) : null;
   const menuPinned = menu ? sections.pinned.includes(menu.path) : false;
+  const boardWidth = Math.min(containerWidth, columnCount * (CARD_WIDTH + GAP) - GAP);
 
   return (
-    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} title={hasSort && canDrag === false && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
-      {sections.pinned.length > 0 && (
+    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} title={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
+      {/* Quick capture (P4) — Keep's "take a note" field; embeds are read-mostly (D5). */}
+      {!embedded && onQuickCapture && (
+        <input
+          type="text"
+          value={captureText}
+          data-pinboard-capture="true"
+          placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
+          aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
+          onChange={(e) => setCaptureText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || captureBusy) return;
+            const text = captureText.trim();
+            if (!text) return;
+            setCaptureBusy(true);
+            void onQuickCapture(text)
+              .then((ok) => { if (ok) setCaptureText(""); })
+              .finally(() => setCaptureBusy(false));
+          }}
+          style={{
+            display: "block",
+            width: boardWidth > 0 ? boardWidth : "100%",
+            maxWidth: 560,
+            margin: "0 0 12px",
+            padding: "9px 12px",
+            border: "1px solid var(--border-color)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--bg-secondary)",
+            color: "var(--text-main)",
+            fontSize: "var(--text-ui)",
+            outline: "none",
+          }}
+        />
+      )}
+      {/* Label chip bar (P4): session-local AND filter; the arrangement always
+          splices into the full sequence, so hidden cards keep their spots. */}
+      {chipEntries.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 12px" }}>
+          {chipEntries.map((c) => {
+            const active = selectedLabels.includes(c.value);
+            return (
+              <button
+                key={c.value}
+                type="button"
+                data-pinboard-chip={c.value}
+                aria-pressed={active}
+                onClick={() => setSelectedLabels((sel) => (active ? sel.filter((v) => v !== c.value) : [...sel, c.value]))}
+                className={labelProp && !active ? chipClass(c.value, c.color) : undefined}
+                style={{
+                  fontSize: "var(--text-sm)",
+                  padding: "2px 10px",
+                  borderRadius: "var(--radius-pill)",
+                  border: active ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
+                  background: active ? "var(--accent-color)" : labelProp ? undefined : "var(--bg-secondary)",
+                  color: active ? "var(--accent-on)" : labelProp ? undefined : "var(--text-main)",
+                  cursor: "pointer",
+                }}
+              >
+                {labelProp ? c.value : `#${c.value}`}
+                <span style={{ marginLeft: 5, opacity: 0.7, fontSize: "var(--text-xs)" }}>{c.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {dbData.length === 0 && <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>}
+      {visibleSections.pinned.length > 0 && (
         <>
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 8px 2px" }}>
             {t("pinboard.pinned", { defaultValue: "Angepinnt" })}
@@ -525,6 +714,9 @@ export function BasePinboardView({
               onSelect={() => handlePinToggle(menu.path, !menuPinned)}
             >
               {menuPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" })}
+            </MenuItem>
+            <MenuItem icon={<Tags size={14} />} onSelect={() => void openLabelEditor(menu.path, { x: menu.x, y: menu.y })}>
+              {t("pinboard.labels", { defaultValue: "Labels" })}
             </MenuItem>
             <MenuSeparator />
             <div role="presentation" style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px" }}>
@@ -560,6 +752,64 @@ export function BasePinboardView({
             </MenuItem>
           </>
         )}
+      </MenuSurface>
+
+      {/* Label editor (P4): toggle list with typeahead; tags mode can create a
+          new label (tags exist through use), inline-only #tags stay disabled
+          (they live in the note text, not the frontmatter). */}
+      <MenuSurface open={!!labelEdit} onClose={() => setLabelEdit(null)} at={labelEdit ? { x: labelEdit.x, y: labelEdit.y } : undefined} ariaLabel={t("pinboard.labels", { defaultValue: "Labels" })} minWidth={220}>
+        {labelEdit && (() => {
+          const current = labelsByPath.get(labelEdit.path) ?? [];
+          const q = labelQuery.trim();
+          const candidates = [...new Set([
+            ...chipEntries.map((c) => c.value),
+            ...(labelProp ? labelOptions.map((o) => o.value) : []),
+            ...current,
+          ])].filter((v) => !q || v.toLowerCase().includes(q.toLowerCase()));
+          const canCreate = !labelProp && q.length > 0 && !candidates.some((v) => v.toLowerCase() === q.toLowerCase());
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 280 }}>
+              <input
+                type="text"
+                value={labelQuery}
+                autoFocus
+                placeholder={t("pinboard.addLabel", { defaultValue: "Label suchen…" })}
+                aria-label={t("pinboard.addLabel", { defaultValue: "Label suchen…" })}
+                onChange={(e) => setLabelQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canCreate) {
+                    void toggleLabel(labelEdit.path, q.replace(/^#/, ""), true);
+                    setLabelQuery("");
+                  }
+                }}
+                style={{ margin: "2px 6px 6px", padding: "5px 8px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", background: "var(--bg-secondary)", color: "var(--text-main)", fontSize: "var(--text-sm)", outline: "none" }}
+              />
+              <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                {candidates.map((v) => {
+                  const has = current.includes(v);
+                  // A tag the note carries but the frontmatter does not is inline-only.
+                  const inlineOnly = !labelProp && has && labelEdit.fmTags !== null && !labelEdit.fmTags.includes(v);
+                  return (
+                    <MenuItem
+                      key={v}
+                      keepOpen
+                      disabled={inlineOnly}
+                      icon={has ? <Check size={13} /> : <span style={{ width: 13, display: "inline-block" }} />}
+                      onSelect={() => { if (!inlineOnly) void toggleLabel(labelEdit.path, v, !has); }}
+                    >
+                      {labelProp ? v : `#${v}`}
+                    </MenuItem>
+                  );
+                })}
+                {canCreate && (
+                  <MenuItem keepOpen icon={<Tags size={13} />} onSelect={() => { void toggleLabel(labelEdit.path, q.replace(/^#/, ""), true); setLabelQuery(""); }}>
+                    {t("pinboard.newLabel", { defaultValue: "„{{name}}“ anlegen", name: q })}
+                  </MenuItem>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </MenuSurface>
       <style>{`
         .pv-pinboard-pin { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }

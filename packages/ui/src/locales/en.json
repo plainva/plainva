@@ -1782,6 +1782,10 @@
     "phMath": "Formula",
     "phEmbed": "Embedded content",
     "sortActive": "Sort rule active — manual arranging is disabled.",
-    "cardMenu": "Card menu"
+    "cardMenu": "Card menu",
+    "capturePlaceholder": "Write a note…",
+    "labels": "Labels",
+    "addLabel": "Search labels…",
+    "newLabel": "Create “{{name}}”"
   }
 }

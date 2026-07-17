@@ -5,11 +5,13 @@ import {
   captureFileName,
   distributeCards,
   dropSlotAt,
+  filterCardPaths,
   orderCards,
   pinboardColumnCount,
   retargetPinboardPaths,
   spliceIntoSequence,
 } from "@plainva/ui";
+import { buildCaptureContent } from "./newItemFlow";
 
 const row = (path: string, ctime: number | null, mtime = 0) => ({ path, ctime, mtime });
 
@@ -109,6 +111,36 @@ describe("dropSlotAt", () => {
   });
   it("returns end when the pointer misses every card", () => {
     expect(dropSlotAt(rects, ["a", "b"], 500, 500)).toEqual({ kind: "end" });
+  });
+});
+
+describe("filterCardPaths (P4 chip filter)", () => {
+  const labels = new Map<string, string[]>([
+    ["a.md", ["einkauf", "privat/haus"]],
+    ["b.md", ["einkauf"]],
+    ["c.md", []],
+  ]);
+  it("keeps every card without a selection and AND-combines selected chips", () => {
+    expect(filterCardPaths(["a.md", "b.md", "c.md"], labels, [])).toEqual(["a.md", "b.md", "c.md"]);
+    expect(filterCardPaths(["a.md", "b.md", "c.md"], labels, ["einkauf"])).toEqual(["a.md", "b.md"]);
+    expect(filterCardPaths(["a.md", "b.md", "c.md"], labels, ["einkauf", "privat/haus"])).toEqual(["a.md"]);
+  });
+  it("matches tag labels hierarchically (privat also matches privat/haus)", () => {
+    expect(filterCardPaths(["a.md", "b.md"], labels, ["privat"])).toEqual(["a.md"]);
+  });
+});
+
+describe("buildCaptureContent (P4 quick capture)", () => {
+  it("keeps the typed text as the body — no auto-H1, OKF frontmatter added", () => {
+    const c = buildCaptureContent({ text: "Milch kaufen\n- [ ] Brot", noteType: "Note", inheritTags: [] });
+    expect(c).toMatch(/^---\n/); // OKF frontmatter
+    expect(c).toContain("type: Note");
+    expect(c).toContain("Milch kaufen\n- [ ] Brot");
+    expect(c).not.toContain("# Milch"); // deliberately no heading
+  });
+  it("merges inherited source tags into the frontmatter", () => {
+    const c = buildCaptureContent({ text: "Text", noteType: "Note", inheritTags: ["zettel"] });
+    expect(c).toContain("zettel");
   });
 });
 

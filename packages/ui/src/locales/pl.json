@@ -1794,6 +1794,10 @@
     "phMath": "Wzór",
     "phEmbed": "Osadzona zawartość",
     "sortActive": "Aktywna reguła sortowania — ręczne układanie jest wyłączone.",
-    "cardMenu": "Menu karty"
+    "cardMenu": "Menu karty",
+    "capturePlaceholder": "Napisz notatkę…",
+    "labels": "Etykiety",
+    "addLabel": "Szukaj etykiet…",
+    "newLabel": "Utwórz „{{name}}”"
   }
 }

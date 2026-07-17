@@ -168,6 +168,25 @@ export function dropSlotAt(
 }
 
 /**
+ * Chip filter (P4): AND semantics — a card stays visible when it carries EVERY
+ * selected label. Tag labels match hierarchically ("privat" also matches
+ * "privat/haus"), mirroring the app's tag semantics. The selection is
+ * session-local and never persisted (§3); ordering/drag always operate on the
+ * UNFILTERED sequence (D3).
+ */
+export function filterCardPaths(
+  sequence: string[],
+  labelsByPath: ReadonlyMap<string, readonly string[]>,
+  selected: readonly string[],
+): string[] {
+  if (selected.length === 0) return sequence;
+  return sequence.filter((p) => {
+    const labels = labelsByPath.get(p) ?? [];
+    return selected.every((s) => labels.some((l) => l === s || l.startsWith(s + "/")));
+  });
+}
+
+/**
  * File name for quick capture (P4): the first words of the content, cleaned of
  * markdown markers and characters that are invalid in file names, capped at a
  * word boundary. Null when nothing usable remains (caller falls back to a

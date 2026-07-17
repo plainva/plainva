@@ -1782,6 +1782,10 @@
     "phMath": "Formule",
     "phEmbed": "Ingesloten inhoud",
     "sortActive": "Sorteerregel actief — handmatig ordenen is uitgeschakeld.",
-    "cardMenu": "Kaartmenu"
+    "cardMenu": "Kaartmenu",
+    "capturePlaceholder": "Notitie schrijven…",
+    "labels": "Labels",
+    "addLabel": "Labels zoeken…",
+    "newLabel": "“{{name}}” aanmaken"
   }
 }

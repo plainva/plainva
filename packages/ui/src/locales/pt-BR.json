@@ -1788,6 +1788,10 @@
     "phMath": "Fórmula",
     "phEmbed": "Conteúdo incorporado",
     "sortActive": "Regra de ordenação ativa — a organização manual está desativada.",
-    "cardMenu": "Menu do cartão"
+    "cardMenu": "Menu do cartão",
+    "capturePlaceholder": "Escreva uma nota…",
+    "labels": "Marcadores",
+    "addLabel": "Pesquisar marcadores…",
+    "newLabel": "Criar “{{name}}”"
   }
 }

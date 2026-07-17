@@ -1788,6 +1788,10 @@
     "phMath": "Formule",
     "phEmbed": "Contenu intégré",
     "sortActive": "Règle de tri active — le classement manuel est désactivé.",
-    "cardMenu": "Menu de la carte"
+    "cardMenu": "Menu de la carte",
+    "capturePlaceholder": "Écrire une note…",
+    "labels": "Libellés",
+    "addLabel": "Rechercher un libellé…",
+    "newLabel": "Créer « {{name}} »"
   }
 }

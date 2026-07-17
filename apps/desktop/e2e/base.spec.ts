@@ -364,7 +364,13 @@ test.beforeEach(async ({ page }) => {
               .filter(Boolean);
           }
           if (query.includes('JOIN files f ON f.id = t.file_id')) {
-            return [];
+            const zettelTags: Record<string, string[]> = {
+              'Zettel/Einkauf.md': ['einkauf'],
+              'Zettel/Notiz.md': ['einkauf', 'ideen'],
+            };
+            const out: any[] = [];
+            for (const v of values) for (const tg of zettelTags[String(v)] ?? []) out.push({ path: v, tag: tg });
+            return out;
           }
           if (query.includes('FROM tags')) {
             return [{ tag: 'projekt', count: 2 }];
@@ -429,6 +435,12 @@ test.beforeEach(async ({ page }) => {
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          // Quick-captured Zettel join the query rows (pinboard P4): the files
+          // list is otherwise static, so a fresh note would never render.
+          const relVault = p.replace('/test-vault/', '');
+          if (relVault.startsWith('Zettel/') && relVault.endsWith('.md') && !dbFiles.some(f => f.path === relVault)) {
+            dbFiles.push({ id: 'z' + dbFiles.length, path: relVault, title: relVault.split('/').pop()!.replace(/\.md$/i, ''), mtime_local: 1750000020000, size_bytes: 10 });
+          }
           return null;
         }
         if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
@@ -1492,4 +1504,34 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
     .toContain('Zettel/Idee.md');
+});
+
+test('pinboard: chip bar filters by tags (AND, session-local) and quick capture creates a note', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+
+  // Tag chips with counts; clicking #ideen narrows to the one carrying it.
+  await expect(page.locator('[data-pinboard-chip="einkauf"]')).toContainText('2');
+  await page.locator('[data-pinboard-chip="ideen"]').click();
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText('Nur Text');
+  // The selection is session-local: nothing was written to the .base file.
+  const baseText = await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']);
+  expect(baseText).not.toContain('ideen');
+  await page.locator('[data-pinboard-chip="ideen"]').click();
+  await expect(cards).toHaveCount(3);
+
+  // Quick capture: Enter creates the note (named after its first words, no
+  // auto-H1, OKF frontmatter) and the card appears on the board.
+  await page.locator('[data-pinboard-capture]').fill('Schnell notiert und mehr Text');
+  await page.locator('[data-pinboard-capture]').press('Enter');
+  await expect(cards).toHaveCount(4);
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert und mehr Text.md']))
+    .toContain('Schnell notiert und mehr Text');
+  const captured = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert und mehr Text.md']);
+  expect(captured).toContain('type:');
+  expect(captured).not.toContain('# Schnell');
 });
