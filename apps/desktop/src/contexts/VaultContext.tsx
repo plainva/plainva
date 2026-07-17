@@ -114,6 +114,9 @@ export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${bt
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Standard task database (PIM plan 1a): vault-relative path of the `.base`
+ * that promoted checkbox tasks (and later synced external tasks) land in. */
+export const taskDatabaseKey = (vaultPath: string) => `taskDatabase_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the

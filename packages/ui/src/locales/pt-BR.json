@@ -228,7 +228,12 @@
     "sectionEditor": "Editor e notas",
     "sectionBehavior": "Inicialização e comportamento",
     "sectionContent": "Conteúdo e estrutura",
-    "sectionMaintenance": "Manutenção"
+    "sectionMaintenance": "Manutenção",
+    "taskDatabase": "Banco de tarefas padrão",
+    "taskDatabaseDesc": "Tarefas da visão de tarefas podem ser promovidas para este banco.",
+    "taskDatabaseCreate": "Criar banco de dados…",
+    "taskDatabaseCreateName": "Nome do banco de tarefas",
+    "taskDatabaseDefaultName": "Tarefas"
   },
   "editor": {
     "fileNotFound": "Arquivo não encontrado",
@@ -1757,7 +1762,11 @@
     "dueOnly": "Com vencimento",
     "refresh": "Atualizar",
     "empty": "Nenhuma tarefa",
-    "openTasks": "Abrir tarefas"
+    "openTasks": "Abrir tarefas",
+    "dbDueKey": "prazo",
+    "dbStatusOpen": "A fazer",
+    "dbStatusInProgress": "Em andamento",
+    "dbStatusDone": "Concluída"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",

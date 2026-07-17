@@ -228,7 +228,12 @@
     "sectionEditor": "Editor & Notizen",
     "sectionBehavior": "Start & Verhalten",
     "sectionContent": "Inhalt & Struktur",
-    "sectionMaintenance": "Wartung"
+    "sectionMaintenance": "Wartung",
+    "taskDatabase": "Standard-Aufgabendatenbank",
+    "taskDatabaseDesc": "Aufgaben aus der Aufgabenansicht lassen sich in diese Datenbank befördern.",
+    "taskDatabaseCreate": "Neue Datenbank anlegen…",
+    "taskDatabaseCreateName": "Name der Aufgabendatenbank",
+    "taskDatabaseDefaultName": "Aufgaben"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",
@@ -1751,7 +1756,11 @@
     "dueOnly": "Nur mit Fälligkeit",
     "refresh": "Aktualisieren",
     "empty": "Keine Aufgaben",
-    "openTasks": "Aufgaben öffnen"
+    "openTasks": "Aufgaben öffnen",
+    "dbDueKey": "frist",
+    "dbStatusOpen": "Offen",
+    "dbStatusInProgress": "In Arbeit",
+    "dbStatusDone": "Erledigt"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

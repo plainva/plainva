@@ -29,7 +29,9 @@ import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { buildDriveTarget, buildOneDriveTarget, buildDropboxTarget, buildS3Target } from "../services/syncTargets";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { appPrompt } from "../services/appDialogs";
+import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
 import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfInfoModal } from "./OkfInfoModal";
@@ -196,6 +198,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [dailyNoteTemplate, setDailyNoteTemplate] = useState("");
   const [templateFiles, setTemplateFiles] = useState<string[]>([]);
   const [extendedDatabases, setExtendedDatabases] = useState(true);
+  // Standard task database (PIM plan 1a): the `.base` promoted tasks land in.
+  const [taskDatabase, setTaskDatabase] = useState("");
+  const [baseFiles, setBaseFiles] = useState<{ path: string; title: string }[]>([]);
 
   // OKF (Gesamtplan W8): default types for new notes + conversion entry point.
   // The conversion block is shown only while violations exist — it disappears
@@ -424,6 +429,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
         setTemplateFolder(await store.get<string>(templateFolderKey(section)) ?? "Templates");
         setDailyNoteTemplate(await store.get<string>(dailyNoteTemplateKey(section)) ?? "");
+        setTaskDatabase(await store.get<string>(taskDatabaseKey(section)) ?? "");
         const extDb = await store.get<boolean>(extendedDatabasesKey(section));
         setExtendedDatabases(extDb ?? true);
         setDefaultNoteType((await store.get<string>(defaultNoteTypeKey(section))) || DEFAULT_NOTE_TYPE);
@@ -563,6 +569,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       .catch(() => { if (!cancelled) setTemplateFiles([]); });
     return () => { cancelled = true; };
   }, [section, vaultPath, vaultAdapter, templateFolder]);
+
+  // Existing `.base` files → the standard task database becomes a dropdown.
+  // Only for the OPEN vault (listBases reads its index); other vaults fall back
+  // to the free-text input below.
+  useEffect(() => {
+    if (section !== vaultPath || !queryService) {
+      setBaseFiles([]);
+      return;
+    }
+    let cancelled = false;
+    void queryService
+      .listBases()
+      .then((bases) => { if (!cancelled) setBaseFiles(bases); })
+      .catch(() => { if (!cancelled) setBaseFiles([]); });
+    return () => { cancelled = true; };
+  }, [section, vaultPath, queryService]);
+
+  /** Create a fresh task database (folder + `.base` in the template-vault
+   * shape) and select it. An existing database of that name is adopted. */
+  const handleCreateTaskDb = async () => {
+    if (section !== vaultPath || !vaultAdapter) return;
+    const name = await appPrompt({
+      title: t("settings.taskDatabaseCreate"),
+      message: t("settings.taskDatabaseCreateName"),
+      initial: t("settings.taskDatabaseDefaultName"),
+    });
+    if (name === null) return;
+    try {
+      const path = await createTaskDatabase(vaultAdapter, name, {
+        viewTable: t("database.viewTable"),
+        viewBoard: t("database.viewBoard"),
+        dueKey: t("tasks.dbDueKey"),
+        statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
+      });
+      if (!path) return;
+      // Optimistic list entry — the index picks the new file up via the
+      // watcher, but the dropdown should show the selection immediately.
+      const title = path.replace(/\.base$/i, "");
+      setBaseFiles((prev) => (prev.some((b) => b.path === path) ? prev : [...prev, { path, title }].sort((a, b) => a.path.localeCompare(b.path))));
+      setTaskDatabase(path);
+      void persistFeature(section, taskDatabaseKey(section), path);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
 
   const handleIntervalChange = (raw: string) => {
     setIntervalSec(raw);
@@ -1796,6 +1847,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     ) : (
                       <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
                     )}
+                  </SettingRow>
+
+                  <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")}>
+                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+                      {baseFiles.length > 0 ? (
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Select
+                            ariaLabel={t("settings.taskDatabase")}
+                            value={baseFiles.some((b) => b.path === taskDatabase) ? taskDatabase : ""}
+                            onChange={(v) => { setTaskDatabase(v); void persistFeature(section, taskDatabaseKey(section), v); }}
+                            options={[{ value: "", label: "—" }, ...baseFiles.map((b) => ({ value: b.path, label: b.title }))]}
+                          />
+                        </div>
+                      ) : (
+                        <input autoComplete="off" value={taskDatabase} onChange={(e) => { setTaskDatabase(e.target.value); void persistFeature(section, taskDatabaseKey(section), e.target.value); }} placeholder="Tasks.base" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
+                      )}
+                      <button
+                        onClick={() => void handleCreateTaskDb()}
+                        disabled={section !== vaultPath || !vaultAdapter}
+                        data-testid="create-task-db"
+                        className="pv-btn pv-btn--secondary"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        {t("settings.taskDatabaseCreate")}
+                      </button>
+                    </div>
                   </SettingRow>
 
                   <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.okfHeading")}</h5>

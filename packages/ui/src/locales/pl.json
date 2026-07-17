@@ -228,7 +228,12 @@
     "sectionEditor": "Edytor i notatki",
     "sectionBehavior": "Uruchamianie i zachowanie",
     "sectionContent": "Treść i struktura",
-    "sectionMaintenance": "Konserwacja"
+    "sectionMaintenance": "Konserwacja",
+    "taskDatabase": "Domyślna baza zadań",
+    "taskDatabaseDesc": "Zadania z widoku zadań można przenieść do tej bazy.",
+    "taskDatabaseCreate": "Utwórz nową bazę…",
+    "taskDatabaseCreateName": "Nazwa bazy zadań",
+    "taskDatabaseDefaultName": "Zadania"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",
@@ -1763,7 +1768,11 @@
     "dueOnly": "Z terminem",
     "refresh": "Odśwież",
     "empty": "Brak zadań",
-    "openTasks": "Otwórz zadania"
+    "openTasks": "Otwórz zadania",
+    "dbDueKey": "termin",
+    "dbStatusOpen": "Otwarte",
+    "dbStatusInProgress": "W trakcie",
+    "dbStatusDone": "Ukończone"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

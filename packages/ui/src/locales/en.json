@@ -228,7 +228,12 @@
     "sectionEditor": "Editor & notes",
     "sectionBehavior": "Startup & behavior",
     "sectionContent": "Content & structure",
-    "sectionMaintenance": "Maintenance"
+    "sectionMaintenance": "Maintenance",
+    "taskDatabase": "Standard task database",
+    "taskDatabaseDesc": "Tasks from the Tasks view can be promoted into this database.",
+    "taskDatabaseCreate": "Create new database…",
+    "taskDatabaseCreateName": "Name of the task database",
+    "taskDatabaseDefaultName": "Tasks"
   },
   "editor": {
     "fileNotFound": "File not found",
@@ -1751,7 +1756,11 @@
     "dueOnly": "With due date",
     "refresh": "Refresh",
     "empty": "No tasks",
-    "openTasks": "Open tasks"
+    "openTasks": "Open tasks",
+    "dbDueKey": "due",
+    "dbStatusOpen": "Open",
+    "dbStatusInProgress": "In progress",
+    "dbStatusDone": "Done"
   },
   "findReplace": {
     "title": "Find & replace in vault",

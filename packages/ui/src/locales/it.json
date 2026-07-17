@@ -228,7 +228,12 @@
     "sectionEditor": "Editor e note",
     "sectionBehavior": "Avvio e comportamento",
     "sectionContent": "Contenuto e struttura",
-    "sectionMaintenance": "Manutenzione"
+    "sectionMaintenance": "Manutenzione",
+    "taskDatabase": "Database attività predefinito",
+    "taskDatabaseDesc": "Le attività della vista Attività possono essere promosse in questo database.",
+    "taskDatabaseCreate": "Crea database…",
+    "taskDatabaseCreateName": "Nome del database delle attività",
+    "taskDatabaseDefaultName": "Attività"
   },
   "editor": {
     "fileNotFound": "File non trovato",
@@ -1757,7 +1762,11 @@
     "dueOnly": "Con scadenza",
     "refresh": "Aggiorna",
     "empty": "Nessuna attività",
-    "openTasks": "Apri attività"
+    "openTasks": "Apri attività",
+    "dbDueKey": "scadenza",
+    "dbStatusOpen": "Aperta",
+    "dbStatusInProgress": "In corso",
+    "dbStatusDone": "Fatta"
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",

@@ -228,7 +228,12 @@
     "sectionEditor": "Éditeur et notes",
     "sectionBehavior": "Démarrage et comportement",
     "sectionContent": "Contenu et structure",
-    "sectionMaintenance": "Maintenance"
+    "sectionMaintenance": "Maintenance",
+    "taskDatabase": "Base de tâches par défaut",
+    "taskDatabaseDesc": "Les tâches de la vue Tâches peuvent être promues dans cette base.",
+    "taskDatabaseCreate": "Créer une base…",
+    "taskDatabaseCreateName": "Nom de la base de tâches",
+    "taskDatabaseDefaultName": "Tâches"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",
@@ -1757,7 +1762,11 @@
     "dueOnly": "Avec échéance",
     "refresh": "Actualiser",
     "empty": "Aucune tâche",
-    "openTasks": "Ouvrir les tâches"
+    "openTasks": "Ouvrir les tâches",
+    "dbDueKey": "echeance",
+    "dbStatusOpen": "Ouverte",
+    "dbStatusInProgress": "En cours",
+    "dbStatusDone": "Terminée"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",

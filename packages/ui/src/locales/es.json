@@ -228,7 +228,12 @@
     "sectionEditor": "Editor y notas",
     "sectionBehavior": "Inicio y comportamiento",
     "sectionContent": "Contenido y estructura",
-    "sectionMaintenance": "Mantenimiento"
+    "sectionMaintenance": "Mantenimiento",
+    "taskDatabase": "Base de datos de tareas predeterminada",
+    "taskDatabaseDesc": "Las tareas de la vista de tareas se pueden promover a esta base de datos.",
+    "taskDatabaseCreate": "Crear base de datos…",
+    "taskDatabaseCreateName": "Nombre de la base de datos de tareas",
+    "taskDatabaseDefaultName": "Tareas"
   },
   "editor": {
     "fileNotFound": "Archivo no encontrado",
@@ -1757,7 +1762,11 @@
     "dueOnly": "Con fecha límite",
     "refresh": "Actualizar",
     "empty": "Sin tareas",
-    "openTasks": "Abrir tareas"
+    "openTasks": "Abrir tareas",
+    "dbDueKey": "fecha",
+    "dbStatusOpen": "Abierto",
+    "dbStatusInProgress": "En curso",
+    "dbStatusDone": "Terminado"
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",

@@ -228,7 +228,12 @@
     "sectionEditor": "Editor en notities",
     "sectionBehavior": "Opstarten en gedrag",
     "sectionContent": "Inhoud en structuur",
-    "sectionMaintenance": "Onderhoud"
+    "sectionMaintenance": "Onderhoud",
+    "taskDatabase": "Standaard takendatabase",
+    "taskDatabaseDesc": "Taken uit de takenweergave kunnen naar deze database worden gepromoveerd.",
+    "taskDatabaseCreate": "Nieuwe database maken…",
+    "taskDatabaseCreateName": "Naam van de takendatabase",
+    "taskDatabaseDefaultName": "Taken"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",
@@ -1751,7 +1756,11 @@
     "dueOnly": "Met einddatum",
     "refresh": "Vernieuwen",
     "empty": "Geen taken",
-    "openTasks": "Taken openen"
+    "openTasks": "Taken openen",
+    "dbDueKey": "deadline",
+    "dbStatusOpen": "Open",
+    "dbStatusInProgress": "Bezig",
+    "dbStatusDone": "Afgerond"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",

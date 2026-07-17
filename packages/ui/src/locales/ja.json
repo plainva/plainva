@@ -228,7 +228,12 @@
     "sectionEditor": "エディタとノート",
     "sectionBehavior": "起動と動作",
     "sectionContent": "コンテンツと構造",
-    "sectionMaintenance": "メンテナンス"
+    "sectionMaintenance": "メンテナンス",
+    "taskDatabase": "既定のタスクデータベース",
+    "taskDatabaseDesc": "タスクビューのタスクをこのデータベースに昇格できます。",
+    "taskDatabaseCreate": "新規データベースを作成…",
+    "taskDatabaseCreateName": "タスクデータベースの名前",
+    "taskDatabaseDefaultName": "タスク"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",
@@ -1745,7 +1750,11 @@
     "dueOnly": "期限あり",
     "refresh": "更新",
     "empty": "タスクなし",
-    "openTasks": "タスクを開く"
+    "openTasks": "タスクを開く",
+    "dbDueKey": "due",
+    "dbStatusOpen": "未着手",
+    "dbStatusInProgress": "進行中",
+    "dbStatusDone": "完了"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
