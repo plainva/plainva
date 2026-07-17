@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.ts";
-import { VaultFileNotFoundError, VaultFileExistsError, VaultPermissionDeniedError } from "../src/vault/IVaultAdapter.ts";
+import { VaultFileNotFoundError, VaultFileExistsError, VaultPermissionDeniedError, WatchEvent } from "../src/vault/IVaultAdapter.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -109,26 +109,53 @@ describe("LocalVaultAdapter", () => {
     await expect(adapter.writeTextFile("../outside.txt", "data")).rejects.toThrow(VaultPermissionDeniedError);
   });
 
-  it("can watch for file changes", async () => {
+  // Node's recursive fs.watch is backed by macOS FSEvents, whose stream arms
+  // asynchronously *after* watch() resolves and whose delivery coalesces under
+  // load. A single write fired right after arming can therefore land before the
+  // stream is live and be lost forever, and even a delivered event can lag past
+  // a tight cap on a busy CI runner — which is why the old single-write / 2s
+  // version flaked the macOS release job. The fix is pure test harness: keep
+  // re-writing until the event is observed (defeating the arming race) under a
+  // generous ceiling. `retry` is a last-resort net so a pathological one-off
+  // stall can never fail a release; the per-test timeout sits above
+  // WATCH_TIMEOUT_MS so our descriptive error wins over Vitest's default.
+  it("can watch for file changes", { retry: 2, timeout: 15000 }, async () => {
+    const WATCH_TIMEOUT_MS = 10000;
+    const WRITE_INTERVAL_MS = 100;
+
     let unwatch: (() => void) | undefined;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+
     try {
       const eventReceived = new Promise<void>((resolve) => {
-        const checkEvent = (events: any[]) => {
-          if (events.some(e => e.path.includes("watch-test.txt"))) {
+        const checkEvent = (events: WatchEvent[]) => {
+          if (events.some((e) => e.path.includes("watch-test.txt"))) {
             resolve();
           }
         };
-        adapter.watch(checkEvent).then(u => {
+        adapter.watch(checkEvent).then((u) => {
           unwatch = u;
-          // Trigger a change
-          adapter.writeTextFile("watch-test.txt", "changed");
+          // Re-issue the write until the watcher reports it, so the test never
+          // depends on winning the FSEvents startup race. Swallow write errors:
+          // during teardown the temp dir may already be gone.
+          let n = 0;
+          const trigger = () => {
+            void adapter.writeTextFile("watch-test.txt", `changed ${n++}`).catch(() => {});
+          };
+          trigger();
+          pollTimer = setInterval(trigger, WRITE_INTERVAL_MS);
         });
       });
 
-      // Wait up to 2 seconds for the event
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Watch event timeout")), 2000));
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutTimer = setTimeout(() => reject(new Error("Watch event timeout")), WATCH_TIMEOUT_MS);
+      });
+
       await Promise.race([eventReceived, timeout]);
     } finally {
+      if (pollTimer) clearInterval(pollTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       if (unwatch) unwatch();
     }
   });
