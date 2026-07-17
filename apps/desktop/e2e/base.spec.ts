@@ -1222,8 +1222,9 @@ test('Base "Neu": without any source the setup dialog creates the folder and add
   await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
   const dialog = page.getByRole('dialog', { name: /Ablage-Ordner|Storage folder/ });
   await expect(dialog).toBeVisible();
-  // The folder input carries a datalist -> its ARIA role is combobox.
-  await dialog.getByRole('combobox').fill('Ablage');
+  // Plain text input since the browsable picker replaced the index-backed
+  // datalist (2026-07-17) — locate it by its aria-label.
+  await dialog.getByRole('textbox', { name: /Ablage-Ordner|Storage folder/ }).fill('Ablage');
   await dialog.getByRole('button', { name: /Festlegen|Set folder/ }).click();
 
   await expect(page.locator('.pv-peek-title')).toContainText('NoSrc');
