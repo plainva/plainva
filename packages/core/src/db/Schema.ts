@@ -106,6 +106,88 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       tokenize = 'unicode61 remove_diacritics 1'
     );`,
 
+    // PIM object cache (Gesamtplan PIM-Ausbau 2026-07-17): calendars/tasks
+    // mirrored from external providers live HERE, not as vault files. All
+    // tables are additive (no index-format bump — nothing derives from vault
+    // content). Credentials never touch these tables (keychain only); `config`
+    // carries non-secret JSON (server URL, user, client id).
+    `CREATE TABLE IF NOT EXISTS pim_accounts (
+      id       TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      label    TEXT,
+      config   TEXT,
+      enabled  INTEGER DEFAULT 1
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_calendars (
+      account_id TEXT NOT NULL REFERENCES pim_accounts(id) ON DELETE CASCADE,
+      cal_id     TEXT NOT NULL,
+      name       TEXT,
+      color      TEXT,
+      selected   INTEGER DEFAULT 1,
+      read_only  INTEGER DEFAULT 0,
+      PRIMARY KEY (account_id, cal_id)
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_events (
+      account_id    TEXT NOT NULL,
+      cal_id        TEXT NOT NULL,
+      uid           TEXT NOT NULL,
+      title         TEXT,
+      start_ts      INTEGER,
+      end_ts        INTEGER,
+      start_date    TEXT,
+      end_date      TEXT,
+      all_day       INTEGER DEFAULT 0,
+      location      TEXT,
+      description   TEXT,
+      attendees     TEXT,
+      status        TEXT,
+      etag          TEXT,
+      series_master TEXT,
+      recurrence    TEXT,
+      href          TEXT,
+      PRIMARY KEY (account_id, cal_id, uid)
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_tasklists (
+      account_id TEXT NOT NULL REFERENCES pim_accounts(id) ON DELETE CASCADE,
+      list_id    TEXT NOT NULL,
+      name       TEXT,
+      selected   INTEGER DEFAULT 0,
+      PRIMARY KEY (account_id, list_id)
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_tasks (
+      account_id TEXT NOT NULL,
+      list_id    TEXT NOT NULL,
+      uid        TEXT NOT NULL,
+      title      TEXT,
+      notes      TEXT,
+      due        TEXT,
+      completed  INTEGER DEFAULT 0,
+      etag       TEXT,
+      updated_ts INTEGER,
+      href       TEXT,
+      PRIMARY KEY (account_id, list_id, uid)
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_state (
+      account_id   TEXT NOT NULL,
+      scope        TEXT NOT NULL,
+      cursor       TEXT,
+      last_sync_ts INTEGER,
+      last_error   TEXT,
+      PRIMARY KEY (account_id, scope)
+    );`,
+    `CREATE TABLE IF NOT EXISTS pim_task_state (
+      account_id  TEXT NOT NULL,
+      list_id     TEXT NOT NULL,
+      uid         TEXT NOT NULL,
+      note_path   TEXT,
+      remote_etag TEXT,
+      base_fields TEXT,
+      last_sync_ts INTEGER,
+      PRIMARY KEY (account_id, list_id, uid)
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_pim_events_time ON pim_events(start_ts, end_ts);`,
+    `CREATE INDEX IF NOT EXISTS idx_pim_task_state_note ON pim_task_state(note_path);`,
+
     // Indices
     `CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_path);`,
     `CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);`,

@@ -325,6 +325,9 @@ importers:
       fast-xml-parser:
         specifier: ^5.10.0
         version: 5.10.0
+      ical.js:
+        specifier: ^2.2.1
+        version: 2.2.1
       node-diff3:
         specifier: ^3.2.1
         version: 3.2.1
@@ -3194,6 +3197,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
 
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
@@ -8142,6 +8148,8 @@ snapshots:
   i18next@26.3.6(typescript@6.0.3):
     optionalDependencies:
       typescript: 6.0.3
+
+  ical.js@2.2.1: {}
 
   iconv-lite@0.6.3:
     dependencies:
