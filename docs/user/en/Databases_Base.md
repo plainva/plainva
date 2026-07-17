@@ -26,6 +26,8 @@ The file format is compatible with Obsidian's Bases format (details at the end o
 
 Every database can carry its own icon with a **Database icon color** — visible in the file tree, tabs and header.
 
+A database can also serve as the vault's **Standard task database** (Settings → **Content & structure**): the [Tasks view](Tasks.md) then shows its entries as an own section and can move checkboxes from notes into it.
+
 ## Views
 
 A database can have any number of views; each has a **View type**:

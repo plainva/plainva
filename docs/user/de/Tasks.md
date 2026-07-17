@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-07-15
+Stand: 2026-07-17
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -36,6 +36,23 @@ Tags und Fälligkeiten werden direkt aus der Aufgabenzeile gelesen — zum Beisp
 Klicke auf die **Checkbox** einer Aufgabe, um sie zwischen offen und erledigt umzuschalten. Die Änderung wird direkt in die Notiz zurückgeschrieben (als normaler, sicherer Dateischreibvorgang — nur das einzelne `[ ]`/`[x]`-Zeichen ändert sich), sodass die Notiz, Obsidian und jede Synchronisation im Gleichschritt bleiben. Klicke stattdessen auf den **Text** der Aufgabe, um die Notiz zu öffnen und zu dieser Zeile zu springen.
 
 Hat sich eine Notiz seit dem Aufbau der Liste geändert, wird ein veraltetes Umschalten übersprungen und die Liste aktualisiert — mit dem **Aktualisieren**-Knopf oben rechts kannst Du jederzeit neu laden.
+
+## Standard-Aufgabendatenbank
+
+Checkboxen sind schnell notiert, aber manchmal wächst eine Zeile zu einer „richtigen" Aufgabe heran — mit Status, Fälligkeit und eigener Notiz. Dafür legst Du in den Einstellungen unter **Inhalt & Struktur** eine **Standard-Aufgabendatenbank** fest: eine [Datenbank (`.base`)](Databases_Base.md), in der solche Aufgaben als eigene Notizen leben. Mit **Neue Datenbank anlegen…** erstellt Plainva eine fertige Datenbank (Ablage-Ordner plus `.base` mit Status-Spalte, Fälligkeits-Spalte, Tabellen- und Board-Ansicht); genauso kannst Du eine bestehende Datenbank auswählen.
+
+Ist sie festgelegt, zeigt die Aufgabenansicht zwei Bereiche: oben die Einträge der **Aufgaben-Datenbank** (mit Status und Fälligkeit; **Als Datenbank öffnen** springt zur vollen Datenbank-Ansicht mit Board und Filtern), darunter **Aus Notizen** — die gewohnte Checkbox-Liste.
+
+## Eine Checkbox zur Datenbank-Aufgabe machen
+
+Jede Checkbox-Zeile trägt ein Datenbank-Symbol: **Zur Aufgaben-Datenbank verschieben**. Ein Klick
+
+- erstellt eine neue Notiz im Ablage-Ordner der Datenbank (mit deren Standard-Vorlage, falls eine eingestellt ist),
+- übernimmt ein `📅`-Datum in die Fälligkeits-Spalte, setzt bei offenen Aufgaben die erste Status-Option und trägt die `#tags` der Zeile als Tags der Notiz ein,
+- verlinkt die neue Notiz über eine `source`-Eigenschaft zurück auf die Ursprungsnotiz und
+- ersetzt die Checkbox-Zeile in der Ursprungsnotiz durch einen Wiki-Link auf die neue Aufgaben-Notiz — der Eintrag bleibt an Ort und Stelle lesbar, die Aufgabe lebt ab jetzt in der Datenbank.
+
+Mit einem **Rechtsklick** auf das Symbol wählst Du stattdessen eine andere Datenbank als Ziel; ohne festgelegte Standard-Datenbank öffnet schon der Klick diese Auswahl. Alles bleibt reines Markdown: Die neue Aufgabe ist eine gewöhnliche Notiz mit Frontmatter, der Link in der Ursprungsnotiz ein normaler `[[Wiki-Link]]`.
 
 ## Notizen aus der Aufgabenansicht ausblenden
 

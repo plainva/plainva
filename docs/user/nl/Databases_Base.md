@@ -26,6 +26,8 @@ Het bestandsformaat is compatibel met Obsidians Bases-formaat (details onderaan 
 
 Elke database kan een eigen icoon dragen met een **Icoonkleur van de database** — zichtbaar in de bestandsboom, in tabbladen en de header.
 
+Een database kan ook dienstdoen als de **Standaard takendatabase** van de vault (Instellingen → **Inhoud en structuur**): de [Taken-weergave](Tasks.md) toont de items ervan dan als eigen sectie en kan selectievakjes uit notities erin verplaatsen.
+
 ## Weergaven
 
 Een database kan willekeurig veel weergaven hebben; elke heeft een **Weergavetype**:

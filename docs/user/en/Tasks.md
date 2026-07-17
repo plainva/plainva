@@ -1,6 +1,6 @@
 # Tasks
 
-Last reviewed: 2026-07-15
+Last reviewed: 2026-07-17
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -36,6 +36,23 @@ Tags and due dates are read straight from the task line — for example `- [ ] P
 Click a task's **checkbox** to toggle it between open and done. The change is written straight back to the note (as a normal, safe file write — only the single `[ ]`/`[x]` character changes), so the note, Obsidian and any sync stay in step. Click the task's **text** instead to open the note and jump to that line.
 
 If a note changed since the list was built, an out-of-date toggle is skipped and the list refreshes — use the **refresh** button at the top right to reload at any time.
+
+## Standard task database
+
+Checkboxes are quick to jot down, but sometimes a line grows into a "real" task — with a status, a due date and a note of its own. For that, pick a **Standard task database** in Settings under **Content & structure**: a [database (`.base`)](Databases_Base.md) where such tasks live as their own notes. **Create new database…** scaffolds a ready-made one (storage folder plus a `.base` with a status column, a due column, a table and a board view); you can just as well pick an existing database.
+
+Once set, the Tasks view shows two sections: the entries of the **Task database** on top (with status and due date; **Open as database** jumps to the full database view with its board and filters), and **From notes** below — the familiar checkbox list.
+
+## Turning a checkbox into a database task
+
+Every checkbox row carries a database icon: **Move to the task database**. One click
+
+- creates a new note in the database's storage folder (using its default template, if one is set),
+- carries a `📅` date into the due column, sets the first status option for open tasks and stores the line's `#tags` as the note's tags,
+- links the new note back to its origin note via a `source` property, and
+- replaces the checkbox line in the origin note with a wiki link to the new task note — the item stays readable where it was written, and the task now lives in the database.
+
+**Right-click** the icon to pick a different database as the target instead; without a standard database, the click opens that picker right away. Everything stays plain Markdown: the new task is an ordinary note with frontmatter, and the link in the origin note is a normal `[[wiki link]]`.
 
 ## Hiding notes from the Tasks view
 

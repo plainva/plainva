@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-07-15
+Laatst bijgewerkt: 2026-07-17
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -36,6 +36,23 @@ Tags en vervaldatums worden rechtstreeks uit de taakregel gelezen — bijvoorbee
 Klik op het **selectievakje** van een taak om te wisselen tussen open en voltooid. De wijziging wordt direct teruggeschreven naar de notitie (als een normale, veilige bestandsschrijfactie — alleen het ene teken `[ ]`/`[x]` verandert), zodat de notitie, Obsidian en elke synchronisatie gelijke tred houden. Klik in plaats daarvan op de **tekst** van de taak om de notitie te openen en naar die regel te springen.
 
 Is een notitie gewijzigd sinds de lijst is opgebouwd, dan wordt een verouderde wisseling overgeslagen en wordt de lijst vernieuwd — gebruik de knop **vernieuwen** rechtsboven om op elk moment opnieuw te laden.
+
+## Standaard takendatabase
+
+Selectievakjes zet je snel neer, maar soms groeit een regel uit tot een "echte" taak — met een status, een vervaldatum en een eigen notitie. Kies daarvoor in Instellingen onder **Inhoud en structuur** een **Standaard takendatabase**: een [database (`.base`)](Databases_Base.md) waarin zulke taken als eigen notities leven. **Nieuwe database maken…** zet meteen een kant-en-klare op (opslagmap plus een `.base` met een statuskolom, een vervaldatumkolom, een tabelweergave en een bordweergave); je kunt net zo goed een bestaande database kiezen.
+
+Eenmaal ingesteld, toont de Taken-weergave twee secties: bovenaan de items van de **Takendatabase** (met status en vervaldatum; **Als database openen** springt naar de volledige databaseweergave met bord en filters), en daaronder **Uit notities** — de vertrouwde lijst met selectievakjes.
+
+## Een selectievakje omzetten in een databasetaak
+
+Elke taakregel draagt een database-icoon: **Naar de takendatabase verplaatsen**. Eén klik
+
+- maakt een nieuwe notitie aan in de opslagmap van de database (met het standaardsjabloon, als daar een is ingesteld),
+- neemt een `📅`-datum over in de vervaldatumkolom, zet de eerste statusoptie voor open taken en slaat de `#tags` van de regel op als tags van de notitie,
+- koppelt de nieuwe notitie terug aan de oorspronkelijke notitie via een eigenschap `source`, en
+- vervangt de selectievakjeregel in de oorspronkelijke notitie door een wiki-link naar de nieuwe taaknotitie — het item blijft leesbaar op de plek waar het geschreven werd, en de taak leeft nu in de database.
+
+**Rechtsklik** op het icoon om in plaats daarvan een andere database als doel te kiezen; zonder standaard takendatabase opent de klik die kiezer meteen. Alles blijft gewoon Markdown: de nieuwe taak is een gewone notitie met frontmatter, en de link in de oorspronkelijke notitie is een normale `[[wiki-link]]`.
 
 ## Notities uit de Taken-weergave verbergen
 

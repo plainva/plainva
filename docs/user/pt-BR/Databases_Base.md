@@ -26,6 +26,8 @@ O formato do arquivo é compatível com o formato Bases do Obsidian (detalhes ao
 
 Todo banco de dados pode ter seu próprio ícone com uma **Cor do ícone do banco de dados** — visível na árvore de arquivos, nas abas e no cabeçalho.
 
+Um banco de dados também pode servir como o **Banco de tarefas padrão** do vault (**Configurações → Vault → Conteúdo e estrutura**): a [visualização de Tarefas](Tasks.md) passa então a mostrar suas entradas como uma seção própria e pode mover caixas de seleção de notas para ele.
+
 ## Visualizações
 
 Um banco de dados pode ter qualquer número de visualizações; cada uma tem um **Tipo de visualização**:

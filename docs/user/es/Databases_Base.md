@@ -26,6 +26,8 @@ El formato de archivo es compatible con el formato Bases de Obsidian (detalles a
 
 Cada base de datos puede llevar su propio icono con un **Color del icono de la base de datos** — visible en el árbol de archivos, las pestañas y el encabezado.
 
+Una base de datos también puede servir como la **Base de datos de tareas predeterminada** del vault (Configuración → **Contenido y estructura**): la [vista Tareas](Tasks.md) muestra entonces sus entradas como una sección propia y puede mover casillas desde las notas a ella.
+
 ## Vistas
 
 Una base de datos puede tener cualquier número de vistas; cada una tiene un **Tipo de vista**:

@@ -26,6 +26,8 @@ Il formato del file è compatibile con il formato Bases di Obsidian (dettagli al
 
 Ogni database può avere una propria icona con un **Colore dell'icona del database** — visibile nell'albero dei file, nelle schede e nell'intestazione.
 
+Un database può anche fungere da **Database attività predefinito** del vault (Impostazioni → **Contenuto e struttura**): la [vista Attività](Tasks.md) mostra allora le sue voci in una sezione propria e può spostare le caselle di controllo delle note al suo interno.
+
 ## Viste
 
 Un database può avere un numero qualsiasi di viste; ognuna ha un **Tipo di vista**:
