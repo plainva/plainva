@@ -7,6 +7,38 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-07-17
+
+A maintenance release: a new template-to-database workflow, a sync data-safety
+fix that also benefits the desktop, and a batch of mobile polish. No format
+changes; existing vaults and `.base` files are untouched.
+
+### Added
+
+- **Assign templates to databases.** A template can now say which databases it
+  belongs to with `plainva.templateFor` in its frontmatter. Assigned templates
+  appear directly in that database's **Entry** menu — with quick-assign and a
+  **Target databases…** dialog to manage the links — while unassigned templates
+  stay reachable under **Show all templates**. Renaming a `.base` carries its
+  template assignments along with it (as it already does for body links and
+  embeds). The marker lives in the file, so the assignment travels with the
+  vault and stays visible in Obsidian.
+
+### Fixed
+
+- **No more spurious `.CONFLICT` files.** Sync could mistake one of its own
+  echoed pushes for a remote change and write a `.CONFLICT` copy next to an
+  otherwise untouched note; it no longer does (desktop and mobile).
+- **Clearer virtual tabs.** The Graph and Tasks tabs now show their localized
+  names and dedicated icons in the recents strip, the tab strips and the quick
+  switcher, instead of a raw internal path.
+- **Mobile sync is responsive again.** Syncing no longer freezes the app; it
+  stays interactive throughout a cycle.
+- **More native mobile editing.** Text selection uses the platform's own
+  handles, and the virtual keyboard behaves more predictably while you edit.
+- **Mobile note details.** A button in the note header opens the context sheet
+  directly, and the bookmark icon is now consistent across the app.
+
 ## [0.3.0] — 2026-07-15
 
 A feature release: a whole new Tasks view, a redesigned graph with a recursive
