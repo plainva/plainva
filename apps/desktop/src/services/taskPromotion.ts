@@ -35,14 +35,29 @@ export function taskTextToTitle(text: string): string {
 
 /** File-name stem for the promoted note: sanitized like the task-DB name and
  * capped at a word boundary (long task sentences must not become file names
- * verbatim — the full title still lands in the H1). */
+ * verbatim — the full title still lands in the H1). A cap that lands inside a
+ * parenthetical drops the dangling "(rest" — an unbalanced paren in a note
+ * name is ugly and used to break the read-mode link rendering. */
 export function taskFileStem(title: string): string | null {
   const stem = taskDbFileStem(title);
   if (!stem) return null;
   if (stem.length <= MAX_STEM_LENGTH) return stem;
   const cut = stem.slice(0, MAX_STEM_LENGTH);
   const lastSpace = cut.lastIndexOf(" ");
-  const trimmed = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).replace(/\.+$/, "").trim();
+  let trimmed = lastSpace > 20 ? cut.slice(0, lastSpace) : cut;
+  // Drop a parenthetical the cap sliced open (unmatched trailing "(…").
+  let depth = 0;
+  let openAt = -1;
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] === "(") {
+      if (depth === 0) openAt = i;
+      depth++;
+    } else if (trimmed[i] === ")") {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  if (depth > 0 && openAt > 0) trimmed = trimmed.slice(0, openAt);
+  trimmed = trimmed.replace(/\.+$/, "").trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 

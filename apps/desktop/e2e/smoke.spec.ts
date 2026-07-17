@@ -1221,6 +1221,28 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await expect(page.getByPlaceholder('Templates/')).toHaveValue('Vorlagen');
 });
 
+test('Read view: a wiki link with an unbalanced paren in the target renders as a link', async ({ page }) => {
+  // Maintainer find 2026-07-17: promoted checkbox lines like
+  // [[Nataschas … (keine offenen|Alias]] rendered as literal "[Alias](wiki://…"
+  // in read mode — the raw "(" swallowed the markdown link's closing paren.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/ParenLink.md'] =
+      '# Links\n\n- [[Aufgaben (keine offenen|Sachen abholen (offen).]]\n- [[Ziel (a) b|Anzeige]]\n';
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('ParenLink', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('ParenLink', { exact: true }).click();
+  await page.getByTitle(/Lesemodus|Read Mode/).first().click();
+
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader).toBeVisible();
+  // Both aliases render as real links — no literal "(wiki://" leaks as text.
+  await expect(reader.getByRole('link', { name: 'Sachen abholen (offen).' })).toBeVisible();
+  await expect(reader.getByRole('link', { name: 'Anzeige' })).toBeVisible();
+  await expect(reader.getByText(/wiki:\/\//)).toHaveCount(0);
+});
+
 test('Settings: creating a standard task database scaffolds folder + .base and selects it', async ({ page }) => {
   // PIM plan 1a: the vault designates one .base as its task database; the
   // create action scaffolds it in the vault-template shape.

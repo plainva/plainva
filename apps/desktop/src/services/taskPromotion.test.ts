@@ -56,6 +56,18 @@ describe("taskFileStem", () => {
   it("returns null for names without usable characters", () => {
     expect(taskFileStem("///")).toBeNull();
   });
+
+  it("drops a parenthetical the cap sliced open instead of leaving an unbalanced (", () => {
+    // Real maintainer case 2026-07-17: the 60-char cap cut inside "(keine
+    // offenen logistischen Schleifen)" and the dangling "(keine offenen"
+    // broke the read-mode link rendering of the promoted line.
+    const title = "Nataschas Sachen sind vollständig abgeholt (keine offenen logistischen Schleifen).";
+    expect(taskFileStem(title)).toBe("Nataschas Sachen sind vollständig abgeholt");
+    // A cap that keeps the parenthetical intact leaves it alone.
+    const balanced = "Kurzer Titel (fertig) und dann noch sehr viel mehr Text hinterher dran";
+    const stem = taskFileStem(balanced)!;
+    expect((stem.match(/\(/g) ?? []).length).toBe((stem.match(/\)/g) ?? []).length);
+  });
 });
 
 describe("replaceCheckboxWithLink", () => {

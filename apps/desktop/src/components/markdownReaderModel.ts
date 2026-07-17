@@ -12,6 +12,17 @@ export interface RelativeTarget {
 }
 
 /**
+ * Percent-encodes a wiki target for use inside a generated markdown link
+ * destination (`[x](wiki://…)`). encodeURIComponent leaves `( ) ! ' *` raw —
+ * an unbalanced `(` in a note name (or nesting depth ≥ 2) makes the CommonMark
+ * destination swallow the link's closing paren, so the whole link renders as
+ * literal text in read mode. decodeURIComponent reverses all of these.
+ */
+export function encodeWikiTarget(target: string): string {
+  return encodeURIComponent(target).replace(/[()!'*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+/**
  * Resolves a markdown href against the source file's folder. Returns null for
  * anchors, URLs with a scheme (http, mailto, wiki://, …) and paths that would
  * escape the vault — those keep their existing handling. A leading "/" is

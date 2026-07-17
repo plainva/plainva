@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { isHtmlCommentOnly, remarkBrToBreak, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
+import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
+
+describe("encodeWikiTarget", () => {
+  it("leaves no character that can break a markdown link destination", () => {
+    // An unbalanced "(" swallowed the link's closing paren in read mode
+    // (promoted checkbox "… (keine offenen" — maintainer find 2026-07-17).
+    const encoded = encodeWikiTarget("Nataschas Sachen sind abgeholt (keine offenen");
+    expect(encoded).not.toMatch(/[()!'* ]/);
+    expect(decodeURIComponent(encoded)).toBe("Nataschas Sachen sind abgeholt (keine offenen");
+  });
+
+  it("round-trips every reader-relevant special character", () => {
+    const target = "A (b) c! 'd' *e* äöü #x";
+    expect(decodeURIComponent(encodeWikiTarget(target))).toBe(target);
+    expect(encodeWikiTarget(target)).not.toMatch(/[()!'* ]/);
+  });
+});
 
 describe("resolveRelativeTarget", () => {
   it("resolves same-folder and encoded links against the source file", () => {
