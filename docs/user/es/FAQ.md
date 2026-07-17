@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Stand: 2026-07-11
+Última actualización: 2026-07-11
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 

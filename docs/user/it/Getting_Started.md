@@ -1,6 +1,6 @@
 # Per iniziare
 
-Stand: 2026-07-14
+Ultimo aggiornamento: 2026-07-14
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 

@@ -1,6 +1,6 @@
 # Graph
 
-Last updated: 2026-07-14
+Last reviewed: 2026-07-14
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 

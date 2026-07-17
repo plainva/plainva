@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Stand: 2026-07-17
+Última revisão: 2026-07-17
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 

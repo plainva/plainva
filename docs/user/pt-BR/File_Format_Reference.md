@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Stand: 2026-07-17
+Última revisão: 2026-07-17
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 

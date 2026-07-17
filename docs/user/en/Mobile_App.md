@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-17
+Last reviewed: 2026-07-17
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 

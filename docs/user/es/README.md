@@ -1,6 +1,6 @@
 # Guía de usuario de Plainva
 
-Stand: 2026-07-06
+Última actualización: 2026-07-06
 
 Esta traducción se generó automáticamente — las correcciones son bienvenidas.
 

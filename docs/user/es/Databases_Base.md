@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Stand: 2026-07-17
+Última actualización: 2026-07-17
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 

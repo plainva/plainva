@@ -1,6 +1,6 @@
 # Automazione e script
 
-Stand: 2026-07-15
+Ultimo aggiornamento: 2026-07-15
 
 Plainva non ha un sistema di plugin che esegue codice di terze parti. È invece il vault stesso a fare da interfaccia di estensione: le tue note sono semplice Markdown, i database sono puro YAML (`.base`), e le [convenzioni OKF](OKF.md) danno a ogni file una struttura prevedibile. Qualsiasi cosa sia in grado di leggere e scrivere file — uno script shell, un programma Python, uno strumento CLI, un job pianificato o un agente IA — può estendere, generare o riorganizzare il tuo vault senza bisogno di un'unica API specifica di Plainva.
 

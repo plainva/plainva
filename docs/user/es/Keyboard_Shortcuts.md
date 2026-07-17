@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Stand: 2026-07-15
+Última actualización: 2026-07-15
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 

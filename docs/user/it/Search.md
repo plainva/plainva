@@ -1,6 +1,6 @@
 # Ricerca
 
-Stand: 2026-07-15
+Ultimo aggiornamento: 2026-07-15
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 

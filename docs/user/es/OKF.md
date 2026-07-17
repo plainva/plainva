@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-07-11
+Última actualización: 2026-07-11
 
 OKF (Open Knowledge Format) es una convención abierta para colecciones de conocimiento en Markdown: archivos Markdown puros con un pequeño encabezado frontmatter uniforme. Esta página explica qué es OKF, qué hace Plainva automáticamente por él — y por qué no *tienes* que usar nada de esto.
 

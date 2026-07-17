@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Stand: 2026-07-08 (OneDrive e Dropbox agora vêm com IDs de app centrais — BYO não é mais necessário)
+Última revisão: 2026-07-08 (OneDrive e Dropbox agora vêm com IDs de app centrais — BYO não é mais necessário)
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 

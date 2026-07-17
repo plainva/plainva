@@ -1,6 +1,6 @@
 # Tareas
 
-Stand: 2026-07-17
+Última actualización: 2026-07-17
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 

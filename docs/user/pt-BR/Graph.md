@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-14
+Última revisão: 2026-07-14
 
 O grafo do Plainva é uma ferramenta de trabalho, não um pôster: ele mostra onde você está, o que está conectado, o que está faltando — e você pode agir diretamente nele. Existe UM único motor de grafo com três formas de aparecer.
 

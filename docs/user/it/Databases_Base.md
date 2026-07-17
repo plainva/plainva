@@ -1,6 +1,6 @@
 # Database (.base)
 
-Stand: 2026-07-17
+Ultimo aggiornamento: 2026-07-17
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 

@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Stand: 2026-07-14
+Última actualización: 2026-07-14
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 

@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Stand: 2026-07-14
+Ultimo aggiornamento: 2026-07-14
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 

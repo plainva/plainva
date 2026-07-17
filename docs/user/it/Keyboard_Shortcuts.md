@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Stand: 2026-07-15
+Ultimo aggiornamento: 2026-07-15
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 

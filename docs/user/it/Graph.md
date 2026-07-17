@@ -1,6 +1,6 @@
 # Grafo
 
-Stand: 2026-07-14
+Ultimo aggiornamento: 2026-07-14
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
