@@ -1863,7 +1863,9 @@
     "repeatDaily": "毎日",
     "repeatWeekly": "毎週",
     "repeatMonthly": "毎月",
-    "repeatYearly": "毎年"
+    "repeatYearly": "毎年",
+    "showTasks": "タスクを表示",
+    "calendarTasks": "タスク"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",

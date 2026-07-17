@@ -21,6 +21,7 @@ Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (*
 - **Nieuwe afspraak**: de **+** in het dagpaneel — titel, agenda, datum/tijd of een hele-dag-periode, locatie en optioneel een eenvoudige **herhaling** (Dagelijks/Wekelijks/Maandelijks/Jaarlijks).
 - **Bewerken / verwijderen**: het potlood- en prullenbak-icoon bij een afspraak. Wijzigingen gaan met een veiligheidscontrole naar de provider: is de afspraak intussen extern gewijzigd, dan vernieuwt Plainva de weergave in plaats van te overschrijven.
 - **Terugkerende afspraken** dragen een herhalingsbadge. Het bewerken of verwijderen van één exemplaar vraagt **"Alleen deze afspraak"** (maakt een uitzondering, of laat precies dat ene exemplaar vervallen) of **"Alle afspraken"** (wijzigt de hele reeks). Een bestaande herhalingsregel herschrijft Plainva nooit.
+- **Taken tonen** (naast de knop Nu verversen, wanneer een standaard takendatabase is ingesteld): legt de items met een vervaldatum uit je [standaard takendatabase](Tasks.md) over het maandraster en dagpaneel heen; voltooide taken verschijnen doorgestreept. Standaard uit; de keuze wordt per apparaat onthouden.
 
 ## Afspraak → vergadernotitie
 

@@ -1863,7 +1863,9 @@
     "repeatDaily": "每天",
     "repeatWeekly": "每周",
     "repeatMonthly": "每月",
-    "repeatYearly": "每年"
+    "repeatYearly": "每年",
+    "showTasks": "显示任务",
+    "calendarTasks": "任务"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",

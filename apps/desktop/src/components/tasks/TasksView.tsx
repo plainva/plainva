@@ -5,7 +5,7 @@ import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord }
 import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { getTaskDatabasePath, resolveTaskStatusModel, classifyTaskStatus } from "../../services/taskDatabase";
 import { promoteTask } from "../../services/taskPromotion";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -91,7 +91,7 @@ export function TasksView({ onOpenPath }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
-  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; due: string | null }[] | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null }[] | null>(null);
   const [promoteMenu, setPromoteMenu] = useState<{ task: TaskRecord; at: { x: number; y: number } } | null>(null);
   const [allBases, setAllBases] = useState<{ path: string; title: string }[]>([]);
 
@@ -160,17 +160,24 @@ export function TasksView({ onOpenPath }: Props) {
         const rows = await queryService.queryDatabaseFiles(config);
         const cols: Record<string, any> = config?.columns ?? {};
         const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
-        const statusKey = Object.keys(cols).find((k) => cols[k]?.input === "status" || cols[k]?.input === "select") ?? null;
+        // The done/open classification uses the SAME shared model as the task
+        // reconciler (taskDatabase.resolveTaskStatusModel) so the view can never
+        // disagree with the sync about which value means done.
+        const statusModel = resolveTaskStatusModel(config);
         if (!alive) return;
         // queryDatabaseFiles rows carry `file.*` fields plus the bare
         // frontmatter property keys (the same shape every base view reads).
         setDbRows(
-          rows.map((r: any) => ({
-            path: String(r["file.path"] ?? ""),
-            title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
-            status: statusKey && r[statusKey] != null && r[statusKey] !== "" ? String(r[statusKey]) : null,
-            due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
-          }))
+          rows.map((r: any) => {
+            const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
+            return {
+              path: String(r["file.path"] ?? ""),
+              title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
+              status: statusRaw,
+              done: statusModel ? classifyTaskStatus(statusRaw, statusModel) === true : false,
+              due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
+            };
+          })
         );
       } catch {
         if (alive) setDbRows(null);
@@ -288,6 +295,21 @@ export function TasksView({ onOpenPath }: Props) {
       return true;
     });
   }, [visibleTasks, status, folder, tag, dueOnly, text]);
+
+  // The open/done/all filter now applies to the database section too (it read
+  // as a raw list before, which is why completed provider tasks looked "open"
+  // and the filter appeared broken). `due` alone can't classify, so the due-only
+  // and text filters also apply here for consistency.
+  const filteredDbRows = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    return (dbRows ?? []).filter((r) => {
+      if (status === "open" && r.done) return false;
+      if (status === "done" && !r.done) return false;
+      if (dueOnly && !r.due) return false;
+      if (q && !r.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [dbRows, status, dueOnly, text]);
 
   const groups = useMemo(() => {
     const m = new Map<string, { title: string; excluded: boolean; items: TaskRecord[] }>();
@@ -434,7 +456,7 @@ export function TasksView({ onOpenPath }: Props) {
                 {t("tasks.dbSection", { defaultValue: "Aufgaben-Datenbank" })}
               </span>
               <span style={{ flexShrink: 0, fontSize: "0.72rem", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
-                {dbRows?.length ?? 0}
+                {filteredDbRows.length}
               </span>
               <button
                 type="button"
@@ -445,17 +467,20 @@ export function TasksView({ onOpenPath }: Props) {
               </button>
             </div>
             <div style={{ padding: "0.25rem 0 0.35rem" }}>
-              {(dbRows ?? []).length === 0 ? (
+              {filteredDbRows.length === 0 ? (
                 <div style={{ color: "var(--text-muted)", padding: "0.35rem 0.65rem", fontSize: "0.85rem" }}>
                   {t("tasks.dbEmpty", { defaultValue: "Noch keine Einträge" })}
                 </div>
               ) : (
-                dbRows!.map((r) => (
-                  <div key={r.path} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                filteredDbRows.map((r) => (
+                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <span style={{ marginTop: 2, color: r.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0, display: "inline-flex" }} aria-hidden>
+                      {r.done ? <CheckSquare size={16} /> : <Square size={16} />}
+                    </span>
                     <button
                       type="button"
                       onClick={() => onOpenPath(r.path, false)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-main)", fontSize: "0.9rem", lineHeight: 1.4 }}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
                     >
                       {noteDisplayName(r.title)}
                       {r.status ? (

@@ -298,7 +298,7 @@ describe("runTaskSync", () => {
 });
 
 describe("field helpers", () => {
-  const db = { dueKey: "frist", status: { key: "status", open: "Offen", done: "Erledigt" } };
+  const db = { dueKey: "frist", status: { key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] } };
 
   it("reads title from the H1, due from the date column, completed from the done option", () => {
     const content = `---\nstatus: Erledigt\nfrist: 2026-08-15\n---\n\n# Titel der Aufgabe\n\nBody.\n`;
@@ -319,5 +319,57 @@ describe("field helpers", () => {
     const fields = readNoteFields(content, db);
     const out = applyFieldsToNote(content, { title: "T", due: null, completed: false }, fields, db);
     expect(readFrontmatterPath(out, ["frist"])).toBeUndefined();
+  });
+
+  it("an EMPTY or UNRECOGNIZED status falls back to the base completion (never reads as open)", () => {
+    // Data safety: a note with no status, or a status that is not one of the
+    // database's options, must not be interpreted as an intentional "open" —
+    // otherwise a completed remote task would be un-completed on the next push.
+    const noStatus = `---\nfrist: 2026-08-15\n---\n# T\n`;
+    expect(readNoteFields(noStatus, db, true).completed).toBe(true); // base was done -> stays done
+    expect(readNoteFields(noStatus, db, false).completed).toBe(false);
+    const foreign = `---\nstatus: Backlog\n---\n# T\n`; // value from a different DB
+    expect(readNoteFields(foreign, db, true).completed).toBe(true);
+    // The recognized open value DOES read as open (a genuine local un-complete).
+    const open = `---\nstatus: Offen\n---\n# T\n`;
+    expect(readNoteFields(open, db, true).completed).toBe(false);
+  });
+});
+
+describe("a task whose note lost its status is NOT un-completed remotely", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "google", label: "G", config: {}, enabled: true });
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+  });
+
+  it("keeps the remote done and does not call updateTask", async () => {
+    // A completed remote task whose note somehow lost its status frontmatter
+    // (index quirk, manual edit, foreign value). The base state is "done".
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Steuer", completed: true, etag: '"e1"' })]);
+    const notePath = "Aufgaben/Steuer.md";
+    const vault = fakeVault({
+      "Aufgaben.base": TASK_DB,
+      // note WITHOUT a status line, anchored to the remote task
+      [notePath]: `---\nplainva:\n  pim:\n    kind: task\n    uid: u1\n    account: a1\n    list: l1\n---\n# Steuer\n`,
+    });
+    await cache.upsertTaskState({ accountId: "a1", listId: "l1", uid: "u1", notePath, remoteEtag: '"e1"', baseFields: { title: "Steuer", due: null, completed: true } });
+
+    const target = fakeTarget();
+    const res = await runTaskSync({
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => target,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [notePath],
+    });
+    expect(target.updateTask).not.toHaveBeenCalled();
+    expect(res.pushed).toBe(0);
   });
 });

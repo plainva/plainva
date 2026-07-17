@@ -1875,7 +1875,9 @@
     "repeatDaily": "Giornaliera",
     "repeatWeekly": "Settimanale",
     "repeatMonthly": "Mensile",
-    "repeatYearly": "Annuale"
+    "repeatYearly": "Annuale",
+    "showTasks": "Mostra attività",
+    "calendarTasks": "Attività"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, sola lettura)",

@@ -11,7 +11,7 @@ import {
 } from "@plainva/core";
 import { parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
 import { buildNewItemContent } from "../newItemFlow";
-import { taskDbFileStem } from "../taskDatabase";
+import { taskDbFileStem, resolveTaskStatusModel, classifyTaskStatus, type TaskStatusModel } from "../taskDatabase";
 import { findColumnKey } from "../taskPromotion";
 
 /**
@@ -67,7 +67,7 @@ interface DbShape {
   inheritTags: string[];
   templatePath: string | null;
   dueKey: string | null;
-  status: { key: string; open: string; done: string } | null;
+  status: TaskStatusModel | null;
 }
 
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
@@ -151,8 +151,13 @@ async function reconcileList(
     } catch {
       continue;
     }
-    const localFields = readNoteFields(content, db);
     const base = st.baseFields ?? remoteFields;
+    // Data safety: when the note's status is empty or an UNRECOGNIZED value we
+    // must not read it as an intentional "open" — that would let a garbled /
+    // stale / foreign-database status un-complete the remote task (the "all
+    // tasks undone at Google" failure). In that case completion follows the
+    // base, so no spurious flip is ever pushed.
+    const localFields = readNoteFields(content, db, base.completed);
     const remoteChanged = st.remoteEtag != null ? st.remoteEtag !== (rt.etag ?? null) : !fieldsEqual(remoteFields, base);
     const localChanged = !fieldsEqual(localFields, base);
 
@@ -232,24 +237,12 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
   const target = resolveNewItemTarget(config);
   if (!target.folder) return null;
   const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
-  const statusKey = findColumnKey(
-    config,
-    (c) => (c.input === "status" || c.input === "select") && Array.isArray(c.options) && c.options.length > 0
-  );
-  let status: DbShape["status"] = null;
-  if (statusKey) {
-    const raw: unknown[] = config.columns[statusKey].options;
-    const values = raw.map((o) => (typeof o === "string" ? o : (o as any)?.value)).filter((v): v is string => typeof v === "string" && v.length > 0);
-    // Convention: the FIRST status option is "open", the LAST is "done" —
-    // matching the promoted-checkbox prefill and the usual board order.
-    if (values.length > 0) status = { key: statusKey, open: values[0], done: values[values.length - 1] };
-  }
   return {
     folder: target.folder.replace(/\/+$/, ""),
     inheritTags: target.inheritTags ?? [],
     templatePath: typeof config.newItemTemplate === "string" ? config.newItemTemplate : null,
     dueKey,
-    status,
+    status: resolveTaskStatusModel(config),
   };
 }
 
@@ -319,14 +312,22 @@ export function fieldsEqual(a: PimTaskFields, b: PimTaskFields): boolean {
 }
 
 /** Local field surface of a task note: first H1 as the title (fallback empty),
- * the database's date column as due, status === done-option as completed. */
-export function readNoteFields(content: string, db: Pick<DbShape, "dueKey" | "status">): PimTaskFields {
+ * the database's date column as due, the status column classified against the
+ * shared model as completed. An empty or unrecognized status is ambiguous — it
+ * falls back to `fallbackCompleted` (the base state) instead of "open", so it
+ * can never un-complete the remote task. */
+export function readNoteFields(
+  content: string,
+  db: Pick<DbShape, "dueKey" | "status">,
+  fallbackCompleted = false
+): PimTaskFields {
   const dueRaw = db.dueKey ? readFrontmatterPath(content, [db.dueKey]) : undefined;
   const due = dueRaw != null && String(dueRaw).trim() ? String(dueRaw).slice(0, 10) : null;
-  let completed = false;
+  let completed = fallbackCompleted;
   if (db.status) {
     const statusRaw = readFrontmatterPath(content, [db.status.key]);
-    completed = statusRaw != null && String(statusRaw) === db.status.done;
+    const cls = classifyTaskStatus(statusRaw == null ? null : String(statusRaw), db.status);
+    completed = cls ?? fallbackCompleted;
   }
   return { title: firstH1(content) ?? "", due, completed };
 }

@@ -53,7 +53,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, CalendarDays, X, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sunrise, X, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -973,7 +973,7 @@ function App() {
                 { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
                 { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
                 'separator',
-                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <CalendarDays size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
+                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sunrise size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
               ]}
             />
           </div>

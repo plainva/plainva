@@ -91,6 +91,8 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'autoOpenLastVault') return [true, true];
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
+          // Standard task database (calendar task overlay): a test opts in via fs.__taskDb.
+          if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
@@ -131,6 +133,28 @@ test.beforeEach(async ({ page }) => {
             return Object.keys(fs)
               .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
               .map((p) => ({ path: p.replace('/test-vault/', ''), title: null }));
+          }
+          // queryDatabaseFiles(): folder-scoped rows + a bulk properties fetch
+          // (the calendar task overlay reads the standard task database here).
+          if (q.includes('FROM files f')) {
+            const pattern = String(args.values?.[0] ?? '');
+            const prefix = pattern.replace(/%$/, '');
+            return noteRows()
+              .filter((r) => r.mode !== 'attachment' && (!prefix || r.path.startsWith(prefix)))
+              .map((r) => ({ id: r.path, path: r.path, title: r.title, mtime_local: r.mtime_local, size_bytes: 1 }));
+          }
+          if (q.includes('FROM properties')) {
+            const out: any[] = [];
+            for (const rel of (args.values ?? []) as string[]) {
+              const content = String(fs['/test-vault/' + rel] ?? '');
+              const fm = content.match(/^---\n([\s\S]*?)\n---/);
+              if (!fm) continue;
+              for (const line of fm[1].split('\n')) {
+                const kv = line.match(/^([A-Za-z_][\w-]*):\s*(.+)$/);
+                if (kv) out.push({ file_id: rel, key: kv[1], value: kv[2].replace(/^"|"$/g, ''), type: 'text' });
+              }
+            }
+            return out;
           }
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
             return noteRows().map((r) => ({ path: r.path, title: r.title, mode: r.mode === 'obsidian' ? 'note' : r.mode }));
@@ -338,6 +362,60 @@ test('series instance: edit/delete route through the scope dialog; "all" prefill
   await expect(page.getByTestId('series-scope')).toContainText('Wochenmeeting');
   await page.getByRole('dialog').filter({ has: page.getByTestId('series-scope') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
   await expect(seriesRow).toBeVisible();
+});
+
+const CAL_TASK_DB_YAML = `properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: In Arbeit
+        - value: Erledigt
+  note.frist:
+    plainva:
+      input: date
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - file.name
+      - note.status
+      - note.frist
+filters:
+  and:
+    - file.folder == "Aufgaben"
+`;
+
+test('the calendar optionally overlays due tasks from the standard task database', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = `---\nstatus: Offen\nfrist: ${today}\n---\n# Steuer\n`;
+  }, CAL_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+
+  // Off by default: no task section, the task title is not on the grid.
+  await expect(page.getByTestId('calendar-day-tasks')).toHaveCount(0);
+
+  // Toggle tasks on -> the due task appears in today's day pane and can be opened.
+  await page.getByTestId('calendar-toggle-tasks').click();
+  const dayTasks = page.getByTestId('calendar-day-tasks');
+  await expect(dayTasks).toBeVisible();
+  await expect(dayTasks.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
+
+  // The preference persists across a reload (device-local, like the graph pins).
+  await page.reload();
+  await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-day-tasks')).toBeVisible();
 });
 
 test('calendar tab without accounts shows the empty state and opens settings', async ({ page }) => {

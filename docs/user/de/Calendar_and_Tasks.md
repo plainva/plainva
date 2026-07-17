@@ -21,6 +21,7 @@ Jedes Konto zeigt seine **Kalender** (angehakte erscheinen im Kalender-Tab) und 
 - **Neuer Termin**: das **+** in der Tagesliste — Titel, Kalender, Datum/Uhrzeit oder ganztägiger Zeitraum, Ort und optional eine einfache **Wiederholung** (Täglich/Wöchentlich/Monatlich/Jährlich).
 - **Bearbeiten / Löschen**: die Stift- und Papierkorb-Symbole am Termin. Änderungen gehen mit einer Sicherheitsprüfung an den Anbieter: hat sich der Termin zwischenzeitlich extern geändert, aktualisiert Plainva die Ansicht, statt zu überschreiben.
 - **Serientermine** tragen ein Wiederholungs-Symbol. Beim Bearbeiten oder Löschen einer Instanz fragt Plainva **„Nur diesen Termin"** (erzeugt eine Ausnahme bzw. lässt genau diesen Termin ausfallen) oder **„Alle Termine"** (ändert die ganze Serie). Eine bestehende Wiederholungs-Regel schreibt Plainva nie um.
+- **Aufgaben anzeigen** (neben dem Aktualisieren-Knopf, sobald eine Standard-Aufgabendatenbank festgelegt ist): blendet die mit Fälligkeit versehenen Einträge Deiner [Standard-Aufgabendatenbank](Tasks.md) im Monatsraster und in der Tagesliste ein; erledigte Aufgaben erscheinen durchgestrichen. Standardmäßig aus, die Wahl wird pro Gerät gemerkt.
 
 ## Termin → Meeting-Notiz
 

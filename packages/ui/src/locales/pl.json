@@ -1881,7 +1881,9 @@
     "repeatDaily": "Codziennie",
     "repeatWeekly": "Co tydzień",
     "repeatMonthly": "Co miesiąc",
-    "repeatYearly": "Co rok"
+    "repeatYearly": "Co rok",
+    "showTasks": "Pokaż zadania",
+    "calendarTasks": "Zadania"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",

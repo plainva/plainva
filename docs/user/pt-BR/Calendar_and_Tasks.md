@@ -21,6 +21,7 @@ Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta 
 - **Novo evento**: o **+** no painel do dia — título, calendário, data/hora ou um período de dia inteiro, local e, opcionalmente, uma simples **repetição** (Diária/Semanal/Mensal/Anual).
 - **Editar / excluir**: os ícones de lápis e lixeira em um evento. As alterações são gravadas no provedor com uma verificação de segurança: se o evento mudou remotamente nesse meio-tempo, o Plainva atualiza a visualização em vez de sobrescrever.
 - **Eventos recorrentes** trazem um selo de repetição. Editar ou excluir uma instância pergunta **"Somente este evento"** (cria uma exceção ou pula apenas essa ocorrência) ou **"Todos os eventos"** (altera a série inteira). O Plainva nunca reescreve uma regra de recorrência existente.
+- **Mostrar tarefas** (ao lado do botão **Atualizar agora**, quando um banco de tarefas padrão estiver configurado): sobrepõe os itens com vencimento do seu [banco de tarefas padrão](Tasks.md) à grade mensal e ao painel do dia; tarefas concluídas aparecem riscadas. Desativado por padrão, a escolha é lembrada por dispositivo.
 
 ## Evento → nota de reunião
 

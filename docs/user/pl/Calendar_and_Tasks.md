@@ -21,6 +21,7 @@ Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Ot
 - **Nowe wydarzenie**: **+** w panelu dnia — tytuł, kalendarz, data/godzina lub zakres całodniowy, miejsce oraz opcjonalne, proste **powtarzanie** (codziennie/co tydzień/co miesiąc/co rok).
 - **Edytuj / usuń**: ikony ołówka i kosza przy wydarzeniu. Zmiany są zapisywane u dostawcy z zabezpieczeniem: jeśli wydarzenie zmieniło się w międzyczasie zdalnie, Plainva odświeża widok zamiast go nadpisywać.
 - **Wydarzenia cykliczne** mają odznakę powtarzania. Edytowanie lub usuwanie jednej instancji pyta **„Tylko to wydarzenie”** (tworzy wyjątek / pomija tylko to jedno wystąpienie) lub **„Wszystkie wydarzenia”** (zmienia całą serię). Plainva nigdy nie nadpisuje istniejącej reguły powtarzania.
+- **Pokaż zadania** (obok przycisku odświeżania, gdy ustawiona jest domyślna baza zadań): nakłada na siatkę miesiąca i panel dnia wpisy z terminem znajdujące się w Twojej [domyślnej bazie zadań](Tasks.md); ukończone zadania są przekreślone. Domyślnie wyłączone, wybór jest zapamiętywany dla każdego urządzenia.
 
 ## Wydarzenie → notatka ze spotkania
 

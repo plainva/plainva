@@ -21,6 +21,7 @@ Ouvrez-le depuis la barre d'actions à gauche (icône calendrier) ou la palette 
 - **Nouvel événement** : le **+** dans le panneau du jour — titre, calendrier, date/heure ou plage toute la journée, lieu, et une **répétition** simple optionnelle (Quotidien/Hebdomadaire/Mensuel/Annuel).
 - **Modifier / supprimer** : les icônes crayon et corbeille sur un événement. Les modifications sont envoyées au fournisseur avec une vérification de sécurité : si l'événement a changé à distance entre-temps, Plainva actualise la vue au lieu d'écraser.
 - **Les événements récurrents** portent un badge de répétition. Modifier ou supprimer une occurrence demande « Seulement cet événement » (crée une exception / ignore juste cette occurrence) ou « Tous les événements » (modifie toute la série). Plainva ne réécrit jamais une règle de récurrence existante.
+- **Afficher les tâches** (à côté du bouton d'actualisation, quand une base de tâches par défaut est définie) : superpose les entrées à échéance de votre [base de tâches par défaut](Tasks.md) sur la grille mensuelle et le panneau du jour ; les tâches terminées apparaissent barrées. Désactivé par défaut, le choix est mémorisé par appareil.
 
 ## Événement → note de réunion
 

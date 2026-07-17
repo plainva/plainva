@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints } from "lucide-react";
+import { Sunrise, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints } from "lucide-react";
 
 /**
  * App ribbon (maintainer report #3): the slim vertical action rail left of
@@ -37,7 +37,7 @@ export function AppRibbon(props: AppRibbonProps) {
   const top: RibbonAction[] = [
     { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={17} />, run: props.onNewNote },
     { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={17} />, run: props.onQuickSwitcher },
-    { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <CalendarDays size={17} />, run: props.onDailyNote },
+    { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sunrise size={17} />, run: props.onDailyNote },
     { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={17} />, run: props.onOpenGraph, testId: "ribbon-graph" },
     { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={17} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
     { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={17} />, run: props.onOpenCalendar, testId: "ribbon-calendar" },

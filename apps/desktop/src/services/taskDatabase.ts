@@ -85,6 +85,58 @@ export async function createTaskDatabase(
   return path;
 }
 
+/**
+ * The status column of a task database as one shared model — the SINGLE source
+ * of truth for "which value means open / done", used by both the reconciler
+ * (which writes the note) and the Tasks view (which renders it). Sharing it
+ * prevents the two from drifting: a drift there is exactly what makes a
+ * completed task look open in the view and, worse, risks the reconciler reading
+ * a note as open and un-completing the remote task.
+ *
+ * Convention (matching the promoted-checkbox prefill and the usual board order):
+ * the FIRST option is "open", the LAST is "done"; every listed option value is
+ * a recognized status. Returns null when the database has no status/select
+ * column with options.
+ */
+export interface TaskStatusModel {
+  key: string;
+  open: string;
+  done: string;
+  /** All recognized option values (an unlisted value is "unknown"). */
+  options: string[];
+}
+
+export function resolveTaskStatusModel(config: unknown): TaskStatusModel | null {
+  const cols = (config as { columns?: Record<string, unknown> } | null)?.columns ?? {};
+  let statusKey: string | null = null;
+  for (const [key, col] of Object.entries(cols)) {
+    const c = col as { input?: string; options?: unknown } | null;
+    if (c && (c.input === "status" || c.input === "select") && Array.isArray(c.options) && c.options.length > 0) {
+      statusKey = key;
+      break;
+    }
+  }
+  if (!statusKey) return null;
+  const raw = (cols[statusKey] as { options: unknown[] }).options;
+  const values = raw
+    .map((o) => (typeof o === "string" ? o : (o as { value?: unknown } | null)?.value))
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
+  if (values.length === 0) return null;
+  return { key: statusKey, open: values[0], done: values[values.length - 1], options: values };
+}
+
+/** Classifies a status value: `true` = done, `false` = a recognized non-done
+ * (open/intermediate) value, `null` = empty or unrecognized. `null` is the
+ * important case: it must never be treated as an intentional "open" that could
+ * un-complete a remote task. */
+export function classifyTaskStatus(value: string | null | undefined, model: TaskStatusModel): boolean | null {
+  if (value == null || value === "") return null;
+  const s = String(value);
+  if (s === model.done) return true;
+  if (model.options.includes(s)) return false;
+  return null;
+}
+
 /** The vault's configured standard task database (vault-relative `.base` path),
  * or null when none is set. */
 export async function getTaskDatabasePath(vaultPath: string): Promise<string | null> {

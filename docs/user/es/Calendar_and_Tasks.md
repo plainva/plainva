@@ -21,6 +21,7 @@ Cada cuenta lista sus **Calendarios** (los marcados aparecen en la pestaña de c
 - **Nuevo evento**: el **+** en el panel del día — título, calendario, fecha/hora o un rango de todo el día, lugar y, opcionalmente, una **Repetición** simple (diaria/semanal/mensual/anual).
 - **Editar / eliminar**: los iconos de lápiz y papelera en un evento. Los cambios se escriben al proveedor con una comprobación de seguridad: si el evento cambió de forma remota mientras tanto, Plainva actualiza la vista en lugar de sobrescribir.
 - Los **eventos periódicos** llevan una insignia de repetición. Editar o eliminar una instancia pregunta **"Solo este evento"** (crea una excepción o simplemente omite esa ocurrencia) o **"Todos los eventos"** (cambia toda la serie). Plainva nunca reescribe una regla de repetición existente.
+- **Mostrar tareas** (junto al botón de actualizar, cuando hay una base de datos de tareas predeterminada configurada): superpone las entradas con fecha límite de tu [base de datos de tareas predeterminada](Tasks.md) sobre la cuadrícula mensual y el panel del día; las tareas completadas aparecen tachadas. Desactivado por defecto, la elección se recuerda por dispositivo.
 
 ## Evento → nota de reunión
 

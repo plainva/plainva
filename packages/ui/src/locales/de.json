@@ -1869,7 +1869,9 @@
     "repeatDaily": "Täglich",
     "repeatWeekly": "Wöchentlich",
     "repeatMonthly": "Monatlich",
-    "repeatYearly": "Jährlich"
+    "repeatYearly": "Jährlich",
+    "showTasks": "Aufgaben anzeigen",
+    "calendarTasks": "Aufgaben"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",

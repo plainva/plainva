@@ -285,6 +285,40 @@ test('promoting a checkbox creates a task note in the standard database and link
   await expect(dbSection.getByText('2026-08-01')).toBeVisible();
 });
 
+test('the database section marks completed entries done and the status filter applies to it', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    // Two database entries: one open, one already done (last status option).
+    fs['/test-vault/Aufgaben/Open task.md'] = '---\nstatus: Offen\nfrist: 2026-08-05\n---\n# Open task\n';
+    fs['/test-vault/Aufgaben/Finished task.md'] = '---\nstatus: Erledigt\n---\n# Finished task\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  await expect(dbSection).toBeVisible();
+
+  // Default "open" filter: the done entry is hidden, the open one shows.
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toBeVisible();
+  await expect(dbSection.getByRole('button', { name: /Finished task/ })).toHaveCount(0);
+
+  // Switch to "done": the completed entry shows and is marked done (glyph state),
+  // the open one is now hidden — the filter genuinely reaches the DB section.
+  await page.getByRole('button', { name: /^(Done|Erledigt)$/ }).click();
+  const doneRow = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Finished task' });
+  await expect(doneRow).toBeVisible();
+  await expect(doneRow).toHaveAttribute('data-done', '1');
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toHaveCount(0);
+
+  // "All" shows both, the open one classified as not-done.
+  await page.getByRole('button', { name: /^(All|Alle)$/ }).click();
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toBeVisible();
+  await expect(dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Open task' })).toHaveAttribute('data-done', '0');
+});
+
 test('without a standard database the promote button offers the database picker', async ({ page }) => {
   await page.addInitScript((yaml) => {
     const fs = (window as any).mockFs;

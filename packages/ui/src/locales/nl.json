@@ -1869,7 +1869,9 @@
     "repeatDaily": "Dagelijks",
     "repeatWeekly": "Wekelijks",
     "repeatMonthly": "Maandelijks",
-    "repeatYearly": "Jaarlijks"
+    "repeatYearly": "Jaarlijks",
+    "showTasks": "Taken tonen",
+    "calendarTasks": "Taken"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",

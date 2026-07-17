@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, ChevronLeft, ChevronRight, FilePlus2, MapPin, Pencil, Plus, RefreshCw, Repeat, Trash2 } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, FilePlus2, ListChecks, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
 import {
   Button,
   EmptyState,
@@ -8,10 +8,12 @@ import {
   buildMonthCells,
   startOfMonth,
   toast,
+  parseBaseConfig,
 } from "@plainva/ui";
 import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { getTaskDatabasePath, resolveTaskStatusModel, classifyTaskStatus } from "../../services/taskDatabase";
 import { localIsoKey } from "../../services/dailyNotePath";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
@@ -45,9 +47,19 @@ interface CalendarViewProps {
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
 
+/** A due-dated task from the standard task database, projected onto the calendar. */
+interface CalTask {
+  path: string;
+  title: string;
+  due: string;
+  done: boolean;
+}
+
+const SHOW_TASKS_KEY = "plainva-calendar-show-tasks";
+
 export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
-  const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
+  const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
 
   const todayKey = localIsoKey(new Date());
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
@@ -57,6 +69,17 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const [events, setEvents] = useState<PimEventRow[]>([]);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
   const [tick, setTick] = useState(0);
+  // Optional: overlay the standard task database's due-dated tasks (device-local
+  // view preference, like the graph pins). Only offered when a task DB exists.
+  const [hasTaskDb, setHasTaskDb] = useState(false);
+  const [showTasks, setShowTasks] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_TASKS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [tasks, setTasks] = useState<CalTask[]>([]);
 
   const { cells, rangeStartTs, rangeEndTs } = useMemo(() => {
     // buildMonthCells always yields the full 42-cell Monday-first grid.
@@ -101,6 +124,90 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       stale = true;
     };
   }, [pimRuntime, rangeStartTs, rangeEndTs, tick]);
+
+  // Does a standard task database exist? (Only then is the toggle offered.)
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) {
+      setHasTaskDb(false);
+      return;
+    }
+    getTaskDatabasePath(vaultPath)
+      .then((p) => {
+        if (alive) setHasTaskDb(!!p);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOW_TASKS_KEY, showTasks ? "1" : "0");
+    } catch {
+      /* private mode — the preference simply doesn't persist */
+    }
+  }, [showTasks]);
+
+  // Task overlay: due-dated rows of the standard task database, classified with
+  // the SAME shared status model the reconciler uses (so "done" is consistent).
+  useEffect(() => {
+    let alive = true;
+    if (!showTasks || !vaultPath || !queryService || !vaultAdapter) {
+      setTasks([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const dbPath = await getTaskDatabasePath(vaultPath);
+        if (!dbPath) {
+          if (alive) setTasks([]);
+          return;
+        }
+        const config = parseBaseConfig(await vaultAdapter.readTextFile(dbPath));
+        const rows = await queryService.queryDatabaseFiles(config);
+        const cols: Record<string, any> = config?.columns ?? {};
+        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
+        const statusModel = resolveTaskStatusModel(config);
+        if (!alive) return;
+        if (!dueKey) {
+          setTasks([]);
+          return;
+        }
+        const out: CalTask[] = [];
+        for (const r of rows as any[]) {
+          const dueRaw = r[dueKey];
+          if (dueRaw == null || dueRaw === "") continue;
+          const due = String(dueRaw).slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) continue;
+          const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
+          out.push({
+            path: String(r["file.path"] ?? ""),
+            title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
+            due,
+            done: statusModel ? classifyTaskStatus(statusRaw, statusModel) === true : false,
+          });
+        }
+        setTasks(out);
+      } catch {
+        if (alive) setTasks([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [showTasks, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+
+  const tasksByDay = useMemo(() => {
+    const m = new Map<string, CalTask[]>();
+    for (const task of tasks) {
+      const arr = m.get(task.due);
+      if (arr) arr.push(task);
+      else m.set(task.due, [task]);
+    }
+    return m;
+  }, [tasks]);
 
   const byDay = useMemo(() => bucketEventsByDay(events), [events]);
   const calColor = useMemo(() => {
@@ -317,6 +424,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   );
 
   const dayEvents = byDay.get(selectedDay) ?? [];
+  const dayTasks = showTasks ? tasksByDay.get(selectedDay) ?? [] : [];
   const viewMonth = viewDate.getMonth();
 
   if (accounts.length === 0) {
@@ -386,6 +494,16 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
             {t("pim.syncError", { defaultValue: "Sync-Fehler" })}
           </span>
         ) : null}
+        {hasTaskDb && (
+          <IconButton
+            label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
+            onClick={() => setShowTasks((v) => !v)}
+            aria-pressed={showTasks}
+            data-testid="calendar-toggle-tasks"
+          >
+            <ListChecks size={15} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
+          </IconButton>
+        )}
         <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={refresh} data-testid="calendar-refresh">
           <RefreshCw size={15} />
         </IconButton>
@@ -408,6 +526,11 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
             {cells.map((cell) => {
               const key = localIsoKey(cell);
               const list = byDay.get(key) ?? [];
+              const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
+              // Events fill the (max 3) slots first; remaining slots show tasks.
+              const shownEvents = list.slice(0, 3);
+              const shownTasks = dayTaskList.slice(0, Math.max(0, 3 - shownEvents.length));
+              const overflow = list.length + dayTaskList.length - shownEvents.length - shownTasks.length;
               const inMonth = cell.getMonth() === viewMonth;
               const isToday = key === todayKey;
               const isSelected = key === selectedDay;
@@ -440,7 +563,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
                   >
                     {cell.getDate()}
                   </span>
-                  {list.slice(0, 3).map((e) => (
+                  {shownEvents.map((e) => (
                     <span
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                       style={{
@@ -462,8 +585,28 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
                     </span>
                   ))}
-                  {list.length > 3 ? (
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{list.length - 3}</span>
+                  {shownTasks.map((task) => (
+                    <span
+                      key={`task-${task.path}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 3,
+                        fontSize: 11,
+                        color: task.done ? "var(--text-muted)" : "var(--text-main)",
+                        textDecoration: task.done ? "line-through" : "none",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        minWidth: 0,
+                      }}
+                    >
+                      {task.done ? <CheckSquare size={9} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={9} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
+                    </span>
+                  ))}
+                  {overflow > 0 ? (
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{overflow}</span>
                   ) : null}
                 </button>
               );
@@ -497,7 +640,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
               </IconButton>
             )}
           </div>
-          {dayEvents.length === 0 ? (
+          {dayEvents.length === 0 && dayTasks.length === 0 ? (
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {t("pim.noEventsForDay", { defaultValue: "Keine Termine an diesem Tag." })}
             </div>
@@ -561,6 +704,26 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
                 </div>
               </div>
             ))
+          )}
+
+          {dayTasks.length > 0 && (
+            <div data-testid="calendar-day-tasks" style={{ marginTop: "var(--space-2)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500, marginBottom: "var(--space-1)" }}>
+                <ListChecks size={12} /> {t("pim.calendarTasks", { defaultValue: "Aufgaben" })}
+              </div>
+              {dayTasks.map((task) => (
+                <button
+                  key={task.path}
+                  type="button"
+                  onClick={() => onOpenPath(task.path, false)}
+                  data-testid="calendar-task"
+                  style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px", color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-sm)" }}
+                >
+                  {task.done ? <CheckSquare size={14} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={14} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -21,6 +21,7 @@ Aprila dalla barra delle azioni all'estrema sinistra (icona del calendario) o da
 - **Nuovo evento**: il **+** nel riquadro del giorno — titolo, calendario, data/ora o un intervallo per l'intera giornata, luogo ed eventualmente una semplice **ripetizione** (Giornaliera/Settimanale/Mensile/Annuale).
 - **Modifica / elimina**: le icone a forma di matita e cestino su un evento. Le modifiche vengono scritte presso il provider con un controllo di sicurezza: se l'evento è cambiato in remoto nel frattempo, Plainva aggiorna la vista invece di sovrascrivere.
 - Gli **eventi ricorrenti** portano un badge di ripetizione. Modificare o eliminare un'istanza chiede **"Solo questo evento"** (crea un'eccezione / salta solo quell'occorrenza) o **"Tutti gli eventi"** (modifica l'intera serie). Plainva non riscrive mai una regola di ricorrenza esistente.
+- **Mostra attività** (accanto al pulsante **Aggiorna ora**, quando è impostato un database attività predefinito): sovrappone le voci con scadenza del tuo [database attività predefinito](Tasks.md) sulla griglia mensile e sul riquadro del giorno; le attività completate appaiono barrate. Disattivata per impostazione predefinita, la scelta viene ricordata per dispositivo.
 
 ## Evento → nota della riunione
 

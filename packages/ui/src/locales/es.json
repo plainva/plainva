@@ -1875,7 +1875,9 @@
     "repeatDaily": "Diaria",
     "repeatWeekly": "Semanal",
     "repeatMonthly": "Mensual",
-    "repeatYearly": "Anual"
+    "repeatYearly": "Anual",
+    "showTasks": "Mostrar tareas",
+    "calendarTasks": "Tareas"
   },
   "mail": {
     "sectionTitle": "Correo (IMAP, solo lectura)",

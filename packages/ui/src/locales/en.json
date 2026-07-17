@@ -1869,7 +1869,9 @@
     "repeatDaily": "Daily",
     "repeatWeekly": "Weekly",
     "repeatMonthly": "Monthly",
-    "repeatYearly": "Yearly"
+    "repeatYearly": "Yearly",
+    "showTasks": "Show tasks",
+    "calendarTasks": "Tasks"
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",

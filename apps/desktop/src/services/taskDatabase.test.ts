@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseBaseConfig } from "@plainva/ui";
-import { taskDbFileStem, buildTaskDbFile, createTaskDatabase, type TaskDbLabels, type TaskDbAdapter } from "./taskDatabase";
+import { taskDbFileStem, buildTaskDbFile, createTaskDatabase, resolveTaskStatusModel, classifyTaskStatus, type TaskDbLabels, type TaskDbAdapter } from "./taskDatabase";
 
 const LABELS: TaskDbLabels = {
   viewTable: "Tabelle",
@@ -70,5 +70,28 @@ describe("taskDatabase (PIM plan 1a)", () => {
     expect(await createTaskDatabase(adapter, "  //  ", LABELS)).toBeNull();
     expect(files.size).toBe(0);
     expect(dirs.size).toBe(0);
+  });
+});
+
+describe("resolveTaskStatusModel + classifyTaskStatus", () => {
+  it("reads the status column from the one-click scaffold (first=open, last=done)", () => {
+    const config = parseBaseConfig(buildTaskDbFile("Aufgaben", LABELS).content);
+    const model = resolveTaskStatusModel(config);
+    expect(model).toEqual({ key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] });
+  });
+
+  it("classifies done / open-or-intermediate / unknown", () => {
+    const model = { key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] };
+    expect(classifyTaskStatus("Erledigt", model)).toBe(true);
+    expect(classifyTaskStatus("Offen", model)).toBe(false);
+    expect(classifyTaskStatus("In Arbeit", model)).toBe(false); // recognized non-done
+    expect(classifyTaskStatus("", model)).toBeNull(); // empty is ambiguous
+    expect(classifyTaskStatus(null, model)).toBeNull();
+    expect(classifyTaskStatus("Backlog", model)).toBeNull(); // foreign value is ambiguous
+  });
+
+  it("returns null when the database has no status/select column", () => {
+    const config = parseBaseConfig(`properties:\n  note.frist:\n    plainva:\n      input: date\nviews:\n  - type: table\n    name: T\n`);
+    expect(resolveTaskStatusModel(config)).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Bookmark,
-  CalendarDays,
+  Sunrise,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -151,7 +151,7 @@ export function BrowseScreen({
     if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={15} />;
     if (/\.base$/i.test(p)) return <Database size={15} />;
     const daily = getMobileSettings().dailyFolder;
-    if (p.startsWith(`${daily}/`)) return <CalendarDays size={15} />;
+    if (p.startsWith(`${daily}/`)) return <Sunrise size={15} />;
     return <FileText size={15} />;
   };
 

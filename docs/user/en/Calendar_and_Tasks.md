@@ -21,6 +21,7 @@ Open it from the left action rail (calendar icon) or the command palette (**Open
 - **New event**: the **+** in the day pane — title, calendar, date/time or an all-day range, location, and an optional simple **repeat** (daily/weekly/monthly/yearly).
 - **Edit / delete**: the pencil and trash icons on an event. Changes are written to the provider with a safety check: if the event changed remotely in the meantime, Plainva refreshes instead of overwriting.
 - **Recurring events** carry a repeat badge. Editing or deleting an instance asks **"Only this event"** (creates an exception / skips just that occurrence) or **"All events"** (changes the whole series). Plainva never rewrites an existing recurrence rule.
+- **Show tasks** (next to the refresh button, when a standard task database is set): overlays the due-dated entries of your [standard task database](Tasks.md) onto the month grid and day pane; completed tasks appear struck through. Off by default, the choice is remembered per device.
 
 ## Event → meeting note
 
