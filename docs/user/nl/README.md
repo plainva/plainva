@@ -24,6 +24,8 @@ Plainva is een Markdown-vault-editor: je notities zijn gewone Markdown-bestanden
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | OneDrive- en Dropbox-sync instellen met je eigen app-registratie |
 | [Zoeken](Search.md) | Volledige-tekstzoekfunctie, snelkiezer, zoeken & vervangen, tags |
 | [Taken](Tasks.md) | De vault-brede Taken-weergave: elk selectievakje in al je notities, met filters op status, tag, map en vervaldatum, en met één klik omschakelen |
+| [Agenda & externe taken](Calendar_and_Tasks.md) | CalDAV-/Google-/Microsoft-agenda's verbinden, het agenda-tabblad, vergadernotities en het synchroniseren van externe takenlijsten naar de takendatabase |
+| [E-mail vastleggen](Email_Capture.md) | Alleen-lezen IMAP: de sandbox-viewer, e-mails opslaan als notitie/.eml/taak, en inhoud naar buiten krijgen zonder te versturen |
 | [Graaf](Graph.md) | Contextgraaf, vault-kaart met opruimmodus en tijdreis, graaf als databaseweergave |
 | [Sneltoetsen](Keyboard_Shortcuts.md) | Alle sneltoetsen in één oogopslag |
 | [FAQ & probleemoplossing](FAQ.md) | Veelgestelde vragen: Obsidian-compatibiliteit, conflictbestanden, back-ups en meer |

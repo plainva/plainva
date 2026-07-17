@@ -98,8 +98,20 @@ Extras específicos do Plainva para notas são agrupados sob uma única chave `p
 | `header_color` | cor hex | Faixa de cabeçalho em largura total |
 | `tasks` | `false` | Exclui as caixas de seleção desta nota da [visualização de Tarefas](Tasks.md) |
 | `templateFor` | lista de links wiki para arquivos `.base` | Atribui um **modelo** aos bancos de dados listados (só faz sentido para notas dentro da pasta de modelos) |
+| `pim` | mapeamento (veja abaixo) | Âncora que vincula a nota a um evento de calendário, tarefa ou e-mail externo |
 
 Todos são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
+
+`pim` é a âncora das integrações de PIM (veja [Calendário & tarefas externas](Calendar_and_Tasks.md) e [Captura de e-mail](Email_Capture.md)). É um pequeno mapeamento gravado pelo Plainva quando uma nota espelha um objeto externo: `uid` mais `account`, e, dependendo do tipo, `calendar` (notas de reunião), `kind: task` + `list` (tarefas sincronizadas) ou `kind: email` + `mailbox` (e-mails capturados). Ferramentas devem preservá-lo inalterado; excluí-lo apenas desvincula a nota do seu objeto remoto (nada é excluído remotamente). Exemplo:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` é o contrato de campo da atribuição de modelo (veja [Bancos de Dados (.base)](Databases_Base.md)): em uma nota dentro da pasta de modelos, ele lista os bancos de dados cujo menu **Entrada** mostra o modelo por padrão. Os valores são links wiki completos, incluindo a extensão `.base` — sem qualificação (`"[[Tasks.base]]"` corresponde ao arquivo desse nome em qualquer pasta, portanto continua funcionando mesmo que o arquivo apenas mude de pasta) ou qualificados por caminho (`"[[Projekte/Tasks.base]]"` corresponde exatamente a esse caminho). O Plainva grava links sem qualificação e só os qualifica por caminho quando existem dois arquivos `.base` com o mesmo nome. Um escalar em vez de uma lista é tolerado. Ao criar um item a partir do modelo, `templateFor` — diferente das demais chaves `plainva:` — **não** é copiado para a nova nota.
 

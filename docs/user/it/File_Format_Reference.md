@@ -98,8 +98,20 @@ Gli extra specifici di Plainva sono raggruppati sotto un'unica chiave `plainva:`
 | `header_color` | colore esadecimale | Striscia di intestazione a tutta larghezza |
 | `tasks` | `false` | Esclude le caselle di controllo di questa nota dalla [vista Attività](Tasks.md) |
 | `templateFor` | elenco di wiki-link a file `.base` | Assegna un **modello** ai database elencati (rilevante solo per le note all'interno della cartella dei modelli) |
+| `pim` | mappatura (vedi sotto) | Àncora che collega la nota a un evento di calendario, un'attività o un'e-mail esterni |
 
 Tutte queste sono opzionali. Se non ne scrivi nessuna, ometti del tutto la chiave `plainva:`. I valori non validi vengono ignorati in lettura, mai trattati come errore.
+
+`pim` è l'àncora delle integrazioni PIM (vedi [Calendario e attività esterne](Calendar_and_Tasks.md) e [Cattura e-mail](Email_Capture.md)). È una piccola mappatura scritta da Plainva quando una nota specchia un oggetto esterno: `uid` più `account`, e a seconda del tipo `calendar` (note delle riunioni), `kind: task` + `list` (attività sincronizzate) oppure `kind: email` + `mailbox` (e-mail catturate). Gli strumenti dovrebbero preservarla invariata; eliminarla si limita a scollegare la nota dal suo oggetto remoto (nulla viene eliminato da remoto). Esempio:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` è il contratto di campo dell'assegnazione dei modelli (vedi [Database (.base)](Databases_Base.md)): su una nota all'interno della cartella dei modelli elenca i database il cui menu **Voce** mostra il modello per impostazione predefinita. I valori sono wiki-link completi, estensione `.base` inclusa — bare (`"[[Tasks.base]]"` corrisponde al file con quel nome in qualsiasi cartella, quindi sopravvive ai semplici spostamenti di cartella) oppure qualificati con il percorso (`"[[Projekte/Tasks.base]]"` corrisponde esattamente a quel percorso). Plainva scrive link bare e li qualifica solo quando esistono due file `.base` con lo stesso nome. Uno scalare al posto di un elenco è tollerato. Quando una voce viene creata dal modello, `templateFor` — a differenza delle altre chiavi `plainva:` — **non** viene copiato nella nuova nota.
 

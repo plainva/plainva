@@ -24,6 +24,8 @@ Plainva to edytor vaultów Markdown: Twoje notatki to zwykłe pliki Markdown w f
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Konfigurowanie synchronizacji OneDrive i Dropbox z własną rejestracją aplikacji |
 | [Wyszukiwanie](Search.md) | Wyszukiwanie pełnotekstowe, szybkie przełączanie, znajdź i zamień, tagi |
 | [Zadania](Tasks.md) | Widok zadań z całego vaultu: każde pole wyboru we wszystkich Twoich notatkach, z filtrami statusu/tagu/folderu/terminu i przełączaniem jednym kliknięciem |
+| [Kalendarz i zewnętrzne zadania](Calendar_and_Tasks.md) | Łączenie kalendarzy CalDAV/Google/Microsoft, karta kalendarza, notatki ze spotkań i synchronizacja zewnętrznych list zadań z bazą zadań |
+| [Przechwytywanie e-maili](Email_Capture.md) | IMAP tylko do odczytu: przeglądarka w piaskownicy, zapisywanie e-maili jako notatek/.eml/zadań i wyprowadzanie treści bez wysyłania |
 | [Graf](Graph.md) | Graf kontekstowy, mapa sejfu z trybem porządkowania i podróżą w czasie, graf jako widok bazy danych |
 | [Skróty klawiszowe](Keyboard_Shortcuts.md) | Wszystkie skróty klawiszowe w jednym miejscu |
 | [FAQ i rozwiązywanie problemów](FAQ.md) | Najczęstsze pytania: zgodność z Obsidian, pliki konfliktów, kopie zapasowe i więcej |

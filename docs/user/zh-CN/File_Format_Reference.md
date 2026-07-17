@@ -98,8 +98,20 @@ Plainva特有的笔记附加内容被统一归入一个单独的`plainva:`键之
 | `header_color` | 十六进制颜色 | 全宽页眉色带 |
 | `tasks` | `false` | 将此笔记的复选框从[任务视图](Tasks.md)中排除 |
 | `templateFor` | 指向`.base`文件的Wiki链接列表 | 把一个**模板**分配给列出的数据库（仅对模板文件夹内的笔记有意义） |
+| `pim` | 映射（见下文） | 把笔记与一个外部日历日程、任务或邮件关联起来的锚点 |
 
 以上这些都是可选的。如果一个都不写，就完全省略`plainva:`这个键。无效的值在读取时会被忽略，绝不会被当作错误。
+
+`pim`是PIM集成功能的锚点（参见[日历与外部任务](Calendar_and_Tasks.md)和[邮件捕获](Email_Capture.md)）。当一篇笔记镜像一个外部对象时，Plainva会写入这样一个小型映射：`uid`加上`account`，并根据种类，搭配`calendar`（会议笔记）、`kind: task` + `list`（已同步的任务），或`kind: email` + `mailbox`（已捕获的邮件）。工具应当原样保留它；删除它只会让笔记与其远端对象脱离关联（远端不会删除任何内容）。示例：
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor`是模板分配功能的字段契约（参见[数据库（.base）](Databases_Base.md)）：在模板文件夹内的笔记上，它列出了哪些数据库的**条目**菜单会默认显示该模板。值是完整的Wiki链接，包含`.base`扩展名——可以是裸链接（`"[[Tasks.base]]"`会匹配任意文件夹中同名的文件，因此在单纯的文件夹移动后依然有效），也可以是带路径限定的链接（`"[[Projekte/Tasks.base]]"`只匹配这个确切路径）。Plainva写入的都是裸链接，只有当存在两个同名的`.base`文件时，才会加上路径限定。也可以用一个标量代替列表。当从该模板创建一个条目时，`templateFor`——与其他`plainva:`键不同——**不会**被复制到新笔记中。
 

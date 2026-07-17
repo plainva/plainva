@@ -98,8 +98,20 @@ Los extras específicos de Plainva para notas se agrupan bajo una única clave `
 | `header_color` | color hex | Franja de encabezado a todo lo ancho |
 | `tasks` | `false` | Excluye las casillas de esta nota de la [vista Tareas](Tasks.md) |
 | `templateFor` | lista de wiki-links a archivos `.base` | Asigna una **plantilla** a las bases de datos indicadas (solo tiene sentido en notas dentro de la carpeta de plantillas) |
+| `pim` | mapa (ver más abajo) | Ancla que vincula la nota con un evento de calendario, una tarea o un correo externos |
 
 Todos son opcionales. Si no escribes ninguno, omite la clave `plainva:` por completo. Los valores inválidos se ignoran al leer, nunca se tratan como error.
+
+`pim` es el ancla de las integraciones PIM (ver [Calendario y tareas externas](Calendar_and_Tasks.md) y [Captura de correo](Email_Capture.md)). Es un pequeño mapa que Plainva escribe cuando una nota refleja un objeto externo: `uid` más `account`, y según el tipo `calendar` (notas de reunión), `kind: task` + `list` (tareas sincronizadas) o `kind: email` + `mailbox` (correos capturados). Las herramientas deben conservarlo sin cambios; eliminarlo solo desvincula la nota de su objeto remoto (no se elimina nada de forma remota). Ejemplo:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` es el contrato de campo de la asignación de plantilla (ver [Bases de datos (.base)](Databases_Base.md)): en una nota dentro de la carpeta de plantillas, enumera las bases de datos cuyo menú **Entrada** muestra la plantilla por defecto. Los valores son wiki-links completos, incluida la extensión `.base` — sin cualificar (`"[[Tasks.base]]"` coincide con el archivo de ese nombre en cualquier carpeta, por lo que sobrevive a simples traslados de carpeta) o cualificados con ruta (`"[[Projekte/Tasks.base]]"` coincide exactamente con esa ruta). Plainva escribe enlaces sin cualificar y solo cualifica cuando existen dos archivos `.base` con el mismo nombre. Se tolera un escalar en lugar de una lista. Cuando se crea una entrada a partir de la plantilla, `templateFor` — a diferencia de las demás claves `plainva:` — **no** se copia en la nota nueva.
 

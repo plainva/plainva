@@ -98,8 +98,20 @@ Specyficzne dla Plainva dodatki do notatek są zgrupowane pod jednym kluczem `pl
 | `header_color` | kolor hex | Pasek nagłówka na pełną szerokość |
 | `tasks` | `false` | Wyklucza pola wyboru tej notatki z [widoku Zadania](Tasks.md) |
 | `templateFor` | lista linków wiki do plików `.base` | Przypisuje **szablon** do wymienionych baz danych (istotne tylko dla notatek wewnątrz folderu szablonów) |
+| `pim` | mapowanie (patrz niżej) | Kotwica wiążąca notatkę z zewnętrznym wydarzeniem kalendarza, zadaniem lub e-mailem |
 
 Wszystkie te pola są opcjonalne. Jeśli nie zapisujesz żadnego z nich, pomiń klucz `plainva:` całkowicie. Nieprawidłowe wartości są ignorowane przy odczycie, nigdy traktowane jako błąd.
+
+`pim` to kotwica integracji PIM (patrz [Kalendarz i zewnętrzne zadania](Calendar_and_Tasks.md) i [Przechwytywanie e-maili](Email_Capture.md)). To małe mapowanie zapisywane przez Plainva, gdy notatka odzwierciedla zewnętrzny obiekt: `uid` plus `account`, a w zależności od rodzaju `calendar` (notatki ze spotkań), `kind: task` + `list` (zsynchronizowane zadania) lub `kind: email` + `mailbox` (przechwycone e-maile). Narzędzia powinny zachowywać je bez zmian; usunięcie go jedynie odłącza notatkę od jej zdalnego obiektu (nic nie jest usuwane zdalnie). Przykład:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` to kontrakt pola przypisania szablonu (patrz [Bazy danych (.base)](Databases_Base.md)): na notatce wewnątrz folderu szablonów wymienia bazy danych, w których menu **Wpis** domyślnie pokazuje ten szablon. Wartości to całe linki wiki wraz z rozszerzeniem `.base` — w formie gołej (`"[[Tasks.base]]"` pasuje do pliku o tej nazwie w dowolnym folderze, więc przetrwa samo przeniesienie folderu) albo kwalifikowanej ścieżką (`"[[Projekte/Tasks.base]]"` pasuje dokładnie do tej ścieżki). Plainva zapisuje gołe linki i kwalifikuje je tylko wtedy, gdy istnieją dwa pliki `.base` o tej samej nazwie. Skalar zamiast listy jest tolerowany. Gdy wpis jest tworzony z szablonu, `templateFor` — w odróżnieniu od pozostałych kluczy `plainva:` — **nie** jest kopiowany do nowej notatki.
 

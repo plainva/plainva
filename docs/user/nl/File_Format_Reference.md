@@ -98,8 +98,20 @@ Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plai
 | `header_color` | hexkleur | Headerstreep over de volle breedte |
 | `tasks` | `false` | Sluit de selectievakjes van deze notitie uit van de [Taken-weergave](Tasks.md) |
 | `templateFor` | lijst van wiki-links naar `.base`-bestanden | Wijst een **sjabloon** toe aan de genoemde databases (alleen relevant voor notities in de sjablonenmap) |
+| `pim` | mapping (zie hieronder) | Anker die de notitie koppelt aan een externe afspraak, taak of e-mail |
 
 Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
+
+`pim` is het anker van de PIM-integraties (zie [Agenda & externe taken](Calendar_and_Tasks.md) en [E-mail vastleggen](Email_Capture.md)). Het is een kleine mapping die Plainva schrijft wanneer een notitie een extern object spiegelt: `uid` plus `account`, en afhankelijk van het soort `calendar` (vergadernotities), `kind: task` + `list` (gesynchroniseerde taken) of `kind: email` + `mailbox` (vastgelegde e-mails). Tools moeten hem ongewijzigd bewaren; verwijderen ontkoppelt de notitie alleen van het externe object (er wordt extern niets verwijderd). Voorbeeld:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
 

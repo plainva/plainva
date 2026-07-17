@@ -98,8 +98,20 @@ Les extras de note propres à Plainva sont regroupés sous une seule clé `plain
 | `header_color` | couleur hex | Bandeau d'en-tête pleine largeur |
 | `tasks` | `false` | Exclut les cases à cocher de cette note de la [vue Tâches](Tasks.md) |
 | `templateFor` | liste de liens wiki vers des fichiers `.base` | Associe un **modèle** aux bases de données listées (pertinent seulement pour les notes à l'intérieur du dossier de modèles) |
+| `pim` | correspondance (voir plus bas) | Ancre reliant la note à un événement de calendrier, une tâche ou un e-mail externe |
 
 Toutes sont facultatives. Si vous n'en écrivez aucune, omettez entièrement la clé `plainva:`. Les valeurs invalides sont ignorées à la lecture, jamais traitées comme une erreur.
+
+`pim` est l'ancre des intégrations PIM (voir [Calendrier & tâches externes](Calendar_and_Tasks.md) et [Capture d'e-mails](Email_Capture.md)). C'est une petite correspondance écrite par Plainva quand une note reflète un objet externe : `uid` plus `account`, et selon le genre `calendar` (notes de réunion), `kind: task` + `list` (tâches synchronisées) ou `kind: email` + `mailbox` (e-mails capturés). Les outils doivent la préserver inchangée ; la supprimer détache simplement la note de son objet distant (rien n'est supprimé à distance). Exemple :
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` est le contrat de champ de l'association de modèle (voir [bases de données](Databases_Base.md)) : sur une note à l'intérieur du dossier de modèles, il liste les bases de données dont le menu **Entrée** affiche le modèle par défaut. Les valeurs sont des liens wiki complets, extension `.base` incluse — nus (`"[[Tasks.base]]"` correspond au fichier de ce nom dans n'importe quel dossier, et survit donc à un simple déplacement de dossier) ou qualifiés par un chemin (`"[[Projekte/Tasks.base]]"` correspond exactement à ce chemin). Plainva écrit des liens nus et ne les qualifie que lorsque deux fichiers `.base` de même nom existent. Un scalaire à la place d'une liste est toléré. Quand un élément est créé à partir du modèle, `templateFor` — contrairement aux autres clés `plainva:` — n'est **pas** copié dans la nouvelle note.
 
