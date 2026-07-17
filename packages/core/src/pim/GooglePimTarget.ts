@@ -1,5 +1,20 @@
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
-import type { IPimTarget, PimAuthProvider, PimCalendar, PimEvent, PimTask, PimTaskList, PullEventsResult, PullTasksResult } from "./types.js";
+import type {
+  IPimTarget,
+  PimAuthProvider,
+  PimCalendar,
+  PimEvent,
+  PimEventDraft,
+  PimEventRef,
+  PimTask,
+  PimTaskDraft,
+  PimTaskList,
+  PimTaskRef,
+  PimWriteResult,
+  PullEventsResult,
+  PullTasksResult,
+} from "./types.js";
+import { PimConflictError } from "./types.js";
 
 /**
  * Google read adapter (stage 2): Calendar API v3 + Tasks API v1. Recurring
@@ -158,6 +173,70 @@ export class GooglePimTarget implements IPimTarget {
     } while (pageToken);
     return { tasks };
   }
+
+  // ---- write side (stage 3) ----------------------------------------------
+
+  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+    const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(googleEventBody(draft)),
+    });
+    if (!res.ok) throw new Error(`google create event ${res.status}`);
+    const data = (await res.json()) as { id: string; etag?: string };
+    return { uid: data.id, etag: data.etag };
+  }
+
+  async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
+    const res = await this.request(
+      `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
+        body: JSON.stringify(googleEventBody(draft)),
+      }
+    );
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok) throw new Error(`google update event ${res.status}`);
+    const data = (await res.json()) as { etag?: string };
+    return { etag: data.etag };
+  }
+
+  async deleteEvent(ref: PimEventRef): Promise<void> {
+    const res = await this.request(
+      `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
+      { method: "DELETE", headers: ref.etag ? { "If-Match": ref.etag } : undefined }
+    );
+    if (res.status === 412) throw new PimConflictError();
+    // Already gone = success (the file sync's not-found-on-delete lesson).
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`google delete event ${res.status}`);
+  }
+
+  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+    const res = await this.request(`${TASKS_BASE}/lists/${encodeURIComponent(listId)}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(googleTaskBody(draft, false)),
+    });
+    if (!res.ok) throw new Error(`google create task ${res.status}`);
+    const data = (await res.json()) as { id: string; etag?: string };
+    return { uid: data.id, etag: data.etag };
+  }
+
+  async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
+    // Google Tasks does not enforce If-Match — last write wins by design here.
+    const res = await this.request(
+      `${TASKS_BASE}/lists/${encodeURIComponent(ref.listId)}/tasks/${encodeURIComponent(ref.uid)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(googleTaskBody(draft, true)),
+      }
+    );
+    if (!res.ok) throw new Error(`google update task ${res.status}`);
+    const data = (await res.json()) as { etag?: string };
+    return { etag: data.etag };
+  }
 }
 
 function withAuth(init: RequestInit | undefined, token: string): RequestInit {
@@ -186,6 +265,37 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     etag: item.etag,
     seriesMaster: item.recurringEventId,
   };
+}
+
+/** Event write body. All-day sends civil `date`s (end exclusive); switching
+ * between all-day and timed must NULL the other field explicitly (Google keeps
+ * the stale one otherwise). Location/description always travel so clearing a
+ * field in the editor clears it remotely; untouched fields (attendees,
+ * reminders …) are preserved by the PATCH semantics. */
+function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
+  const time = (t: PimEventDraft["start"]) =>
+    draft.allDay && t.date ? { date: t.date, dateTime: null } : { dateTime: new Date(t.ts).toISOString(), date: null };
+  return {
+    summary: draft.title,
+    start: time(draft.start),
+    end: time(draft.end),
+    location: draft.location ?? "",
+    description: draft.description ?? "",
+  };
+}
+
+/** Task body. Google due is date-only (midnight UTC transport); un-completing
+ * must clear the `completed` stamp alongside the status flip. */
+function googleTaskBody(draft: PimTaskDraft, isPatch: boolean): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    title: draft.title,
+    status: draft.completed ? "completed" : "needsAction",
+  };
+  if (draft.notes !== undefined) body.notes = draft.notes;
+  if (draft.due) body.due = `${draft.due}T00:00:00.000Z`;
+  else if (isPatch) body.due = null;
+  if (isPatch && !draft.completed) body.completed = null;
+  return body;
 }
 
 function googleTime(t: { date?: string; dateTime?: string } | undefined): PimEvent["start"] | null {

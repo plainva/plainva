@@ -1850,6 +1850,20 @@
     "syncing": "Actualisation…",
     "syncError": "Erreur de synchronisation",
     "meetingFolder": "Dossier des réunions",
-    "meetingFolderHint": "Emplacement des notes créées via « Événement → note de réunion » dans le calendrier."
+    "meetingFolderHint": "Emplacement des notes créées via « Événement → note de réunion » dans le calendrier.",
+    "newEvent": "Nouvel événement",
+    "editEvent": "Modifier l’événement",
+    "deleteEvent": "Supprimer l’événement",
+    "deleteEventMsg": "« {{title}} » sera supprimé du calendrier du fournisseur.",
+    "eventTitle": "Titre",
+    "eventTitleRequired": "Veuillez saisir un titre.",
+    "eventCalendar": "Calendrier",
+    "eventDate": "Date",
+    "eventFrom": "De",
+    "eventTo": "À",
+    "eventLocation": "Lieu",
+    "eventConflict": "L’événement a été modifié à distance — vue actualisée.",
+    "eventWriteFailed": "L’enregistrement chez le fournisseur a échoué.",
+    "noWritableCalendar": "Aucun calendrier accessible en écriture sélectionné."
   }
 }

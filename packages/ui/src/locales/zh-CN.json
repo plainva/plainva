@@ -1838,6 +1838,20 @@
     "syncing": "正在刷新…",
     "syncError": "同步错误",
     "meetingFolder": "会议文件夹",
-    "meetingFolderHint": "日历中“日程 → 会议笔记”所创建笔记的存放位置。"
+    "meetingFolderHint": "日历中“日程 → 会议笔记”所创建笔记的存放位置。",
+    "newEvent": "新建日程",
+    "editEvent": "编辑日程",
+    "deleteEvent": "删除日程",
+    "deleteEventMsg": "“{{title}}”将从服务商的日历中删除。",
+    "eventTitle": "标题",
+    "eventTitleRequired": "请输入标题。",
+    "eventCalendar": "日历",
+    "eventDate": "日期",
+    "eventFrom": "开始",
+    "eventTo": "结束",
+    "eventLocation": "地点",
+    "eventConflict": "该日程已在远端被修改——视图已刷新。",
+    "eventWriteFailed": "保存到服务商失败。",
+    "noWritableCalendar": "未选择可写入的日历。"
   }
 }

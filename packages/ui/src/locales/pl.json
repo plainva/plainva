@@ -1856,6 +1856,20 @@
     "syncing": "Odświeżanie…",
     "syncError": "Błąd synchronizacji",
     "meetingFolder": "Folder spotkań",
-    "meetingFolderHint": "Miejsce zapisu notatek z „Wydarzenie → notatka ze spotkania” w kalendarzu."
+    "meetingFolderHint": "Miejsce zapisu notatek z „Wydarzenie → notatka ze spotkania” w kalendarzu.",
+    "newEvent": "Nowe wydarzenie",
+    "editEvent": "Edytuj wydarzenie",
+    "deleteEvent": "Usuń wydarzenie",
+    "deleteEventMsg": "„{{title}}” zostanie usunięte z kalendarza dostawcy.",
+    "eventTitle": "Tytuł",
+    "eventTitleRequired": "Podaj tytuł.",
+    "eventCalendar": "Kalendarz",
+    "eventDate": "Data",
+    "eventFrom": "Od",
+    "eventTo": "Do",
+    "eventLocation": "Miejsce",
+    "eventConflict": "Wydarzenie zostało zmienione zdalnie — widok odświeżono.",
+    "eventWriteFailed": "Zapis u dostawcy nie powiódł się.",
+    "noWritableCalendar": "Nie wybrano kalendarza z możliwością zapisu."
   }
 }

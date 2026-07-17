@@ -22,6 +22,25 @@ export interface PimEventRow extends PimEvent {
   accountId: string;
 }
 
+/** The reconciled field surface of a task note (stage 3 three-way merge). */
+export interface PimTaskFields {
+  title: string;
+  due: string | null;
+  completed: boolean;
+}
+
+/** Reconcile bookkeeping of one remote task <-> vault note pair. A row with
+ * `notePath: null` is a TOMBSTONE: the note was deleted locally, the remote
+ * task stays untouched and is never re-imported. */
+export interface PimTaskStateRow {
+  accountId: string;
+  listId: string;
+  uid: string;
+  notePath: string | null;
+  remoteEtag: string | null;
+  baseFields: PimTaskFields | null;
+}
+
 const CHUNK = 80;
 
 export class PimCacheRepository {
@@ -263,6 +282,34 @@ export class PimCacheRepository {
       updatedTs: r.updated_ts != null ? Number(r.updated_ts) : undefined,
       href: r.href ? String(r.href) : undefined,
     }));
+  }
+
+  // ---- task <-> note reconcile state (stage 3) ----------------------------
+
+  async getTaskStates(accountId: string, listId: string): Promise<PimTaskStateRow[]> {
+    const rows = await this.db.query<{ uid: string; note_path: string | null; remote_etag: string | null; base_fields: string | null }>(
+      `SELECT uid, note_path, remote_etag, base_fields FROM pim_task_state WHERE account_id = ? AND list_id = ?`,
+      [accountId, listId]
+    );
+    return rows.map((r) => ({
+      accountId,
+      listId,
+      uid: r.uid,
+      notePath: r.note_path,
+      remoteEtag: r.remote_etag,
+      baseFields: r.base_fields ? (safeJson(r.base_fields) as unknown as PimTaskFields | null) : null,
+    }));
+  }
+
+  async upsertTaskState(row: PimTaskStateRow): Promise<void> {
+    await this.db.execute(
+      `INSERT OR REPLACE INTO pim_task_state (account_id, list_id, uid, note_path, remote_etag, base_fields, last_sync_ts) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [row.accountId, row.listId, row.uid, row.notePath, row.remoteEtag, row.baseFields ? JSON.stringify(row.baseFields) : null, Date.now()]
+    );
+  }
+
+  async deleteTaskState(accountId: string, listId: string, uid: string): Promise<void> {
+    await this.db.execute(`DELETE FROM pim_task_state WHERE account_id = ? AND list_id = ? AND uid = ?`, [accountId, listId, uid]);
   }
 
   // ---- per-account sync bookkeeping ---------------------------------------

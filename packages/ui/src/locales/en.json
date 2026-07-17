@@ -1844,6 +1844,20 @@
     "syncing": "Refreshing…",
     "syncError": "Sync error",
     "meetingFolder": "Meetings folder",
-    "meetingFolderHint": "Where notes from “Event → meeting note” in the calendar are stored."
+    "meetingFolderHint": "Where notes from “Event → meeting note” in the calendar are stored.",
+    "newEvent": "New event",
+    "editEvent": "Edit event",
+    "deleteEvent": "Delete event",
+    "deleteEventMsg": "“{{title}}” will be deleted from the provider's calendar.",
+    "eventTitle": "Title",
+    "eventTitleRequired": "Please enter a title.",
+    "eventCalendar": "Calendar",
+    "eventDate": "Date",
+    "eventFrom": "From",
+    "eventTo": "To",
+    "eventLocation": "Location",
+    "eventConflict": "The event changed remotely — view refreshed.",
+    "eventWriteFailed": "Saving to the provider failed.",
+    "noWritableCalendar": "No writable calendar selected."
   }
 }

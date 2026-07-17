@@ -1844,6 +1844,20 @@
     "syncing": "Aktualisiere…",
     "syncError": "Sync-Fehler",
     "meetingFolder": "Meeting-Ordner",
-    "meetingFolderHint": "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender."
+    "meetingFolderHint": "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender.",
+    "newEvent": "Neuer Termin",
+    "editEvent": "Termin bearbeiten",
+    "deleteEvent": "Termin löschen",
+    "deleteEventMsg": "„{{title}}“ wird im Kalender des Anbieters gelöscht.",
+    "eventTitle": "Titel",
+    "eventTitleRequired": "Bitte einen Titel angeben.",
+    "eventCalendar": "Kalender",
+    "eventDate": "Datum",
+    "eventFrom": "Von",
+    "eventTo": "Bis",
+    "eventLocation": "Ort",
+    "eventConflict": "Der Termin wurde extern geändert — Ansicht aktualisiert.",
+    "eventWriteFailed": "Speichern beim Anbieter fehlgeschlagen.",
+    "noWritableCalendar": "Kein beschreibbarer Kalender ausgewählt."
   }
 }

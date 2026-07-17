@@ -1,4 +1,4 @@
-import type { PimEventRow } from "@plainva/core";
+import type { PimEventDraft, PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../dailyNotePath";
 
 /**
@@ -72,7 +72,73 @@ export function formatTimeRange(e: PimEventRow, locale: string): string {
 }
 
 function nextDate(date: string): string {
+  return shiftDayKey(date, 1);
+}
+
+/** Day key shifted by whole days (calendar math on civil dates). */
+export function shiftDayKey(date: string, deltaDays: number): string {
   const [y, m, d] = date.split("-").map(Number);
-  const next = new Date(y, (m ?? 1) - 1, (d ?? 1) + 1);
-  return localIsoKey(next);
+  return localIsoKey(new Date(y, (m ?? 1) - 1, (d ?? 1) + deltaDays));
+}
+
+// ---- event form (stage 3 create/edit dialog) -------------------------------
+
+export interface EventFormValues {
+  title: string;
+  allDay: boolean;
+  /** Civil start day (YYYY-MM-DD). */
+  dayKey: string;
+  /** All-day only: INCLUSIVE civil end day (the dialog shows human-inclusive
+   * ranges; the iCal exclusive end is derived on submit). */
+  endDayKey: string;
+  /** Timed only: local wall-clock HH:MM. */
+  startTime: string;
+  endTime: string;
+  location: string;
+  /** Create only: "<accountId> <calendarId>" of the target calendar. */
+  calendarKey: string;
+}
+
+export function emptyEventForm(dayKey: string, calendarKey: string): EventFormValues {
+  return { title: "", allDay: false, dayKey, endDayKey: dayKey, startTime: "09:00", endTime: "10:00", location: "", calendarKey };
+}
+
+export function eventFormFromEvent(e: PimEventRow): EventFormValues {
+  const dayKey = eventStartDayKey(e);
+  const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const endInclusive = e.allDay && e.end.date ? shiftDayKey(e.end.date, -1) : dayKey;
+  return {
+    title: e.title,
+    allDay: e.allDay,
+    dayKey,
+    endDayKey: endInclusive >= dayKey ? endInclusive : dayKey,
+    startTime: e.allDay ? "09:00" : hhmm(new Date(e.start.ts)),
+    endTime: e.allDay ? "10:00" : hhmm(new Date(e.end.ts)),
+    location: e.location ?? "",
+    calendarKey: `${e.accountId} ${e.calendarId}`,
+  };
+}
+
+/** Dialog values -> provider draft. Timed events interpret day+HH:MM as LOCAL
+ * wall clock; an end at or before the start falls back to +30 min. All-day
+ * ranges convert the inclusive dialog end to the exclusive iCal end. */
+export function eventFormToDraft(v: EventFormValues): PimEventDraft {
+  const title = v.title.trim();
+  const location = v.location.trim() || undefined;
+  if (v.allDay) {
+    const startKey = v.dayKey;
+    const endInclusive = v.endDayKey && v.endDayKey >= startKey ? v.endDayKey : startKey;
+    const endExclusive = shiftDayKey(endInclusive, 1);
+    return {
+      title,
+      allDay: true,
+      start: { ts: Date.parse(`${startKey}T00:00:00Z`), date: startKey },
+      end: { ts: Date.parse(`${endExclusive}T00:00:00Z`), date: endExclusive },
+      location,
+    };
+  }
+  const startTs = new Date(`${v.dayKey}T${v.startTime || "09:00"}:00`).getTime();
+  let endTs = new Date(`${v.dayKey}T${v.endTime || "10:00"}:00`).getTime();
+  if (!(endTs > startTs)) endTs = startTs + 30 * 60 * 1000;
+  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location };
 }

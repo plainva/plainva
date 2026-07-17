@@ -30,8 +30,28 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
 
 const NOW = Date.parse("2026-08-01T12:00:00Z");
 
+/** Write side is irrelevant for the pull-worker tests — hard-fail stubs. */
+const unusedWrites = {
+  createEvent: async () => {
+    throw new Error("not under test");
+  },
+  updateEvent: async () => {
+    throw new Error("not under test");
+  },
+  deleteEvent: async () => {
+    throw new Error("not under test");
+  },
+  createTask: async () => {
+    throw new Error("not under test");
+  },
+  updateTask: async () => {
+    throw new Error("not under test");
+  },
+};
+
 function fakeTarget(events: PimEvent[], opts: { failCalendar?: string } = {}): IPimTarget {
   return {
+    ...unusedWrites,
     provider: "caldav",
     listCalendars: vi.fn(async () => [
       { id: "cal1", name: "Privat" },
@@ -129,6 +149,7 @@ describe("PimWorker", () => {
   it("a superseding stop aborts the running cycle before it writes stale data", async () => {
     let resolvePull: ((v: { events: PimEvent[] }) => void) | null = null;
     const target: IPimTarget = {
+      ...unusedWrites,
       provider: "caldav",
       listCalendars: async () => [{ id: "cal1", name: "P" }],
       pullEvents: () => new Promise((res) => (resolvePull = res)),

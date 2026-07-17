@@ -1838,6 +1838,20 @@
     "syncing": "更新中…",
     "syncError": "同期エラー",
     "meetingFolder": "会議フォルダー",
-    "meetingFolderHint": "カレンダーの「予定 → 会議ノート」で作成されるノートの保存先です。"
+    "meetingFolderHint": "カレンダーの「予定 → 会議ノート」で作成されるノートの保存先です。",
+    "newEvent": "新しい予定",
+    "editEvent": "予定を編集",
+    "deleteEvent": "予定を削除",
+    "deleteEventMsg": "「{{title}}」はプロバイダーのカレンダーから削除されます。",
+    "eventTitle": "タイトル",
+    "eventTitleRequired": "タイトルを入力してください。",
+    "eventCalendar": "カレンダー",
+    "eventDate": "日付",
+    "eventFrom": "開始",
+    "eventTo": "終了",
+    "eventLocation": "場所",
+    "eventConflict": "予定がリモートで変更されました — 表示を更新しました。",
+    "eventWriteFailed": "プロバイダーへの保存に失敗しました。",
+    "noWritableCalendar": "書き込み可能なカレンダーが選択されていません。"
   }
 }

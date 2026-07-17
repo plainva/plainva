@@ -231,6 +231,46 @@ test('calendar tab shows cached events, day selection and creates a meeting note
     .toBe(false);
 });
 
+test('event dialog: create validation + provider-error surface, edit prefill, delete confirm', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-${todayKey}`).click();
+
+  // "+" opens the create dialog (the mock calendar is writable + selected).
+  await page.getByTestId('calendar-new-event').click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+
+  // Empty title -> inline validation, dialog stays open.
+  await page.getByTestId('event-save').click();
+  await expect(page.getByTestId('event-error')).toBeVisible();
+
+  // With a title the submit reaches the provider layer; the mock keychain has
+  // no credentials, so the write fails INLINE (dialog still open) instead of
+  // pretending success.
+  await page.getByTestId('event-title').fill('Neuer Test-Termin');
+  await page.getByTestId('event-save').click();
+  await expect(page.getByTestId('event-error')).toBeVisible();
+  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+
+  // Edit prefills the event's values (title + local times).
+  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-edit-event').click();
+  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
+  await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
+  await expect(page.getByTestId('event-end-time')).toHaveValue('10:30');
+  await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
+  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+
+  // Delete asks first (danger dialog naming the event); cancel keeps it.
+  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-delete-event').click();
+  const confirm = page.getByRole('dialog').filter({ hasText: /Termin löschen|Delete event/ });
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('Standup');
+  await confirm.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(page.getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
+});
+
 test('calendar tab without accounts shows the empty state and opens settings', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__pimAccounts = [];

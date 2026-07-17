@@ -30,7 +30,14 @@ export interface PimRuntime {
   stop: () => void;
 }
 
-export function createPimRuntime(opts: { db: IDatabaseAdapter; vaultPath: string }): PimRuntime {
+export function createPimRuntime(opts: {
+  db: IDatabaseAdapter;
+  vaultPath: string;
+  /** Fires after every completed worker cycle (idle OR error) — the stage-3
+   * task reconciler hangs here (local edits must push even when no remote
+   * data changed). */
+  onCycleEnd?: () => void;
+}): PimRuntime {
   const cache = new PimCacheRepository(opts.db);
 
   const buildTarget = async (account: PimAccountRow): Promise<IPimTarget | null> => {
@@ -51,6 +58,7 @@ export function createPimRuntime(opts: { db: IDatabaseAdapter; vaultPath: string
     },
     onStatusChange: (status: PimStatus, message?: string) => {
       window.dispatchEvent(new CustomEvent("plainva-pim-status", { detail: { status, message } }));
+      if (status !== "syncing") opts.onCycleEnd?.();
     },
   });
 

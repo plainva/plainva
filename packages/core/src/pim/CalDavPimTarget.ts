@@ -1,7 +1,21 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import ICAL from "ical.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
-import type { IPimTarget, PimCalendar, PimEvent, PimTask, PimTaskList, PullEventsResult, PullTasksResult } from "./types.js";
+import type {
+  IPimTarget,
+  PimCalendar,
+  PimEvent,
+  PimEventDraft,
+  PimEventRef,
+  PimTask,
+  PimTaskDraft,
+  PimTaskList,
+  PimTaskRef,
+  PimWriteResult,
+  PullEventsResult,
+  PullTasksResult,
+} from "./types.js";
+import { PimConflictError } from "./types.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -219,6 +233,175 @@ export class CalDavPimTarget implements IPimTarget {
     }
     return { tasks };
   }
+
+  // ---- write side (stage 3) ----------------------------------------------
+
+  /** Raw authorized request (writes bypass the 207-only davRequest helper). */
+  private async rawRequest(url: string, init: RequestInit & { headers?: Record<string, string> }): Promise<Response> {
+    return this.fetchFn(url, {
+      ...init,
+      headers: { Authorization: this.authHeader(), ...init.headers },
+    });
+  }
+
+  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+    const uid = generateUid();
+    const href = this.resolve(joinCollection(calendarId, `${uid}.ics`));
+    const res = await this.rawRequest(href, {
+      method: "PUT",
+      headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
+      body: buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)),
+    });
+    if (!res.ok) throw new Error(`caldav create event ${res.status}`);
+    return { uid, etag: res.headers.get("ETag") ?? undefined, href };
+  }
+
+  async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
+    return this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => applyEventDraft(comp, draft));
+  }
+
+  async deleteEvent(ref: PimEventRef): Promise<void> {
+    if (!ref.href) throw new Error("caldav delete needs the object href");
+    const res = await this.rawRequest(ref.href, {
+      method: "DELETE",
+      headers: ref.etag ? { "If-Match": ref.etag } : {},
+    });
+    if (res.status === 412) throw new PimConflictError();
+    // Already gone = success (the file sync's not-found-on-delete lesson).
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`caldav delete ${res.status}`);
+  }
+
+  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+    const uid = generateUid();
+    const href = this.resolve(joinCollection(listId, `${uid}.ics`));
+    const res = await this.rawRequest(href, {
+      method: "PUT",
+      headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
+      body: buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)),
+    });
+    if (!res.ok) throw new Error(`caldav create task ${res.status}`);
+    return { uid, etag: res.headers.get("ETag") ?? undefined, href };
+  }
+
+  async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
+    return this.readModifyPut(ref.href, ref.etag, "vtodo", (comp) => applyTaskDraft(comp, draft));
+  }
+
+  /**
+   * GET–modify–PUT: fetch the current object, mutate ONLY the draft-carried
+   * properties inside the target component (alarms, attendees and unknown
+   * properties survive untouched), then PUT with If-Match. Both the pre-check
+   * (fetched etag vs. the ref's) and a 412 raise PimConflictError.
+   */
+  private async readModifyPut(
+    href: string | undefined,
+    knownEtag: string | undefined,
+    componentName: "vevent" | "vtodo",
+    mutate: (comp: InstanceType<typeof ICAL.Component>) => void
+  ): Promise<{ etag?: string }> {
+    if (!href) throw new Error("caldav update needs the object href");
+    const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
+    if (!getRes.ok) throw new Error(`caldav read ${getRes.status} before update`);
+    const currentEtag = getRes.headers.get("ETag") ?? undefined;
+    if (knownEtag && currentEtag && knownEtag !== currentEtag) throw new PimConflictError();
+
+    const jcal = ICAL.parse(await getRes.text());
+    const cal = new ICAL.Component(jcal);
+    // Mutate the master component (recurrence overrides keep their own rows).
+    const target =
+      cal.getAllSubcomponents(componentName).find((c) => !c.getFirstPropertyValue("recurrence-id")) ??
+      cal.getFirstSubcomponent(componentName);
+    if (!target) throw new Error(`caldav object has no ${componentName}`);
+    mutate(target);
+    bumpRevision(target);
+
+    const guard = knownEtag ?? currentEtag;
+    const putRes = await this.rawRequest(href, {
+      method: "PUT",
+      headers: { "Content-Type": "text/calendar; charset=utf-8", ...(guard ? { "If-Match": guard } : {}) },
+      body: cal.toString(),
+    });
+    if (putRes.status === 412) throw new PimConflictError();
+    if (!putRes.ok) throw new Error(`caldav update ${putRes.status}`);
+    return { etag: putRes.headers.get("ETag") ?? undefined };
+  }
+}
+
+// ---- write helpers --------------------------------------------------------
+
+function generateUid(): string {
+  const rand =
+    typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `plainva-${rand}`;
+}
+
+/** Object path inside a collection (collection ids/hrefs end with "/"). */
+function joinCollection(collection: string, name: string): string {
+  return (collection.endsWith("/") ? collection : collection + "/") + name;
+}
+
+/** Minimal VCALENDAR wrapper around one freshly built component. */
+function buildIcsObject(uid: string, componentName: "vevent" | "vtodo", fill: (comp: InstanceType<typeof ICAL.Component>) => void): string {
+  const cal = new ICAL.Component(["vcalendar", [], []]);
+  cal.updatePropertyWithValue("prodid", "-//Plainva//Plainva//EN");
+  cal.updatePropertyWithValue("version", "2.0");
+  const comp = new ICAL.Component(componentName);
+  comp.updatePropertyWithValue("uid", uid);
+  comp.updatePropertyWithValue("dtstamp", ICAL.Time.fromJSDate(new Date(), true));
+  fill(comp);
+  cal.addSubcomponent(comp);
+  return cal.toString();
+}
+
+/** Sets a DTSTART/DTEND/DUE property to either a civil date (all-day, keeps
+ * VALUE=DATE) or a UTC datetime — stripping a stale TZID either way (a TZID
+ * parameter next to a Z time or a date is invalid). */
+function setTimeProperty(comp: InstanceType<typeof ICAL.Component>, name: string, t: { ts: number; date?: string }, allDay: boolean): void {
+  const value = allDay && t.date ? ICAL.Time.fromDateString(t.date) : ICAL.Time.fromJSDate(new Date(t.ts), true);
+  comp.updatePropertyWithValue(name, value);
+  comp.getFirstProperty(name)?.removeParameter("tzid");
+}
+
+function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: PimEventDraft): void {
+  vevent.updatePropertyWithValue("summary", draft.title);
+  setTimeProperty(vevent, "dtstart", draft.start, draft.allDay);
+  // DURATION and DTEND are mutually exclusive — the draft always carries an
+  // explicit end, so a master using DURATION switches representation.
+  vevent.removeAllProperties("duration");
+  setTimeProperty(vevent, "dtend", draft.end, draft.allDay);
+  if (draft.location) vevent.updatePropertyWithValue("location", draft.location);
+  else vevent.removeAllProperties("location");
+  if (draft.description) vevent.updatePropertyWithValue("description", draft.description);
+  else vevent.removeAllProperties("description");
+}
+
+function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {
+  vtodo.updatePropertyWithValue("summary", draft.title);
+  if (draft.due) setTimeProperty(vtodo, "due", { ts: 0, date: draft.due }, true);
+  else vtodo.removeAllProperties("due");
+  if (draft.notes) vtodo.updatePropertyWithValue("description", draft.notes);
+  else vtodo.removeAllProperties("description");
+  if (draft.completed) {
+    vtodo.updatePropertyWithValue("status", "COMPLETED");
+    vtodo.updatePropertyWithValue("completed", ICAL.Time.fromJSDate(new Date(), true));
+    vtodo.updatePropertyWithValue("percent-complete", 100);
+  } else {
+    vtodo.updatePropertyWithValue("status", "NEEDS-ACTION");
+    vtodo.removeAllProperties("completed");
+    vtodo.removeAllProperties("percent-complete");
+  }
+}
+
+/** SEQUENCE bump + fresh LAST-MODIFIED/DTSTAMP on every rewrite (RFC 5545's
+ * change-management contract; clients use it to detect updates). */
+function bumpRevision(comp: InstanceType<typeof ICAL.Component>): void {
+  const seq = Number(comp.getFirstPropertyValue("sequence") ?? 0);
+  comp.updatePropertyWithValue("sequence", Number.isFinite(seq) ? seq + 1 : 1);
+  const now = ICAL.Time.fromJSDate(new Date(), true);
+  comp.updatePropertyWithValue("last-modified", now);
+  comp.updatePropertyWithValue("dtstamp", now);
 }
 
 // ---- ics → PimEvent -------------------------------------------------------

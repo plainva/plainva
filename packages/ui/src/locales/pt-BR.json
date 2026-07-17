@@ -1850,6 +1850,20 @@
     "syncing": "Atualizando…",
     "syncError": "Erro de sincronização",
     "meetingFolder": "Pasta de reuniões",
-    "meetingFolderHint": "Onde ficam as notas de “Evento → nota de reunião” do calendário."
+    "meetingFolderHint": "Onde ficam as notas de “Evento → nota de reunião” do calendário.",
+    "newEvent": "Novo evento",
+    "editEvent": "Editar evento",
+    "deleteEvent": "Excluir evento",
+    "deleteEventMsg": "“{{title}}” será excluído do calendário do provedor.",
+    "eventTitle": "Título",
+    "eventTitleRequired": "Informe um título.",
+    "eventCalendar": "Calendário",
+    "eventDate": "Data",
+    "eventFrom": "De",
+    "eventTo": "Até",
+    "eventLocation": "Local",
+    "eventConflict": "O evento foi alterado remotamente — visualização atualizada.",
+    "eventWriteFailed": "Falha ao salvar no provedor.",
+    "noWritableCalendar": "Nenhum calendário gravável selecionado."
   }
 }

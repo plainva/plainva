@@ -102,8 +102,9 @@ export function replaceCheckboxWithLink(
   return { content, changed: false };
 }
 
-/** First column key of the parsed base config matching the predicate. */
-function findColumnKey(config: any, pred: (col: any) => boolean): string | null {
+/** First column key of the parsed base config matching the predicate. Shared
+ * with the stage-3 task reconciler (same due/status column resolution). */
+export function findColumnKey(config: any, pred: (col: any) => boolean): string | null {
   const cols = config?.columns ?? {};
   for (const [key, col] of Object.entries(cols)) {
     if (col && pred(col)) return key;

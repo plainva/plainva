@@ -1850,6 +1850,20 @@
     "syncing": "Actualizando…",
     "syncError": "Error de sincronización",
     "meetingFolder": "Carpeta de reuniones",
-    "meetingFolderHint": "Dónde se guardan las notas de «Evento → nota de reunión» del calendario."
+    "meetingFolderHint": "Dónde se guardan las notas de «Evento → nota de reunión» del calendario.",
+    "newEvent": "Nuevo evento",
+    "editEvent": "Editar evento",
+    "deleteEvent": "Eliminar evento",
+    "deleteEventMsg": "«{{title}}» se eliminará del calendario del proveedor.",
+    "eventTitle": "Título",
+    "eventTitleRequired": "Introduce un título.",
+    "eventCalendar": "Calendario",
+    "eventDate": "Fecha",
+    "eventFrom": "Desde",
+    "eventTo": "Hasta",
+    "eventLocation": "Lugar",
+    "eventConflict": "El evento cambió de forma remota — vista actualizada.",
+    "eventWriteFailed": "No se pudo guardar en el proveedor.",
+    "noWritableCalendar": "No hay ningún calendario con permiso de escritura seleccionado."
   }
 }

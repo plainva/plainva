@@ -92,6 +92,58 @@ export interface PullTasksResult {
   tasks: PimTask[];
 }
 
+// ---- write side (stage 3: single events + tasks; recurrence is stage 4) ----
+
+/** The editable fields of a single (non-recurring) event. */
+export interface PimEventDraft {
+  title: string;
+  start: PimEventTime;
+  end: PimEventTime;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+}
+
+/** Addresses an existing event for update/delete. `etag` (when known) arms
+ * the optimistic-concurrency guard; CalDAV additionally needs the `href`. */
+export interface PimEventRef {
+  calendarId: string;
+  uid: string;
+  etag?: string;
+  href?: string;
+}
+
+export interface PimTaskDraft {
+  title: string;
+  /** ISO date (YYYY-MM-DD), day-granular like PimTask.due. */
+  due?: string;
+  notes?: string;
+  completed: boolean;
+}
+
+export interface PimTaskRef {
+  listId: string;
+  uid: string;
+  etag?: string;
+  href?: string;
+}
+
+export interface PimWriteResult {
+  uid: string;
+  etag?: string;
+  href?: string;
+}
+
+/** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
+ * Callers re-pull and re-reconcile instead of overwriting blindly — the same
+ * philosophy as the file sync's remoteEtag guard. */
+export class PimConflictError extends Error {
+  constructor(message = "remote object changed (etag mismatch)") {
+    super(message);
+    this.name = "PimConflictError";
+  }
+}
+
 /**
  * Read side of a PIM provider (stage 2). Event pulls are WINDOWED full
  * refreshes: the caller passes a rolling time range and replaces the cache
@@ -108,4 +160,15 @@ export interface IPimTarget {
   pullEvents(calendarId: string, rangeStartTs: number, rangeEndTs: number): Promise<PullEventsResult>;
   listTaskLists(): Promise<PimTaskList[]>;
   pullTasks(listId: string): Promise<PullTasksResult>;
+  /** Creates a single event; recurring events are out of scope until stage 4. */
+  createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult>;
+  /** Updates a single event. Throws PimConflictError when the remote object
+   * moved past `ref.etag`. Providers preserve fields the draft does not carry
+   * (partial update / read-modify-write). */
+  updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }>;
+  deleteEvent(ref: PimEventRef): Promise<void>;
+  createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
+  /** Updates a task (title/due/completed/notes). Etag-guarded where the
+   * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */
+  updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }>;
 }

@@ -18,6 +18,7 @@ import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plug
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
+import { runTaskSync } from "../services/pim/taskSync";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -368,16 +369,6 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const queryService = new VaultQueryService(dbAdapter);
       const graphService = new GraphService(dbAdapter);
 
-      // PIM runtime (calendar/task cache + pull worker). The worker only runs
-      // when the vault actually has accounts — an unconfigured vault pays
-      // nothing. Account connects start it via the settings section.
-      const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path });
-      try {
-        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
-      } catch (e) {
-        console.warn("[VaultContext] starting the PIM worker failed", e);
-      }
-
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):
       // one batch at a time, concurrent producers coalesce into one follow-up
       // pass, redundant full scans collapse. Batch results map to the version
@@ -394,6 +385,55 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
         },
       });
+
+      // PIM runtime (calendar/task cache + pull worker). The worker only runs
+      // when the vault actually has accounts — an unconfigured vault pays
+      // nothing. Account connects start it via the settings section. After
+      // every completed cycle the stage-3 task reconciler mirrors the selected
+      // task lists into the standard task database and pushes local note edits
+      // back (single-flight; a cycle finishing mid-run queues one follow-up).
+      let taskSyncRunning = false;
+      let taskSyncQueued = false;
+      const runTaskSyncNow = async () => {
+        if (taskSyncRunning) {
+          taskSyncQueued = true;
+          return;
+        }
+        taskSyncRunning = true;
+        try {
+          const store = await getSettingsStore();
+          const taskDbPath = ((await store.get<string>(taskDatabaseKey(path))) ?? "").trim() || null;
+          if (taskDbPath) {
+            const noteType = ((await store.get<string>(defaultNoteTypeKey(path))) ?? "").trim() || DEFAULT_NOTE_TYPE;
+            const allNotePaths = (await queryService.listNotes()).map((n) => n.path);
+            const res = await runTaskSync({
+              adapter: vaultAdapter,
+              cache: pimRuntime.cache,
+              buildTarget: pimRuntime.buildTarget,
+              taskDbPath,
+              noteType,
+              allNotePaths,
+            });
+            const touched = [...res.createdNotes, ...res.changedNotes];
+            if (touched.length > 0) indexQueue.enqueue(touched);
+            for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
+          }
+        } catch (e) {
+          console.warn("[VaultContext] task sync failed", e);
+        } finally {
+          taskSyncRunning = false;
+          if (taskSyncQueued) {
+            taskSyncQueued = false;
+            void runTaskSyncNow();
+          }
+        }
+      };
+      const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
+      try {
+        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
+      } catch (e) {
+        console.warn("[VaultContext] starting the PIM worker failed", e);
+      }
 
       // Time-to-first-note: don't block the whole load on the full index when the
       // index is already WARM. After the app-data relocation an existing vault's

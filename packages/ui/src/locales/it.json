@@ -1850,6 +1850,20 @@
     "syncing": "Aggiornamento…",
     "syncError": "Errore di sincronizzazione",
     "meetingFolder": "Cartella riunioni",
-    "meetingFolderHint": "Dove vengono salvate le note da “Evento → nota della riunione” nel calendario."
+    "meetingFolderHint": "Dove vengono salvate le note da “Evento → nota della riunione” nel calendario.",
+    "newEvent": "Nuovo evento",
+    "editEvent": "Modifica evento",
+    "deleteEvent": "Elimina evento",
+    "deleteEventMsg": "“{{title}}” sarà eliminato dal calendario del provider.",
+    "eventTitle": "Titolo",
+    "eventTitleRequired": "Inserisci un titolo.",
+    "eventCalendar": "Calendario",
+    "eventDate": "Data",
+    "eventFrom": "Da",
+    "eventTo": "A",
+    "eventLocation": "Luogo",
+    "eventConflict": "L’evento è cambiato in remoto — vista aggiornata.",
+    "eventWriteFailed": "Salvataggio presso il provider non riuscito.",
+    "noWritableCalendar": "Nessun calendario scrivibile selezionato."
   }
 }

@@ -1,5 +1,20 @@
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
-import type { IPimTarget, PimAuthProvider, PimCalendar, PimEvent, PimTask, PimTaskList, PullEventsResult, PullTasksResult } from "./types.js";
+import type {
+  IPimTarget,
+  PimAuthProvider,
+  PimCalendar,
+  PimEvent,
+  PimEventDraft,
+  PimEventRef,
+  PimTask,
+  PimTaskDraft,
+  PimTaskList,
+  PimTaskRef,
+  PimWriteResult,
+  PullEventsResult,
+  PullTasksResult,
+} from "./types.js";
+import { PimConflictError } from "./types.js";
 
 /**
  * Microsoft read adapter (stage 2): Graph calendars + To Do. `calendarView`
@@ -163,6 +178,92 @@ export class GraphPimTarget implements IPimTarget {
     }
     return { tasks };
   }
+
+  // ---- write side (stage 3) ----------------------------------------------
+
+  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+    const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(graphEventBody(draft)),
+    });
+    if (!res.ok) throw new Error(`graph create event ${res.status}`);
+    const data = (await res.json()) as { id: string; "@odata.etag"?: string };
+    return { uid: data.id, etag: data["@odata.etag"] };
+  }
+
+  async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
+    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
+      body: JSON.stringify(graphEventBody(draft)),
+    });
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok) throw new Error(`graph update event ${res.status}`);
+    const data = (await res.json()) as { "@odata.etag"?: string };
+    return { etag: data["@odata.etag"] };
+  }
+
+  async deleteEvent(ref: PimEventRef): Promise<void> {
+    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}`, {
+      method: "DELETE",
+      headers: ref.etag ? { "If-Match": ref.etag } : undefined,
+    });
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`graph delete event ${res.status}`);
+  }
+
+  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+    const res = await this.request(`${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(graphTaskBody(draft)),
+    });
+    if (!res.ok) throw new Error(`graph create task ${res.status}`);
+    const data = (await res.json()) as { id: string; "@odata.etag"?: string };
+    return { uid: data.id, etag: data["@odata.etag"] };
+  }
+
+  async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
+    const res = await this.request(
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(ref.listId)}/tasks/${encodeURIComponent(ref.uid)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
+        body: JSON.stringify(graphTaskBody(draft)),
+      }
+    );
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok) throw new Error(`graph update task ${res.status}`);
+    const data = (await res.json()) as { "@odata.etag"?: string };
+    return { etag: data["@odata.etag"] };
+  }
+}
+
+/** Event write body. Graph wants UTC wall-clock dateTimes with an explicit
+ * timeZone; all-day events must be midnight-to-midnight (end exclusive). */
+function graphEventBody(draft: PimEventDraft): Record<string, unknown> {
+  const time = (t: PimEventDraft["start"]) =>
+    draft.allDay && t.date
+      ? { dateTime: `${t.date}T00:00:00`, timeZone: "UTC" }
+      : { dateTime: new Date(t.ts).toISOString().replace(/Z$/, ""), timeZone: "UTC" };
+  return {
+    subject: draft.title,
+    isAllDay: draft.allDay,
+    start: time(draft.start),
+    end: time(draft.end),
+    location: { displayName: draft.location ?? "" },
+    ...(draft.description !== undefined ? { body: { contentType: "text", content: draft.description } } : {}),
+  };
+}
+
+function graphTaskBody(draft: PimTaskDraft): Record<string, unknown> {
+  return {
+    title: draft.title,
+    status: draft.completed ? "completed" : "notStarted",
+    dueDateTime: draft.due ? { dateTime: `${draft.due}T00:00:00`, timeZone: "UTC" } : null,
+    ...(draft.notes !== undefined ? { body: { contentType: "text", content: draft.notes } } : {}),
+  };
 }
 
 function withAuth(init: RequestInit | undefined, token: string): RequestInit {

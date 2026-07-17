@@ -1844,6 +1844,20 @@
     "syncing": "Bijwerken…",
     "syncError": "Synchronisatiefout",
     "meetingFolder": "Vergadermap",
-    "meetingFolderHint": "Waar notities uit “Afspraak → vergadernotitie” in de agenda worden opgeslagen."
+    "meetingFolderHint": "Waar notities uit “Afspraak → vergadernotitie” in de agenda worden opgeslagen.",
+    "newEvent": "Nieuwe afspraak",
+    "editEvent": "Afspraak bewerken",
+    "deleteEvent": "Afspraak verwijderen",
+    "deleteEventMsg": "“{{title}}” wordt uit de agenda van de provider verwijderd.",
+    "eventTitle": "Titel",
+    "eventTitleRequired": "Voer een titel in.",
+    "eventCalendar": "Agenda",
+    "eventDate": "Datum",
+    "eventFrom": "Van",
+    "eventTo": "Tot",
+    "eventLocation": "Locatie",
+    "eventConflict": "De afspraak is extern gewijzigd — weergave vernieuwd.",
+    "eventWriteFailed": "Opslaan bij de provider is mislukt.",
+    "noWritableCalendar": "Geen beschrijfbare agenda geselecteerd."
   }
 }

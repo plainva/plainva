@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { PimEventRow } from "@plainva/core";
-import { bucketEventsByDay, eventDayKeys, eventStartDayKey, formatTimeRange } from "./calendarModel";
+import {
+  bucketEventsByDay,
+  eventDayKeys,
+  eventFormFromEvent,
+  eventFormToDraft,
+  eventStartDayKey,
+  formatTimeRange,
+  shiftDayKey,
+} from "./calendarModel";
 
 function ev(partial: Partial<PimEventRow> & { start: PimEventRow["start"]; end: PimEventRow["end"] }): PimEventRow {
   return {
@@ -79,6 +87,80 @@ describe("bucketEventsByDay", () => {
     const map = bucketEventsByDay([e]);
     expect(map.get("2026-07-20")).toHaveLength(1);
     expect(map.get("2026-07-21")).toHaveLength(1);
+  });
+});
+
+describe("event form helpers (stage 3)", () => {
+  it("shiftDayKey does calendar math across month boundaries", () => {
+    expect(shiftDayKey("2026-07-31", 1)).toBe("2026-08-01");
+    expect(shiftDayKey("2026-08-01", -1)).toBe("2026-07-31");
+  });
+
+  it("timed form values become a LOCAL wall-clock draft; end<=start falls back to +30min", () => {
+    const draft = eventFormToDraft({
+      title: " Planning ",
+      allDay: false,
+      dayKey: "2026-08-01",
+      endDayKey: "2026-08-01",
+      startTime: "10:00",
+      endTime: "11:30",
+      location: " Raum 5 ",
+      calendarKey: "a c",
+    });
+    expect(draft.title).toBe("Planning");
+    expect(draft.location).toBe("Raum 5");
+    expect(draft.allDay).toBe(false);
+    expect(draft.start.ts).toBe(new Date(2026, 7, 1, 10, 0).getTime());
+    expect(draft.end.ts).toBe(new Date(2026, 7, 1, 11, 30).getTime());
+    const inverted = eventFormToDraft({
+      title: "X",
+      allDay: false,
+      dayKey: "2026-08-01",
+      endDayKey: "2026-08-01",
+      startTime: "10:00",
+      endTime: "09:00",
+      location: "",
+      calendarKey: "",
+    });
+    expect(inverted.end.ts).toBe(inverted.start.ts + 30 * 60 * 1000);
+  });
+
+  it("all-day form values convert the inclusive dialog end to the exclusive iCal end", () => {
+    const draft = eventFormToDraft({
+      title: "Urlaub",
+      allDay: true,
+      dayKey: "2026-08-10",
+      endDayKey: "2026-08-12",
+      startTime: "",
+      endTime: "",
+      location: "",
+      calendarKey: "",
+    });
+    expect(draft.start.date).toBe("2026-08-10");
+    expect(draft.end.date).toBe("2026-08-13");
+  });
+
+  it("round-trips an all-day event through the form (exclusive -> inclusive -> exclusive)", () => {
+    const e = ev({
+      allDay: true,
+      title: "Messe",
+      start: { ts: Date.UTC(2026, 7, 10), date: "2026-08-10" },
+      end: { ts: Date.UTC(2026, 7, 13), date: "2026-08-13" },
+    });
+    const form = eventFormFromEvent(e);
+    expect(form.dayKey).toBe("2026-08-10");
+    expect(form.endDayKey).toBe("2026-08-12"); // inclusive display
+    const draft = eventFormToDraft(form);
+    expect(draft.end.date).toBe("2026-08-13"); // exclusive again
+  });
+
+  it("prefills a timed event with its local times", () => {
+    const e = ev({ start: { ts: localTs(2026, 8, 1, 14, 30) }, end: { ts: localTs(2026, 8, 1, 15, 0) } });
+    const form = eventFormFromEvent(e);
+    expect(form.dayKey).toBe("2026-08-01");
+    expect(form.startTime).toBe("14:30");
+    expect(form.endTime).toBe("15:00");
+    expect(form.calendarKey).toBe("acc cal");
   });
 });
 
