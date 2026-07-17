@@ -345,6 +345,33 @@ export function BaseViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick]);
 
+  // Body-refresh channel (plan Pinboard P2): the pinboard is the first view
+  // that renders note BODIES, and pure prose edits deliberately skip the
+  // fileTreeVersion bump (fix C, 2026-07-08) — without this listener a card
+  // would show stale text after "click → peek → edit → close". The editor
+  // dispatches plainva-note-saved after re-indexing; re-query (debounced) when
+  // the saved path can affect this base. Sync/external edits already arrive
+  // through the fileTreeVersionPaths effect above.
+  useEffect(() => {
+    const isPinboard = (dbConfig?.views?.[activeViewIndex]?.type ?? dbConfig?.views?.[0]?.type) === "pinboard";
+    if (!isPinboard || !dbConfig || !queryService) return;
+    let timer: number | null = null;
+    const onSaved = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path;
+      if (typeof path !== "string" || !baseNeedsRefresh(dbConfig, [path])) return;
+      if (timer != null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        setRefreshTick((t) => t + 1);
+      }, 250);
+    };
+    window.addEventListener("plainva-note-saved", onSaved);
+    return () => {
+      window.removeEventListener("plainva-note-saved", onSaved);
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [dbConfig, activeViewIndex, queryService]);
+
   // Detect which relations connect the embedded base to the host element's base
   // (both directions). resolveGoverningBase runs the host's base query (cached).
   useEffect(() => {

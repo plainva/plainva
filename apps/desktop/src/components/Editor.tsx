@@ -380,6 +380,13 @@ export const Editor: React.FC<{
           info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: val.length };
         }
         const metaChanged = await indexer.indexFile(info);
+        // Body-refresh channel (plan Pinboard P2): pure prose edits deliberately
+        // do NOT bump fileTreeVersion (see below), but the pinboard view renders
+        // note BODIES — it listens for this event and re-queries when the saved
+        // path belongs to its source set. Dispatched AFTER indexFile so the FTS
+        // row the view reads is already current. Cheap: nothing listens unless
+        // a pinboard view is mounted.
+        window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
         // File-only refresh (P2.5/P2.7): a save never changes the folder
         // structure, and views not showing this path can skip their reload.
         // Skip the app-wide fileTreeVersion bump entirely on pure prose edits
