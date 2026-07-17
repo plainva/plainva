@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual trigger to dry-run the pre-flight (lint + full test suite) on all
+  # three platforms without cutting a release. The macOS leg of `pnpm test`
+  # exercises the recursive fs.watch path (FSEvents), which the ubuntu-only CI
+  # workflow never runs — this is the on-demand way to confirm that path stays
+  # green. The release-cutting steps below are gated off for manual runs.
+  workflow_dispatch:
 
 jobs:
   release:
@@ -59,14 +65,18 @@ jobs:
       # test is OS-independent and the check runs in Playwright's Chromium, not
       # the platform webview, so a single leg covers all three installers.
       - name: Install Playwright Browsers (smoke)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' && github.event_name != 'workflow_dispatch'
         run: pnpm --filter desktop exec playwright install --with-deps chromium
 
       - name: Production build smoke
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' && github.event_name != 'workflow_dispatch'
         run: xvfb-run pnpm --filter desktop run smoke:prod
 
       - name: Build Tauri App
+        # Release-cutting step: only on a tag push. A manual workflow_dispatch
+        # stops after the pre-flight above, so it never builds installers or
+        # creates a draft release named after the branch ref.
+        if: github.event_name != 'workflow_dispatch'
         # tauri-action v1 (migrated from v0). The inputs we use (tagName,
         # releaseName, releaseBody, releaseDraft, prerelease, args) are unchanged;
         # v1 only drops includeRelease/includeDebug/auto-init and renames
