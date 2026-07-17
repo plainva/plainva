@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Stand: 2026-07-13
+Stand: 2026-07-17
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -18,6 +18,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 - **Resolver conflitos**: um banner na nota afetada (e **Resolver conflito…** no menu de contexto do arquivo `.CONFLICT` na árvore) abre o diálogo de comparação — o estado atual do arquivo à esquerda, sua versão preservada à direita, editável com adoção por bloco. **Salvar o lado direito e resolver** grava o resultado no arquivo e remove a cópia de conflito; **Manter o outro lado** descarta sua cópia (um snapshot de versão permanece). O diálogo de erro de sincronização também lista as cópias de conflito existentes e leva à mesma comparação com um clique.
 - **Proteção contra exclusões em massa**: se uma parcela incomumente grande dos arquivos sincronizados estiver prestes a ser excluída na nuvem de uma só vez (por exemplo, porque a pasta local do vault foi esvaziada ou movida), o Plainva retém as exclusões e pergunta primeiro: **Excluir na nuvem** as executa, **Não excluir (restaurar)** as descarta e restaura os arquivos da nuvem na próxima sincronização. As exclusões que você mesmo confirmou no Plainva não são retidas — em exclusões grandes (mais de 10 arquivos ou mais de 20% do vault), o Plainva pede uma segunda confirmação antes de excluir.
 - Anexos (imagens etc.) também são sincronizados.
+- **Pastas vazias** também são sincronizadas: uma pasta criada no Plainva aparece na nuvem imediatamente, e pastas vazias na nuvem aparecem nos seus outros dispositivos no mais tardar na próxima listagem completa.
 - Credenciais e tokens são armazenados no chaveiro do sistema operacional (status: **Configurações → App → Sobre e diagnóstico → Chaveiro do sistema**), nunca em arquivos dentro do vault.
 - **Desconectar** interrompe a sincronização do vault; nenhum arquivo é excluído em lugar nenhum ao fazer isso.
 

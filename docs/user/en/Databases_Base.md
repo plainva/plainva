@@ -92,11 +92,12 @@ The **Entry** button at the top left (formerly **New**; clearly separate from th
 
 The **Pinboard** view type shows the database's notes as cards with their rendered content — a board full of sticky notes. Cards render text, lists and clickable checkboxes (a click ticks the task right in the note), images and formatting; tables, formulas and embeds appear as subtle placeholders. Clicking a card opens the note in the preview window.
 
-- **Quick capture**: The **Write a note…** field above the board creates a new note in the database's storage folder when you press Enter — no template, no detours; the typed text is the content and the file name comes from its first words.
+- **Quick capture**: The **Write a note…** field above the board expands into a small popup with a **Title** field and multi-line note text — like Google Keep. A typed title becomes the file name AND the note's first heading; without one the file gets a timestamp name and the note has no heading. The text is the content either way — no template, no detours (Ctrl/Cmd+Enter saves).
 - **Pinning**: The pin button (top right when hovering a card) lifts a card into the **Pinned** section.
 - **Arranging**: Drag cards to reorder them; the order lives in the `.base` file and syncs along. Cards not arranged yet (freshly captured or created externally) appear on top, newest first. If a sort rule is set under **Configure**, it wins — dragging is disabled then.
 - **Labels**: The chip bar above the board filters the cards — by tags by default, switchable to a multi-select property (**Configure** → **Label source**). Multiple chips filter AND-combined; the selection is ephemeral and never written to the file. Edit a card's labels via **Labels** in the card's context menu.
 - **Color**: The context menu tints the card. The color is the note's header color (`plainva.header_color`) — it applies everywhere the note appears, including the editor header.
+- **Properties**: the properties ticked under **Configure** → **Properties** render as compact lines at the bottom of each card — dates follow the view's date format, empty values are skipped.
 - **Mobile**: On the phone, tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders. Tip: point the database at your inbox folder (**Settings** → **Folders**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
 
 Note for synced vaults: if two devices arrange the board at the same time, a `.CONFLICT` copy of the `.base` file can appear — only the arrangement is affected, never the notes' content; delete or merge the copy.
