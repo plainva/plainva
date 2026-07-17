@@ -26,8 +26,9 @@ const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
+const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { BaseViewer } from "./components/BaseViewer";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
@@ -232,13 +233,13 @@ function App() {
   // Right-sidebar visibility is remembered PER VIEW KIND (hardening P7.2):
   // the vault map defaults to collapsed (canvas wants the space), notes and
   // bases keep their own last choice. The legacy global key is the fallback.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail"): boolean => {
     const v = localStorage.getItem(`plainva-right-collapsed-${kind}`);
     if (v !== null) return v === "1";
     // Canvas-like full-surface views want the space by default.
-    if (kind === "graph" || kind === "calendar") return true;
+    if (kind === "graph" || kind === "calendar" || kind === "mail") return true;
     return localStorage.getItem("plainva-right-sidebar-collapsed") === "1";
   };
   // Focus mode (P7.4): one command collapses BOTH sidebars; invoking it again
@@ -897,6 +898,7 @@ function App() {
         onOpenGraph={() => openInFocusedPane(GRAPH_TAB_PATH, true)}
         onOpenTasks={() => openInFocusedPane(TASKS_TAB_PATH, true)}
         onOpenCalendar={() => openInFocusedPane(CALENDAR_TAB_PATH, true)}
+        onOpenMail={() => openInFocusedPane(MAIL_TAB_PATH, true)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -1174,6 +1176,10 @@ function App() {
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <CalendarView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
                       </Suspense>
+                    ) : path === MAIL_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                      </Suspense>
                     ) : isImagePath(path) ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <ImageViewer
@@ -1333,6 +1339,7 @@ function App() {
             openGraph: () => openInFocusedPane(GRAPH_TAB_PATH, true),
             openTasks: () => openInFocusedPane(TASKS_TAB_PATH, true),
             openCalendar: () => openInFocusedPane(CALENDAR_TAB_PATH, true),
+            openMail: () => openInFocusedPane(MAIL_TAB_PATH, true),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),

@@ -30,6 +30,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { buildDriveTarget, buildOneDriveTarget, buildDropboxTarget, buildS3Target } from "../services/syncTargets";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { PimAccountsSection } from "./pim/PimAccountsSection";
+import { MailAccountsSection } from "./mail/MailAccountsSection";
 import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
@@ -1805,7 +1806,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
                   <h4 id="sec-pim" style={{ marginTop: 0, marginBottom: "0.4rem", scrollMarginTop: "8px" }}>{t("settings.sectionPim", { defaultValue: "Kalender & Konten" })}</h4>
                   {section === vaultPath ? (
-                    <PimAccountsSection />
+                    <>
+                      <PimAccountsSection />
+                      <h5 style={{ margin: "1rem 0 0.4rem" }}>{t("mail.sectionTitle", { defaultValue: "E-Mail (IMAP, nur Lesen)" })}</h5>
+                      <MailAccountsSection />
+                    </>
                   ) : (
                     <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</p>
                   )}

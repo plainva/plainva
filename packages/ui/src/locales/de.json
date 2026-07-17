@@ -1870,5 +1870,28 @@
     "repeatWeekly": "Wöchentlich",
     "repeatMonthly": "Monatlich",
     "repeatYearly": "Jährlich"
+  },
+  "mail": {
+    "sectionTitle": "E-Mail (IMAP, nur Lesen)",
+    "title": "E-Mail",
+    "openMail": "E-Mail öffnen",
+    "empty": "Kein E-Mail-Konto verbunden",
+    "emptyHint": "Verbinde in den Einstellungen unter „Kalender & Konten“ ein IMAP-Konto (nur Lesen).",
+    "noAccounts": "Noch kein E-Mail-Konto verbunden.",
+    "imapHint": "Nur Lesen — Plainva ändert nichts im Postfach. Gmail: imap.gmail.com, Port 993, mit App-Passwort.",
+    "folder": "E-Mail-Ordner",
+    "folderHint": "Ablage für abgelegte E-Mails (Notizen und .eml-Dateien).",
+    "account": "Konto",
+    "noMessages": "Keine Nachrichten.",
+    "noSubject": "(kein Betreff)",
+    "loadMore": "Mehr laden",
+    "pickMessage": "Nachricht auswählen.",
+    "viewer": "E-Mail-Inhalt",
+    "remoteBlocked": "Externe Inhalte blockiert ({{n}})",
+    "captured": "E-Mail abgelegt: {{name}}",
+    "captureNote": "Als Notiz ablegen",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ Aufgabe",
+    "fromLabel": "Von"
   }
 }

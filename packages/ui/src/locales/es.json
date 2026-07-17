@@ -1876,5 +1876,28 @@
     "repeatWeekly": "Semanal",
     "repeatMonthly": "Mensual",
     "repeatYearly": "Anual"
+  },
+  "mail": {
+    "sectionTitle": "Correo (IMAP, solo lectura)",
+    "title": "Correo",
+    "openMail": "Abrir correo",
+    "empty": "Ninguna cuenta de correo conectada",
+    "emptyHint": "Conecta una cuenta IMAP de solo lectura en Ajustes, sección «Calendario y cuentas».",
+    "noAccounts": "Aún no hay ninguna cuenta de correo conectada.",
+    "imapHint": "Solo lectura — Plainva nunca cambia el buzón. Gmail: imap.gmail.com, puerto 993, con contraseña de aplicación.",
+    "folder": "Carpeta de correo",
+    "folderHint": "Dónde se guardan los correos capturados (notas y archivos .eml).",
+    "account": "Cuenta",
+    "noMessages": "No hay mensajes.",
+    "noSubject": "(sin asunto)",
+    "loadMore": "Cargar más",
+    "pickMessage": "Selecciona un mensaje.",
+    "viewer": "Contenido del correo",
+    "remoteBlocked": "Contenido remoto bloqueado ({{n}})",
+    "captured": "Correo guardado: {{name}}",
+    "captureNote": "Guardar como nota",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ Tarea",
+    "fromLabel": "De"
   }
 }

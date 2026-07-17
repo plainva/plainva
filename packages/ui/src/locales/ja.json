@@ -1864,5 +1864,28 @@
     "repeatWeekly": "毎週",
     "repeatMonthly": "毎月",
     "repeatYearly": "毎年"
+  },
+  "mail": {
+    "sectionTitle": "メール（IMAP・読み取り専用）",
+    "title": "メール",
+    "openMail": "メールを開く",
+    "empty": "メールアカウントが接続されていません",
+    "emptyHint": "設定の「カレンダーとアカウント」で読み取り専用の IMAP アカウントを接続してください。",
+    "noAccounts": "メールアカウントはまだ接続されていません。",
+    "imapHint": "読み取り専用 — Plainva がメールボックスを変更することはありません。Gmail: imap.gmail.com、ポート 993、アプリパスワードを使用。",
+    "folder": "メールフォルダー",
+    "folderHint": "取り込んだメール（ノートと .eml ファイル）の保存先です。",
+    "account": "アカウント",
+    "noMessages": "メッセージはありません。",
+    "noSubject": "（件名なし）",
+    "loadMore": "さらに読み込む",
+    "pickMessage": "メッセージを選択してください。",
+    "viewer": "メール本文",
+    "remoteBlocked": "外部コンテンツをブロックしました（{{n}}）",
+    "captured": "メールを保存しました: {{name}}",
+    "captureNote": "ノートとして保存",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ タスク",
+    "fromLabel": "差出人"
   }
 }

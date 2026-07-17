@@ -1870,5 +1870,28 @@
     "repeatWeekly": "Wekelijks",
     "repeatMonthly": "Maandelijks",
     "repeatYearly": "Jaarlijks"
+  },
+  "mail": {
+    "sectionTitle": "E-mail (IMAP, alleen-lezen)",
+    "title": "E-mail",
+    "openMail": "E-mail openen",
+    "empty": "Geen e-mailaccount verbonden",
+    "emptyHint": "Verbind een alleen-lezen IMAP-account in Instellingen onder “Agenda en accounts”.",
+    "noAccounts": "Nog geen e-mailaccount verbonden.",
+    "imapHint": "Alleen-lezen — Plainva wijzigt nooit iets in de mailbox. Gmail: imap.gmail.com, poort 993, met een app-wachtwoord.",
+    "folder": "E-mailmap",
+    "folderHint": "Waar vastgelegde e-mails (notities en .eml-bestanden) worden opgeslagen.",
+    "account": "Account",
+    "noMessages": "Geen berichten.",
+    "noSubject": "(geen onderwerp)",
+    "loadMore": "Meer laden",
+    "pickMessage": "Selecteer een bericht.",
+    "viewer": "E-mailinhoud",
+    "remoteBlocked": "Externe inhoud geblokkeerd ({{n}})",
+    "captured": "E-mail vastgelegd: {{name}}",
+    "captureNote": "Opslaan als notitie",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ Taak",
+    "fromLabel": "Van"
   }
 }

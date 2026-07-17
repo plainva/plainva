@@ -1870,5 +1870,28 @@
     "repeatWeekly": "Weekly",
     "repeatMonthly": "Monthly",
     "repeatYearly": "Yearly"
+  },
+  "mail": {
+    "sectionTitle": "Email (IMAP, read-only)",
+    "title": "Email",
+    "openMail": "Open email",
+    "empty": "No email account connected",
+    "emptyHint": "Connect a read-only IMAP account in Settings under “Calendar & accounts”.",
+    "noAccounts": "No email account connected yet.",
+    "imapHint": "Read-only — Plainva never changes the mailbox. Gmail: imap.gmail.com, port 993, with an app password.",
+    "folder": "Mail folder",
+    "folderHint": "Where captured emails (notes and .eml files) are stored.",
+    "account": "Account",
+    "noMessages": "No messages.",
+    "noSubject": "(no subject)",
+    "loadMore": "Load more",
+    "pickMessage": "Select a message.",
+    "viewer": "Email content",
+    "remoteBlocked": "Remote content blocked ({{n}})",
+    "captured": "Email captured: {{name}}",
+    "captureNote": "Save as note",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ Task",
+    "fromLabel": "From"
   }
 }

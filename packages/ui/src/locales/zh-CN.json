@@ -1864,5 +1864,28 @@
     "repeatWeekly": "每周",
     "repeatMonthly": "每月",
     "repeatYearly": "每年"
+  },
+  "mail": {
+    "sectionTitle": "邮件（IMAP，只读）",
+    "title": "邮件",
+    "openMail": "打开邮件",
+    "empty": "尚未连接邮件账户",
+    "emptyHint": "请在设置的“日历与账户”中连接一个只读 IMAP 账户。",
+    "noAccounts": "尚未连接任何邮件账户。",
+    "imapHint": "只读——Plainva 不会更改邮箱。Gmail：imap.gmail.com，端口 993，使用应用专用密码。",
+    "folder": "邮件文件夹",
+    "folderHint": "已保存邮件（笔记和 .eml 文件）的存放位置。",
+    "account": "账户",
+    "noMessages": "没有邮件。",
+    "noSubject": "（无主题）",
+    "loadMore": "加载更多",
+    "pickMessage": "请选择一封邮件。",
+    "viewer": "邮件内容",
+    "remoteBlocked": "已拦截外部内容（{{n}}）",
+    "captured": "已保存邮件：{{name}}",
+    "captureNote": "保存为笔记",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ 任务",
+    "fromLabel": "发件人"
   }
 }

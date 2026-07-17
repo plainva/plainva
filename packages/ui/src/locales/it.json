@@ -1876,5 +1876,28 @@
     "repeatWeekly": "Settimanale",
     "repeatMonthly": "Mensile",
     "repeatYearly": "Annuale"
+  },
+  "mail": {
+    "sectionTitle": "E-mail (IMAP, sola lettura)",
+    "title": "E-mail",
+    "openMail": "Apri e-mail",
+    "empty": "Nessun account e-mail collegato",
+    "emptyHint": "Collega un account IMAP in sola lettura nelle Impostazioni, sezione “Calendario e account”.",
+    "noAccounts": "Nessun account e-mail collegato finora.",
+    "imapHint": "Sola lettura — Plainva non modifica mai la casella. Gmail: imap.gmail.com, porta 993, con password per le app.",
+    "folder": "Cartella e-mail",
+    "folderHint": "Dove vengono salvate le e-mail catturate (note e file .eml).",
+    "account": "Account",
+    "noMessages": "Nessun messaggio.",
+    "noSubject": "(senza oggetto)",
+    "loadMore": "Carica altro",
+    "pickMessage": "Seleziona un messaggio.",
+    "viewer": "Contenuto dell’e-mail",
+    "remoteBlocked": "Contenuti remoti bloccati ({{n}})",
+    "captured": "E-mail salvata: {{name}}",
+    "captureNote": "Salva come nota",
+    "captureWithEml": "+ .eml",
+    "captureTask": "→ Attività",
+    "fromLabel": "Da"
   }
 }
