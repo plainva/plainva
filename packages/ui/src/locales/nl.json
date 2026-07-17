@@ -1786,6 +1786,7 @@
     "capturePlaceholder": "Notitie schrijven…",
     "labels": "Labels",
     "addLabel": "Labels zoeken…",
-    "newLabel": "“{{name}}” aanmaken"
+    "newLabel": "“{{name}}” aanmaken",
+    "inlineTag": "in de tekst"
   }
 }

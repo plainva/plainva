@@ -1792,6 +1792,7 @@
     "capturePlaceholder": "Scrivi una nota…",
     "labels": "Etichette",
     "addLabel": "Cerca etichette…",
-    "newLabel": "Crea “{{name}}”"
+    "newLabel": "Crea “{{name}}”",
+    "inlineTag": "nel testo"
   }
 }

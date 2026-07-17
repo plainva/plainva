@@ -1798,6 +1798,7 @@
     "capturePlaceholder": "Napisz notatkę…",
     "labels": "Etykiety",
     "addLabel": "Szukaj etykiet…",
-    "newLabel": "Utwórz „{{name}}”"
+    "newLabel": "Utwórz „{{name}}”",
+    "inlineTag": "w tekście"
   }
 }

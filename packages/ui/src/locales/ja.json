@@ -1780,6 +1780,7 @@
     "capturePlaceholder": "メモを書く…",
     "labels": "ラベル",
     "addLabel": "ラベルを検索…",
-    "newLabel": "「{{name}}」を作成"
+    "newLabel": "「{{name}}」を作成",
+    "inlineTag": "本文内"
   }
 }

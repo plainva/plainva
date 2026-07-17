@@ -1786,6 +1786,7 @@
     "capturePlaceholder": "Notiz schreiben…",
     "labels": "Labels",
     "addLabel": "Label suchen…",
-    "newLabel": "„{{name}}“ anlegen"
+    "newLabel": "„{{name}}“ anlegen",
+    "inlineTag": "im Text"
   }
 }

@@ -1780,6 +1780,7 @@
     "capturePlaceholder": "写个便签…",
     "labels": "标签",
     "addLabel": "搜索标签…",
-    "newLabel": "创建“{{name}}”"
+    "newLabel": "创建“{{name}}”",
+    "inlineTag": "在正文中"
   }
 }

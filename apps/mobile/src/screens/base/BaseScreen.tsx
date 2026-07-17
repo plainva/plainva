@@ -12,6 +12,7 @@ import {
   List,
   Plus,
   Settings2,
+  StickyNote,
   Table,
   Waypoints,
 } from "lucide-react";
@@ -40,6 +41,7 @@ import {
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
+import { PinboardView } from "./PinboardView";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
@@ -64,6 +66,7 @@ const VIEW_ICON: Record<string, typeof Table> = {
   calendar: CalendarDays,
   timeline: GanttChart,
   graph: Waypoints,
+  pinboard: StickyNote,
 };
 
 export function BaseScreen({
@@ -90,8 +93,10 @@ export function BaseScreen({
   const [propEdit, setPropEdit] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
   const config = loaded?.config;
-  const views: any[] = Array.isArray(config?.views) ? config.views : [];
-  const view: any = views[viewIndex] ?? {};
+  // Memoized so downstream memo/callback deps stay referentially stable
+  // (react-hooks lint since the pinboard's patchActiveView joined, P6).
+  const views: any[] = useMemo(() => (Array.isArray(config?.views) ? config.views : []), [config]);
+  const view: any = useMemo(() => views[viewIndex] ?? {}, [views, viewIndex]);
   // Pull-to-refresh re-queries through the m-vault-changed listener below.
   // Off on the graph view: its page is a non-scrolling flex column and the
   // canvas owns one-finger drags (pan), so PTR would otherwise fire on a pan.
@@ -264,6 +269,25 @@ export function BaseScreen({
       else setShowConfig(true); // no folder source to store into
     });
   };
+
+  // Pinboard view options (plan Pinboard P6): patch the active view
+  // (pinboardOrder/pinboardPinned), keep the in-memory config in sync and
+  // persist through the shared serialize contract. `undefined` deletes a key.
+  const patchActiveView = useCallback(
+    (patch: Record<string, unknown>) => {
+      if (!config || !loaded) return;
+      const next = JSON.parse(JSON.stringify(config));
+      const v = Array.isArray(next.views) ? next.views[viewIndex] : null;
+      if (!v) return;
+      for (const [k, val] of Object.entries(patch)) {
+        if (val === undefined) delete v[k];
+        else v[k] = val;
+      }
+      setLoaded({ config: next, stem: loaded.stem });
+      void saveBaseConfig(vault, path, next);
+    },
+    [config, loaded, viewIndex, vault, path],
+  );
 
   /** Desktop getDateProperty: views[i].dateField, else first date column. */
   const dateProp = useMemo(() => {
@@ -815,6 +839,19 @@ export function BaseScreen({
 
       {rows === null ? null : !vault.queryService ? (
         <EmptyState icon={<Database size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+      ) : effectiveRender === "pinboard" ? (
+        // Before the empty check: the capture field must show on an empty board.
+        <PinboardView
+          vault={vault}
+          basePath={path}
+          config={config}
+          view={view}
+          rows={rows}
+          onOpenNote={onOpenNote}
+          onMutated={() => requery(config, viewIndex)}
+          onPatchView={patchActiveView}
+          onNeedsConfig={() => setShowConfig(true)}
+        />
       ) : rows.length === 0 ? (
         <EmptyState icon={<Database size={20} />}>{t("mobile.baseEmpty")}</EmptyState>
       ) : effectiveRender === "graph" ? (
