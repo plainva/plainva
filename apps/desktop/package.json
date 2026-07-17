@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:isolated": "vite --port 1440 --strictPort",
+    "tauri:isolated": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

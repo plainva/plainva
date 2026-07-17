@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tauri::Manager;
 
 mod atomic_write;
 mod backup;
@@ -327,6 +328,19 @@ pub fn run() {
             cancel: Mutex::new(None),
         })
         .manage(atomic_write::WriteRoots::default())
+        .setup(|app| {
+            // The isolated dev build (tauri.dev.conf.json overrides the
+            // identifier to com.plainva.desktop.dev) keeps its own state
+            // directory beside the release install; label its window so the two
+            // are never confused. Inert in release builds, whose identifier
+            // never ends in ".dev".
+            if app.config().identifier.ends_with(".dev") {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.set_title("Plainva (Dev)");
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             keychain_set,
             keychain_get,
