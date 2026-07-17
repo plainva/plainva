@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getSettingsStore } from "../services/settingsStore";
+import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "@plainva/ui";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -534,15 +535,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     }
   };
 
-  /** Child folder names one level below `path` in the OPEN vault (dot folders
-   *  like .plainva/.git stay hidden — they are never a sensible pick). */
+  /** Child folder names one level below `path` in the OPEN vault (shared
+   *  helper since 2026-07-17 — the .base pickers browse the same way). */
   const listVaultFolders = async (path: string): Promise<string[]> => {
     if (!vaultAdapter) return [];
-    const entries = await vaultAdapter.listDir(path);
-    return entries
-      .filter((e) => e.isDirectory && !e.name.startsWith("."))
-      .map((e) => e.name)
-      .sort((a, b) => a.localeCompare(b));
+    return sharedListVaultFolders(vaultAdapter, path);
   };
 
   // Template-folder .md files → the daily-note template becomes a dropdown

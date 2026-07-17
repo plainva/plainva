@@ -5,6 +5,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { SourceConditionEditor } from "./SourceConditionEditor";
 import { buildWizardConfig, collectWizardColumns, type WizardColumn, type WizardNewColumn } from "./createWizardModel";
+import { listVaultFolders } from "../../services/vaultFolders";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
 
 // Creation wizard of a new `.base` (plan W3, P1/P2): step 1 picks the data
@@ -25,7 +26,6 @@ export function BaseCreateWizard({
   const { queryService, vaultAdapter } = useVault();
 
   const [clauses, setClauses] = useState<string[]>([]);
-  const [folders, setFolders] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [columns, setColumns] = useState<WizardColumn[]>([]);
@@ -35,9 +35,14 @@ export function BaseCreateWizard({
 
   useEffect(() => {
     if (!queryService) return;
-    queryService.getAllFolders().then(setFolders).catch(console.error);
     queryService.getAllTags().then((all) => setTags(all.map((x) => x.tag))).catch(console.error);
   }, [queryService]);
+
+  // Folder picking browses the live file system (2026-07-17): a folder created
+  // moments ago — still empty, so unknown to the index — is pickable as the
+  // source of the new database (maintainer bug report F4).
+  const listFolders = async (path: string): Promise<string[]> =>
+    vaultAdapter ? listVaultFolders(vaultAdapter, path) : [];
 
   // Probe query on every source change: the match count and the property union
   // drive step 2. No source selected -> no query (a vault-wide scan is never
@@ -107,11 +112,11 @@ export function BaseCreateWizard({
           <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
           <SourceConditionEditor
             conditions={clauses.map((clause, idx) => ({ clause, idx }))}
-            folders={folders}
             tags={tags}
             t={t}
             onAdd={(clause) => setClauses((prev) => (prev.includes(clause) ? prev : [...prev, clause]))}
             onRemoveAt={(idx) => setClauses((prev) => prev.filter((_, i) => i !== idx))}
+            onListFolders={listFolders}
             onCreateFolder={createFolder}
           />
           {matchCount !== null && (

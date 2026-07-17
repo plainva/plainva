@@ -1,56 +1,44 @@
 import { useState } from "react";
 import type { TFunction } from "i18next";
-import { Trash2, FolderPlus } from "lucide-react";
+import { Trash2, FolderOpen } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { buildSourceClause, parseSourceClause } from "@plainva/ui";
+import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 
 // Shared editor for the folder/tag source conditions of a `.base` (plan W3):
 // used by the config panel's data-source section and by the creation wizard so
-// both offer the same picking UI including "create a new folder" (P1).
+// both offer the same picking UI. Since 2026-07-17 the folder side is a
+// BROWSABLE picker over the live file system (maintainer request A2) instead
+// of an index-backed dropdown — freshly created EMPTY folders are pickable
+// immediately (the index only knows folders that contain indexed files), and
+// the picker's "new folder" row replaces the old inline create form.
 export function SourceConditionEditor({
   conditions,
-  folders,
   tags,
   t,
   onAdd,
   onRemoveAt,
+  onListFolders,
   onCreateFolder,
 }: {
   /** Editable source clauses with their index in the underlying filter list. */
   conditions: { clause: string; idx: number }[];
-  folders: string[];
   tags: string[];
   t: TFunction;
   onAdd: (clause: string) => void;
   onRemoveAt: (idx: number) => void;
+  /** Child folder names one level below `path` ("" = vault root), from the file system. */
+  onListFolders: (path: string) => Promise<string[]>;
   /** Creates the folder in the vault; resolves true on success. */
   onCreateFolder?: (path: string) => Promise<boolean>;
 }) {
   const [type, setType] = useState<"folder" | "tag">("folder");
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [newFolderPath, setNewFolderPath] = useState("");
-  const [folderError, setFolderError] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const addOptions: SelectOption[] = [
+  const tagOptions: SelectOption[] = [
     { value: "", label: t("database.addFilter", "Filter hinzufügen") },
-    ...(type === "folder"
-      ? [
-          { value: "/", label: `/ (${t("database.rootFolder", "Hauptverzeichnis")})` },
-          ...folders.map((f) => ({ value: f, label: f })),
-        ]
-      : tags.map((tag) => ({ value: tag, label: `#${tag}` }))),
+    ...tags.map((tag) => ({ value: tag, label: `#${tag}` })),
   ];
-
-  const submitNewFolder = async () => {
-    const path = newFolderPath.trim().replace(/^\/+|\/+$/g, "");
-    if (!path || !onCreateFolder) return;
-    setFolderError(false);
-    const ok = await onCreateFolder(path);
-    if (!ok) { setFolderError(true); return; }
-    onAdd(buildSourceClause("folder", path));
-    setNewFolderPath("");
-    setNewFolderOpen(false);
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -88,40 +76,49 @@ export function SourceConditionEditor({
             { value: "tag", label: t("database.tag", "Tag") },
           ]}
         />
-        <div style={{ flex: 1, minWidth: 120 }}>
-          <Select
-            ariaLabel={t("database.addFilter", "Filter hinzufügen")}
-            value=""
-            size="sm"
-            minWidth={80}
-            onChange={(v) => { if (v) onAdd(buildSourceClause(type, v)); }}
-            options={addOptions}
-          />
-        </div>
+        {type === "folder" ? (
+          <button
+            type="button"
+            className="base-cfg-addrow"
+            data-source-browse="true"
+            style={{ flex: 1, minWidth: 120, justifyContent: "flex-start" }}
+            onClick={() => setPickerOpen(true)}
+          >
+            <FolderOpen size={12} /> {t("settings.browseFolders", "Ordner auswählen…")}
+          </button>
+        ) : (
+          <div style={{ flex: 1, minWidth: 120 }}>
+            <Select
+              ariaLabel={t("database.addFilter", "Filter hinzufügen")}
+              value=""
+              size="sm"
+              minWidth={80}
+              onChange={(v) => { if (v) onAdd(buildSourceClause("tag", v)); }}
+              options={tagOptions}
+            />
+          </div>
+        )}
       </div>
 
-      {onCreateFolder && !newFolderOpen && (
-        <button className="base-cfg-addrow" onClick={() => setNewFolderOpen(true)}>
-          <FolderPlus size={12} /> {t("database.newFolder", "Neuen Ordner anlegen")}
-        </button>
-      )}
-      {onCreateFolder && newFolderOpen && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <div style={{ display: "flex", gap: "4px" }}>
-            <input
-              autoFocus
-              type="text"
-              className="base-cfg-input"
-              style={{ flex: 1, minWidth: 0 }}
-              placeholder={t("database.newFolderPlaceholder", "Ordnerpfad, z. B. Projekte/Neu")}
-              value={newFolderPath}
-              onChange={(e) => { setNewFolderPath(e.target.value); setFolderError(false); }}
-              onKeyDown={(e) => { if (e.key === "Enter") submitNewFolder(); if (e.key === "Escape") { setNewFolderOpen(false); setFolderError(false); } }}
-            />
-            <button className="base-cfg-addbtn" onClick={submitNewFolder} disabled={!newFolderPath.trim()} style={{ opacity: newFolderPath.trim() ? 1 : 0.5 }}>{t("database.add", "Hinzufügen")}</button>
-          </div>
-          {folderError && <div style={{ fontSize: "0.75rem", color: "var(--error-text)" }}>{t("database.createFolderFailed", "Ordner konnte nicht angelegt werden.")}</div>}
-        </div>
+      {pickerOpen && (
+        <SyncFolderPickerModal
+          listFolders={onListFolders}
+          rootLabel={`/ (${t("database.rootFolder", "Hauptverzeichnis")})`}
+          allowRoot
+          createFolder={
+            onCreateFolder
+              ? async (path: string) => {
+                  const ok = await onCreateFolder(path);
+                  if (!ok) throw new Error(t("database.createFolderFailed", "Ordner konnte nicht angelegt werden."));
+                }
+              : undefined
+          }
+          onSelect={(path) => {
+            setPickerOpen(false);
+            onAdd(buildSourceClause("folder", path === "" ? "/" : path));
+          }}
+          onCancel={() => setPickerOpen(false)}
+        />
       )}
     </div>
   );

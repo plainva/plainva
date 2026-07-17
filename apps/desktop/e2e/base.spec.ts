@@ -660,11 +660,12 @@ test('Base wizard: new database via source step, live match count, created file 
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Neu.base'])).toBeUndefined();
 
-  // Pick the existing folder via "create new folder" (idempotent for an
-  // existing path) — the probe query reports the matching notes.
-  await page.getByRole('button', { name: /Neuen Ordner anlegen|Create new folder/ }).click();
-  await page.keyboard.type('Projekte');
-  await page.keyboard.press('Enter');
+  // Pick the folder via the BROWSABLE picker (2026-07-17): it walks the live
+  // file system, so the click descends into "Projekte" and the footer button
+  // confirms it — the probe query then reports the matching notes.
+  await page.getByRole('button', { name: /Ordner auswählen…|Choose folder…/ }).click();
+  await page.locator('.pv-modal').getByText('Projekte', { exact: true }).click();
+  await page.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
   await expect(page.getByText(/3 (Notizen|notes)/)).toBeVisible();
 
   // The found properties are preselected; create the database.
@@ -937,7 +938,7 @@ test('Base: renaming a property updates the config and the note frontmatter', as
   await expect(page.locator('table').getByText('active').first()).toBeVisible();
 });
 
-test('Wizard: adding further sources keeps offering dropdowns (P8)', async ({ page }) => {
+test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag sources keep their dropdown (P8/F4)', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('aside').getByText('Cockpit', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })));
@@ -946,18 +947,24 @@ test('Wizard: adding further sources keeps offering dropdowns (P8)', async ({ pa
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
 
   const wizard = page.locator('.pv-modal-card');
-  // First source via the two dropdowns (type + value).
-  await wizard.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
-  await page.getByRole('option', { name: 'Projekte', exact: true }).click();
+  // First source: the picker's "new folder" row creates an EMPTY folder and
+  // descends into it — the maintainer's F4 case (the old index-backed dropdown
+  // could never offer a folder without indexed files).
+  await wizard.getByRole('button', { name: /Ordner auswählen…|Choose folder…/ }).click();
+  const picker = page.locator('.pv-modal');
+  await picker.getByPlaceholder(/Neuer Ordner|New folder/).fill('Leerbereich');
+  await picker.getByRole('button', { name: /^(Anlegen|Create)$/ }).click();
+  await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
+  expect(await page.evaluate(() => !!(window as any).mockFs['/test-vault/Leerbereich']?.isDir)).toBe(true);
 
-  // The add row STILL offers both dropdowns — switch the type to tag, add one.
+  // The add row still offers the type select — switch to tag, add via dropdown.
   await wizard.getByRole('button', { name: /Quelle|Source/ }).click();
   await page.getByRole('option', { name: 'Tag', exact: true }).click();
   await wizard.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('option', { name: '#projekt', exact: true }).click();
 
   // Both conditions landed as rows — never a free-text fallback.
-  await expect(wizard.getByText('Projekte', { exact: true })).toBeVisible();
+  await expect(wizard.getByText('Leerbereich', { exact: true })).toBeVisible();
   await expect(wizard.getByText('#projekt', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 });
