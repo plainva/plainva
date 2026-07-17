@@ -208,10 +208,29 @@ test.beforeEach(async ({ page }) => {
       '',
     ].join('\n');
 
+    // Pinboard fixture (plan Pinboard P3): a Keep-style view over a Zettel
+    // folder; card bodies come from the fts_notes mock below.
+    const pinboardYaml = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Zettel"',
+      'views:',
+      '  - type: table',
+      '    name: Pinnwand',
+      '    plainva:',
+      '      render: pinboard',
+      '',
+    ].join('\n');
+
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Projekte': { isDir: true },
+      '/test-vault/Zettel': { isDir: true },
+      '/test-vault/Zettel/Einkauf.md': '---\nplainva:\n  color: "#c94f4f"\n---\n- [ ] Milch\n- [x] Brot\n',
+      '/test-vault/Zettel/Idee.md': '# Solaranlage\n\nDach **pruefen** lassen\n',
+      '/test-vault/Zettel/Notiz.md': 'Nur Text\n',
+      '/test-vault/Pinnwand.base': pinboardYaml,
       '/test-vault/Kunden': { isDir: true },
       '/test-vault/Templates': { isDir: true },
       '/test-vault/Templates/Projektvorlage.md': '---\ntype: Projekt\nstatus: entwurf\n---\n\n# {{title}}\n\nStart: {{date}}\n',
@@ -245,6 +264,9 @@ test.beforeEach(async ({ page }) => {
       { id: '6', path: 'Vorgaenge/index.md', title: 'index', mtime_local: 1750000005000, size_bytes: 10 },
       { id: '7', path: 'Vorgaenge/Vorgang A.md', title: 'Vorgang A', mtime_local: 1750000006000, size_bytes: 10 },
       { id: '8', path: 'Vorgaenge/Vorgang B.md', title: 'Vorgang B', mtime_local: 1750000007000, size_bytes: 10 },
+      { id: '9', path: 'Zettel/Einkauf.md', title: 'Einkauf', mtime_local: 1750000008000, size_bytes: 10 },
+      { id: '10', path: 'Zettel/Idee.md', title: 'Idee', mtime_local: 1750000009000, size_bytes: 10 },
+      { id: '11', path: 'Zettel/Notiz.md', title: 'Notiz', mtime_local: 1750000010000, size_bytes: 10 },
     ];
     const dbProps: Record<string, { key: string; value: string; type: string }[]> = {
       '1': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '2', type: 'number' }, { key: 'tags', value: '["typ/tagebuch","thema/psyche"]', type: 'list' }, { key: 'date', value: calDate, type: 'text' }, { key: 'kunde', value: '[[ACME]]', type: 'text' }],
@@ -321,6 +343,28 @@ test.beforeEach(async ({ page }) => {
           // Property-scoped reverse lookup (links.property_key), P3.
           if (query.includes('l.property_key = ?')) {
             return dbLinks.filter(l => l.property_key === values[0]).map(l => ({ ...l }));
+          }
+          // Pinboard card data (plan Pinboard P2/P3): body from the FTS mirror
+          // (read LIVE from mockFs so checkbox writes show up on re-query),
+          // ctime from the files table, tags via the file join.
+          if (query.includes('FROM fts_notes WHERE path IN')) {
+            return values
+              .map((v: any) => {
+                const c = fs['/test-vault/' + v];
+                return typeof c === 'string' ? { path: v, content: c } : null;
+              })
+              .filter(Boolean);
+          }
+          if (query.includes('SELECT path, ctime FROM files WHERE path IN')) {
+            return values
+              .map((v: any) => {
+                const hit = dbFiles.find(f => f.path === v);
+                return hit ? { path: v, ctime: hit.mtime_local } : null;
+              })
+              .filter(Boolean);
+          }
+          if (query.includes('JOIN files f ON f.id = t.file_id')) {
+            return [];
           }
           if (query.includes('FROM tags')) {
             return [{ tag: 'projekt', count: 2 }];
@@ -1416,4 +1460,36 @@ test('Template DB excludes the source folder index.md from the view', async ({ p
   // only a plain folder source.
   await expect(table.getByText('index', { exact: true })).toHaveCount(0);
   await expect(table.locator('tbody tr')).toHaveCount(2);
+});
+
+test('pinboard: cards render note bodies; checkbox and pin write back to the files', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+
+  // All three Zettel render as cards; the body is RENDERED markdown (bold),
+  // a leading H1 becomes the card title (dedupe) and stays out of the body.
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.filter({ hasText: 'Solaranlage' }).locator('strong', { hasText: 'pruefen' })).toBeVisible();
+
+  // Checkbox toggle writes [x] into the note through the adapter chain and the
+  // board re-renders from the fresh FTS content (plainva-note-saved channel).
+  const einkauf = cards.filter({ hasText: 'Milch' });
+  await einkauf.locator('input[type="checkbox"]').first().click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md']))
+    .toContain('- [x] Milch');
+
+  // Pin via the hover control: the card moves into the pinned section and the
+  // arrangement persists into the .base file (views[i].plainva.pinboardPinned).
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect(page.getByText(/^(Angepinnt|Pinned)$/)).toBeVisible();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('pinboardPinned');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee.md');
 });

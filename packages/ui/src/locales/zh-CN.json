@@ -1761,5 +1761,21 @@
     "renameAction": "重命名",
     "renameDone": "已在 {{notes}} 个笔记中将 #{{old}} 重命名为 #{{new}}",
     "renameHint": "右键：重命名标签"
+  },
+  "pinboard": {
+    "pinned": "已固定",
+    "others": "其他",
+    "pin": "固定",
+    "unpin": "取消固定",
+    "open": "打开",
+    "openSplit": "在拆分视图中打开",
+    "delete": "删除",
+    "color": "颜色",
+    "noColor": "无颜色",
+    "phTable": "表格",
+    "phMath": "公式",
+    "phEmbed": "嵌入内容",
+    "sortActive": "排序规则已启用——手动排列已停用。",
+    "cardMenu": "卡片菜单"
   }
 }

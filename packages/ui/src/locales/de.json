@@ -1767,5 +1767,21 @@
     "renameAction": "Umbenennen",
     "renameDone": "#{{old}} in {{notes}} Notizen zu #{{new}} umbenannt",
     "renameHint": "Rechtsklick: Tag umbenennen"
+  },
+  "pinboard": {
+    "pinned": "Angepinnt",
+    "others": "Weitere",
+    "pin": "Anpinnen",
+    "unpin": "Lösen",
+    "open": "Öffnen",
+    "openSplit": "Im Split öffnen",
+    "delete": "Löschen",
+    "color": "Farbe",
+    "noColor": "Keine Farbe",
+    "phTable": "Tabelle",
+    "phMath": "Formel",
+    "phEmbed": "Eingebetteter Inhalt",
+    "sortActive": "Sortierregel aktiv — manuelles Anordnen ist deaktiviert.",
+    "cardMenu": "Karten-Menü"
   }
 }

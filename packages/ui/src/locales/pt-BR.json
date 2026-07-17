@@ -1773,5 +1773,21 @@
     "renameAction": "Renomear",
     "renameDone": "#{{old}} renomeada para #{{new}} em {{notes}} notas",
     "renameHint": "Clique com o botão direito: renomear tag"
+  },
+  "pinboard": {
+    "pinned": "Fixadas",
+    "others": "Outras",
+    "pin": "Fixar",
+    "unpin": "Desafixar",
+    "open": "Abrir",
+    "openSplit": "Abrir em painel dividido",
+    "delete": "Excluir",
+    "color": "Cor",
+    "noColor": "Sem cor",
+    "phTable": "Tabela",
+    "phMath": "Fórmula",
+    "phEmbed": "Conteúdo incorporado",
+    "sortActive": "Regra de ordenação ativa — a organização manual está desativada.",
+    "cardMenu": "Menu do cartão"
   }
 }

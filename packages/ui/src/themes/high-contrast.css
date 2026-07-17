@@ -14,6 +14,7 @@
   --accent-color: #0033CC;
   --accent-color-hover: #001F80;
   --accent-on: #FFFFFF;
+  --pinboard-tint: 0; /* flat: untinted cards (plan Pinboard P3) */
   /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
   --graph-glow-intensity: 0;
   --graph-edge-curvature: 0;
@@ -58,6 +59,7 @@
   --accent-color: #FFD500;
   --accent-color-hover: #FFE866;
   --accent-on: #000000;
+  --pinboard-tint: 0; /* flat: untinted cards (plan Pinboard P3) */
   /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
   --graph-glow-intensity: 0;
   --graph-edge-curvature: 0;

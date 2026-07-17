@@ -1645,7 +1645,11 @@ export function BaseViewer({
       return (
         <BasePinboardView
           dbData={scopedData}
+          activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
+          onPatchView={patchActiveView}
           onOpenNote={requestOpen}
+          onOpenInSplit={onOpenInSplit}
+          embedded={embedded}
         />
       );
     if (currentViewType === "graph")

@@ -28,6 +28,8 @@
   --accent-color: #000080;
   --accent-color-hover: #1F1F9E;
   --accent-on: #FFFFFF;
+  /* Pinboard: flat theme — cards stay untinted (plan Pinboard P3). */
+  --pinboard-tint: 0;
   /* Graph: flat theme — no node glow, straight (uncurved) edges. */
   --graph-glow-intensity: 0;
   --graph-edge-curvature: 0;

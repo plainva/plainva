@@ -1761,5 +1761,21 @@
     "renameAction": "名前を変更",
     "renameDone": "{{notes}} 件のノートで #{{old}} を #{{new}} に変更しました",
     "renameHint": "右クリック：タグの名前を変更"
+  },
+  "pinboard": {
+    "pinned": "固定済み",
+    "others": "その他",
+    "pin": "固定",
+    "unpin": "固定を解除",
+    "open": "開く",
+    "openSplit": "分割ビューで開く",
+    "delete": "削除",
+    "color": "色",
+    "noColor": "色なし",
+    "phTable": "表",
+    "phMath": "数式",
+    "phEmbed": "埋め込みコンテンツ",
+    "sortActive": "並べ替えルールが有効のため、手動での配置はできません。",
+    "cardMenu": "カードメニュー"
   }
 }

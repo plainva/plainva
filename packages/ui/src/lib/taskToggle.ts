@@ -8,8 +8,13 @@
  * blockquotes — but never lines inside fenced code blocks.
  */
 
-const TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
-const FENCE = /^\s*(?:```|~~~)/;
+// Exported for the note-card renderer (plan Pinboard P3): its task ORDINALS
+// must count exactly like this toggle, or a card checkbox would flip the
+// wrong line. No `g` flag — the regexes are stateless.
+export const TASK_LINE_RE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
+export const FENCE_RE = /^\s*(?:```|~~~)/;
+const TASK_LINE = TASK_LINE_RE;
+const FENCE = FENCE_RE;
 
 export interface TaskToggleResult {
   content: string;
