@@ -450,6 +450,8 @@ export function BaseConfigPanel({
   onSetBoardGroupBy,
   boardColorMode,
   onSetBoardColorMode,
+  pinboardFilterBy,
+  onSetPinboardFilterBy,
   onSetCoverImage,
   onSetDateField,
   onSetDateFieldType,
@@ -494,6 +496,9 @@ export function BaseConfigPanel({
   /** Board column tint mode (WP3): "column" tints the whole list, "chip" only the header chip. */
   boardColorMode?: "chip" | "column";
   onSetBoardColorMode: (mode: "chip" | "column") => void;
+  /** Pinboard label-chip source (plan Pinboard P1): "tags" (default) or a multiselect column key. */
+  pinboardFilterBy?: string;
+  onSetPinboardFilterBy?: (source: string) => void;
   onSetCoverImage: (col: string | null) => void;
   onSetDateField: (col: string) => void;
   onSetDateFieldType: (t: "date" | "datetime") => void;
@@ -665,6 +670,23 @@ export function BaseConfigPanel({
               options={[
                 { value: "chip", label: t("database.boardColorChip", "Nur Chip") },
                 { value: "column", label: t("database.boardColorColumn", "Ganze Liste") },
+              ]}
+            />
+          </label>
+        )}
+        {/* Pinboard label-chip source (plan Pinboard P1): tags (default) or a
+            curated multiselect property — mirrors the board grouping pattern. */}
+        {currentViewType === "pinboard" && onSetPinboardFilterBy && (
+          <label className="base-cfg-field">{t("database.pinboardFilterBy", "Label-Quelle")}
+            <Select
+              ariaLabel={t("database.pinboardFilterBy", "Label-Quelle")}
+              value={pinboardFilterBy && pinboardFilterBy !== "tags" ? pinboardFilterBy : "tags"}
+              onChange={(v) => onSetPinboardFilterBy(v)}
+              options={[
+                { value: "tags", label: t("sidebar.tags", "Tags") },
+                ...availableColumns
+                  .filter((c) => dbConfig?.columns?.[c]?.input === "multiselect")
+                  .map((c) => ({ value: c, label: cells.columnLabel(c) })),
               ]}
             />
           </label>

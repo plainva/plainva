@@ -515,6 +515,8 @@
     "viewBoard": "Quadro",
     "viewCalendar": "Calendário",
     "viewTimeline": "Linha do tempo",
+    "viewPinboard": "Mural",
+    "pinboardFilterBy": "Origem dos marcadores",
     "opIs": "é",
     "opIsNot": "não é",
     "opContains": "contém",

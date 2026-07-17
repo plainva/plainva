@@ -515,6 +515,8 @@
     "viewBoard": "Kanban",
     "viewCalendar": "Calendrier",
     "viewTimeline": "Chronologie",
+    "viewPinboard": "Tableau d'affichage",
+    "pinboardFilterBy": "Source des libellés",
     "opIs": "est",
     "opIsNot": "n'est pas",
     "opContains": "contient",

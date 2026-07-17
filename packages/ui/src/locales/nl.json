@@ -514,6 +514,8 @@
     "viewBoard": "Bord",
     "viewCalendar": "Kalender",
     "viewTimeline": "Tijdlijn",
+    "viewPinboard": "Prikbord",
+    "pinboardFilterBy": "Labelbron",
     "opIs": "is",
     "opIsNot": "is niet",
     "opContains": "bevat",

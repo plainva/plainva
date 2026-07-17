@@ -52,6 +52,7 @@ import { BaseViewTabs } from "./base/BaseViewTabs";
 import { BaseConfigPanel } from "./base/BaseConfigPanel";
 import { BaseTableView } from "./base/BaseTableView";
 import { BaseListView } from "./base/BaseListView";
+import { BasePinboardView } from "./base/BasePinboardView";
 import { BaseGalleryView } from "./base/BaseGalleryView";
 import { BaseBoardView } from "./base/BaseBoardView";
 import { BaseCalendarView } from "./base/BaseCalendarView";
@@ -1613,6 +1614,13 @@ export function BaseViewer({
 
   const renderViewContent = () => {
     if (currentViewType === "list") return <BaseListView dbData={scopedData} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} />;
+    if (currentViewType === "pinboard")
+      return (
+        <BasePinboardView
+          dbData={scopedData}
+          onOpenNote={requestOpen}
+        />
+      );
     if (currentViewType === "graph")
       return (
         <BaseGraphView
@@ -1829,6 +1837,8 @@ export function BaseViewer({
             onSetBoardGroupBy={setBoardGroupByPersisted}
             boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"}
             onSetBoardColorMode={(m) => patchActiveView({ boardColorMode: m === "column" ? "column" : undefined })}
+            pinboardFilterBy={typeof dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy === "string" ? dbConfig.views[activeViewIndex].pinboardFilterBy : "tags"}
+            onSetPinboardFilterBy={(src) => patchActiveView({ pinboardFilterBy: src === "tags" ? undefined : src })}
             onSetCoverImage={setCoverImagePersisted}
             onSetDateField={setDateField}
             onSetDateFieldType={setDateFieldType}

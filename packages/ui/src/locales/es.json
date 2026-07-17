@@ -515,6 +515,8 @@
     "viewBoard": "Tablero",
     "viewCalendar": "Calendario",
     "viewTimeline": "Cronología",
+    "viewPinboard": "Tablón",
+    "pinboardFilterBy": "Origen de las etiquetas",
     "opIs": "es",
     "opIsNot": "no es",
     "opContains": "contiene",

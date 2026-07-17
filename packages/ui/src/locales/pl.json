@@ -516,6 +516,8 @@
     "viewBoard": "Tablica",
     "viewCalendar": "Kalendarz",
     "viewTimeline": "Oś czasu",
+    "viewPinboard": "Tablica korkowa",
+    "pinboardFilterBy": "Źródło etykiet",
     "opIs": "jest",
     "opIsNot": "nie jest",
     "opContains": "zawiera",

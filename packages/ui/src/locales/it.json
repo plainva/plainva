@@ -515,6 +515,8 @@
     "viewBoard": "Bacheca",
     "viewCalendar": "Calendario",
     "viewTimeline": "Cronologia",
+    "viewPinboard": "Bacheca",
+    "pinboardFilterBy": "Origine delle etichette",
     "opIs": "è",
     "opIsNot": "non è",
     "opContains": "contiene",

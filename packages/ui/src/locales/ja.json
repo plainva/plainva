@@ -513,6 +513,8 @@
     "viewBoard": "ボード",
     "viewCalendar": "カレンダー",
     "viewTimeline": "タイムライン",
+    "viewPinboard": "ピンボード",
+    "pinboardFilterBy": "ラベルのソース",
     "opIs": "が次と一致する",
     "opIsNot": "が次と一致しない",
     "opContains": "に次を含む",

@@ -514,6 +514,8 @@
     "viewBoard": "Board",
     "viewCalendar": "Calendar",
     "viewTimeline": "Timeline",
+    "viewPinboard": "Pinboard",
+    "pinboardFilterBy": "Label source",
     "opIs": "is",
     "opIsNot": "is not",
     "opContains": "contains",

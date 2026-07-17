@@ -513,6 +513,8 @@
     "viewBoard": "看板",
     "viewCalendar": "日历",
     "viewTimeline": "时间轴",
+    "viewPinboard": "便签板",
+    "pinboardFilterBy": "标签来源",
     "opIs": "是",
     "opIsNot": "不是",
     "opContains": "包含",
