@@ -734,14 +734,15 @@ export function BasePinboardView({
             borderRadius: "var(--radius-md)",
             background: "var(--bg-secondary)",
             boxShadow: "var(--shadow-2)",
-            padding: "10px 12px",
+            padding: "var(--space-3)",
             display: "flex",
             flexDirection: "column",
-            gap: 6,
+            gap: "var(--space-3)",
           }}
         >
           <input
             type="text"
+            className="pv-field"
             value={captureTitle}
             data-pinboard-capture-title="true"
             autoFocus
@@ -754,17 +755,18 @@ export function BasePinboardView({
                 captureTextRef.current?.focus();
               }
             }}
-            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", fontWeight: 600, padding: "2px 0" }}
+            style={{ fontWeight: 600 }}
           />
           <textarea
             ref={captureTextRef}
+            className="pv-field pv-field--area"
             value={captureText}
             data-pinboard-capture-text="true"
             rows={3}
             placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             onChange={(e) => setCaptureText(e.target.value)}
-            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", resize: "vertical", minHeight: 56, fontFamily: "inherit", padding: 0 }}
+            style={{ minHeight: 72 }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
             <button

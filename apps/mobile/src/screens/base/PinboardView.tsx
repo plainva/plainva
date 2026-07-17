@@ -688,16 +688,17 @@ export function PinboardView({
       {captureOpen && (
         <div
           data-pinboard-capture-popup="true"
+          className="m-capture-popup"
           style={{
             margin: "4px 0 10px",
             border: "1px solid var(--border-color)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg-secondary)",
             boxShadow: "var(--shadow-2)",
-            padding: "10px 14px",
+            padding: 12,
             display: "flex",
             flexDirection: "column",
-            gap: 6,
+            gap: 10,
           }}
         >
           <input
@@ -715,7 +716,7 @@ export function PinboardView({
                 captureTextRef.current?.focus();
               }
             }}
-            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", fontWeight: 600, padding: "2px 0" }}
+            style={{ fontWeight: 600 }}
           />
           <textarea
             ref={captureTextRef}
@@ -725,7 +726,7 @@ export function PinboardView({
             placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             onChange={(e) => setCaptureText(e.target.value)}
-            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", resize: "none", minHeight: 64, fontFamily: "inherit", padding: 0 }}
+            style={{ resize: "none", minHeight: 72 }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button type="button" className="m-btn" onClick={() => setCaptureOpen(false)}>

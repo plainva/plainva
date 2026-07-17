@@ -1647,3 +1647,4 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
   expect(tsContent).toContain('Nur Body ohne Titel');
   expect(tsContent).not.toContain('# ');
 });
+
