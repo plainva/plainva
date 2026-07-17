@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye } from "lucide-react";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode } from "@plainva/ui";
+import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { promoteTask } from "../../services/taskPromotion";
+import { getConfiguredNoteType } from "../../services/newNote";
+import { applyIndexChanges } from "../../services/fileActions";
+import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
 const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
@@ -72,7 +77,7 @@ type StatusFilter = "open" | "done" | "all";
  */
 export function TasksView({ onOpenPath }: Props) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate } = useVault();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<StatusFilter>("open");
@@ -83,6 +88,12 @@ export function TasksView({ onOpenPath }: Props) {
   const [showHidden, setShowHidden] = useState(false);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
+  // Standard task database (PIM plan 1a): its entries render as an own section
+  // above the checkbox groups, and every checkbox row can be promoted into it.
+  const [taskDb, setTaskDb] = useState<string | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; due: string | null }[] | null>(null);
+  const [promoteMenu, setPromoteMenu] = useState<{ task: TaskRecord; at: { x: number; y: number } } | null>(null);
+  const [allBases, setAllBases] = useState<{ path: string; title: string }[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -124,6 +135,113 @@ export function TasksView({ onOpenPath }: Props) {
       alive = false;
     };
   }, [vaultPath]);
+
+  // Task-database section: configured `.base` path + its rows (title, status,
+  // due — derived from the database's own column schema). Reloads with the
+  // index like the checkbox list; unaffected by the checkbox filters (the rich
+  // filtering lives in the `.base` itself).
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) {
+      setTaskDb(null);
+      setDbRows(null);
+      return;
+    }
+    void (async () => {
+      const db = await getTaskDatabasePath(vaultPath);
+      if (!alive) return;
+      setTaskDb(db);
+      if (!db || !queryService || !vaultAdapter) {
+        setDbRows(null);
+        return;
+      }
+      try {
+        const config = parseBaseConfig(await vaultAdapter.readTextFile(db));
+        const rows = await queryService.queryDatabaseFiles(config);
+        const cols: Record<string, any> = config?.columns ?? {};
+        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
+        const statusKey = Object.keys(cols).find((k) => cols[k]?.input === "status" || cols[k]?.input === "select") ?? null;
+        if (!alive) return;
+        // queryDatabaseFiles rows carry `file.*` fields plus the bare
+        // frontmatter property keys (the same shape every base view reads).
+        setDbRows(
+          rows.map((r: any) => ({
+            path: String(r["file.path"] ?? ""),
+            title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
+            status: statusKey && r[statusKey] != null && r[statusKey] !== "" ? String(r[statusKey]) : null,
+            due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
+          }))
+        );
+      } catch {
+        if (alive) setDbRows(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick]);
+
+  // Promote a checkbox into the task database (default DB on click; any DB via
+  // the context menu). The service re-verifies the ordinal against the fresh
+  // file — a stale listing refreshes instead of rewriting the wrong line.
+  const promote = useCallback(
+    async (task: TaskRecord, dbOverride?: string) => {
+      if (!vaultAdapter || !vaultPath) return;
+      const db = dbOverride ?? (await getTaskDatabasePath(vaultPath));
+      if (!db) {
+        toast.info(t("tasks.promoteNoDb", { defaultValue: "Keine Standard-Aufgabendatenbank festgelegt." }));
+        return;
+      }
+      try {
+        const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
+        const res = await promoteTask({
+          adapter: vaultAdapter,
+          sourcePath: task.path,
+          task,
+          dbPath: db,
+          noteType: await getConfiguredNoteType(vaultPath),
+          allNotePaths,
+          fallbackTitle: t("tasks.promoteFallbackTitle", { defaultValue: "Aufgabe" }),
+        });
+        if (!res.ok) {
+          if (res.reason === "stale") {
+            toast.info(t("tasks.promoteStale", { defaultValue: "Die Notiz hat sich geändert — Liste aktualisiert." }));
+            setRefreshTick((x) => x + 1);
+          } else if (res.reason === "noFolder") {
+            toast.error(t("tasks.promoteNoFolder", { defaultValue: "Die Datenbank hat keinen Ablage-Ordner." }));
+          } else {
+            toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+          }
+          return;
+        }
+        // Targeted reindex of the new note + rewritten source (Issue #9 rule:
+        // never a full-vault scan per file op), then refresh both sections.
+        if (indexer) {
+          await applyIndexChanges(indexer, { added: [res.notePath, task.path] }).catch(() => {});
+          triggerFileTreeUpdate([res.notePath, task.path]);
+          notifyFileOps([{ type: "create", path: res.notePath }]);
+        }
+        toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        setRefreshTick((x) => x + 1);
+      } catch (e) {
+        console.error("[TasksView] promoting a task failed", e);
+        toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+      }
+    },
+    [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, t]
+  );
+
+  const openPromoteMenu = useCallback(
+    async (task: TaskRecord, at: { x: number; y: number }) => {
+      try {
+        setAllBases(queryService ? await queryService.listBases() : []);
+      } catch {
+        setAllBases([]);
+      }
+      setPromoteMenu({ task, at });
+    },
+    [queryService]
+  );
 
   const visibleTasks = useMemo(
     () => (showHidden ? tasks : tasks.filter((tk) => !tk.excluded)),
@@ -308,6 +426,60 @@ export function TasksView({ onOpenPath }: Props) {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
+        {taskDb && (
+          <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.6rem", background: "var(--bg-secondary)", borderLeft: "3px solid var(--accent-color)" }}>
+              <Database size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, fontSize: "0.85rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {t("tasks.dbSection", { defaultValue: "Aufgaben-Datenbank" })}
+              </span>
+              <span style={{ flexShrink: 0, fontSize: "0.72rem", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
+                {dbRows?.length ?? 0}
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenPath(taskDb, false)}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "0.78rem", flexShrink: 0 }}
+              >
+                <Table size={13} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
+              </button>
+            </div>
+            <div style={{ padding: "0.25rem 0 0.35rem" }}>
+              {(dbRows ?? []).length === 0 ? (
+                <div style={{ color: "var(--text-muted)", padding: "0.35rem 0.65rem", fontSize: "0.85rem" }}>
+                  {t("tasks.dbEmpty", { defaultValue: "Noch keine Einträge" })}
+                </div>
+              ) : (
+                dbRows!.map((r) => (
+                  <div key={r.path} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPath(r.path, false)}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-main)", fontSize: "0.9rem", lineHeight: 1.4 }}
+                    >
+                      {noteDisplayName(r.title)}
+                      {r.status ? (
+                        <span style={{ marginLeft: 6, display: "inline-block", fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          {r.status}
+                        </span>
+                      ) : null}
+                      {r.due ? (
+                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          <CalendarClock size={11} /> {r.due}
+                        </span>
+                      ) : null}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        {taskDb && (
+          <div style={{ margin: "0.2rem 0.9rem 0.4rem", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
+            {t("tasks.notesSection", { defaultValue: "Aus Notizen" })}
+          </div>
+        )}
         {loading ? null : groups.length === 0 ? (
           <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "0.9rem" }}>
             {t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
@@ -395,6 +567,25 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ))}
                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (taskDb) void promote(task);
+                        else void openPromoteMenu(task, { x: e.clientX, y: e.clientY });
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void openPromoteMenu(task, { x: e.clientX, y: e.clientY });
+                      }}
+                      aria-label={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
+                      title={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
+                      data-testid="task-promote"
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
+                    >
+                      <Database size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -402,6 +593,25 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+
+      {promoteMenu && (
+        <MenuSurface open onClose={() => setPromoteMenu(null)} at={promoteMenu.at} ariaLabel={t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" })}>
+          <MenuLabel>{t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" })}</MenuLabel>
+          {allBases.map((b) => (
+            <MenuItem
+              key={b.path}
+              onSelect={() => {
+                const task = promoteMenu.task;
+                setPromoteMenu(null);
+                void promote(task, b.path);
+              }}
+            >
+              {b.path === taskDb ? `${b.title} ★` : b.title}
+            </MenuItem>
+          ))}
+          {allBases.length === 0 && <MenuLabel>{t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}</MenuLabel>}
+        </MenuSurface>
+      )}
     </div>
   );
 }

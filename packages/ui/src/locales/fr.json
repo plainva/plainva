@@ -1766,7 +1766,19 @@
     "dbDueKey": "echeance",
     "dbStatusOpen": "Ouverte",
     "dbStatusInProgress": "En cours",
-    "dbStatusDone": "Terminée"
+    "dbStatusDone": "Terminée",
+    "promote": "Déplacer vers la base de tâches",
+    "promoteTo": "Déplacer vers la base",
+    "promoteNoDb": "Aucune base de tâches par défaut — choisis-la dans les réglages sous « Contenu et structure ».",
+    "promoteNoFolder": "La base n'a pas de dossier de stockage — définis-le dans le panneau de configuration de la base.",
+    "promoteStale": "La note a changé — liste actualisée.",
+    "promoteFailed": "Le déplacement a échoué.",
+    "promoted": "Déplacé : {{name}}",
+    "promoteFallbackTitle": "Tâche",
+    "dbSection": "Base de tâches",
+    "notesSection": "Depuis les notes",
+    "openDb": "Ouvrir comme base",
+    "dbEmpty": "Aucune entrée pour l'instant"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",

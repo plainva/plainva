@@ -1760,7 +1760,19 @@
     "dbDueKey": "frist",
     "dbStatusOpen": "Offen",
     "dbStatusInProgress": "In Arbeit",
-    "dbStatusDone": "Erledigt"
+    "dbStatusDone": "Erledigt",
+    "promote": "Zur Aufgaben-Datenbank verschieben",
+    "promoteTo": "In Datenbank verschieben",
+    "promoteNoDb": "Keine Standard-Aufgabendatenbank festgelegt — wähle sie in den Einstellungen unter „Inhalt & Struktur“.",
+    "promoteNoFolder": "Die Datenbank hat keinen Ablage-Ordner — lege ihn im Konfigurieren-Panel der Datenbank fest.",
+    "promoteStale": "Die Notiz hat sich geändert — Liste aktualisiert.",
+    "promoteFailed": "Verschieben fehlgeschlagen.",
+    "promoted": "Verschoben: {{name}}",
+    "promoteFallbackTitle": "Aufgabe",
+    "dbSection": "Aufgaben-Datenbank",
+    "notesSection": "Aus Notizen",
+    "openDb": "Als Datenbank öffnen",
+    "dbEmpty": "Noch keine Einträge"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

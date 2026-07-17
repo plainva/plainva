@@ -1760,7 +1760,19 @@
     "dbDueKey": "due",
     "dbStatusOpen": "Open",
     "dbStatusInProgress": "In progress",
-    "dbStatusDone": "Done"
+    "dbStatusDone": "Done",
+    "promote": "Move to the task database",
+    "promoteTo": "Move to database",
+    "promoteNoDb": "No standard task database set — pick one in Settings under “Content & structure”.",
+    "promoteNoFolder": "The database has no storage folder — set one in the database's configure panel.",
+    "promoteStale": "The note changed — list refreshed.",
+    "promoteFailed": "Moving failed.",
+    "promoted": "Moved: {{name}}",
+    "promoteFallbackTitle": "Task",
+    "dbSection": "Task database",
+    "notesSection": "From notes",
+    "openDb": "Open as database",
+    "dbEmpty": "No entries yet"
   },
   "findReplace": {
     "title": "Find & replace in vault",

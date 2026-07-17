@@ -1760,7 +1760,19 @@
     "dbDueKey": "deadline",
     "dbStatusOpen": "Open",
     "dbStatusInProgress": "Bezig",
-    "dbStatusDone": "Afgerond"
+    "dbStatusDone": "Afgerond",
+    "promote": "Naar de takendatabase verplaatsen",
+    "promoteTo": "Naar database verplaatsen",
+    "promoteNoDb": "Geen standaard takendatabase ingesteld — kies er een in Instellingen onder “Inhoud en structuur”.",
+    "promoteNoFolder": "De database heeft geen opslagmap — stel die in via het configuratiepaneel van de database.",
+    "promoteStale": "De notitie is gewijzigd — lijst vernieuwd.",
+    "promoteFailed": "Verplaatsen mislukt.",
+    "promoted": "Verplaatst: {{name}}",
+    "promoteFallbackTitle": "Taak",
+    "dbSection": "Takendatabase",
+    "notesSection": "Uit notities",
+    "openDb": "Als database openen",
+    "dbEmpty": "Nog geen items"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",

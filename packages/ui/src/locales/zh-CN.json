@@ -1754,7 +1754,19 @@
     "dbDueKey": "due",
     "dbStatusOpen": "待处理",
     "dbStatusInProgress": "进行中",
-    "dbStatusDone": "已完成"
+    "dbStatusDone": "已完成",
+    "promote": "移动到任务数据库",
+    "promoteTo": "移动到数据库",
+    "promoteNoDb": "尚未设置默认任务数据库——请在设置的“内容与结构”中选择。",
+    "promoteNoFolder": "该数据库没有存放文件夹——请在数据库的配置面板中设置。",
+    "promoteStale": "笔记已更改——列表已刷新。",
+    "promoteFailed": "移动失败。",
+    "promoted": "已移动：{{name}}",
+    "promoteFallbackTitle": "任务",
+    "dbSection": "任务数据库",
+    "notesSection": "来自笔记",
+    "openDb": "作为数据库打开",
+    "dbEmpty": "暂无条目"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",

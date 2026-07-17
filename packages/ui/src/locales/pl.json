@@ -1772,7 +1772,19 @@
     "dbDueKey": "termin",
     "dbStatusOpen": "Otwarte",
     "dbStatusInProgress": "W trakcie",
-    "dbStatusDone": "Ukończone"
+    "dbStatusDone": "Ukończone",
+    "promote": "Przenieś do bazy zadań",
+    "promoteTo": "Przenieś do bazy",
+    "promoteNoDb": "Nie ustawiono domyślnej bazy zadań — wybierz ją w ustawieniach w sekcji „Treść i struktura”.",
+    "promoteNoFolder": "Baza nie ma folderu zapisu — ustaw go w panelu konfiguracji bazy.",
+    "promoteStale": "Notatka się zmieniła — lista odświeżona.",
+    "promoteFailed": "Przenoszenie nie powiodło się.",
+    "promoted": "Przeniesiono: {{name}}",
+    "promoteFallbackTitle": "Zadanie",
+    "dbSection": "Baza zadań",
+    "notesSection": "Z notatek",
+    "openDb": "Otwórz jako bazę",
+    "dbEmpty": "Brak wpisów"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

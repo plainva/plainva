@@ -1754,7 +1754,19 @@
     "dbDueKey": "due",
     "dbStatusOpen": "未着手",
     "dbStatusInProgress": "進行中",
-    "dbStatusDone": "完了"
+    "dbStatusDone": "完了",
+    "promote": "タスクデータベースへ移動",
+    "promoteTo": "データベースへ移動",
+    "promoteNoDb": "既定のタスクデータベースが未設定です。設定の「内容と構造」で選択してください。",
+    "promoteNoFolder": "このデータベースには保存フォルダーがありません。データベースの設定パネルで指定してください。",
+    "promoteStale": "ノートが変更されました。リストを更新しました。",
+    "promoteFailed": "移動できませんでした。",
+    "promoted": "移動しました: {{name}}",
+    "promoteFallbackTitle": "タスク",
+    "dbSection": "タスクデータベース",
+    "notesSection": "ノートから",
+    "openDb": "データベースとして開く",
+    "dbEmpty": "まだ項目がありません"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",

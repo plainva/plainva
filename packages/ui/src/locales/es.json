@@ -1766,7 +1766,19 @@
     "dbDueKey": "fecha",
     "dbStatusOpen": "Abierto",
     "dbStatusInProgress": "En curso",
-    "dbStatusDone": "Terminado"
+    "dbStatusDone": "Terminado",
+    "promote": "Mover a la base de datos de tareas",
+    "promoteTo": "Mover a la base de datos",
+    "promoteNoDb": "No hay base de datos de tareas predeterminada: elígela en Ajustes, en «Contenido y estructura».",
+    "promoteNoFolder": "La base de datos no tiene carpeta de almacenamiento: defínela en el panel de configuración.",
+    "promoteStale": "La nota cambió — lista actualizada.",
+    "promoteFailed": "No se pudo mover.",
+    "promoted": "Movido: {{name}}",
+    "promoteFallbackTitle": "Tarea",
+    "dbSection": "Base de datos de tareas",
+    "notesSection": "Desde notas",
+    "openDb": "Abrir como base de datos",
+    "dbEmpty": "Aún no hay entradas"
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",

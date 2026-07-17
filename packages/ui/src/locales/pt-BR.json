@@ -1766,7 +1766,19 @@
     "dbDueKey": "prazo",
     "dbStatusOpen": "A fazer",
     "dbStatusInProgress": "Em andamento",
-    "dbStatusDone": "Concluída"
+    "dbStatusDone": "Concluída",
+    "promote": "Mover para o banco de tarefas",
+    "promoteTo": "Mover para o banco",
+    "promoteNoDb": "Nenhum banco de tarefas padrão definido — escolha um em Configurações, em “Conteúdo e estrutura”.",
+    "promoteNoFolder": "O banco não tem pasta de armazenamento — defina-a no painel de configuração do banco.",
+    "promoteStale": "A nota mudou — lista atualizada.",
+    "promoteFailed": "Falha ao mover.",
+    "promoted": "Movido: {{name}}",
+    "promoteFallbackTitle": "Tarefa",
+    "dbSection": "Banco de tarefas",
+    "notesSection": "Das notas",
+    "openDb": "Abrir como banco de dados",
+    "dbEmpty": "Nenhuma entrada ainda"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",

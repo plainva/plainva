@@ -1766,7 +1766,19 @@
     "dbDueKey": "scadenza",
     "dbStatusOpen": "Aperta",
     "dbStatusInProgress": "In corso",
-    "dbStatusDone": "Fatta"
+    "dbStatusDone": "Fatta",
+    "promote": "Sposta nel database delle attività",
+    "promoteTo": "Sposta nel database",
+    "promoteNoDb": "Nessun database attività predefinito: sceglilo nelle impostazioni sotto «Contenuto e struttura».",
+    "promoteNoFolder": "Il database non ha una cartella di archiviazione: impostala nel pannello di configurazione.",
+    "promoteStale": "La nota è cambiata — elenco aggiornato.",
+    "promoteFailed": "Spostamento non riuscito.",
+    "promoted": "Spostato: {{name}}",
+    "promoteFallbackTitle": "Attività",
+    "dbSection": "Database attività",
+    "notesSection": "Dalle note",
+    "openDb": "Apri come database",
+    "dbEmpty": "Ancora nessuna voce"
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",
