@@ -121,6 +121,8 @@ describe("WebDavSyncTarget", () => {
 
     expect(pullRes.etagMap.size).toBe(1);
     expect(pullRes.etagMap.get("test.md")).toBe("12345");
+    // Empty-folder sync (2026-07-17): the collection is reported as a folder.
+    expect(pullRes.folders).toEqual(["folder"]);
   });
 
   it("ignores the optional cursor argument and always returns a full listing", async () => {

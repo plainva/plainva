@@ -78,6 +78,9 @@ describe("S3SyncTarget", () => {
     expect(result.etagMap.get("sub/b.md")).toBe("e2");
     expect(result.etagMap.size).toBe(2);
     expect(result.nextCursor).toBeUndefined();
+    // Empty-folder sync (2026-07-17): the zero-byte "key/" marker object is
+    // reported as a folder, never as a file.
+    expect(result.folders).toEqual(["folder"]);
 
     const first = calls(fetchFn)[0];
     expect(first.method).toBe("GET");

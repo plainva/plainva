@@ -338,10 +338,19 @@ export class DropboxSyncTarget implements ISyncTarget {
       throw new Error(`Dropbox list failed: ${summary || "409"}`);
     }
 
+    // Empty-folder sync (2026-07-17): folder entries of the recursive listing
+    // are reported so the worker can create locally missing (possibly empty)
+    // folders.
+    const folders: string[] = [];
     for (;;) {
       if (!res.ok) throw new Error(`Dropbox list failed: ${res.status} ${res.statusText}`);
       const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
       for (const entry of json.entries || []) {
+        if (entry[".tag"] === "folder") {
+          const rel = this.relPathFor(entry);
+          if (rel && !rel.includes(".CONFLICT")) folders.push(rel);
+          continue;
+        }
         if (entry[".tag"] !== "file") continue;
         const rel = this.relPathFor(entry);
         if (!rel || rel.includes(".CONFLICT")) continue;
@@ -351,8 +360,8 @@ export class DropboxSyncTarget implements ISyncTarget {
       res = await this.rpc("files/list_folder/continue", { cursor: json.cursor });
     }
 
-    console.log(`[Dropbox] list ${this.rootPath} -> ${etagMap.size} file(s)`);
-    return { etagMap };
+    console.log(`[Dropbox] list ${this.rootPath} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
+    return { etagMap, folders };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

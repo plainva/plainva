@@ -272,16 +272,32 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
 
     const etagMap = new Map<string, string>();
+    // Empty-folder sync (2026-07-17): collections seen in the listing are
+    // reported so the worker can create locally missing (possibly empty)
+    // folders. Internal collections (.plainva, .git, …) stay out.
+    const folders: string[] = [];
     for (const resp of responses) {
-      if (resp.isCollection || !resp.href || resp.etag === undefined) continue;
+      if (!resp.href) continue;
+      if (resp.isCollection) {
+        const rel = this.relativeHref(resp.href).replace(/\/+$/, "");
+        if (
+          rel &&
+          !rel.includes(".CONFLICT") &&
+          !rel.split("/").some((seg) => WebDavSyncTarget.SKIPPED_COLLECTIONS.has(seg))
+        ) {
+          folders.push(rel);
+        }
+        continue;
+      }
+      if (resp.etag === undefined) continue;
       const href = this.relativeHref(resp.href);
       if (!href.includes(".CONFLICT")) {
         etagMap.set(href, resp.etag.replace(/"/g, ""));
       }
     }
 
-    console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s)`);
-    return { etagMap };
+    console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
+    return { etagMap, folders };
   }
 
   // Real XML parsing instead of the former regex scan: namespace prefixes
@@ -344,11 +360,13 @@ export class WebDavSyncTarget implements ISyncTarget {
           continue;
         }
         // A Depth: 1 answer lists the collection itself first — only true
-        // children go back into the queue.
+        // children go back into the queue (and into the result, so pull()
+        // reports them for the empty-folder sync, 2026-07-17).
         const childRel = this.relativeHref(resp.href).replace(/\/+$/, "");
         if (!childRel || childRel === rel) continue;
         const name = childRel.split("/").pop() ?? childRel;
         if (WebDavSyncTarget.SKIPPED_COLLECTIONS.has(name)) continue;
+        out.push(resp);
         queue.push(childRel);
       }
     }

@@ -103,7 +103,13 @@ export class QueueingVaultAdapter implements IVaultAdapter {
   }
 
   async createDir(path: string): Promise<void> {
-    return this.inner.createDir(path);
+    await this.inner.createDir(path);
+    // Empty folders sync too (2026-07-17): an in-app folder creation reaches
+    // the cloud right away instead of materializing with its first file.
+    if (!isLocalOnly(path)) {
+      await this.syncQueue.queueMkdir(path);
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
+    }
   }
 
   async watch(callback: (events: import("./IVaultAdapter.js").WatchEvent[]) => void): Promise<() => void> {

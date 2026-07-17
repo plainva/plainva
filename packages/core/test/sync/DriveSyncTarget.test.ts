@@ -123,11 +123,13 @@ describe("DriveSyncTarget", () => {
       throw new Error(`unexpected ${init.method} ${u}`);
     });
 
-    const { etagMap, deleted, nextCursor } = await target.pull();
+    const { etagMap, deleted, nextCursor, folders } = await target.pull();
     expect(etagMap.get("a.md")).toBe("h1");
     expect(etagMap.get("sub/b.md")).toBe("h2");
     expect(deleted).toBeUndefined();
     expect(nextCursor).toBeUndefined();
+    // Empty-folder sync (2026-07-17): the walked folder is reported.
+    expect(folders).toEqual(["sub"]);
   });
 
   it("pulls incremental changes with deletions and a follow-up cursor", async () => {

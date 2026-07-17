@@ -62,6 +62,18 @@ export class SyncEngine {
       // single-device autosave race that produced spurious .CONFLICT files).
       let expectedLocalSha: string | null = null;
       try {
+        // Empty-folder sync (2026-07-17): a queued mkdir creates the folder
+        // remotely via the optional createFolder every provider implements
+        // ("already exists" counts as success there). A provider without it
+        // completes the op as a no-op — folders then materialize with their
+        // first file, the old behavior. No sync_state is involved: folder
+        // existence is not tracked, only files are.
+        if (op.operation === "mkdir") {
+          if (this.target.createFolder) await this.target.createFolder(op.file_path);
+          await this.queue.markSynced(op.id, op.file_path, op.file_path);
+          consecutiveFailures = 0;
+          continue;
+        }
          if (op.operation === "write") {
             try {
               // Read the marker BEFORE the file content: `expected` may be older

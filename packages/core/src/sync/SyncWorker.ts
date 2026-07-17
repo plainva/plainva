@@ -932,6 +932,25 @@ export class SyncWorker {
       const now = Date.now();
       const remotePaths = new Set(pullResult.etagMap.keys());
 
+      // Empty-folder sync (2026-07-17): full listings report the remote FOLDER
+      // paths; create locally missing ones so an empty remote folder appears
+      // without waiting for its first file. Purely additive and best-effort —
+      // folder deletions are never derived from this list (folders carry no
+      // sync_state), and the raw adapter keeps the creation out of the push
+      // queue (no echo mkdir). Desktop trees refresh via the OS watcher, the
+      // mobile browser lists the live file system on entry.
+      for (const folder of pullResult.folders ?? []) {
+        if (!folder || isLocalOnlyPath(folder)) continue;
+        try {
+          if (!(await this.vault.exists(folder))) {
+            await this.vault.createDir(folder);
+            console.log(`[SyncWorker] created remote-only empty folder locally: ${folder}`);
+          }
+        } catch (e) {
+          console.warn(`[SyncWorker] could not create remote folder locally: ${folder}`, e);
+        }
+      }
+
       // One-query state snapshot for the whole cycle (P2.2): querying per
       // remote file was 10k single SELECT round-trips per no-op tick. Each
       // path is reconciled at most once per cycle, so the snapshot cannot go

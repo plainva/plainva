@@ -63,6 +63,20 @@ describe("SyncWorker", () => {
     worker["isRunning"] = true;
   });
 
+  it("creates locally missing folders from PullResult.folders and skips existing/internal ones (empty-folder sync)", async () => {
+    vault.createDir = vi.fn().mockResolvedValue(undefined);
+    vault.exists = vi.fn().mockImplementation(async (p: string) => p === "Vorhanden");
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map(),
+      folders: ["Neu/Leer", "Vorhanden", ".plainva/backups", ""],
+    });
+
+    await worker.runCycle();
+
+    expect(vault.createDir).toHaveBeenCalledTimes(1);
+    expect(vault.createDir).toHaveBeenCalledWith("Neu/Leer");
+  });
+
   it("should pull from target and write new files to vault", async () => {
     target.pull.mockResolvedValueOnce({
       etagMap: new Map([["test.md", "12345"]])
