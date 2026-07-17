@@ -4,8 +4,8 @@ import { parseNoteCard, toggleTaskAtIndex, inlineToPlain } from "@plainva/ui";
 // Plan Pinboard P3 (E6): the card parser covers the Keep "Zettel" subset and
 // its task ordinals MUST match toggleTaskAtIndex exactly.
 describe("parseNoteCard", () => {
-  it("strips frontmatter and extracts title, plainva color/icon", () => {
-    const c = "---\ntitle: Einkauf\nplainva:\n  color: \"#c94f4f\"\n  icon: \"🛒\"\n---\nMilch und Brot\n";
+  it("strips frontmatter and extracts title, plainva header_color/icon", () => {
+    const c = "---\ntitle: Einkauf\nplainva:\n  header_color: \"#c94f4f\"\n  icon: \"🛒\"\n---\nMilch und Brot\n";
     const p = parseNoteCard(c);
     expect(p.fmTitle).toBe("Einkauf");
     expect(p.color).toBe("#c94f4f");

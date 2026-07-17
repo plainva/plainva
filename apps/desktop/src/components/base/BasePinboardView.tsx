@@ -321,7 +321,7 @@ export function BasePinboardView({
     if (!vaultAdapter) return;
     try {
       const fresh = await vaultAdapter.readTextFile(path);
-      const next = hex ? setFrontmatterPath(fresh, ["plainva", "color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "color"]);
+      const next = hex ? setFrontmatterPath(fresh, ["plainva", "header_color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "header_color"]);
       if (next !== fresh) {
         await vaultAdapter.writeTextFile(path, next);
         await afterCardWrite(path, true); // header tint mirrors into tree/tabs

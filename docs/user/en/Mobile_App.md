@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -19,6 +19,8 @@ The **Note details** button in the header (between the bookmark and the ⋮ menu
 ## Databases (`.base`)
 
 `.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties. Relation schemas (targets, cardinality) are still maintained on the desktop.
+
+A **Pinboard** view shows the notes as a two-column board of sticky cards: tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders, and checkboxes tick right on the card. The input field on top captures a new note. Tip: point the database at your inbox folder (**Settings** → **Folders**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
 
 ## Sync
 

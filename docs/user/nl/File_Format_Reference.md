@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-07-16
+Laatst bijgewerkt: 2026-07-17
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -162,7 +162,7 @@ Alles wat Plainva-specifiek is, is namespaced. Drie plekken:
 
 | Sleutel | Waarde | Betekenis |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Plainva-only weergavesoort (zie hieronder) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Plainva-only weergavesoort (zie hieronder) |
 | `groupBy` | bare eigenschapssleutel | Groeperingskolom van het bord |
 | `dateField` | bare eigenschapssleutel | Startdatum voor kalender/tijdlijn |
 | `endField` | bare eigenschapssleutel | Einddatum van de tijdlijn |
@@ -170,6 +170,9 @@ Alles wat Plainva-specifiek is, is namespaced. Drie plekken:
 | `subItemsProperty` | bare eigenschapssleutel | Bovenliggende kolom (zelf-relatie) voor de subitem-verschachteling |
 | `widths` | map van id → px | Kolombreedtes |
 | `dateFormat` | string | Datumformaat per weergave (`default` is impliciet — weglaten) |
+| `pinboardOrder` | lijst van vault-relatieve paden | Handmatige volgorde van de NIET-vastgezette prikbordkaarten |
+| `pinboardPinned` | lijst van vault-relatieve paden | Vastgezette kaarten; de lijstvolgorde is de sectievolgorde |
+| `pinboardFilterBy` | `tags` of een bare multiselectie-sleutel | Labelbron van de chipbalk van het prikbord (`tags` is impliciet — weglaten) |
 
 Naast het `plainva`-blok kan een weergave een native **`views[i].filters`**-object dragen — de **filters per weergave** (dezelfde eenwortelige `and`/`or`/`not`-grammatica als het dossierwijde `filters`). Plainva slaat hier eigenschaps-filterregels op, één set per weergave, zodat elke weergave onafhankelijk filtert; het dossierwijde `filters` behoudt dan alleen de bronnen. Obsidian past `views[i].filters` native per weergave toe.
 
@@ -448,6 +451,25 @@ views:
 Alle graaf-optiesleutels zijn optioneel; laat ze helemaal weg als ze niet zijn ingesteld. Obsidian rendert hetzelfde bestand als een gewone tabel en mag geen fout geven.
 
 Een **Bord**-weergave (`plainva.render: "board"`) kan daarnaast `views[i].plainva.boardColumnOrder` dragen — een lijst van groep-kolomsleutels (`__UNGROUPED__` markeert de kolom zonder waarde) die een handmatige kolomvolgorde onthoudt. Selectie-/Status-borden ordenen in plaats daarvan de `options` van de eigenschap opnieuw. Weglaten als niet ingesteld.
+
+### De prikbordweergave (`plainva.render: "pinboard"`)
+
+Een prikbord wordt opgeslagen zoals elke niet-native weergave: `type: table` plus de render-hint. De sleutels ervan staan in dezelfde `views[i].plainva`-namespace:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # handmatige volgorde van de niet-vastgezette kaarten
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # vastgezet; lijstvolgorde = sectievolgorde
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # labelbron van de chipbalk; weglaten = tags
+```
+
+Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die in geen van beide lijsten staan, renderen bovenaan, nieuwste eerst (aanmaaktijd). Items waarvan het bestand niet meer bestaat of de bronset heeft verlaten, worden genegeerd en bij de volgende keer opslaan opgeruimd. Wanneer een notitie wordt hernoemd of verplaatst, werkt Plainva de paden in beide lijsten automatisch bij; externe tools moeten hetzelfde doen. Obsidian negeert de sleutels en toont de weergave als een tabel.
 
 ## Niet-aanraken en veiligheid
 

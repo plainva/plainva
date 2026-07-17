@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -38,6 +38,7 @@ Una base de datos puede tener cualquier número de vistas; cada una tiene un **T
 | **Tablero** | Columnas al estilo Kanban agrupadas por una propiedad (**Agrupar por**) — arrastrar tarjetas entre columnas cambia el valor; arrastrar un **encabezado de columna** reordena las columnas |
 | **Calendario** | Entradas por **Campo de fecha** en un calendario mensual, arrastrables |
 | **Cronología** | Eje temporal con **Fecha de inicio** y **Fecha de fin** opcional |
+| **Tablón** | Tablero de notas adhesivas al estilo Google Keep — las tarjetas muestran el contenido renderizado de la nota (sección propia más abajo) |
 
 **Añadir vista** crea más; **Opciones de vista** ofrece **Renombrar**, **Duplicar**, **Eliminar** y reordenar por arrastre. Plainva recuerda la última vista activa por archivo. Calendario y Cronología necesitan un campo de fecha (**Solo fecha** o **Fecha y hora** como **Formato**); las entradas muestran los campos activados en **Propiedades**.
 
@@ -86,6 +87,19 @@ El botón **Entrada** de arriba a la izquierda (antes **Nuevo**; claramente sepa
 - **Plantillas**: el menú de flecha (**Plantillas y carpeta de almacenamiento**) lista las plantillas de la carpeta de plantillas de tu vault — úsala una vez, márcala con una estrella mediante **Establecer como predeterminada** (entonces cada clic en **Entrada** de esta base de datos la usará) o **Crear nueva plantilla** (una plantilla nueva empieza con un encabezado `# {{title}}`, de modo que las entradas creadas a partir de ella heredan el nombre de archivo como H1). El mismo menú también ofrece **Abrir carpeta de plantillas**, que muestra la carpeta de plantillas en el árbol de archivos: las plantillas son notas normales que puedes editar, renombrar o eliminar allí.
 - **Plantillas por base de datos**: las plantillas se pueden asignar a bases de datos. Por defecto, el menú de flecha solo muestra las plantillas asignadas a esta base de datos (más su plantilla predeterminada); todo lo demás es accesible mediante **Mostrar todas las plantillas (n)**. Asígnalas justo ahí — el icono de base de datos de cada fila indica **Asignar a esta base de datos** o **Quitar la asignación a esta base de datos** — o desde la propia plantilla: el menú **⋮** del editor ofrece **Bases de datos de destino…**, un diálogo con un campo de búsqueda donde asignas la plantilla a cualquier número de bases de datos. Una plantilla creada desde una base de datos mediante **Crear nueva plantilla** empieza asignada a ella. La asignación se guarda como una lista `plainva.templateFor` en el frontmatter de la plantilla (ver la [Referencia del formato de archivo](File_Format_Reference.md)); nunca se copia en las entradas creadas a partir de la plantilla, y renombrar una `.base` mantiene las asignaciones. El comando de barra oblicua **Insertar plantilla** permanece deliberadamente sin filtrar — inserta texto en una nota existente y no tiene contexto de base de datos.
 - **Marcadores de posición de las plantillas**: las plantillas interpolan `{{title}}`, `{{date}}` y `{{time}}`. Cuando *insertas* una plantilla en una nota (comando de barra oblicua **Insertar plantilla** / `Mod+Alt+T`), se resuelven dos más: `{{cursor}}` marca dónde queda el cursor después de insertar, y `{{prompt:Etiqueta}}` te pide un valor (etiquetado *Etiqueta*) e inserta tu respuesta. Crear una nota *nueva* a partir de una plantilla elimina `{{cursor}}` y deja en blanco cualquier `{{prompt:…}}`.
+
+## Tablón (notas adhesivas al estilo Google Keep)
+
+El tipo de vista **Tablón** muestra las notas de la base de datos como tarjetas con su contenido renderizado — un tablón lleno de notas adhesivas. Las tarjetas renderizan texto, listas y casillas de verificación en las que se puede hacer clic (un clic marca la tarea directamente en la nota), imágenes y formato; las tablas, fórmulas e inclusiones aparecen como marcadores de posición discretos. Al hacer clic en una tarjeta se abre la nota en la ventana de vista previa.
+
+- **Captura rápida**: El campo **Escribe una nota…** encima del tablón crea una nota nueva en la carpeta de almacenamiento de la base de datos al pulsar Intro — sin plantilla, sin rodeos; el texto escrito es el contenido y el nombre del archivo procede de sus primeras palabras.
+- **Fijar**: El botón de fijar (arriba a la derecha al pasar el cursor sobre una tarjeta) eleva una tarjeta a la sección **Fijadas**.
+- **Organizar**: Arrastra las tarjetas para reordenarlas; el orden vive en el archivo `.base` y se sincroniza con él. Las tarjetas aún no organizadas (recién capturadas o creadas fuera de la app) aparecen arriba del todo, las más nuevas primero. Si hay una regla de orden establecida en **Configurar**, esta prevalece — entonces el arrastre queda desactivado.
+- **Etiquetas**: La barra de chips encima del tablón filtra las tarjetas — por defecto por etiquetas, y se puede cambiar a una propiedad de selección múltiple (**Configurar** → **Origen de las etiquetas**). Varios chips filtran combinados con Y; la selección es efímera y nunca se escribe en el archivo. Edita las etiquetas de una tarjeta mediante **Etiquetas** en el menú contextual de la tarjeta.
+- **Color**: El menú contextual tiñe la tarjeta. El color es el color de encabezado de la nota (`plainva.header_color`) — se aplica en todos los lugares donde aparece la nota, incluido el encabezado del editor.
+- **Móvil**: En el teléfono, tocar abre la nota, mantener pulsado muestra las acciones (fijar, etiquetas, color, eliminar), arrastrar tras mantener pulsado reordena. Consejo: apunta la base de datos a tu carpeta de entrada (**Ajustes** → **Carpetas**) y tanto las notas rápidas del ＋ como los textos compartidos desde otras apps caerán directamente en el tablón.
+
+Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mismo tiempo, puede aparecer una copia `.CONFLICT` del archivo `.base` — solo se ve afectada la organización, nunca el contenido de las notas; elimina o fusiona la copia.
 
 ## Uso cotidiano
 

@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -38,6 +38,7 @@ Um banco de dados pode ter qualquer número de visualizações; cada uma tem um 
 | **Quadro** | Colunas Kanban agrupadas por uma propriedade (**Agrupar por**) — arrastar cartões entre colunas altera o valor; arrastar um **cabeçalho de coluna** reordena as colunas |
 | **Calendário** | Itens por **Campo de data** em um calendário mensal, arrastáveis |
 | **Linha do tempo** | Eixo temporal com **Data de início** e **Data de término** opcional |
+| **Mural** | Quadro de notas adesivas ao estilo Google Keep — os cartões mostram o conteúdo renderizado da nota (seção própria abaixo) |
 
 **Adicionar visualização** cria mais; **Opções da visualização** oferece **Renomear**, **Duplicar**, **Excluir** e reordenação por arrastar. O Plainva lembra qual foi a última visualização ativa por arquivo. Calendário e Linha do tempo precisam de um campo de data (**Somente data** ou **Data e hora** como **Formato**); os itens exibem os campos ativados em **Propriedades**.
 
@@ -86,6 +87,19 @@ O botão **Entrada** no canto superior esquerdo (antes **Novo**; claramente sepa
 - **Modelos**: o menu de seta (**Modelos e pasta de armazenamento**) lista os modelos da pasta de modelos do seu vault — use um uma única vez, marque-o com a estrela em **Definir como padrão** (então todo clique em **Entrada** deste banco de dados o usará) ou **Criar novo modelo** (um novo modelo começa com um título `# {{title}}`, então itens criados a partir dele herdam o nome do arquivo como H1). O mesmo menu também oferece **Abrir pasta de modelos**, que mostra a pasta de modelos na árvore de arquivos — modelos são notas normais que você pode editar, renomear ou excluir ali.
 - **Modelos por banco de dados**: modelos podem ser atribuídos a bancos de dados. Por padrão, o menu de seta mostra apenas os modelos atribuídos a este banco de dados (mais o seu modelo padrão); tudo o mais fica acessível em **Mostrar todos os modelos (n)**. Atribua ali mesmo — o ícone do banco de dados em cada linha exibe **Atribuir a este banco de dados** ou **Remover a atribuição a este banco de dados** — ou no próprio modelo: o menu **⋮** do editor oferece **Bancos de dados de destino…**, um diálogo com um campo de busca em que você atribui o modelo a qualquer número de bancos de dados. Um modelo criado a partir de um banco de dados via **Criar novo modelo** já começa atribuído a ele. A atribuição é armazenada como uma lista `plainva.templateFor` no frontmatter do modelo (veja a [Referência do Formato de Arquivo](File_Format_Reference.md)); ela nunca é copiada para os itens criados a partir do modelo, e renomear uma `.base` leva as atribuições junto. O comando de barra **Inserir modelo** permanece deliberadamente sem filtro — ele insere texto em uma nota já existente e não tem contexto de banco de dados.
 - **Espaços reservados dos modelos**: os modelos interpolam `{{title}}`, `{{date}}` e `{{time}}`. Ao *inserir* um modelo em uma nota (comando de barra **Inserir modelo** / `Mod+Alt+T`), mais dois são resolvidos: `{{cursor}}` marca onde o cursor fica após a inserção, e `{{prompt:Rótulo}}` pede um valor (rotulado *Rótulo*) e insere sua resposta. Criar uma nota *nova* a partir de um modelo remove `{{cursor}}` e deixa qualquer `{{prompt:…}}` em branco.
+
+## Mural (notas adesivas como no Google Keep)
+
+O tipo de visualização **Mural** mostra as notas do banco de dados como cartões com seu conteúdo renderizado — um mural cheio de notas adesivas. Os cartões renderizam texto, listas e caixas de seleção clicáveis (um clique marca a tarefa diretamente na nota), imagens e formatação; tabelas, fórmulas e conteúdos incorporados aparecem como indicadores discretos. Clicar em um cartão abre a nota na janela de pré-visualização.
+
+- **Captura rápida**: o campo **Escreva uma nota…** acima do mural cria uma nova nota na pasta de armazenamento do banco de dados ao pressionar Enter — sem modelo, sem desvios; o texto digitado é o conteúdo e o nome do arquivo vem das primeiras palavras dele.
+- **Fixação**: o botão de fixar (canto superior direito ao passar o cursor sobre um cartão) move um cartão para a seção **Fixadas**.
+- **Organização**: arraste os cartões para reordená-los; a ordem fica salva no arquivo `.base` e é sincronizada junto. Cartões ainda não organizados (recém-capturados ou criados fora do Plainva) aparecem no topo, do mais recente para o mais antigo. Se houver uma regra de ordenação definida em **Configurar**, ela prevalece — nesse caso, arrastar fica desativado.
+- **Marcadores**: a barra de chips acima do mural filtra os cartões — por tags por padrão, alternável para uma propriedade de seleção múltipla (**Configurar** → **Origem dos marcadores**). Vários chips se combinam com E; a seleção é temporária e nunca é gravada no arquivo. Edite os marcadores de um cartão pelo item **Marcadores** no menu de contexto do cartão.
+- **Cor**: o menu de contexto tinge o cartão. A cor é a cor de cabeçalho da nota (`plainva.header_color`) — ela vale em todo lugar em que a nota aparece, inclusive no cabeçalho do editor.
+- **Mobile**: no celular, tocar abre a nota, tocar e segurar mostra as ações (fixar, marcadores, cor, excluir), arrastar após tocar e segurar reordena. Dica: aponte o banco de dados para a sua pasta de entrada (**Configurações** → **Pastas**) e as notas rápidas do ＋, assim como os textos compartilhados de outros apps, caem direto no mural.
+
+Observação para vaults sincronizados: se dois dispositivos organizarem o mural ao mesmo tempo, pode aparecer uma cópia `.CONFLICT` do arquivo `.base` — apenas a organização é afetada, nunca o conteúdo das notas; exclua ou mescle a cópia.
 
 ## Uso no dia a dia
 

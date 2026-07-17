@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-07-16
+Laatst bijgewerkt: 2026-07-17
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -38,6 +38,7 @@ Een database kan willekeurig veel weergaven hebben; elke heeft een **Weergavetyp
 | **Bord** | Kanban-kolommen, gegroepeerd op een eigenschap (**Groeperen op**) — kaarten tussen kolommen slepen wijzigt de waarde; een **kolomkop** slepen herschikt de kolommen |
 | **Kalender** | Items op **Datumveld** op een maandkalender, versleepbaar |
 | **Tijdlijn** | Tijdas met **Startdatum** en optionele **Einddatum** |
+| **Prikbord** | Bord met kleefbriefjes in Google Keep-stijl — kaarten tonen de weergegeven notitie-inhoud (eigen sectie verderop) |
 
 **Weergave toevoegen** maakt nieuwe aan; via **Weergaveopties** kun je **Hernoemen**, **Dupliceren**, **Verwijderen** en de volgorde per sleep wijzigen. Welke weergave het laatst actief was, onthoudt Plainva per bestand. Kalender en Tijdlijn hebben een datumveld nodig (**Alleen datum** of **Datum & tijd** als **Formaat**); items tonen de velden die zijn ingeschakeld onder **Eigenschappen**.
 
@@ -86,6 +87,19 @@ De **Item**-knop linksboven (voorheen **Nieuw**; duidelijk gescheiden van de glo
 - **Sjablonen**: het pijlmenu (**Sjablonen en opslagmap**) toont de sjablonen uit de sjablonenmap van je vault — eenmalig gebruiken, met een ster **Als standaard instellen** (geldt dan voor elke klik op **Item** bij deze database) of **Nieuw sjabloon maken** (een nieuw sjabloon begint met een `# {{title}}`-kop, dus items die eruit worden aangemaakt erven hun bestandsnaam als de H1). Hetzelfde menu biedt ook **Sjablonenmap openen**, waarmee de sjablonenmap in de bestandsboom wordt getoond — sjablonen zijn gewone notities die je daar kunt bewerken, hernoemen of verwijderen.
 - **Sjablonen per database**: sjablonen kunnen aan databases worden toegewezen. Standaard toont het pijlmenu alleen de sjablonen die aan deze database zijn toegewezen (plus het standaardsjabloon ervan); al het overige is bereikbaar via **Alle sjablonen tonen (n)**. Wijs daar meteen toe — het database-icoon op elke rij toont **Aan deze database toewijzen** of **Toewijzing aan deze database verwijderen** — of op het sjabloon zelf: het **⋮**-menu van de editor biedt **Doeldatabases…**, een dialoogvenster met een zoekveld waarin je het sjabloon aan willekeurig veel databases toewijst. Een sjabloon dat via **Nieuw sjabloon maken** vanuit een database wordt aangemaakt, is meteen aan die database toegewezen. De toewijzing wordt opgeslagen als een `plainva.templateFor`-lijst in de frontmatter van het sjabloon (zie de [Bestandsformaat-referentie](File_Format_Reference.md)); ze wordt nooit gekopieerd naar items die vanuit het sjabloon worden aangemaakt, en het hernoemen van een `.base` neemt de toewijzingen mee. Het slash-commando **Sjabloon invoegen** blijft bewust ongefilterd — het voegt tekst in een bestaande notitie in en heeft geen databasecontext.
 - **Tijdelijke aanduidingen van sjablonen**: sjablonen interpoleren `{{title}}`, `{{date}}` en `{{time}}`. Wanneer je een sjabloon in een notitie *invoegt* (het slash-commando **Sjabloon invoegen** / `Mod+Alt+T`), worden er nog twee opgelost: `{{cursor}}` markeert waar de cursor na het invoegen terechtkomt, en `{{prompt:Label}}` vraagt je om een waarde (met het label *Label*) en voegt je antwoord in. Een *nieuwe* notitie aanmaken vanuit een sjabloon verwijdert `{{cursor}}` en laat elke `{{prompt:…}}` leeg.
+
+## Prikbord (kleefbriefjes zoals Google Keep)
+
+Het weergavetype **Prikbord** toont de notities van de database als kaarten met hun weergegeven inhoud — een bord vol kleefbriefjes. Kaarten renderen tekst, lijsten en klikbare selectievakjes (een klik vinkt de taak direct in de notitie af), afbeeldingen en opmaak; tabellen, formules en insluitingen verschijnen als subtiele plaatshouders. Een klik op een kaart opent de notitie in het voorbeeldvenster.
+
+- **Snel vastleggen**: het veld **Notitie schrijven…** boven het bord maakt bij het indrukken van Enter een nieuwe notitie aan in de opslagmap van de database — geen sjabloon, geen omwegen; de getypte tekst is de inhoud en de bestandsnaam komt van de eerste woorden ervan.
+- **Vastzetten**: de vastzet-knop (rechtsboven wanneer je over een kaart zweeft) verplaatst een kaart naar de sectie **Vastgezet**.
+- **Ordenen**: sleep kaarten om ze te herschikken; de volgorde staat in het `.base`-bestand en synchroniseert mee. Kaarten die nog niet zijn geordend (net vastgelegd of extern aangemaakt) verschijnen bovenaan, nieuwste eerst. Is er een sorteerregel ingesteld onder **Configureren**, dan wint die — slepen is dan uitgeschakeld.
+- **Labels**: de chipbalk boven het bord filtert de kaarten — standaard op tags, om te zetten naar een multiselectie-eigenschap (**Configureren** → **Labelbron**). Meerdere chips filteren met EN gecombineerd; de selectie is vluchtig en wordt nooit in het bestand geschreven. Bewerk de labels van een kaart via **Labels** in het contextmenu van de kaart.
+- **Kleur**: het contextmenu kleurt de kaart. De kleur is de headerkleur van de notitie (`plainva.header_color`) — die geldt overal waar de notitie verschijnt, ook in de header van de editor.
+- **Mobiel**: op de telefoon opent een tik de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt. Tip: richt de database op je inbox-map (**Instellingen** → **Mappen**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord.
+
+Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord ordenen, kan er een `.CONFLICT`-kopie van het `.base`-bestand verschijnen — alleen de ordening is dan geraakt, nooit de inhoud van de notities; verwijder of voeg de kopie samen.
 
 ## Dagelijks gebruik
 

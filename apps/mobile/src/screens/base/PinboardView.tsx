@@ -300,7 +300,7 @@ export function PinboardView({
     try {
       const fresh = await vault.files.readTextFile(path);
       const hex = picked ? PALETTE_SWATCH[picked] : null;
-      const next = hex ? setFrontmatterPath(fresh, ["plainva", "color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "color"]);
+      const next = hex ? setFrontmatterPath(fresh, ["plainva", "header_color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "header_color"]);
       if (next !== fresh) {
         await vault.files.writeTextFile(path, next);
         await afterCardWrite(path);

@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-16
+Last reviewed: 2026-07-17
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -38,6 +38,7 @@ A database can have any number of views; each has a **View type**:
 | **Board** | Kanban columns grouped by a property (**Group by**) — dragging cards between columns changes the value; dragging a **column header** reorders the columns |
 | **Calendar** | Entries by **Date field** on a month calendar, draggable |
 | **Timeline** | Time axis with **Start date** and optional **End date** |
+| **Pinboard** | Google-Keep-style board of sticky notes — cards show the rendered note content (own section below) |
 
 **Add view** creates more; **View options** offers **Rename**, **Duplicate**, **Delete** and drag-reordering. Plainva remembers the last active view per file. Calendar and Timeline need a date field (**Date only** or **Date & time** as the **Format**); entries display the fields enabled under **Properties**.
 
@@ -86,6 +87,19 @@ The **Entry** button at the top left (formerly **New**; clearly separate from th
 - **Templates**: the arrow menu (**Templates and storage folder**) lists the templates from your vault's template folder — use one once, star it via **Set as default** (then every click on **Entry** uses it for this database), or **Create new template** (a new template starts with a `# {{title}}` heading, so entries created from it inherit their file name as the H1). The same menu also offers **Open templates folder**, which reveals the template folder in the file tree — templates are ordinary notes you can edit, rename or delete there.
 - **Templates per database**: templates can be assigned to databases. By default the arrow menu only shows the templates assigned to this database (plus its default template); everything else is reachable via **Show all templates (n)**. Assign right there — the database icon on each row reads **Assign to this database** or **Remove assignment to this database** — or on the template itself: the editor's ⋮ menu offers **Target databases…**, a dialog with a search field where you assign the template to any number of databases. A template created from a database via **Create new template** starts assigned to it. The assignment is stored as a `plainva.templateFor` list in the template's frontmatter (see the [file format reference](File_Format_Reference.md)); it is never copied into entries created from the template, and renaming a `.base` carries the assignments along. The **Insert template** slash command deliberately stays unfiltered — it inserts text into an existing note and has no database context.
 - **Template placeholders**: templates interpolate `{{title}}`, `{{date}}` and `{{time}}`. When you *insert* a template into a note (the **Insert template** slash command / `Mod+Alt+T`), two more are resolved: `{{cursor}}` marks where the cursor lands after inserting, and `{{prompt:Label}}` asks you for a value (labelled *Label*) and inserts your answer. Creating a *new* note from a template strips `{{cursor}}` and leaves any `{{prompt:…}}` blank.
+
+## Pinboard (sticky notes like Google Keep)
+
+The **Pinboard** view type shows the database's notes as cards with their rendered content — a board full of sticky notes. Cards render text, lists and clickable checkboxes (a click ticks the task right in the note), images and formatting; tables, formulas and embeds appear as subtle placeholders. Clicking a card opens the note in the preview window.
+
+- **Quick capture**: The **Write a note…** field above the board creates a new note in the database's storage folder when you press Enter — no template, no detours; the typed text is the content and the file name comes from its first words.
+- **Pinning**: The pin button (top right when hovering a card) lifts a card into the **Pinned** section.
+- **Arranging**: Drag cards to reorder them; the order lives in the `.base` file and syncs along. Cards not arranged yet (freshly captured or created externally) appear on top, newest first. If a sort rule is set under **Configure**, it wins — dragging is disabled then.
+- **Labels**: The chip bar above the board filters the cards — by tags by default, switchable to a multi-select property (**Configure** → **Label source**). Multiple chips filter AND-combined; the selection is ephemeral and never written to the file. Edit a card's labels via **Labels** in the card's context menu.
+- **Color**: The context menu tints the card. The color is the note's header color (`plainva.header_color`) — it applies everywhere the note appears, including the editor header.
+- **Mobile**: On the phone, tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders. Tip: point the database at your inbox folder (**Settings** → **Folders**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
+
+Note for synced vaults: if two devices arrange the board at the same time, a `.CONFLICT` copy of the `.base` file can appear — only the arrangement is affected, never the notes' content; delete or merge the copy.
 
 ## Everyday usage
 

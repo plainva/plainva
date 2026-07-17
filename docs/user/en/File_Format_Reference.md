@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-07-16
+Last reviewed: 2026-07-17
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -162,7 +162,7 @@ Everything Plainva-specific is namespaced. Three locations:
 
 | Key | Value | Meaning |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Plainva-only view kind (see below) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Plainva-only view kind (see below) |
 | `groupBy` | bare property key | Board grouping column |
 | `dateField` | bare property key | Calendar/timeline start date |
 | `endField` | bare property key | Timeline end date |
@@ -170,6 +170,9 @@ Everything Plainva-specific is namespaced. Three locations:
 | `subItemsProperty` | bare property key | Self-relation parent column for sub-item nesting |
 | `widths` | map of id → px | Column widths |
 | `dateFormat` | string | Per-view date format (`default` is implicit — omit it) |
+| `pinboardOrder` | list of vault-relative paths | Manual order of the UNPINNED pinboard cards |
+| `pinboardPinned` | list of vault-relative paths | Pinned cards; the list order is the section order |
+| `pinboardFilterBy` | `tags` or a bare multi-select key | Label source of the pinboard's chip bar (`tags` is implicit — omit it) |
 
 Besides the `plainva` block, a view may carry a native **`views[i].filters`** object — the **per-view property filters** (same single-rooted `and`/`or`/`not` grammar as the file-level `filters`). Plainva stores property filter rules here, one set per view, so each view filters independently; the file-level `filters` then keeps only the sources. Obsidian applies `views[i].filters` per view natively.
 
@@ -448,6 +451,25 @@ views:
 All graph option keys are optional; omit them entirely when unset. Obsidian renders the same file as a plain table and must not error.
 
 A **board** view (`plainva.render: "board"`) may additionally carry `views[i].plainva.boardColumnOrder` — a list of group-column keys (`__UNGROUPED__` marks the no-value column) that remembers a manual column order. Select/Status boards instead reorder the property's `options`. Omit the key when unset.
+
+### The pinboard view (`plainva.render: "pinboard"`)
+
+A pinboard is stored like every non-native view: `type: table` plus the render hint. Its keys live in the same `views[i].plainva` namespace:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # manual order of the unpinned cards
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # pinned; list order = section order
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # label source of the chip bar; omit = tags
+```
+
+Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list render on top, newest first (creation time). Entries whose file no longer exists or left the source set are ignored and cleaned up on the next save. When a note is renamed or moved, Plainva retargets the paths in both lists automatically; external tools must do the same. Obsidian ignores the keys and shows the view as a table.
 
 ## Do-not-touch and safety
 

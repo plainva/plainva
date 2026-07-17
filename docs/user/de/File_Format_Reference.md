@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -162,7 +162,7 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 
 | Schlüssel | Wert | Bedeutung |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Plainva-only-Ansichtsart (siehe unten) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Plainva-only-Ansichtsart (siehe unten) |
 | `groupBy` | bare Eigenschaftsschlüssel | Gruppierungsspalte des Boards |
 | `dateField` | bare Eigenschaftsschlüssel | Startdatum für Kalender/Zeitachse |
 | `endField` | bare Eigenschaftsschlüssel | Enddatum der Zeitachse |
@@ -170,6 +170,9 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 | `subItemsProperty` | bare Eigenschaftsschlüssel | Eltern-Spalte (Self-Relation) für die Unterelemente-Verschachtelung |
 | `widths` | Map id → px | Spaltenbreiten |
 | `dateFormat` | String | Datumsformat pro View (`default` ist implizit — weglassen) |
+| `pinboardOrder` | Liste vault-relativer Pfade | Manuelle Reihenfolge der NICHT angepinnten Pinnwand-Karten |
+| `pinboardPinned` | Liste vault-relativer Pfade | Angepinnte Karten; die Listenreihenfolge ist die Reihenfolge der Sektion |
+| `pinboardFilterBy` | `tags` oder barer Mehrfachauswahl-Schlüssel | Label-Quelle der Chip-Leiste der Pinnwand (`tags` ist implizit — weglassen) |
 
 Neben dem `plainva`-Block kann eine View ein natives **`views[i].filters`**-Objekt tragen — die **Filter pro Ansicht** (dieselbe einwurzelige `and`/`or`/`not`-Grammatik wie das dateiweite `filters`). Plainva speichert Eigenschafts-Filterregeln hier, ein Satz pro View, sodass jede View unabhängig filtert; das dateiweite `filters` behält dann nur die Quellen. Obsidian wendet `views[i].filters` pro View nativ an.
 
@@ -456,6 +459,25 @@ views:
 Alle Graph-Options-Schlüssel sind optional; ungesetzte werden komplett weggelassen. Obsidian rendert dieselbe Datei als einfache Tabelle und darf keinen Fehler zeigen.
 
 Eine **Board**-Ansicht (`plainva.render: "board"`) kann zusätzlich `views[i].plainva.boardColumnOrder` tragen — eine Liste von Gruppen-Spalten-Schlüsseln (`__UNGROUPED__` markiert die Spalte ohne Wert), die eine manuelle Spaltenreihenfolge merkt. Auswahl/Status-Boards ordnen stattdessen die `options` der Eigenschaft um. Ungesetzt weglassen.
+
+### Die Pinnwand-Ansicht (`plainva.render: "pinboard"`)
+
+Eine Pinnwand wird wie jede nicht-native Ansicht gespeichert: `type: table` plus Render-Hinweis. Ihre Schlüssel liegen im selben `views[i].plainva`-Namensraum:
+
+```yaml
+views:
+  - type: table
+    name: Pinnwand
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # manuelle Reihenfolge der nicht angepinnten Karten
+        - "Zettel/Einkauf.md"
+      pinboardPinned:                 # angepinnt; Listenreihenfolge = Sektionsreihenfolge
+        - "Zettel/Idee.md"
+      pinboardFilterBy: note.labels   # Label-Quelle der Chip-Leiste; weglassen = Tags
+```
+
+Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, die in keiner Liste stehen, zeigt Plainva oben, neueste zuerst (Anlagezeit). Einträge, deren Datei nicht mehr existiert oder aus der Quellmenge gefallen ist, werden ignoriert und beim nächsten Speichern bereinigt. Beim Umbenennen oder Verschieben einer Notiz zieht Plainva die Pfade in beiden Listen automatisch nach; externe Werkzeuge müssen dasselbe tun. Obsidian ignoriert die Schlüssel und zeigt die Ansicht als Tabelle.
 
 ## Siehe auch
 

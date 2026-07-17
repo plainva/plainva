@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-07-16
+Última actualización: 2026-07-17
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -19,6 +19,8 @@ El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú �
 ## Bases de datos (`.base`)
 
 Las bases de datos `.base` funcionan como en la aplicación de escritorio: cada vista (**Tabla**, **Lista**, **Galería**, **Tablero**, **Calendario**, **Cronología**), la edición tipada de celdas, las tarjetas del **Tablero** se mueven manteniendo pulsado. **Configurar** gestiona las vistas, las columnas, los filtros (incluidos los grupos), el orden y las propiedades. Los esquemas de relación (destinos, cardinalidad) se siguen gestionando en la aplicación de escritorio.
+
+Una vista **Tablón** muestra las notas como un tablero de dos columnas de tarjetas adhesivas: tocar abre la nota, mantener pulsado muestra las acciones (fijar, etiquetas, color, eliminar), arrastrar tras mantener pulsado reordena, y las casillas de verificación se marcan directamente en la tarjeta. El campo de entrada de arriba captura una nota nueva. Consejo: apunta la base de datos a tu carpeta de entrada (**Ajustes** → **Carpetas**) y tanto las notas rápidas del ＋ como los textos compartidos desde otras apps caerán directamente en el tablón.
 
 ## Sincronización
 

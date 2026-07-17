@@ -105,7 +105,9 @@ export function parseNoteCard(
     ? (fm.plainva as Record<string, unknown>)
     : null;
   const fmTitle = fm && typeof fm.title === "string" && fm.title.trim() ? String(fm.title).trim() : null;
-  const rawColor = pv && typeof pv.color === "string" ? pv.color.trim() : null;
+  // The note's header stripe key is `plainva.header_color` (ADR 0009) — the
+  // card tint mirrors exactly that field (decision E7).
+  const rawColor = pv && typeof pv.header_color === "string" ? pv.header_color.trim() : null;
   const color = rawColor && HEX_COLOR_RE.test(rawColor) ? rawColor : null;
   const icon = pv && typeof pv.icon === "string" && pv.icon.trim() ? String(pv.icon).trim() : null;
 

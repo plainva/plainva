@@ -227,7 +227,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Projekte': { isDir: true },
       '/test-vault/Zettel': { isDir: true },
-      '/test-vault/Zettel/Einkauf.md': '---\nplainva:\n  color: "#c94f4f"\n---\n- [ ] Milch\n- [x] Brot\n',
+      '/test-vault/Zettel/Einkauf.md': '---\nplainva:\n  header_color: "#c94f4f"\n---\n- [ ] Milch\n- [x] Brot\n',
       '/test-vault/Zettel/Idee.md': '# Solaranlage\n\nDach **pruefen** lassen\n',
       '/test-vault/Zettel/Notiz.md': 'Nur Text\n',
       '/test-vault/Pinnwand.base': pinboardYaml,
@@ -1506,9 +1506,15 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
   await expect(cards).toHaveCount(3);
   await expect(cards.filter({ hasText: 'Solaranlage' }).locator('strong', { hasText: 'pruefen' })).toBeVisible();
 
+  // The note's plainva.header_color tints its card (E7) — computed background
+  // differs from an untinted card.
+  const einkauf = cards.filter({ hasText: 'Milch' });
+  const tinted = await einkauf.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const plain = await cards.filter({ hasText: 'Nur Text' }).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(tinted).not.toBe(plain);
+
   // Checkbox toggle writes [x] into the note through the adapter chain and the
   // board re-renders from the fresh FTS content (plainva-note-saved channel).
-  const einkauf = cards.filter({ hasText: 'Milch' });
   await einkauf.locator('input[type="checkbox"]').first().click();
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md']))

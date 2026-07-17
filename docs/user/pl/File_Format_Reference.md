@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-07-16
+Stan na: 2026-07-17
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -162,7 +162,7 @@ Wszystko, co specyficzne dla Plainva, ma nadaną przestrzeń nazw. Trzy miejsca:
 
 | Klucz | Wartość | Znaczenie |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Rodzaj widoku dostępny tylko w Plainva (patrz niżej) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Rodzaj widoku dostępny tylko w Plainva (patrz niżej) |
 | `groupBy` | goły klucz właściwości | Kolumna grupowania tablicy |
 | `dateField` | goły klucz właściwości | Data początkowa kalendarza/osi czasu |
 | `endField` | goły klucz właściwości | Data końcowa osi czasu |
@@ -170,6 +170,9 @@ Wszystko, co specyficzne dla Plainva, ma nadaną przestrzeń nazw. Trzy miejsca:
 | `subItemsProperty` | goły klucz właściwości | Kolumna nadrzędna relacji do samej siebie do zagnieżdżania elementów podrzędnych |
 | `widths` | mapa id → px | Szerokości kolumn |
 | `dateFormat` | string | Format daty per widok (`default` jest domyślny — pomiń go) |
+| `pinboardOrder` | lista ścieżek względnych do vaultu | Ręczna kolejność NIEPRZYPIĘTYCH kart na tablicy korkowej |
+| `pinboardPinned` | lista ścieżek względnych do vaultu | Przypięte karty; kolejność na liście odpowiada kolejności w sekcji |
+| `pinboardFilterBy` | `tags` lub goły klucz wielokrotnego wyboru | Źródło etykiet paska chipów tablicy korkowej (`tags` jest domyślne — pomiń ten klucz) |
 
 Oprócz bloku `plainva`, widok może nieść natywny obiekt **`views[i].filters`** — **filtry właściwości dla poszczególnych widoków** (ta sama jednokorzeniowa gramatyka `and`/`or`/`not` co `filters` na poziomie pliku). Plainva przechowuje tu reguły filtrów właściwości, po jednym zestawie na widok, dzięki czemu każdy widok filtruje niezależnie; `filters` na poziomie pliku zachowuje wtedy tylko źródła. Obsidian stosuje `views[i].filters` natywnie dla każdego widoku.
 
@@ -448,6 +451,25 @@ views:
 Wszystkie klucze opcji grafu są opcjonalne; pomiń je całkowicie, gdy nieustawione. Obsidian renderuje ten sam plik jako zwykłą tabelę i nie może zgłosić błędu.
 
 Widok **Tablica** (`plainva.render: "board"`) może dodatkowo nieść `views[i].plainva.boardColumnOrder` — listę kluczy kolumn grupujących (`__UNGROUPED__` oznacza kolumnę bez wartości), która zapamiętuje ręczną kolejność kolumn. Tablice Wybór/Status zamiast tego zmieniają kolejność `options` właściwości. Pomiń klucz, gdy nieustawiony.
+
+### Widok tablicy korkowej (`plainva.render: "pinboard"`)
+
+Tablica korkowa jest przechowywana tak jak każdy nienatywny widok: `type: table` plus wskazówka render. Jej klucze znajdują się w tej samej przestrzeni nazw `views[i].plainva`:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # ręczna kolejność nieprzypiętych kart
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # przypięte; kolejność listy = kolejność sekcji
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # źródło etykiet paska chipów; pomiń = tags
+```
+
+Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza obu list renderują się na górze, od najnowszych (czas utworzenia). Wpisy, których plik już nie istnieje lub opuścił zestaw źródłowy, są ignorowane i usuwane przy najbliższym zapisie. Gdy notatka zostanie przemianowana lub przeniesiona, Plainva automatycznie przekierowuje ścieżki na obu listach; narzędzia zewnętrzne muszą robić to samo. Obsidian ignoruje te klucze i pokazuje widok jako tabelę.
 
 ## Nie dotykaj i bezpieczeństwo
 
