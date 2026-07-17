@@ -17,6 +17,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
+import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -48,6 +49,12 @@ interface VaultState {
    */
   fileTreeVersionPaths: string[] | null;
   syncWorker: SyncWorker | null;
+  /**
+   * PIM runtime (Gesamtplan PIM-Ausbau 2026-07-17): calendar/task object
+   * cache + pull worker, bound to this vault's index DB. null until a vault
+   * is open; the worker only starts when the vault has PIM accounts.
+   */
+  pimRuntime: PimRuntime | null;
   /**
    * Serialized incremental-index queue shared by the watcher and the sync
    * worker's onFilesChanged (services/incrementalIndexQueue.ts): batches never
@@ -204,6 +211,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     indexer: null,
     queryService: null,
     graphService: null,
+    pimRuntime: null,
     isLoading: true,
     error: null,
     fileTreeVersion: 0,
@@ -247,6 +255,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // writing into the very DB file the reload below re-opens/migrates.
         await state.syncWorker.stopAndDrain();
       }
+      state.pimRuntime?.stop();
 
       if (currentAbortSignal.aborted) return;
 
@@ -354,6 +363,16 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
       const queryService = new VaultQueryService(dbAdapter);
       const graphService = new GraphService(dbAdapter);
+
+      // PIM runtime (calendar/task cache + pull worker). The worker only runs
+      // when the vault actually has accounts — an unconfigured vault pays
+      // nothing. Account connects start it via the settings section.
+      const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path });
+      try {
+        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
+      } catch (e) {
+        console.warn("[VaultContext] starting the PIM worker failed", e);
+      }
 
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):
       // one batch at a time, concurrent producers coalesce into one follow-up
@@ -580,6 +599,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         treeStructureVersion: s.treeStructureVersion + 1,
         fileTreeVersionPaths: null,
         syncWorker,
+        pimRuntime,
         indexQueue,
         loadingProgress: undefined,
         loadingPath: null,
@@ -771,6 +791,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (state.syncWorker) {
       state.syncWorker.stop();
     }
+    state.pimRuntime?.stop();
     
     // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
     syncStatusStore.reset();
@@ -785,6 +806,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       graphService: null,
       fileTreeVersion: 0,
       syncWorker: null,
+      pimRuntime: null,
       indexQueue: null,
       isLoading: false,
       error: null,

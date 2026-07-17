@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Taken uit de takenweergave kunnen naar deze database worden gepromoveerd.",
     "taskDatabaseCreate": "Nieuwe database maken…",
     "taskDatabaseCreateName": "Naam van de takendatabase",
-    "taskDatabaseDefaultName": "Taken"
+    "taskDatabaseDefaultName": "Taken",
+    "sectionPim": "Agenda en accounts"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",
@@ -1810,5 +1811,27 @@
     "addLabel": "Labels zoeken…",
     "newLabel": "“{{name}}” aanmaken",
     "inlineTag": "in de tekst"
+  },
+  "pim": {
+    "openVaultFirst": "Alleen beschikbaar voor de geopende vault.",
+    "noAccounts": "Nog geen agenda-accounts verbonden.",
+    "addAccount": "Account toevoegen…",
+    "refreshNow": "Nu verversen",
+    "provider": "Provider",
+    "connect": "Verbinden",
+    "connecting": "Verbinden…",
+    "connected": "Account verbonden.",
+    "removeAccount": "Account verwijderen",
+    "removeAccountMsg": "“{{label}}” wordt uit deze vault verwijderd. Bij de provider wordt niets gewist.",
+    "accountEnabled": "Actief",
+    "calendars": "Agenda's",
+    "taskLists": "Takenlijsten",
+    "davUser": "Gebruikersnaam",
+    "davPass": "App-wachtwoord",
+    "googleByoHint": "Google vereist een eigen OAuth-client-ID (zoals bij de Drive-sync). Scopes: agenda + taken.",
+    "googleClientSecret": "Client secret (optioneel voor desktopclients)",
+    "googleClientIdRequired": "Google heeft een eigen client-ID nodig (BYO).",
+    "microsoftHint": "Gebruikt de centrale Plainva-appregistratie — verbind en stem toe in de browser.",
+    "fillAllFields": "Vul alle velden in."
   }
 }

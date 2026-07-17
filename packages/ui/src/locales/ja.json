@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "タスクビューのタスクをこのデータベースに昇格できます。",
     "taskDatabaseCreate": "新規データベースを作成…",
     "taskDatabaseCreateName": "タスクデータベースの名前",
-    "taskDatabaseDefaultName": "タスク"
+    "taskDatabaseDefaultName": "タスク",
+    "sectionPim": "カレンダーとアカウント"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",
@@ -1804,5 +1805,27 @@
     "addLabel": "ラベルを検索…",
     "newLabel": "「{{name}}」を作成",
     "inlineTag": "本文内"
+  },
+  "pim": {
+    "openVaultFirst": "開いている保管庫でのみ利用できます。",
+    "noAccounts": "まだカレンダーアカウントが接続されていません。",
+    "addAccount": "アカウントを追加…",
+    "refreshNow": "今すぐ更新",
+    "provider": "プロバイダー",
+    "connect": "接続",
+    "connecting": "接続中…",
+    "connected": "アカウントを接続しました。",
+    "removeAccount": "アカウントを削除",
+    "removeAccountMsg": "「{{label}}」をこの保管庫から削除します。プロバイダー側のデータは削除されません。",
+    "accountEnabled": "有効",
+    "calendars": "カレンダー",
+    "taskLists": "タスクリスト",
+    "davUser": "ユーザー名",
+    "davPass": "アプリパスワード",
+    "googleByoHint": "Google では独自の OAuth クライアント ID が必要です（Drive 同期と同様）。スコープ: カレンダー + タスク。",
+    "googleClientSecret": "クライアントシークレット（デスクトップクライアントでは省略可）",
+    "googleClientIdRequired": "Google には独自のクライアント ID が必要です（BYO）。",
+    "microsoftHint": "Plainva の共通アプリ登録を使用します。接続してブラウザーで同意するだけです。",
+    "fillAllFields": "すべての項目を入力してください。"
   }
 }

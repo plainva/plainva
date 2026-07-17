@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "任务视图中的任务可以提升到此数据库。",
     "taskDatabaseCreate": "新建数据库…",
     "taskDatabaseCreateName": "任务数据库名称",
-    "taskDatabaseDefaultName": "任务"
+    "taskDatabaseDefaultName": "任务",
+    "sectionPim": "日历与账户"
   },
   "editor": {
     "fileNotFound": "未找到文件",
@@ -1804,5 +1805,27 @@
     "addLabel": "搜索标签…",
     "newLabel": "创建“{{name}}”",
     "inlineTag": "在正文中"
+  },
+  "pim": {
+    "openVaultFirst": "仅适用于当前打开的仓库。",
+    "noAccounts": "尚未连接任何日历账户。",
+    "addAccount": "添加账户…",
+    "refreshNow": "立即刷新",
+    "provider": "服务商",
+    "connect": "连接",
+    "connecting": "连接中…",
+    "connected": "账户已连接。",
+    "removeAccount": "移除账户",
+    "removeAccountMsg": "“{{label}}”将从此仓库移除。服务商侧不会删除任何数据。",
+    "accountEnabled": "启用",
+    "calendars": "日历",
+    "taskLists": "任务列表",
+    "davUser": "用户名",
+    "davPass": "应用专用密码",
+    "googleByoHint": "Google 要求使用你自己的 OAuth 客户端 ID（与 Drive 同步相同）。权限范围：日历 + 任务。",
+    "googleClientSecret": "客户端密钥（桌面客户端可选）",
+    "googleClientIdRequired": "Google 需要你自己的客户端 ID（BYO）。",
+    "microsoftHint": "使用 Plainva 的中央应用注册——直接连接并在浏览器中授权。",
+    "fillAllFields": "请填写所有字段。"
   }
 }

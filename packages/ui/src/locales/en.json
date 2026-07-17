@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Tasks from the Tasks view can be promoted into this database.",
     "taskDatabaseCreate": "Create new database…",
     "taskDatabaseCreateName": "Name of the task database",
-    "taskDatabaseDefaultName": "Tasks"
+    "taskDatabaseDefaultName": "Tasks",
+    "sectionPim": "Calendar & accounts"
   },
   "editor": {
     "fileNotFound": "File not found",
@@ -1810,5 +1811,27 @@
     "addLabel": "Search labels…",
     "newLabel": "Create “{{name}}”",
     "inlineTag": "in the text"
+  },
+  "pim": {
+    "openVaultFirst": "Only available for the open vault.",
+    "noAccounts": "No calendar accounts connected yet.",
+    "addAccount": "Add account…",
+    "refreshNow": "Refresh now",
+    "provider": "Provider",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "connected": "Account connected.",
+    "removeAccount": "Remove account",
+    "removeAccountMsg": "“{{label}}” will be removed from this vault. Nothing is deleted at the provider.",
+    "accountEnabled": "Active",
+    "calendars": "Calendars",
+    "taskLists": "Task lists",
+    "davUser": "User name",
+    "davPass": "App password",
+    "googleByoHint": "Google requires your own OAuth client ID (like the Drive sync). Scopes: calendar + tasks.",
+    "googleClientSecret": "Client secret (optional for desktop clients)",
+    "googleClientIdRequired": "Google needs your own client ID (BYO).",
+    "microsoftHint": "Uses the central Plainva app registration — just connect and consent in the browser.",
+    "fillAllFields": "Please fill in all fields."
   }
 }

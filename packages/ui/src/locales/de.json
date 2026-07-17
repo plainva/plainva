@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Aufgaben aus der Aufgabenansicht lassen sich in diese Datenbank befördern.",
     "taskDatabaseCreate": "Neue Datenbank anlegen…",
     "taskDatabaseCreateName": "Name der Aufgabendatenbank",
-    "taskDatabaseDefaultName": "Aufgaben"
+    "taskDatabaseDefaultName": "Aufgaben",
+    "sectionPim": "Kalender & Konten"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",
@@ -1810,5 +1811,27 @@
     "addLabel": "Label suchen…",
     "newLabel": "„{{name}}“ anlegen",
     "inlineTag": "im Text"
+  },
+  "pim": {
+    "openVaultFirst": "Nur für den geöffneten Vault verfügbar.",
+    "noAccounts": "Noch keine Kalender-Konten verbunden.",
+    "addAccount": "Konto hinzufügen…",
+    "refreshNow": "Jetzt aktualisieren",
+    "provider": "Anbieter",
+    "connect": "Verbinden",
+    "connecting": "Verbinde…",
+    "connected": "Konto verbunden.",
+    "removeAccount": "Konto entfernen",
+    "removeAccountMsg": "„{{label}}“ wird aus diesem Vault entfernt. Beim Anbieter wird nichts gelöscht.",
+    "accountEnabled": "Aktiv",
+    "calendars": "Kalender",
+    "taskLists": "Aufgabenlisten",
+    "davUser": "Benutzername",
+    "davPass": "App-Passwort",
+    "googleByoHint": "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben.",
+    "googleClientSecret": "Client-Secret (optional bei Desktop-Clients)",
+    "googleClientIdRequired": "Google braucht eine eigene Client-ID (BYO).",
+    "microsoftHint": "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen.",
+    "fillAllFields": "Bitte alle Felder ausfüllen."
   }
 }

@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Zadania z widoku zadań można przenieść do tej bazy.",
     "taskDatabaseCreate": "Utwórz nową bazę…",
     "taskDatabaseCreateName": "Nazwa bazy zadań",
-    "taskDatabaseDefaultName": "Zadania"
+    "taskDatabaseDefaultName": "Zadania",
+    "sectionPim": "Kalendarz i konta"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",
@@ -1822,5 +1823,27 @@
     "addLabel": "Szukaj etykiet…",
     "newLabel": "Utwórz „{{name}}”",
     "inlineTag": "w tekście"
+  },
+  "pim": {
+    "openVaultFirst": "Dostępne tylko dla otwartego vaulta.",
+    "noAccounts": "Nie połączono jeszcze żadnych kont kalendarza.",
+    "addAccount": "Dodaj konto…",
+    "refreshNow": "Odśwież teraz",
+    "provider": "Dostawca",
+    "connect": "Połącz",
+    "connecting": "Łączenie…",
+    "connected": "Konto połączone.",
+    "removeAccount": "Usuń konto",
+    "removeAccountMsg": "„{{label}}” zostanie usunięte z tego vaulta. U dostawcy nic nie jest kasowane.",
+    "accountEnabled": "Aktywne",
+    "calendars": "Kalendarze",
+    "taskLists": "Listy zadań",
+    "davUser": "Nazwa użytkownika",
+    "davPass": "Hasło aplikacji",
+    "googleByoHint": "Google wymaga własnego identyfikatora klienta OAuth (jak przy synchronizacji Drive). Zakresy: kalendarz + zadania.",
+    "googleClientSecret": "Sekret klienta (opcjonalny dla klientów desktopowych)",
+    "googleClientIdRequired": "Google wymaga własnego identyfikatora klienta (BYO).",
+    "microsoftHint": "Używa centralnej rejestracji aplikacji Plainva — połącz i potwierdź w przeglądarce.",
+    "fillAllFields": "Wypełnij wszystkie pola."
   }
 }

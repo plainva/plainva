@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Le attività della vista Attività possono essere promosse in questo database.",
     "taskDatabaseCreate": "Crea database…",
     "taskDatabaseCreateName": "Nome del database delle attività",
-    "taskDatabaseDefaultName": "Attività"
+    "taskDatabaseDefaultName": "Attività",
+    "sectionPim": "Calendario e account"
   },
   "editor": {
     "fileNotFound": "File non trovato",
@@ -1816,5 +1817,27 @@
     "addLabel": "Cerca etichette…",
     "newLabel": "Crea “{{name}}”",
     "inlineTag": "nel testo"
+  },
+  "pim": {
+    "openVaultFirst": "Disponibile solo per il vault aperto.",
+    "noAccounts": "Nessun account calendario collegato.",
+    "addAccount": "Aggiungi account…",
+    "refreshNow": "Aggiorna ora",
+    "provider": "Provider",
+    "connect": "Collega",
+    "connecting": "Collegamento…",
+    "connected": "Account collegato.",
+    "removeAccount": "Rimuovi account",
+    "removeAccountMsg": "«{{label}}» verrà rimosso da questo vault. Nulla viene eliminato presso il provider.",
+    "accountEnabled": "Attivo",
+    "calendars": "Calendari",
+    "taskLists": "Elenchi attività",
+    "davUser": "Nome utente",
+    "davPass": "Password per app",
+    "googleByoHint": "Google richiede un ID client OAuth proprio (come per la sincronizzazione Drive). Ambiti: calendario + attività.",
+    "googleClientSecret": "Client secret (facoltativo per i client desktop)",
+    "googleClientIdRequired": "Google richiede un ID client proprio (BYO).",
+    "microsoftHint": "Usa la registrazione app centrale di Plainva: collega e conferma nel browser.",
+    "fillAllFields": "Compila tutti i campi."
   }
 }

@@ -11,7 +11,8 @@ import type { IPimTarget, PimAuthProvider, PimCalendar, PimEvent, PimTask, PimTa
  */
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
-export const GRAPH_CALENDAR_SCOPES = "Calendars.ReadWrite Tasks.ReadWrite offline_access";
+// User.Read only feeds the account label (/me); calendar/tasks are the point.
+export const GRAPH_CALENDAR_SCOPES = "User.Read Calendars.ReadWrite Tasks.ReadWrite offline_access";
 
 interface GraphEventItem {
   id: string;

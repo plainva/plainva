@@ -233,7 +233,8 @@
     "taskDatabaseDesc": "Les tâches de la vue Tâches peuvent être promues dans cette base.",
     "taskDatabaseCreate": "Créer une base…",
     "taskDatabaseCreateName": "Nom de la base de tâches",
-    "taskDatabaseDefaultName": "Tâches"
+    "taskDatabaseDefaultName": "Tâches",
+    "sectionPim": "Calendrier et comptes"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",
@@ -1816,5 +1817,27 @@
     "addLabel": "Rechercher un libellé…",
     "newLabel": "Créer « {{name}} »",
     "inlineTag": "dans le texte"
+  },
+  "pim": {
+    "openVaultFirst": "Disponible uniquement pour le vault ouvert.",
+    "noAccounts": "Aucun compte de calendrier connecté pour l'instant.",
+    "addAccount": "Ajouter un compte…",
+    "refreshNow": "Actualiser maintenant",
+    "provider": "Fournisseur",
+    "connect": "Connecter",
+    "connecting": "Connexion…",
+    "connected": "Compte connecté.",
+    "removeAccount": "Supprimer le compte",
+    "removeAccountMsg": "« {{label}} » sera retiré de ce vault. Rien n'est supprimé chez le fournisseur.",
+    "accountEnabled": "Actif",
+    "calendars": "Calendriers",
+    "taskLists": "Listes de tâches",
+    "davUser": "Nom d'utilisateur",
+    "davPass": "Mot de passe d'application",
+    "googleByoHint": "Google exige votre propre ID client OAuth (comme la synchronisation Drive). Portées : calendrier + tâches.",
+    "googleClientSecret": "Secret client (facultatif pour les clients de bureau)",
+    "googleClientIdRequired": "Google nécessite votre propre ID client (BYO).",
+    "microsoftHint": "Utilise l'enregistrement d'application central de Plainva — connectez-vous et validez dans le navigateur.",
+    "fillAllFields": "Merci de remplir tous les champs."
   }
 }
