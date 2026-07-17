@@ -1826,6 +1826,18 @@
     "googleClientSecret": "クライアントシークレット（デスクトップクライアントでは省略可）",
     "googleClientIdRequired": "Google には独自のクライアント ID が必要です（BYO）。",
     "microsoftHint": "Plainva の共通アプリ登録を使用します。接続してブラウザーで同意するだけです。",
-    "fillAllFields": "すべての項目を入力してください。"
+    "fillAllFields": "すべての項目を入力してください。",
+    "openCalendar": "カレンダーを開く",
+    "calendarEmpty": "カレンダーアカウントが接続されていません",
+    "calendarEmptyHint": "設定の「カレンダーとアカウント」で CalDAV、Google、Microsoft のいずれかのアカウントを接続してください。",
+    "noEventsForDay": "この日の予定はありません。",
+    "allDay": "終日",
+    "meetingNote": "会議ノート",
+    "meetingNoteCreated": "会議ノートを作成しました: {{name}}",
+    "meetingNoteFailed": "会議ノートを作成できませんでした。",
+    "syncing": "更新中…",
+    "syncError": "同期エラー",
+    "meetingFolder": "会議フォルダー",
+    "meetingFolderHint": "カレンダーの「予定 → 会議ノート」で作成されるノートの保存先です。"
   }
 }

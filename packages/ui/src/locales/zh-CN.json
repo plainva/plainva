@@ -1826,6 +1826,18 @@
     "googleClientSecret": "客户端密钥（桌面客户端可选）",
     "googleClientIdRequired": "Google 需要你自己的客户端 ID（BYO）。",
     "microsoftHint": "使用 Plainva 的中央应用注册——直接连接并在浏览器中授权。",
-    "fillAllFields": "请填写所有字段。"
+    "fillAllFields": "请填写所有字段。",
+    "openCalendar": "打开日历",
+    "calendarEmpty": "尚未连接日历账户",
+    "calendarEmptyHint": "请在设置的“日历与账户”中连接 CalDAV、Google 或 Microsoft 账户。",
+    "noEventsForDay": "这一天没有日程。",
+    "allDay": "全天",
+    "meetingNote": "会议笔记",
+    "meetingNoteCreated": "已创建会议笔记：{{name}}",
+    "meetingNoteFailed": "无法创建会议笔记。",
+    "syncing": "正在刷新…",
+    "syncError": "同步错误",
+    "meetingFolder": "会议文件夹",
+    "meetingFolderHint": "日历中“日程 → 会议笔记”所创建笔记的存放位置。"
   }
 }

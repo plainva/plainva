@@ -1838,6 +1838,18 @@
     "googleClientSecret": "Client secret (facoltativo per i client desktop)",
     "googleClientIdRequired": "Google richiede un ID client proprio (BYO).",
     "microsoftHint": "Usa la registrazione app centrale di Plainva: collega e conferma nel browser.",
-    "fillAllFields": "Compila tutti i campi."
+    "fillAllFields": "Compila tutti i campi.",
+    "openCalendar": "Apri calendario",
+    "calendarEmpty": "Nessun account calendario collegato",
+    "calendarEmptyHint": "Collega un account CalDAV, Google o Microsoft nelle Impostazioni, sezione “Calendario e account”.",
+    "noEventsForDay": "Nessun evento in questo giorno.",
+    "allDay": "Tutto il giorno",
+    "meetingNote": "Nota della riunione",
+    "meetingNoteCreated": "Nota della riunione creata: {{name}}",
+    "meetingNoteFailed": "Impossibile creare la nota della riunione.",
+    "syncing": "Aggiornamento…",
+    "syncError": "Errore di sincronizzazione",
+    "meetingFolder": "Cartella riunioni",
+    "meetingFolderHint": "Dove vengono salvate le note da “Evento → nota della riunione” nel calendario."
   }
 }

@@ -9,6 +9,7 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     openTemplatePicker: vi.fn(),
     openGraph: vi.fn(),
     openTasks: vi.fn(),
+    openCalendar: vi.fn(),
     openFindReplace: vi.fn(),
     split: vi.fn(),
     toggleLeftSidebar: vi.fn(),

@@ -24,6 +24,7 @@ export interface CommandDeps {
   openTemplatePicker: () => void;
   openGraph: () => void;
   openTasks: () => void;
+  openCalendar: () => void;
   openFindReplace: () => void;
   split: (direction: "vertical" | "horizontal") => void;
   toggleLeftSidebar: () => void;
@@ -73,6 +74,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "template-from-note", titleKey: "editor.saveAsTemplate", titleDefault: "Aktuelle Notiz als Vorlage speichern", run: d.saveActiveAsTemplate, isAvailable: () => d.canPrint() },
     { id: "open-graph", titleKey: "graph.open", titleDefault: "Graph öffnen", hint: "Mod+Shift+G", run: d.openGraph },
     { id: "open-tasks", titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run: d.openTasks },
+    { id: "open-calendar", titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run: d.openCalendar },
     { id: "find-replace-vault", titleKey: "findReplace.title", titleDefault: "Im Vault suchen & ersetzen", hint: "Mod+Shift+F", run: d.openFindReplace },
     { id: "split-vertical", titleKey: "shortcuts.splitVertical", titleDefault: "Editor rechts teilen", hint: "Mod+Alt+V", run: () => d.split("vertical") },
     { id: "split-horizontal", titleKey: "shortcuts.splitHorizontal", titleDefault: "Editor unten teilen", hint: "Mod+Alt+S", run: () => d.split("horizontal") },

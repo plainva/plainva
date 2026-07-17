@@ -1832,6 +1832,18 @@
     "googleClientSecret": "Client-Secret (optional bei Desktop-Clients)",
     "googleClientIdRequired": "Google braucht eine eigene Client-ID (BYO).",
     "microsoftHint": "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen.",
-    "fillAllFields": "Bitte alle Felder ausfüllen."
+    "fillAllFields": "Bitte alle Felder ausfüllen.",
+    "openCalendar": "Kalender öffnen",
+    "calendarEmpty": "Kein Kalenderkonto verbunden",
+    "calendarEmptyHint": "Verbinde in den Einstellungen unter „Kalender & Konten“ ein CalDAV-, Google- oder Microsoft-Konto.",
+    "noEventsForDay": "Keine Termine an diesem Tag.",
+    "allDay": "Ganztägig",
+    "meetingNote": "Meeting-Notiz",
+    "meetingNoteCreated": "Meeting-Notiz erstellt: {{name}}",
+    "meetingNoteFailed": "Meeting-Notiz konnte nicht erstellt werden.",
+    "syncing": "Aktualisiere…",
+    "syncError": "Sync-Fehler",
+    "meetingFolder": "Meeting-Ordner",
+    "meetingFolderHint": "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender."
   }
 }

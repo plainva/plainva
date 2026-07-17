@@ -1844,6 +1844,18 @@
     "googleClientSecret": "Sekret klienta (opcjonalny dla klientów desktopowych)",
     "googleClientIdRequired": "Google wymaga własnego identyfikatora klienta (BYO).",
     "microsoftHint": "Używa centralnej rejestracji aplikacji Plainva — połącz i potwierdź w przeglądarce.",
-    "fillAllFields": "Wypełnij wszystkie pola."
+    "fillAllFields": "Wypełnij wszystkie pola.",
+    "openCalendar": "Otwórz kalendarz",
+    "calendarEmpty": "Brak połączonego konta kalendarza",
+    "calendarEmptyHint": "Połącz konto CalDAV, Google lub Microsoft w Ustawieniach, w sekcji „Kalendarz i konta”.",
+    "noEventsForDay": "Brak wydarzeń tego dnia.",
+    "allDay": "Cały dzień",
+    "meetingNote": "Notatka ze spotkania",
+    "meetingNoteCreated": "Utworzono notatkę ze spotkania: {{name}}",
+    "meetingNoteFailed": "Nie udało się utworzyć notatki ze spotkania.",
+    "syncing": "Odświeżanie…",
+    "syncError": "Błąd synchronizacji",
+    "meetingFolder": "Folder spotkań",
+    "meetingFolderHint": "Miejsce zapisu notatek z „Wydarzenie → notatka ze spotkania” w kalendarzu."
   }
 }

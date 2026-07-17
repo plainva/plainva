@@ -1832,6 +1832,18 @@
     "googleClientSecret": "Client secret (optioneel voor desktopclients)",
     "googleClientIdRequired": "Google heeft een eigen client-ID nodig (BYO).",
     "microsoftHint": "Gebruikt de centrale Plainva-appregistratie — verbind en stem toe in de browser.",
-    "fillAllFields": "Vul alle velden in."
+    "fillAllFields": "Vul alle velden in.",
+    "openCalendar": "Agenda openen",
+    "calendarEmpty": "Geen agenda-account verbonden",
+    "calendarEmptyHint": "Verbind een CalDAV-, Google- of Microsoft-account in Instellingen onder “Agenda en accounts”.",
+    "noEventsForDay": "Geen afspraken op deze dag.",
+    "allDay": "Hele dag",
+    "meetingNote": "Vergadernotitie",
+    "meetingNoteCreated": "Vergadernotitie aangemaakt: {{name}}",
+    "meetingNoteFailed": "Kon de vergadernotitie niet aanmaken.",
+    "syncing": "Bijwerken…",
+    "syncError": "Synchronisatiefout",
+    "meetingFolder": "Vergadermap",
+    "meetingFolderHint": "Waar notities uit “Afspraak → vergadernotitie” in de agenda worden opgeslagen."
   }
 }

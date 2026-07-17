@@ -124,6 +124,10 @@ export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${
 /** Standard task database (PIM plan 1a): vault-relative path of the `.base`
  * that promoted checkbox tasks (and later synced external tasks) land in. */
 export const taskDatabaseKey = (vaultPath: string) => `taskDatabase_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Meetings folder (PIM stage 2c): vault-relative folder for notes created via
+ * "Termin → Meeting-Notiz" in the calendar tab. Default "Meetings". */
+export const meetingFolderKey = (vaultPath: string) => `meetingFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const DEFAULT_MEETING_FOLDER = "Meetings";
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the

@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { toast, Button, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
-import { useVault } from "../../contexts/VaultContext";
+import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
+import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
 import { Select } from "../Select";
 import {
@@ -41,6 +42,28 @@ export function PimAccountsSection() {
   const [gClientId, setGClientId] = useState("");
   const [gClientSecret, setGClientSecret] = useState("");
   const [msClientId, setMsClientId] = useState(PLAINVA_ONEDRIVE_CLIENT_ID);
+  const [meetingFolder, setMeetingFolder] = useState("");
+
+  // Meetings folder ("Termin → Meeting-Notiz" target, stage 2c). Loaded once,
+  // persisted on blur through the normal settings store.
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      const v = (await store.get<string>(meetingFolderKey(vaultPath))) ?? "";
+      if (alive) setMeetingFolder(v);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+  const persistMeetingFolder = useCallback(async () => {
+    if (!vaultPath) return;
+    const store = await getSettingsStore();
+    await store.set(meetingFolderKey(vaultPath), meetingFolder.trim());
+    await store.save();
+  }, [vaultPath, meetingFolder]);
 
   useEffect(() => {
     let alive = true;
@@ -272,6 +295,25 @@ export function PimAccountsSection() {
           </Button>
         </div>
       )}
+
+      <div style={{ marginTop: "0.75rem" }}>
+        <label style={{ display: "block", fontSize: "0.85rem", marginBottom: 2 }}>
+          {t("pim.meetingFolder", { defaultValue: "Meeting-Ordner" })}
+        </label>
+        <input
+          autoComplete="off"
+          value={meetingFolder}
+          onChange={(e) => setMeetingFolder(e.target.value)}
+          onBlur={() => void persistMeetingFolder()}
+          placeholder={DEFAULT_MEETING_FOLDER}
+          className="pv-field"
+          data-testid="pim-meeting-folder"
+          style={{ width: "100%", maxWidth: "20rem" }}
+        />
+        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+          {t("pim.meetingFolderHint", { defaultValue: "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender." })}
+        </p>
+      </div>
     </div>
   );
 }
