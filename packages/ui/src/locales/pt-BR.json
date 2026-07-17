@@ -1790,6 +1790,7 @@
     "sortActive": "Regra de ordenação ativa — a organização manual está desativada.",
     "cardMenu": "Menu do cartão",
     "capturePlaceholder": "Escreva uma nota…",
+    "captureTitle": "Título",
     "labels": "Marcadores",
     "addLabel": "Pesquisar marcadores…",
     "newLabel": "Criar “{{name}}”",

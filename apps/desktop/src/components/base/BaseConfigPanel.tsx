@@ -684,9 +684,18 @@ export function BaseConfigPanel({
               onChange={(v) => onSetPinboardFilterBy(v)}
               options={[
                 { value: "tags", label: t("sidebar.tags", "Tags") },
-                ...availableColumns
-                  .filter((c) => dbConfig?.columns?.[c]?.input === "multiselect")
-                  .map((c) => ({ value: c, label: cells.columnLabel(c) })),
+                // Property candidates as BARE keys (the on-disk contract), deduped,
+                // and never the built-in file tags column — that IS the fixed
+                // "tags" option above (maintainer bug report 2026-07-17: "tags"
+                // showed up twice).
+                ...Array.from(new Set(availableColumns.map((c) => c.replace(/^note\./, ""))))
+                  .filter(
+                    (bare) =>
+                      bare !== "tags" &&
+                      (dbConfig?.columns?.[`note.${bare}`]?.input === "multiselect" ||
+                        dbConfig?.columns?.[bare]?.input === "multiselect"),
+                  )
+                  .map((bare) => ({ value: bare, label: cells.columnLabel(bare) })),
               ]}
             />
           </label>

@@ -1796,6 +1796,7 @@
     "sortActive": "Aktywna reguła sortowania — ręczne układanie jest wyłączone.",
     "cardMenu": "Menu karty",
     "capturePlaceholder": "Napisz notatkę…",
+    "captureTitle": "Tytuł",
     "labels": "Etykiety",
     "addLabel": "Szukaj etykiet…",
     "newLabel": "Utwórz „{{name}}”",

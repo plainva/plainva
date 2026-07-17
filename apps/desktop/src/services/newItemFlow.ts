@@ -98,17 +98,24 @@ export function buildNewItemContent(opts: {
 
 /**
  * Quick-capture content for the pinboard (plan Pinboard P4): the typed text IS
- * the body — deliberately no auto-H1 and no template (Keep-style sticky notes
- * are just text; template placeholders like {{cursor}} make no sense here).
- * OKF frontmatter and inherited source tags still apply.
+ * the body — deliberately no template (Keep-style sticky notes are just text;
+ * template placeholders like {{cursor}} make no sense here). Since the title
+ * popup (2026-07-17) an explicitly typed title becomes the H1; WITHOUT a title
+ * there is no H1 at all (the file gets a timestamp name instead). OKF
+ * frontmatter and inherited source tags still apply.
  */
 export function buildCaptureContent(opts: {
   text: string;
+  title?: string | null;
   noteType: string;
   inheritTags: string[];
 }): string {
   const body = opts.text.replace(/\s+$/, "");
-  return finalizeItemContent(body ? body + "\n" : "", opts.noteType, opts.inheritTags, {});
+  const title = (opts.title ?? "").trim();
+  const base = title
+    ? `# ${title}\n` + (body ? `\n${body}\n` : "")
+    : body ? body + "\n" : "";
+  return finalizeItemContent(base, opts.noteType, opts.inheritTags, {});
 }
 
 function finalizeItemContent(base: string, noteType: string, inheritTags: string[], prefills: Record<string, any>): string {

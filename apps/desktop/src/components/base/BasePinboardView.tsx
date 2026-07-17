@@ -32,6 +32,7 @@ import {
   type PinboardDropSlot,
 } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
+import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
 import { confirmDeletion } from "../../services/deleteConfirm";
@@ -110,6 +111,8 @@ export function BasePinboardView({
   dbData,
   dbConfig,
   activeView,
+  visibleColumns,
+  cells,
   onPatchView,
   onOpenNote,
   onOpenInSplit,
@@ -121,11 +124,15 @@ export function BasePinboardView({
   dbConfig: any;
   /** The active view object (pinboardOrder/pinboardPinned/sort live here). */
   activeView: any;
+  /** Enabled properties of the view — rendered on the cards (maintainer 2026-07-17). */
+  visibleColumns?: string[];
+  /** Shared cell helpers (typed display + labels) for the property lines. */
+  cells?: BaseCells;
   onPatchView: (patch: Record<string, unknown>) => void;
   onOpenNote: (path: string, ev?: { ctrlKey?: boolean; metaKey?: boolean }) => void;
   onOpenInSplit?: (path: string) => void;
-  /** Quick capture (P4): resolves true when the note was created. */
-  onQuickCapture?: (text: string) => Promise<boolean>;
+  /** Quick capture (P4/title popup): resolves true when the note was created. */
+  onQuickCapture?: (input: { title: string; text: string }) => Promise<boolean>;
   /** Embedded boards are read-mostly (D5): no drag reorder, no capture. */
   embedded?: boolean;
 }) {
@@ -490,9 +497,46 @@ export function BasePinboardView({
   // ── Context menu ──
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
 
-  // ── Quick capture field (P4) ──
+  // ── Quick capture (P4; Keep-style title popup 2026-07-17) ──
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureTitle, setCaptureTitle] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [captureBusy, setCaptureBusy] = useState(false);
+  const captureTextRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const submitCapture = () => {
+    if (captureBusy || !onQuickCapture) return;
+    const title = captureTitle.trim();
+    const text = captureText;
+    // Nothing typed — closing an empty popup is a no-op, not an error.
+    if (!title && !text.trim()) {
+      setCaptureOpen(false);
+      return;
+    }
+    setCaptureBusy(true);
+    void onQuickCapture({ title, text })
+      .then((ok) => {
+        if (ok) {
+          setCaptureTitle("");
+          setCaptureText("");
+          setCaptureOpen(false);
+        }
+      })
+      .finally(() => setCaptureBusy(false));
+  };
+
+  // ── Enabled view properties on the cards (maintainer 2026-07-17) ──
+  const propCols = useMemo(() => {
+    if (!visibleColumns || !cells) return [] as string[];
+    const labelBare = labelProp ? labelProp.replace(/^note\./, "") : null;
+    return visibleColumns.filter((c) => {
+      if (c === "file.name") return false; // the card already IS the note
+      const bare = c.replace(/^note\./, "");
+      if (bare === "tags" && !labelProp) return false; // shown as label chips already
+      if (labelBare && bare === labelBare) return false; // the active label property = the chips
+      return true;
+    });
+  }, [visibleColumns, cells, labelProp]);
 
   const cardLabels = useMemo(
     () => ({
@@ -558,6 +602,31 @@ export function BasePinboardView({
             <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 28, background: "linear-gradient(transparent, var(--bg-secondary))" }} />
           )}
         </div>
+        {/* Enabled view properties (maintainer 2026-07-17): the columns ticked
+            under Configure -> Properties render as compact read-only lines,
+            typed through the shared cell formatting (dates use the per-view
+            date format). Empty values are skipped. */}
+        {propCols.length > 0 && cells && (() => {
+          const lines = propCols
+            .map((col) => {
+              let val = vm.row[col];
+              if (val === undefined && col.startsWith("note.")) val = vm.row[col.slice(5)];
+              const missing = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
+              return missing ? null : { col, val };
+            })
+            .filter((x): x is { col: string; val: unknown } => x !== null);
+          if (lines.length === 0) return null;
+          return (
+            <div data-pinboard-props="true" style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--border-color)" }}>
+              {lines.map(({ col, val }) => (
+                <div key={col} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--text-xs)", minWidth: 0 }}>
+                  <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{cells.columnLabel(col)}</span>
+                  <span style={{ color: "var(--text-main)", overflowWrap: "anywhere", minWidth: 0 }}>{cells.formatValueForDisplay(val, col).displayVal}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         {(labelsByPath.get(path) ?? []).length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
             {(labelsByPath.get(path) ?? []).slice(0, 4).map((l) => (
@@ -620,24 +689,15 @@ export function BasePinboardView({
 
   return (
     <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} title={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
-      {/* Quick capture (P4) — Keep's "take a note" field; embeds are read-mostly (D5). */}
-      {!embedded && onQuickCapture && (
-        <input
-          type="text"
-          value={captureText}
+      {/* Quick capture (P4) — Keep's "take a note" popup (2026-07-17): the
+          collapsed field expands to a title + body card. A typed title becomes
+          the file name and the H1; without one the note gets a timestamp name
+          and no H1. Embeds are read-mostly (D5). */}
+      {!embedded && onQuickCapture && !captureOpen && (
+        <button
+          type="button"
           data-pinboard-capture="true"
-          placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-          aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-          onChange={(e) => setCaptureText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || captureBusy) return;
-            const text = captureText.trim();
-            if (!text) return;
-            setCaptureBusy(true);
-            void onQuickCapture(text)
-              .then((ok) => { if (ok) setCaptureText(""); })
-              .finally(() => setCaptureBusy(false));
-          }}
+          onClick={() => setCaptureOpen(true)}
           style={{
             display: "block",
             width: boardWidth > 0 ? boardWidth : "100%",
@@ -647,11 +707,84 @@ export function BasePinboardView({
             border: "1px solid var(--border-color)",
             borderRadius: "var(--radius-md)",
             background: "var(--bg-secondary)",
-            color: "var(--text-main)",
+            color: "var(--text-muted)",
             fontSize: "var(--text-ui)",
-            outline: "none",
+            textAlign: "left",
+            cursor: "text",
           }}
-        />
+        >
+          {t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
+        </button>
+      )}
+      {!embedded && onQuickCapture && captureOpen && (
+        <div
+          data-pinboard-capture-popup="true"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              setCaptureOpen(false); // keep the draft in state — nothing is lost
+            }
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitCapture();
+          }}
+          style={{
+            width: boardWidth > 0 ? boardWidth : "100%",
+            maxWidth: 560,
+            margin: "0 0 12px",
+            border: "1px solid var(--border-color)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--bg-secondary)",
+            boxShadow: "var(--shadow-2)",
+            padding: "10px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <input
+            type="text"
+            value={captureTitle}
+            data-pinboard-capture-title="true"
+            autoFocus
+            placeholder={t("pinboard.captureTitle", { defaultValue: "Titel" })}
+            aria-label={t("pinboard.captureTitle", { defaultValue: "Titel" })}
+            onChange={(e) => setCaptureTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                captureTextRef.current?.focus();
+              }
+            }}
+            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", fontWeight: 600, padding: "2px 0" }}
+          />
+          <textarea
+            ref={captureTextRef}
+            value={captureText}
+            data-pinboard-capture-text="true"
+            rows={3}
+            placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
+            aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
+            onChange={(e) => setCaptureText(e.target.value)}
+            style={{ border: "none", outline: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-ui)", resize: "vertical", minHeight: 56, fontFamily: "inherit", padding: 0 }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+            <button
+              type="button"
+              className="pv-btn"
+              onClick={() => setCaptureOpen(false)}
+            >
+              {t("common.close", { defaultValue: "Schließen" })}
+            </button>
+            <button
+              type="button"
+              className="pv-btn pv-btn--primary"
+              data-pinboard-capture-save="true"
+              disabled={captureBusy || (!captureTitle.trim() && !captureText.trim())}
+              onClick={submitCapture}
+            >
+              {t("common.save", { defaultValue: "Speichern" })}
+            </button>
+          </div>
+        </div>
       )}
       {/* Label chip bar (P4): session-local AND filter; the arrangement always
           splices into the full sequence, so hidden cards keep their spots. */}

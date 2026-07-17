@@ -1784,6 +1784,7 @@
     "sortActive": "Sort rule active — manual arranging is disabled.",
     "cardMenu": "Card menu",
     "capturePlaceholder": "Write a note…",
+    "captureTitle": "Title",
     "labels": "Labels",
     "addLabel": "Search labels…",
     "newLabel": "Create “{{name}}”",

@@ -12,6 +12,7 @@ import {
   buildSourceClause,
   buildUIFilterModel,
   captureFileName,
+  captureTimestampName,
   combineFilters,
   deletePropertyFromConfig,
   migrateFiltersToPerView,
@@ -248,35 +249,35 @@ export async function createBaseItem(
 }
 
 /**
- * Quick capture for the pinboard view (plan Pinboard P4/P6): the typed text IS
- * the body — deliberately no template and no auto-H1 (Keep-style sticky
- * notes), OKF frontmatter + inherited source tags still apply. Named after its
- * cleaned first words (shared captureFileName), item naming as the fallback.
- * Returns null when the base has no folder source (caller opens the config).
+ * Quick capture for the pinboard view (plan Pinboard P4/P6; title popup
+ * 2026-07-17): the typed text IS the body — deliberately no template. A typed
+ * TITLE becomes the file name and the H1; without one the file gets a
+ * timestamp name and the note has no H1. OKF frontmatter + inherited source
+ * tags still apply. Returns null when the base has no folder source (caller
+ * opens the config).
  */
 export async function captureBaseItem(
   v: MobileVault,
-  basePath: string,
   config: any,
-  rowCount: number,
-  text: string,
+  input: { title: string; text: string },
 ): Promise<string | null> {
   const target = resolveNewItemTarget(config);
   const folder = target.folder ?? target.folderSources[0];
   if (!folder) return null;
-  const stem = captureFileName(text);
-  let name: string;
-  if (stem) {
-    name = stem;
-    for (let n = 2; await v.files.exists(`${folder}/${name}.md`); n++) {
-      name = `${stem} ${n}`;
-    }
-  } else {
-    name = await nextItemName(baseStemOf(basePath), rowCount, (c) => v.files.exists(`${folder}/${c}.md`));
+  // Title popup semantics (2026-07-17, desktop parity): a typed title becomes
+  // the file name AND the H1; without one the file gets a timestamp name and
+  // the note has no H1.
+  const title = input.title.trim();
+  const text = input.text;
+  const stem = (title ? captureFileName(title, 80) : null) ?? captureTimestampName(new Date());
+  let name = stem;
+  for (let n = 2; await v.files.exists(`${folder}/${name}.md`); n++) {
+    name = `${stem} ${n}`;
   }
   const path = `${folder}/${name}.md`;
   const body = text.replace(/\s+$/, "");
-  let content = `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n${body}${body ? "\n" : ""}`;
+  const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
+  let content = `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n${noteBody}`;
   if (target.inheritTags.length > 0) {
     const fmResult = extractFrontmatter(parseMarkdownAst(content));
     const props: Record<string, unknown> = {

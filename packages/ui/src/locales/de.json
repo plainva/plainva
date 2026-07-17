@@ -1784,6 +1784,7 @@
     "sortActive": "Sortierregel aktiv — manuelles Anordnen ist deaktiviert.",
     "cardMenu": "Karten-Menü",
     "capturePlaceholder": "Notiz schreiben…",
+    "captureTitle": "Titel",
     "labels": "Labels",
     "addLabel": "Label suchen…",
     "newLabel": "„{{name}}“ anlegen",

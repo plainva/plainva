@@ -214,9 +214,15 @@ test.beforeEach(async ({ page }) => {
       'filters:',
       '  and:',
       '    - file.folder == "Zettel"',
+      'properties:',
+      '  note.frist:',
+      '    input: date',
       'views:',
       '  - type: table',
       '    name: Pinnwand',
+      '    order:',
+      '      - file.name',
+      '      - note.frist',
       '    plainva:',
       '      render: pinboard',
       '',
@@ -276,6 +282,7 @@ test.beforeEach(async ({ page }) => {
       '5': [{ key: 'branche', value: 'energie', type: 'text' }],
       '7': [{ key: 'status', value: 'Offen', type: 'text' }],
       '8': [{ key: 'status', value: 'Erledigt', type: 'text' }],
+      '9': [{ key: 'frist', value: '2026-08-01', type: 'text' }],
     };
     // Property-scoped link rows (links.property_key) backing reverse columns.
     const dbLinks = [
@@ -1513,6 +1520,13 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
   const plain = await cards.filter({ hasText: 'Nur Text' }).evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(tinted).not.toBe(plain);
 
+  // Enabled view properties render on the card (maintainer 2026-07-17): the
+  // view's order ticks note.frist (a date), so the card shows the labelled
+  // formatted value; cards without the property show no property block.
+  await expect(einkauf.locator('[data-pinboard-props]')).toContainText('Frist');
+  await expect(einkauf.locator('[data-pinboard-props]')).toContainText('2026');
+  await expect(cards.filter({ hasText: 'Nur Text' }).locator('[data-pinboard-props]')).toHaveCount(0);
+
   // Checkbox toggle writes [x] into the note through the adapter chain and the
   // board re-renders from the fresh FTS content (plainva-note-saved channel).
   await einkauf.locator('input[type="checkbox"]').first().click();
@@ -1585,15 +1599,43 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
   await page.locator('[data-pinboard-chip="ideen"]').click();
   await expect(cards).toHaveCount(3);
 
-  // Quick capture: Enter creates the note (named after its first words, no
-  // auto-H1, OKF frontmatter) and the card appears on the board.
-  await page.locator('[data-pinboard-capture]').fill('Schnell notiert und mehr Text');
-  await page.locator('[data-pinboard-capture]').press('Enter');
+  // Quick capture via the Keep-style title popup (2026-07-17): a typed title
+  // becomes the file name AND the H1; the text is the body.
+  await page.locator('[data-pinboard-capture]').click();
+  await page.locator('[data-pinboard-capture-title]').fill('Schnell notiert');
+  await page.locator('[data-pinboard-capture-text]').fill('und mehr Text');
+  await page.locator('[data-pinboard-capture-save]').click();
   await expect(cards).toHaveCount(4);
   await expect
-    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert und mehr Text.md']))
-    .toContain('Schnell notiert und mehr Text');
-  const captured = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert und mehr Text.md']);
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']))
+    .toContain('und mehr Text');
+  const captured = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']);
   expect(captured).toContain('type:');
-  expect(captured).not.toContain('# Schnell');
+  expect(captured).toContain('# Schnell notiert');
+
+  // WITHOUT a title the file gets a timestamp name ("YYYY-MM-DD HH.mm.ss")
+  // and the note has no H1 — the text is the whole body.
+  await page.locator('[data-pinboard-capture]').click();
+  await page.locator('[data-pinboard-capture-text]').fill('Nur Body ohne Titel');
+  await page.locator('[data-pinboard-capture-save]').click();
+  await expect(cards).toHaveCount(5);
+  const timestampFile = await expect
+    .poll(async () =>
+      await page.evaluate(() =>
+        Object.keys((window as any).mockFs).find((p) =>
+          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
+        ),
+      ),
+    )
+    .toBeTruthy()
+    .then(async () =>
+      page.evaluate(() =>
+        Object.keys((window as any).mockFs).find((p) =>
+          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
+        ),
+      ),
+    );
+  const tsContent = await page.evaluate((p) => (window as any).mockFs[p as string], timestampFile);
+  expect(tsContent).toContain('Nur Body ohne Titel');
+  expect(tsContent).not.toContain('# ');
 });

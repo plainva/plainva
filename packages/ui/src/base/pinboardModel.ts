@@ -187,7 +187,19 @@ export function filterCardPaths(
 }
 
 /**
- * File name for quick capture (P4): the first words of the content, cleaned of
+ * Timestamp file name for a capture WITHOUT a title (maintainer decision
+ * 2026-07-17): "2026-07-17 14.32.05" — sortable, readable, and free of
+ * characters Windows forbids (dots instead of colons). The caller's collision
+ * loop appends " 2", " 3", … when two captures land in the same second.
+ */
+export function captureTimestampName(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}`;
+}
+
+/**
+ * File name for quick capture (P4): the first words of the given text (since
+ * the title popup of 2026-07-17: the TITLE the user typed), cleaned of
  * markdown markers and characters that are invalid in file names, capped at a
  * word boundary. Null when nothing usable remains (caller falls back to a
  * timestamp name).

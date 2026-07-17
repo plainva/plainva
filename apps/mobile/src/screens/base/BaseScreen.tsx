@@ -843,10 +843,12 @@ export function BaseScreen({
         // Before the empty check: the capture field must show on an empty board.
         <PinboardView
           vault={vault}
-          basePath={path}
           config={config}
           view={view}
           rows={rows}
+          propCols={orderedColumns}
+          columnLabel={columnLabel}
+          displayCell={displayCell}
           onOpenNote={onOpenNote}
           onMutated={() => requery(config, viewIndex)}
           onPatchView={patchActiveView}

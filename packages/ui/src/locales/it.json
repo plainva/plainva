@@ -1790,6 +1790,7 @@
     "sortActive": "Regola di ordinamento attiva — la disposizione manuale è disattivata.",
     "cardMenu": "Menu della scheda",
     "capturePlaceholder": "Scrivi una nota…",
+    "captureTitle": "Titolo",
     "labels": "Etichette",
     "addLabel": "Cerca etichette…",
     "newLabel": "Crea “{{name}}”",

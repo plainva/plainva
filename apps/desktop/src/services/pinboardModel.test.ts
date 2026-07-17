@@ -3,6 +3,7 @@ import {
   applyPin,
   applyUnpin,
   captureFileName,
+  captureTimestampName,
   distributeCards,
   dropSlotAt,
   filterCardPaths,
@@ -141,6 +142,23 @@ describe("buildCaptureContent (P4 quick capture)", () => {
   it("merges inherited source tags into the frontmatter", () => {
     const c = buildCaptureContent({ text: "Text", noteType: "Note", inheritTags: ["zettel"] });
     expect(c).toContain("zettel");
+  });
+  it("a typed title becomes the H1 above the body (title popup 2026-07-17)", () => {
+    const c = buildCaptureContent({ title: "Einkauf", text: "Milch kaufen", noteType: "Note", inheritTags: [] });
+    expect(c).toContain("# Einkauf\n\nMilch kaufen");
+  });
+  it("a title without text yields just the H1", () => {
+    const c = buildCaptureContent({ title: "Nur Titel", text: "", noteType: "Note", inheritTags: [] });
+    expect(c).toContain("# Nur Titel");
+    expect(c.trimEnd().endsWith("# Nur Titel")).toBe(true);
+  });
+});
+
+describe("captureTimestampName (title popup 2026-07-17)", () => {
+  it("formats a sortable, Windows-safe timestamp with zero padding", () => {
+    const name = captureTimestampName(new Date(2026, 6, 5, 9, 3, 7));
+    expect(name).toBe("2026-07-05 09.03.07");
+    expect(name).not.toMatch(/[<>:"/\\|?*]/);
   });
 });
 

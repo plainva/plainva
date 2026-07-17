@@ -1790,6 +1790,7 @@
     "sortActive": "Règle de tri active — le classement manuel est désactivé.",
     "cardMenu": "Menu de la carte",
     "capturePlaceholder": "Écrire une note…",
+    "captureTitle": "Titre",
     "labels": "Libellés",
     "addLabel": "Rechercher un libellé…",
     "newLabel": "Créer « {{name}} »",
