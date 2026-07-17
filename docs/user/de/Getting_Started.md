@@ -50,9 +50,9 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 
 ## Tägliche Notizen
 
-Der Knopf **Tägliche Notiz öffnen** (oder ein Klick auf ein Datum im **Kalender** rechts) öffnet bzw. erstellt die Notiz des Tages. Basis-Ordner, Datumsformat und eine optionale Vorlage stellst Du unter **Einstellungen → Vault → Inhalt & Struktur** (über **Ordner auswählen…** neben dem Feld wählst Du den Ordner auch direkt im Vault) ein.
+Der Knopf **Tageseintrag** in der linken Aktionsleiste öffnet bzw. erstellt die Notiz des Tages. Basis-Ordner, Datumsformat und eine optionale Vorlage stellst Du unter **Einstellungen → Vault → Inhalt & Struktur** (über **Ordner auswählen…** neben dem Feld wählst Du den Ordner auch direkt im Vault) ein.
 
-Im Kalender bringt Dich der **Heute**-Knopf zurück zum aktuellen Monat; ein Klick auf das Monatslabel öffnet eine Schnellauswahl für Monat und Jahr. Dort blendest Du über **Kalenderwochen anzeigen** auch eine KW-Spalte ein — die Einstellung bleibt gespeichert.
+Der **Kalender** rechts ist eine Tagesübersicht: Ein Klick auf ein Datum öffnet eine kleine Vorschau mit den Terminen und fälligen Aufgaben des Tages sowie der Aktion **Tageseintrag**; ein Rechtsklick bietet dasselbe als Menü. Tage mit einer Tagesnotiz tragen ein kleines Sonnenaufgangs-Symbol, Tage mit Terminen farbige Punkte je Kalender. Der **Heute**-Knopf bringt Dich zurück zum aktuellen Monat; ein Klick auf das Monatslabel öffnet eine Schnellauswahl für Monat und Jahr. Dort blendest Du über **Kalenderwochen anzeigen** auch eine KW-Spalte ein — die Einstellung bleibt gespeichert.
 
 ## Einstellungen
 

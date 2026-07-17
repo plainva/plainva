@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FilePlus2, FileText, ListChecks, Mail, Paperclip, RefreshCw, Reply, ShieldOff } from "lucide-react";
 import { Button, EmptyState, IconButton, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
-import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, taskDatabaseKey } from "../../contexts/VaultContext";
+import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
@@ -45,6 +45,32 @@ export function MailView({ onOpenPath }: MailViewProps) {
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(false);
+  // Remote https images: global per-vault opt-in (settings) or a one-shot
+  // per-message reveal — default stays blocked (loading = tracking beacon).
+  const [remoteOptIn, setRemoteOptIn] = useState(false);
+  const [showRemoteOnce, setShowRemoteOnce] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    getSettingsStore()
+      .then((s) => s.get<boolean>(mailRemoteImagesKey(vaultPath)))
+      .then((v) => {
+        if (alive) setRemoteOptIn(v === true);
+      })
+      .catch(() => {});
+    const onChanged = () => {
+      void getSettingsStore()
+        .then((s) => s.get<boolean>(mailRemoteImagesKey(vaultPath)))
+        .then((v) => setRemoteOptIn(v === true))
+        .catch(() => {});
+    };
+    window.addEventListener("plainva-mail-settings-changed", onChanged);
+    return () => {
+      alive = false;
+      window.removeEventListener("plainva-mail-settings-changed", onChanged);
+    };
+  }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
 
@@ -93,6 +119,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
       setSelectedUid(uid);
       setLoadingMessage(true);
       setMessage(null);
+      setShowRemoteOnce(false);
       try {
         setMessage(await fetchMessage(vaultPath, account, mailbox, uid));
       } catch (e) {
@@ -104,7 +131,11 @@ export function MailView({ onOpenPath }: MailViewProps) {
     [vaultPath, account, mailbox]
   );
 
-  const sanitized = useMemo(() => (message?.html ? sanitizeEmailHtml(message.html) : null), [message]);
+  const allowRemote = remoteOptIn || showRemoteOnce;
+  const sanitized = useMemo(
+    () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
+    [message, allowRemote]
+  );
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -339,6 +370,16 @@ export function MailView({ onOpenPath }: MailViewProps) {
                 <div data-testid="mail-blocked-hint" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                   <ShieldOff size={11} />
                   {t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
+                  {!allowRemote && (
+                    <button
+                      type="button"
+                      onClick={() => setShowRemoteOnce(true)}
+                      data-testid="mail-show-images"
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--accent-color)", fontSize: "var(--text-xs)", textDecoration: "underline" }}
+                    >
+                      {t("mail.showImages", { defaultValue: "Bilder anzeigen" })}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -347,7 +388,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
                 <iframe
                   title={t("mail.viewer", { defaultValue: "E-Mail-Inhalt" })}
                   sandbox=""
-                  srcDoc={buildMailFrameDoc(sanitized.html)}
+                  srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote })}
                   data-testid="mail-frame"
                   style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-primary)" }}
                 />

@@ -1,12 +1,31 @@
-import React, { useEffect, useRef, useState } from "react";
-import { CalendarCheck, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarCheck, CalendarRange, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Square, Sunrise, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MenuSurface, MenuItem, MenuLabel, buildMonthCells, isoWeeksForCells, startOfMonth, type WeekStartDay } from "@plainva/ui";
+import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../services/dailyNotePath";
-import { buildMonthCells, isoWeeksForCells, startOfMonth } from "@plainva/ui";
+import { useVault } from "../contexts/VaultContext";
+import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
+import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
+import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "../services/weekStart";
+
+/**
+ * Sidebar calendar. Since the PIM calendar exists this widget is a day
+ * OVERVIEW, not a daily-note launcher: a click opens a small day peek (events
+ * + due tasks + the daily-note action), right-click offers the same as a
+ * context menu. Day cells mark a daily note with a tiny sunrise glyph and
+ * events with per-calendar color dots. The daily note itself is reachable
+ * from the peek/menu (and the ribbon's own button).
+ */
 
 interface CalendarWidgetProps {
-  onSelectDate: (date: Date) => void;
-  /** Resolves which of the given dates already have a daily note (for dots). */
+  /** Opens (or creates) the daily note of the given date. */
+  onOpenDaily: (date: Date) => void;
+  /** Opens the calendar tab focused on the given day. */
+  onOpenCalendarDay?: (dayKey: string) => void;
+  /** Opens a vault note (task rows in the peek/menu). */
+  onOpenNote?: (path: string) => void;
+  /** Resolves which of the given dates already have a daily note. */
   loadMarkedDates?: (dates: Date[]) => Promise<Set<string>>;
   /** Date of the open daily note; highlighted with precedence over "today". */
   activeDate?: Date | null;
@@ -20,27 +39,55 @@ const sameDay = (a: Date, b: Date) =>
 /** Widget-local pref, persisted like the right-panel open/order states. */
 const SHOW_WEEKS_KEY = "plainva-calendar-show-weeks";
 
-export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, loadMarkedDates, activeDate, refreshToken }) => {
+export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onOpenCalendarDay, onOpenNote, loadMarkedDates, activeDate, refreshToken }) => {
   const { t, i18n } = useTranslation();
+  const { pimRuntime, vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
   const today = new Date();
   const [viewDate, setViewDate] = useState<Date>(startOfMonth(today));
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => today.getFullYear());
   const [showWeeks, setShowWeeks] = useState(() => localStorage.getItem(SHOW_WEEKS_KEY) === "true");
+  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1);
+  const [peekDay, setPeekDay] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ dayKey: string; at: { x: number; y: number } } | null>(null);
+  const [pimTick, setPimTick] = useState(0);
+  const [events, setEvents] = useState<PimEventRow[]>([]);
+  const [calColors, setCalColors] = useState<Map<string, string>>(new Map());
+  const [tasks, setTasks] = useState<DueTask[]>([]);
   const navRef = useRef<HTMLDivElement | null>(null);
+  const peekRef = useRef<HTMLDivElement | null>(null);
   const lang = i18n.language || "en";
 
   const monthLabel = new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(viewDate);
 
-  // Monday-first weekday headers (2024-01-01 was a Monday).
-  const weekdayFmt = new Intl.DateTimeFormat(lang, { weekday: "short" });
-  const weekdays = Array.from({ length: 7 }, (_, i) => weekdayFmt.format(new Date(2024, 0, 1 + i)));
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      void getWeekStartSetting()
+        .then((s) => {
+          if (alive) setWeekStartDay(weekStartDayOf(s));
+        })
+        .catch(() => {});
+    load();
+    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
+    };
+  }, []);
+
+  // Weekday headers rotated to the chosen week start (2024-01-01 was a Monday).
+  const weekdays = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(lang, { weekday: "short" });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + ((weekStartDay - 1 + 7 + i) % 7))));
+  }, [lang, weekStartDay]);
   const monthFmt = new Intl.DateTimeFormat(lang, { month: "short" });
   const monthNames = Array.from({ length: 12 }, (_, i) => monthFmt.format(new Date(2024, i, 1)));
 
-  const cells = buildMonthCells(viewDate);
-  const weekNumbers = showWeeks ? isoWeeksForCells(cells) : null;
+  const cells = useMemo(() => buildMonthCells(viewDate, weekStartDay), [viewDate, weekStartDay]);
+  // ISO week numbers are defined on Monday rows — only offered there.
+  const weekNumbers = showWeeks && weekStartDay === 1 ? isoWeeksForCells(cells) : null;
 
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
@@ -57,29 +104,35 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
     });
   };
 
-  // Close the month/year picker on outside click or Escape.
+  // Close the month/year picker or the day peek on outside click / Escape.
   useEffect(() => {
-    if (!pickerOpen) return;
+    if (!pickerOpen && !peekDay) return;
     const onDown = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) setPickerOpen(false);
+      const tgt = e.target as Node;
+      if (pickerOpen && navRef.current && !navRef.current.contains(tgt)) setPickerOpen(false);
+      if (peekDay && peekRef.current && !peekRef.current.contains(tgt)) setPeekDay(null);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPickerOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPickerOpen(false);
+        setPeekDay(null);
+      }
+    };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [pickerOpen]);
+  }, [pickerOpen, peekDay]);
 
-  // Mark days that already have a daily note (dot under the day number).
+  // Mark days that already have a daily note (tiny sunrise under the number).
   useEffect(() => {
     if (!loadMarkedDates) { setMarked(new Set()); return; }
     let active = true;
-    const days = buildMonthCells(viewDate);
-    loadMarkedDates(days).then((s) => { if (active) setMarked(s); }).catch(() => { if (active) setMarked(new Set()); });
+    loadMarkedDates(cells).then((s) => { if (active) setMarked(s); }).catch(() => { if (active) setMarked(new Set()); });
     return () => { active = false; };
-  }, [viewDate, refreshToken, loadMarkedDates]);
+  }, [cells, refreshToken, loadMarkedDates]);
 
   // Opening a daily note jumps the calendar to its month so the highlight is
   // visible. `activeDate`'s identity only changes when the open note changes
@@ -89,20 +142,100 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
     if (activeDate) setViewDate(startOfMonth(activeDate));
   }, [activeDate]);
 
+  // PIM events of the visible grid (color dots + the peek/menu content).
+  useEffect(() => {
+    const onChanged = () => setPimTick((v) => v + 1);
+    window.addEventListener("plainva-pim-changed", onChanged);
+    return () => window.removeEventListener("plainva-pim-changed", onChanged);
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime || cells.length === 0) {
+      setEvents([]);
+      setCalColors(new Map());
+      return;
+    }
+    void (async () => {
+      try {
+        const startTs = cells[0].getTime();
+        const endTs = cells[cells.length - 1].getTime() + 24 * 60 * 60 * 1000;
+        const [evs, cals] = await Promise.all([pimRuntime.cache.listEvents(startTs, endTs), pimRuntime.cache.listCalendars()]);
+        if (!alive) return;
+        setEvents(evs);
+        setCalColors(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""])));
+      } catch {
+        /* cache unreadable — keep previous */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, cells, pimTick]);
+
+  // Due tasks of the standard task database (same loader as the calendar tab).
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath || !vaultAdapter || !queryService) {
+      setTasks([]);
+      return;
+    }
+    void loadDueTasks({ vaultPath, vaultAdapter, queryService })
+      .then((out) => {
+        if (alive) setTasks(out);
+      })
+      .catch(() => {
+        if (alive) setTasks([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, vaultAdapter, queryService, fileTreeVersion, pimTick]);
+
+  const eventsByDay = useMemo(() => bucketEventsByDay(events), [events]);
+  const tasksByDay = useMemo(() => {
+    const m = new Map<string, DueTask[]>();
+    for (const task of tasks) {
+      const arr = m.get(task.due);
+      if (arr) arr.push(task);
+      else m.set(task.due, [task]);
+    }
+    return m;
+  }, [tasks]);
+
+  const colorOf = useCallback(
+    (e: PimEventRow) => calColors.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
+    [calColors]
+  );
+
+  const dateOfKey = (key: string) => {
+    const [y, m, d] = key.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+  };
+
   const renderDay = (d: Date, key: number) => {
+    const dayKey = localIsoKey(d);
     const inMonth = d.getMonth() === viewDate.getMonth();
     const isToday = sameDay(d, today);
     const isActive = activeDate ? sameDay(d, activeDate) : false;
-    const isMarked = marked.has(localIsoKey(d));
+    const hasDaily = marked.has(dayKey);
+    const dayEvents = eventsByDay.get(dayKey) ?? [];
+    // One dot per distinct calendar color (max 3 fit the cell).
+    const dotColors = [...new Set(dayEvents.map(colorOf))].slice(0, 3);
     // Visual precedence: the open daily note (filled accent) wins over today,
     // which drops to an outline so it stays recognizable but subordinate.
     const outlined = isToday && !isActive;
     return (
       <button
         key={key}
-        onClick={() => onSelectDate(d)}
+        onClick={() => setPeekDay(dayKey)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setMenu({ dayKey, at: { x: e.clientX, y: e.clientY } });
+        }}
         aria-current={isActive ? "date" : undefined}
         title={new Intl.DateTimeFormat(lang, { dateStyle: "full" }).format(d)}
+        data-testid={`sidecal-day-${dayKey}`}
         className="pv-rowhover"
         style={{
           position: "relative", aspectRatio: "1 / 1", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
@@ -114,15 +247,19 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
         }}
       >
         {d.getDate()}
-        {isMarked && (
+        {(hasDaily || dotColors.length > 0) && (
           <span
             aria-hidden="true"
             style={{
-              position: "absolute", bottom: "3px", left: "50%", transform: "translateX(-50%)",
-              width: "4px", height: "4px", borderRadius: "50%",
-              background: isActive ? "var(--accent-on)" : "var(--accent-color)",
+              position: "absolute", bottom: "1px", left: "50%", transform: "translateX(-50%)",
+              display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
             }}
-          />
+          >
+            {hasDaily && <Sunrise size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
+            {dotColors.map((c, i) => (
+              <span key={i} style={{ width: "4px", height: "4px", borderRadius: "var(--radius-pill)", background: isActive ? "var(--accent-on)" : c }} />
+            ))}
+          </span>
         )}
       </button>
     );
@@ -134,8 +271,19 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
     paddingRight: "2px", borderRight: "1px solid var(--border-color-light)", marginRight: "2px",
   };
 
+  const peekEvents = peekDay ? eventsByDay.get(peekDay) ?? [] : [];
+  const peekTasks = peekDay ? tasksByDay.get(peekDay) ?? [] : [];
+  const menuEvents = menu ? eventsByDay.get(menu.dayKey) ?? [] : [];
+  const menuTasks = menu ? tasksByDay.get(menu.dayKey) ?? [] : [];
+
+  const peekRow: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
+    border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px",
+    color: "var(--text-main)", fontSize: "0.8rem", minWidth: 0,
+  };
+
   return (
-    <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
+    <div style={{ position: "relative", padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
       <div ref={navRef} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
         <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} title={t("calendar.prevMonth")}><ChevronLeft size={16} /></button>
         <button
@@ -186,15 +334,17 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
                 );
               })}
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}>
-              <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
-              {t("calendar.showWeeks")}
-            </label>
+            {weekStartDay === 1 && (
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}>
+                <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
+                {t("calendar.showWeeks")}
+              </label>
+            )}
           </div>
         )}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: showWeeks ? "auto repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))", gap: "1px" }}>
-        {showWeeks && (
+      <div style={{ display: "grid", gridTemplateColumns: weekNumbers ? "auto repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))", gap: "1px" }}>
+        {weekNumbers && (
           <div style={{ ...weekCellStyle, fontSize: "0.65rem", textTransform: "uppercase", padding: "0.2rem 2px 0.2rem 0" }}>{t("calendar.weekShort")}</div>
         )}
         {weekdays.map((w, i) => (
@@ -214,6 +364,150 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onSelectDate, lo
           );
         })}
       </div>
+
+      {/* Day peek: events + due tasks + the daily-note / calendar actions. */}
+      {peekDay && (
+        <div
+          ref={peekRef}
+          data-testid="sidecal-day-peek"
+          style={{
+            position: "absolute", left: "0.5rem", right: "0.5rem", top: "2.4rem", zIndex: 30,
+            background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-2)", padding: "0.5rem", maxHeight: "310px", overflowY: "auto",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.3rem" }}>
+            <strong style={{ fontSize: "0.8rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" }).format(dateOfKey(peekDay))}
+            </strong>
+            <button onClick={() => setPeekDay(null)} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("common.close", { defaultValue: "Schließen" })} title={t("common.close", { defaultValue: "Schließen" })}>
+              <X size={13} />
+            </button>
+          </div>
+          <button
+            type="button"
+            style={peekRow}
+            data-testid="sidecal-peek-daily"
+            onClick={() => {
+              const d = dateOfKey(peekDay);
+              setPeekDay(null);
+              onOpenDaily(d);
+            }}
+          >
+            <Sunrise size={13} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
+            {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
+          </button>
+          {onOpenCalendarDay && (
+            <button
+              type="button"
+              style={peekRow}
+              data-testid="sidecal-peek-calendar"
+              onClick={() => {
+                const key = peekDay;
+                setPeekDay(null);
+                onOpenCalendarDay(key);
+              }}
+            >
+              <CalendarRange size={13} style={{ flexShrink: 0, color: "var(--text-muted)" }} />
+              {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
+            </button>
+          )}
+          {peekEvents.length === 0 && peekTasks.length === 0 ? (
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", padding: "3px 2px" }}>
+              {t("pim.noEventsForDay", { defaultValue: "Keine Termine an diesem Tag." })}
+            </div>
+          ) : (
+            <>
+              {peekEvents.map((e) => (
+                <button
+                  key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                  type="button"
+                  style={peekRow}
+                  data-testid="sidecal-peek-event"
+                  onClick={() => {
+                    const key = peekDay;
+                    setPeekDay(null);
+                    onOpenCalendarDay?.(key);
+                  }}
+                >
+                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.72rem", flexShrink: 0 }}>
+                    {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, lang)}
+                  </span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                </button>
+              ))}
+              {peekTasks.map((task) => (
+                <button
+                  key={task.path}
+                  type="button"
+                  style={{ ...peekRow, color: task.done ? "var(--text-muted)" : "var(--text-main)" }}
+                  data-testid="sidecal-peek-task"
+                  onClick={() => {
+                    setPeekDay(null);
+                    onOpenNote?.(task.path);
+                  }}
+                >
+                  {task.done ? <CheckSquare size={12} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={12} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {menu && (
+        <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("rightPanel.calendar", { defaultValue: "Kalender" })}>
+          <MenuItem
+            icon={<Sunrise size={14} />}
+            onSelect={() => {
+              const d = dateOfKey(menu.dayKey);
+              setMenu(null);
+              onOpenDaily(d);
+            }}
+          >
+            {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
+          </MenuItem>
+          {onOpenCalendarDay && (
+            <MenuItem
+              icon={<CalendarRange size={14} />}
+              onSelect={() => {
+                const key = menu.dayKey;
+                setMenu(null);
+                onOpenCalendarDay(key);
+              }}
+            >
+              {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
+            </MenuItem>
+          )}
+          {menuEvents.length > 0 && <MenuLabel>{t("pim.eventsLabel", { defaultValue: "Termine" })}</MenuLabel>}
+          {menuEvents.map((e) => (
+            <MenuItem
+              key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+              onSelect={() => {
+                const key = menu.dayKey;
+                setMenu(null);
+                onOpenCalendarDay?.(key);
+              }}
+            >
+              {`${e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, lang)} · ${e.title}`}
+            </MenuItem>
+          ))}
+          {menuTasks.length > 0 && <MenuLabel>{t("pim.calendarTasks", { defaultValue: "Aufgaben" })}</MenuLabel>}
+          {menuTasks.map((task) => (
+            <MenuItem
+              key={task.path}
+              onSelect={() => {
+                setMenu(null);
+                onOpenNote?.(task.path);
+              }}
+            >
+              {task.title}
+            </MenuItem>
+          ))}
+        </MenuSurface>
+      )}
     </div>
   );
 };

@@ -16,7 +16,7 @@ Each account lists its **calendars** (checked ones appear in the calendar tab) a
 
 ## The calendar tab
 
-Open it from the left action rail (calendar icon) or the command palette (**Open calendar**). You get a month grid with your events (one colored dot per calendar) and a day pane listing the selected day — all-day events first, then timed ones with time, calendar name and location. The view refreshes automatically every few minutes; the refresh button forces it.
+Open it from the left action rail (calendar icon) or the command palette (**Open calendar**). Three views are available via the switch in the header: **Month** shows a grid with your events (one colored dot per calendar) plus a day pane listing the selected day — all-day events first, then timed ones with time, calendar name and location. **Week** shows seven day columns with the events (and, with the task overlay on, due tasks) right in the columns — no extra day pane; the **+** in a column header creates an event on that day. **Agenda** lists the upcoming weeks grouped by day, with the same action cards as the day pane. The first day of the week follows the **Week starts on** setting (Settings → App → Appearance: Monday, Saturday or Sunday) — it also applies to the sidebar calendar. The view refreshes automatically every few minutes; the refresh button forces it.
 
 - **New event**: the **+** in the day pane — title, calendar, date/time or an all-day range, location, and an optional simple **repeat** (daily/weekly/monthly/yearly).
 - **Edit / delete**: the pencil and trash icons on an event. Changes are written to the provider with a safety check: if the event changed remotely in the meantime, Plainva refreshes instead of overwriting.
@@ -29,7 +29,7 @@ The note icon on any event creates (or re-opens) its **meeting note** — a norm
 
 ## External task lists in your task database
 
-Tick a **task list** on a connected account and its tasks appear as notes in your [standard task database](Tasks.md): the title becomes the note (H1), the due date lands in the database's date column, and completion maps to the status column (first option = open, last option = done). The sync is two-way and field-wise:
+Tick a **task list** on a connected account and its tasks appear as notes in your [standard task database](Tasks.md): the title becomes the note (H1), the due date lands in the database's date column, and completion maps to the database's **done checkbox property** (the status column follows it; a database without a checkbox column uses the status convention — first option = open, last = done). The sync is two-way and field-wise:
 
 - Edit the note (title, due, status) → the change is pushed to the provider.
 - Change the task remotely → the note follows.

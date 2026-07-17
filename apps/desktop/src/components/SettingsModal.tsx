@@ -46,6 +46,7 @@ import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
+import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "../services/weekStart";
 import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type ContentFontSettings, type ContentFontFamily } from "../services/contentFont";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM, MIN_UI_ZOOM, MAX_UI_ZOOM, UI_ZOOM_STEP } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
@@ -111,6 +112,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
+  const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
+  useEffect(() => { getWeekStartSetting().then(setWeekStart).catch(() => {}); }, []);
   const [defaultViewMode, setDefaultViewMode] = useState<EditorViewMode>(DEFAULT_VIEW_MODE);
   useEffect(() => { getStoredDefaultViewMode().then(setDefaultViewMode).catch(() => {}); }, []);
   const [contentFont, setContentFont] = useState<ContentFontSettings>({ size: DEFAULT_CONTENT_FONT_SIZE, family: "theme", customName: "" });
@@ -602,6 +605,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       const path = await createTaskDatabase(vaultAdapter, name, {
         viewTable: t("database.viewTable"),
         viewBoard: t("database.viewBoard"),
+        doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
         dueKey: t("tasks.dbDueKey"),
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
       });
@@ -1310,6 +1314,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                             value={appLanguage}
                             onChange={(v) => handleLanguageChange(v)}
                             options={APP_LANGUAGES.map((l) => ({ value: l.code, label: l.nativeName }))}
+                          />
+                        </div>
+                      </SettingRow>
+
+                      <SettingRow
+                        label={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
+                        desc={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
+                      >
+                        <div style={{ width: "100%" }}>
+                          <Select
+                            ariaLabel={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
+                            value={weekStart}
+                            onChange={(v) => {
+                              setWeekStart(v as WeekStartSetting);
+                              void setWeekStartSetting(v as WeekStartSetting);
+                            }}
+                            options={[
+                              { value: "monday", label: t("settings.weekStartMonday", { defaultValue: "Montag" }) },
+                              { value: "saturday", label: t("settings.weekStartSaturday", { defaultValue: "Samstag" }) },
+                              { value: "sunday", label: t("settings.weekStartSunday", { defaultValue: "Sonntag" }) },
+                            ]}
                           />
                         </div>
                       </SettingRow>

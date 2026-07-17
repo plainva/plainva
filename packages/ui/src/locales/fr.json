@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Créer une base…",
     "taskDatabaseCreateName": "Nom de la base de tâches",
     "taskDatabaseDefaultName": "Tâches",
-    "sectionPim": "Calendrier et comptes"
+    "sectionPim": "Calendrier et comptes",
+    "weekStart": "Début de la semaine",
+    "weekStartDesc": "Premier jour de la semaine dans toutes les vues de calendrier.",
+    "weekStartMonday": "Lundi",
+    "weekStartSaturday": "Samedi",
+    "weekStartSunday": "Dimanche"
   },
   "editor": {
     "fileNotFound": "Fichier introuvable",
@@ -1779,7 +1784,10 @@
     "dbSection": "Base de tâches",
     "notesSection": "Depuis les notes",
     "openDb": "Ouvrir comme base",
-    "dbEmpty": "Aucune entrée pour l'instant"
+    "dbEmpty": "Aucune entrée pour l'instant",
+    "setStatus": "Changer le statut",
+    "statusUpdateFailed": "Impossible de changer le statut.",
+    "dbDoneKey": "fait"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",
@@ -1877,7 +1885,14 @@
     "repeatMonthly": "Mensuel",
     "repeatYearly": "Annuel",
     "showTasks": "Afficher les tâches",
-    "calendarTasks": "Tâches"
+    "calendarTasks": "Tâches",
+    "viewMonth": "Mois",
+    "viewWeek": "Semaine",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Semaine précédente",
+    "nextWeek": "Semaine suivante",
+    "agendaEmpty": "Aucun événement à venir.",
+    "eventsLabel": "Événements"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, lecture seule)",
@@ -1912,6 +1927,9 @@
     "draftSubject": "Objet",
     "draftMailbox": "Dossier des brouillons",
     "draftSaved": "Brouillon enregistré dans la boîte — ouvrez votre messagerie pour l’envoyer.",
-    "draftHint": "Plainva n’envoie jamais lui-même — le brouillon arrive dans la boîte et part depuis votre messagerie."
+    "draftHint": "Plainva n’envoie jamais lui-même — le brouillon arrive dans la boîte et part depuis votre messagerie.",
+    "showImages": "Afficher les images",
+    "loadRemoteImages": "Toujours charger les images distantes",
+    "loadRemoteImagesHint": "Charger les images distantes révèle votre adresse IP et le moment d'ouverture à l'expéditeur (pistage). Plainva les bloque par défaut — utilisez « Afficher les images » pour les révéler par message."
   }
 }

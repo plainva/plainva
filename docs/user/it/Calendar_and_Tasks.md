@@ -16,7 +16,7 @@ Ogni account elenca i suoi **calendari** (quelli spuntati compaiono nella scheda
 
 ## La scheda del calendario
 
-Aprila dalla barra delle azioni all'estrema sinistra (icona del calendario) o dalla palette dei comandi (**Apri calendario**). Ottieni una griglia mensile con i tuoi eventi (un punto colorato per calendario) e un riquadro del giorno che elenca il giorno selezionato — prima gli eventi per l'intera giornata, poi quelli con orario, nome del calendario e luogo. La vista si aggiorna automaticamente ogni pochi minuti; il pulsante **Aggiorna ora** la forza.
+Aprila dalla barra delle azioni all'estrema sinistra (icona del calendario) o dalla palette dei comandi (**Apri calendario**). Sono disponibili tre viste tramite il selettore nell'intestazione: **Mese** mostra una griglia con i tuoi eventi (un punto colorato per calendario) più un riquadro del giorno che elenca il giorno selezionato — prima gli eventi per l'intera giornata, poi quelli con orario, nome del calendario e luogo. **Settimana** mostra sette colonne dei giorni con gli eventi (e, con la sovrapposizione delle attività attiva, le attività in scadenza) direttamente nelle colonne — senza un riquadro del giorno aggiuntivo; il **+** nell'intestazione di una colonna crea un evento in quel giorno. **Agenda** elenca le settimane a venire raggruppate per giorno, con le stesse schede di azione del riquadro del giorno. Il primo giorno della settimana segue l'impostazione **Inizio settimana** (Impostazioni → App → Aspetto: Lunedì, Sabato o Domenica) — si applica anche al calendario della barra laterale. La vista si aggiorna automaticamente ogni pochi minuti; il pulsante **Aggiorna ora** la forza.
 
 - **Nuovo evento**: il **+** nel riquadro del giorno — titolo, calendario, data/ora o un intervallo per l'intera giornata, luogo ed eventualmente una semplice **ripetizione** (Giornaliera/Settimanale/Mensile/Annuale).
 - **Modifica / elimina**: le icone a forma di matita e cestino su un evento. Le modifiche vengono scritte presso il provider con un controllo di sicurezza: se l'evento è cambiato in remoto nel frattempo, Plainva aggiorna la vista invece di sovrascrivere.
@@ -29,7 +29,7 @@ L'icona a forma di nota su qualsiasi evento crea (o riapre) la sua **nota della 
 
 ## Elenchi attività esterni nel database attività
 
-Spunta un **elenco attività** in un account collegato e le sue attività appaiono come note nel tuo [database attività predefinito](Tasks.md): il titolo diventa la nota (H1), la scadenza finisce nella colonna della data del database, e il completamento si riflette nella colonna dello stato (prima opzione = aperta, ultima opzione = completata). La sincronizzazione è bidirezionale e per campo:
+Spunta un **elenco attività** in un account collegato e le sue attività appaiono come note nel tuo [database attività predefinito](Tasks.md): il titolo diventa la nota (H1), la scadenza finisce nella colonna della data del database, e il completamento si riflette nella **proprietà casella di controllo di completamento** del database (la colonna di stato la segue; un database senza colonna casella di controllo utilizza la convenzione di stato — prima opzione = aperta, ultima = completata). La sincronizzazione è bidirezionale e per campo:
 
 - Modifichi la nota (titolo, scadenza, stato) → la modifica viene inviata al provider.
 - Cambi l'attività da remoto → la nota si adegua.

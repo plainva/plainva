@@ -4,7 +4,7 @@ import { toggleTaskAtIndex } from "@plainva/ui";
 import { taskTextToTitle, taskFileStem, replaceCheckboxWithLink, promoteTask, type PromoteTaskOptions } from "./taskPromotion";
 import { buildTaskDbFile } from "./taskDatabase";
 
-const DB_LABELS = { viewTable: "Tabelle", viewBoard: "Board", dueKey: "frist", statusOptions: ["Offen", "In Arbeit", "Erledigt"] as [string, string, string] };
+const DB_LABELS = { viewTable: "Tabelle", viewBoard: "Board", doneKey: "erledigt", dueKey: "frist", statusOptions: ["Offen", "In Arbeit", "Erledigt"] as [string, string, string] };
 
 function memoryAdapter(seed: Record<string, string>) {
   const files = new Map<string, string>(Object.entries(seed));

@@ -12,7 +12,7 @@ Plainva może czytać Twoją skrzynkę pocztową — i tylko czytać — aby wyd
 
 Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę poleceń (**Otwórz e-mail**). Lista pokazuje Twoją skrzynkę odbiorczą od najnowszych (nieprzeczytane pogrubione, **Wczytaj więcej** doładowuje kolejne). Wybranie wiadomości otwiera ją w **przeglądarce w piaskownicy**:
 
-- **Zdalna zawartość jest blokowana** — piksele śledzące, zdalne obrazy i moduły ładujące style są usuwane i liczone („Zablokowano zdalną zawartość (n)”). Wyświetlane są tylko samodzielnie osadzone obrazy inline.
+- **Zdalna zawartość jest blokowana** — piksele śledzące, zdalne obrazy i moduły ładujące style są usuwane i liczone („Zablokowano zdalną zawartość (n)”). Wyświetlane są tylko samodzielnie osadzone obrazy inline. **Pokaż obrazy** obok licznika jednorazowo odsłania obrazy https danej wiadomości; **Zawsze wczytuj zdalne obrazy** w ustawieniach poczty zamienia to w stałą zgodę. Uwaga: wczytanie zdalnych obrazów pozwala nadawcy zobaczyć Twój adres IP oraz moment otwarcia wiadomości — dlatego domyślnie zawartość jest blokowana.
 - Linki są pokazywane jako zwykły tekst i nie są klikalne w przeglądarce.
 - Skrypty i formularze nigdy się nie uruchamiają. Wiadomość jest renderowana w izolowanej ramce z restrykcyjną polityką treści.
 

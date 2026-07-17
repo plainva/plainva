@@ -12,7 +12,7 @@ Plainva kann Dein Postfach lesen — und nur lesen —, um Wissen aus E-Mails in
 
 Öffne den Mail-Tab über die linke Aktionsleiste (Brief-Symbol) oder die Befehlspalette (**E-Mail öffnen**). Die Liste zeigt Deinen Posteingang, Neueste zuerst (Ungelesene fett, **Mehr laden** blättert weiter). Eine ausgewählte Nachricht öffnet sich im **Sandbox-Viewer**:
 
-- **Externe Inhalte sind blockiert** — Tracking-Pixel, externe Bilder und Stil-Nachlader werden entfernt und gezählt („Externe Inhalte blockiert (n)"). Nur eingebettete Inline-Bilder werden angezeigt.
+- **Externe Inhalte sind blockiert** — Tracking-Pixel, externe Bilder und Stil-Nachlader werden entfernt und gezählt („Externe Inhalte blockiert (n)"). Nur eingebettete Inline-Bilder werden angezeigt. **Bilder anzeigen** neben dem Zähler blendet die https-Bilder einer Nachricht einmalig ein; **Externe Bilder immer laden** in den Mail-Einstellungen macht daraus ein dauerhaftes Opt-in. Wichtig: Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast — deshalb ist Blockieren der Standard.
 - Links erscheinen als reiner Text und sind im Viewer nicht klickbar.
 - Skripte und Formulare laufen nie. Die Nachricht wird in einem isolierten Rahmen mit strikter Inhalts-Richtlinie dargestellt.
 

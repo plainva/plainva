@@ -297,8 +297,65 @@ describe("runTaskSync", () => {
   });
 });
 
+describe("a checkbox task database (one-click scaffold)", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "google", label: "G", config: {}, enabled: true });
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+  });
+
+  it("imports completed as the done checkbox (+coupled status) and a local un-check pushes", async () => {
+    const { buildTaskDbFile } = await import("../taskDatabase");
+    const { path, content } = buildTaskDbFile("Aufgaben", {
+      viewTable: "Tabelle",
+      viewBoard: "Board",
+      doneKey: "erledigt",
+      dueKey: "frist",
+      statusOptions: ["Offen", "In Arbeit", "Erledigt"],
+    });
+    const vault = fakeVault({ [path]: content });
+    const target = fakeTarget({ etag: '"pushed"' });
+    const opts: TaskSyncOptions = {
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => target,
+      taskDbPath: path,
+      noteType: "Task",
+      allNotePaths: [],
+    };
+
+    // Import: the completed task lands with erledigt: true AND status Erledigt.
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Fertig", completed: true, etag: '"e1"' })]);
+    const r1 = await runTaskSync(opts);
+    const notePath = r1.createdNotes[0];
+    let note = vault.files.get(notePath)!;
+    expect(readFrontmatterPath(note, ["erledigt"])).toBe(true);
+    expect(readFrontmatterPath(note, ["status"])).toBe("Erledigt");
+    expect(target.updateTask).not.toHaveBeenCalled();
+
+    // Local un-check of the CHECKBOX property pushes completed=false — the
+    // checkbox is the completion truth even while the status still reads done
+    // (the UI write paths keep both coupled; a hand edit of just the checkbox
+    // still wins).
+    vault.files.set(notePath, note.replace("erledigt: true", "erledigt: false"));
+    await runTaskSync({ ...opts, allNotePaths: [notePath] });
+    expect(target.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: "u1" }),
+      expect.objectContaining({ completed: false })
+    );
+  });
+});
+
 describe("field helpers", () => {
-  const db = { dueKey: "frist", status: { key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] } };
+  const db = {
+    dueKey: "frist",
+    completion: { kind: "status" as const, status: { key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] } },
+  };
 
   it("reads title from the H1, due from the date column, completed from the done option", () => {
     const content = `---\nstatus: Erledigt\nfrist: 2026-08-15\n---\n\n# Titel der Aufgabe\n\nBody.\n`;

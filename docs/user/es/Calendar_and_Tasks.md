@@ -16,7 +16,7 @@ Cada cuenta lista sus **Calendarios** (los marcados aparecen en la pestaña de c
 
 ## La pestaña de calendario
 
-Ábrela desde la barra de acciones de la izquierda (icono de calendario) o la paleta de comandos (**Abrir calendario**). Obtienes una cuadrícula mensual con tus eventos (un punto de color por calendario) y un panel del día que lista el día seleccionado — primero los eventos de todo el día, luego los que tienen hora, con hora, nombre del calendario y lugar. La vista se actualiza automáticamente cada pocos minutos; el botón de actualizar la fuerza.
+Ábrela desde la barra de acciones de la izquierda (icono de calendario) o la paleta de comandos (**Abrir calendario**). Hay tres vistas disponibles con el selector de la cabecera: **Mes** muestra una cuadrícula con tus eventos (un punto de color por calendario) más un panel del día que lista el día seleccionado — primero los eventos de todo el día, luego los que tienen hora, con hora, nombre del calendario y lugar. **Semana** muestra siete columnas de días con los eventos (y, con la superposición de tareas activada, las tareas con fecha límite) directamente en las columnas — sin panel del día adicional; el **+** en la cabecera de una columna crea un evento ese día. **Agenda** lista las próximas semanas agrupadas por día, con las mismas tarjetas de acción que el panel del día. El primer día de la semana sigue el ajuste **Inicio de semana** (Configuración → App → Apariencia: Lunes, Sábado o Domingo) — también se aplica al calendario de la barra lateral. La vista se actualiza automáticamente cada pocos minutos; el botón de actualizar la fuerza.
 
 - **Nuevo evento**: el **+** en el panel del día — título, calendario, fecha/hora o un rango de todo el día, lugar y, opcionalmente, una **Repetición** simple (diaria/semanal/mensual/anual).
 - **Editar / eliminar**: los iconos de lápiz y papelera en un evento. Los cambios se escriben al proveedor con una comprobación de seguridad: si el evento cambió de forma remota mientras tanto, Plainva actualiza la vista en lugar de sobrescribir.
@@ -29,7 +29,7 @@ El icono de nota en cualquier evento crea (o vuelve a abrir) su **nota de reuni�
 
 ## Listas de tareas externas en tu base de datos de tareas
 
-Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como notas en tu [base de datos de tareas predeterminada](Tasks.md): el título se convierte en la nota (H1), la fecha límite llega a la columna de fecha de la base de datos, y "completado" se refleja en la columna de estado (primera opción = abierta, última opción = hecha). La sincronización es bidireccional y campo a campo:
+Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como notas en tu [base de datos de tareas predeterminada](Tasks.md): el título se convierte en la nota (H1), la fecha límite llega a la columna de fecha de la base de datos, y el estado completado se refleja en la **propiedad de casilla de hecho** de la base de datos (la columna de estado la sigue; una base de datos sin columna de casilla usa la convención de estado — la primera opción = abierta, la última = hecha). La sincronización es bidireccional y campo a campo:
 
 - Edita la nota (título, fecha límite, estado) → el cambio se envía al proveedor.
 - Cambia la tarea de forma remota → la nota lo sigue.

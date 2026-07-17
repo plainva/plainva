@@ -21,6 +21,10 @@ export interface TaskDbLabels {
   viewTable: string;
   /** Name of the status board view (i18n `database.viewBoard`). */
   viewBoard: string;
+  /** Localized frontmatter key of the done checkbox column (i18n `tasks.dbDoneKey`).
+   * This CHECKBOX is the completion truth of a task note (binary, like the
+   * providers' completed flag); the status column tracks it for the board. */
+  doneKey: string;
   /** Localized frontmatter key of the due-date column (i18n `tasks.dbDueKey`). */
   dueKey: string;
   /** Status option values open / in progress / done (i18n `tasks.dbStatus*`). */
@@ -55,6 +59,7 @@ export function buildTaskDbFile(stem: string, labels: TaskDbLabels): { path: str
     path: `${stem}.base`,
     sourceFolder: stem,
     columns: [
+      { key: labels.doneKey, input: "checkbox" },
       { key: "status", input: "status", options: [...labels.statusOptions] },
       { key: labels.dueKey, input: "date" },
     ],
@@ -135,6 +140,94 @@ export function classifyTaskStatus(value: string | null | undefined, model: Task
   if (s === model.done) return true;
   if (model.options.includes(s)) return false;
   return null;
+}
+
+/**
+ * How a task database expresses "done". A binary provider task (Google Tasks,
+ * VTODO, To Do) maps naturally onto a CHECKBOX property — that is the model
+ * the user sees as the task's checkbox (maintainer decision, 2026-07-17). A
+ * checkbox column therefore takes precedence; databases without one keep the
+ * status-option convention (first = open, last = done). When BOTH exist the
+ * checkbox is the truth and the status column is kept consistent alongside it
+ * (done -> last option; un-done -> first option only if it currently shows the
+ * done option, so an intermediate "In Arbeit" is never clobbered).
+ */
+export type TaskCompletionModel =
+  | { kind: "checkbox"; key: string; status: TaskStatusModel | null }
+  | { kind: "status"; status: TaskStatusModel };
+
+export function resolveTaskCompletionModel(config: unknown): TaskCompletionModel | null {
+  const cols = (config as { columns?: Record<string, unknown> } | null)?.columns ?? {};
+  let checkboxKey: string | null = null;
+  for (const [key, col] of Object.entries(cols)) {
+    if ((col as { input?: string } | null)?.input === "checkbox") {
+      checkboxKey = key;
+      break;
+    }
+  }
+  const status = resolveTaskStatusModel(config);
+  if (checkboxKey) return { kind: "checkbox", key: checkboxKey, status };
+  if (status) return { kind: "status", status };
+  return null;
+}
+
+/** Classifies the raw frontmatter/index values under the completion model.
+ * Index property values travel as strings, so booleans are string-tolerant.
+ * `null` = ambiguous (missing/foreign) — the reconciler falls back to its base
+ * instead of reading it as "open". */
+export function classifyTaskCompletion(
+  model: TaskCompletionModel,
+  values: { checkbox?: unknown; status?: string | null }
+): boolean | null {
+  if (model.kind === "checkbox") {
+    const v = values.checkbox;
+    if (v === true || v === "true") return true;
+    if (v === false || v === "false") return false;
+    return null;
+  }
+  return classifyTaskStatus(values.status ?? null, model.status);
+}
+
+/** Writes a completion flip into a note's frontmatter (single write path for
+ * the reconciler, the Tasks overview and the calendar surfaces). */
+export function applyTaskCompletion(
+  content: string,
+  model: TaskCompletionModel,
+  done: boolean,
+  readPath: (content: string, path: string[]) => unknown,
+  setPath: (content: string, path: string[], value: unknown) => string
+): string {
+  let out = content;
+  if (model.kind === "checkbox") {
+    out = setPath(out, [model.key], done);
+    if (model.status) {
+      const current = readPath(out, [model.status.key]);
+      if (done) {
+        out = setPath(out, [model.status.key], model.status.done);
+      } else if (current != null && String(current) === model.status.done) {
+        out = setPath(out, [model.status.key], model.status.open);
+      }
+    }
+    return out;
+  }
+  return setPath(out, [model.status.key], done ? model.status.done : model.status.open);
+}
+
+/** Writes an explicit status option and keeps a checkbox column consistent
+ * (picking the done option checks the box; any other option unchecks it). */
+export function applyTaskStatusOption(
+  content: string,
+  model: TaskCompletionModel,
+  option: string,
+  setPath: (content: string, path: string[], value: unknown) => string
+): string {
+  const status = model.kind === "checkbox" ? model.status : model.status;
+  let out = content;
+  if (status) out = setPath(out, [status.key], option);
+  if (model.kind === "checkbox" && status) {
+    out = setPath(out, [model.key], option === status.done);
+  }
+  return out;
 }
 
 /** The vault's configured standard task database (vault-relative `.base` path),

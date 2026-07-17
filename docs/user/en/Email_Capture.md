@@ -12,7 +12,7 @@ Plainva can read your mailbox — and only read it — to get knowledge out of e
 
 Open the mail tab from the left action rail (mail icon) or the command palette (**Open email**). The list shows your inbox newest-first (unread in bold, **Load more** pages further). Selecting a message opens it in a **sandboxed viewer**:
 
-- **Remote content is blocked** — tracking pixels, remote images and style loaders are removed and counted ("Remote content blocked (n)"). Only self-contained inline images display.
+- **Remote content is blocked** — tracking pixels, remote images and style loaders are removed and counted ("Remote content blocked (n)"). Only self-contained inline images display. **Show images** next to the counter reveals a message's https images once; **Always load remote images** in the mail settings turns that into a standing opt-in. Be aware: loading remote images lets the sender see your IP address and when you opened the mail — that is why blocked is the default.
 - Links are shown as plain text and are not clickable inside the viewer.
 - Scripts and forms never run. The message is rendered in an isolated frame with a strict content policy.
 

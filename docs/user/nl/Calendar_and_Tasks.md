@@ -16,7 +16,7 @@ Elk account toont zijn **agenda's** (aangevinkte verschijnen in het agenda-tabbl
 
 ## Het agenda-tabblad
 
-Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (**Agenda openen**). Je krijgt een maandraster met je afspraken (één kleurpunt per agenda) en een dagpaneel met de gekozen dag — eerst de hele-dag-afspraken, dan die met tijd, agendanaam en locatie. De weergave wordt elke paar minuten automatisch ververst; de knop **Nu verversen** dwingt dit af.
+Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (**Agenda openen**). Via de omschakelaar in de kop zijn drie weergaven beschikbaar: **Maand** toont een raster met je afspraken (één kleurpunt per agenda) plus een dagpaneel met de gekozen dag — eerst de hele-dag-afspraken, dan die met tijd, agendanaam en locatie. **Week** toont zeven dagkolommen met de afspraken (en, met de takenoverlay ingeschakeld, de taken met vervaldatum) direct in de kolommen — zonder extra dagpaneel; de **+** in een kolomkop maakt een afspraak aan op die dag. **Agenda** toont de komende weken gegroepeerd per dag, met dezelfde actiekaarten als het dagpaneel. De eerste dag van de week volgt de instelling **Week begint op** (Instellingen → App → Weergave: Maandag, Zaterdag of Zondag) — dit geldt ook voor de kalender in de zijbalk. De weergave wordt elke paar minuten automatisch ververst; de knop **Nu verversen** dwingt dit af.
 
 - **Nieuwe afspraak**: de **+** in het dagpaneel — titel, agenda, datum/tijd of een hele-dag-periode, locatie en optioneel een eenvoudige **herhaling** (Dagelijks/Wekelijks/Maandelijks/Jaarlijks).
 - **Bewerken / verwijderen**: het potlood- en prullenbak-icoon bij een afspraak. Wijzigingen gaan met een veiligheidscontrole naar de provider: is de afspraak intussen extern gewijzigd, dan vernieuwt Plainva de weergave in plaats van te overschrijven.
@@ -29,7 +29,7 @@ Het notitie-icoon bij een afspraak maakt zijn **vergadernotitie** aan (of opent 
 
 ## Externe takenlijsten in je takendatabase
 
-Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschijnen als notities in je [standaard takendatabase](Tasks.md): de titel wordt de notitie (H1), de vervaldatum belandt in de datumkolom van de database, en voltooiing wordt afgebeeld op de statuskolom (eerste optie = open, laatste optie = voltooid). De synchronisatie verloopt in beide richtingen, per veld:
+Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschijnen als notities in je [standaard takendatabase](Tasks.md): de titel wordt de notitie (H1), de vervaldatum belandt in de datumkolom van de database, en voltooiing wordt afgebeeld op de **voltooid-selectievakje-eigenschap** van de database (de statuskolom volgt mee; een database zonder selectievakjekolom gebruikt de statusconventie — eerste optie = open, laatste = voltooid). De synchronisatie verloopt in beide richtingen, per veld:
 
 - Bewerk je de notitie (titel, vervaldatum, status) → de wijziging wordt naar de provider gepusht.
 - Verandert de taak extern → de notitie volgt.

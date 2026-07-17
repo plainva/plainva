@@ -12,7 +12,7 @@ Plainva puede leer tu buzón — y solo leerlo — para sacar conocimiento del c
 
 Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de correo) o la paleta de comandos (**Abrir correo**). La lista muestra tu bandeja de entrada empezando por lo más reciente (los no leídos en negrita; **Cargar más** carga páginas adicionales). Seleccionar un mensaje lo abre en un **visor aislado**:
 
-- **Se bloquea el contenido remoto** — los píxeles de rastreo, las imágenes remotas y los cargadores de estilos se eliminan y se cuentan ("Contenido remoto bloqueado (n)"). Solo se muestran las imágenes insertadas autocontenidas.
+- **Se bloquea el contenido remoto** — los píxeles de rastreo, las imágenes remotas y los cargadores de estilos se eliminan y se cuentan ("Contenido remoto bloqueado (n)"). Solo se muestran las imágenes insertadas autocontenidas. **Mostrar imágenes**, junto al contador, revela una vez las imágenes https de un mensaje; **Cargar siempre las imágenes remotas** en los ajustes de correo lo convierte en una opción permanente. Ten en cuenta: cargar imágenes remotas permite que el remitente vea tu dirección IP y cuándo abriste el correo — por eso el bloqueo es la opción predeterminada.
 - Los enlaces se muestran como texto sin formato y no son clicables dentro del visor.
 - Los scripts y los formularios nunca se ejecutan. El mensaje se renderiza en un marco aislado con una política de contenido estricta.
 

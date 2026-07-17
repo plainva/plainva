@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Nieuwe database maken…",
     "taskDatabaseCreateName": "Naam van de takendatabase",
     "taskDatabaseDefaultName": "Taken",
-    "sectionPim": "Agenda en accounts"
+    "sectionPim": "Agenda en accounts",
+    "weekStart": "Week begint op",
+    "weekStartDesc": "Eerste dag van de week in alle agendaweergaven.",
+    "weekStartMonday": "Maandag",
+    "weekStartSaturday": "Zaterdag",
+    "weekStartSunday": "Zondag"
   },
   "editor": {
     "fileNotFound": "Bestand niet gevonden",
@@ -1773,7 +1778,10 @@
     "dbSection": "Takendatabase",
     "notesSection": "Uit notities",
     "openDb": "Als database openen",
-    "dbEmpty": "Nog geen items"
+    "dbEmpty": "Nog geen items",
+    "setStatus": "Status wijzigen",
+    "statusUpdateFailed": "Kon de status niet wijzigen.",
+    "dbDoneKey": "klaar"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",
@@ -1871,7 +1879,14 @@
     "repeatMonthly": "Maandelijks",
     "repeatYearly": "Jaarlijks",
     "showTasks": "Taken tonen",
-    "calendarTasks": "Taken"
+    "calendarTasks": "Taken",
+    "viewMonth": "Maand",
+    "viewWeek": "Week",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Vorige week",
+    "nextWeek": "Volgende week",
+    "agendaEmpty": "Geen aankomende afspraken.",
+    "eventsLabel": "Afspraken"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",
@@ -1906,6 +1921,9 @@
     "draftSubject": "Onderwerp",
     "draftMailbox": "Conceptenmap",
     "draftSaved": "Concept in de mailbox opgeslagen — open je mailprogramma om het te versturen.",
-    "draftHint": "Plainva verstuurt nooit zelf — het concept komt in de mailbox en wordt vanuit je mailprogramma verzonden."
+    "draftHint": "Plainva verstuurt nooit zelf — het concept komt in de mailbox en wordt vanuit je mailprogramma verzonden.",
+    "showImages": "Afbeeldingen tonen",
+    "loadRemoteImages": "Externe afbeeldingen altijd laden",
+    "loadRemoteImagesHint": "Bij het laden van externe afbeeldingen ziet de afzender je IP-adres en wanneer je de mail opende (tracking). Plainva blokkeert ze standaard — gebruik “Afbeeldingen tonen” om ze per bericht te tonen."
   }
 }

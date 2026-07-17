@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "新規データベースを作成…",
     "taskDatabaseCreateName": "タスクデータベースの名前",
     "taskDatabaseDefaultName": "タスク",
-    "sectionPim": "カレンダーとアカウント"
+    "sectionPim": "カレンダーとアカウント",
+    "weekStart": "週の開始日",
+    "weekStartDesc": "すべてのカレンダー表示での週の最初の曜日。",
+    "weekStartMonday": "月曜日",
+    "weekStartSaturday": "土曜日",
+    "weekStartSunday": "日曜日"
   },
   "editor": {
     "fileNotFound": "ファイルが見つかりません",
@@ -1767,7 +1772,10 @@
     "dbSection": "タスクデータベース",
     "notesSection": "ノートから",
     "openDb": "データベースとして開く",
-    "dbEmpty": "まだ項目がありません"
+    "dbEmpty": "まだ項目がありません",
+    "setStatus": "ステータスを変更",
+    "statusUpdateFailed": "ステータスを変更できませんでした。",
+    "dbDoneKey": "done"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
@@ -1865,7 +1873,14 @@
     "repeatMonthly": "毎月",
     "repeatYearly": "毎年",
     "showTasks": "タスクを表示",
-    "calendarTasks": "タスク"
+    "calendarTasks": "タスク",
+    "viewMonth": "月",
+    "viewWeek": "週",
+    "viewAgenda": "アジェンダ",
+    "prevWeek": "前の週",
+    "nextWeek": "次の週",
+    "agendaEmpty": "今後の予定はありません。",
+    "eventsLabel": "予定"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",
@@ -1900,6 +1915,9 @@
     "draftSubject": "件名",
     "draftMailbox": "下書きフォルダー",
     "draftSaved": "下書きをメールボックスに保存しました — メールソフトで開いて送信してください。",
-    "draftHint": "Plainva 自身は送信しません — 下書きはメールボックスに保存され、メールソフトから送信します。"
+    "draftHint": "Plainva 自身は送信しません — 下書きはメールボックスに保存され、メールソフトから送信します。",
+    "showImages": "画像を表示",
+    "loadRemoteImages": "リモート画像を常に読み込む",
+    "loadRemoteImagesHint": "リモート画像を読み込むと、送信者にあなたの IP アドレスとメールを開いた時刻が伝わります（トラッキング）。Plainva は既定でブロックします。メールごとに「画像を表示」で表示できます。"
   }
 }

@@ -132,6 +132,9 @@ export const DEFAULT_MEETING_FOLDER = "Meetings";
 /** Mail capture folder (PIM stage 5): captured e-mail notes + .eml files. */
 export const mailFolderKey = (vaultPath: string) => `mailFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_MAIL_FOLDER = "Mail";
+/** Per-vault opt-in: always load remote https images in the mail viewer.
+ * Default OFF — loading a remote image is a tracking beacon by definition. */
+export const mailRemoteImagesKey = (vaultPath: string) => `mailRemoteImages_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the
@@ -420,6 +423,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
+            // The Tasks view listens for this to re-query — the index-diff
+            // chain alone is not a reliable refresh signal for it.
+            window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
           }
         } catch (e) {
           console.warn("[VaultContext] task sync failed", e);

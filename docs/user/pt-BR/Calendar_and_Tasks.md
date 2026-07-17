@@ -16,7 +16,7 @@ Cada conta lista seus **calendários** (os marcados aparecem na aba do calendár
 
 ## A aba do calendário
 
-Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta de comandos (**Abrir calendário**). Você recebe uma grade mensal com seus eventos (um ponto colorido por calendário) e um painel do dia listando o dia selecionado — primeiro os eventos de dia inteiro, depois os com horário, com nome do calendário e local. A visualização se atualiza automaticamente a cada poucos minutos; **Atualizar agora** força isso.
+Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta de comandos (**Abrir calendário**). Três visualizações estão disponíveis pelo alternador no cabeçalho: **Mês** mostra uma grade com seus eventos (um ponto colorido por calendário) e um painel do dia listando o dia selecionado — primeiro os eventos de dia inteiro, depois os com horário, com nome do calendário e local. **Semana** mostra sete colunas de dias com os eventos (e, com a sobreposição de tarefas ativada, as tarefas com vencimento) direto nas colunas — sem painel do dia extra; o **+** no cabeçalho de uma coluna cria um evento naquele dia. **Agenda** lista as próximas semanas agrupadas por dia, com os mesmos cartões de ação do painel do dia. O primeiro dia da semana segue a configuração **Início da semana** (Configurações → App → Aparência: Segunda-feira, Sábado ou Domingo) — ela também se aplica ao calendário da barra lateral. A visualização se atualiza automaticamente a cada poucos minutos; o botão **Atualizar agora** força isso.
 
 - **Novo evento**: o **+** no painel do dia — título, calendário, data/hora ou um período de dia inteiro, local e, opcionalmente, uma simples **repetição** (Diária/Semanal/Mensal/Anual).
 - **Editar / excluir**: os ícones de lápis e lixeira em um evento. As alterações são gravadas no provedor com uma verificação de segurança: se o evento mudou remotamente nesse meio-tempo, o Plainva atualiza a visualização em vez de sobrescrever.
@@ -29,7 +29,7 @@ O ícone de nota em qualquer evento cria (ou reabre) sua **nota de reunião** �
 
 ## Listas de tarefas externas no seu banco de tarefas
 
-Marque uma **lista de tarefas** em uma conta conectada, e suas tarefas aparecem como notas no seu [banco de tarefas padrão](Tasks.md): o título vira a nota (H1), a data de vencimento vai para a coluna de data do banco de dados, e a conclusão se mapeia na coluna de status (primeira opção = aberta, última opção = concluída). A sincronização é bidirecional e campo a campo:
+Marque uma **lista de tarefas** em uma conta conectada, e suas tarefas aparecem como notas no seu [banco de tarefas padrão](Tasks.md): o título vira a nota (H1), a data de vencimento vai para a coluna de data do banco de dados, e a conclusão se mapeia na **propriedade de caixa de seleção de concluído** do banco de dados (a coluna de status a acompanha; um banco de dados sem uma coluna de caixa de seleção usa a convenção de status — primeira opção = aberta, última = concluída). A sincronização é bidirecional e campo a campo:
 
 - Edite a nota (título, vencimento, status) → a alteração é enviada ao provedor.
 - Altere a tarefa remotamente → a nota acompanha.

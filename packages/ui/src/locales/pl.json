@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Utwórz nową bazę…",
     "taskDatabaseCreateName": "Nazwa bazy zadań",
     "taskDatabaseDefaultName": "Zadania",
-    "sectionPim": "Kalendarz i konta"
+    "sectionPim": "Kalendarz i konta",
+    "weekStart": "Początek tygodnia",
+    "weekStartDesc": "Pierwszy dzień tygodnia we wszystkich widokach kalendarza.",
+    "weekStartMonday": "Poniedziałek",
+    "weekStartSaturday": "Sobota",
+    "weekStartSunday": "Niedziela"
   },
   "editor": {
     "fileNotFound": "Nie znaleziono pliku",
@@ -1785,7 +1790,10 @@
     "dbSection": "Baza zadań",
     "notesSection": "Z notatek",
     "openDb": "Otwórz jako bazę",
-    "dbEmpty": "Brak wpisów"
+    "dbEmpty": "Brak wpisów",
+    "setStatus": "Zmień status",
+    "statusUpdateFailed": "Nie udało się zmienić statusu.",
+    "dbDoneKey": "zrobione"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",
@@ -1883,7 +1891,14 @@
     "repeatMonthly": "Co miesiąc",
     "repeatYearly": "Co rok",
     "showTasks": "Pokaż zadania",
-    "calendarTasks": "Zadania"
+    "calendarTasks": "Zadania",
+    "viewMonth": "Miesiąc",
+    "viewWeek": "Tydzień",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Poprzedni tydzień",
+    "nextWeek": "Następny tydzień",
+    "agendaEmpty": "Brak nadchodzących wydarzeń.",
+    "eventsLabel": "Wydarzenia"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",
@@ -1918,6 +1933,9 @@
     "draftSubject": "Temat",
     "draftMailbox": "Folder szkiców",
     "draftSaved": "Szkic zapisany w skrzynce — otwórz program pocztowy, aby go wysłać.",
-    "draftHint": "Plainva nigdy nie wysyła samodzielnie — szkic trafia do skrzynki i jest wysyłany z programu pocztowego."
+    "draftHint": "Plainva nigdy nie wysyła samodzielnie — szkic trafia do skrzynki i jest wysyłany z programu pocztowego.",
+    "showImages": "Pokaż obrazy",
+    "loadRemoteImages": "Zawsze wczytuj zdalne obrazy",
+    "loadRemoteImagesHint": "Wczytanie zdalnych obrazów ujawnia nadawcy Twój adres IP i moment otwarcia wiadomości (śledzenie). Plainva domyślnie je blokuje — użyj „Pokaż obrazy”, aby pokazać je dla pojedynczej wiadomości."
   }
 }

@@ -1,10 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { parseBaseConfig } from "@plainva/ui";
-import { taskDbFileStem, buildTaskDbFile, createTaskDatabase, resolveTaskStatusModel, classifyTaskStatus, type TaskDbLabels, type TaskDbAdapter } from "./taskDatabase";
+import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import {
+  taskDbFileStem,
+  buildTaskDbFile,
+  createTaskDatabase,
+  resolveTaskStatusModel,
+  classifyTaskStatus,
+  resolveTaskCompletionModel,
+  classifyTaskCompletion,
+  applyTaskCompletion,
+  applyTaskStatusOption,
+  type TaskDbLabels,
+  type TaskDbAdapter,
+} from "./taskDatabase";
 
 const LABELS: TaskDbLabels = {
   viewTable: "Tabelle",
   viewBoard: "Board",
+  doneKey: "erledigt",
   dueKey: "frist",
   statusOptions: ["Offen", "In Arbeit", "Erledigt"],
 };
@@ -40,12 +54,14 @@ describe("taskDatabase (PIM plan 1a)", () => {
     // the exact structure the app (and Obsidian) expects.
     const cfg = parseBaseConfig(content);
     expect(cfg.filters).toEqual({ and: ['file.folder == "Aufgaben"'] });
+    // The done CHECKBOX is the completion truth (binary like the providers).
+    expect(cfg.columns.erledigt).toMatchObject({ input: "checkbox" });
     expect(cfg.columns.status).toMatchObject({ input: "status" });
     expect((cfg.columns.status.options ?? []).map((o: { value: string }) => o.value)).toEqual(["Offen", "In Arbeit", "Erledigt"]);
     expect(cfg.columns.frist).toMatchObject({ input: "date" });
     expect(cfg.views).toHaveLength(2);
     expect(cfg.views[0]).toMatchObject({ type: "table", name: "Tabelle" });
-    expect(cfg.views[0].order).toEqual(["file.name", "status", "frist"]);
+    expect(cfg.views[0].order).toEqual(["file.name", "erledigt", "status", "frist"]);
     expect(cfg.views[1]).toMatchObject({ type: "board", name: "Board", groupBy: "status" });
   });
 
@@ -93,5 +109,68 @@ describe("resolveTaskStatusModel + classifyTaskStatus", () => {
   it("returns null when the database has no status/select column", () => {
     const config = parseBaseConfig(`properties:\n  note.frist:\n    plainva:\n      input: date\nviews:\n  - type: table\n    name: T\n`);
     expect(resolveTaskStatusModel(config)).toBeNull();
+  });
+});
+
+describe("completion model (checkbox property preferred)", () => {
+  const read = (c: string, p: string[]) => readFrontmatterPath(c, p);
+  const set = (c: string, p: string[], v: unknown) => setFrontmatterPath(c, p, v);
+
+  it("the one-click scaffold resolves to a CHECKBOX completion with a coupled status", () => {
+    const config = parseBaseConfig(buildTaskDbFile("Aufgaben", LABELS).content);
+    const model = resolveTaskCompletionModel(config);
+    expect(model).toEqual({
+      kind: "checkbox",
+      key: "erledigt",
+      status: { key: "status", open: "Offen", done: "Erledigt", options: ["Offen", "In Arbeit", "Erledigt"] },
+    });
+  });
+
+  it("a database without a checkbox column falls back to the status convention", () => {
+    const config = parseBaseConfig(
+      `properties:\n  note.status:\n    plainva:\n      input: status\n      options:\n        - value: Offen\n        - value: Erledigt\nviews:\n  - type: table\n    name: T\n`
+    );
+    const model = resolveTaskCompletionModel(config);
+    expect(model?.kind).toBe("status");
+  });
+
+  it("classifies checkbox values string-tolerantly (index values travel as strings)", () => {
+    const model = { kind: "checkbox" as const, key: "erledigt", status: null };
+    expect(classifyTaskCompletion(model, { checkbox: true })).toBe(true);
+    expect(classifyTaskCompletion(model, { checkbox: "true" })).toBe(true);
+    expect(classifyTaskCompletion(model, { checkbox: false })).toBe(false);
+    expect(classifyTaskCompletion(model, { checkbox: "false" })).toBe(false);
+    expect(classifyTaskCompletion(model, { checkbox: undefined })).toBeNull(); // ambiguous
+    expect(classifyTaskCompletion(model, { checkbox: "yes" })).toBeNull();
+  });
+
+  it("applyTaskCompletion writes the checkbox and keeps the status coupled", () => {
+    const config = parseBaseConfig(buildTaskDbFile("Aufgaben", LABELS).content);
+    const model = resolveTaskCompletionModel(config)!;
+    const note = `---\nerledigt: false\nstatus: Offen\n---\n# T\n`;
+    const done = applyTaskCompletion(note, model, true, read, set);
+    expect(readFrontmatterPath(done, ["erledigt"])).toBe(true);
+    expect(readFrontmatterPath(done, ["status"])).toBe("Erledigt");
+    // Un-done: status only reverts when it currently shows the done option…
+    const reopened = applyTaskCompletion(done, model, false, read, set);
+    expect(readFrontmatterPath(reopened, ["erledigt"])).toBe(false);
+    expect(readFrontmatterPath(reopened, ["status"])).toBe("Offen");
+    // …an intermediate option is never clobbered.
+    const inProgress = `---\nerledigt: true\nstatus: In Arbeit\n---\n# T\n`;
+    const kept = applyTaskCompletion(inProgress, model, false, read, set);
+    expect(readFrontmatterPath(kept, ["erledigt"])).toBe(false);
+    expect(readFrontmatterPath(kept, ["status"])).toBe("In Arbeit");
+  });
+
+  it("applyTaskStatusOption keeps the checkbox consistent with the picked option", () => {
+    const config = parseBaseConfig(buildTaskDbFile("Aufgaben", LABELS).content);
+    const model = resolveTaskCompletionModel(config)!;
+    const note = `---\nerledigt: false\nstatus: Offen\n---\n# T\n`;
+    const done = applyTaskStatusOption(note, model, "Erledigt", set);
+    expect(readFrontmatterPath(done, ["status"])).toBe("Erledigt");
+    expect(readFrontmatterPath(done, ["erledigt"])).toBe(true);
+    const back = applyTaskStatusOption(done, model, "In Arbeit", set);
+    expect(readFrontmatterPath(back, ["status"])).toBe("In Arbeit");
+    expect(readFrontmatterPath(back, ["erledigt"])).toBe(false);
   });
 });

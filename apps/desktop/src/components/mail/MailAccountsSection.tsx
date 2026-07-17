@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { toast, Button, IconButton } from "@plainva/ui";
-import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER } from "../../contexts/VaultContext";
+import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
 import { listMailAccounts, saveMailAccount, removeMailAccount, type MailAccountConfig } from "../../services/mail/mailAccounts";
@@ -56,6 +56,32 @@ export function MailAccountsSection() {
     await store.set(mailFolderKey(vaultPath), mailFolder.trim());
     await store.save();
   }, [vaultPath, mailFolder]);
+
+  // Remote-image opt-in (default OFF — loading remote images is tracking).
+  const [remoteImages, setRemoteImages] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      const v = await store.get<boolean>(mailRemoteImagesKey(vaultPath));
+      if (alive) setRemoteImages(v === true);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+  const persistRemoteImages = useCallback(
+    async (value: boolean) => {
+      if (!vaultPath) return;
+      setRemoteImages(value);
+      const store = await getSettingsStore();
+      await store.set(mailRemoteImagesKey(vaultPath), value);
+      await store.save();
+      window.dispatchEvent(new CustomEvent("plainva-mail-settings-changed"));
+    },
+    [vaultPath]
+  );
 
   const connect = useCallback(async () => {
     if (!vaultPath || busy) return;
@@ -156,6 +182,24 @@ export function MailAccountsSection() {
         />
         <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
           {t("mail.folderHint", { defaultValue: "Ablage für abgelegte E-Mails (Notizen und .eml-Dateien)." })}
+        </p>
+      </div>
+
+      <div style={{ marginTop: "0.6rem" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.85rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={remoteImages}
+            onChange={(e) => void persistRemoteImages(e.target.checked)}
+            data-testid="mail-remote-images"
+          />
+          {t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}
+        </label>
+        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+          {t("mail.loadRemoteImagesHint", {
+            defaultValue:
+              "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",
+          })}
         </p>
       </div>
     </div>

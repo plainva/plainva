@@ -12,7 +12,7 @@ O Plainva pode ler sua caixa de e-mail — e só ler —, para tirar conheciment
 
 Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pela paleta de comandos (**Abrir e-mail**). A lista mostra sua caixa de entrada da mais recente para a mais antiga (não lidas em negrito, **Carregar mais** avança para mais páginas). Selecionar uma mensagem a abre em um **visualizador em sandbox**:
 
-- **O conteúdo remoto é bloqueado** — pixels de rastreamento, imagens remotas e carregadores de estilo são removidos e contados ("Conteúdo remoto bloqueado (n)"). Somente imagens inline autocontidas são exibidas.
+- **O conteúdo remoto é bloqueado** — pixels de rastreamento, imagens remotas e carregadores de estilo são removidos e contados ("Conteúdo remoto bloqueado (n)"). Somente imagens inline autocontidas são exibidas. **Mostrar imagens**, ao lado do contador, revela uma vez as imagens https de uma mensagem; **Sempre carregar imagens remotas**, nas configurações de e-mail, transforma isso em uma opção permanente. Atenção: carregar imagens remotas permite que o remetente veja seu endereço IP e quando você abriu o e-mail — por isso o bloqueio é o padrão.
 - Links aparecem como texto simples e não são clicáveis dentro do visualizador.
 - Scripts e formulários nunca são executados. A mensagem é renderizada em um frame isolado com uma política de conteúdo estrita.
 

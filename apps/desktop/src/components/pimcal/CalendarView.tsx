@@ -6,14 +6,18 @@ import {
   EmptyState,
   IconButton,
   buildMonthCells,
+  buildWeekCells,
   startOfMonth,
   toast,
-  parseBaseConfig,
+  type WeekStartDay,
 } from "@plainva/ui";
 import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskStatusModel, classifyTaskStatus } from "../../services/taskDatabase";
+import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { loadDueTasks, type DueTask } from "../../services/pim/taskOverlay";
+import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
+import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "../../services/weekStart";
 import { localIsoKey } from "../../services/dailyNotePath";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
@@ -47,15 +51,14 @@ interface CalendarViewProps {
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
 
-/** A due-dated task from the standard task database, projected onto the calendar. */
-interface CalTask {
-  path: string;
-  title: string;
-  due: string;
-  done: boolean;
-}
+type CalTask = DueTask;
 
 const SHOW_TASKS_KEY = "plainva-calendar-show-tasks";
+const VIEW_MODE_KEY = "plainva-calendar-view";
+
+type CalViewMode = "month" | "week" | "agenda";
+const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
+const AGENDA_DAYS = 60;
 
 export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
@@ -64,6 +67,38 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const todayKey = localIsoKey(new Date());
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState(todayKey);
+  const [viewMode, setViewMode] = useState<CalViewMode>(() => {
+    try {
+      const v = localStorage.getItem(VIEW_MODE_KEY);
+      return v === "week" || v === "agenda" ? v : "month";
+    } catch {
+      return "month";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    } catch {
+      /* preference simply doesn't persist */
+    }
+  }, [viewMode]);
+  // App-wide first-day-of-week (settings; shared with the sidebar widget).
+  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      void getWeekStartSetting()
+        .then((s) => {
+          if (alive) setWeekStartDay(weekStartDayOf(s));
+        })
+        .catch(() => {});
+    load();
+    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
+    };
+  }, []);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
   const [events, setEvents] = useState<PimEventRow[]>([]);
@@ -81,11 +116,42 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   });
   const [tasks, setTasks] = useState<CalTask[]>([]);
 
-  const { cells, rangeStartTs, rangeEndTs } = useMemo(() => {
-    // buildMonthCells always yields the full 42-cell Monday-first grid.
-    const grid = buildMonthCells(viewDate);
-    return { cells: grid, rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
-  }, [viewDate]);
+  const selectedDate = useMemo(() => {
+    const [y, m, d] = selectedDay.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+  }, [selectedDay]);
+
+  const { cells, weekCells, rangeStartTs, rangeEndTs } = useMemo(() => {
+    // The queried cache window follows the view: month grid, the selected
+    // week, or the rolling agenda range (today .. +60d).
+    if (viewMode === "week") {
+      const wk = buildWeekCells(selectedDate, weekStartDay);
+      return { cells: [] as Date[], weekCells: wk, rangeStartTs: wk[0].getTime(), rangeEndTs: wk[6].getTime() + DAY_MS };
+    }
+    if (viewMode === "agenda") {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      return { cells: [] as Date[], weekCells: [] as Date[], rangeStartTs: start.getTime(), rangeEndTs: start.getTime() + AGENDA_DAYS * DAY_MS_LOCAL };
+    }
+    const grid = buildMonthCells(viewDate, weekStartDay);
+    return { cells: grid, weekCells: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
+  }, [viewMode, viewDate, selectedDate, weekStartDay]);
+
+  // Sidebar calendar hand-off: "show this day in the calendar tab". A freshly
+  // mounting tab consumes the parked day (the event fired before the listener
+  // existed); an already-open tab reacts to the event directly.
+  useEffect(() => {
+    const applyDay = (key: unknown) => {
+      if (typeof key !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
+      setSelectedDay(key);
+      const [y, m] = key.split("-").map(Number);
+      setViewDate(new Date(y, (m ?? 1) - 1, 1));
+    };
+    applyDay(consumePendingCalendarDay());
+    const onGoto = (e: Event) => applyDay((e as CustomEvent).detail?.dayKey);
+    window.addEventListener(CALENDAR_GOTO_EVENT, onGoto);
+    return () => window.removeEventListener(CALENDAR_GOTO_EVENT, onGoto);
+  }, []);
 
   // Cache re-query: worker cycles announce fresh data over the window event.
   useEffect(() => {
@@ -160,36 +226,8 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     }
     void (async () => {
       try {
-        const dbPath = await getTaskDatabasePath(vaultPath);
-        if (!dbPath) {
-          if (alive) setTasks([]);
-          return;
-        }
-        const config = parseBaseConfig(await vaultAdapter.readTextFile(dbPath));
-        const rows = await queryService.queryDatabaseFiles(config);
-        const cols: Record<string, any> = config?.columns ?? {};
-        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
-        const statusModel = resolveTaskStatusModel(config);
-        if (!alive) return;
-        if (!dueKey) {
-          setTasks([]);
-          return;
-        }
-        const out: CalTask[] = [];
-        for (const r of rows as any[]) {
-          const dueRaw = r[dueKey];
-          if (dueRaw == null || dueRaw === "") continue;
-          const due = String(dueRaw).slice(0, 10);
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) continue;
-          const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
-          out.push({
-            path: String(r["file.path"] ?? ""),
-            title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
-            due,
-            done: statusModel ? classifyTaskStatus(statusRaw, statusModel) === true : false,
-          });
-        }
-        setTasks(out);
+        const out = await loadDueTasks({ vaultPath, vaultAdapter, queryService });
+        if (alive) setTasks(out);
       } catch {
         if (alive) setTasks([]);
       }
@@ -231,9 +269,9 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   );
   const weekdayNames = useMemo(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { weekday: "short" });
-    // Cells are Monday-first; 2024-01-01 was a Monday.
-    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
-  }, [i18n.language]);
+    // 2024-01-01 was a Monday (getDay() === 1); rotate to the chosen start.
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + ((weekStartDay - 1 + 7 + i) % 7))));
+  }, [i18n.language, weekStartDay]);
   const dayTitle = useMemo(() => {
     const [y, m, d] = selectedDay.split("-").map(Number);
     return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(
@@ -427,6 +465,89 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const dayTasks = showTasks ? tasksByDay.get(selectedDay) ?? [] : [];
   const viewMonth = viewDate.getMonth();
 
+  // Agenda: upcoming days (events and/or due tasks) inside the rolling range.
+  const agendaDays = useMemo(() => {
+    if (viewMode !== "agenda") return [] as { key: string; events: PimEventRow[]; tasks: CalTask[] }[];
+    const keys = new Set<string>([...byDay.keys(), ...(showTasks ? tasksByDay.keys() : [])]);
+    return [...keys]
+      .filter((k) => k >= todayKey)
+      .sort()
+      .map((k) => ({ key: k, events: byDay.get(k) ?? [], tasks: showTasks ? tasksByDay.get(k) ?? [] : [] }));
+  }, [viewMode, byDay, tasksByDay, showTasks, todayKey]);
+
+  const formatDayLong = useCallback(
+    (key: string) => {
+      const [y, m, d] = key.split("-").map(Number);
+      return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(new Date(y, (m ?? 1) - 1, d ?? 1));
+    },
+    [i18n.language]
+  );
+
+  /** The full event card (times, location, meeting-note/edit/delete actions) —
+   * shared between the month view's day pane and the agenda list. */
+  const eventCard = (e: PimEventRow) => (
+    <div
+      key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+      data-testid="calendar-event"
+      style={{
+        display: "flex",
+        gap: "var(--space-2)",
+        border: "1px solid var(--border-color-light)",
+        borderRadius: "var(--radius-sm)",
+        padding: "var(--space-2)",
+        alignItems: "flex-start",
+      }}
+    >
+      <span aria-hidden style={{ width: 4, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          {e.seriesMaster ? <Repeat size={11} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language)}
+            {calName.get(`${e.accountId} ${e.calendarId}`) ? ` · ${calName.get(`${e.accountId} ${e.calendarId}`)}` : ""}
+          </span>
+        </div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, overflowWrap: "anywhere" }}>{e.title}</div>
+        {e.location ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+            <MapPin size={11} style={{ flexShrink: 0 }} />
+            {e.location}
+          </div>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+        <IconButton
+          label={t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+          onClick={() => void openMeetingNote(e)}
+          data-testid="calendar-meeting-note"
+          size="sm"
+        >
+          <FilePlus2 size={14} />
+        </IconButton>
+        {/* Series instances route through the scope dialog (stage 4). */}
+        <IconButton label={t("pim.editEvent", { defaultValue: "Termin bearbeiten" })} onClick={() => requestEdit(e)} data-testid="calendar-edit-event" size="sm">
+          <Pencil size={13} />
+        </IconButton>
+        <IconButton label={t("pim.deleteEvent", { defaultValue: "Termin löschen" })} onClick={() => requestDelete(e)} data-testid="calendar-delete-event" size="sm">
+          <Trash2 size={13} />
+        </IconButton>
+      </div>
+    </div>
+  );
+
+  const taskRow = (task: CalTask) => (
+    <button
+      key={task.path}
+      type="button"
+      onClick={() => onOpenPath(task.path, false)}
+      data-testid="calendar-task"
+      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px", color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-sm)" }}
+    >
+      {task.done ? <CheckSquare size={14} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={14} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
+    </button>
+  );
+
   if (accounts.length === 0) {
     return (
       <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
@@ -453,7 +574,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
 
   return (
     <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
-      {/* Header: month navigation + status + refresh */}
+      {/* Header: view segment + period navigation + status + refresh */}
       <div
         style={{
           display: "flex",
@@ -464,19 +585,43 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           flexShrink: 0,
         }}
       >
-        <IconButton
-          label={t("calendar.prevMonth", { defaultValue: "Voriger Monat" })}
-          onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-        >
-          <ChevronLeft size={16} />
-        </IconButton>
-        <h2 data-testid="calendar-month-title" style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, minWidth: 170 }}>{monthTitle}</h2>
-        <IconButton
-          label={t("calendar.nextMonth", { defaultValue: "Nächster Monat" })}
-          onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-        >
-          <ChevronRight size={16} />
-        </IconButton>
+        {viewMode !== "agenda" && (
+          <IconButton
+            label={viewMode === "week" ? t("pim.prevWeek", { defaultValue: "Vorige Woche" }) : t("calendar.prevMonth", { defaultValue: "Voriger Monat" })}
+            onClick={() => {
+              if (viewMode === "week") {
+                const prev = new Date(selectedDate.getTime() - 7 * DAY_MS_LOCAL);
+                setSelectedDay(localIsoKey(prev));
+                setViewDate(startOfMonth(prev));
+              } else {
+                setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+              }
+            }}
+            data-testid="calendar-prev"
+          >
+            <ChevronLeft size={16} />
+          </IconButton>
+        )}
+        <h2 data-testid="calendar-month-title" style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, minWidth: 170 }}>
+          {viewMode === "agenda" ? t("pim.viewAgenda", { defaultValue: "Agenda" }) : monthTitle}
+        </h2>
+        {viewMode !== "agenda" && (
+          <IconButton
+            label={viewMode === "week" ? t("pim.nextWeek", { defaultValue: "Nächste Woche" }) : t("calendar.nextMonth", { defaultValue: "Nächster Monat" })}
+            onClick={() => {
+              if (viewMode === "week") {
+                const next = new Date(selectedDate.getTime() + 7 * DAY_MS_LOCAL);
+                setSelectedDay(localIsoKey(next));
+                setViewDate(startOfMonth(next));
+              } else {
+                setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+              }
+            }}
+            data-testid="calendar-next"
+          >
+            <ChevronRight size={16} />
+          </IconButton>
+        )}
         <Button
           variant="ghost"
           onClick={() => {
@@ -486,6 +631,34 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         >
           {t("calendar.today", { defaultValue: "Heute" })}
         </Button>
+        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-secondary)", borderRadius: "var(--radius-pill)", padding: 2, marginLeft: "var(--space-2)" }}>
+          {(
+            [
+              ["month", t("pim.viewMonth", { defaultValue: "Monat" })],
+              ["week", t("pim.viewWeek", { defaultValue: "Woche" })],
+              ["agenda", t("pim.viewAgenda", { defaultValue: "Agenda" })],
+            ] as [CalViewMode, string][]
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              aria-pressed={viewMode === mode}
+              data-testid={`calendar-mode-${mode}`}
+              style={{
+                padding: "0.2rem 0.6rem",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "var(--text-xs)",
+                borderRadius: "var(--radius-pill)",
+                background: viewMode === mode ? "var(--accent-color)" : "transparent",
+                color: viewMode === mode ? "var(--accent-on)" : "var(--text-muted)",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <span style={{ flex: 1 }} />
         {status.status === "syncing" ? (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</span>
@@ -510,6 +683,8 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+        {viewMode === "month" && (
+        <>
         {/* Month grid */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: "var(--space-2)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, flexShrink: 0 }}>
@@ -645,65 +820,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
               {t("pim.noEventsForDay", { defaultValue: "Keine Termine an diesem Tag." })}
             </div>
           ) : (
-            dayEvents.map((e) => (
-              <div
-                key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
-                data-testid="calendar-event"
-                style={{
-                  display: "flex",
-                  gap: "var(--space-2)",
-                  border: "1px solid var(--border-color-light)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "var(--space-2)",
-                  alignItems: "flex-start",
-                }}
-              >
-                <span aria-hidden style={{ width: 4, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                    {e.seriesMaster ? <Repeat size={11} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language)}
-                      {calName.get(`${e.accountId} ${e.calendarId}`) ? ` · ${calName.get(`${e.accountId} ${e.calendarId}`)}` : ""}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, overflowWrap: "anywhere" }}>{e.title}</div>
-                  {e.location ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                      <MapPin size={11} style={{ flexShrink: 0 }} />
-                      {e.location}
-                    </div>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-                  <IconButton
-                    label={t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
-                    onClick={() => void openMeetingNote(e)}
-                    data-testid="calendar-meeting-note"
-                    size="sm"
-                  >
-                    <FilePlus2 size={14} />
-                  </IconButton>
-                  {/* Series instances route through the scope dialog (stage 4). */}
-                  <IconButton
-                    label={t("pim.editEvent", { defaultValue: "Termin bearbeiten" })}
-                    onClick={() => requestEdit(e)}
-                    data-testid="calendar-edit-event"
-                    size="sm"
-                  >
-                    <Pencil size={13} />
-                  </IconButton>
-                  <IconButton
-                    label={t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
-                    onClick={() => requestDelete(e)}
-                    data-testid="calendar-delete-event"
-                    size="sm"
-                  >
-                    <Trash2 size={13} />
-                  </IconButton>
-                </div>
-              </div>
-            ))
+            dayEvents.map(eventCard)
           )}
 
           {dayTasks.length > 0 && (
@@ -711,21 +828,90 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500, marginBottom: "var(--space-1)" }}>
                 <ListChecks size={12} /> {t("pim.calendarTasks", { defaultValue: "Aufgaben" })}
               </div>
-              {dayTasks.map((task) => (
-                <button
-                  key={task.path}
-                  type="button"
-                  onClick={() => onOpenPath(task.path, false)}
-                  data-testid="calendar-task"
-                  style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px", color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-sm)" }}
-                >
-                  {task.done ? <CheckSquare size={14} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={14} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
-                </button>
-              ))}
+              {dayTasks.map(taskRow)}
             </div>
           )}
         </div>
+        </>
+        )}
+
+        {viewMode === "week" && (
+          <div
+            data-testid="calendar-week"
+            style={{ flex: 1, minWidth: 0, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, padding: "var(--space-2)", overflow: "auto", alignItems: "stretch" }}
+          >
+            {weekCells.map((cell) => {
+              const key = localIsoKey(cell);
+              const list = byDay.get(key) ?? [];
+              const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
+              const isToday = key === todayKey;
+              return (
+                <div
+                  key={key}
+                  data-testid={`calendar-weekday-${key}`}
+                  style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "4px 5px", background: "var(--bg-primary)" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: isToday ? 700 : 500, color: isToday ? "var(--accent-color)" : "var(--text-muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric" }).format(cell)}
+                    </span>
+                    {calendarOptions.length > 0 && (
+                      <IconButton
+                        label={t("pim.newEvent", { defaultValue: "Neuer Termin" })}
+                        onClick={() => {
+                          setSelectedDay(key);
+                          setEditState({ mode: "create" });
+                        }}
+                        size="sm"
+                      >
+                        <Plus size={12} />
+                      </IconButton>
+                    )}
+                  </div>
+                  {list.map((e) => (
+                    <button
+                      key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                      type="button"
+                      onClick={() => requestEdit(e)}
+                      data-testid="calendar-week-event"
+                      style={{ display: "flex", alignItems: "flex-start", gap: 4, border: "none", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "3px 4px", cursor: "pointer", textAlign: "left", minWidth: 0 }}
+                    >
+                      <span aria-hidden style={{ width: 3, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
+                      <span style={{ minWidth: 0, overflow: "hidden" }}>
+                        <span style={{ display: "block", fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language)}
+                          {e.seriesMaster ? " ↻" : ""}
+                        </span>
+                        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-main)", overflowWrap: "anywhere" }}>{e.title}</span>
+                      </span>
+                    </button>
+                  ))}
+                  {dayTaskList.map(taskRow)}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {viewMode === "agenda" && (
+          <div data-testid="calendar-agenda" style={{ flex: 1, minWidth: 0, overflow: "auto", padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            {agendaDays.length === 0 ? (
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                {t("pim.agendaEmpty", { defaultValue: "Keine anstehenden Termine." })}
+              </div>
+            ) : (
+              agendaDays.map(({ key, events: evs, tasks: tks }) => (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", maxWidth: 560 }}>
+                  <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: key === todayKey ? "var(--accent-color)" : "var(--text-main)" }}>
+                    {formatDayLong(key)}
+                  </h3>
+                  {evs.map(eventCard)}
+                  {tks.map(taskRow)}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {editState && (

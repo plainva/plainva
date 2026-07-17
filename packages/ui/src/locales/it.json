@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Crea database…",
     "taskDatabaseCreateName": "Nome del database delle attività",
     "taskDatabaseDefaultName": "Attività",
-    "sectionPim": "Calendario e account"
+    "sectionPim": "Calendario e account",
+    "weekStart": "Inizio settimana",
+    "weekStartDesc": "Primo giorno della settimana in tutte le viste del calendario.",
+    "weekStartMonday": "Lunedì",
+    "weekStartSaturday": "Sabato",
+    "weekStartSunday": "Domenica"
   },
   "editor": {
     "fileNotFound": "File non trovato",
@@ -1779,7 +1784,10 @@
     "dbSection": "Database attività",
     "notesSection": "Dalle note",
     "openDb": "Apri come database",
-    "dbEmpty": "Ancora nessuna voce"
+    "dbEmpty": "Ancora nessuna voce",
+    "setStatus": "Cambia stato",
+    "statusUpdateFailed": "Impossibile cambiare lo stato.",
+    "dbDoneKey": "fatto"
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",
@@ -1877,7 +1885,14 @@
     "repeatMonthly": "Mensile",
     "repeatYearly": "Annuale",
     "showTasks": "Mostra attività",
-    "calendarTasks": "Attività"
+    "calendarTasks": "Attività",
+    "viewMonth": "Mese",
+    "viewWeek": "Settimana",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Settimana precedente",
+    "nextWeek": "Settimana successiva",
+    "agendaEmpty": "Nessun evento in arrivo.",
+    "eventsLabel": "Eventi"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, sola lettura)",
@@ -1912,6 +1927,9 @@
     "draftSubject": "Oggetto",
     "draftMailbox": "Cartella bozze",
     "draftSaved": "Bozza salvata nella casella — aprila nel programma di posta per inviarla.",
-    "draftHint": "Plainva non invia mai da solo — la bozza resta nella casella e parte dal tuo programma di posta."
+    "draftHint": "Plainva non invia mai da solo — la bozza resta nella casella e parte dal tuo programma di posta.",
+    "showImages": "Mostra immagini",
+    "loadRemoteImages": "Carica sempre le immagini remote",
+    "loadRemoteImagesHint": "Caricando le immagini remote il mittente vede il tuo indirizzo IP e quando hai aperto la mail (tracciamento). Plainva le blocca per impostazione predefinita — usa “Mostra immagini” per mostrarle per messaggio."
   }
 }

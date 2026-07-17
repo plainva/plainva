@@ -16,7 +16,7 @@ Każde konto wyświetla swoje **kalendarze** (zaznaczone pojawiają się w karci
 
 ## Karta kalendarza
 
-Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Otwórz kalendarz**). Otrzymujesz siatkę miesiąca z Twoimi wydarzeniami (jedna kolorowa kropka na kalendarz) oraz panel dnia z listą wybranego dnia — najpierw wydarzenia całodniowe, potem te z podaną godziną, nazwą kalendarza i miejscem. Widok odświeża się automatycznie co kilka minut; przycisk odświeżania wymusza to natychmiast.
+Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Otwórz kalendarz**). W nagłówku dostępny jest przełącznik trzech widoków: **Miesiąc** pokazuje siatkę z Twoimi wydarzeniami (jedna kolorowa kropka na kalendarz) oraz panel dnia z listą wybranego dnia — najpierw wydarzenia całodniowe, potem te z podaną godziną, nazwą kalendarza i miejscem. **Tydzień** pokazuje siedem kolumn dni z wydarzeniami (a przy włączonej nakładce zadań — także terminami zadań) bezpośrednio w kolumnach — bez dodatkowego panelu dnia; **+** w nagłówku kolumny tworzy wydarzenie tego dnia. **Agenda** wyświetla nadchodzące tygodnie pogrupowane według dnia, z tymi samymi kartami akcji co panel dnia. Pierwszy dzień tygodnia zależy od ustawienia **Początek tygodnia** (Ustawienia → Aplikacja → Wygląd: Poniedziałek, Sobota lub Niedziela) — dotyczy to również kalendarza w pasku bocznym. Widok odświeża się automatycznie co kilka minut; przycisk odświeżania wymusza to natychmiast.
 
 - **Nowe wydarzenie**: **+** w panelu dnia — tytuł, kalendarz, data/godzina lub zakres całodniowy, miejsce oraz opcjonalne, proste **powtarzanie** (codziennie/co tydzień/co miesiąc/co rok).
 - **Edytuj / usuń**: ikony ołówka i kosza przy wydarzeniu. Zmiany są zapisywane u dostawcy z zabezpieczeniem: jeśli wydarzenie zmieniło się w międzyczasie zdalnie, Plainva odświeża widok zamiast go nadpisywać.
@@ -29,7 +29,7 @@ Ikona notatki przy dowolnym wydarzeniu tworzy (lub otwiera ponownie) jego **nota
 
 ## Zewnętrzne listy zadań w Twojej bazie zadań
 
-Zaznacz **listę zadań** przy połączonym koncie, a jej zadania pojawią się jako notatki w Twojej [domyślnej bazie zadań](Tasks.md): tytuł staje się notatką (H1), termin trafia do kolumny daty w bazie danych, a ukończenie odwzorowuje się na kolumnę statusu (pierwsza opcja = otwarte, ostatnia opcja = zrobione). Synchronizacja jest dwukierunkowa i działa dla poszczególnych pól:
+Zaznacz **listę zadań** przy połączonym koncie, a jej zadania pojawią się jako notatki w Twojej [domyślnej bazie zadań](Tasks.md): tytuł staje się notatką (H1), termin trafia do kolumny daty w bazie danych, a ukończenie odwzorowuje się na **właściwość pola wyboru zrobione** bazy danych (kolumna statusu podąża za tą zmianą; baza danych bez kolumny pola wyboru korzysta z konwencji statusu — pierwsza opcja = otwarte, ostatnia = zrobione). Synchronizacja jest dwukierunkowa i działa dla poszczególnych pól:
 
 - Edytujesz notatkę (tytuł, termin, status) → zmiana jest wysyłana do dostawcy.
 - Zmieniasz zadanie zdalnie → notatka podąża za zmianą.

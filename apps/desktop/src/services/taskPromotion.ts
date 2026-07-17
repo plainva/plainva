@@ -196,6 +196,10 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
     const value = typeof first === "string" ? first : first?.value;
     if (value) prefills[statusKey] = value;
   }
+  // A done CHECKBOX column (the database's completion truth) mirrors the
+  // promoted checkbox's state directly.
+  const doneKey = findColumnKey(config, (c) => c.input === "checkbox");
+  if (doneKey) prefills[doneKey] = task.done;
   prefills.source = `[[${wikiTargetForPath(sourcePath, allNotePaths)}]]`;
 
   const inheritTags = [...new Set([...(target.inheritTags ?? []), ...task.tags])];

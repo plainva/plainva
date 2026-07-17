@@ -16,7 +16,7 @@ Chaque compte liste ses **calendriers** (ceux cochés apparaissent dans l'onglet
 
 ## L'onglet calendrier
 
-Ouvrez-le depuis la barre d'actions à gauche (icône calendrier) ou la palette de commandes (**Ouvrir le calendrier**). Vous obtenez une grille mensuelle avec vos événements (un point coloré par calendrier) et un panneau du jour listant le jour sélectionné — les événements toute la journée d'abord, puis ceux avec horaire, indiquant l'heure, le nom du calendrier et le lieu. La vue s'actualise automatiquement toutes les quelques minutes ; le bouton d'actualisation la force.
+Ouvrez-le depuis la barre d'actions à gauche (icône calendrier) ou la palette de commandes (**Ouvrir le calendrier**). Trois vues sont disponibles via le sélecteur dans l'en-tête : **Mois** affiche une grille avec vos événements (un point coloré par calendrier) plus un panneau du jour listant le jour sélectionné — les événements toute la journée d'abord, puis ceux avec horaire, indiquant l'heure, le nom du calendrier et le lieu. **Semaine** affiche sept colonnes de jours avec les événements (et, si la superposition des tâches est activée, les tâches à échéance) directement dans les colonnes — sans panneau du jour supplémentaire ; le **+** dans l'en-tête d'une colonne crée un événement ce jour-là. **Agenda** liste les semaines à venir regroupées par jour, avec les mêmes cartes d'action que le panneau du jour. Le premier jour de la semaine suit le paramètre **Début de la semaine** (Paramètres → App → Apparence : Lundi, Samedi ou Dimanche) — il s'applique aussi au calendrier de la barre latérale. La vue s'actualise automatiquement toutes les quelques minutes ; le bouton d'actualisation la force.
 
 - **Nouvel événement** : le **+** dans le panneau du jour — titre, calendrier, date/heure ou plage toute la journée, lieu, et une **répétition** simple optionnelle (Quotidien/Hebdomadaire/Mensuel/Annuel).
 - **Modifier / supprimer** : les icônes crayon et corbeille sur un événement. Les modifications sont envoyées au fournisseur avec une vérification de sécurité : si l'événement a changé à distance entre-temps, Plainva actualise la vue au lieu d'écraser.
@@ -29,7 +29,7 @@ L'icône de note sur n'importe quel événement crée (ou rouvre) sa **note de r
 
 ## Listes de tâches externes dans votre base de tâches
 
-Cochez une **liste de tâches** sur un compte connecté, et ses tâches apparaissent comme des notes dans votre [base de tâches par défaut](Tasks.md) : le titre devient la note (H1), la date d'échéance atterrit dans la colonne de date de la base de données, et l'état terminé se reflète dans la colonne de statut (première option = ouvert, dernière option = terminé). La synchronisation est bidirectionnelle, champ par champ :
+Cochez une **liste de tâches** sur un compte connecté, et ses tâches apparaissent comme des notes dans votre [base de tâches par défaut](Tasks.md) : le titre devient la note (H1), la date d'échéance atterrit dans la colonne de date de la base de données, et l'état terminé se reflète dans la **propriété de case à cocher terminé** de la base de données (la colonne de statut la suit ; une base de données sans colonne de case à cocher utilise la convention de statut — première option = ouvert, dernière = terminé). La synchronisation est bidirectionnelle, champ par champ :
 
 - Modifiez la note (titre, échéance, statut) → la modification est poussée vers le fournisseur.
 - Modifiez la tâche à distance → la note suit.

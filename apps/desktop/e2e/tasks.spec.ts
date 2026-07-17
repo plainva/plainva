@@ -192,7 +192,7 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
     .toContain('- [x] buy milk');
 
   // It leaves the "open" filter; switching to "All" shows it again.
-  await page.getByRole('button', { name: /^(All|Alle)$/ }).click();
+  await page.getByTestId('tasks-filter-all').click();
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /done thing/ })).toBeVisible();
 });
@@ -307,16 +307,104 @@ test('the database section marks completed entries done and the status filter ap
 
   // Switch to "done": the completed entry shows and is marked done (glyph state),
   // the open one is now hidden — the filter genuinely reaches the DB section.
-  await page.getByRole('button', { name: /^(Done|Erledigt)$/ }).click();
+  await page.getByTestId('tasks-filter-done').click();
   const doneRow = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Finished task' });
   await expect(doneRow).toBeVisible();
   await expect(doneRow).toHaveAttribute('data-done', '1');
   await expect(dbSection.getByRole('button', { name: /Open task/ })).toHaveCount(0);
 
   // "All" shows both, the open one classified as not-done.
-  await page.getByRole('button', { name: /^(All|Alle)$/ }).click();
+  await page.getByTestId('tasks-filter-all').click();
   await expect(dbSection.getByRole('button', { name: /Open task/ })).toBeVisible();
   await expect(dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Open task' })).toHaveAttribute('data-done', '0');
+});
+
+test('the database-section status is editable inline (toggle + option menu) and written to the note', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = '---\nstatus: Offen\n---\n# Steuer\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
+  await expect(row).toBeVisible();
+
+  // Checkbox toggle: open -> done writes the LAST status option to the note.
+  await row.getByTestId('task-db-toggle').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('status: Erledigt');
+
+  // The row left the default "open" filter; switch to done to reach the chip.
+  await page.getByTestId('tasks-filter-done').click();
+  await expect(row).toHaveAttribute('data-done', '1');
+
+  // Status chip opens the option menu; picking the intermediate option writes it.
+  await row.getByTestId('task-db-status-chip').click();
+  const menu = page.getByRole('menu', { name: /Change status|Status ändern/ });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'In Arbeit' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('status: In Arbeit');
+});
+
+const CHECKBOX_TASK_DB_YAML = `properties:
+  note.erledigt:
+    plainva:
+      input: checkbox
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: In Arbeit
+        - value: Erledigt
+  note.frist:
+    plainva:
+      input: date
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - file.name
+      - note.erledigt
+      - note.status
+      - note.frist
+filters:
+  and:
+    - file.folder == "Aufgaben"
+`;
+
+test('with a done-checkbox column the overview checkbox writes the CHECKBOX property (status coupled)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = '---\nerledigt: false\nstatus: Offen\n---\n# Steuer\n';
+  }, CHECKBOX_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
+  await expect(row).toBeVisible();
+  await expect(row).toHaveAttribute('data-done', '0');
+
+  // The overview checkbox IS the note's checkbox property: toggling writes
+  // `erledigt: true` AND couples the status to the done option.
+  await row.getByTestId('task-db-toggle').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('erledigt: true');
+  const note = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']);
+  expect(note).toContain('status: Erledigt');
 });
 
 test('without a standard database the promote button offers the database picker', async ({ page }) => {

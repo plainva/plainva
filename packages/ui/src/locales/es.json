@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Crear base de datos…",
     "taskDatabaseCreateName": "Nombre de la base de datos de tareas",
     "taskDatabaseDefaultName": "Tareas",
-    "sectionPim": "Calendario y cuentas"
+    "sectionPim": "Calendario y cuentas",
+    "weekStart": "Inicio de semana",
+    "weekStartDesc": "Primer día de la semana en todas las vistas de calendario.",
+    "weekStartMonday": "Lunes",
+    "weekStartSaturday": "Sábado",
+    "weekStartSunday": "Domingo"
   },
   "editor": {
     "fileNotFound": "Archivo no encontrado",
@@ -1779,7 +1784,10 @@
     "dbSection": "Base de datos de tareas",
     "notesSection": "Desde notas",
     "openDb": "Abrir como base de datos",
-    "dbEmpty": "Aún no hay entradas"
+    "dbEmpty": "Aún no hay entradas",
+    "setStatus": "Cambiar estado",
+    "statusUpdateFailed": "No se pudo cambiar el estado.",
+    "dbDoneKey": "hecho"
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",
@@ -1877,7 +1885,14 @@
     "repeatMonthly": "Mensual",
     "repeatYearly": "Anual",
     "showTasks": "Mostrar tareas",
-    "calendarTasks": "Tareas"
+    "calendarTasks": "Tareas",
+    "viewMonth": "Mes",
+    "viewWeek": "Semana",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Semana anterior",
+    "nextWeek": "Semana siguiente",
+    "agendaEmpty": "No hay eventos próximos.",
+    "eventsLabel": "Eventos"
   },
   "mail": {
     "sectionTitle": "Correo (IMAP, solo lectura)",
@@ -1912,6 +1927,9 @@
     "draftSubject": "Asunto",
     "draftMailbox": "Carpeta de borradores",
     "draftSaved": "Borrador guardado en el buzón — ábrelo en tu programa de correo para enviarlo.",
-    "draftHint": "Plainva nunca envía por sí mismo — el borrador queda en el buzón y se envía desde tu programa de correo."
+    "draftHint": "Plainva nunca envía por sí mismo — el borrador queda en el buzón y se envía desde tu programa de correo.",
+    "showImages": "Mostrar imágenes",
+    "loadRemoteImages": "Cargar siempre las imágenes remotas",
+    "loadRemoteImagesHint": "Al cargar imágenes remotas, el remitente ve tu dirección IP y cuándo abriste el correo (rastreo). Plainva las bloquea por defecto — usa “Mostrar imágenes” para mostrarlas por mensaje."
   }
 }

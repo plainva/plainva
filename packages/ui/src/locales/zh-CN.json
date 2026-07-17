@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "新建数据库…",
     "taskDatabaseCreateName": "任务数据库名称",
     "taskDatabaseDefaultName": "任务",
-    "sectionPim": "日历与账户"
+    "sectionPim": "日历与账户",
+    "weekStart": "每周开始于",
+    "weekStartDesc": "所有日历视图中一周的第一天。",
+    "weekStartMonday": "周一",
+    "weekStartSaturday": "周六",
+    "weekStartSunday": "周日"
   },
   "editor": {
     "fileNotFound": "未找到文件",
@@ -1767,7 +1772,10 @@
     "dbSection": "任务数据库",
     "notesSection": "来自笔记",
     "openDb": "作为数据库打开",
-    "dbEmpty": "暂无条目"
+    "dbEmpty": "暂无条目",
+    "setStatus": "更改状态",
+    "statusUpdateFailed": "无法更改状态。",
+    "dbDoneKey": "done"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",
@@ -1865,7 +1873,14 @@
     "repeatMonthly": "每月",
     "repeatYearly": "每年",
     "showTasks": "显示任务",
-    "calendarTasks": "任务"
+    "calendarTasks": "任务",
+    "viewMonth": "月",
+    "viewWeek": "周",
+    "viewAgenda": "议程",
+    "prevWeek": "上一周",
+    "nextWeek": "下一周",
+    "agendaEmpty": "没有即将到来的日程。",
+    "eventsLabel": "日程"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",
@@ -1900,6 +1915,9 @@
     "draftSubject": "主题",
     "draftMailbox": "草稿文件夹",
     "draftSaved": "草稿已保存到邮箱——请在邮件程序中打开并发送。",
-    "draftHint": "Plainva 从不自行发送——草稿保存在邮箱中，由你的邮件程序发送。"
+    "draftHint": "Plainva 从不自行发送——草稿保存在邮箱中，由你的邮件程序发送。",
+    "showImages": "显示图片",
+    "loadRemoteImages": "始终加载外部图片",
+    "loadRemoteImagesHint": "加载外部图片会让发件人看到你的 IP 地址和打开邮件的时间（跟踪）。Plainva 默认阻止它们——可通过“显示图片”按邮件显示。"
   }
 }

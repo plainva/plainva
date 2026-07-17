@@ -50,9 +50,9 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 
 ## Dagelijkse notities
 
-**Dagnotitie openen** (of een klik op een datum in de **Kalender** rechts) opent of maakt de notitie van vandaag. Stel de basismap, het datumformaat en een optioneel sjabloon in onder **Instellingen → Vault → Inhoud en structuur** (met **Map kiezen…** naast het veld kies je de map direct in de vault).
+De knop **Dagnotitie** in de actiebalk links opent of maakt de notitie van vandaag. Stel de basismap, het datumformaat en een optioneel sjabloon in onder **Instellingen → Vault → Inhoud en structuur** (met **Map kiezen…** naast het veld kies je de map direct in de vault).
 
-In de kalender brengt de knop **Vandaag** je terug naar de huidige maand; een klik op het maandlabel opent een snelkeuze voor maand en jaar. Daar schakel je ook **Weeknummers tonen** in om een ISO-weekkolom toe te voegen — de instelling wordt onthouden.
+De **Kalender** rechts is een dagoverzicht: een klik op een datum opent een klein voorbeeld met de afspraken en taken met vervaldatum van die dag, plus de actie **Dagnotitie**; een rechtsklik biedt hetzelfde als menu. Dagen met een dagnotitie dragen een klein zonsopgang-icoon, dagen met afspraken kleurpunten per agenda. De knop **Vandaag** brengt je terug naar de huidige maand; een klik op het maandlabel opent een snelkeuze voor maand en jaar. Daar schakel je ook **Weeknummers tonen** in om een ISO-weekkolom toe te voegen — de instelling wordt onthouden.
 
 ## Instellingen
 

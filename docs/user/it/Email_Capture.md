@@ -12,7 +12,7 @@ Plainva può leggere la tua casella di posta — e solo leggerla — per estrarr
 
 Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mail) o dalla palette dei comandi (**Apri e-mail**). L'elenco mostra la tua posta in arrivo dalla più recente (non lette in grassetto, **Carica altro** procede oltre). Selezionare un messaggio lo apre in un **visualizzatore sandbox**:
 
-- **I contenuti remoti sono bloccati** — i pixel di tracciamento, le immagini remote e i caricatori di stile vengono rimossi e conteggiati ("Contenuti remoti bloccati (n)"). Vengono visualizzate solo le immagini inline autonome.
+- **I contenuti remoti sono bloccati** — i pixel di tracciamento, le immagini remote e i caricatori di stile vengono rimossi e conteggiati ("Contenuti remoti bloccati (n)"). Vengono visualizzate solo le immagini inline autonome. **Mostra immagini** accanto al contatore rivela una tantum le immagini https del messaggio; **Carica sempre le immagini remote** nelle impostazioni della posta trasforma questo in un'opzione permanente. Attenzione: caricare le immagini remote permette al mittente di vedere il tuo indirizzo IP e quando hai aperto l'e-mail — per questo il blocco è l'impostazione predefinita.
 - I link vengono mostrati come testo semplice e non sono cliccabili all'interno del visualizzatore.
 - Gli script e i moduli non vengono mai eseguiti. Il messaggio viene visualizzato in un frame isolato con criteri di contenuto rigidi.
 

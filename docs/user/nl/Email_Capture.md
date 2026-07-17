@@ -12,7 +12,7 @@ Plainva kan je mailbox lezen — en alleen lezen —, om kennis uit e-mail naar 
 
 Open het e-mailtabblad via de actiebalk uiterst links (brief-icoon) of het opdrachtenpalet (**E-mail openen**). De lijst toont je inbox, nieuwste eerst (ongelezen vetgedrukt, met **Meer laden** blader je verder). Een geselecteerd bericht opent in een **sandbox-viewer**:
 
-- **Externe inhoud wordt geblokkeerd** — tracking-pixels, externe afbeeldingen en extern geladen stijlen worden verwijderd en geteld ("Externe inhoud geblokkeerd (n)"). Alleen zelfstandige inline-afbeeldingen worden getoond.
+- **Externe inhoud wordt geblokkeerd** — tracking-pixels, externe afbeeldingen en extern geladen stijlen worden verwijderd en geteld ("Externe inhoud geblokkeerd (n)"). Alleen zelfstandige inline-afbeeldingen worden getoond. **Afbeeldingen tonen** naast de teller toont de https-afbeeldingen van een bericht eenmalig; **Externe afbeeldingen altijd laden** in de e-mailinstellingen maakt daar een blijvende opt-in van. Let op: bij het laden van externe afbeeldingen ziet de afzender je IP-adres en wanneer je de mail opende — daarom is blokkeren de standaardinstelling.
 - Links worden als platte tekst getoond en zijn in de viewer niet aanklikbaar.
 - Scripts en formulieren worden nooit uitgevoerd. Het bericht wordt weergegeven in een geïsoleerd frame met een strikt inhoudsbeleid.
 

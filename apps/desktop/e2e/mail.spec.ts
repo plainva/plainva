@@ -189,6 +189,22 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   expect(srcdoc).not.toContain('tracker.example.org');
   expect(srcdoc).toContain("default-src 'none'");
 
+  // Per-message opt-in: "Show images" re-renders with https images allowed
+  // (sanitizer + frame CSP in lock-step); the button disappears afterwards.
+  await page.getByTestId('mail-show-images').click();
+  await expect
+    .poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc'))
+    .toContain('tracker.example.org');
+  expect(await page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('img-src data: https:');
+  await expect(page.getByTestId('mail-show-images')).toHaveCount(0);
+
+  // Re-opening a message resets the one-shot reveal (blocked again).
+  await rows.first().click();
+  await expect
+    .poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc'))
+    .not.toContain('tracker.example.org');
+  await expect(page.getByTestId('mail-show-images')).toBeVisible();
+
   // Capture as note: the anchored Email note lands in Mail/ and opens.
   await page.getByTestId('mail-capture-note').click();
   await expect

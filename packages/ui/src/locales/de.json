@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Neue Datenbank anlegen…",
     "taskDatabaseCreateName": "Name der Aufgabendatenbank",
     "taskDatabaseDefaultName": "Aufgaben",
-    "sectionPim": "Kalender & Konten"
+    "sectionPim": "Kalender & Konten",
+    "weekStart": "Wochenbeginn",
+    "weekStartDesc": "Erster Wochentag in allen Kalender-Ansichten.",
+    "weekStartMonday": "Montag",
+    "weekStartSaturday": "Samstag",
+    "weekStartSunday": "Sonntag"
   },
   "editor": {
     "fileNotFound": "Datei nicht gefunden",
@@ -1773,7 +1778,10 @@
     "dbSection": "Aufgaben-Datenbank",
     "notesSection": "Aus Notizen",
     "openDb": "Als Datenbank öffnen",
-    "dbEmpty": "Noch keine Einträge"
+    "dbEmpty": "Noch keine Einträge",
+    "setStatus": "Status ändern",
+    "statusUpdateFailed": "Status konnte nicht geändert werden.",
+    "dbDoneKey": "erledigt"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",
@@ -1871,7 +1879,14 @@
     "repeatMonthly": "Monatlich",
     "repeatYearly": "Jährlich",
     "showTasks": "Aufgaben anzeigen",
-    "calendarTasks": "Aufgaben"
+    "calendarTasks": "Aufgaben",
+    "viewMonth": "Monat",
+    "viewWeek": "Woche",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Vorige Woche",
+    "nextWeek": "Nächste Woche",
+    "agendaEmpty": "Keine anstehenden Termine.",
+    "eventsLabel": "Termine"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",
@@ -1906,6 +1921,9 @@
     "draftSubject": "Betreff",
     "draftMailbox": "Entwurfsordner",
     "draftSaved": "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen.",
-    "draftHint": "Plainva sendet nie selbst — der Entwurf landet im Postfach und wird im Mail-Programm verschickt."
+    "draftHint": "Plainva sendet nie selbst — der Entwurf landet im Postfach und wird im Mail-Programm verschickt.",
+    "showImages": "Bilder anzeigen",
+    "loadRemoteImages": "Externe Bilder immer laden",
+    "loadRemoteImagesHint": "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden."
   }
 }

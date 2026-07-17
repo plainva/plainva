@@ -418,6 +418,41 @@ test('the calendar optionally overlays due tasks from the standard task database
   await expect(page.getByTestId('calendar-day-tasks')).toBeVisible();
 });
 
+test('week and agenda views: segment switch, week columns without day pane, agenda groups', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+
+  // Month is the default: grid + day pane visible.
+  await expect(page.getByTestId('calendar-grid')).toBeVisible();
+  await expect(page.getByTestId('calendar-day-pane')).toBeVisible();
+
+  // Week: 7 day columns, today's column carries the timed event, NO day pane.
+  await page.getByTestId('calendar-mode-week').click();
+  await expect(page.getByTestId('calendar-week')).toBeVisible();
+  await expect(page.getByTestId('calendar-day-pane')).toHaveCount(0);
+  const todayCol = page.getByTestId(`calendar-weekday-${todayKey}`);
+  await expect(todayCol.getByTestId('calendar-week-event').filter({ hasText: 'Standup' })).toBeVisible();
+
+  // Clicking a week event opens the edit dialog (single event -> no scope prompt).
+  await todayCol.getByTestId('calendar-week-event').filter({ hasText: 'Standup' }).click();
+  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
+  await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+
+  // Agenda: grouped upcoming list carries today's events with full action cards.
+  await page.getByTestId('calendar-mode-agenda').click();
+  await expect(page.getByTestId('calendar-agenda')).toBeVisible();
+  await expect(page.getByTestId('calendar-week')).toHaveCount(0);
+  await expect(page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
+
+  // The chosen view persists across a reload.
+  await page.reload();
+  await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-agenda')).toBeVisible();
+});
+
 test('calendar tab without accounts shows the empty state and opens settings', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__pimAccounts = [];

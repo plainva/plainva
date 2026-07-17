@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Create new database…",
     "taskDatabaseCreateName": "Name of the task database",
     "taskDatabaseDefaultName": "Tasks",
-    "sectionPim": "Calendar & accounts"
+    "sectionPim": "Calendar & accounts",
+    "weekStart": "Week starts on",
+    "weekStartDesc": "First day of the week in all calendar views.",
+    "weekStartMonday": "Monday",
+    "weekStartSaturday": "Saturday",
+    "weekStartSunday": "Sunday"
   },
   "editor": {
     "fileNotFound": "File not found",
@@ -1773,7 +1778,10 @@
     "dbSection": "Task database",
     "notesSection": "From notes",
     "openDb": "Open as database",
-    "dbEmpty": "No entries yet"
+    "dbEmpty": "No entries yet",
+    "setStatus": "Change status",
+    "statusUpdateFailed": "Could not change the status.",
+    "dbDoneKey": "done"
   },
   "findReplace": {
     "title": "Find & replace in vault",
@@ -1871,7 +1879,14 @@
     "repeatMonthly": "Monthly",
     "repeatYearly": "Yearly",
     "showTasks": "Show tasks",
-    "calendarTasks": "Tasks"
+    "calendarTasks": "Tasks",
+    "viewMonth": "Month",
+    "viewWeek": "Week",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "agendaEmpty": "No upcoming events.",
+    "eventsLabel": "Events"
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",
@@ -1906,6 +1921,9 @@
     "draftSubject": "Subject",
     "draftMailbox": "Drafts folder",
     "draftSaved": "Draft stored in the mailbox — open your mail program to send it.",
-    "draftHint": "Plainva never sends itself — the draft lands in the mailbox and is sent from your mail program."
+    "draftHint": "Plainva never sends itself — the draft lands in the mailbox and is sent from your mail program.",
+    "showImages": "Show images",
+    "loadRemoteImages": "Always load remote images",
+    "loadRemoteImagesHint": "Loading remote images lets the sender see your IP address and when you opened the mail (tracking). Plainva blocks them by default — use “Show images” to reveal them per message."
   }
 }

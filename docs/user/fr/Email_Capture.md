@@ -12,7 +12,7 @@ Plainva peut lire votre boîte aux lettres — et seulement la lire — pour fai
 
 Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou la palette de commandes (**Ouvrir les e-mails**). La liste montre votre boîte de réception du plus récent au plus ancien (non lus en gras, **Charger plus** charge la suite). Sélectionner un message l'ouvre dans une **visionneuse cloisonnée** :
 
-- **Le contenu distant est bloqué** — pixels de suivi, images distantes et chargeurs de style sont retirés et comptés (« Contenu distant bloqué (n) »). Seules les images intégrées s'affichent.
+- **Le contenu distant est bloqué** — pixels de suivi, images distantes et chargeurs de style sont retirés et comptés (« Contenu distant bloqué (n) »). Seules les images intégrées s'affichent. **Afficher les images**, à côté du compteur, révèle une fois les images https d'un message ; **Toujours charger les images distantes**, dans les paramètres e-mail, transforme cela en option permanente. Attention : charger les images distantes permet à l'expéditeur de voir votre adresse IP et le moment où vous avez ouvert le message — c'est pourquoi le blocage est activé par défaut.
 - Les liens apparaissent en texte brut et ne sont pas cliquables dans la visionneuse.
 - Les scripts et les formulaires ne s'exécutent jamais. Le message est affiché dans un cadre isolé avec une politique de contenu stricte.
 

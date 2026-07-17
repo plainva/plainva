@@ -16,7 +16,7 @@ Jedes Konto zeigt seine **Kalender** (angehakte erscheinen im Kalender-Tab) und 
 
 ## Der Kalender-Tab
 
-Öffne ihn über die linke Aktionsleiste (Kalender-Symbol) oder die Befehlspalette (**Kalender öffnen**). Du bekommst ein Monatsraster mit Deinen Terminen (ein Farbpunkt je Kalender) und eine Tagesliste zum gewählten Tag — ganztägige Termine zuerst, dann die mit Uhrzeit, Kalendername und Ort. Die Ansicht aktualisiert sich alle paar Minuten von selbst; **Jetzt aktualisieren** erzwingt es.
+Öffne ihn über die linke Aktionsleiste (Kalender-Symbol) oder die Befehlspalette (**Kalender öffnen**). Über den Umschalter im Kopf stehen drei Ansichten bereit: **Monat** zeigt ein Raster mit Deinen Terminen (ein Farbpunkt je Kalender) plus eine Tagesliste zum gewählten Tag — ganztägige Termine zuerst, dann die mit Uhrzeit, Kalendername und Ort. **Woche** zeigt sieben Tagesspalten mit den Terminen (und bei eingeschaltetem Aufgaben-Overlay den fälligen Aufgaben) direkt in den Spalten — ohne extra Tagesliste; das **+** im Spaltenkopf legt einen Termin an diesem Tag an. **Agenda** listet die kommenden Wochen nach Tagen gruppiert, mit denselben Aktions-Karten wie die Tagesliste. Der erste Wochentag folgt der Einstellung **Wochenbeginn** (Einstellungen → App → Erscheinungsbild: Montag, Samstag oder Sonntag) — sie gilt auch für den Seitenleisten-Kalender. Die Ansicht aktualisiert sich alle paar Minuten von selbst; **Jetzt aktualisieren** erzwingt es.
 
 - **Neuer Termin**: das **+** in der Tagesliste — Titel, Kalender, Datum/Uhrzeit oder ganztägiger Zeitraum, Ort und optional eine einfache **Wiederholung** (Täglich/Wöchentlich/Monatlich/Jährlich).
 - **Bearbeiten / Löschen**: die Stift- und Papierkorb-Symbole am Termin. Änderungen gehen mit einer Sicherheitsprüfung an den Anbieter: hat sich der Termin zwischenzeitlich extern geändert, aktualisiert Plainva die Ansicht, statt zu überschreiben.
@@ -29,7 +29,7 @@ Das Notiz-Symbol an einem Termin erstellt (oder öffnet erneut) seine **Meeting-
 
 ## Externe Aufgabenlisten in Deiner Aufgabendatenbank
 
-Hake bei einem verbundenen Konto eine **Aufgabenliste** an, und ihre Aufgaben erscheinen als Notizen in Deiner [Standard-Aufgabendatenbank](Tasks.md): der Titel wird die Notiz (H1), die Fälligkeit landet in der Datums-Spalte, und „erledigt" bildet sich über die Status-Spalte ab (erste Option = offen, letzte Option = erledigt). Der Abgleich läuft in beide Richtungen, Feld für Feld:
+Hake bei einem verbundenen Konto eine **Aufgabenliste** an, und ihre Aufgaben erscheinen als Notizen in Deiner [Standard-Aufgabendatenbank](Tasks.md): der Titel wird die Notiz (H1), die Fälligkeit landet in der Datums-Spalte, und „erledigt" bildet sich über die **Erledigt-Checkbox-Eigenschaft** der Datenbank ab (die Status-Spalte folgt ihr; eine Datenbank ohne Checkbox-Spalte nutzt die Status-Konvention — erste Option = offen, letzte = erledigt). Der Abgleich läuft in beide Richtungen, Feld für Feld:
 
 - Bearbeitest Du die Notiz (Titel, Fälligkeit, Status) → die Änderung geht an den Anbieter.
 - Ändert sich die Aufgabe extern → die Notiz zieht nach.

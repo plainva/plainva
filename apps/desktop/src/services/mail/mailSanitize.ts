@@ -30,19 +30,41 @@ export interface SanitizedEmail {
   blockedRemote: number;
 }
 
+export interface SanitizeEmailOptions {
+  /** Explicit user opt-in (per message or the global setting): https: image
+   * sources are allowed to load. This is the ONLY relaxation — loading a
+   * remote image is by definition a tracking beacon (sender sees IP and open
+   * time), which is why the default stays blocked. Everything else (scripts,
+   * forms, css url(), srcset/poster/background, non-https schemes, links)
+   * remains hard-blocked even with the opt-in. */
+  allowRemoteImages?: boolean;
+}
+
 const FETCHING_ATTRS = new Set(["src", "srcset", "poster", "background", "xlink:href", "action", "formaction", "ping"]);
 const DATA_IMAGE = /^\s*data:image\//i;
+const HTTPS_URL = /^\s*https:\/\//i;
 
-export function sanitizeEmailHtml(raw: string): SanitizedEmail {
+export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): SanitizedEmail {
   let blockedRemote = 0;
+  const allowRemoteImages = options?.allowRemoteImages === true;
 
-  const hook = (_node: unknown, data: { attrName: string; attrValue: string; keepAttr: boolean }) => {
+  const hook = (node: unknown, data: { attrName: string; attrValue: string; keepAttr: boolean }) => {
     const name = data.attrName.toLowerCase();
     const value = data.attrValue ?? "";
     if (FETCHING_ATTRS.has(name)) {
       // Only self-contained data: images may load; everything else is a
       // network fetch (tracking) or a foreign scheme — cut and count.
       if (name === "src" && DATA_IMAGE.test(value)) return;
+      // Opt-in: https images on actual <img> elements (never srcset/poster/
+      // background, never other schemes — the frame CSP mirrors this).
+      if (
+        allowRemoteImages &&
+        name === "src" &&
+        HTTPS_URL.test(value) &&
+        String((node as Element | null)?.tagName ?? "").toLowerCase() === "img"
+      ) {
+        return;
+      }
       blockedRemote++;
       data.keepAttr = false;
       return;
@@ -75,11 +97,14 @@ export function sanitizeEmailHtml(raw: string): SanitizedEmail {
   return { html, blockedRemote };
 }
 
-/** Full srcdoc for the sandboxed iframe: hardened CSP + readable defaults. */
-export function buildMailFrameDoc(sanitizedHtml: string): string {
+/** Full srcdoc for the sandboxed iframe: hardened CSP + readable defaults.
+ * With the remote-image opt-in the CSP widens img-src to https: — exactly
+ * mirroring what the sanitizer lets through; everything else stays 'none'. */
+export function buildMailFrameDoc(sanitizedHtml: string, options?: SanitizeEmailOptions): string {
+  const imgSrc = options?.allowRemoteImages ? "data: https:" : "data:";
   return (
     `<!doctype html><html><head>` +
-    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">` +
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imgSrc}; style-src 'unsafe-inline'">` +
     `<style>body{font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;margin:12px;word-break:break-word;color:#222;background:#fff}` +
     `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`

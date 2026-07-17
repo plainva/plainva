@@ -2,6 +2,7 @@ import {
   readFrontmatterPath,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
+  setFrontmatterPath,
   type PimAccountRow,
   type PimCacheRepository,
   type PimTask,
@@ -11,7 +12,7 @@ import {
 } from "@plainva/core";
 import { parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
 import { buildNewItemContent } from "../newItemFlow";
-import { taskDbFileStem, resolveTaskStatusModel, classifyTaskStatus, type TaskStatusModel } from "../taskDatabase";
+import { taskDbFileStem, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../taskDatabase";
 import { findColumnKey } from "../taskPromotion";
 
 /**
@@ -67,7 +68,9 @@ interface DbShape {
   inheritTags: string[];
   templatePath: string | null;
   dueKey: string | null;
-  status: TaskStatusModel | null;
+  /** How the database expresses "done" (checkbox column preferred, else the
+   * status-option convention) — see taskDatabase.resolveTaskCompletionModel. */
+  completion: TaskCompletionModel | null;
 }
 
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
@@ -242,7 +245,7 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
     inheritTags: target.inheritTags ?? [],
     templatePath: typeof config.newItemTemplate === "string" ? config.newItemTemplate : null,
     dueKey,
-    status: resolveTaskStatusModel(config),
+    completion: resolveTaskCompletionModel(config),
   };
 }
 
@@ -264,7 +267,14 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, accountId: str
   }
   const prefills: Record<string, any> = {};
   if (db.dueKey && task.due) prefills[db.dueKey] = task.due;
-  if (db.status) prefills[db.status.key] = task.completed ? db.status.done : db.status.open;
+  if (db.completion) {
+    if (db.completion.kind === "checkbox") {
+      prefills[db.completion.key] = task.completed;
+      if (db.completion.status) prefills[db.completion.status.key] = task.completed ? db.completion.status.done : db.completion.status.open;
+    } else {
+      prefills[db.completion.status.key] = task.completed ? db.completion.status.done : db.completion.status.open;
+    }
+  }
   let content = buildNewItemContent({ templateText, noteType: opts.noteType, title: task.title || "Task", inheritTags: db.inheritTags, prefills });
   try {
     content = upsertFrontmatterKeys(content, { plainva: { pim: { kind: "task", uid: task.uid, account: accountId, list: listId } } });
@@ -312,30 +322,38 @@ export function fieldsEqual(a: PimTaskFields, b: PimTaskFields): boolean {
 }
 
 /** Local field surface of a task note: first H1 as the title (fallback empty),
- * the database's date column as due, the status column classified against the
- * shared model as completed. An empty or unrecognized status is ambiguous — it
- * falls back to `fallbackCompleted` (the base state) instead of "open", so it
- * can never un-complete the remote task. */
+ * the database's date column as due, the completion model (checkbox column
+ * preferred, else status options) as completed. An empty or unrecognized value
+ * is ambiguous — it falls back to `fallbackCompleted` (the base state) instead
+ * of "open", so it can never un-complete the remote task. */
 export function readNoteFields(
   content: string,
-  db: Pick<DbShape, "dueKey" | "status">,
+  db: Pick<DbShape, "dueKey" | "completion">,
   fallbackCompleted = false
 ): PimTaskFields {
   const dueRaw = db.dueKey ? readFrontmatterPath(content, [db.dueKey]) : undefined;
   const due = dueRaw != null && String(dueRaw).trim() ? String(dueRaw).slice(0, 10) : null;
   let completed = fallbackCompleted;
-  if (db.status) {
-    const statusRaw = readFrontmatterPath(content, [db.status.key]);
-    const cls = classifyTaskStatus(statusRaw == null ? null : String(statusRaw), db.status);
+  if (db.completion) {
+    const model = db.completion;
+    const cls = classifyTaskCompletion(model, {
+      checkbox: model.kind === "checkbox" ? readFrontmatterPath(content, [model.key]) : undefined,
+      status: (() => {
+        const statusKey = model.kind === "checkbox" ? model.status?.key : model.status.key;
+        const raw = statusKey ? readFrontmatterPath(content, [statusKey]) : null;
+        return raw == null ? null : String(raw);
+      })(),
+    });
     completed = cls ?? fallbackCompleted;
   }
   return { title: firstH1(content) ?? "", due, completed };
 }
 
-/** Applies merged fields to the note: H1 rewrite, due upsert/removal, status
- * flip. The status only flips when `completed` actually changed — an
- * intermediate option ("In Arbeit") is never clobbered by completed=false. */
-export function applyFieldsToNote(content: string, merged: PimTaskFields, current: PimTaskFields, db: Pick<DbShape, "dueKey" | "status">): string {
+/** Applies merged fields to the note: H1 rewrite, due upsert/removal,
+ * completion flip through the shared write path (checkbox + coupled status).
+ * Completion only flips when it actually changed — an intermediate status
+ * option ("In Arbeit") is never clobbered by completed=false. */
+export function applyFieldsToNote(content: string, merged: PimTaskFields, current: PimTaskFields, db: Pick<DbShape, "dueKey" | "completion">): string {
   let out = content;
   if (merged.title !== current.title && merged.title) {
     out = replaceFirstH1(out, merged.title);
@@ -344,8 +362,8 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
     if (db.dueKey && merged.due !== current.due) {
       out = merged.due ? upsertFrontmatterKeys(out, { [db.dueKey]: merged.due }) : deleteFrontmatterPath(out, [db.dueKey]);
     }
-    if (db.status && merged.completed !== current.completed) {
-      out = upsertFrontmatterKeys(out, { [db.status.key]: merged.completed ? db.status.done : db.status.open });
+    if (db.completion && merged.completed !== current.completed) {
+      out = applyTaskCompletion(out, db.completion, merged.completed, (c, p) => readFrontmatterPath(c, p), (c, p, v) => setFrontmatterPath(c, p, v));
     }
   } catch {
     /* surgical frontmatter failed — leave the body change in place */

@@ -70,4 +70,36 @@ describe("sanitizeEmailHtml", () => {
     expect(doc).toContain("img-src data:");
     expect(doc).toContain("<p>x</p>");
   });
+
+  it("remote-image opt-in allows https <img src> ONLY — everything else stays blocked", () => {
+    const raw =
+      `<img src="https://cdn.example.org/pic.png">` +
+      `<img src="http://insecure.example.org/pic.png">` + // http never loads
+      `<img srcset="https://cdn.example.org/pic-2x.png 2x" src="data:image/png;base64,AAAA">` + // srcset stays blocked
+      `<video poster="https://cdn.example.org/poster.jpg"></video>` +
+      `<div style="background-image:url('https://t.example/px')">X</div>` +
+      `<a href="https://phish.example.org/login">Link</a>`;
+    const { html, blockedRemote } = sanitizeEmailHtml(raw, { allowRemoteImages: true });
+    expect(html).toContain(`src="https://cdn.example.org/pic.png"`);
+    expect(html).not.toContain("insecure.example.org");
+    expect(html).not.toContain("srcset");
+    expect(html).not.toContain("poster.jpg");
+    expect(html).not.toContain("t.example");
+    expect(html).not.toContain("href=");
+    // http img + srcset + poster + css url() were blocked and counted.
+    expect(blockedRemote).toBe(4);
+  });
+
+  it("without the opt-in the same https image stays blocked (default)", () => {
+    const { html, blockedRemote } = sanitizeEmailHtml(`<img src="https://cdn.example.org/pic.png">`);
+    expect(html).not.toContain("cdn.example.org");
+    expect(blockedRemote).toBe(1);
+  });
+
+  it("the opt-in widens the frame CSP to https images, nothing else", () => {
+    const doc = buildMailFrameDoc("<p>x</p>", { allowRemoteImages: true });
+    expect(doc).toContain(`default-src 'none'`);
+    expect(doc).toContain("img-src data: https:");
+    expect(doc).not.toContain("script-src");
+  });
 });

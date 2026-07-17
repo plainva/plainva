@@ -30,6 +30,7 @@ const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ de
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
@@ -1271,6 +1272,10 @@ function App() {
           onOpenPath={openInFocusedPane}
           onOpenPathInSplit={(path) => openPathInSplit(path, "vertical")}
           onSelectDate={handleOpenDailyNote}
+          onOpenCalendarDay={(dayKey) => {
+            requestCalendarDay(dayKey);
+            openInFocusedPane(CALENDAR_TAB_PATH, true);
+          }}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}

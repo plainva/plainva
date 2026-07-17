@@ -234,7 +234,12 @@
     "taskDatabaseCreate": "Criar banco de dados…",
     "taskDatabaseCreateName": "Nome do banco de tarefas",
     "taskDatabaseDefaultName": "Tarefas",
-    "sectionPim": "Calendário e contas"
+    "sectionPim": "Calendário e contas",
+    "weekStart": "Início da semana",
+    "weekStartDesc": "Primeiro dia da semana em todas as visualizações de calendário.",
+    "weekStartMonday": "Segunda-feira",
+    "weekStartSaturday": "Sábado",
+    "weekStartSunday": "Domingo"
   },
   "editor": {
     "fileNotFound": "Arquivo não encontrado",
@@ -1779,7 +1784,10 @@
     "dbSection": "Banco de tarefas",
     "notesSection": "Das notas",
     "openDb": "Abrir como banco de dados",
-    "dbEmpty": "Nenhuma entrada ainda"
+    "dbEmpty": "Nenhuma entrada ainda",
+    "setStatus": "Alterar status",
+    "statusUpdateFailed": "Não foi possível alterar o status.",
+    "dbDoneKey": "feito"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",
@@ -1877,7 +1885,14 @@
     "repeatMonthly": "Mensal",
     "repeatYearly": "Anual",
     "showTasks": "Mostrar tarefas",
-    "calendarTasks": "Tarefas"
+    "calendarTasks": "Tarefas",
+    "viewMonth": "Mês",
+    "viewWeek": "Semana",
+    "viewAgenda": "Agenda",
+    "prevWeek": "Semana anterior",
+    "nextWeek": "Próxima semana",
+    "agendaEmpty": "Nenhum evento futuro.",
+    "eventsLabel": "Eventos"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, somente leitura)",
@@ -1912,6 +1927,9 @@
     "draftSubject": "Assunto",
     "draftMailbox": "Pasta de rascunhos",
     "draftSaved": "Rascunho salvo na caixa — abra seu programa de e-mail para enviar.",
-    "draftHint": "O Plainva nunca envia sozinho — o rascunho fica na caixa e é enviado pelo seu programa de e-mail."
+    "draftHint": "O Plainva nunca envia sozinho — o rascunho fica na caixa e é enviado pelo seu programa de e-mail.",
+    "showImages": "Mostrar imagens",
+    "loadRemoteImages": "Sempre carregar imagens remotas",
+    "loadRemoteImagesHint": "Ao carregar imagens remotas, o remetente vê seu endereço IP e quando você abriu o e-mail (rastreamento). O Plainva as bloqueia por padrão — use “Mostrar imagens” para exibi-las por mensagem."
   }
 }
