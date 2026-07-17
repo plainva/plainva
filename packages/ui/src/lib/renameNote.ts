@@ -6,6 +6,7 @@ import {
   type FrontmatterLinkRename,
   type VaultQueryService,
 } from "@plainva/core";
+import { sweepPinboardRefs } from "../base/pinboardSweep";
 
 /**
  * Rename a note and retarget every vault link that pointed at it (wikilinks,
@@ -69,7 +70,18 @@ export async function renameFileWithLinkUpdates(opts: {
 
   await adapter.renameItem(oldPath, newPath);
 
-  if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed, changedPaths: [] };
+  // Pinboard arrangements carry vault-relative PATHS (plan Pinboard P5):
+  // retarget them in every affected `.base` so the card keeps its position and
+  // pin. Shared here so desktop and mobile renames sweep alike (the
+  // templateFor lesson); failures never block the rename.
+  let sweptBases: string[] = [];
+  try {
+    sweptBases = await sweepPinboardRefs({ adapter, queryService }, [{ from: oldPath, to: newPath }]);
+  } catch (e) {
+    console.warn("[renameNote] pinboard sweep failed", e);
+  }
+
+  if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed, changedPaths: sweptBases };
 
   const newBasename = newPath.split(/[/\\]/).pop()!;
   const isNote = newBasename.toLowerCase().endsWith(".md");
@@ -159,5 +171,6 @@ export async function renameFileWithLinkUpdates(opts: {
     }
   }
 
+  for (const p of sweptBases) if (!changedPaths.includes(p)) changedPaths.push(p);
   return { renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
 }

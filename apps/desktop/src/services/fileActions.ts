@@ -1,5 +1,5 @@
 import { isTextFile, type VaultQueryService } from "@plainva/core";
-import { retargetTemplateForInFolder } from "@plainva/ui";
+import { retargetTemplateForInFolder, sweepPinboardRefs } from "@plainva/ui";
 import { copyCandidate } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
@@ -94,7 +94,20 @@ export async function renameToName(opts: {
     return { ok: true, newPath, renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
   }
   await adapter.renameItem(oldPath, newPath);
-  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths: [] };
+  // Folder renames change every descendant path: retarget pinboard
+  // arrangements (they store vault-relative paths, plan Pinboard P5).
+  // Attachments sweep as an exact move — a no-op unless a board lists them.
+  let changedPaths: string[] = [];
+  try {
+    changedPaths = await sweepPinboardRefs(
+      { adapter, queryService },
+      isFolder ? [] : [{ from: oldPath, to: newPath }],
+      isFolder ? [{ from: oldPath, to: newPath }] : [],
+    );
+  } catch (e) {
+    console.warn("[fileActions] pinboard sweep after rename failed", e);
+  }
+  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths };
 }
 
 /** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */

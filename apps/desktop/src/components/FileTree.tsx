@@ -21,6 +21,7 @@ import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { sweepPinboardRefs } from "@plainva/ui";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
 import { isImagePath } from "@plainva/ui";
@@ -1042,6 +1043,21 @@ export const FileTree: React.FC<{
       }
     }
     if (movedOps.length > 0) {
+      // Pinboard arrangements store vault-relative paths — retarget them for
+      // every move (plan Pinboard P5; folder moves rewrite by prefix). Moves
+      // deliberately do no link rewrite, so this is the only path fix-up.
+      let sweptBases: string[] = [];
+      if (vaultAdapter) {
+        try {
+          sweptBases = await sweepPinboardRefs(
+            { adapter: vaultAdapter, queryService },
+            movedOps.filter((o) => !o.isFolder).map((o) => ({ from: o.from, to: o.to })),
+            movedOps.filter((o) => o.isFolder).map((o) => ({ from: o.from, to: o.to })),
+          );
+        } catch (err) {
+          console.warn("[FileTree] pinboard sweep after move failed", err);
+        }
+      }
       if (indexer) {
         // A moved folder changes many descendant paths → full scan; moved files
         // just relocate (moves keep raw paths, no vault-wide link rewrite).
@@ -1049,7 +1065,7 @@ export const FileTree: React.FC<{
         await applyIndexChanges(indexer, {
           needsFullScan: anyFolder,
           removed: anyFolder ? [] : movedOps.map((o) => o.from),
-          added: anyFolder ? [] : movedOps.map((o) => o.to),
+          added: anyFolder ? [] : [...movedOps.map((o) => o.to), ...sweptBases],
         });
       }
       triggerFileTreeUpdate();

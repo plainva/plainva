@@ -344,6 +344,12 @@ test.beforeEach(async ({ page }) => {
           if (query.includes('l.property_key = ?')) {
             return dbLinks.filter(l => l.property_key === values[0]).map(l => ({ ...l }));
           }
+          // Pinboard path sweep (P5): the base list for sweepPinboardRefs.
+          if (query.includes(`WHERE path LIKE '%.base'`)) {
+            return Object.keys(fs)
+              .filter(p => !fs[p].isDir && p.endsWith('.base'))
+              .map(p => ({ path: p.replace('/test-vault/', '') }));
+          }
           // Pinboard card data (plan Pinboard P2/P3): body from the FTS mirror
           // (read LIVE from mockFs so checkbox writes show up on re-query),
           // ctime from the files table, tags via the file join.
@@ -455,6 +461,22 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:fs|mkdir') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           fs[p] = { isDir: true };
+          return null;
+        }
+        if (cmd === 'plugin:fs|rename') {
+          const from = String(args.oldPath).replace(/\/$/, '');
+          const to = String(args.newPath).replace(/\/$/, '');
+          if (fs[from] !== undefined) {
+            fs[to] = fs[from];
+            delete fs[from];
+          }
+          const relFrom = from.replace('/test-vault/', '');
+          const relTo = to.replace('/test-vault/', '');
+          const row = dbFiles.find(f => f.path === relFrom);
+          if (row) {
+            row.path = relTo;
+            row.title = relTo.split('/').pop()!.replace(/\.md$/i, '');
+          }
           return null;
         }
         if (cmd === 'plugin:fs|watch') return 1;
@@ -1504,6 +1526,40 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
     .toContain('Zettel/Idee.md');
+});
+
+test('pinboard: renaming a note in the tree retargets its pinned arrangement in the .base (P5 sweep)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+
+  // Pin the Idee card so the arrangement carries its path.
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee.md');
+
+  // Rename the note through the file tree (inline rename) — the shared
+  // renameFileWithLinkUpdates sweep must rewrite the pinboard path.
+  const tree = page.getByTestId('file-tree');
+  await tree.getByText('Zettel', { exact: true }).click();
+  // The mock index titles carry the relative path, so the row reads "Zettel/Idee".
+  await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
+  await page.getByText(/^(Umbenennen|Rename)$/).click();
+  const field = tree.locator('input');
+  await expect(field).toBeVisible();
+  await field.fill('Idee Neu');
+  await field.press('Enter');
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee Neu.md');
+  const baseText = await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']);
+  expect(baseText).not.toContain('Zettel/Idee.md');
+  await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Idee Neu.md'] !== undefined);
 });
 
 test('pinboard: chip bar filters by tags (AND, session-local) and quick capture creates a note', async ({ page }) => {

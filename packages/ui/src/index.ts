@@ -50,6 +50,7 @@ export * from "./base/boardOrder";
 export * from "./base/filterExpr";
 export * from "./base/newItemNaming";
 export * from "./base/pinboardModel";
+export * from "./base/pinboardSweep";
 export * from "./base/propertyModel";
 export * from "./base/deleteProperty";
 export * from "./base/renameProperty";
