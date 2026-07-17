@@ -1898,6 +1898,18 @@
     "captureNote": "Salvar como nota",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Tarefa",
-    "fromLabel": "De"
+    "fromLabel": "De",
+    "replyNote": "Responder como nota",
+    "copyAsEmail": "Copiar nota como texto de e-mail",
+    "copied": "Texto formatado copiado — cole no seu programa de e-mail.",
+    "sendViaMailto": "Enviar nota por e-mail (mailto)",
+    "mailtoTruncated": "O texto foi encurtado para o mailto.",
+    "saveDraft": "Salvar nota como rascunho na caixa de correio",
+    "draftTitle": "Salvar rascunho de e-mail",
+    "draftTo": "Para",
+    "draftSubject": "Assunto",
+    "draftMailbox": "Pasta de rascunhos",
+    "draftSaved": "Rascunho salvo na caixa — abra seu programa de e-mail para enviar.",
+    "draftHint": "O Plainva nunca envia sozinho — o rascunho fica na caixa e é enviado pelo seu programa de e-mail."
   }
 }

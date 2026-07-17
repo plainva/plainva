@@ -1892,6 +1892,18 @@
     "captureNote": "Save as note",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Task",
-    "fromLabel": "From"
+    "fromLabel": "From",
+    "replyNote": "Reply as note",
+    "copyAsEmail": "Copy note as email text",
+    "copied": "Formatted text copied — paste it into your mail program.",
+    "sendViaMailto": "Send note via email (mailto)",
+    "mailtoTruncated": "The text was shortened for mailto.",
+    "saveDraft": "Save note as email draft in the mailbox",
+    "draftTitle": "Save email draft",
+    "draftTo": "To",
+    "draftSubject": "Subject",
+    "draftMailbox": "Drafts folder",
+    "draftSaved": "Draft stored in the mailbox — open your mail program to send it.",
+    "draftHint": "Plainva never sends itself — the draft lands in the mailbox and is sent from your mail program."
   }
 }

@@ -1898,6 +1898,18 @@
     "captureNote": "Salva come nota",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Attività",
-    "fromLabel": "Da"
+    "fromLabel": "Da",
+    "replyNote": "Rispondi come nota",
+    "copyAsEmail": "Copia la nota come testo e-mail",
+    "copied": "Testo formattato copiato — incollalo nel tuo programma di posta.",
+    "sendViaMailto": "Invia la nota via e-mail (mailto)",
+    "mailtoTruncated": "Il testo è stato accorciato per mailto.",
+    "saveDraft": "Salva la nota come bozza nella casella",
+    "draftTitle": "Salva bozza e-mail",
+    "draftTo": "A",
+    "draftSubject": "Oggetto",
+    "draftMailbox": "Cartella bozze",
+    "draftSaved": "Bozza salvata nella casella — aprila nel programma di posta per inviarla.",
+    "draftHint": "Plainva non invia mai da solo — la bozza resta nella casella e parte dal tuo programma di posta."
   }
 }

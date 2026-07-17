@@ -1898,6 +1898,18 @@
     "captureNote": "Enregistrer comme note",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Tâche",
-    "fromLabel": "De"
+    "fromLabel": "De",
+    "replyNote": "Répondre comme note",
+    "copyAsEmail": "Copier la note comme texte d’e-mail",
+    "copied": "Texte formaté copié — collez-le dans votre logiciel de messagerie.",
+    "sendViaMailto": "Envoyer la note par e-mail (mailto)",
+    "mailtoTruncated": "Le texte a été raccourci pour mailto.",
+    "saveDraft": "Enregistrer la note comme brouillon dans la boîte",
+    "draftTitle": "Enregistrer le brouillon d’e-mail",
+    "draftTo": "À",
+    "draftSubject": "Objet",
+    "draftMailbox": "Dossier des brouillons",
+    "draftSaved": "Brouillon enregistré dans la boîte — ouvrez votre messagerie pour l’envoyer.",
+    "draftHint": "Plainva n’envoie jamais lui-même — le brouillon arrive dans la boîte et part depuis votre messagerie."
   }
 }

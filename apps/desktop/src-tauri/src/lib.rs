@@ -359,7 +359,8 @@ pub fn run() {
             mail_imap::mail_list_envelopes,
             mail_imap::mail_fetch_message,
             mail_imap::mail_fetch_raw,
-            mail_imap::mail_fetch_attachment
+            mail_imap::mail_fetch_attachment,
+            mail_imap::mail_append_draft
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

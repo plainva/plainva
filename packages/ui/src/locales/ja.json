@@ -1886,6 +1886,18 @@
     "captureNote": "ノートとして保存",
     "captureWithEml": "+ .eml",
     "captureTask": "→ タスク",
-    "fromLabel": "差出人"
+    "fromLabel": "差出人",
+    "replyNote": "ノートとして返信",
+    "copyAsEmail": "ノートをメール本文としてコピー",
+    "copied": "書式付きテキストをコピーしました — メールソフトに貼り付けてください。",
+    "sendViaMailto": "メールでノートを送る（mailto）",
+    "mailtoTruncated": "mailto 用に本文を短縮しました。",
+    "saveDraft": "ノートをメールボックスの下書きとして保存",
+    "draftTitle": "メールの下書きを保存",
+    "draftTo": "宛先",
+    "draftSubject": "件名",
+    "draftMailbox": "下書きフォルダー",
+    "draftSaved": "下書きをメールボックスに保存しました — メールソフトで開いて送信してください。",
+    "draftHint": "Plainva 自身は送信しません — 下書きはメールボックスに保存され、メールソフトから送信します。"
   }
 }

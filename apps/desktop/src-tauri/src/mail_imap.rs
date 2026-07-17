@@ -318,11 +318,71 @@ pub async fn mail_fetch_attachment(
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
+/// Builds the draft MIME (multipart/alternative when HTML is present;
+/// RFC 2047 header encoding via mail-builder). Extracted for the roundtrip
+/// unit test below.
+fn build_draft_mime(to: &str, subject: &str, text: &str, html: Option<&str>) -> Result<Vec<u8>, String> {
+    let mut builder = mail_builder::MessageBuilder::new()
+        .to(to.to_string())
+        .subject(subject.to_string())
+        .text_body(text.to_string());
+    if let Some(html) = html {
+        builder = builder.html_body(html.to_string());
+    }
+    builder
+        .write_to_vec()
+        .map_err(|e| format!("mime build failed: {e}"))
+}
+
+/// Stage 6 "Mail-raus": stores a DRAFT in the user's own mailbox via IMAP
+/// APPEND with the \Draft flag — the user's regular mail program opens and
+/// SENDS it. Plainva deliberately never speaks SMTP (no sender reputation,
+/// no deliverability surface); this is the whole point of the design.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_append_draft(
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+    mailbox: String,
+    to: String,
+    subject: String,
+    text: String,
+    html: Option<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mime = build_draft_mime(&to, &subject, &text, html.as_deref())?;
+        let mut session = open_session(&host, port, &user, &pass)?;
+        session
+            .append_with_flags(&mailbox, &mime, &[imap::types::Flag::Draft])
+            .map_err(|e| format!("append failed: {e}"))?;
+        let _ = session.logout();
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const SAMPLE: &[u8] = b"From: Anna Beispiel <anna@example.org>\r\nTo: marco@example.org\r\nSubject: =?utf-8?q?Gr=C3=BC=C3=9Fe?=\r\nDate: Mon, 20 Jul 2026 10:00:00 +0200\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo Welt\r\n--B\r\nContent-Type: application/pdf; name=doc.pdf\r\nContent-Disposition: attachment; filename=doc.pdf\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERi0=\r\n--B--\r\n";
+
+    #[test]
+    fn draft_mime_roundtrips_through_the_parser() {
+        let mime = build_draft_mime("empfaenger@example.org", "Grüße aus Plainva", "Hallo Welt", Some("<p>Hallo <b>Welt</b></p>"))
+            .expect("builds");
+        let parsed = parse_message(&mime).expect("parses");
+        assert_eq!(header_text(&parsed, mail_parser::HeaderName::Subject), "Grüße aus Plainva");
+        assert_eq!(
+            address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
+            "empfaenger@example.org"
+        );
+        assert_eq!(parsed.body_text(0).as_deref(), Some("Hallo Welt"));
+        assert!(parsed.body_html(0).expect("html part").contains("<b>Welt</b>"));
+    }
 
     #[test]
     fn parses_rfc2047_headers_bodies_and_attachments() {

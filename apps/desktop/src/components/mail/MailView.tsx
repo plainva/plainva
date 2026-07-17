@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FilePlus2, FileText, ListChecks, Mail, Paperclip, RefreshCw, ShieldOff } from "lucide-react";
+import { FilePlus2, FileText, ListChecks, Mail, Paperclip, RefreshCw, Reply, ShieldOff } from "lucide-react";
 import { Button, EmptyState, IconButton, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -9,7 +9,8 @@ import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listEnvelopes, fetchMessage, fetchRawMessage, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
-import { captureMailAsNote, saveEmlFile, mailDayKey } from "../../services/mail/mailCapture";
+import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
+import { buildReplyNoteContent } from "../../services/mail/mailOut";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
 import { findColumnKey } from "../../services/taskPromotion";
@@ -181,6 +182,26 @@ export function MailView({ onOpenPath }: MailViewProps) {
     }
   }, [vaultPath, vaultAdapter, account, message, indexer, triggerFileTreeUpdate, onOpenPath, t]);
 
+  const replyAsNote = useCallback(async () => {
+    if (!vaultAdapter || !message) return;
+    try {
+      const folder = await mailFolder();
+      const dir = folder.replace(/^\/+|\/+$/g, "");
+      const prefix = dir ? dir + "/" : "";
+      const dayKey = mailDayKey({ dateTs: Date.now() });
+      const stem = mailNoteStem(dayKey, `Re ${message.subject.trim().replace(/^(re|aw|antw):\s*/i, "") || "E-Mail"}`);
+      let path = prefix + stem + ".md";
+      for (let n = 2; await vaultAdapter.exists(path); n++) path = prefix + `${stem} ${n}.md`;
+      if (dir) await vaultAdapter.createDir(dir).catch(() => undefined);
+      await vaultAdapter.writeTextFile(path, buildReplyNoteContent(message, dayKey));
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+      triggerFileTreeUpdate([path]);
+      onOpenPath(path, true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath]);
+
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
 
   if (accounts.length === 0) {
@@ -299,6 +320,9 @@ export function MailView({ onOpenPath }: MailViewProps) {
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => void captureTask()} data-testid="mail-capture-task" icon={<ListChecks size={13} />}>
                   {t("mail.captureTask", { defaultValue: "→ Aufgabe" })}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void replyAsNote()} data-testid="mail-reply-note" icon={<Reply size={13} />}>
+                  {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
                 </Button>
               </div>
               {message.attachments.length > 0 && (

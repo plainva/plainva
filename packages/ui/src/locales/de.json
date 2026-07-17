@@ -1892,6 +1892,18 @@
     "captureNote": "Als Notiz ablegen",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Aufgabe",
-    "fromLabel": "Von"
+    "fromLabel": "Von",
+    "replyNote": "Antwort als Notiz",
+    "copyAsEmail": "Notiz als E-Mail-Text kopieren",
+    "copied": "Formatierter Text kopiert — im Mail-Programm einfügen.",
+    "sendViaMailto": "Notiz per E-Mail senden (mailto)",
+    "mailtoTruncated": "Der Text wurde für mailto gekürzt.",
+    "saveDraft": "Notiz als E-Mail-Entwurf ins Postfach",
+    "draftTitle": "E-Mail-Entwurf ablegen",
+    "draftTo": "An",
+    "draftSubject": "Betreff",
+    "draftMailbox": "Entwurfsordner",
+    "draftSaved": "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen.",
+    "draftHint": "Plainva sendet nie selbst — der Entwurf landet im Postfach und wird im Mail-Programm verschickt."
   }
 }

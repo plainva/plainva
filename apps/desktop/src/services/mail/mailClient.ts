@@ -59,6 +59,11 @@ export async function checkMailLogin(account: Omit<MailAccountConfig, "id" | "la
   });
 }
 
+/** Mailbox list of a STORED account (the draft dialog's folder picker). */
+export async function listMailboxesFor(vaultPath: string, account: MailAccountConfig): Promise<MailboxInfo[]> {
+  return invoke<MailboxInfo[]>("mail_check_login", await creds(vaultPath, account));
+}
+
 export async function listEnvelopes(
   vaultPath: string,
   account: MailAccountConfig,

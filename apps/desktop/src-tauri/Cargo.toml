@@ -57,6 +57,9 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 webpki-roots = "0.26"
 # RFC 5322/2047/MIME parsing (headers, multipart bodies, attachments).
 mail-parser = "0.11"
+# MIME construction for the stage-6 IMAP-APPEND draft (multipart/alternative
+# with correct RFC 2047 header encoding — hand-rolling that invites bugs).
+mail-builder = "0.4"
 
 [dev-dependencies]
 tempfile = "3.27.0"

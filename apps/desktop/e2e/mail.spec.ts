@@ -69,6 +69,13 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('mail_m1_')) return JSON.stringify({ pass: 'app-pw' });
           return null;
         }
+        if (cmd === 'mail_check_login') {
+          return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }];
+        }
+        if (cmd === 'mail_append_draft') {
+          (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
+          return null;
+        }
         if (cmd === 'mail_list_envelopes') {
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
           return { total: envelopes.length, messages: envelopes };
@@ -203,6 +210,54 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   expect(noteContent).toContain('# Rechnung Q3');
   expect(noteContent).toContain('anbei die Rechnung.');
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+});
+
+test('mail-out: reply-as-note quotes the original; the draft dialog appends via IMAP', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  // Reply as note: a "Re" note in Mail/ addressed at the sender, original quoted.
+  await page.getByTestId('mail-reply-note').click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const fs = (window as any).mockFs;
+        return Object.keys(fs).find((p) => p.includes('/Mail/') && p.includes('Re Rechnung')) ?? null;
+      })
+    )
+    .toBeTruthy();
+  const reply = await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    const p = Object.keys(fs).find((k) => k.includes('/Mail/') && k.includes('Re Rechnung'))!;
+    return fs[p];
+  });
+  expect(reply).toContain('# Re: Rechnung Q3');
+  expect(reply).toContain('to: Anna Beispiel <anna@example.org>');
+  expect(reply).toContain('> anbei die Rechnung.');
+
+  // Draft dialog from the command palette on the open reply note: prefilled
+  // subject, guessed drafts folder, and the append call carries both bodies.
+  // (The mail-out commands are gated on an ACTIVE markdown note — wait for
+  // the reply note's editor before opening the palette.)
+  await expect(page.locator('.cm-content').getByText('Re: Rechnung Q3').first()).toBeVisible();
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await (await import('@playwright/test')).expect(palette).toBeVisible();
+  await palette.getByRole('textbox').fill('draft');
+  await palette.getByRole('button', { name: /email draft|E-Mail-Entwurf/i }).click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Re Rechnung/);
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-save').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null)).toBeTruthy();
+  const appended = await page.evaluate(() => (window as any).__appendedDraft);
+  expect(appended.mailbox).toBe('Entwürfe');
+  expect(appended.to).toBe('anna@example.org');
+  expect(appended.text).toContain('anbei die Rechnung.');
+  expect(appended.html).toContain('<blockquote>');
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });
 
 test('mail tab without accounts shows the empty state and opens settings', async ({ page }) => {

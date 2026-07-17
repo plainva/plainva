@@ -27,6 +27,7 @@ const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').th
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
+const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { BaseViewer } from "./components/BaseViewer";
@@ -89,6 +90,8 @@ function App() {
   }, []);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
+  // Mail-raus (stage 6): the draft dialog is prefilled from the active note.
+  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string } | null>(null);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -1391,11 +1394,70 @@ function App() {
                 })
                 .catch((e) => console.error("[App] saving note as template failed", e));
             },
+            // Mail-raus (stage 6): three SMTP-free ways out of the vault.
+            copyNoteAsEmail: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const { noteToClipboardFlavors } = await import("./services/mail/mailOut");
+                  const flavors = noteToClipboardFlavors(content);
+                  await navigator.clipboard.write([
+                    new ClipboardItem({
+                      "text/html": new Blob([flavors.html], { type: "text/html" }),
+                      "text/plain": new Blob([flavors.text], { type: "text/plain" }),
+                    }),
+                  ]);
+                  toast.info(t("mail.copied", { defaultValue: "Formatierter Text kopiert — im Mail-Programm einfügen." }));
+                } catch (e) {
+                  console.error("[App] copy as email failed", e);
+                }
+              })();
+            },
+            sendNoteViaMailto: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const [{ buildMailtoUrl }, { markdownToPlainText }, { openUrl }] = await Promise.all([
+                    import("./services/mail/mailOut"),
+                    import("@plainva/ui"),
+                    import("@tauri-apps/plugin-opener"),
+                  ]);
+                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+                  const res = buildMailtoUrl(title, markdownToPlainText(content));
+                  if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
+                  await openUrl(res.url);
+                } catch (e) {
+                  console.error("[App] mailto failed", e);
+                }
+              })();
+            },
+            saveNoteAsMailDraft: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+                  setMailDraft({ subject: title, markdown: content });
+                } catch (e) {
+                  console.error("[App] draft prefill failed", e);
+                }
+              })();
+            },
           })}
         />
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+        {mailDraft && (
+          <Suspense fallback={null}>
+            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} onClose={() => setMailDraft(null)} />
+          </Suspense>
+        )}
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />

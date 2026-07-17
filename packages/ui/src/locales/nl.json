@@ -1892,6 +1892,18 @@
     "captureNote": "Opslaan als notitie",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Taak",
-    "fromLabel": "Van"
+    "fromLabel": "Van",
+    "replyNote": "Beantwoorden als notitie",
+    "copyAsEmail": "Notitie als e-mailtekst kopiëren",
+    "copied": "Opgemaakte tekst gekopieerd — plak deze in je mailprogramma.",
+    "sendViaMailto": "Notitie per e-mail versturen (mailto)",
+    "mailtoTruncated": "De tekst is ingekort voor mailto.",
+    "saveDraft": "Notitie als e-mailconcept in de mailbox opslaan",
+    "draftTitle": "E-mailconcept opslaan",
+    "draftTo": "Aan",
+    "draftSubject": "Onderwerp",
+    "draftMailbox": "Conceptenmap",
+    "draftSaved": "Concept in de mailbox opgeslagen — open je mailprogramma om het te versturen.",
+    "draftHint": "Plainva verstuurt nooit zelf — het concept komt in de mailbox en wordt vanuit je mailprogramma verzonden."
   }
 }
