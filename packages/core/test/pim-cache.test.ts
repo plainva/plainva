@@ -108,6 +108,18 @@ describe("PimCacheRepository", () => {
     expect(rows).toEqual([]);
   });
 
+  it("getEventByUid returns the MASTER row that listEvents excludes (series-scope actions)", async () => {
+    await repo.replaceEventWindow("acc1", "cal1", 0, Date.parse("2027-01-01T00:00:00Z"), [
+      ev("master", "2026-08-03T09:00:00Z", "2026-08-03T09:15:00Z", { recurrence: "RRULE:FREQ=WEEKLY", etag: '"m1"', href: "https://x/series.ics" }),
+      ev("inst", "2026-08-10T09:00:00Z", "2026-08-10T09:15:00Z", { seriesMaster: "master" }),
+    ]);
+    const master = await repo.getEventByUid("acc1", "cal1", "master");
+    expect(master?.recurrence).toBe("RRULE:FREQ=WEEKLY");
+    expect(master?.etag).toBe('"m1"');
+    expect(master?.href).toBe("https://x/series.ics");
+    expect(await repo.getEventByUid("acc1", "cal1", "missing")).toBeNull();
+  });
+
   it("keeps the user's calendar/tasklist selection across refreshes", async () => {
     await repo.setCalendarSelected("acc1", "cal1", false);
     await repo.replaceCalendars("acc1", [

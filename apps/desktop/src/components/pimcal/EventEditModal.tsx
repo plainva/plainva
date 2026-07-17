@@ -148,6 +148,25 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             style={{ display: "block", width: "100%", marginTop: 2 }}
           />
         </label>
+        {mode === "create" && (
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>
+              {t("pim.repeat", { defaultValue: "Wiederholung" })}
+            </label>
+            <Select
+              ariaLabel={t("pim.repeat", { defaultValue: "Wiederholung" })}
+              value={values.repeat}
+              onChange={(v) => set("repeat", v as EventFormValues["repeat"])}
+              options={[
+                { value: "", label: t("pim.repeatNone", { defaultValue: "Nie" }) },
+                { value: "daily", label: t("pim.repeatDaily", { defaultValue: "Täglich" }) },
+                { value: "weekly", label: t("pim.repeatWeekly", { defaultValue: "Wöchentlich" }) },
+                { value: "monthly", label: t("pim.repeatMonthly", { defaultValue: "Monatlich" }) },
+                { value: "yearly", label: t("pim.repeatYearly", { defaultValue: "Jährlich" }) },
+              ]}
+            />
+          </div>
+        )}
         {error && (
           <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0 }} data-testid="event-error">
             {error}

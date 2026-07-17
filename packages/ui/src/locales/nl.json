@@ -1858,6 +1858,17 @@
     "eventLocation": "Locatie",
     "eventConflict": "De afspraak is extern gewijzigd — weergave vernieuwd.",
     "eventWriteFailed": "Opslaan bij de provider is mislukt.",
-    "noWritableCalendar": "Geen beschrijfbare agenda geselecteerd."
+    "noWritableCalendar": "Geen beschrijfbare agenda geselecteerd.",
+    "seriesTitle": "Terugkerende afspraak",
+    "seriesEditMsg": "“{{title}}” maakt deel uit van een reeks. Wat wil je bewerken?",
+    "seriesDeleteMsg": "“{{title}}” maakt deel uit van een reeks. Wat wil je verwijderen?",
+    "seriesThis": "Alleen deze afspraak",
+    "seriesAll": "Alle afspraken",
+    "repeat": "Herhaling",
+    "repeatNone": "Nooit",
+    "repeatDaily": "Dagelijks",
+    "repeatWeekly": "Wekelijks",
+    "repeatMonthly": "Maandelijks",
+    "repeatYearly": "Jaarlijks"
   }
 }

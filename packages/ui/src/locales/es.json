@@ -1864,6 +1864,17 @@
     "eventLocation": "Lugar",
     "eventConflict": "El evento cambió de forma remota — vista actualizada.",
     "eventWriteFailed": "No se pudo guardar en el proveedor.",
-    "noWritableCalendar": "No hay ningún calendario con permiso de escritura seleccionado."
+    "noWritableCalendar": "No hay ningún calendario con permiso de escritura seleccionado.",
+    "seriesTitle": "Evento periódico",
+    "seriesEditMsg": "«{{title}}» forma parte de una serie. ¿Qué quieres editar?",
+    "seriesDeleteMsg": "«{{title}}» forma parte de una serie. ¿Qué quieres eliminar?",
+    "seriesThis": "Solo este evento",
+    "seriesAll": "Todos los eventos",
+    "repeat": "Repetición",
+    "repeatNone": "Nunca",
+    "repeatDaily": "Diaria",
+    "repeatWeekly": "Semanal",
+    "repeatMonthly": "Mensual",
+    "repeatYearly": "Anual"
   }
 }

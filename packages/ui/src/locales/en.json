@@ -1858,6 +1858,17 @@
     "eventLocation": "Location",
     "eventConflict": "The event changed remotely — view refreshed.",
     "eventWriteFailed": "Saving to the provider failed.",
-    "noWritableCalendar": "No writable calendar selected."
+    "noWritableCalendar": "No writable calendar selected.",
+    "seriesTitle": "Recurring event",
+    "seriesEditMsg": "“{{title}}” is part of a series. What do you want to edit?",
+    "seriesDeleteMsg": "“{{title}}” is part of a series. What do you want to delete?",
+    "seriesThis": "Only this event",
+    "seriesAll": "All events",
+    "repeat": "Repeat",
+    "repeatNone": "Never",
+    "repeatDaily": "Daily",
+    "repeatWeekly": "Weekly",
+    "repeatMonthly": "Monthly",
+    "repeatYearly": "Yearly"
   }
 }

@@ -1864,6 +1864,17 @@
     "eventLocation": "Lieu",
     "eventConflict": "L’événement a été modifié à distance — vue actualisée.",
     "eventWriteFailed": "L’enregistrement chez le fournisseur a échoué.",
-    "noWritableCalendar": "Aucun calendrier accessible en écriture sélectionné."
+    "noWritableCalendar": "Aucun calendrier accessible en écriture sélectionné.",
+    "seriesTitle": "Événement récurrent",
+    "seriesEditMsg": "« {{title}} » fait partie d’une série. Que voulez-vous modifier ?",
+    "seriesDeleteMsg": "« {{title}} » fait partie d’une série. Que voulez-vous supprimer ?",
+    "seriesThis": "Seulement cet événement",
+    "seriesAll": "Tous les événements",
+    "repeat": "Répétition",
+    "repeatNone": "Jamais",
+    "repeatDaily": "Quotidien",
+    "repeatWeekly": "Hebdomadaire",
+    "repeatMonthly": "Mensuel",
+    "repeatYearly": "Annuel"
   }
 }

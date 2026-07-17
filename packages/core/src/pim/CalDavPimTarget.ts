@@ -257,11 +257,47 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
+    const recurrenceId = instanceRecurrenceId(ref.uid);
+    if (recurrenceId) {
+      // "Only this event": write/refresh the RECURRENCE-ID override component
+      // inside the series object; the master (and every other instance) stays.
+      return this.readModifyPutObject(ref.href, ref.etag, (cal) => {
+        const master = findComponent(cal, "vevent", null);
+        if (!master) throw new Error("caldav object has no vevent");
+        let override = findComponent(cal, "vevent", recurrenceId);
+        if (!override) {
+          override = new ICAL.Component("vevent");
+          override.updatePropertyWithValue("uid", String(master.getFirstPropertyValue("uid") ?? ""));
+          // toString()/fromString round-trips the expansion's key; a zoned
+          // master yields a floating value here — servers match overrides on
+          // the local time value (native gate verifies per server).
+          override.updatePropertyWithValue("recurrence-id", icalTimeFromKey(recurrenceId));
+          override.updatePropertyWithValue("dtstamp", ICAL.Time.fromJSDate(new Date(), true));
+          cal.addSubcomponent(override);
+        }
+        applyEventDraft(override, draft);
+        bumpRevision(override);
+      });
+    }
     return this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => applyEventDraft(comp, draft));
   }
 
   async deleteEvent(ref: PimEventRef): Promise<void> {
     if (!ref.href) throw new Error("caldav delete needs the object href");
+    const recurrenceId = instanceRecurrenceId(ref.uid);
+    if (recurrenceId) {
+      // "Only this event": EXDATE on the master + drop a matching override.
+      // The series object itself survives.
+      await this.readModifyPutObject(ref.href, ref.etag, (cal) => {
+        const master = findComponent(cal, "vevent", null);
+        if (!master) throw new Error("caldav object has no vevent");
+        master.addPropertyWithValue("exdate", icalTimeFromKey(recurrenceId));
+        const override = findComponent(cal, "vevent", recurrenceId);
+        if (override) cal.removeSubcomponent(override);
+        bumpRevision(master);
+      });
+      return;
+    }
     const res = await this.rawRequest(ref.href, {
       method: "DELETE",
       headers: ref.etag ? { "If-Match": ref.etag } : {},
@@ -288,16 +324,33 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   /**
-   * GET–modify–PUT: fetch the current object, mutate ONLY the draft-carried
-   * properties inside the target component (alarms, attendees and unknown
-   * properties survive untouched), then PUT with If-Match. Both the pre-check
-   * (fetched etag vs. the ref's) and a 412 raise PimConflictError.
+   * GET–modify–PUT on the MASTER component: fetch the current object, mutate
+   * ONLY the draft-carried properties (alarms, attendees and unknown
+   * properties survive untouched), then PUT with If-Match.
    */
   private async readModifyPut(
     href: string | undefined,
     knownEtag: string | undefined,
     componentName: "vevent" | "vtodo",
     mutate: (comp: InstanceType<typeof ICAL.Component>) => void
+  ): Promise<{ etag?: string }> {
+    return this.readModifyPutObject(href, knownEtag, (cal) => {
+      const target = findComponent(cal, componentName, null);
+      if (!target) throw new Error(`caldav object has no ${componentName}`);
+      mutate(target);
+      bumpRevision(target);
+    });
+  }
+
+  /**
+   * Whole-object GET–modify–PUT (series overrides/EXDATEs need access beyond
+   * the master). Both the etag pre-check (fetched vs. known) and a 412 raise
+   * PimConflictError.
+   */
+  private async readModifyPutObject(
+    href: string | undefined,
+    knownEtag: string | undefined,
+    mutate: (cal: InstanceType<typeof ICAL.Component>) => void
   ): Promise<{ etag?: string }> {
     if (!href) throw new Error("caldav update needs the object href");
     const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
@@ -307,13 +360,7 @@ export class CalDavPimTarget implements IPimTarget {
 
     const jcal = ICAL.parse(await getRes.text());
     const cal = new ICAL.Component(jcal);
-    // Mutate the master component (recurrence overrides keep their own rows).
-    const target =
-      cal.getAllSubcomponents(componentName).find((c) => !c.getFirstPropertyValue("recurrence-id")) ??
-      cal.getFirstSubcomponent(componentName);
-    if (!target) throw new Error(`caldav object has no ${componentName}`);
-    mutate(target);
-    bumpRevision(target);
+    mutate(cal);
 
     const guard = knownEtag ?? currentEtag;
     const putRes = await this.rawRequest(href, {
@@ -325,6 +372,44 @@ export class CalDavPimTarget implements IPimTarget {
     if (!putRes.ok) throw new Error(`caldav update ${putRes.status}`);
     return { etag: putRes.headers.get("ETag") ?? undefined };
   }
+}
+
+/** Instance key suffix of an expanded occurrence uid (`uid#<recurrenceId>`). */
+function instanceRecurrenceId(uid: string): string | null {
+  const idx = uid.indexOf("#");
+  return idx > 0 ? uid.slice(idx + 1) : null;
+}
+
+/** ICAL.Time from the expansion's toString() key ("2026-08-08T09:00:00" or
+ * "2026-08-08"). fromString's typings demand the optional property argument;
+ * the runtime accepts one. */
+function icalTimeFromKey(key: string): InstanceType<typeof ICAL.Time> {
+  return (ICAL.Time.fromString as unknown as (v: string) => InstanceType<typeof ICAL.Time>)(key);
+}
+
+/** RECURRENCE-ID of a component as the expansion's toString() key; a broken
+ * foreign value must not blow up the lookup. */
+function recurrenceIdString(comp: InstanceType<typeof ICAL.Component>): string {
+  try {
+    return String(comp.getFirstPropertyValue("recurrence-id") ?? "");
+  } catch {
+    return "";
+  }
+}
+
+/** Component lookup: `recurrenceId === null` finds the master (no
+ * RECURRENCE-ID; falls back to the first component), a string finds the
+ * matching override — matching on the expansion's toString() convention. */
+function findComponent(
+  cal: InstanceType<typeof ICAL.Component>,
+  name: "vevent" | "vtodo",
+  recurrenceId: string | null
+): InstanceType<typeof ICAL.Component> | null {
+  const comps = cal.getAllSubcomponents(name);
+  if (recurrenceId === null) {
+    return comps.find((c) => recurrenceIdString(c) === "") ?? comps[0] ?? null;
+  }
+  return comps.find((c) => recurrenceIdString(c) === recurrenceId) ?? null;
 }
 
 // ---- write helpers --------------------------------------------------------
@@ -375,6 +460,11 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
   else vevent.removeAllProperties("location");
   if (draft.description) vevent.updatePropertyWithValue("description", draft.description);
   else vevent.removeAllProperties("description");
+  // Create only (stage 4): a simple no-end rule. An EXISTING rule is never
+  // rewritten here — series edits go through overrides or the master fields.
+  if (draft.recurrenceFreq && !vevent.getFirstPropertyValue("rrule")) {
+    vevent.updatePropertyWithValue("rrule", ICAL.Recur.fromString(`FREQ=${draft.recurrenceFreq.toUpperCase()}`));
+  }
 }
 
 function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {

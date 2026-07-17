@@ -54,6 +54,24 @@ test.beforeEach(async ({ page }) => {
               start_date: todayKey, end_date: dayKey(tomorrow), all_day: 1, location: null, description: null,
               attendees: null, status: null, etag: 'e2', series_master: null, recurrence: null, href: null,
             },
+            // A recurring-series instance on today (stage 4 scope dialog)…
+            {
+              account_id: 'acc1', cal_id: 'cal1', uid: 'ev-series#inst1', title: 'Wochenmeeting',
+              start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 0).getTime(),
+              end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0).getTime(),
+              start_date: null, end_date: null, all_day: 0, location: null, description: null,
+              attendees: null, status: 'confirmed', etag: 'e3', series_master: 'ev-series', recurrence: null,
+              href: 'https://dav.example.org/series.ics',
+            },
+            // …and its master row (recurrence set -> excluded from the grid).
+            {
+              account_id: 'acc1', cal_id: 'cal1', uid: 'ev-series', title: 'Wochenmeeting',
+              start_ts: new Date(now.getFullYear(), now.getMonth(), 1, 14, 0).getTime(),
+              end_ts: new Date(now.getFullYear(), now.getMonth(), 1, 15, 0).getTime(),
+              start_date: null, end_date: null, all_day: 0, location: null, description: null,
+              attendees: null, status: 'confirmed', etag: 'e-master', series_master: null,
+              recurrence: 'RRULE:FREQ=WEEKLY', href: 'https://dav.example.org/series.ics',
+            },
           ];
 
     (window as any).__TAURI_INTERNALS__ = {
@@ -83,7 +101,16 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
           // PIM cache tables (order matters: listEvents joins pim_calendars).
-          if (q.includes('FROM pim_events')) return pimEvents();
+          if (q.includes('FROM pim_events')) {
+            // getEventByUid (queryOne travels as a normal select; first row wins).
+            if (q.includes('e.uid = ?')) {
+              const uid = String(args.values?.[2] ?? '');
+              const hit = pimEvents().find((e: any) => e.uid === uid);
+              return hit ? [hit] : [];
+            }
+            // The grid query excludes series masters (`recurrence IS NULL`).
+            return pimEvents().filter((e: any) => !e.recurrence);
+          }
           if (q.includes('FROM pim_accounts')) {
             const custom = (window as any).__pimAccounts;
             if (custom) return custom;
@@ -114,7 +141,15 @@ test.beforeEach(async ({ page }) => {
           if (q.includes('SELECT path FROM files')) return noteRows().map((r) => ({ path: r.path }));
           return [];
         }
-        if (cmd === 'plugin:sql|select_one') return null;
+        if (cmd === 'plugin:sql|select_one') {
+          const q = String(args.query);
+          // getEventByUid (series "all events" resolves the master row).
+          if (q.includes('FROM pim_events')) {
+            const uid = String(args.values?.[2] ?? '');
+            return pimEvents().find((e: any) => e.uid === uid) ?? null;
+          }
+          return null;
+        }
         if (cmd === 'plugin:fs|exists') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           return !!fs[p];
@@ -202,11 +237,12 @@ test('calendar tab shows cached events, day selection and creates a meeting note
   // timed one with its time range and location.
   await todayCell.click();
   const events = page.getByTestId('calendar-event');
-  await expect(events).toHaveCount(2);
+  await expect(events).toHaveCount(3);
   await expect(events.first()).toContainText('Feiertag');
   await expect(events.nth(1)).toContainText('Standup');
   await expect(events.nth(1)).toContainText('10:00');
   await expect(events.nth(1)).toContainText('Raum 5');
+  await expect(events.nth(2)).toContainText('Wochenmeeting');
 
   // "Termin -> Meeting-Notiz": creates the anchored note in Meetings/ and
   // opens it in a tab.
@@ -269,6 +305,39 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await expect(confirm).toContainText('Standup');
   await confirm.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
   await expect(page.getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
+});
+
+test('series instance: edit/delete route through the scope dialog; "all" prefills from the master', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-${todayKey}`).click();
+
+  const seriesRow = page.getByTestId('calendar-event').filter({ hasText: 'Wochenmeeting' });
+  // The row carries the recurrence badge.
+  await expect(seriesRow.locator('svg.lucide-repeat')).toBeVisible();
+
+  // Edit -> scope dialog; "Alle Termine" opens the editor prefilled from the
+  // MASTER row (the series' own start time, not the instance's).
+  await seriesRow.getByTestId('calendar-edit-event').click();
+  await expect(page.getByTestId('series-scope')).toBeVisible();
+  await page.getByTestId('series-scope-all').click();
+  await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
+  await expect(page.getByTestId('event-start-time')).toHaveValue('14:00');
+  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+
+  // Edit -> "Nur diesen Termin" edits the instance directly.
+  await seriesRow.getByTestId('calendar-edit-event').click();
+  await page.getByTestId('series-scope-this').click();
+  await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
+  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+
+  // Delete -> the scope dialog IS the confirmation; cancel keeps everything.
+  await seriesRow.getByTestId('calendar-delete-event').click();
+  await expect(page.getByTestId('series-scope')).toBeVisible();
+  await expect(page.getByTestId('series-scope')).toContainText('Wochenmeeting');
+  await page.getByRole('dialog').filter({ has: page.getByTestId('series-scope') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(seriesRow).toBeVisible();
 });
 
 test('calendar tab without accounts shows the empty state and opens settings', async ({ page }) => {

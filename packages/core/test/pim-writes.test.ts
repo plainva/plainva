@@ -95,6 +95,19 @@ describe("GooglePimTarget writes", () => {
     expect(sent.due).toBeNull();
   });
 
+  it("create carries a simple RRULE for recurrence, PATCH never does", async () => {
+    const bodies: any[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return jsonRes({ id: "x", etag: '"e"' });
+    });
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await t.createEvent("cal1", { ...timedDraft, recurrenceFreq: "monthly" });
+    expect(bodies[0].recurrence).toEqual(["RRULE:FREQ=MONTHLY"]);
+    await t.updateEvent({ calendarId: "cal1", uid: "x" }, { ...timedDraft, recurrenceFreq: "monthly" });
+    expect(bodies[1].recurrence).toBeUndefined();
+  });
+
   it("createTask transports the day-granular due as midnight UTC", async () => {
     let sent: any;
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {
@@ -131,6 +144,23 @@ describe("GraphPimTarget writes", () => {
     await expect(
       new GraphPimTarget(auth(), fetchFn).updateEvent({ calendarId: "calX", uid: "ev9", etag: 'W/"old"' }, timedDraft)
     ).rejects.toBeInstanceOf(PimConflictError);
+  });
+
+  it("create maps recurrence to the structured Graph pattern (weekly anchors on the start day)", async () => {
+    const bodies: any[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return jsonRes({ id: "x", "@odata.etag": 'W/"1"' });
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    // 2026-08-10 is a Monday (all-day anchors via the civil date).
+    await t.createEvent("calX", { ...allDayDraft, recurrenceFreq: "weekly" });
+    expect(bodies[0].recurrence).toEqual({
+      pattern: { type: "weekly", interval: 1, daysOfWeek: ["monday"] },
+      range: { type: "noEnd", startDate: "2026-08-10" },
+    });
+    await t.updateEvent({ calendarId: "calX", uid: "x" }, { ...allDayDraft, recurrenceFreq: "weekly" });
+    expect(bodies[1].recurrence).toBeUndefined();
   });
 
   it("task updates carry status + dueDateTime (null clears the due)", async () => {
@@ -280,6 +310,123 @@ describe("CalDavPimTarget writes", () => {
     expect(puts[1]).not.toContain("COMPLETED:2");
     expect(puts[1]).not.toContain("PERCENT-COMPLETE");
     expect(puts[1]).not.toContain("DUE;");
+  });
+
+  it("update of a series INSTANCE writes a RECURRENCE-ID override and leaves the master alone", async () => {
+    const existing = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "UID:series-1",
+      "DTSTART:20260801T090000Z",
+      "DTEND:20260801T093000Z",
+      "RRULE:FREQ=WEEKLY",
+      "SUMMARY:Standup",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    let putBody = "";
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      if (!init?.method || init.method === "GET") return new Response(existing, { status: 200, headers: { ETag: '"v1"' } });
+      putBody = String(init.body);
+      return new Response(null, { status: 204 });
+    });
+    const t = new CalDavPimTarget(creds, fetchFn);
+    await t.updateEvent(
+      { calendarId: "c", uid: "series-1#2026-08-08T09:00:00", etag: '"v1"', href: "https://dav.example.org/series-1.ics" },
+      { ...timedDraft, title: "Standup (verschoben)", start: { ts: Date.parse("2026-08-08T10:00:00Z") }, end: { ts: Date.parse("2026-08-08T10:30:00Z") } }
+    );
+    // Master keeps its rule and summary…
+    expect(putBody).toContain("RRULE:FREQ=WEEKLY");
+    expect(putBody).toContain("SUMMARY:Standup\r\n");
+    // …the override carries the instance key + the new values.
+    expect(putBody).toContain("RECURRENCE-ID:20260808T090000");
+    expect(putBody).toContain("SUMMARY:Standup (verschoben)");
+    expect(putBody).toContain("DTSTART:20260808T100000Z");
+    expect((putBody.match(/BEGIN:VEVENT/g) ?? []).length).toBe(2);
+  });
+
+  it("re-editing the same instance mutates the EXISTING override instead of stacking a second one", async () => {
+    const existing = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "UID:series-1",
+      "DTSTART:20260801T090000Z",
+      "RRULE:FREQ=WEEKLY",
+      "SUMMARY:Standup",
+      "END:VEVENT",
+      "BEGIN:VEVENT",
+      "UID:series-1",
+      "RECURRENCE-ID:20260808T090000",
+      "DTSTART:20260808T100000Z",
+      "SUMMARY:Moved once",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    let putBody = "";
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      if (!init?.method || init.method === "GET") return new Response(existing, { status: 200 });
+      putBody = String(init.body);
+      return new Response(null, { status: 204 });
+    });
+    const t = new CalDavPimTarget(creds, fetchFn);
+    await t.updateEvent(
+      { calendarId: "c", uid: "series-1#2026-08-08T09:00:00", href: "https://dav.example.org/series-1.ics" },
+      { ...timedDraft, title: "Moved twice", start: { ts: Date.parse("2026-08-08T11:00:00Z") }, end: { ts: Date.parse("2026-08-08T11:30:00Z") } }
+    );
+    expect((putBody.match(/BEGIN:VEVENT/g) ?? []).length).toBe(2);
+    expect(putBody).toContain("SUMMARY:Moved twice");
+    expect(putBody).not.toContain("Moved once");
+  });
+
+  it("delete of a series INSTANCE adds an EXDATE and drops a matching override — series survives", async () => {
+    const existing = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "UID:series-1",
+      "DTSTART:20260801T090000Z",
+      "RRULE:FREQ=WEEKLY",
+      "EXDATE:20260715T090000Z",
+      "SUMMARY:Standup",
+      "END:VEVENT",
+      "BEGIN:VEVENT",
+      "UID:series-1",
+      "RECURRENCE-ID:20260808T090000",
+      "SUMMARY:Moved",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const calls: string[] = [];
+    let putBody = "";
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      calls.push(init?.method ?? "GET");
+      if (!init?.method || init.method === "GET") return new Response(existing, { status: 200 });
+      putBody = String(init.body);
+      return new Response(null, { status: 204 });
+    });
+    const t = new CalDavPimTarget(creds, fetchFn);
+    await t.deleteEvent({ calendarId: "c", uid: "series-1#2026-08-08T09:00:00", href: "https://dav.example.org/series-1.ics" });
+    // Never a DELETE request — the series object is rewritten instead.
+    expect(calls).not.toContain("DELETE");
+    expect(putBody).toContain("RRULE:FREQ=WEEKLY");
+    expect(putBody).toContain("EXDATE:20260715T090000Z"); // pre-existing kept
+    expect(putBody).toContain("EXDATE:20260808T090000");
+    expect((putBody.match(/BEGIN:VEVENT/g) ?? []).length).toBe(1); // override gone
+  });
+
+  it("createEvent attaches a simple RRULE when the draft asks for recurrence", async () => {
+    let putBody = "";
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      putBody = String(init?.body);
+      return new Response("", { status: 201 });
+    });
+    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", {
+      ...timedDraft,
+      recurrenceFreq: "weekly",
+    });
+    expect(putBody).toContain("RRULE:FREQ=WEEKLY");
   });
 
   it("deleteEvent sends If-Match and treats 404 as success", async () => {

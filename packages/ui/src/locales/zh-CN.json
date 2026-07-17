@@ -1852,6 +1852,17 @@
     "eventLocation": "地点",
     "eventConflict": "该日程已在远端被修改——视图已刷新。",
     "eventWriteFailed": "保存到服务商失败。",
-    "noWritableCalendar": "未选择可写入的日历。"
+    "noWritableCalendar": "未选择可写入的日历。",
+    "seriesTitle": "重复日程",
+    "seriesEditMsg": "“{{title}}”属于一个重复系列。要编辑哪些？",
+    "seriesDeleteMsg": "“{{title}}”属于一个重复系列。要删除哪些？",
+    "seriesThis": "仅此日程",
+    "seriesAll": "所有日程",
+    "repeat": "重复",
+    "repeatNone": "从不",
+    "repeatDaily": "每天",
+    "repeatWeekly": "每周",
+    "repeatMonthly": "每月",
+    "repeatYearly": "每年"
   }
 }

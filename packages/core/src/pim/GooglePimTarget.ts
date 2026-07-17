@@ -180,7 +180,7 @@ export class GooglePimTarget implements IPimTarget {
     const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(googleEventBody(draft)),
+      body: JSON.stringify(googleEventBody(draft, true)),
     });
     if (!res.ok) throw new Error(`google create event ${res.status}`);
     const data = (await res.json()) as { id: string; etag?: string };
@@ -193,7 +193,10 @@ export class GooglePimTarget implements IPimTarget {
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
-        body: JSON.stringify(googleEventBody(draft)),
+        // Never sends `recurrence`: a PATCH must not rewrite an existing rule
+        // (series edits are "this instance" via the instance id, or the
+        // master's non-rule fields via the master id).
+        body: JSON.stringify(googleEventBody(draft, false)),
       }
     );
     if (res.status === 412) throw new PimConflictError();
@@ -272,7 +275,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
  * the stale one otherwise). Location/description always travel so clearing a
  * field in the editor clears it remotely; untouched fields (attendees,
  * reminders …) are preserved by the PATCH semantics. */
-function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
+function googleEventBody(draft: PimEventDraft, includeRecurrence: boolean): Record<string, unknown> {
   const time = (t: PimEventDraft["start"]) =>
     draft.allDay && t.date ? { date: t.date, dateTime: null } : { dateTime: new Date(t.ts).toISOString(), date: null };
   return {
@@ -281,6 +284,9 @@ function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
     end: time(draft.end),
     location: draft.location ?? "",
     description: draft.description ?? "",
+    ...(includeRecurrence && draft.recurrenceFreq
+      ? { recurrence: [`RRULE:FREQ=${draft.recurrenceFreq.toUpperCase()}`] }
+      : {}),
   };
 }
 

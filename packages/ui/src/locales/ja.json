@@ -1852,6 +1852,17 @@
     "eventLocation": "場所",
     "eventConflict": "予定がリモートで変更されました — 表示を更新しました。",
     "eventWriteFailed": "プロバイダーへの保存に失敗しました。",
-    "noWritableCalendar": "書き込み可能なカレンダーが選択されていません。"
+    "noWritableCalendar": "書き込み可能なカレンダーが選択されていません。",
+    "seriesTitle": "繰り返しの予定",
+    "seriesEditMsg": "「{{title}}」は繰り返しの予定です。どれを編集しますか？",
+    "seriesDeleteMsg": "「{{title}}」は繰り返しの予定です。どれを削除しますか？",
+    "seriesThis": "この予定のみ",
+    "seriesAll": "すべての予定",
+    "repeat": "繰り返し",
+    "repeatNone": "なし",
+    "repeatDaily": "毎日",
+    "repeatWeekly": "毎週",
+    "repeatMonthly": "毎月",
+    "repeatYearly": "毎年"
   }
 }

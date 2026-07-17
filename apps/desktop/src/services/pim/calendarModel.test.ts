@@ -106,6 +106,7 @@ describe("event form helpers (stage 3)", () => {
       endTime: "11:30",
       location: " Raum 5 ",
       calendarKey: "a c",
+      repeat: "",
     });
     expect(draft.title).toBe("Planning");
     expect(draft.location).toBe("Raum 5");
@@ -121,6 +122,7 @@ describe("event form helpers (stage 3)", () => {
       endTime: "09:00",
       location: "",
       calendarKey: "",
+      repeat: "",
     });
     expect(inverted.end.ts).toBe(inverted.start.ts + 30 * 60 * 1000);
   });
@@ -135,6 +137,7 @@ describe("event form helpers (stage 3)", () => {
       endTime: "",
       location: "",
       calendarKey: "",
+      repeat: "",
     });
     expect(draft.start.date).toBe("2026-08-10");
     expect(draft.end.date).toBe("2026-08-13");

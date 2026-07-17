@@ -1870,6 +1870,17 @@
     "eventLocation": "Miejsce",
     "eventConflict": "Wydarzenie zostało zmienione zdalnie — widok odświeżono.",
     "eventWriteFailed": "Zapis u dostawcy nie powiódł się.",
-    "noWritableCalendar": "Nie wybrano kalendarza z możliwością zapisu."
+    "noWritableCalendar": "Nie wybrano kalendarza z możliwością zapisu.",
+    "seriesTitle": "Wydarzenie cykliczne",
+    "seriesEditMsg": "„{{title}}” jest częścią serii. Co chcesz edytować?",
+    "seriesDeleteMsg": "„{{title}}” jest częścią serii. Co chcesz usunąć?",
+    "seriesThis": "Tylko to wydarzenie",
+    "seriesAll": "Wszystkie wydarzenia",
+    "repeat": "Powtarzanie",
+    "repeatNone": "Nigdy",
+    "repeatDaily": "Codziennie",
+    "repeatWeekly": "Co tydzień",
+    "repeatMonthly": "Co miesiąc",
+    "repeatYearly": "Co rok"
   }
 }

@@ -284,6 +284,35 @@ export class PimCacheRepository {
     }));
   }
 
+  /** Single cached event row by key — series-scope actions ("all events")
+   * need the MASTER row (etag/href for the write), which listEvents excludes. */
+  async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
+    const r = await this.db.queryOne<Record<string, unknown>>(
+      `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href
+       FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
+      [accountId, calId, uid]
+    );
+    if (!r) return null;
+    return {
+      accountId: String(r.account_id),
+      calendarId: String(r.cal_id),
+      uid: String(r.uid),
+      title: String(r.title ?? ""),
+      start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
+      end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
+      allDay: Number(r.all_day) !== 0,
+      location: r.location ? String(r.location) : undefined,
+      description: r.description ? String(r.description) : undefined,
+      attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
+      status: (r.status as PimEvent["status"]) ?? undefined,
+      etag: r.etag ? String(r.etag) : undefined,
+      seriesMaster: r.series_master ? String(r.series_master) : undefined,
+      recurrence: r.recurrence ? String(r.recurrence) : undefined,
+      href: r.href ? String(r.href) : undefined,
+    };
+  }
+
   // ---- task <-> note reconcile state (stage 3) ----------------------------
 
   async getTaskStates(accountId: string, listId: string): Promise<PimTaskStateRow[]> {

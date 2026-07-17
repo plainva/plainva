@@ -1864,6 +1864,17 @@
     "eventLocation": "Luogo",
     "eventConflict": "L’evento è cambiato in remoto — vista aggiornata.",
     "eventWriteFailed": "Salvataggio presso il provider non riuscito.",
-    "noWritableCalendar": "Nessun calendario scrivibile selezionato."
+    "noWritableCalendar": "Nessun calendario scrivibile selezionato.",
+    "seriesTitle": "Evento ricorrente",
+    "seriesEditMsg": "“{{title}}” fa parte di una serie. Cosa vuoi modificare?",
+    "seriesDeleteMsg": "“{{title}}” fa parte di una serie. Cosa vuoi eliminare?",
+    "seriesThis": "Solo questo evento",
+    "seriesAll": "Tutti gli eventi",
+    "repeat": "Ripetizione",
+    "repeatNone": "Mai",
+    "repeatDaily": "Giornaliera",
+    "repeatWeekly": "Settimanale",
+    "repeatMonthly": "Mensile",
+    "repeatYearly": "Annuale"
   }
 }

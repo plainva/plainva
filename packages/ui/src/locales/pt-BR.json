@@ -1864,6 +1864,17 @@
     "eventLocation": "Local",
     "eventConflict": "O evento foi alterado remotamente — visualização atualizada.",
     "eventWriteFailed": "Falha ao salvar no provedor.",
-    "noWritableCalendar": "Nenhum calendário gravável selecionado."
+    "noWritableCalendar": "Nenhum calendário gravável selecionado.",
+    "seriesTitle": "Evento recorrente",
+    "seriesEditMsg": "“{{title}}” faz parte de uma série. O que você quer editar?",
+    "seriesDeleteMsg": "“{{title}}” faz parte de uma série. O que você quer excluir?",
+    "seriesThis": "Somente este evento",
+    "seriesAll": "Todos os eventos",
+    "repeat": "Repetição",
+    "repeatNone": "Nunca",
+    "repeatDaily": "Diária",
+    "repeatWeekly": "Semanal",
+    "repeatMonthly": "Mensal",
+    "repeatYearly": "Anual"
   }
 }

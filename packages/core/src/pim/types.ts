@@ -94,7 +94,12 @@ export interface PullTasksResult {
 
 // ---- write side (stage 3: single events + tasks; recurrence is stage 4) ----
 
-/** The editable fields of a single (non-recurring) event. */
+/** Simple recurrence choice for freshly CREATED events (stage 4). Editing an
+ * existing series' rule stays provider-side — the write paths only ever touch
+ * a series via "this instance" overrides or the master's non-rule fields. */
+export type PimRecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
+
+/** The editable fields of an event. */
 export interface PimEventDraft {
   title: string;
   start: PimEventTime;
@@ -102,6 +107,9 @@ export interface PimEventDraft {
   allDay: boolean;
   location?: string;
   description?: string;
+  /** Create only: attach a simple no-end recurrence rule. Ignored on update
+   * (an existing rule is never rewritten by the field editor). */
+  recurrenceFreq?: PimRecurrenceFreq;
 }
 
 /** Addresses an existing event for update/delete. `etag` (when known) arms
