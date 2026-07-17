@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/plainva/plainva/actions/workflows/ci.yml/badge.svg)](https://github.com/plainva/plainva/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/plainva/plainva?label=latest%20release&color=0f766e)](https://github.com/plainva/plainva/releases/latest)
+
+### [⬇ Download](https://github.com/plainva/plainva/releases/latest) &nbsp;·&nbsp; [🌐 plainva.com](https://plainva.com) &nbsp;·&nbsp; [📖 User guide](docs/user/README.md)
 
 **Your notes are plain Markdown files in a folder you own. Plainva makes them feel like a modern app — without ever locking you in.**
 
@@ -9,7 +12,6 @@ Plainva is an open-source, local-first Markdown vault editor for Windows, macOS 
 
 > **Status: Beta.** Plainva is used daily on real vaults, ships with an extensive test suite (1,500+ tests) and automatic per-file versioning — but it is pre-1.0 software. Keep backups of irreplaceable vaults (Plainva also creates daily ZIP backups by default).
 
-<!-- Add the three PNGs under docs/assets/ before the public push (see docs/assets/SCREENSHOTS.md). -->
 ![Plainva editor with live preview and the slash command menu](docs/assets/screenshot-editor.png)
 
 <p align="center">
@@ -39,7 +41,11 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 
 ## Download & install
 
-Grab the installer for your platform from the [Releases page](https://github.com/plainva/plainva/releases). Updates are delivered in-app (signed, with an opt-out).
+**[⬇ Download the latest release](https://github.com/plainva/plainva/releases/latest)** — or, for OS-detected one-click downloads, use **[plainva.com](https://plainva.com/#download)**. Every release page lists installers for all three platforms; updates after that are delivered in-app (signed, with an opt-out).
+
+- **Windows** — the `.msi` installer (or the `.exe`). Not code-signed yet, so Windows SmartScreen shows a warning on first launch: click **More info → Run anyway**.
+- **macOS** — the universal `.dmg` (Apple Silicon + Intel). Not notarized yet, so Gatekeeper blocks a normal double-click: **right-click the app → Open** and confirm once, or allow it under System Settings → Privacy & Security.
+- **Linux** — the `.AppImage` (`chmod +x Plainva*.AppImage`, then run), or the `.deb` / `.rpm` for your package manager.
 
 Cloud providers: WebDAV/Nextcloud, S3, OneDrive and Dropbox work out of the box. Only Google Drive currently requires a free app registration of your own ("bring your own client ID") — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
 
