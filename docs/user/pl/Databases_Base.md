@@ -26,6 +26,8 @@ Format pliku jest zgodny z formatem Bases Obsidian (szczegóły na końcu strony
 
 Każda baza danych może mieć własną ikonę z **kolorem ikony bazy danych** — widoczną w drzewie plików, kartach i nagłówku.
 
+Baza danych może też służyć jako **Domyślna baza zadań** vaultu (**Ustawienia → Vault → Treść i struktura**): [widok Zadania](Tasks.md) pokazuje wtedy jej wpisy jako osobną sekcję i może przenosić do niej pola wyboru z notatek.
+
 ## Widoki
 
 Baza danych może mieć dowolną liczbę widoków; każdy ma **typ widoku**:

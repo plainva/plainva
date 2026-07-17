@@ -12,6 +12,7 @@ import {
   chipPaletteIndex,
   filterTagSuggestions,
   normalizeFrontmatterValue,
+  resolvePropertyWriteKey,
   chipClass,
   groupOptions,
   baseInputToType,
@@ -304,5 +305,18 @@ describe("propertyModel.columnValuesAreWikiLinks", () => {
   });
   it("is false when the column has no values at all", () => {
     expect(columnValuesAreWikiLinks([{ status: "open" }, {}], "project")).toBe(false);
+  });
+});
+
+describe("resolvePropertyWriteKey", () => {
+  it("reuses a differently-cased existing key instead of adding a duplicate", () => {
+    // Maintainer find 2026-07-17: note carries "Frist"/"Status" while the
+    // base columns are "frist"/"status" — the cell edit must update the
+    // existing key in place.
+    expect(resolvePropertyWriteKey({ Frist: "2026-07-20", Status: "Offen" }, "frist")).toBe("Frist");
+    expect(resolvePropertyWriteKey({ Frist: "2026-07-20" }, "status")).toBe("status");
+  });
+  it("prefers the exact column key when both spellings exist", () => {
+    expect(resolvePropertyWriteKey({ status: "Erledigt", Status: "Offen" }, "status")).toBe("status");
   });
 });

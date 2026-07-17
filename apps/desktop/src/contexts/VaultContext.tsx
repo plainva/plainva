@@ -17,6 +17,8 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
+import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
+import { runTaskSync } from "../services/pim/taskSync";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -48,6 +50,12 @@ interface VaultState {
    */
   fileTreeVersionPaths: string[] | null;
   syncWorker: SyncWorker | null;
+  /**
+   * PIM runtime (Gesamtplan PIM-Ausbau 2026-07-17): calendar/task object
+   * cache + pull worker, bound to this vault's index DB. null until a vault
+   * is open; the worker only starts when the vault has PIM accounts.
+   */
+  pimRuntime: PimRuntime | null;
   /**
    * Serialized incremental-index queue shared by the watcher and the sync
    * worker's onFilesChanged (services/incrementalIndexQueue.ts): batches never
@@ -114,6 +122,19 @@ export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${bt
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Standard task database (PIM plan 1a): vault-relative path of the `.base`
+ * that promoted checkbox tasks (and later synced external tasks) land in. */
+export const taskDatabaseKey = (vaultPath: string) => `taskDatabase_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Meetings folder (PIM stage 2c): vault-relative folder for notes created via
+ * "Termin → Meeting-Notiz" in the calendar tab. Default "Meetings". */
+export const meetingFolderKey = (vaultPath: string) => `meetingFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const DEFAULT_MEETING_FOLDER = "Meetings";
+/** Mail capture folder (PIM stage 5): captured e-mail notes + .eml files. */
+export const mailFolderKey = (vaultPath: string) => `mailFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const DEFAULT_MAIL_FOLDER = "Mail";
+/** Per-vault opt-in: always load remote https images in the mail viewer.
+ * Default OFF — loading a remote image is a tracking beacon by definition. */
+export const mailRemoteImagesKey = (vaultPath: string) => `mailRemoteImages_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the
@@ -201,6 +222,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     indexer: null,
     queryService: null,
     graphService: null,
+    pimRuntime: null,
     isLoading: true,
     error: null,
     fileTreeVersion: 0,
@@ -244,6 +266,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // writing into the very DB file the reload below re-opens/migrates.
         await state.syncWorker.stopAndDrain();
       }
+      state.pimRuntime?.stop();
 
       if (currentAbortSignal.aborted) return;
 
@@ -368,6 +391,58 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
         },
       });
+
+      // PIM runtime (calendar/task cache + pull worker). The worker only runs
+      // when the vault actually has accounts — an unconfigured vault pays
+      // nothing. Account connects start it via the settings section. After
+      // every completed cycle the stage-3 task reconciler mirrors the selected
+      // task lists into the standard task database and pushes local note edits
+      // back (single-flight; a cycle finishing mid-run queues one follow-up).
+      let taskSyncRunning = false;
+      let taskSyncQueued = false;
+      const runTaskSyncNow = async () => {
+        if (taskSyncRunning) {
+          taskSyncQueued = true;
+          return;
+        }
+        taskSyncRunning = true;
+        try {
+          const store = await getSettingsStore();
+          const taskDbPath = ((await store.get<string>(taskDatabaseKey(path))) ?? "").trim() || null;
+          if (taskDbPath) {
+            const noteType = ((await store.get<string>(defaultNoteTypeKey(path))) ?? "").trim() || DEFAULT_NOTE_TYPE;
+            const allNotePaths = (await queryService.listNotes()).map((n) => n.path);
+            const res = await runTaskSync({
+              adapter: vaultAdapter,
+              cache: pimRuntime.cache,
+              buildTarget: pimRuntime.buildTarget,
+              taskDbPath,
+              noteType,
+              allNotePaths,
+            });
+            const touched = [...res.createdNotes, ...res.changedNotes];
+            if (touched.length > 0) indexQueue.enqueue(touched);
+            for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
+            // The Tasks view listens for this to re-query — the index-diff
+            // chain alone is not a reliable refresh signal for it.
+            window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
+          }
+        } catch (e) {
+          console.warn("[VaultContext] task sync failed", e);
+        } finally {
+          taskSyncRunning = false;
+          if (taskSyncQueued) {
+            taskSyncQueued = false;
+            void runTaskSyncNow();
+          }
+        }
+      };
+      const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
+      try {
+        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
+      } catch (e) {
+        console.warn("[VaultContext] starting the PIM worker failed", e);
+      }
 
       // Time-to-first-note: don't block the whole load on the full index when the
       // index is already WARM. After the app-data relocation an existing vault's
@@ -577,6 +652,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         treeStructureVersion: s.treeStructureVersion + 1,
         fileTreeVersionPaths: null,
         syncWorker,
+        pimRuntime,
         indexQueue,
         loadingProgress: undefined,
         loadingPath: null,
@@ -768,6 +844,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (state.syncWorker) {
       state.syncWorker.stop();
     }
+    state.pimRuntime?.stop();
     
     // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
     syncStatusStore.reset();
@@ -782,6 +859,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       graphService: null,
       fileTreeVersion: 0,
       syncWorker: null,
+      pimRuntime: null,
       indexQueue: null,
       isLoading: false,
       error: null,

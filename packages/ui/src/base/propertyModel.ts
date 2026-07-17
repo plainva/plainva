@@ -195,6 +195,20 @@ export function formatDateValue(
  * values (UTC midnight) use UTC components to avoid a timezone day-shift; values
  * with a time keep their local clock time.
  */
+/**
+ * Frontmatter key to WRITE a base column's value under: the note's existing
+ * key when it differs from the column key only in casing ("Frist" vs. column
+ * "frist"), else the column key itself. Prevents a cell edit from adding a
+ * duplicate second key next to a differently-cased original — the read side
+ * (queryDatabaseFiles) maps onto column keys case-insensitively, so both
+ * spellings display; the write must not multiply them.
+ */
+export function resolvePropertyWriteKey(props: Record<string, unknown>, col: string): string {
+  if (col in props) return col;
+  const lower = col.toLowerCase();
+  return Object.keys(props).find((k) => k.toLowerCase() === lower) ?? col;
+}
+
 export function normalizeFrontmatterValue(value: unknown): unknown {
   if (value instanceof Date) {
     const dateOnly = value.getUTCHours() === 0 && value.getUTCMinutes() === 0 && value.getUTCSeconds() === 0;

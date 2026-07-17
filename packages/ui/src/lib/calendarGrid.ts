@@ -4,14 +4,35 @@ import { getISOWeek } from "date-fns";
 export const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 
 /** 6x7 day grid starting on the Monday on/before the 1st of the month. */
-export function buildMonthCells(viewDate: Date): Date[] {
+export function buildMonthCells(viewDate: Date, weekStart: WeekStartDay = 1): Date[] {
   const first = startOfMonth(viewDate);
-  const firstWeekday = (first.getDay() + 6) % 7; // 0 = Monday
+  const firstWeekday = (first.getDay() - weekStart + 7) % 7; // 0 = the chosen week start
   const gridStart = new Date(first);
   gridStart.setDate(first.getDate() - firstWeekday);
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(gridStart);
     d.setDate(gridStart.getDate() + i);
+    return d;
+  });
+}
+
+/** First day of the week as a JS getDay() value: 1 = Monday (default),
+ * 6 = Saturday, 0 = Sunday — the three standard conventions. */
+export type WeekStartDay = 0 | 1 | 6;
+
+/** The start of the week containing `date` for the given week-start day. */
+export function startOfWeek(date: Date, weekStart: WeekStartDay = 1): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setDate(d.getDate() - ((d.getDay() - weekStart + 7) % 7));
+  return d;
+}
+
+/** The 7 days of the week containing `date`, starting at the week-start day. */
+export function buildWeekCells(date: Date, weekStart: WeekStartDay = 1): Date[] {
+  const start = startOfWeek(date, weekStart);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
     return d;
   });
 }

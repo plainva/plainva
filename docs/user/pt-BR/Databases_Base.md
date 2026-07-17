@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Stand: 2026-07-17
+Última revisão: 2026-07-17
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -25,6 +25,8 @@ O formato do arquivo é compatível com o formato Bases do Obsidian (detalhes ao
 - **Dentro de uma nota**: comando de barra **Incorporar banco de dados** (mostrar um `.base` existente embutido) ou **Criar banco de dados embutido** (criar um novo `.base` na pasta e incorporá-lo).
 
 Todo banco de dados pode ter seu próprio ícone com uma **Cor do ícone do banco de dados** — visível na árvore de arquivos, nas abas e no cabeçalho.
+
+Um banco de dados também pode servir como o **Banco de tarefas padrão** do vault (**Configurações → Vault → Conteúdo e estrutura**): a [visualização de Tarefas](Tasks.md) passa então a mostrar suas entradas como uma seção própria e pode mover caixas de seleção de notas para ele.
 
 ## Visualizações
 

@@ -52,7 +52,6 @@ const BUDGET: Record<string, Counts> = {
   "components/BaseViewer.tsx": { rgba: 1, fixedOverlay: 1 },
   "components/blockHandles.ts": { radiusPx: 1 },
   "components/BlockMenu.tsx": { fixedOverlay: 1 },
-  "components/CalendarWidget.tsx": { radiusPx: 1 },
   "components/callouts.ts": { hex: 8 },
   "components/DatePicker.tsx": { fixedOverlay: 1 },
   "components/Editor.tsx": { radiusPx: 3, rgba: 4, fixedOverlay: 1 },

@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-07-15
+Dernière mise à jour : 2026-07-17
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -36,6 +36,23 @@ Les étiquettes et les dates d'échéance sont lues directement dans la ligne de
 Cliquez sur la **case à cocher** d'une tâche pour basculer entre ouverte et terminée. La modification est réécrite directement dans la note (comme une écriture de fichier normale et sûre — seul le caractère `[ ]`/`[x]` change), si bien que la note, Obsidian et toute synchronisation restent en phase. Cliquez plutôt sur le **texte** de la tâche pour ouvrir la note et sauter à cette ligne.
 
 Si une note a changé depuis la construction de la liste, un basculement obsolète est ignoré et la liste s'actualise — utilisez le bouton **actualiser** en haut à droite pour recharger à tout moment.
+
+## Base de tâches par défaut
+
+Les cases à cocher permettent de noter rapidement, mais parfois une ligne devient une « vraie » tâche — avec un statut, une échéance et sa propre note. Pour cela, choisissez une **Base de tâches par défaut** dans les paramètres, sous **Contenu et structure** : une [base de données (`.base`)](Databases_Base.md) où ces tâches vivent comme leurs propres notes. **Créer une base…** en prépare une toute faite (un dossier de stockage plus une `.base` avec une **colonne de case à cocher terminé** (`fait`), une colonne de statut, une colonne d'échéance, une vue tableau et une vue kanban) ; vous pouvez tout aussi bien choisir une base de données existante. La propriété de case à cocher fait foi de l'achèvement d'une tâche (activée/désactivée, comme chez les fournisseurs) ; la colonne de statut reste cohérente lorsque vous la cochez. Une base de données sans colonne de case à cocher revient à la convention de statut : première option = ouvert, dernière = terminé.
+
+Une fois définie, la vue Tâches affiche deux sections : les entrées de la **Base de tâches** en haut, et **Depuis les notes** en dessous — la liste de cases à cocher habituelle. Le statut est modifiable directement dans l'aperçu : la case à cocher est la propriété de case à cocher terminé de la note et la bascule (la colonne de statut suit), et cliquer sur la puce de statut ouvre un menu avec toutes les options (**Changer le statut**). Les filtres **Ouvertes**/**Terminées**/**Toutes** s'appliquent aux deux sections, et **Ouvrir comme base** saute vers la vue complète de la base de données avec son kanban et ses filtres. **Actualiser** déclenche en plus une véritable synchronisation avec le fournisseur quand des comptes sont connectés.
+
+## Transformer une case à cocher en tâche de base de données
+
+Chaque ligne de case à cocher porte une icône de base de données : **Déplacer vers la base de tâches**. Un clic
+
+- crée une nouvelle note dans le dossier de stockage de la base de données (en utilisant son modèle par défaut, s'il y en a un),
+- transfère une date `📅` dans la colonne d'échéance, définit la première option de statut pour les tâches ouvertes et enregistre les `#tags` de la ligne comme tags de la note,
+- relie la nouvelle note à sa note d'origine via une propriété `source`, et
+- remplace la ligne de case à cocher dans la note d'origine par un lien wiki vers la nouvelle note de tâche — l'élément reste lisible là où il a été écrit, et la tâche vit désormais dans la base de données.
+
+**Clic droit** sur l'icône pour choisir une autre base de données comme cible à la place ; sans base de tâches par défaut, le clic ouvre directement ce sélecteur. Tout reste du Markdown pur : la nouvelle tâche est une note ordinaire avec un frontmatter, et le lien dans la note d'origine est un `[[lien wiki]]` normal.
 
 ## Masquer des notes de la vue Tâches
 

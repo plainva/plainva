@@ -15,7 +15,7 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate, DATE_TOKEN_RE } from '@plainva/ui';
-import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, encodeWikiTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 
@@ -299,13 +299,14 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       }
     }
 
-    // Replace images ![[...]]
+    // Replace images ![[...]] — encodeWikiTarget (not bare encodeURIComponent):
+    // a raw paren in the target breaks the generated markdown destination.
     result = result.replace(/!\[\[(.*?)\]\]/g, (_match, p1) => {
       const isImg = p1.match(/\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i);
       if (isImg) {
-        return `![img](wiki-image://${encodeURIComponent(p1)})`;
+        return `![img](wiki-image://${encodeWikiTarget(p1)})`;
       } else {
-        return `![embed](wiki-embed://${encodeURIComponent(p1)})`;
+        return `![embed](wiki-embed://${encodeWikiTarget(p1)})`;
       }
     });
     // Replace links [[...]]
@@ -318,7 +319,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
         display = parts[1];
       }
       target = target.split("#")[0]; // ignore headers for the file path
-      return `[${display}](wiki://${encodeURIComponent(target)})`;
+      return `[${display}](wiki://${encodeWikiTarget(target)})`;
     });
     // Dynamic date tokens @YYYY-MM-DD -> relative word (Heute/Morgen/… or date).
     const locale = (i18n.language || "de").slice(0, 2);

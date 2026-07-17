@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye } from "lucide-react";
-import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode } from "@plainva/ui";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
+import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
+import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
+import { promoteTask } from "../../services/taskPromotion";
+import { getConfiguredNoteType } from "../../services/newNote";
+import { applyIndexChanges } from "../../services/fileActions";
+import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
 const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
@@ -72,7 +77,7 @@ type StatusFilter = "open" | "done" | "all";
  */
 export function TasksView({ onOpenPath }: Props) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<StatusFilter>("open");
@@ -83,6 +88,37 @@ export function TasksView({ onOpenPath }: Props) {
   const [showHidden, setShowHidden] = useState(false);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
+  // Standard task database (PIM plan 1a): its entries render as an own section
+  // above the checkbox groups, and every checkbox row can be promoted into it.
+  const [taskDb, setTaskDb] = useState<string | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null }[] | null>(null);
+  const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
+  const [dbStatusMenu, setDbStatusMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
+  const dbStatusOptions = useMemo(() => {
+    if (!dbCompletion) return null;
+    const status = dbCompletion.kind === "checkbox" ? dbCompletion.status : dbCompletion.status;
+    return status ? status.options : null;
+  }, [dbCompletion]);
+  const [promoteMenu, setPromoteMenu] = useState<{ task: TaskRecord; at: { x: number; y: number } } | null>(null);
+  const [allBases, setAllBases] = useState<{ path: string; title: string }[]>([]);
+
+  // The stage-3 task reconciler announces every finished run — re-query so a
+  // remote check-off (Google Tasks etc.) shows up without relying on the
+  // index-diff chain alone.
+  useEffect(() => {
+    const onDone = () => setRefreshTick((x) => x + 1);
+    window.addEventListener("plainva-task-sync-done", onDone);
+    return () => window.removeEventListener("plainva-task-sync-done", onDone);
+  }, []);
+
+  // Manual refresh: for provider-synced tasks a plain re-query is not enough —
+  // trigger a real PIM cycle (pull + reconcile) first, like the calendar tab's
+  // refresh button. This was the "checked off in Google Tasks doesn't update in
+  // Plainva" report: the only automatic pull is the 5-minute worker timer.
+  const refreshAll = useCallback(() => {
+    setRefreshTick((x) => x + 1);
+    if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+  }, [pimRuntime]);
 
   useEffect(() => {
     let alive = true;
@@ -124,6 +160,129 @@ export function TasksView({ onOpenPath }: Props) {
       alive = false;
     };
   }, [vaultPath]);
+
+  // Task-database section: configured `.base` path + its rows (title, status,
+  // due — derived from the database's own column schema). Reloads with the
+  // index like the checkbox list; unaffected by the checkbox filters (the rich
+  // filtering lives in the `.base` itself).
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) {
+      setTaskDb(null);
+      setDbRows(null);
+      return;
+    }
+    void (async () => {
+      const db = await getTaskDatabasePath(vaultPath);
+      if (!alive) return;
+      setTaskDb(db);
+      if (!db || !queryService || !vaultAdapter) {
+        setDbRows(null);
+        return;
+      }
+      try {
+        const config = parseBaseConfig(await vaultAdapter.readTextFile(db));
+        const rows = await queryService.queryDatabaseFiles(config);
+        const cols: Record<string, any> = config?.columns ?? {};
+        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
+        // Completion uses the SAME shared model as the task reconciler
+        // (checkbox column preferred, status options as fallback) so the view
+        // can never disagree with the sync about what "done" means — and the
+        // overview's checkbox IS the note's checkbox property when one exists.
+        const completion = resolveTaskCompletionModel(config);
+        if (!alive) return;
+        setDbCompletion(completion);
+        const statusModel = completion?.kind === "checkbox" ? completion.status : completion?.status ?? null;
+        // queryDatabaseFiles rows carry `file.*` fields plus the bare
+        // frontmatter property keys (the same shape every base view reads).
+        setDbRows(
+          rows.map((r: any) => {
+            const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
+            const done = completion
+              ? classifyTaskCompletion(completion, {
+                  checkbox: completion.kind === "checkbox" ? r[completion.key] : undefined,
+                  status: statusRaw,
+                }) === true
+              : false;
+            return {
+              path: String(r["file.path"] ?? ""),
+              title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
+              status: statusRaw,
+              done,
+              due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
+            };
+          })
+        );
+      } catch {
+        if (alive) setDbRows(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick]);
+
+  // Promote a checkbox into the task database (default DB on click; any DB via
+  // the context menu). The service re-verifies the ordinal against the fresh
+  // file — a stale listing refreshes instead of rewriting the wrong line.
+  const promote = useCallback(
+    async (task: TaskRecord, dbOverride?: string) => {
+      if (!vaultAdapter || !vaultPath) return;
+      const db = dbOverride ?? (await getTaskDatabasePath(vaultPath));
+      if (!db) {
+        toast.info(t("tasks.promoteNoDb", { defaultValue: "Keine Standard-Aufgabendatenbank festgelegt." }));
+        return;
+      }
+      try {
+        const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
+        const res = await promoteTask({
+          adapter: vaultAdapter,
+          sourcePath: task.path,
+          task,
+          dbPath: db,
+          noteType: await getConfiguredNoteType(vaultPath),
+          allNotePaths,
+          fallbackTitle: t("tasks.promoteFallbackTitle", { defaultValue: "Aufgabe" }),
+        });
+        if (!res.ok) {
+          if (res.reason === "stale") {
+            toast.info(t("tasks.promoteStale", { defaultValue: "Die Notiz hat sich geändert — Liste aktualisiert." }));
+            setRefreshTick((x) => x + 1);
+          } else if (res.reason === "noFolder") {
+            toast.error(t("tasks.promoteNoFolder", { defaultValue: "Die Datenbank hat keinen Ablage-Ordner." }));
+          } else {
+            toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+          }
+          return;
+        }
+        // Targeted reindex of the new note + rewritten source (Issue #9 rule:
+        // never a full-vault scan per file op), then refresh both sections.
+        if (indexer) {
+          await applyIndexChanges(indexer, { added: [res.notePath, task.path] }).catch(() => {});
+          triggerFileTreeUpdate([res.notePath, task.path]);
+          notifyFileOps([{ type: "create", path: res.notePath }]);
+        }
+        toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        setRefreshTick((x) => x + 1);
+      } catch (e) {
+        console.error("[TasksView] promoting a task failed", e);
+        toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+      }
+    },
+    [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, t]
+  );
+
+  const openPromoteMenu = useCallback(
+    async (task: TaskRecord, at: { x: number; y: number }) => {
+      try {
+        setAllBases(queryService ? await queryService.listBases() : []);
+      } catch {
+        setAllBases([]);
+      }
+      setPromoteMenu({ task, at });
+    },
+    [queryService]
+  );
 
   const visibleTasks = useMemo(
     () => (showHidden ? tasks : tasks.filter((tk) => !tk.excluded)),
@@ -171,6 +330,21 @@ export function TasksView({ onOpenPath }: Props) {
     });
   }, [visibleTasks, status, folder, tag, dueOnly, text]);
 
+  // The open/done/all filter now applies to the database section too (it read
+  // as a raw list before, which is why completed provider tasks looked "open"
+  // and the filter appeared broken). `due` alone can't classify, so the due-only
+  // and text filters also apply here for consistency.
+  const filteredDbRows = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    return (dbRows ?? []).filter((r) => {
+      if (status === "open" && r.done) return false;
+      if (status === "done" && !r.done) return false;
+      if (dueOnly && !r.due) return false;
+      if (q && !r.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [dbRows, status, dueOnly, text]);
+
   const groups = useMemo(() => {
     const m = new Map<string, { title: string; excluded: boolean; items: TaskRecord[] }>();
     for (const tk of filtered) {
@@ -203,6 +377,53 @@ export function TasksView({ onOpenPath }: Props) {
       }
     },
     [vaultAdapter]
+  );
+
+  // Writes back to a task-database note (through the adapter's atomic + backup
+  // chain), refreshes both sections and nudges the PIM worker so a provider-
+  // synced task pushes promptly instead of on the next timer.
+  const writeDbNote = useCallback(
+    async (path: string, mutate: (raw: string) => string) => {
+      if (!vaultAdapter) return;
+      try {
+        const raw = await vaultAdapter.readTextFile(path);
+        const next = mutate(raw);
+        if (next !== raw) {
+          await vaultAdapter.writeTextFile(path, next);
+          if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
+          triggerFileTreeUpdate([path]);
+        }
+        setRefreshTick((x) => x + 1);
+        if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+      } catch (e) {
+        console.error("[TasksView] updating a task note failed", path, e);
+        toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+      }
+    },
+    [vaultAdapter, indexer, triggerFileTreeUpdate, pimRuntime, t]
+  );
+
+  /** The overview checkbox flips the note's completion — the checkbox PROPERTY
+   * when the database has one (the status column follows), else the status
+   * option convention. */
+  const toggleDbRowDone = useCallback(
+    (path: string, done: boolean) => {
+      if (!dbCompletion) return;
+      const model = dbCompletion;
+      void writeDbNote(path, (raw) =>
+        applyTaskCompletion(raw, model, done, (c, p) => readFrontmatterPath(c, p), (c, p, v) => setFrontmatterPath(c, p, v))
+      );
+    },
+    [dbCompletion, writeDbNote]
+  );
+
+  const setDbRowStatus = useCallback(
+    (path: string, option: string) => {
+      if (!dbCompletion) return;
+      const model = dbCompletion;
+      void writeDbNote(path, (raw) => applyTaskStatusOption(raw, model, option, (c, p, v) => setFrontmatterPath(c, p, v)));
+    },
+    [dbCompletion, writeDbNote]
   );
 
   // Writes/removes the `plainva.tasks: false` opt-out marker in the note's
@@ -243,6 +464,7 @@ export function TasksView({ onOpenPath }: Props) {
       type="button"
       onClick={() => setStatus(value)}
       aria-pressed={status === value}
+      data-testid={`tasks-filter-${value}`}
       style={{
         padding: "0.25rem 0.65rem",
         border: "none",
@@ -268,7 +490,7 @@ export function TasksView({ onOpenPath }: Props) {
             {t("tasks.hideTemplates", { defaultValue: "Vorlagen ausblenden" })}
           </Button>
         )}
-        <IconButton label={t("tasks.refresh", { defaultValue: "Aktualisieren" })} onClick={() => setRefreshTick((x) => x + 1)}>
+        <IconButton label={t("tasks.refresh", { defaultValue: "Aktualisieren" })} onClick={refreshAll}>
           <RefreshCw size={15} />
         </IconButton>
       </div>
@@ -308,6 +530,81 @@ export function TasksView({ onOpenPath }: Props) {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
+        {taskDb && (
+          <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.6rem", background: "var(--bg-secondary)", borderLeft: "3px solid var(--accent-color)" }}>
+              <Database size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, fontSize: "0.85rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {t("tasks.dbSection", { defaultValue: "Aufgaben-Datenbank" })}
+              </span>
+              <span style={{ flexShrink: 0, fontSize: "0.72rem", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
+                {filteredDbRows.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenPath(taskDb, false)}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "0.78rem", flexShrink: 0 }}
+              >
+                <Table size={13} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
+              </button>
+            </div>
+            <div style={{ padding: "0.25rem 0 0.35rem" }}>
+              {filteredDbRows.length === 0 ? (
+                <div style={{ color: "var(--text-muted)", padding: "0.35rem 0.65rem", fontSize: "0.85rem" }}>
+                  {t("tasks.dbEmpty", { defaultValue: "Noch keine Einträge" })}
+                </div>
+              ) : (
+                filteredDbRows.map((r) => (
+                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <button
+                      type="button"
+                      disabled={!dbCompletion}
+                      onClick={() => toggleDbRowDone(r.path, !r.done)}
+                      aria-label={r.done ? t("tasks.open", { defaultValue: "Offen" }) : t("tasks.done", { defaultValue: "Erledigt" })}
+                      data-testid="task-db-toggle"
+                      style={{ border: "none", background: "transparent", cursor: dbCompletion ? "pointer" : "default", padding: 0, marginTop: 2, color: r.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0, display: "inline-flex" }}
+                    >
+                      {r.done ? <CheckSquare size={16} /> : <Square size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPath(r.path, false)}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
+                    >
+                      {noteDisplayName(r.title)}
+                      {r.due ? (
+                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          <CalendarClock size={11} /> {r.due}
+                        </span>
+                      ) : null}
+                    </button>
+                    {r.status ? (
+                      <button
+                        type="button"
+                        disabled={!dbStatusOptions}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (dbStatusOptions) setDbStatusMenu({ path: r.path, at: { x: e.clientX, y: e.clientY } });
+                        }}
+                        aria-label={t("tasks.setStatus", { defaultValue: "Status ändern" })}
+                        title={t("tasks.setStatus", { defaultValue: "Status ändern" })}
+                        data-testid="task-db-status-chip"
+                        style={{ border: "none", cursor: dbCompletion ? "pointer" : "default", flexShrink: 0, marginTop: 2, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
+                      >
+                        {r.status}
+                      </button>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        {taskDb && (
+          <div style={{ margin: "0.2rem 0.9rem 0.4rem", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
+            {t("tasks.notesSection", { defaultValue: "Aus Notizen" })}
+          </div>
+        )}
         {loading ? null : groups.length === 0 ? (
           <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "0.9rem" }}>
             {t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
@@ -395,6 +692,25 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ))}
                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (taskDb) void promote(task);
+                        else void openPromoteMenu(task, { x: e.clientX, y: e.clientY });
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void openPromoteMenu(task, { x: e.clientX, y: e.clientY });
+                      }}
+                      aria-label={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
+                      title={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
+                      data-testid="task-promote"
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
+                    >
+                      <Database size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -402,6 +718,43 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+
+      {dbStatusMenu && dbStatusOptions && (
+        <MenuSurface open onClose={() => setDbStatusMenu(null)} at={dbStatusMenu.at} ariaLabel={t("tasks.setStatus", { defaultValue: "Status ändern" })}>
+          <MenuLabel>{t("tasks.setStatus", { defaultValue: "Status ändern" })}</MenuLabel>
+          {dbStatusOptions.map((opt) => (
+            <MenuItem
+              key={opt}
+              onSelect={() => {
+                const path = dbStatusMenu.path;
+                setDbStatusMenu(null);
+                void setDbRowStatus(path, opt);
+              }}
+            >
+              {opt}
+            </MenuItem>
+          ))}
+        </MenuSurface>
+      )}
+
+      {promoteMenu && (
+        <MenuSurface open onClose={() => setPromoteMenu(null)} at={promoteMenu.at} ariaLabel={t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" })}>
+          <MenuLabel>{t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" })}</MenuLabel>
+          {allBases.map((b) => (
+            <MenuItem
+              key={b.path}
+              onSelect={() => {
+                const task = promoteMenu.task;
+                setPromoteMenu(null);
+                void promote(task, b.path);
+              }}
+            >
+              {b.path === taskDb ? `${b.title} ★` : b.title}
+            </MenuItem>
+          ))}
+          {allBases.length === 0 && <MenuLabel>{t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}</MenuLabel>}
+        </MenuSurface>
+      )}
     </div>
   );
 }

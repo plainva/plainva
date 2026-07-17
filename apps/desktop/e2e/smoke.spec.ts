@@ -64,6 +64,14 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|execute') return [0, 0];
         if (cmd === 'plugin:sql|select') {
            const q = String(args.query);
+           // listBases(): inline `LIKE '%.base'` with no bind values — must
+           // come before the generic LIKE branch (whose empty needle would
+           // return EVERY file as a database).
+           if (q.includes("WHERE path LIKE '%.base'")) {
+             return Object.keys(fs)
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
+               .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
+           }
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -764,6 +772,40 @@ test('Calendar: the open daily note is highlighted with precedence over today', 
   await expect(page.getByTestId('calendar-month-label')).toContainText('2020');
 });
 
+test('Sidebar calendar: a day click opens the day peek; its daily action opens the note; right-click offers the menu', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  // A day click opens the DAY PEEK (it no longer creates/opens the daily note).
+  await page.getByTestId(`sidecal-day-${todayKey}`).click();
+  const peek = page.getByTestId('sidecal-day-peek');
+  await expect(peek).toBeVisible();
+  await expect(page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey)).resolves.toBeNull();
+
+  // The peek's daily action opens (creates) the daily note — the in-app
+  // create-confirm dialog is part of the flow.
+  await page.getByTestId('sidecal-peek-daily').click();
+  await page.getByRole('button', { name: /^(Confirm|Bestätigen)$/ }).click();
+  await expect
+    .poll(() => page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey))
+    .toBeTruthy();
+  await expect(peek).toHaveCount(0);
+
+  // …and the day now carries the tiny sunrise marker instead of a plain dot.
+  await expect(page.getByTestId(`sidecal-day-${todayKey}`).locator('svg.lucide-sunrise')).toBeVisible();
+
+  // Right-click offers the same as a context menu (daily entry present).
+  await page.getByTestId(`sidecal-day-${todayKey}`).click({ button: 'right' });
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /Tageseintrag|Daily Note/i })).toBeVisible();
+  await page.keyboard.press('Escape');
+});
+
 /* ---------------------------------------------------------------- Gesamtplan 2026-07-05: Tabellen-Widget rendert Inline-Markdown in Zellen */
 
 test('Table widget: cells render inline formatting and clickable links', async ({ page }) => {
@@ -1211,6 +1253,64 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await picker.getByText('Vorlagen', { exact: true }).click();
   await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
   await expect(page.getByPlaceholder('Templates/')).toHaveValue('Vorlagen');
+});
+
+test('Read view: a wiki link with an unbalanced paren in the target renders as a link', async ({ page }) => {
+  // Maintainer find 2026-07-17: promoted checkbox lines like
+  // [[Nataschas … (keine offenen|Alias]] rendered as literal "[Alias](wiki://…"
+  // in read mode — the raw "(" swallowed the markdown link's closing paren.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/ParenLink.md'] =
+      '# Links\n\n- [[Aufgaben (keine offenen|Sachen abholen (offen).]]\n- [[Ziel (a) b|Anzeige]]\n';
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('ParenLink', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('ParenLink', { exact: true }).click();
+  await page.getByTitle(/Lesemodus|Read Mode/).first().click();
+
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader).toBeVisible();
+  // Both aliases render as real links — no literal "(wiki://" leaks as text.
+  await expect(reader.getByRole('link', { name: 'Sachen abholen (offen).' })).toBeVisible();
+  await expect(reader.getByRole('link', { name: 'Anzeige' })).toBeVisible();
+  await expect(reader.getByText(/wiki:\/\//)).toHaveCount(0);
+});
+
+test('Settings: creating a standard task database scaffolds folder + .base and selects it', async ({ page }) => {
+  // PIM plan 1a: the vault designates one .base as its task database; the
+  // create action scaffolds it in the vault-template shape.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  await page.getByTestId('create-task-db').click();
+  const dlg = page.getByRole('dialog', { name: /Neue Datenbank anlegen|Create new database/ });
+  await expect(dlg).toBeVisible();
+  const input = dlg.getByRole('textbox');
+  await expect(input).toHaveValue(/Aufgaben|Tasks/); // localized default name
+  await input.fill('Aufgaben');
+  await dlg.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+
+  // The scaffold reached the mock fs: source folder + root-level .base in the
+  // Obsidian-safe template shape (board persists as table + plainva.render).
+  await expect
+    .poll(async () => await page.evaluate(() => typeof (window as any).mockFs['/test-vault/Aufgaben.base'] === 'string'), { timeout: 8000 })
+    .toBe(true);
+  const state = await page.evaluate(() => ({
+    folderIsDir: !!((window as any).mockFs['/test-vault/Aufgaben'] || {}).isDir,
+    base: String((window as any).mockFs['/test-vault/Aufgaben.base'] ?? ''),
+  }));
+  expect(state.folderIsDir).toBe(true);
+  expect(state.base).toContain('file.folder == "Aufgaben"');
+  expect(state.base).toContain('note.status');
+  expect(state.base).toContain('render: board');
+
+  // The row now shows the fresh database as the selected value.
+  await expect(dialog.getByLabel(/Standard-Aufgabendatenbank|Standard task database/)).toContainText('Aufgaben');
 });
 
 test('Settings nav: clicking a late anchor highlights it even when it cannot scroll to the top', async ({ page }) => {

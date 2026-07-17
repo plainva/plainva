@@ -44,6 +44,10 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'autoOpenLastVault') return [true, true];
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
+          // Standard task database (PIM 1a): a test opts in by setting
+          // fs.__taskDb in its own init script (not a vault path — ignored by
+          // noteRows()).
+          if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
@@ -59,6 +63,36 @@ test.beforeEach(async ({ page }) => {
               .map((r) => ({ path: r.path, title: r.title, content: fs['/test-vault/' + r.path] }));
           }
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
+          // listBases(): inline `LIKE '%.base'` — must precede the generic
+          // "SELECT path, title FROM files" (listNotes) branch below.
+          if (q.includes("WHERE path LIKE '%.base'")) {
+            return Object.keys(fs)
+              .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
+              .map((p) => ({ path: p.replace('/test-vault/', ''), title: null }));
+          }
+          // queryDatabaseFiles(): main row query (aliased `FROM files f`) with
+          // the pushed-down folder source, then a bulk properties fetch keyed
+          // by file id (the mock uses the relative path AS the id).
+          if (q.includes('FROM files f')) {
+            const pattern = String(args.values?.[0] ?? '');
+            const prefix = pattern.replace(/%$/, '');
+            return noteRows()
+              .filter((r) => r.mode !== 'attachment' && (!prefix || r.path.startsWith(prefix)))
+              .map((r) => ({ id: r.path, path: r.path, title: r.title, mtime_local: r.mtime_local, size_bytes: 1 }));
+          }
+          if (q.includes('FROM properties')) {
+            const out: any[] = [];
+            for (const rel of (args.values ?? []) as string[]) {
+              const content = String(fs['/test-vault/' + rel] ?? '');
+              const fm = content.match(/^---\n([\s\S]*?)\n---/);
+              if (!fm) continue;
+              for (const line of fm[1].split('\n')) {
+                const kv = line.match(/^([A-Za-z_][\w-]*):\s*(.+)$/);
+                if (kv) out.push({ file_id: rel, key: kv[1], value: kv[2].replace(/^"|"$/g, ''), type: 'text' });
+              }
+            }
+            return out;
+          }
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
             return noteRows().map((r) => ({ path: r.path, title: r.title, mode: r.mode === 'obsidian' ? 'note' : r.mode }));
           }
@@ -158,7 +192,7 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
     .toContain('- [x] buy milk');
 
   // It leaves the "open" filter; switching to "All" shows it again.
-  await page.getByRole('button', { name: /^(All|Alle)$/ }).click();
+  await page.getByTestId('tasks-filter-all').click();
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /done thing/ })).toBeVisible();
 });
@@ -181,4 +215,221 @@ test('hiding a note writes plainva.tasks: false and drops it until "show hidden"
   // ...and "show hidden" brings the note back (dimmed, with a re-show affordance).
   await page.getByRole('checkbox', { name: /Show hidden|Ausgeblendete anzeigen/ }).check();
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
+});
+
+const TASK_DB_YAML = `properties:
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: In Arbeit
+        - value: Erledigt
+  note.frist:
+    plainva:
+      input: date
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - file.name
+      - note.status
+      - note.frist
+  - type: table
+    name: Board
+    plainva:
+      render: board
+      groupBy: status
+filters:
+  and:
+    - file.folder == "Aufgaben"
+`;
+
+test('promoting a checkbox creates a task note in the standard database and links the source line', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  // The database section renders above the note groups — still empty.
+  const dbSection = page.getByTestId('task-db-section');
+  await expect(dbSection).toBeVisible();
+  await expect(dbSection.getByText(/No entries yet|Noch keine Einträge/)).toBeVisible();
+  await expect(page.getByText(/From notes|Aus Notizen/)).toBeVisible();
+
+  // Promote "call bob" (the database button right after the task text).
+  await page.getByRole('button', { name: /call bob/ }).locator('xpath=following-sibling::button[1]').click();
+
+  // A task note appears in the database folder: due date in the date column,
+  // first status option, tags carried, source backlink; the checkbox line in
+  // the source note became a wiki link.
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/call bob.md']))
+    .toBeTruthy();
+  const note = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/call bob.md']);
+  expect(note).toContain('frist: 2026-08-01');
+  expect(note).toContain('status: Offen');
+  expect(note).toContain('source: "[[Todo]]"');
+  const todo = await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']);
+  expect(todo).toContain('- [[call bob]]');
+  expect(todo).not.toContain('- [ ] call bob');
+
+  // Both sections refresh: the entry shows in the database section (status
+  // chip + due pill), the checkbox left the notes section.
+  await expect(dbSection.getByRole('button', { name: /call bob/ })).toBeVisible();
+  await expect(dbSection.getByText('Offen')).toBeVisible();
+  await expect(dbSection.getByText('2026-08-01')).toBeVisible();
+});
+
+test('the database section marks completed entries done and the status filter applies to it', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    // Two database entries: one open, one already done (last status option).
+    fs['/test-vault/Aufgaben/Open task.md'] = '---\nstatus: Offen\nfrist: 2026-08-05\n---\n# Open task\n';
+    fs['/test-vault/Aufgaben/Finished task.md'] = '---\nstatus: Erledigt\n---\n# Finished task\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  await expect(dbSection).toBeVisible();
+
+  // Default "open" filter: the done entry is hidden, the open one shows.
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toBeVisible();
+  await expect(dbSection.getByRole('button', { name: /Finished task/ })).toHaveCount(0);
+
+  // Switch to "done": the completed entry shows and is marked done (glyph state),
+  // the open one is now hidden — the filter genuinely reaches the DB section.
+  await page.getByTestId('tasks-filter-done').click();
+  const doneRow = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Finished task' });
+  await expect(doneRow).toBeVisible();
+  await expect(doneRow).toHaveAttribute('data-done', '1');
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toHaveCount(0);
+
+  // "All" shows both, the open one classified as not-done.
+  await page.getByTestId('tasks-filter-all').click();
+  await expect(dbSection.getByRole('button', { name: /Open task/ })).toBeVisible();
+  await expect(dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Open task' })).toHaveAttribute('data-done', '0');
+});
+
+test('the database-section status is editable inline (toggle + option menu) and written to the note', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = '---\nstatus: Offen\n---\n# Steuer\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
+  await expect(row).toBeVisible();
+
+  // Checkbox toggle: open -> done writes the LAST status option to the note.
+  await row.getByTestId('task-db-toggle').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('status: Erledigt');
+
+  // The row left the default "open" filter; switch to done to reach the chip.
+  await page.getByTestId('tasks-filter-done').click();
+  await expect(row).toHaveAttribute('data-done', '1');
+
+  // Status chip opens the option menu; picking the intermediate option writes it.
+  await row.getByTestId('task-db-status-chip').click();
+  const menu = page.getByRole('menu', { name: /Change status|Status ändern/ });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'In Arbeit' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('status: In Arbeit');
+});
+
+const CHECKBOX_TASK_DB_YAML = `properties:
+  note.erledigt:
+    plainva:
+      input: checkbox
+  note.status:
+    plainva:
+      input: status
+      options:
+        - value: Offen
+        - value: In Arbeit
+        - value: Erledigt
+  note.frist:
+    plainva:
+      input: date
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - file.name
+      - note.erledigt
+      - note.status
+      - note.frist
+filters:
+  and:
+    - file.folder == "Aufgaben"
+`;
+
+test('with a done-checkbox column the overview checkbox writes the CHECKBOX property (status coupled)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = '---\nerledigt: false\nstatus: Offen\n---\n# Steuer\n';
+  }, CHECKBOX_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const dbSection = page.getByTestId('task-db-section');
+  const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
+  await expect(row).toBeVisible();
+  await expect(row).toHaveAttribute('data-done', '0');
+
+  // The overview checkbox IS the note's checkbox property: toggling writes
+  // `erledigt: true` AND couples the status to the done option.
+  await row.getByTestId('task-db-toggle').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']))
+    .toContain('erledigt: true');
+  const note = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']);
+  expect(note).toContain('status: Erledigt');
+});
+
+test('without a standard database the promote button offers the database picker', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    // NO fs.__taskDb — no standard database configured.
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  // No database section without a configured standard DB.
+  await expect(page.getByTestId('task-db-section')).toHaveCount(0);
+
+  // The promote click opens the picker menu listing the vault's databases;
+  // choosing one promotes into it ad hoc.
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=following-sibling::button[1]').click();
+  const menu = page.getByRole('menu', { name: /Move to database|In Datenbank verschieben/ });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Aufgaben' }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/buy milk.md']))
+    .toBeTruthy();
+  const todo = await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']);
+  expect(todo).toContain('- [[buy milk]]');
 });

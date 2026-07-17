@@ -1,6 +1,6 @@
 # Tareas
 
-Stand: 2026-07-15
+Última actualización: 2026-07-17
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -36,6 +36,23 @@ Las etiquetas y las fechas límite se leen directamente de la línea de la tarea
 Haz clic en la **casilla** de una tarea para alternarla entre abierta y hecha. El cambio se escribe directamente de vuelta en la nota (como una escritura de archivo normal y segura — solo cambia el carácter `[ ]`/`[x]`), así que la nota, Obsidian y cualquier sincronización permanecen sincronizados. Haz clic en el **texto** de la tarea en su lugar para abrir la nota y saltar a esa línea.
 
 Si una nota cambió desde que se generó la lista, un cambio de estado obsoleto se omite y la lista se actualiza — usa el botón **Actualizar** de arriba a la derecha para recargar en cualquier momento.
+
+## Base de datos de tareas predeterminada
+
+Las casillas son rápidas para anotar, pero a veces una línea se convierte en una tarea "real" — con un estado, una fecha límite y su propia nota. Para eso, elige una **Base de datos de tareas predeterminada** en la configuración, en **Contenido y estructura**: una [base de datos (`.base`)](Databases_Base.md) donde esas tareas viven como notas propias. **Crear base de datos…** prepara una ya lista (carpeta de almacenamiento más una `.base` con una **columna de casilla de hecho** (`hecho`), una columna de estado, una columna de fecha límite, una vista de tabla y una vista de tablero); también puedes elegir una base de datos ya existente. La propiedad de casilla es la verdad de finalización de una tarea (activada/desactivada, igual que en los proveedores); la columna de estado se mantiene coherente cuando la marcas. Una base de datos sin columna de casilla recurre a la convención de estado: la primera opción = abierta, la última = hecha.
+
+Una vez configurada, la vista Tareas muestra dos secciones: las entradas de la **Base de datos de tareas** arriba, y **Desde notas** abajo — la lista de casillas de siempre. El estado se puede editar directamente en la vista general: la casilla ES la propiedad de casilla de hecho de la nota y la alterna (la columna de estado la sigue), y al hacer clic en el chip de estado se abre un menú con todas las opciones (**Cambiar estado**). Los filtros **Abiertas**/**Hechas**/**Todas** se aplican a ambas secciones, y **Abrir como base de datos** salta a la vista completa de la base de datos con su tablero y sus filtros. **Actualizar** además dispara una sincronización real con el proveedor cuando hay cuentas conectadas.
+
+## Convertir una casilla en una tarea de base de datos
+
+Cada fila de casilla lleva un icono de base de datos: **Mover a la base de datos de tareas**. Un clic
+
+- crea una nueva nota en la carpeta de almacenamiento de la base de datos (usando su plantilla predeterminada, si tiene una),
+- traslada una fecha `📅` a la columna de fecha límite, establece la primera opción de estado para las tareas abiertas y guarda las `#tags` de la línea como etiquetas de la nota,
+- enlaza la nueva nota con su nota de origen mediante una propiedad `source`, y
+- reemplaza la línea de la casilla en la nota de origen por un enlace interno a la nueva nota de tarea — el elemento sigue siendo legible donde se escribió, y la tarea ahora vive en la base de datos.
+
+Haz **clic derecho** en el icono para elegir en su lugar otra base de datos como destino; sin una base de datos de tareas predeterminada, el clic abre ese selector directamente. Todo sigue siendo Markdown puro: la nueva tarea es una nota normal con frontmatter, y el enlace en la nota de origen es un `[[enlace interno]]` normal.
 
 ## Ocultar notas de la vista Tareas
 

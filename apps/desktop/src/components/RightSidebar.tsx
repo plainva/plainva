@@ -51,13 +51,15 @@ interface RightSidebarProps {
   onOpenPath: (path: string, newTab?: boolean) => void;
   onOpenPathInSplit?: (path: string) => void;
   onSelectDate: (date: Date) => void;
+  /** Opens the calendar tab focused on the given day (widget peek/menu). */
+  onOpenCalendarDay?: (dayKey: string) => void;
   loadMarkedDates: (dates: Date[]) => Promise<Set<string>>;
   /** Date of the open daily note (if any), highlighted with precedence over today. */
   activeDailyDate?: Date | null;
   refreshToken: number;
 }
 
-export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, loadMarkedDates, activeDailyDate, refreshToken }: RightSidebarProps) {
+export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion } = useVault();
   const [order, setOrder] = useState<SectionId[]>(() => readOrder());
@@ -172,7 +174,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   };
 
   const renderBody = (id: SectionId) => {
-    if (id === "calendar") return <CalendarWidget onSelectDate={onSelectDate} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
+    if (id === "calendar") return <CalendarWidget onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
     if (id === "outline") return <OutlineSection />;
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;

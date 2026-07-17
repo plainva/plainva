@@ -25,8 +25,12 @@ import { RecentsSection } from "./components/RecentsSection";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
+const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
+const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
+const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
@@ -50,7 +54,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, CalendarDays, X, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sunrise, X, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -87,6 +91,8 @@ function App() {
   }, []);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
+  // Mail-raus (stage 6): the draft dialog is prefilled from the active note.
+  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string } | null>(null);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -231,12 +237,13 @@ function App() {
   // Right-sidebar visibility is remembered PER VIEW KIND (hardening P7.2):
   // the vault map defaults to collapsed (canvas wants the space), notes and
   // bases keep their own last choice. The legacy global key is the fallback.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail"): boolean => {
     const v = localStorage.getItem(`plainva-right-collapsed-${kind}`);
     if (v !== null) return v === "1";
-    if (kind === "graph") return true;
+    // Canvas-like full-surface views want the space by default.
+    if (kind === "graph" || kind === "calendar" || kind === "mail") return true;
     return localStorage.getItem("plainva-right-sidebar-collapsed") === "1";
   };
   // Focus mode (P7.4): one command collapses BOTH sidebars; invoking it again
@@ -894,6 +901,8 @@ function App() {
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
         onOpenGraph={() => openInFocusedPane(GRAPH_TAB_PATH, true)}
         onOpenTasks={() => openInFocusedPane(TASKS_TAB_PATH, true)}
+        onOpenCalendar={() => openInFocusedPane(CALENDAR_TAB_PATH, true)}
+        onOpenMail={() => openInFocusedPane(MAIL_TAB_PATH, true)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -965,7 +974,7 @@ function App() {
                 { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
                 { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
                 'separator',
-                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <CalendarDays size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
+                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sunrise size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
               ]}
             />
           </div>
@@ -1167,6 +1176,14 @@ function App() {
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
                       </Suspense>
+                    ) : path === CALENDAR_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <CalendarView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                      </Suspense>
+                    ) : path === MAIL_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                      </Suspense>
                     ) : isImagePath(path) ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <ImageViewer
@@ -1255,6 +1272,10 @@ function App() {
           onOpenPath={openInFocusedPane}
           onOpenPathInSplit={(path) => openPathInSplit(path, "vertical")}
           onSelectDate={handleOpenDailyNote}
+          onOpenCalendarDay={(dayKey) => {
+            requestCalendarDay(dayKey);
+            openInFocusedPane(CALENDAR_TAB_PATH, true);
+          }}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}
@@ -1325,6 +1346,8 @@ function App() {
             openTemplatePicker: () => setShowTemplatePicker(true),
             openGraph: () => openInFocusedPane(GRAPH_TAB_PATH, true),
             openTasks: () => openInFocusedPane(TASKS_TAB_PATH, true),
+            openCalendar: () => openInFocusedPane(CALENDAR_TAB_PATH, true),
+            openMail: () => openInFocusedPane(MAIL_TAB_PATH, true),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
@@ -1376,11 +1399,70 @@ function App() {
                 })
                 .catch((e) => console.error("[App] saving note as template failed", e));
             },
+            // Mail-raus (stage 6): three SMTP-free ways out of the vault.
+            copyNoteAsEmail: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const { noteToClipboardFlavors } = await import("./services/mail/mailOut");
+                  const flavors = noteToClipboardFlavors(content);
+                  await navigator.clipboard.write([
+                    new ClipboardItem({
+                      "text/html": new Blob([flavors.html], { type: "text/html" }),
+                      "text/plain": new Blob([flavors.text], { type: "text/plain" }),
+                    }),
+                  ]);
+                  toast.info(t("mail.copied", { defaultValue: "Formatierter Text kopiert — im Mail-Programm einfügen." }));
+                } catch (e) {
+                  console.error("[App] copy as email failed", e);
+                }
+              })();
+            },
+            sendNoteViaMailto: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const [{ buildMailtoUrl }, { markdownToPlainText }, { openUrl }] = await Promise.all([
+                    import("./services/mail/mailOut"),
+                    import("@plainva/ui"),
+                    import("@tauri-apps/plugin-opener"),
+                  ]);
+                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+                  const res = buildMailtoUrl(title, markdownToPlainText(content));
+                  if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
+                  await openUrl(res.url);
+                } catch (e) {
+                  console.error("[App] mailto failed", e);
+                }
+              })();
+            },
+            saveNoteAsMailDraft: () => {
+              const p = activePath;
+              if (!p || !vaultAdapter) return;
+              void (async () => {
+                try {
+                  const content = await vaultAdapter.readTextFile(p);
+                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+                  setMailDraft({ subject: title, markdown: content });
+                } catch (e) {
+                  console.error("[App] draft prefill failed", e);
+                }
+              })();
+            },
           })}
         />
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+        {mailDraft && (
+          <Suspense fallback={null}>
+            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} onClose={() => setMailDraft(null)} />
+          </Suspense>
+        )}
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />

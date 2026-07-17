@@ -98,8 +98,20 @@ Plainva-specific note extras are bundled under a single `plainva:` key so other 
 | `header_color` | hex color | Full-width header stripe |
 | `tasks` | `false` | Exclude this note's checkboxes from the [Tasks view](Tasks.md) |
 | `templateFor` | list of wiki links to `.base` files | Assigns a **template** to the listed databases (meaningful only for notes inside the template folder) |
+| `pim` | mapping (see below) | Anchor tying the note to an external calendar event, task or email |
 
 All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
+
+`pim` is the anchor of the PIM integrations (see [Calendar & external tasks](Calendar_and_Tasks.md) and [Email capture](Email_Capture.md)). It is a small mapping written by Plainva when a note mirrors an external object: `uid` plus `account`, and depending on the kind `calendar` (meeting notes), `kind: task` + `list` (synced tasks) or `kind: email` + `mailbox` (captured mails). Tools should preserve it unchanged; deleting it merely detaches the note from its remote object (nothing is deleted remotely). Example:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` is the field contract of the template assignment (see [databases](Databases_Base.md)): on a note inside the template folder it lists the databases whose **Entry** menu shows the template by default. Values are whole wiki links including the `.base` extension — bare (`"[[Tasks.base]]"` matches the file of that name in any folder, so it survives pure folder moves) or path-qualified (`"[[Projekte/Tasks.base]]"` matches exactly that path). Plainva writes bare links and only qualifies when two same-named `.base` files exist. A scalar instead of a list is tolerated. When an entry is created from the template, `templateFor` — unlike the other `plainva:` keys — is **not** copied into the new note.
 

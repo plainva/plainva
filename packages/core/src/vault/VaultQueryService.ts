@@ -744,16 +744,37 @@ export class VaultQueryService {
       }
     }
 
+    // Column keys of the base's schema (bare, without the note. prefix) — used
+    // for the case-insensitive fallback below.
+    const schemaColumnKeys = Object.keys((config.columns ?? {}) as Record<string, unknown>);
+
     const result: any[] = [];
     for (const row of rows) {
       const props = propsByFileId[row.id] || {};
-      const fileData = {
+      const fileData: Record<string, any> = {
         "file.name": row.title || row.path.split(/[/\\]/).pop()?.replace(/\.md$/i, ''),
         "file.path": row.path,
         "file.mtime": row.mtime_local,
         "file.size": row.size_bytes,
         ...props
       };
+      // Case-insensitive fallback onto the schema's column keys: frontmatter
+      // keys keep the exact casing of the note ("Frist"), but every view reads
+      // the COLUMN key ("frist"). Without this, a note whose key casing differs
+      // from the column shows "no value" although the properties panel (which
+      // capitalizes bare keys for DISPLAY only) looks perfectly fine — a real
+      // maintainer trap (2026-07-17). Exact matches always win; the fallback
+      // only fills a column key that is absent from the row.
+      for (const colKey of schemaColumnKeys) {
+        if (fileData[colKey] !== undefined) continue;
+        const lower = colKey.toLowerCase();
+        for (const propKey of Object.keys(props)) {
+          if (propKey.toLowerCase() === lower) {
+            fileData[colKey] = props[propKey];
+            break;
+          }
+        }
+      }
       result.push(fileData);
     }
 

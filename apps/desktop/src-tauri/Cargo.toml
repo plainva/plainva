@@ -49,6 +49,17 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # Binary payloads for write_file_atomic travel as base64 strings over the IPC
 # (a JSON number-array would be ~4x the size; raw bodies don't mix with params).
 base64 = "0.22"
+# Read-only IMAP mail capture (PIM stage 5). The sync imap client runs inside
+# spawn_blocking; TLS goes through rustls over a plain TcpStream so the app
+# stays OpenSSL-free cross-platform (same decision as reqwest above).
+imap = { version = "2.4", default-features = false }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "0.26"
+# RFC 5322/2047/MIME parsing (headers, multipart bodies, attachments).
+mail-parser = "0.11"
+# MIME construction for the stage-6 IMAP-APPEND draft (multipart/alternative
+# with correct RFC 2047 header encoding — hand-rolling that invites bugs).
+mail-builder = "0.4"
 
 [dev-dependencies]
 tempfile = "3.27.0"

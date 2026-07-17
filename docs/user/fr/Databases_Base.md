@@ -26,6 +26,8 @@ Le format de fichier est compatible avec le format Bases d'Obsidian (détails à
 
 Chaque base de données peut porter sa propre icône avec une **Couleur de l'icône de la base de données** — visible dans l'arborescence de fichiers, les onglets et l'en-tête.
 
+Une base de données peut aussi servir de **Base de tâches par défaut** du vault (Paramètres → **Contenu et structure**) : la [vue Tâches](Tasks.md) affiche alors ses entrées comme une section à part et peut y déplacer des cases à cocher depuis les notes.
+
 ## Vues
 
 Une base de données peut avoir un nombre quelconque de vues ; chacune a un **Type de vue** :

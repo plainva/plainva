@@ -1,6 +1,6 @@
 # Database (.base)
 
-Stand: 2026-07-17
+Ultimo aggiornamento: 2026-07-17
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -25,6 +25,8 @@ Il formato del file è compatibile con il formato Bases di Obsidian (dettagli al
 - **Dentro una nota**: comando slash **Incorpora database** (mostra un `.base` esistente in linea) o **Crea database in linea** (crea un nuovo `.base` nella cartella e lo incorpora).
 
 Ogni database può avere una propria icona con un **Colore dell'icona del database** — visibile nell'albero dei file, nelle schede e nell'intestazione.
+
+Un database può anche fungere da **Database attività predefinito** del vault (Impostazioni → **Contenuto e struttura**): la [vista Attività](Tasks.md) mostra allora le sue voci in una sezione propria e può spostare le caselle di controllo delle note al suo interno.
 
 ## Viste
 

@@ -26,6 +26,8 @@ Das Dateiformat ist mit Obsidians Bases-Format kompatibel (Details am Seitenende
 
 Jede Datenbank kann ein eigenes Icon mit **Icon-Farbe der Datenbank** tragen — sichtbar im Dateibaum, in Tabs und im Header.
 
+Eine Datenbank kann außerdem als **Standard-Aufgabendatenbank** des Vaults dienen (Einstellungen → **Inhalt & Struktur**): Die [Aufgabenansicht](Tasks.md) zeigt deren Einträge dann als eigenen Bereich und kann Checkboxen aus Notizen dorthin verschieben.
+
 ## Ansichten
 
 Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp**:

@@ -1,6 +1,6 @@
 # Attività
 
-Stand: 2026-07-15
+Ultimo aggiornamento: 2026-07-17
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -36,6 +36,23 @@ I tag e le scadenze vengono letti direttamente dalla riga dell'attività — ad 
 Fai clic sulla **casella di controllo** di un'attività per alternarla tra aperta e completata. La modifica viene scritta direttamente nella nota (come una normale scrittura di file sicura — cambia solo il singolo carattere `[ ]`/`[x]`), così la nota, Obsidian e qualsiasi sincronizzazione restano allineati. Fai invece clic sul **testo** dell'attività per aprire la nota e saltare a quella riga.
 
 Se una nota è cambiata da quando l'elenco è stato generato, un clic obsoleto viene ignorato e l'elenco si aggiorna — usa il pulsante **Aggiorna** in alto a destra per ricaricare in qualsiasi momento.
+
+## Database attività predefinito
+
+Le caselle di controllo si scrivono in fretta, ma a volte una riga cresce fino a diventare un'attività "vera" — con uno stato, una scadenza e una nota propria. Per questo, scegli un **Database attività predefinito** nelle Impostazioni sotto **Contenuto e struttura**: un [database (`.base`)](Databases_Base.md) in cui queste attività vivono come note proprie. **Crea database…** ne genera uno già pronto (cartella di archiviazione più un `.base` con una **colonna casella di controllo di completamento** (`fatto`), una colonna di stato, una colonna di scadenza, una vista tabella e una vista bacheca); puoi altrettanto bene scegliere un database già esistente. La proprietà della casella di controllo è la verità sul completamento di un'attività (attiva/disattiva, come per i provider); la colonna di stato resta coerente quando la spunti. Un database senza colonna casella di controllo ricade sulla convenzione di stato: prima opzione = aperta, ultima = completata.
+
+Una volta impostato, la vista Attività mostra due sezioni: in alto le voci del **Database attività**, e in basso **Dalle note** — il consueto elenco di caselle di controllo. Lo stato è modificabile direttamente nella panoramica: la casella di controllo è la proprietà casella di controllo di completamento della nota e la commuta (la colonna di stato la segue), e un clic sul chip di stato apre un menu con tutte le opzioni (**Cambia stato**). I filtri **Aperte**/**Completate**/**Tutte** si applicano a entrambe le sezioni, e **Apri come database** salta alla vista completa del database con la sua bacheca e i suoi filtri. **Aggiorna** avvia inoltre una vera sincronizzazione con il provider quando sono collegati degli account.
+
+## Trasformare una casella di controllo in un'attività di database
+
+Ogni riga di attività porta un'icona di database: **Sposta nel database delle attività**. Un clic
+
+- crea una nuova nota nella cartella di archiviazione del database (usando il suo modello predefinito, se ne è impostato uno),
+- porta una data `📅` nella colonna della scadenza, imposta la prima opzione di stato per le attività aperte e salva i `#tags` della riga come tag della nota,
+- collega la nuova nota alla nota di origine tramite una proprietà `source`, e
+- sostituisce la riga della casella di controllo nella nota di origine con un wiki-link alla nuova nota attività — la voce resta leggibile dove è stata scritta, e l'attività ora vive nel database.
+
+**Clic destro** sull'icona per scegliere invece un database diverso come destinazione; senza un database predefinito, il clic apre subito quel selettore. Tutto resta puro Markdown: la nuova attività è una nota normale con frontmatter, e il link nella nota di origine è un normale `[[wiki-link]]`.
 
 ## Nascondere le note dalla vista Attività
 

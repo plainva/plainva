@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Stand: 2026-07-17
+Última actualización: 2026-07-17
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -25,6 +25,8 @@ El formato de archivo es compatible con el formato Bases de Obsidian (detalles a
 - **Dentro de una nota**: comando de barra oblicua **Incrustar base de datos** (mostrar una `.base` existente en línea) o **Crear base de datos integrada** (crear una nueva `.base` en la carpeta e incrustarla).
 
 Cada base de datos puede llevar su propio icono con un **Color del icono de la base de datos** — visible en el árbol de archivos, las pestañas y el encabezado.
+
+Una base de datos también puede servir como la **Base de datos de tareas predeterminada** del vault (Configuración → **Contenido y estructura**): la [vista Tareas](Tasks.md) muestra entonces sus entradas como una sección propia y puede mover casillas desde las notas a ella.
 
 ## Vistas
 

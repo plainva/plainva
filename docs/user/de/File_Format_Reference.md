@@ -98,8 +98,20 @@ Plainva-spezifische Notiz-Extras liegen gebündelt unter einem einzigen `plainva
 | `header_color` | Hex-Farbe | Farbstreifen über die volle Breite |
 | `tasks` | `false` | Schließt die Checkboxen dieser Notiz aus der [Aufgabenansicht](Tasks.md) aus |
 | `templateFor` | Liste von Wiki-Links auf `.base`-Dateien | Ordnet eine **Vorlage** den genannten Datenbanken zu (nur für Notizen im Vorlagen-Ordner von Bedeutung) |
+| `pim` | Mapping (siehe unten) | Anker, der die Notiz mit einem externen Termin, einer Aufgabe oder E-Mail verknüpft |
 
 Alle davon sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
+
+`pim` ist der Anker der PIM-Integrationen (siehe [Kalender & externe Aufgaben](Calendar_and_Tasks.md) und [E-Mail-Capture](Email_Capture.md)). Es ist ein kleines Mapping, das Plainva schreibt, wenn eine Notiz ein externes Objekt spiegelt: `uid` plus `account`, und je nach Art `calendar` (Meeting-Notizen), `kind: task` + `list` (synchronisierte Aufgaben) oder `kind: email` + `mailbox` (abgelegte Mails). Werkzeuge sollten es unverändert erhalten; das Löschen trennt die Notiz nur von ihrem externen Objekt (extern wird nichts gelöscht). Beispiel:
+
+```yaml
+plainva:
+  pim:
+    kind: task
+    uid: MTIzNDU2
+    account: 3f9c21ab
+    list: MDEyMzQ1
+```
 
 `templateFor` ist der Feldvertrag der Vorlagen-Zuordnung (siehe [Datenbanken](Databases_Base.md)): Auf einer Notiz im Vorlagen-Ordner listet es die Datenbanken, in deren **Eintrag**-Menü die Vorlage standardmäßig erscheint. Die Werte sind ganze Wiki-Links inklusive `.base`-Endung — bare (`"[[Tasks.base]]"` matcht die Datei dieses Namens in jedem Ordner, überlebt also reine Ordner-Verschiebungen) oder pfad-qualifiziert (`"[[Projekte/Tasks.base]]"` matcht exakt diesen Pfad). Plainva schreibt bare Links und qualifiziert nur, wenn zwei gleichnamige `.base`-Dateien existieren. Ein Skalar statt einer Liste wird toleriert. Beim Erstellen eines Eintrags aus der Vorlage wird `templateFor` — anders als die übrigen `plainva:`-Schlüssel — **nicht** in die neue Notiz übernommen.
 

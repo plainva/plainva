@@ -1,6 +1,6 @@
 # Configurar OneDrive y Dropbox (registro de app propio)
 
-Stand: 2026-07-11
+Última actualización: 2026-07-11
 
 **Normalmente no necesitas esta página:** Plainva incluye sus propios IDs de app para OneDrive y Dropbox — eliges el proveedor, haces clic en **Conectar** e inicias sesión. Esta guía es solo para el caso **opcional** en el que quieras usar tu propio registro de app (gratuito) (p. ej. por restricciones corporativas). En la configuración de sincronización, revela los campos de ID mediante **Usar tu propio ID de aplicación** y luego introduce un único valor público:
 

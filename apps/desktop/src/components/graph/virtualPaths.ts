@@ -10,10 +10,12 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import { ListChecks, Waypoints } from "lucide-react";
+import { CalendarRange, ListChecks, Mail, Waypoints } from "lucide-react";
 
 export const GRAPH_TAB_PATH = "plainva://graph";
 export const TASKS_TAB_PATH = "plainva://tasks";
+export const CALENDAR_TAB_PATH = "plainva://calendar";
+export const MAIL_TAB_PATH = "plainva://mail";
 
 export function isVirtualPath(path: string | null | undefined): boolean {
   return typeof path === "string" && path.startsWith("plainva://");
@@ -31,6 +33,8 @@ export interface VirtualTabMeta {
 const VIRTUAL_TAB_META: Record<string, VirtualTabMeta> = {
   [GRAPH_TAB_PATH]: { labelKey: "rightPanel.graph", defaultLabel: "Graph", icon: Waypoints },
   [TASKS_TAB_PATH]: { labelKey: "tasks.title", defaultLabel: "Aufgaben", icon: ListChecks },
+  [CALENDAR_TAB_PATH]: { labelKey: "rightPanel.calendar", defaultLabel: "Kalender", icon: CalendarRange },
+  [MAIL_TAB_PATH]: { labelKey: "mail.title", defaultLabel: "E-Mail", icon: Mail },
 };
 
 /** Localized label key + icon for a virtual tab path; null for vault files. */

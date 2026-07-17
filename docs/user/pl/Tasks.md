@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-07-15
+Stan na: 2026-07-17
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -36,6 +36,23 @@ Tagi i terminy są odczytywane bezpośrednio z linii zadania — na przykład `-
 Kliknij **pole wyboru** zadania, aby przełączyć je między stanem otwartym a ukończonym. Zmiana jest zapisywana bezpośrednio z powrotem do notatki (jako zwykły, bezpieczny zapis pliku — zmienia się tylko pojedynczy znak `[ ]`/`[x]`), dzięki czemu notatka, Obsidian i ewentualna synchronizacja pozostają zgodne. Kliknij zamiast tego **tekst** zadania, aby otworzyć notatkę i przejść do tej linii.
 
 Jeśli notatka zmieniła się od momentu zbudowania listy, nieaktualne przełączenie jest pomijane, a lista się odświeża — przycisk **odśwież** w prawym górnym rogu pozwala przeładować listę w każdej chwili.
+
+## Domyślna baza zadań
+
+Pola wyboru świetnie nadają się do szybkich notatek, ale czasem linia rozrasta się do „prawdziwego” zadania — ze statusem, terminem i własną notatką. Służy do tego opcja **Domyślna baza zadań** w **Ustawienia → Vault → Treść i struktura**: [baza danych (`.base`)](Databases_Base.md), w której takie zadania żyją jako osobne notatki. **Utwórz nową bazę…** od razu tworzy gotową bazę danych (folder zapisu oraz `.base` z **kolumną pola wyboru zrobione** (`zrobione`), kolumną statusu, kolumną terminu, widokiem tabeli i tablicy); możesz też równie dobrze wybrać istniejącą bazę danych. Właściwość pola wyboru jest źródłem prawdy o ukończeniu zadania (włączone/wyłączone — tak jak u dostawców); kolumna statusu pozostaje spójna, gdy je odhaczasz. Baza danych bez kolumny pola wyboru korzysta z konwencji statusu: pierwsza opcja = otwarte, ostatnia = zrobione.
+
+Po ustawieniu widok Zadania pokazuje dwie sekcje: wpisy **Bazy zadań** na górze oraz **Z notatek** poniżej — znajomą listę pól wyboru. Status można edytować bezpośrednio w przeglądzie: pole wyboru JEST właściwością zrobione tej notatki i ją przełącza (kolumna statusu podąża za tą zmianą), a kliknięcie plakietki statusu otwiera menu ze wszystkimi opcjami (**Zmień status**). Filtry **Otwarte**/**Ukończone**/**Wszystkie** dotyczą obu sekcji, a **Otwórz jako bazę** przenosi do pełnego widoku bazy danych z jej tablicą i filtrami. **Odśwież** dodatkowo uruchamia rzeczywistą synchronizację z dostawcą, gdy połączone są konta.
+
+## Zamiana pola wyboru na zadanie w bazie danych
+
+Każdy wiersz zadania niesie ikonę bazy danych: **Przenieś do bazy zadań**. Jedno kliknięcie
+
+- tworzy nową notatkę w folderze zapisu bazy danych (z użyciem jej domyślnego szablonu, jeśli jest ustawiony),
+- przenosi datę `📅` do kolumny terminu, ustawia pierwszą opcję statusu dla otwartych zadań i zapisuje `#tags` z linii jako tagi notatki,
+- łączy nową notatkę z powrotem z notatką źródłową za pomocą właściwości `source` oraz
+- zastępuje linię pola wyboru w notatce źródłowej linkiem wiki do nowej notatki zadania — element pozostaje czytelny tam, gdzie został napisany, a zadanie żyje teraz w bazie danych.
+
+**Kliknij prawym przyciskiem** ikonę, aby zamiast tego wybrać inną bazę danych jako cel; jeśli nie ustawiono domyślnej bazy danych, kliknięcie od razu otwiera ten wybór. Wszystko pozostaje zwykłym Markdownem: nowe zadanie to zwykła notatka z frontmatter, a link w notatce źródłowej to normalny `[[link wiki]]`.
 
 ## Ukrywanie notatek z widoku Zadania
 

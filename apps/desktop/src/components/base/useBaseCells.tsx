@@ -4,7 +4,7 @@ import { CheckSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { groupOptions, inlineOptionsFrom, splitMultiValue, chipClass, optionSwatch, formatDateValue, toIsoDateTime, parseWikiLinkValue, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { groupOptions, inlineOptionsFrom, splitMultiValue, chipClass, optionSwatch, formatDateValue, toIsoDateTime, parseWikiLinkValue, resolvePropertyWriteKey, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
@@ -178,8 +178,14 @@ export function useBaseCells({
       const ast = parseMarkdownAst(text);
       const fmResult = extractFrontmatter(ast);
       const props = fmResult.success && fmResult.data ? fmResult.data : {};
-      const newProps = { ...props, [col]: newValue };
-      if (newValue === "" || newValue === undefined || (Array.isArray(newValue) && newValue.length === 0)) delete newProps[col];
+      // A note may carry the property under a different CASING than the column
+      // key ("Frist" vs. column "frist" — the panel capitalizes bare keys for
+      // display, so both spellings occur in the wild). Update the existing key
+      // in place instead of adding a duplicate second key; the query side maps
+      // case-insensitively onto column keys, so the value shows either way.
+      const writeKey = resolvePropertyWriteKey(props, col);
+      const newProps: Record<string, any> = { ...props, [writeKey]: newValue };
+      if (newValue === "" || newValue === undefined || (Array.isArray(newValue) && newValue.length === 0)) delete newProps[writeKey];
       const newText = updateFrontmatterString(text, newProps);
       await vaultAdapter.writeTextFile(path, newText);
     } catch (e) {

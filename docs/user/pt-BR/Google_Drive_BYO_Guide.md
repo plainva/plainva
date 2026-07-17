@@ -1,6 +1,6 @@
 # Configurando a Sincronização do Google Drive (Traga Suas Próprias Credenciais)
 
-Stand: 2026-07-11
+Última revisão: 2026-07-11
 
 Esta tradução foi gerada automaticamente — correções são bem-vindas.
 

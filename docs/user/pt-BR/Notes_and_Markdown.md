@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Stand: 2026-07-14
+Última revisão: 2026-07-14
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
