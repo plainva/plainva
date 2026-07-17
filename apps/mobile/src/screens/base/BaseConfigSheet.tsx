@@ -38,7 +38,7 @@ import {
  * baseFormat contract.
  */
 
-const VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline"] as const;
+const VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "pinboard"] as const;
 const FILTER_OPS: FilterOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<=", "empty", "notEmpty"];
 /** Authoring vocabulary for fresh properties — relation stays desktop (E3). */
 const NEW_PROPERTY_TYPES = [
@@ -135,6 +135,7 @@ export function BaseConfigSheet({
         board: "database.viewBoard",
         calendar: "database.viewCalendar",
         timeline: "database.viewTimeline",
+        pinboard: "database.viewPinboard",
       }[type] ?? "database.viewTable",
     );
 

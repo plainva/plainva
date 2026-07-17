@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -162,7 +162,7 @@ Tudo o que é específico do Plainva tem namespace. Três locais:
 
 | Chave | Valor | Significado |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Tipo de visualização exclusivo do Plainva (veja abaixo) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Tipo de visualização exclusivo do Plainva (veja abaixo) |
 | `groupBy` | chave de propriedade sem prefixo | Coluna de agrupamento do quadro |
 | `dateField` | chave de propriedade sem prefixo | Data de início do calendário/linha do tempo |
 | `endField` | chave de propriedade sem prefixo | Data de término da linha do tempo |
@@ -170,6 +170,9 @@ Tudo o que é específico do Plainva tem namespace. Três locais:
 | `subItemsProperty` | chave de propriedade sem prefixo | Coluna pai de autorrelação para o aninhamento de subitens |
 | `widths` | mapa de id → px | Larguras de coluna |
 | `dateFormat` | string | Formato de data por visualização (`default` é implícito — omita) |
+| `pinboardOrder` | lista de caminhos vault-relativos | Ordem manual dos cartões do mural NÃO fixados |
+| `pinboardPinned` | lista de caminhos vault-relativos | Cartões fixados; a ordem da lista é a ordem da seção |
+| `pinboardFilterBy` | `tags` ou uma chave de seleção múltipla sem prefixo | Origem dos marcadores da barra de chips do mural (`tags` é implícito — omita) |
 
 Além do bloco `plainva`, uma visualização pode carregar um objeto nativo **`views[i].filters`** — os **filtros de propriedade por visualização** (a mesma gramática de raiz única `and`/`or`/`not` do `filters` no nível do arquivo). O Plainva armazena aqui as regras de filtro de propriedade, um conjunto por visualização, de modo que cada visualização filtra de forma independente; o `filters` no nível do arquivo então mantém apenas as fontes. O Obsidian aplica `views[i].filters` nativamente, por visualização.
 
@@ -448,6 +451,25 @@ views:
 Todas as chaves de opção do grafo são opcionais; omita-as inteiramente quando não definidas. O Obsidian renderiza o mesmo arquivo como uma tabela simples e não deve gerar erro.
 
 Uma visualização de **Quadro** (`plainva.render: "board"`) também pode carregar `views[i].plainva.boardColumnOrder` — uma lista de chaves de coluna de grupo (`__UNGROUPED__` marca a coluna sem valor) que lembra uma ordem manual de colunas. Quadros de Seleção/Status, em vez disso, reordenam as `options` da propriedade. Omita a chave quando não definida.
+
+### A visualização de mural (`plainva.render: "pinboard"`)
+
+Um mural é armazenado como qualquer visualização não nativa: `type: table` mais a dica de renderização. Suas chaves vivem no mesmo namespace `views[i].plainva`:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # ordem manual dos cartões não fixados
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # fixados; a ordem da lista = a ordem da seção
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # origem dos marcadores da barra de chips; omitir = tags
+```
+
+Regras: caminhos fixados não são repetidos em `pinboardOrder`. Cartões que não estão em nenhuma das duas listas são renderizados no topo, do mais recente para o mais antigo (data de criação). Itens cujo arquivo não existe mais ou saiu do conjunto de fontes são ignorados e removidos no próximo salvamento. Quando uma nota é renomeada ou movida, o Plainva reajusta os caminhos em ambas as listas automaticamente; ferramentas externas precisam fazer o mesmo. O Obsidian ignora as chaves e mostra a visualização como uma tabela.
 
 ## O que não tocar e segurança
 

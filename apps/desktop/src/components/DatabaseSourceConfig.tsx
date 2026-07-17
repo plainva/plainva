@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { SourceConditionEditor } from "./base/SourceConditionEditor";
 import { isSourceCondition } from "@plainva/ui";
+import { listVaultFolders } from "../services/vaultFolders";
 
 interface DatabaseSourceConfigProps {
   dbConfig: any;
@@ -17,16 +18,20 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
   const { t } = useTranslation();
   const { queryService, vaultAdapter } = useVault();
 
-  const [folders, setFolders] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (queryService) {
-      queryService.getAllFolders().then(setFolders).catch(console.error);
       queryService.getAllTags().then(t => setTags(t.map(x => x.tag))).catch(console.error);
     }
   }, [queryService]);
+
+  // Folder picking browses the live file system (2026-07-17): empty folders
+  // are pickable right away — the index-backed getAllFolders() only knew
+  // folders that already contained indexed files (maintainer bug report).
+  const listFolders = async (path: string): Promise<string[]> =>
+    vaultAdapter ? listVaultFolders(vaultAdapter, path) : [];
 
   const listOf = (logic: "and" | "or"): any[] => (Array.isArray(dbConfig?.filters?.[logic]) ? dbConfig.filters[logic] : []);
   const sourceConditions = (logic: "and" | "or") =>
@@ -99,11 +104,11 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
             </div>
             <SourceConditionEditor
               conditions={sourceConditions("and")}
-              folders={folders}
               tags={tags}
               t={t}
               onAdd={(clause) => addClause("and", clause)}
               onRemoveAt={(idx) => removeAt("and", idx)}
+              onListFolders={listFolders}
               onCreateFolder={createFolder}
             />
           </div>
@@ -114,11 +119,11 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
             </div>
             <SourceConditionEditor
               conditions={sourceConditions("or")}
-              folders={folders}
               tags={tags}
               t={t}
               onAdd={(clause) => addClause("or", clause)}
               onRemoveAt={(idx) => removeAt("or", idx)}
+              onListFolders={listFolders}
               onCreateFolder={createFolder}
             />
           </div>

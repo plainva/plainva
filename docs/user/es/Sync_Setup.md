@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Stand: 2026-07-13
+Stand: 2026-07-17
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -18,6 +18,7 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 - **Resolver conflictos**: un banner en la nota afectada (y **Resolver conflicto…** en el menú contextual del archivo `.CONFLICT` en el árbol) abre el diálogo de comparación — el estado actual del archivo a la izquierda, tu versión conservada a la derecha, editable con toma por bloques. **Guardar la versión derecha y resolver** escribe el resultado en el archivo y limpia la copia de conflicto; **Conservar el otro lado** descarta tu copia (queda una instantánea de versión). El diálogo de error de sincronización también lista las copias de conflicto existentes y lleva a la misma comparación con un clic.
 - **Protección contra eliminaciones masivas**: si una parte inusualmente grande de los archivos sincronizados está a punto de eliminarse en la nube de una sola vez (por ejemplo, porque la carpeta local del vault se vació o se movió), Plainva retiene las eliminaciones y pregunta primero: **Eliminar en la nube** las ejecuta, **No eliminar (restaurar)** las descarta y restaura los archivos desde la nube en la próxima sincronización. Las eliminaciones que confirmaste tú mismo en Plainva no se retienen; en eliminaciones grandes (más de 10 archivos o más del 20 % del vault), Plainva pide en su lugar una segunda confirmación antes de eliminar.
 - Los adjuntos (imágenes, etc.) también se sincronizan.
+- **Las carpetas vacías** también se sincronizan: una carpeta creada en Plainva aparece de inmediato en la nube, y las carpetas vacías en la nube aparecen en tus otros dispositivos a más tardar en el próximo listado completo.
 - Las credenciales y los tokens se guardan en el llavero del sistema operativo (estado: **Configuración → App → Acerca de y diagnóstico → Llavero del sistema**), nunca en archivos dentro del vault.
 - **Desconectar** detiene la sincronización del vault; no se elimina ningún archivo en ningún sitio al hacerlo.
 

@@ -1,6 +1,6 @@
 # Database (.base)
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -38,6 +38,7 @@ Un database può avere un numero qualsiasi di viste; ognuna ha un **Tipo di vist
 | **Bacheca** | Colonne stile Kanban raggruppate per una proprietà (**Raggruppa per**) — trascinare le schede tra le colonne cambia il valore; trascinare un'**intestazione di colonna** riordina le colonne |
 | **Calendario** | Voci per **Campo data** su un calendario mensile, trascinabili |
 | **Cronologia** | Asse temporale con **Data di inizio** e **Data di fine** opzionale |
+| **Bacheca appunti** | In stile Google Keep, con note adesive — le schede mostrano il contenuto della nota renderizzato (sezione dedicata più sotto) |
 
 **Aggiungi vista** ne crea altre; **Opzioni della vista** offre **Rinomina**, **Duplica**, **Elimina** e riordino trascinando. Plainva ricorda l'ultima vista attiva per file. Calendario e Cronologia richiedono un campo data (**Solo data** o **Data e ora** come **Formato**); le voci mostrano i campi abilitati sotto **Proprietà**.
 
@@ -86,6 +87,20 @@ Il pulsante **Voce** in alto a sinistra (in precedenza **Nuovo**; chiaramente di
 - **Modelli**: il menu a freccia (**Modelli e cartella di archiviazione**) elenca i modelli dalla cartella dei modelli del tuo vault — usane uno una volta, mettilo in evidenza con **Imposta come predefinito** (allora ogni clic su **Voce** lo userà per questo database), oppure **Crea nuovo modello** (un nuovo modello inizia con un'intestazione `# {{title}}`, quindi le voci create da esso ereditano il proprio nome di file come H1). Lo stesso menu offre anche **Apri la cartella dei modelli**, che mostra la cartella dei modelli nell'albero dei file: i modelli sono note normali che puoi modificare, rinominare o eliminare lì.
 - **Modelli per database**: i modelli possono essere assegnati ai database. Per impostazione predefinita, il menu a freccia del pulsante **Voce** mostra solo i modelli assegnati a questo database (più il suo modello predefinito); tutto il resto è raggiungibile tramite **Mostra tutti i modelli (n)**. Assegna direttamente lì — l'icona del database su ogni riga mostra **Assegna a questo database** oppure **Rimuovi l’assegnazione a questo database** — oppure sul modello stesso: il menu **⋮** dell'editor offre **Database di destinazione…**, un dialogo con un campo di ricerca in cui assegni il modello a un numero qualsiasi di database. Un modello creato da un database tramite **Crea nuovo modello** parte già assegnato a esso. L'assegnazione viene memorizzata come elenco `plainva.templateFor` nel frontmatter del modello (vedi [File Format Reference](File_Format_Reference.md)); non viene mai copiata nelle voci create dal modello, e rinominare una `.base` porta con sé le assegnazioni. Il comando slash **Inserisci modello** resta volutamente non filtrato — inserisce testo in una nota esistente e non ha un contesto di database.
 - **Segnaposto dei modelli**: i modelli interpolano `{{title}}`, `{{date}}` e `{{time}}`. Quando *inserisci* un modello in una nota (comando slash **Inserisci modello** / `Mod+Alt+T`), se ne risolvono altri due: `{{cursor}}` indica dove finisce il cursore dopo l'inserimento, e `{{prompt:Etichetta}}` ti chiede un valore (etichettato *Etichetta*) e inserisce la tua risposta. Creare una *nuova* nota da un modello rimuove `{{cursor}}` e lascia vuoto ogni `{{prompt:…}}`.
+
+## Bacheca appunti (note adesive come Google Keep)
+
+Il tipo di vista **Bacheca appunti** mostra le note del database come schede con il loro contenuto renderizzato — una bacheca piena di note adesive. Le schede renderizzano testo, elenchi e caselle di controllo cliccabili (un clic spunta l'attività direttamente nella nota), immagini e formattazione; tabelle, formule e incorporamenti appaiono come segnaposto discreti. Cliccare su una scheda apre la nota nella finestra di anteprima.
+
+- **Cattura rapida**: il campo **Scrivi una nota…** sopra la bacheca si espande in un piccolo popup con un campo **Titolo** e il testo della nota su più righe — come in Google Keep. Un titolo digitato diventa il nome del file E la prima intestazione della nota; senza titolo il file riceve un nome basato sul timestamp e la nota non ha intestazione. Il testo è comunque il contenuto — nessun modello, nessuna deviazione (Ctrl/Cmd+Invio salva).
+- **Fissaggio**: il pulsante per fissare (in alto a destra al passaggio del mouse su una scheda) solleva una scheda nella sezione **Fissate**.
+- **Disposizione**: trascina le schede per riordinarle; l'ordine vive nel file `.base` e si sincronizza con esso. Le schede non ancora disposte (catturate di recente o create dall'esterno) compaiono in cima, dalla più recente. Se sotto **Configura** è impostata una regola di ordinamento, questa prevale — il trascinamento viene allora disattivato.
+- **Etichette**: la barra dei chip sopra la bacheca filtra le schede — per impostazione predefinita per tag, commutabile su una proprietà a selezione multipla (**Configura** → **Origine delle etichette**). Selezionare più chip filtra in combinazione (E); la selezione è effimera e non viene mai scritta nel file. Modifica le etichette di una scheda tramite **Etichette** nel menu contestuale della scheda.
+- **Colore**: il menu contestuale tinge la scheda. Il colore è il colore dell'intestazione della nota (`plainva.header_color`) — si applica ovunque la nota compaia, inclusa l'intestazione dell'editor.
+- **Proprietà**: le proprietà spuntate in **Configura** → **Proprietà** vengono visualizzate come righe compatte in fondo a ogni scheda — le date seguono il formato data della vista, i valori vuoti vengono omessi.
+- **Mobile**: sul telefono, il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Cartelle**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca.
+
+Nota per i vault sincronizzati: se due dispositivi dispongono la bacheca nello stesso momento, può comparire una copia `.CONFLICT` del file `.base` — a essere interessata è solo la disposizione, mai il contenuto delle note; elimina o unisci la copia.
 
 ## Uso quotidiano
 

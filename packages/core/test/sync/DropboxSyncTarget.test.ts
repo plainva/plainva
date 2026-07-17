@@ -108,6 +108,8 @@ describe("DropboxSyncTarget", () => {
     expect(result.etagMap.get("a.md")).toBe("h1");
     expect(result.etagMap.get("sub/b.md")).toBe("h2");
     expect(result.etagMap.size).toBe(2);
+    // Empty-folder sync (2026-07-17): the folder entry is reported.
+    expect(result.folders).toEqual(["sub"]);
 
     const listCall = calls(fetchFn)[0];
     const body = JSON.parse(listCall.init.body);

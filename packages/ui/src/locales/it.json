@@ -515,6 +515,8 @@
     "viewBoard": "Bacheca",
     "viewCalendar": "Calendario",
     "viewTimeline": "Cronologia",
+    "viewPinboard": "Bacheca appunti",
+    "pinboardFilterBy": "Origine delle etichette",
     "opIs": "è",
     "opIsNot": "non è",
     "opContains": "contiene",
@@ -1771,5 +1773,27 @@
     "renameAction": "Rinomina",
     "renameDone": "#{{old}} rinominato in #{{new}} in {{notes}} note",
     "renameHint": "Clic destro: rinomina tag"
+  },
+  "pinboard": {
+    "pinned": "Fissate",
+    "others": "Altre",
+    "pin": "Fissa",
+    "unpin": "Sblocca",
+    "open": "Apri",
+    "openSplit": "Apri in vista divisa",
+    "delete": "Elimina",
+    "color": "Colore",
+    "noColor": "Nessun colore",
+    "phTable": "Tabella",
+    "phMath": "Formula",
+    "phEmbed": "Contenuto incorporato",
+    "sortActive": "Regola di ordinamento attiva — la disposizione manuale è disattivata.",
+    "cardMenu": "Menu della scheda",
+    "capturePlaceholder": "Scrivi una nota…",
+    "captureTitle": "Titolo",
+    "labels": "Etichette",
+    "addLabel": "Cerca etichette…",
+    "newLabel": "Crea “{{name}}”",
+    "inlineTag": "nel testo"
   }
 }

@@ -208,10 +208,35 @@ test.beforeEach(async ({ page }) => {
       '',
     ].join('\n');
 
+    // Pinboard fixture (plan Pinboard P3): a Keep-style view over a Zettel
+    // folder; card bodies come from the fts_notes mock below.
+    const pinboardYaml = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Zettel"',
+      'properties:',
+      '  note.frist:',
+      '    input: date',
+      'views:',
+      '  - type: table',
+      '    name: Pinnwand',
+      '    order:',
+      '      - file.name',
+      '      - note.frist',
+      '    plainva:',
+      '      render: pinboard',
+      '',
+    ].join('\n');
+
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Projekte': { isDir: true },
+      '/test-vault/Zettel': { isDir: true },
+      '/test-vault/Zettel/Einkauf.md': '---\nplainva:\n  header_color: "#c94f4f"\n---\n- [ ] Milch\n- [x] Brot\n',
+      '/test-vault/Zettel/Idee.md': '# Solaranlage\n\nDach **pruefen** lassen\n',
+      '/test-vault/Zettel/Notiz.md': 'Nur Text\n',
+      '/test-vault/Pinnwand.base': pinboardYaml,
       '/test-vault/Kunden': { isDir: true },
       '/test-vault/Templates': { isDir: true },
       '/test-vault/Templates/Projektvorlage.md': '---\ntype: Projekt\nstatus: entwurf\n---\n\n# {{title}}\n\nStart: {{date}}\n',
@@ -245,6 +270,9 @@ test.beforeEach(async ({ page }) => {
       { id: '6', path: 'Vorgaenge/index.md', title: 'index', mtime_local: 1750000005000, size_bytes: 10 },
       { id: '7', path: 'Vorgaenge/Vorgang A.md', title: 'Vorgang A', mtime_local: 1750000006000, size_bytes: 10 },
       { id: '8', path: 'Vorgaenge/Vorgang B.md', title: 'Vorgang B', mtime_local: 1750000007000, size_bytes: 10 },
+      { id: '9', path: 'Zettel/Einkauf.md', title: 'Einkauf', mtime_local: 1750000008000, size_bytes: 10 },
+      { id: '10', path: 'Zettel/Idee.md', title: 'Idee', mtime_local: 1750000009000, size_bytes: 10 },
+      { id: '11', path: 'Zettel/Notiz.md', title: 'Notiz', mtime_local: 1750000010000, size_bytes: 10 },
     ];
     const dbProps: Record<string, { key: string; value: string; type: string }[]> = {
       '1': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '2', type: 'number' }, { key: 'tags', value: '["typ/tagebuch","thema/psyche"]', type: 'list' }, { key: 'date', value: calDate, type: 'text' }, { key: 'kunde', value: '[[ACME]]', type: 'text' }],
@@ -254,6 +282,7 @@ test.beforeEach(async ({ page }) => {
       '5': [{ key: 'branche', value: 'energie', type: 'text' }],
       '7': [{ key: 'status', value: 'Offen', type: 'text' }],
       '8': [{ key: 'status', value: 'Erledigt', type: 'text' }],
+      '9': [{ key: 'frist', value: '2026-08-01', type: 'text' }],
     };
     // Property-scoped link rows (links.property_key) backing reverse columns.
     const dbLinks = [
@@ -322,6 +351,40 @@ test.beforeEach(async ({ page }) => {
           if (query.includes('l.property_key = ?')) {
             return dbLinks.filter(l => l.property_key === values[0]).map(l => ({ ...l }));
           }
+          // Pinboard path sweep (P5): the base list for sweepPinboardRefs.
+          if (query.includes(`WHERE path LIKE '%.base'`)) {
+            return Object.keys(fs)
+              .filter(p => !fs[p].isDir && p.endsWith('.base'))
+              .map(p => ({ path: p.replace('/test-vault/', '') }));
+          }
+          // Pinboard card data (plan Pinboard P2/P3): body from the FTS mirror
+          // (read LIVE from mockFs so checkbox writes show up on re-query),
+          // ctime from the files table, tags via the file join.
+          if (query.includes('FROM fts_notes WHERE path IN')) {
+            return values
+              .map((v: any) => {
+                const c = fs['/test-vault/' + v];
+                return typeof c === 'string' ? { path: v, content: c } : null;
+              })
+              .filter(Boolean);
+          }
+          if (query.includes('SELECT path, ctime FROM files WHERE path IN')) {
+            return values
+              .map((v: any) => {
+                const hit = dbFiles.find(f => f.path === v);
+                return hit ? { path: v, ctime: hit.mtime_local } : null;
+              })
+              .filter(Boolean);
+          }
+          if (query.includes('JOIN files f ON f.id = t.file_id')) {
+            const zettelTags: Record<string, string[]> = {
+              'Zettel/Einkauf.md': ['einkauf'],
+              'Zettel/Notiz.md': ['einkauf', 'ideen'],
+            };
+            const out: any[] = [];
+            for (const v of values) for (const tg of zettelTags[String(v)] ?? []) out.push({ path: v, tag: tg });
+            return out;
+          }
           if (query.includes('FROM tags')) {
             return [{ tag: 'projekt', count: 2 }];
           }
@@ -385,6 +448,12 @@ test.beforeEach(async ({ page }) => {
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          // Quick-captured Zettel join the query rows (pinboard P4): the files
+          // list is otherwise static, so a fresh note would never render.
+          const relVault = p.replace('/test-vault/', '');
+          if (relVault.startsWith('Zettel/') && relVault.endsWith('.md') && !dbFiles.some(f => f.path === relVault)) {
+            dbFiles.push({ id: 'z' + dbFiles.length, path: relVault, title: relVault.split('/').pop()!.replace(/\.md$/i, ''), mtime_local: 1750000020000, size_bytes: 10 });
+          }
           return null;
         }
         if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
@@ -399,6 +468,22 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:fs|mkdir') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           fs[p] = { isDir: true };
+          return null;
+        }
+        if (cmd === 'plugin:fs|rename') {
+          const from = String(args.oldPath).replace(/\/$/, '');
+          const to = String(args.newPath).replace(/\/$/, '');
+          if (fs[from] !== undefined) {
+            fs[to] = fs[from];
+            delete fs[from];
+          }
+          const relFrom = from.replace('/test-vault/', '');
+          const relTo = to.replace('/test-vault/', '');
+          const row = dbFiles.find(f => f.path === relFrom);
+          if (row) {
+            row.path = relTo;
+            row.title = relTo.split('/').pop()!.replace(/\.md$/i, '');
+          }
           return null;
         }
         if (cmd === 'plugin:fs|watch') return 1;
@@ -575,11 +660,12 @@ test('Base wizard: new database via source step, live match count, created file 
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Neu.base'])).toBeUndefined();
 
-  // Pick the existing folder via "create new folder" (idempotent for an
-  // existing path) — the probe query reports the matching notes.
-  await page.getByRole('button', { name: /Neuen Ordner anlegen|Create new folder/ }).click();
-  await page.keyboard.type('Projekte');
-  await page.keyboard.press('Enter');
+  // Pick the folder via the BROWSABLE picker (2026-07-17): it walks the live
+  // file system, so the click descends into "Projekte" and the footer button
+  // confirms it — the probe query then reports the matching notes.
+  await page.getByRole('button', { name: /Ordner auswählen…|Choose folder…/ }).click();
+  await page.locator('.pv-modal').getByText('Projekte', { exact: true }).click();
+  await page.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
   await expect(page.getByText(/3 (Notizen|notes)/)).toBeVisible();
 
   // The found properties are preselected; create the database.
@@ -852,7 +938,7 @@ test('Base: renaming a property updates the config and the note frontmatter', as
   await expect(page.locator('table').getByText('active').first()).toBeVisible();
 });
 
-test('Wizard: adding further sources keeps offering dropdowns (P8)', async ({ page }) => {
+test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag sources keep their dropdown (P8/F4)', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('aside').getByText('Cockpit', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })));
@@ -861,18 +947,24 @@ test('Wizard: adding further sources keeps offering dropdowns (P8)', async ({ pa
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
 
   const wizard = page.locator('.pv-modal-card');
-  // First source via the two dropdowns (type + value).
-  await wizard.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
-  await page.getByRole('option', { name: 'Projekte', exact: true }).click();
+  // First source: the picker's "new folder" row creates an EMPTY folder and
+  // descends into it — the maintainer's F4 case (the old index-backed dropdown
+  // could never offer a folder without indexed files).
+  await wizard.getByRole('button', { name: /Ordner auswählen…|Choose folder…/ }).click();
+  const picker = page.locator('.pv-modal');
+  await picker.getByPlaceholder(/Neuer Ordner|New folder/).fill('Leerbereich');
+  await picker.getByRole('button', { name: /^(Anlegen|Create)$/ }).click();
+  await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
+  expect(await page.evaluate(() => !!(window as any).mockFs['/test-vault/Leerbereich']?.isDir)).toBe(true);
 
-  // The add row STILL offers both dropdowns — switch the type to tag, add one.
+  // The add row still offers the type select — switch to tag, add via dropdown.
   await wizard.getByRole('button', { name: /Quelle|Source/ }).click();
   await page.getByRole('option', { name: 'Tag', exact: true }).click();
   await wizard.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('option', { name: '#projekt', exact: true }).click();
 
   // Both conditions landed as rows — never a free-text fallback.
-  await expect(wizard.getByText('Projekte', { exact: true })).toBeVisible();
+  await expect(wizard.getByText('Leerbereich', { exact: true })).toBeVisible();
   await expect(wizard.getByText('#projekt', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 });
@@ -1130,8 +1222,9 @@ test('Base "Neu": without any source the setup dialog creates the folder and add
   await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
   const dialog = page.getByRole('dialog', { name: /Ablage-Ordner|Storage folder/ });
   await expect(dialog).toBeVisible();
-  // The folder input carries a datalist -> its ARIA role is combobox.
-  await dialog.getByRole('combobox').fill('Ablage');
+  // Plain text input since the browsable picker replaced the index-backed
+  // datalist (2026-07-17) — locate it by its aria-label.
+  await dialog.getByRole('textbox', { name: /Ablage-Ordner|Storage folder/ }).fill('Ablage');
   await dialog.getByRole('button', { name: /Festlegen|Set folder/ }).click();
 
   await expect(page.locator('.pv-peek-title')).toContainText('NoSrc');
@@ -1417,3 +1510,141 @@ test('Template DB excludes the source folder index.md from the view', async ({ p
   await expect(table.getByText('index', { exact: true })).toHaveCount(0);
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
+
+test('pinboard: cards render note bodies; checkbox and pin write back to the files', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+
+  // All three Zettel render as cards; the body is RENDERED markdown (bold),
+  // a leading H1 becomes the card title (dedupe) and stays out of the body.
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.filter({ hasText: 'Solaranlage' }).locator('strong', { hasText: 'pruefen' })).toBeVisible();
+
+  // The note's plainva.header_color tints its card (E7) — computed background
+  // differs from an untinted card.
+  const einkauf = cards.filter({ hasText: 'Milch' });
+  const tinted = await einkauf.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const plain = await cards.filter({ hasText: 'Nur Text' }).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(tinted).not.toBe(plain);
+
+  // Enabled view properties render on the card (maintainer 2026-07-17): the
+  // view's order ticks note.frist (a date), so the card shows the labelled
+  // formatted value; cards without the property show no property block.
+  await expect(einkauf.locator('[data-pinboard-props]')).toContainText('Frist');
+  await expect(einkauf.locator('[data-pinboard-props]')).toContainText('2026');
+  await expect(cards.filter({ hasText: 'Nur Text' }).locator('[data-pinboard-props]')).toHaveCount(0);
+
+  // Checkbox toggle writes [x] into the note through the adapter chain and the
+  // board re-renders from the fresh FTS content (plainva-note-saved channel).
+  await einkauf.locator('input[type="checkbox"]').first().click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md']))
+    .toContain('- [x] Milch');
+
+  // Pin via the hover control: the card moves into the pinned section and the
+  // arrangement persists into the .base file (views[i].plainva.pinboardPinned).
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect(page.getByText(/^(Angepinnt|Pinned)$/)).toBeVisible();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('pinboardPinned');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee.md');
+});
+
+test('pinboard: renaming a note in the tree retargets its pinned arrangement in the .base (P5 sweep)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+
+  // Pin the Idee card so the arrangement carries its path.
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee.md');
+
+  // Rename the note through the file tree (inline rename) — the shared
+  // renameFileWithLinkUpdates sweep must rewrite the pinboard path.
+  const tree = page.getByTestId('file-tree');
+  await tree.getByText('Zettel', { exact: true }).click();
+  // The mock index titles carry the relative path, so the row reads "Zettel/Idee".
+  await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
+  await page.getByText(/^(Umbenennen|Rename)$/).click();
+  const field = tree.locator('input');
+  await expect(field).toBeVisible();
+  await field.fill('Idee Neu');
+  await field.press('Enter');
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('Zettel/Idee Neu.md');
+  const baseText = await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']);
+  expect(baseText).not.toContain('Zettel/Idee.md');
+  await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Idee Neu.md'] !== undefined);
+});
+
+test('pinboard: chip bar filters by tags (AND, session-local) and quick capture creates a note', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+
+  // Tag chips with counts; clicking #ideen narrows to the one carrying it.
+  await expect(page.locator('[data-pinboard-chip="einkauf"]')).toContainText('2');
+  await page.locator('[data-pinboard-chip="ideen"]').click();
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText('Nur Text');
+  // The selection is session-local: nothing was written to the .base file.
+  const baseText = await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']);
+  expect(baseText).not.toContain('ideen');
+  await page.locator('[data-pinboard-chip="ideen"]').click();
+  await expect(cards).toHaveCount(3);
+
+  // Quick capture via the Keep-style title popup (2026-07-17): a typed title
+  // becomes the file name AND the H1; the text is the body.
+  await page.locator('[data-pinboard-capture]').click();
+  await page.locator('[data-pinboard-capture-title]').fill('Schnell notiert');
+  await page.locator('[data-pinboard-capture-text]').fill('und mehr Text');
+  await page.locator('[data-pinboard-capture-save]').click();
+  await expect(cards).toHaveCount(4);
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']))
+    .toContain('und mehr Text');
+  const captured = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']);
+  expect(captured).toContain('type:');
+  expect(captured).toContain('# Schnell notiert');
+
+  // WITHOUT a title the file gets a timestamp name ("YYYY-MM-DD HH.mm.ss")
+  // and the note has no H1 — the text is the whole body.
+  await page.locator('[data-pinboard-capture]').click();
+  await page.locator('[data-pinboard-capture-text]').fill('Nur Body ohne Titel');
+  await page.locator('[data-pinboard-capture-save]').click();
+  await expect(cards).toHaveCount(5);
+  const timestampFile = await expect
+    .poll(async () =>
+      await page.evaluate(() =>
+        Object.keys((window as any).mockFs).find((p) =>
+          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
+        ),
+      ),
+    )
+    .toBeTruthy()
+    .then(async () =>
+      page.evaluate(() =>
+        Object.keys((window as any).mockFs).find((p) =>
+          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
+        ),
+      ),
+    );
+  const tsContent = await page.evaluate((p) => (window as any).mockFs[p as string], timestampFile);
+  expect(tsContent).toContain('Nur Body ohne Titel');
+  expect(tsContent).not.toContain('# ');
+});
+

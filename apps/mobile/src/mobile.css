@@ -461,6 +461,26 @@ textarea {
   color: var(--error-text);
 }
 
+/* Keep-style capture popup (2026-07-17): design-language field look — token
+   border, chip radius, accent focus — instead of naked borderless inputs. */
+.m-capture-popup input,
+.m-capture-popup textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: var(--m-radius-chip);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  padding: 10px 12px;
+  font-size: var(--text-ui);
+  font-family: inherit;
+  outline: none;
+}
+.m-capture-popup input:focus,
+.m-capture-popup textarea:focus {
+  border-color: var(--accent-color);
+}
+
 .m-field {
   display: flex;
   flex-direction: column;

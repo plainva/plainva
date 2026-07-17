@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-07-16
+Stan na: 2026-07-17
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -38,6 +38,7 @@ Baza danych może mieć dowolną liczbę widoków; każdy ma **typ widoku**:
 | **Tablica** | Kolumny kanban zgrupowane według właściwości (**Grupuj według**) — przeciąganie kart między kolumnami zmienia wartość; przeciągnięcie **nagłówka kolumny** zmienia kolejność kolumn |
 | **Kalendarz** | Wpisy według **pola daty** na kalendarzu miesięcznym, przeciągalne |
 | **Oś czasu** | Oś czasu z **datą początkową** i opcjonalną **datą końcową** |
+| **Tablica korkowa** | Tablica karteczek samoprzylepnych w stylu Google Keep — karty pokazują wyrenderowaną treść notatki (osobna sekcja poniżej) |
 
 **Dodaj widok** tworzy kolejne; **Opcje widoku** oferują **Zmień nazwę**, **Duplikuj**, **Usuń** oraz zmianę kolejności przez przeciąganie. Plainva zapamiętuje ostatnio aktywny widok dla każdego pliku. Kalendarz i Oś czasu wymagają pola daty (**Tylko data** lub **Data i godzina** jako **Format**); wpisy pokazują pola włączone w **Właściwościach**.
 
@@ -86,6 +87,20 @@ Przycisk **Wpis** w lewym górnym rogu (dawniej **Nowy**; wyraźnie oddzielony o
 - **Szablony**: menu strzałki (**Szablony i folder zapisu**) wyświetla szablony z folderu szablonów Twojego vaultu — użyj jednorazowo, ustaw gwiazdką **Jako domyślny** (wtedy każde kliknięcie **Wpis** dla tej bazy danych go użyje) lub **Utwórz nowy szablon** (nowy szablon zaczyna się od nagłówka `# {{title}}`, dzięki czemu wpisy utworzone na jego podstawie dziedziczą swoją nazwę pliku jako H1). To samo menu oferuje również **Otwórz folder szablonów**, które pokazuje folder szablonów w drzewie plików — szablony to zwykłe notatki, które możesz tam edytować, zmieniać ich nazwy lub usuwać.
 - **Szablony dla poszczególnych baz danych**: szablony można przypisywać do baz danych. Domyślnie menu strzałki pokazuje tylko szablony przypisane do tej bazy danych (plus jej szablon domyślny); wszystkie pozostałe są dostępne przez **Pokaż wszystkie szablony (n)**. Przypisujesz bezpośrednio tam — ikona bazy danych przy każdym wierszu nosi napis **Przypisz do tej bazy danych** lub **Usuń przypisanie do tej bazy danych** — albo na samym szablonie: menu **⋮** edytora oferuje **Docelowe bazy danych…**, okno dialogowe z polem wyszukiwania, w którym przypisujesz szablon do dowolnej liczby baz danych. Szablon utworzony z bazy danych przez **Utwórz nowy szablon** od razu jest do niej przypisany. Przypisanie jest zapisywane jako lista `plainva.templateFor` we frontmatter szablonu (patrz [Dokumentacja formatu plików](File_Format_Reference.md)); nigdy nie jest kopiowane do wpisów tworzonych na podstawie szablonu, a zmiana nazwy pliku `.base` przenosi przypisania automatycznie. Polecenie slash **Wstaw szablon** celowo pozostaje nieprzefiltrowane — wstawia tekst do istniejącej notatki i nie ma kontekstu bazy danych.
 - **Symbole zastępcze szablonów**: szablony interpolują `{{title}}`, `{{date}}` i `{{time}}`. Kiedy *wstawiasz* szablon do notatki (polecenie slash **Wstaw szablon** / `Mod+Alt+T`), rozwiązywane są jeszcze dwa: `{{cursor}}` oznacza miejsce, w którym po wstawieniu znajdzie się kursor, a `{{prompt:Etykieta}}` prosi Cię o wartość (oznaczoną jako *Etykieta*) i wstawia Twoją odpowiedź. Utworzenie *nowej* notatki z szablonu usuwa `{{cursor}}` i pozostawia puste każde `{{prompt:…}}`.
+
+## Tablica korkowa (karteczki samoprzylepne jak w Google Keep)
+
+Typ widoku **Tablica korkowa** pokazuje notatki bazy danych jako karty z ich wyrenderowaną treścią — tablicę pełną karteczek samoprzylepnych. Karty renderują tekst, listy i klikalne pola wyboru (kliknięcie odhacza zadanie bezpośrednio w notatce), obrazy i formatowanie; tabele, formuły i osadzenia pojawiają się jako subtelne symbole zastępcze. Kliknięcie karty otwiera notatkę w oknie podglądu.
+
+- **Szybkie tworzenie**: pole **Napisz notatkę…** nad tablicą rozwija się w małe wyskakujące okienko z polem **Tytuł** i wielowierszowym tekstem notatki — jak w Google Keep. Wpisany tytuł staje się nazwą pliku ORAZ pierwszym nagłówkiem notatki; bez tytułu plik otrzymuje nazwę ze znacznikiem czasu, a notatka nie ma nagłówka. Tekst w obu przypadkach jest treścią — bez szablonu, bez okrężnych dróg (Ctrl/Cmd+Enter zapisuje).
+- **Przypinanie**: przycisk pinezki (w prawym górnym rogu po najechaniu na kartę) przenosi kartę do sekcji **Przypięte**.
+- **Układanie**: przeciągnij karty, aby zmienić ich kolejność; kolejność jest zapisywana w pliku `.base` i synchronizowana razem z nim. Karty jeszcze nieuporządkowane (świeżo utworzone lub dodane spoza aplikacji) pojawiają się na górze, od najnowszych. Jeśli w **Konfiguruj** ustawiona jest reguła sortowania, ma ona pierwszeństwo — wtedy przeciąganie jest wyłączone.
+- **Etykiety**: pasek chipów nad tablicą filtruje karty — domyślnie według tagów, z możliwością przełączenia na właściwość typu wielokrotny wybór (**Konfiguruj** → **Źródło etykiet**). Wiele chipów filtruje z logiką AND; wybór jest tymczasowy i nigdy nie jest zapisywany do pliku. Etykiety karty edytujesz przez **Etykiety** w menu kontekstowym karty.
+- **Kolor**: menu kontekstowe zabarwia kartę. Kolorem jest kolor nagłówka notatki (`plainva.header_color`) — obowiązuje wszędzie tam, gdzie notatka się pojawia, także w nagłówku edytora.
+- **Właściwości**: właściwości zaznaczone w **Konfiguruj** → **Właściwości** pojawiają się jako kompaktowe wiersze u dołu każdej karty — wartości dat są zgodne z formatem daty widoku, puste wartości są pomijane.
+- **Telefon**: na telefonie dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Foldery**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
+
+Uwaga dotycząca synchronizowanych vaultów: jeśli dwa urządzenia jednocześnie ułożą tablicę, może pojawić się kopia pliku `.base` z rozszerzeniem `.CONFLICT` — dotyczy to tylko układu, nigdy treści notatek; usuń lub scal kopię.
 
 ## Codzienne użytkowanie
 

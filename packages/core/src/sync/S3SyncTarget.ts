@@ -275,14 +275,23 @@ export class S3SyncTarget implements ISyncTarget {
   public async pull(_cursor?: string): Promise<PullResult> {
     const rawPrefix = this.prefix ? `${this.prefix}/` : "";
     const etagMap = new Map<string, string>();
+    // Empty-folder sync (2026-07-17): the zero-byte "key/" marker objects our
+    // createFolder writes ARE the empty folders — report them so the worker
+    // can create them locally. S3 has no real directories, so folders without
+    // a marker only materialize through their files (unchanged).
+    const folders: string[] = [];
     for (const { key, etag } of await this.listAll(rawPrefix)) {
-      if (key.endsWith("/")) continue; // zero-byte folder marker objects
+      if (key.endsWith("/")) {
+        const rel = this.relPathFor(key.slice(0, -1));
+        if (rel && !rel.includes(".CONFLICT")) folders.push(rel);
+        continue;
+      }
       const rel = this.relPathFor(key);
       if (!rel || rel.includes(".CONFLICT")) continue;
       etagMap.set(rel, etag);
     }
-    console.log(`[S3] list ${this.creds.bucket}/${rawPrefix} -> ${etagMap.size} file(s)`);
-    return { etagMap };
+    console.log(`[S3] list ${this.creds.bucket}/${rawPrefix} -> ${etagMap.size} file(s), ${folders.length} folder marker(s)`);
+    return { etagMap, folders };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-07-16
+Dernière mise à jour : 2026-07-17
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -38,6 +38,7 @@ Une base de données peut avoir un nombre quelconque de vues ; chacune a un **Ty
 | **Kanban** | Colonnes Kanban groupées par une propriété (**Regrouper par**) — glisser des cartes entre les colonnes modifie la valeur ; glisser un **en-tête de colonne** réordonne les colonnes |
 | **Calendrier** | Entrées par **Champ de date** sur un calendrier mensuel, déplaçables |
 | **Chronologie** | Axe temporel avec une **Date de début** et une **Date de fin** facultative |
+| **Tableau d'affichage** | Tableau de notes autocollantes façon Google Keep — les cartes affichent le contenu rendu de la note (section dédiée plus bas) |
 
 **Ajouter une vue** en crée de nouvelles ; **Options de la vue** propose **Renommer**, **Dupliquer**, **Supprimer** et le réordonnancement par glisser-déposer. Plainva se souvient de la dernière vue active par fichier. Le calendrier et la chronologie ont besoin d'un champ de date (**Date seule** ou **Date & heure** comme **Format**) ; les entrées affichent les champs activés sous **Propriétés**.
 
@@ -86,6 +87,20 @@ Le bouton **Entrée** en haut à gauche (auparavant **Nouveau** ; clairement dis
 - **Modèles** : le menu flèche (**Modèles et dossier de stockage**) liste les modèles du dossier de modèles de votre vault — utilisez-en un ponctuellement, marquez-en un d'une étoile via **Définir par défaut** (chaque clic sur **Entrée** de cette base de données l'utilise alors), ou **Créer un modèle** (un nouveau modèle commence par un titre `# {{title}}`, de sorte que les éléments créés à partir de lui héritent de leur nom de fichier comme titre H1). Le même menu propose aussi **Ouvrir le dossier des modèles**, qui affiche le dossier des modèles dans l'arborescence des fichiers — les modèles sont des notes ordinaires que vous pouvez y modifier, renommer ou supprimer.
 - **Modèles par base de données** : des modèles peuvent être associés à des bases de données. Par défaut, le menu flèche n'affiche que les modèles associés à cette base de données (plus son modèle par défaut) ; tout le reste est accessible via **Afficher tous les modèles (n)**. Associez-les directement là — l'icône de base de données de chaque ligne indique **Associer à cette base de données** ou **Retirer l’association à cette base de données** — ou depuis le modèle lui-même : le menu **⋮** de l'éditeur propose **Bases de données cibles…**, une boîte de dialogue avec un champ de recherche où vous associez le modèle à un nombre quelconque de bases de données. Un modèle créé depuis une base de données via **Créer un modèle** lui est associé dès le départ. L'association est stockée comme une liste `plainva.templateFor` dans le frontmatter du modèle (voir la [Référence du format de fichier](File_Format_Reference.md)) ; elle n'est jamais copiée dans les éléments créés à partir du modèle, et renommer une `.base` conserve les associations. La commande slash **Insérer un modèle** reste volontairement non filtrée — elle insère du texte dans une note existante et n'a pas de contexte de base de données.
 - **Espaces réservés des modèles** : les modèles interpolent `{{title}}`, `{{date}}` et `{{time}}`. Quand vous *insérez* un modèle dans une note (commande slash **Insérer un modèle** / `Mod+Alt+T`), deux autres sont résolus : `{{cursor}}` marque l'endroit où le curseur atterrit après l'insertion, et `{{prompt:Libellé}}` vous demande une valeur (intitulée *Libellé*) et insère votre réponse. Créer une *nouvelle* note à partir d'un modèle supprime `{{cursor}}` et laisse tout `{{prompt:…}}` vide.
+
+## Tableau d'affichage (notes autocollantes façon Google Keep)
+
+Le type de vue **Tableau d'affichage** montre les notes de la base de données sous forme de cartes avec leur contenu rendu — un tableau plein de notes autocollantes. Les cartes affichent le texte, les listes et des cases à cocher cliquables (un clic coche la tâche directement dans la note), les images et la mise en forme ; les tableaux, formules et éléments intégrés apparaissent comme de discrets espaces réservés. Cliquer sur une carte ouvre la note dans la fenêtre d'aperçu.
+
+- **Capture rapide** : le champ **Écrire une note…** au-dessus du tableau se déploie en une petite fenêtre pop-up avec un champ **Titre** et un texte de note multiligne — comme Google Keep. Un titre saisi devient le nom du fichier ET le premier titre de la note ; sans titre, le fichier reçoit un nom horodaté et la note n'a pas de titre. Le texte est le contenu dans les deux cas — pas de modèle, pas de détour (Ctrl/Cmd+Entrée enregistre).
+- **Épingler** : le bouton d'épingle (en haut à droite au survol d'une carte) fait passer une carte dans la section **Épinglées**.
+- **Organiser** : faites glisser les cartes pour les réordonner ; l'ordre vit dans le fichier `.base` et se synchronise avec lui. Les cartes pas encore organisées (capturées récemment ou créées en dehors de Plainva) apparaissent en haut, les plus récentes en premier. Si une règle de tri est définie sous **Configurer**, elle prend le dessus — le glisser-déposer est alors désactivé.
+- **Libellés** : la barre de puces au-dessus du tableau filtre les cartes — par tags par défaut, commutable vers une propriété à sélection multiple (**Configurer** → **Source des libellés**). Plusieurs puces se combinent avec un ET logique ; la sélection est éphémère et n'est jamais écrite dans le fichier. Modifiez les libellés d'une carte via **Libellés** dans le menu contextuel de la carte.
+- **Couleur** : le menu contextuel teinte la carte. La couleur est la couleur d'en-tête de la note (`plainva.header_color`) — elle s'applique partout où la note apparaît, y compris dans l'en-tête de l'éditeur.
+- **Propriétés** : les propriétés cochées sous **Configurer** → **Propriétés** s'affichent sous forme de lignes compactes en bas de chaque carte — les dates suivent le format de date de la vue, les valeurs vides sont ignorées.
+- **Mobile** : sur le téléphone, une pression simple ouvre la note, un appui long affiche les actions (épingler, libellés, couleur, supprimer), et faire glisser après un appui long réordonne. Astuce : pointez la base de données vers votre dossier de boîte de réception (**Paramètres** → **Dossiers**) et les notes rapides du ＋ ainsi que les textes partagés depuis d'autres applications atterrissent directement sur le tableau.
+
+Remarque pour les vaults synchronisés : si deux appareils organisent le tableau en même temps, une copie `.CONFLICT` du fichier `.base` peut apparaître — seule l'organisation est affectée, jamais le contenu des notes ; supprimez ou fusionnez la copie.
 
 ## Utilisation au quotidien
 

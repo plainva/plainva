@@ -1,5 +1,5 @@
 import type React from "react";
-import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, Waypoints } from "lucide-react";
+import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
 import { capitalizeFirst } from "@plainva/ui";
 
@@ -16,8 +16,8 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(1)} ${units[i]}`;
 }
 
-export const EXTENDED_TYPES = ["board", "calendar", "timeline", "graph"];
-export const ALL_VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "graph"];
+export const EXTENDED_TYPES = ["board", "calendar", "timeline", "graph", "pinboard"];
+export const ALL_VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "graph", "pinboard"];
 
 /**
  * The ONE list of `.base` column input types with their localized labels —
@@ -92,6 +92,7 @@ export const viewIcon = (type: string) => {
   if (type === "calendar") return <CalendarIcon size={13} />;
   if (type === "timeline") return <Clock size={13} />;
   if (type === "graph") return <Waypoints size={13} />;
+  if (type === "pinboard") return <StickyNote size={13} />;
   return <TableIcon size={13} />;
 };
 

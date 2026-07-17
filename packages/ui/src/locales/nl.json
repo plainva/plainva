@@ -514,6 +514,8 @@
     "viewBoard": "Bord",
     "viewCalendar": "Kalender",
     "viewTimeline": "Tijdlijn",
+    "viewPinboard": "Prikbord",
+    "pinboardFilterBy": "Labelbron",
     "opIs": "is",
     "opIsNot": "is niet",
     "opContains": "bevat",
@@ -1765,5 +1767,27 @@
     "renameAction": "Hernoemen",
     "renameDone": "#{{old}} hernoemd naar #{{new}} in {{notes}} notities",
     "renameHint": "Rechtsklik: tag hernoemen"
+  },
+  "pinboard": {
+    "pinned": "Vastgezet",
+    "others": "Overige",
+    "pin": "Vastzetten",
+    "unpin": "Losmaken",
+    "open": "Openen",
+    "openSplit": "Openen in splitsweergave",
+    "delete": "Verwijderen",
+    "color": "Kleur",
+    "noColor": "Geen kleur",
+    "phTable": "Tabel",
+    "phMath": "Formule",
+    "phEmbed": "Ingesloten inhoud",
+    "sortActive": "Sorteerregel actief — handmatig ordenen is uitgeschakeld.",
+    "cardMenu": "Kaartmenu",
+    "capturePlaceholder": "Notitie schrijven…",
+    "captureTitle": "Titel",
+    "labels": "Labels",
+    "addLabel": "Labels zoeken…",
+    "newLabel": "“{{name}}” aanmaken",
+    "inlineTag": "in de tekst"
   }
 }

@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-13
+Laatst bijgewerkt: 2026-07-17
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -18,6 +18,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 - **Conflicten oplossen**: een banner in de betreffende notitie (en **Conflict oplossen…** in het rechtsklikmenu van het `.CONFLICT`-bestand in de boom) opent het vergelijkingsdialoogvenster — de huidige staat van het bestand links, jouw bewaarde versie rechts, bewerkbaar met overname per blok. **Rechterversie opslaan en oplossen** schrijft het resultaat naar het bestand en ruimt de conflictkopie op; **Andere kant behouden** verwerpt jouw kopie (een versiesnapshot blijft bewaard). Ook het synchronisatiefout-dialoogvenster toont bestaande conflictkopieën en leidt je met één klik naar diezelfde vergelijking.
 - **Bescherming tegen massaverwijderingen**: als een ongewoon groot deel van de gesynchroniseerde bestanden in één keer in de cloud verwijderd dreigt te worden (bijvoorbeeld omdat de lokale vault-map is geleegd of verplaatst), houdt Plainva de verwijderingen aan en vraagt eerst: **In de cloud verwijderen** voert ze uit, **Niet verwijderen (herstellen)** verwerpt ze en herstelt de bestanden bij de volgende synchronisatie vanuit de cloud. Verwijderingen die je zelf in Plainva hebt bevestigd, worden niet vastgehouden — bij grote verwijderingen (meer dan 10 bestanden of meer dan 20% van de vault) vraagt Plainva in plaats daarvan vóór het verwijderen een tweede keer om bevestiging.
 - Bijlagen (afbeeldingen enz.) worden mee gesynchroniseerd.
+- **Lege mappen** worden ook gesynchroniseerd: een map die je in Plainva aanmaakt, verschijnt meteen in de cloud, en lege cloudmappen verschijnen uiterlijk bij de volgende volledige lijst op je andere apparaten.
 - Toegangsgegevens en tokens komen terecht in de sleutelhanger van het besturingssysteem (status: **Instellingen → App → Over & diagnose → OS-sleutelhanger**), nooit in bestanden binnen de vault.
 - **Ontkoppelen** stopt de sync van de vault; er worden hierbij nergens bestanden verwijderd.
 

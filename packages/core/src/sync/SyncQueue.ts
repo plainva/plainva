@@ -76,6 +76,27 @@ export class SyncQueue {
     });
   }
 
+  /**
+   * Queues a folder creation (2026-07-17, empty-folder sync): the folder is
+   * pushed to the remote via ISyncTarget.createFolder so it appears in the
+   * cloud immediately instead of materializing with its first file. Idempotent
+   * like queueDelete — folder creates are cheap no-ops when repeated, and the
+   * remote createFolder implementations treat "already exists" as success.
+   */
+  async queueMkdir(path: string): Promise<void> {
+    await this.db.transaction(async () => {
+      const existing = await this.db.queryOne<{ id: number }>(
+        `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'mkdir' LIMIT 1`,
+        [path]
+      );
+      if (existing) return;
+      await this.db.execute(
+        `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
+        [path, "mkdir", Date.now()]
+      );
+    });
+  }
+
   async queueRename(oldPath: string, newPath: string): Promise<void> {
     await this.db.transaction(async () => {
       const oldPrefix = oldPath + "/";

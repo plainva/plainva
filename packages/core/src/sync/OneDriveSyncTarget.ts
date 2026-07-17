@@ -376,13 +376,16 @@ export class OneDriveSyncTarget implements ISyncTarget {
   public async pull(cursor?: string): Promise<PullResult> {
     if (cursor) return this.pullDelta(cursor);
     const etagMap = new Map<string, string>();
-    const rootExists = await this.listInto("", etagMap);
+    // Empty-folder sync (2026-07-17): the walk reports every remote folder so
+    // the worker can create locally missing (possibly empty) ones.
+    const folders: string[] = [];
+    const rootExists = await this.listInto("", etagMap, folders);
     if (!rootExists) {
       // First connect: the app root doesn't exist yet — create it, report empty.
       await this.ensureFolder("");
     }
-    console.log(`[OneDrive] listing -> ${etagMap.size} file(s)`);
-    return { etagMap };
+    console.log(`[OneDrive] listing -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
+    return { etagMap, folders };
   }
 
   /**
@@ -444,7 +447,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   /** Lists one folder level (paginated) and recurses into subfolders. false = folder missing. */
-  private async listInto(relFolder: string, etagMap: Map<string, string>): Promise<boolean> {
+  private async listInto(relFolder: string, etagMap: Map<string, string>, folders?: string[]): Promise<boolean> {
     let url: string | undefined =
       this.itemUrl(relFolder, "children") + "?$select=id,name,folder,file,cTag,eTag,lastModifiedDateTime";
     while (url) {
@@ -455,7 +458,8 @@ export class OneDriveSyncTarget implements ISyncTarget {
       for (const item of json.value || []) {
         const path = relFolder ? `${relFolder}/${item.name}` : item.name;
         if (item.folder) {
-          await this.listInto(path, etagMap);
+          if (folders && !path.includes(".CONFLICT")) folders.push(path);
+          await this.listInto(path, etagMap, folders);
         } else if (!path.includes(".CONFLICT")) {
           etagMap.set(path, this.itemEtag(item));
         }

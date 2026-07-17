@@ -93,7 +93,33 @@ export function buildNewItemContent(opts: {
   const base = opts.templateText != null
     ? applyTemplatePlaceholders(opts.templateText, opts.title)
     : `# ${opts.title}\n`;
-  const content = withOkfDefaults(base, opts.noteType);
+  return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills);
+}
+
+/**
+ * Quick-capture content for the pinboard (plan Pinboard P4): the typed text IS
+ * the body — deliberately no template (Keep-style sticky notes are just text;
+ * template placeholders like {{cursor}} make no sense here). Since the title
+ * popup (2026-07-17) an explicitly typed title becomes the H1; WITHOUT a title
+ * there is no H1 at all (the file gets a timestamp name instead). OKF
+ * frontmatter and inherited source tags still apply.
+ */
+export function buildCaptureContent(opts: {
+  text: string;
+  title?: string | null;
+  noteType: string;
+  inheritTags: string[];
+}): string {
+  const body = opts.text.replace(/\s+$/, "");
+  const title = (opts.title ?? "").trim();
+  const base = title
+    ? `# ${title}\n` + (body ? `\n${body}\n` : "")
+    : body ? body + "\n" : "";
+  return finalizeItemContent(base, opts.noteType, opts.inheritTags, {});
+}
+
+function finalizeItemContent(base: string, noteType: string, inheritTags: string[], prefills: Record<string, any>): string {
+  const content = withOkfDefaults(base, noteType);
   let existing: Record<string, any> = {};
   try {
     const fm = extractFrontmatter(parseMarkdownAst(content));
@@ -102,14 +128,14 @@ export function buildNewItemContent(opts: {
     /* unparseable template frontmatter — pre-fill on top of nothing */
   }
   const updates: Record<string, any> = {};
-  for (const [k, v] of Object.entries(opts.prefills)) {
+  for (const [k, v] of Object.entries(prefills)) {
     if (existing[k] === undefined) updates[k] = v;
   }
-  if (opts.inheritTags.length > 0) {
+  if (inheritTags.length > 0) {
     const prev = existing.tags;
     const prevList = Array.isArray(prev) ? prev.map(String) : prev != null && prev !== "" ? [String(prev)] : [];
     const merged = [...prevList];
-    for (const tag of opts.inheritTags) if (!merged.includes(tag)) merged.push(tag);
+    for (const tag of inheritTags) if (!merged.includes(tag)) merged.push(tag);
     if (prev === undefined || merged.length !== prevList.length) updates.tags = merged;
   }
   try {

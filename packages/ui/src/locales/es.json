@@ -515,6 +515,8 @@
     "viewBoard": "Tablero",
     "viewCalendar": "Calendario",
     "viewTimeline": "Cronología",
+    "viewPinboard": "Tablón",
+    "pinboardFilterBy": "Origen de las etiquetas",
     "opIs": "es",
     "opIsNot": "no es",
     "opContains": "contiene",
@@ -1771,5 +1773,27 @@
     "renameAction": "Renombrar",
     "renameDone": "#{{old}} renombrado a #{{new}} en {{notes}} notas",
     "renameHint": "Clic derecho: renombrar etiqueta"
+  },
+  "pinboard": {
+    "pinned": "Fijadas",
+    "others": "Otras",
+    "pin": "Fijar",
+    "unpin": "Dejar de fijar",
+    "open": "Abrir",
+    "openSplit": "Abrir en panel dividido",
+    "delete": "Eliminar",
+    "color": "Color",
+    "noColor": "Sin color",
+    "phTable": "Tabla",
+    "phMath": "Fórmula",
+    "phEmbed": "Contenido incrustado",
+    "sortActive": "Regla de ordenación activa: la organización manual está desactivada.",
+    "cardMenu": "Menú de la tarjeta",
+    "capturePlaceholder": "Escribe una nota…",
+    "captureTitle": "Título",
+    "labels": "Etiquetas",
+    "addLabel": "Buscar etiquetas…",
+    "newLabel": "Crear «{{name}}»",
+    "inlineTag": "en el texto"
   }
 }

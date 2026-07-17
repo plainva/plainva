@@ -377,10 +377,11 @@ test('Code block: language grammar lazy-loads on demand', async ({ page }) => {
   await expect(page.locator('.cm-line', { hasText: 'def greet' }).first()).toBeVisible();
   // …and the python grammar (loaded on demand via @codemirror/language-data)
   // kicked in: once it arrives, keywords get their own highlight spans.
-  // 30s (not 15): the python grammar is a cold dynamic import; under load (the
-  // full pre-push runs the unit suite + vite + Playwright at once) it can take
-  // longer to arrive, and this assertion is about correctness, not speed.
-  await expect(page.locator('.cm-content span').filter({ hasText: /^def$/ }).first()).toBeVisible({ timeout: 30000 });
+  // 60s (raised from 15, then 30): the python grammar is a cold dynamic import;
+  // under load (the full pre-push runs the unit suite + vite + Playwright at
+  // once) it can take much longer to arrive, and this assertion is about
+  // correctness, not speed. Isolated runs finish in a few seconds.
+  await expect(page.locator('.cm-content span').filter({ hasText: /^def$/ }).first()).toBeVisible({ timeout: 60000 });
 });
 
 test('Code block: the read view highlights fenced code too (issue #13)', async ({ page }) => {

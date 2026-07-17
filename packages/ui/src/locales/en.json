@@ -514,6 +514,8 @@
     "viewBoard": "Board",
     "viewCalendar": "Calendar",
     "viewTimeline": "Timeline",
+    "viewPinboard": "Pinboard",
+    "pinboardFilterBy": "Label source",
     "opIs": "is",
     "opIsNot": "is not",
     "opContains": "contains",
@@ -1765,5 +1767,27 @@
     "renameAction": "Rename",
     "renameDone": "Renamed #{{old}} to #{{new}} in {{notes}} notes",
     "renameHint": "Right-click: rename tag"
+  },
+  "pinboard": {
+    "pinned": "Pinned",
+    "others": "Others",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "open": "Open",
+    "openSplit": "Open in split",
+    "delete": "Delete",
+    "color": "Color",
+    "noColor": "No color",
+    "phTable": "Table",
+    "phMath": "Formula",
+    "phEmbed": "Embedded content",
+    "sortActive": "Sort rule active — manual arranging is disabled.",
+    "cardMenu": "Card menu",
+    "capturePlaceholder": "Write a note…",
+    "captureTitle": "Title",
+    "labels": "Labels",
+    "addLabel": "Search labels…",
+    "newLabel": "Create “{{name}}”",
+    "inlineTag": "in the text"
   }
 }

@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-07-16
+Dernière mise à jour : 2026-07-17
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -162,7 +162,7 @@ Tout ce qui est spécifique à Plainva est namespacé. Trois emplacements :
 
 | Clé | Valeur | Signification |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Type de vue exclusif à Plainva (voir ci-dessous) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Type de vue exclusif à Plainva (voir ci-dessous) |
 | `groupBy` | clé de propriété nue | Colonne de regroupement du board |
 | `dateField` | clé de propriété nue | Date de début du calendrier/de la chronologie |
 | `endField` | clé de propriété nue | Date de fin de la chronologie |
@@ -170,6 +170,9 @@ Tout ce qui est spécifique à Plainva est namespacé. Trois emplacements :
 | `subItemsProperty` | clé de propriété nue | Colonne parente de l'auto-relation pour l'imbrication des sous-éléments |
 | `widths` | map id → px | Largeurs de colonnes |
 | `dateFormat` | chaîne | Format de date par vue (`default` est implicite — l'omettre) |
+| `pinboardOrder` | liste de chemins relatifs au vault | Ordre manuel des cartes du tableau d'affichage NON épinglées |
+| `pinboardPinned` | liste de chemins relatifs au vault | Cartes épinglées ; l'ordre de la liste est l'ordre de la section |
+| `pinboardFilterBy` | `tags` ou une clé de sélection multiple nue | Source des libellés de la barre de puces du tableau d'affichage (`tags` est implicite — l'omettre) |
 
 Outre le bloc `plainva`, une vue peut porter un objet natif **`views[i].filters`** — les **conditions de propriété par vue** (même grammaire à racine unique `and`/`or`/`not` que le `filters` de premier niveau). Plainva y stocke les conditions de propriété, un ensemble par vue, de sorte que chaque vue filtre indépendamment ; le `filters` de premier niveau ne conserve alors que les sources. Obsidian applique `views[i].filters` par vue nativement.
 
@@ -448,6 +451,25 @@ views:
 Toutes les clés d'option du graphe sont facultatives ; omettez-les entièrement si elles ne sont pas définies. Obsidian affiche le même fichier comme un simple tableau et ne doit pas produire d'erreur.
 
 Une vue **Board** (`plainva.render: "board"`) peut en outre porter `views[i].plainva.boardColumnOrder` — une liste de clés de colonnes de groupe (`__UNGROUPED__` marque la colonne sans valeur) qui mémorise un ordre de colonnes manuel. Les boards Sélection/Statut réordonnent à la place les `options` de la propriété. Omettez la clé si elle n'est pas définie.
+
+### La vue tableau d'affichage (`plainva.render: "pinboard"`)
+
+Un tableau d'affichage est stocké comme toute vue non native : `type: table` plus l'indice de rendu. Ses clés vivent dans le même espace de noms `views[i].plainva` :
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # ordre manuel des cartes non épinglées
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # épinglées ; l'ordre de la liste = l'ordre de la section
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # source des libellés de la barre de puces ; omettre = tags
+```
+
+Règles : les chemins épinglés ne sont pas répétés dans `pinboardOrder`. Les cartes absentes des deux listes s'affichent en haut, les plus récentes en premier (date de création). Les entrées dont le fichier n'existe plus ou qui ont quitté l'ensemble source sont ignorées et nettoyées au prochain enregistrement. Quand une note est renommée ou déplacée, Plainva met automatiquement à jour les chemins dans les deux listes ; les outils externes doivent faire de même. Obsidian ignore les clés et affiche la vue comme un tableau.
 
 ## Ne pas toucher et sécurité
 

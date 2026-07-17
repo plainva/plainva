@@ -1,7 +1,7 @@
 export interface SyncOperation {
   id: number;
   file_path: string;
-  operation: "write" | "delete" | "rename";
+  operation: "write" | "delete" | "rename" | "mkdir";
   content?: Uint8Array;
   new_path?: string;
   retry_count: number;
@@ -51,6 +51,14 @@ export interface PullResult {
    * safety-net listing.
    */
   needsFullListing?: boolean;
+  /**
+   * Optional: vault-relative FOLDER paths seen in a FULL listing (2026-07-17,
+   * empty-folder sync). The worker creates locally missing ones so empty
+   * remote folders appear without waiting for their first file. Cursor pulls
+   * leave this undefined — the periodic full listing is the safety net.
+   * Purely additive: the worker never derives folder deletions from it.
+   */
+  folders?: string[];
 }
 
 export interface ISyncTarget {

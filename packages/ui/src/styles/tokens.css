@@ -43,6 +43,11 @@
   --tree-row-pad-y: 4px;
   --tree-row-font: 0.9rem;
 
+  /* Pinboard card tint strength (plan Pinboard P3): percentage of the note's
+     plainva.color mixed into the card background. Flat themes (Win95, high
+     contrast) zero it out — cards stay untinted there. */
+  --pinboard-tint: 16;
+
   /* Elevation — 1 cards at rest, 2 menus/popovers, 3 modals/peek.
      Dark mode and black themes override (see below / theme files). */
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.07);

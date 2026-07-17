@@ -304,6 +304,12 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Board color mode (namespace-only, WP3): "column" tints the whole column in
   // the group's color; "chip" (default) only colors the header chip.
   if (pv.boardColorMode === "column") out.boardColorMode = "column";
+  // Pinboard options (namespace-only, plan Pinboard P1): manual card order
+  // (vault-relative paths), the pinned subset (its list order IS the pinned
+  // section's order) and the label-chip source ("tags" default stays unwritten).
+  if (Array.isArray(pv.pinboardOrder)) out.pinboardOrder = pv.pinboardOrder.map((x: any) => String(x));
+  if (Array.isArray(pv.pinboardPinned)) out.pinboardPinned = pv.pinboardPinned.map((x: any) => String(x));
+  if (typeof pv.pinboardFilterBy === "string" && pv.pinboardFilterBy) out.pinboardFilterBy = pv.pinboardFilterBy;
   return out;
 }
 
@@ -478,6 +484,15 @@ export function serializeBaseConfig(config: any): string {
     // and elided so files without the feature stay byte-identical.
     if (v?.boardColorMode === "column") pv.boardColorMode = "column";
     else delete pv.boardColorMode;
+    // Pinboard options (plan Pinboard P1) — written only when set so files of
+    // other view types stay byte-identical. "tags" is the implicit filter
+    // default and elided; empty order/pinned lists mean "not arranged yet".
+    if (Array.isArray(v?.pinboardOrder) && v.pinboardOrder.length > 0) pv.pinboardOrder = v.pinboardOrder.map((x: any) => String(x));
+    else delete pv.pinboardOrder;
+    if (Array.isArray(v?.pinboardPinned) && v.pinboardPinned.length > 0) pv.pinboardPinned = v.pinboardPinned.map((x: any) => String(x));
+    else delete pv.pinboardPinned;
+    if (typeof v?.pinboardFilterBy === "string" && v.pinboardFilterBy && v.pinboardFilterBy !== "tags") pv.pinboardFilterBy = v.pinboardFilterBy;
+    else delete pv.pinboardFilterBy;
     // The file-level keys (icon tint P7, new-item folder/template P1) are
     // stamped onto the FIRST view only and scrubbed from the rest so
     // reorders/deletes never leave stale duplicates.

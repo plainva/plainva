@@ -49,6 +49,15 @@ export interface TaskRecord extends ScannedTask {
   excluded: boolean;
 }
 
+/** Body/tags/ctime of one note, for content-rendering views (plan Pinboard P2). */
+export interface NoteCardData {
+  /** Full note text from the FTS index (frontmatter included; callers strip it). */
+  content: string;
+  tags: string[];
+  /** files.ctime (index v3); null for legacy rows — fall back to mtime. */
+  ctime: number | null;
+}
+
 /** One note that contains matches for a vault-wide find (B6). */
 export interface VaultFindResult {
   path: string;
@@ -254,6 +263,49 @@ export class VaultQueryService {
       const excluded = readFrontmatterPath(content, ["plainva", "tasks"]) === false;
       for (const task of scanned) {
         out.push({ path: r.path, title, excluded, ...task });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Card data for content-rendering views (plan Pinboard P2): the note BODY
+   * from the FTS index (no file I/O — the listTasks/findInVault pattern), the
+   * note's tags and its creation time (`files.ctime`, index v3; null for rows
+   * indexed before v3 — callers fall back to mtime). Chunked IN queries respect
+   * SQLite's bound-variable limit; paths missing from the index are simply
+   * absent from the result.
+   */
+  async getCardData(paths: string[]): Promise<Record<string, NoteCardData>> {
+    const out: Record<string, NoteCardData> = {};
+    if (paths.length === 0) return out;
+    const chunkSize = 500;
+    for (let i = 0; i < paths.length; i += chunkSize) {
+      const chunk = paths.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => "?").join(",");
+      const contentRows = await this.db.query<{ path: string; content: string | null }>(
+        `SELECT path, content FROM fts_notes WHERE path IN (${placeholders})`,
+        chunk,
+      );
+      for (const r of contentRows) {
+        if (!r.path) continue;
+        out[r.path] = { content: r.content ?? "", tags: [], ctime: null };
+      }
+      const fileRows = await this.db.query<{ path: string; ctime: number | null }>(
+        `SELECT path, ctime FROM files WHERE path IN (${placeholders})`,
+        chunk,
+      );
+      for (const r of fileRows) {
+        if (!r.path) continue;
+        if (!out[r.path]) out[r.path] = { content: "", tags: [], ctime: null };
+        out[r.path].ctime = r.ctime ?? null;
+      }
+      const tagRows = await this.db.query<{ path: string; tag: string }>(
+        `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE f.path IN (${placeholders})`,
+        chunk,
+      );
+      for (const r of tagRows) {
+        if (r.path && r.tag && out[r.path]) out[r.path].tags.push(r.tag);
       }
     }
     return out;

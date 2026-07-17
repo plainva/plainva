@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { SheetGrip } from "../components/SheetGrip";
+import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -70,7 +71,6 @@ export function BrowseScreen({
     null,
   );
   const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
-  const [moveFolders, setMoveFolders] = useState<string[]>([]);
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
     null,
@@ -304,13 +304,12 @@ export function BrowseScreen({
     })();
   };
 
+  // Browsable move target (2026-07-17): the FolderPickerSheet walks the live
+  // file system, so freshly created EMPTY folders are valid destinations — the
+  // old index-backed getAllFolders() list could never offer them.
   const startMove = (target: { path: string; title: string }) => {
     setSheet(null);
-    void (async () => {
-      const folders = vault.queryService ? await vault.queryService.getAllFolders() : [];
-      setMoveFolders(folders);
-      setMovePick(target);
-    })();
+    setMovePick(target);
   };
 
   const duplicateNote = (target: { path: string; title: string }) => {
@@ -608,26 +607,16 @@ export function BrowseScreen({
       )}
 
       {movePick && (
-        <div className="m-sheet-backdrop" onClick={() => setMovePick(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setMovePick(null)} />
-            <p className="m-sheet-title">{t("mobile.moveNoteTo", { name: movePick.title })}</p>
-            {["", ...moveFolders].map((dest) => (
-              <button
-                className="m-row"
-                key={dest || "/"}
-                onClick={() => {
-                  const target = movePick;
-                  setMovePick(null);
-                  void vaultOps.moveNote(vault, target.path, dest);
-                }}
-              >
-                <Folder className="m-accent" size={18} />
-                <span>{dest || t("mobile.vaultRoot")}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <FolderPickerSheet
+          vault={vault}
+          title={t("mobile.moveNoteTo", { name: movePick.title })}
+          onPick={(dest) => {
+            const target = movePick;
+            setMovePick(null);
+            void vaultOps.moveNote(vault, target.path, dest);
+          }}
+          onClose={() => setMovePick(null)}
+        />
       )}
     </div>
   );

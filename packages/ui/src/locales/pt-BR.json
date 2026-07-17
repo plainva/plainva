@@ -515,6 +515,8 @@
     "viewBoard": "Quadro",
     "viewCalendar": "Calendário",
     "viewTimeline": "Linha do tempo",
+    "viewPinboard": "Mural",
+    "pinboardFilterBy": "Origem dos marcadores",
     "opIs": "é",
     "opIsNot": "não é",
     "opContains": "contém",
@@ -1771,5 +1773,27 @@
     "renameAction": "Renomear",
     "renameDone": "#{{old}} renomeada para #{{new}} em {{notes}} notas",
     "renameHint": "Clique com o botão direito: renomear tag"
+  },
+  "pinboard": {
+    "pinned": "Fixadas",
+    "others": "Outras",
+    "pin": "Fixar",
+    "unpin": "Desafixar",
+    "open": "Abrir",
+    "openSplit": "Abrir em painel dividido",
+    "delete": "Excluir",
+    "color": "Cor",
+    "noColor": "Sem cor",
+    "phTable": "Tabela",
+    "phMath": "Fórmula",
+    "phEmbed": "Conteúdo incorporado",
+    "sortActive": "Regra de ordenação ativa — a organização manual está desativada.",
+    "cardMenu": "Menu do cartão",
+    "capturePlaceholder": "Escreva uma nota…",
+    "captureTitle": "Título",
+    "labels": "Marcadores",
+    "addLabel": "Pesquisar marcadores…",
+    "newLabel": "Criar “{{name}}”",
+    "inlineTag": "no texto"
   }
 }

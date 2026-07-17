@@ -37,6 +37,7 @@ import {
   renameFileWithLinkUpdates,
   serializeBookmarksFile,
   serializeRecentsFile,
+  sweepPinboardRefs,
   toast,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -402,6 +403,9 @@ export const vaultOps = {
     const newPath = `${dir}${newName}`;
     if (newPath === oldPath) return;
     await v.files.renameItem(oldPath, newPath);
+    // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
+    // rewrite them by prefix so cards under the folder keep position and pin.
+    await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
@@ -417,12 +421,16 @@ export const vaultOps = {
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
     await v.files.renameItem(path, newPath);
+    // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
+    const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
     if (v.indexer) {
       await v.indexer.removePathFromIndex(path).catch(() => {});
-      try {
-        await v.indexer.indexFile(await v.adapter.getFileInfo(newPath));
-      } catch {
-        /* next full pass repairs it */
+      for (const p of [newPath, ...sweptBases]) {
+        try {
+          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
+        } catch {
+          /* next full pass repairs it */
+        }
       }
     }
     window.dispatchEvent(new CustomEvent("m-vault-changed"));

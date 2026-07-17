@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -38,6 +38,7 @@ Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp
 | **Board** | Kanban-Spalten, gruppiert nach einer Eigenschaft (**Gruppieren nach**) — Karten per Drag verschieben ändert den Wert; eine **Spaltenüberschrift** per Drag ordnet die Spalten um |
 | **Kalender** | Einträge nach **Datumsfeld** auf einem Monatskalender, Einträge per Drag verschiebbar |
 | **Zeitachse** | Zeitstrahl mit **Startdatum** und optionalem **Enddatum** |
+| **Pinnwand** | Notizzettel-Brett im Google-Keep-Stil — Karten zeigen den gerenderten Notiz-Inhalt (eigener Abschnitt unten) |
 
 **Ansicht hinzufügen** legt neue an; über **Ansichts-Optionen** kannst Du **Umbenennen**, **Duplizieren**, **Löschen** und die Reihenfolge per Drag ändern. Welche Ansicht zuletzt aktiv war, merkt sich Plainva pro Datei. Kalender und Zeitachse brauchen ein Datumsfeld (**Nur Datum** oder **Datum & Uhrzeit** als **Format**); Einträge zeigen die in den **Eigenschaften** aktivierten Felder an.
 
@@ -86,6 +87,20 @@ Der **Eintrag**-Knopf oben links (vormals **Neu**; klar getrennt vom globalen **
 - **Vorlagen**: Das Pfeil-Menü (**Vorlagen und Ablage-Ordner**) listet die Vorlagen Deines Vault-Template-Ordners — einmalig nutzen, per Stern **Als Standard setzen** (gilt dann für jeden Klick auf **Eintrag** dieser Datenbank) oder **Neue Vorlage erstellen** (eine neue Vorlage startet mit einer `# {{title}}`-Überschrift, sodass daraus erstellte Einträge ihren Dateinamen als H1 bekommen). Dasselbe Menü bietet außerdem **Vorlagen-Ordner öffnen**, das den Vorlagen-Ordner im Dateibaum anzeigt — Vorlagen sind normale Notizen, die Du dort bearbeiten, umbenennen oder löschen kannst.
 - **Vorlagen je Datenbank**: Vorlagen lassen sich Datenbanken zuordnen. Das Pfeil-Menü zeigt standardmäßig nur die dieser Datenbank zugeordneten Vorlagen (plus ihre Standard-Vorlage); alle übrigen erreichst Du über **Alle Vorlagen anzeigen (n)**. Zuordnen geht direkt dort — das Datenbank-Symbol an jeder Zeile heißt **Dieser Datenbank zuordnen** bzw. **Zuordnung zu dieser Datenbank entfernen** — oder auf der Vorlage selbst: Im ⋮-Menü des Editors öffnet **Ziel-Datenbanken…** einen Dialog mit Suchfeld, in dem Du die Vorlage mehreren Datenbanken zuweist. Eine über **Neue Vorlage erstellen** aus einer Datenbank angelegte Vorlage ist ihr automatisch zugeordnet. Gespeichert wird die Zuordnung als `plainva.templateFor`-Liste im Frontmatter der Vorlage (siehe [Dateiformat-Referenz](File_Format_Reference.md)); beim Anlegen eines Eintrags wird sie nie in die neue Notiz übernommen, und beim Umbenennen einer `.base` ziehen die Zuordnungen automatisch mit. Der Slash-Befehl **Vorlage einfügen** bleibt bewusst ungefiltert — er fügt Text in eine bestehende Notiz ein und hat keinen Datenbank-Kontext.
 - **Vorlagen-Platzhalter**: Vorlagen ersetzen `{{title}}`, `{{date}}` und `{{time}}`. Beim *Einfügen* einer Vorlage in eine Notiz (Slash-Befehl **Vorlage einfügen** / `Mod+Alt+T`) kommen zwei weitere hinzu: `{{cursor}}` markiert, wo der Cursor nach dem Einfügen landet, und `{{prompt:Bezeichnung}}` fragt Dich nach einem Wert (Beschriftung *Bezeichnung*) und fügt Deine Antwort ein. Beim Erstellen einer *neuen* Notiz aus einer Vorlage wird `{{cursor}}` entfernt und `{{prompt:…}}` bleibt leer.
+
+## Pinnwand (Notizzettel wie in Google Keep)
+
+Der Ansichtstyp **Pinnwand** zeigt die Notizen der Datenbank als Karten mit ihrem gerenderten Inhalt — ein Brett voller Notizzettel. Karten rendern Text, Listen und anklickbare Kontrollkästchen (ein Klick hakt die Aufgabe direkt in der Notiz ab), Bilder und Formatierung; Tabellen, Formeln und Einbettungen erscheinen als dezente Platzhalter. Ein Klick auf eine Karte öffnet die Notiz im Vorschaufenster.
+
+- **Schnell erfassen**: Das Feld **Notiz schreiben…** über dem Brett klappt zu einem kleinen Eingabefenster mit **Titel**-Feld und mehrzeiligem Notiztext auf — wie in Google Keep. Ein eingegebener Titel wird Dateiname UND erste Überschrift der Notiz; ohne Titel bekommt die Datei einen Zeitstempel-Namen und die Notiz keine Überschrift. Der Text ist in beiden Fällen der Inhalt — ohne Vorlage, ganz ohne Umwege (Strg/Cmd+Eingabe speichert).
+- **Anpinnen**: Der Pin-Knopf (beim Überfahren der Karte oben rechts) hebt eine Karte in die Sektion **Angepinnt**.
+- **Anordnen**: Karten lassen sich per Ziehen umsortieren; die Reihenfolge liegt in der `.base`-Datei und synchronisiert mit. Noch nicht angeordnete Karten (frisch erfasst oder extern angelegt) erscheinen oben, neueste zuerst. Ist unter **Konfigurieren** eine Sortierregel gesetzt, gewinnt sie — Ziehen ist dann deaktiviert.
+- **Labels**: Die Chip-Leiste über dem Brett filtert die Karten — standardmäßig nach Tags, umschaltbar auf eine Mehrfachauswahl-Eigenschaft (**Konfigurieren** → **Label-Quelle**). Mehrere Chips filtern UND-verknüpft; die Auswahl ist flüchtig und wird nicht gespeichert. Die Labels einer Karte bearbeitest Du über **Labels** im Kontextmenü der Karte.
+- **Farbe**: Das Kontextmenü färbt die Karte ein. Die Farbe ist die Kopfzeilen-Farbe der Notiz (`plainva.header_color`) — sie gilt überall, wo die Notiz erscheint, auch im Editor-Kopf.
+- **Eigenschaften**: Die unter **Konfigurieren** → **Eigenschaften** angehakten Eigenschaften erscheinen als kompakte Zeilen unten auf jeder Karte — Datumswerte folgen dem Datumsformat der Ansicht, leere Werte werden übersprungen.
+- **Mobil**: Auf dem Handy öffnet Tippen die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Ordner**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett.
+
+Hinweis für synchronisierte Vaults: Ordnen zwei Geräte das Brett gleichzeitig an, kann eine `.CONFLICT`-Kopie der `.base`-Datei entstehen — betroffen ist nur die Anordnung, nie der Inhalt der Notizen; die Kopie kannst Du löschen oder zusammenführen.
 
 ## Bedienung im Alltag
 

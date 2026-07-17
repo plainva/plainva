@@ -525,7 +525,11 @@ export class DriveSyncTarget implements ISyncTarget {
     this.cacheFolder("", rootId);
     const etagMap = new Map<string, string>();
     await this.listFolder(rootId, "", etagMap);
-    return { etagMap };
+    // Empty-folder sync (2026-07-17): the walk above cached every remote
+    // folder path — report them (minus the vault root "") so the worker can
+    // create locally missing EMPTY folders.
+    const folders = [...this.folderToId.keys()].filter((p) => p !== "");
+    return { etagMap, folders };
   }
 
   private async listFolder(folderId: string, prefix: string, etagMap: Map<string, string>): Promise<void> {
@@ -568,6 +572,10 @@ export class DriveSyncTarget implements ISyncTarget {
   private async pullChanges(cursor: string): Promise<PullResult> {
     const etagMap = new Map<string, string>();
     const deleted: string[] = [];
+    // Empty-folder sync (2026-07-17): folders the cursor pull registers as
+    // brand-new are reported so the worker creates them locally right away
+    // (instead of waiting for the periodic full listing).
+    const newFolders: string[] = [];
     let pageToken: string | undefined = cursor;
     let nextCursor = cursor;
     let needsFullListing = false;
@@ -627,8 +635,11 @@ export class DriveSyncTarget implements ISyncTarget {
             if (expected !== undefined && expected !== knownFolderPath) needsFullListing = true;
           } else if (parentPath !== undefined) {
             // Brand-new folder in a known parent: register it so files created
-            // inside it (their changes follow chronologically) resolve below.
-            this.cacheFolder(parentPath ? `${parentPath}/${f.name}` : f.name, ch.fileId);
+            // inside it (their changes follow chronologically) resolve below,
+            // and report it so it appears locally even while still empty.
+            const newFolderPath = parentPath ? `${parentPath}/${f.name}` : f.name;
+            this.cacheFolder(newFolderPath, ch.fileId);
+            newFolders.push(newFolderPath);
           } else {
             // New folder under an unknown parent (created together with its
             // parent in one go, or outside our cached tree): full listing.
@@ -675,7 +686,13 @@ export class DriveSyncTarget implements ISyncTarget {
       if (json.newStartPageToken) nextCursor = json.newStartPageToken;
     } while (pageToken);
 
-    return { etagMap, deleted, nextCursor, needsFullListing: needsFullListing || undefined };
+    return {
+      etagMap,
+      deleted,
+      nextCursor,
+      needsFullListing: needsFullListing || undefined,
+      folders: newFolders.length > 0 ? newFolders : undefined,
+    };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

@@ -587,6 +587,84 @@ describe("baseFormat file icon color (Base-UX2 P7)", () => {
     // No new top-level key — Obsidian only tolerates the four canonical ones.
     expect(Object.keys(out).sort()).toEqual(["views"]);
   });
+});
+
+// Plan Pinboard P1 (2026-07-17): the pinboard view persists Obsidian-compatibly
+// as `type: table` + `views[i].plainva.render: "pinboard"`; manual order, the
+// pinned subset and the label source live in the same plainva slot.
+describe("baseFormat pinboard keys (pinboardOrder, pinboardPinned, pinboardFilterBy)", () => {
+  it("degrades to a native table with a render hint and round-trips all three keys", () => {
+    const cfg = {
+      columns: {},
+      views: [
+        {
+          type: "pinboard",
+          name: "Pinnwand",
+          pinboardOrder: ["Zettel/Einkauf.md", "Zettel/Idee Solar.md"],
+          pinboardPinned: ["Zettel/Einkauf.md"],
+          pinboardFilterBy: "note.labels",
+        },
+      ],
+      _obsidian: {},
+    };
+    expect(toObsidianViewType("pinboard")).toBe("table");
+    const out = yaml.parse(serializeBaseConfig(cfg));
+    expect(out.views[0].type).toBe("table");
+    expect(out.views[0].plainva.render).toBe("pinboard");
+    expect(out.views[0].plainva.pinboardOrder).toEqual(["Zettel/Einkauf.md", "Zettel/Idee Solar.md"]);
+    expect(out.views[0].plainva.pinboardPinned).toEqual(["Zettel/Einkauf.md"]);
+    expect(out.views[0].plainva.pinboardFilterBy).toBe("note.labels");
+    // The keys never leak to the Obsidian view top level.
+    expect(Object.keys(out.views[0])).toEqual(expect.not.arrayContaining(["pinboardOrder", "pinboardPinned", "pinboardFilterBy"]));
+
+    const back = parseBaseConfig(serializeBaseConfig(cfg));
+    expect(back.views[0].type).toBe("pinboard");
+    expect(back.views[0].pinboardOrder).toEqual(["Zettel/Einkauf.md", "Zettel/Idee Solar.md"]);
+    expect(back.views[0].pinboardPinned).toEqual(["Zettel/Einkauf.md"]);
+    expect(back.views[0].pinboardFilterBy).toBe("note.labels");
+  });
+
+  it("is byte-stable across two disk cycles", () => {
+    const cfg = {
+      columns: {},
+      views: [{ type: "pinboard", name: "P", pinboardOrder: ["A.md"], pinboardPinned: ["A.md"] }],
+      _obsidian: {},
+    };
+    const once = serializeBaseConfig(cfg);
+    const twice = serializeBaseConfig(parseBaseConfig(once));
+    expect(twice).toBe(once);
+  });
+
+  it('elides the "tags" filter default and empty order/pinned lists', () => {
+    const out = yaml.parse(
+      serializeBaseConfig({
+        columns: {},
+        views: [{ type: "pinboard", name: "P", pinboardOrder: [], pinboardPinned: [], pinboardFilterBy: "tags" }],
+        _obsidian: {},
+      }),
+    );
+    expect(out.views[0].plainva.render).toBe("pinboard");
+    expect(out.views[0].plainva.pinboardOrder).toBeUndefined();
+    expect(out.views[0].plainva.pinboardPinned).toBeUndefined();
+    expect(out.views[0].plainva.pinboardFilterBy).toBeUndefined();
+  });
+
+  it("keeps unknown plainva keys of an on-disk view across a round-trip (forward compat)", () => {
+    // A future Plainva writes a key this build does not know: saving from here
+    // must NOT destroy it — the serializer works on the cloned on-disk view.
+    const text = yaml.stringify({
+      views: [
+        {
+          type: "table",
+          name: "P",
+          plainva: { render: "pinboard", pinboardOrder: ["A.md"], futurePinboardKey: { anchor: [1, 2] } },
+        },
+      ],
+    });
+    const out = yaml.parse(serializeBaseConfig(parseBaseConfig(text)));
+    expect(out.views[0].plainva.futurePinboardKey).toEqual({ anchor: [1, 2] });
+    expect(out.views[0].plainva.pinboardOrder).toEqual(["A.md"]);
+  });
 
   it("drops the key entirely when the color is removed or invalid", () => {
     const config = {

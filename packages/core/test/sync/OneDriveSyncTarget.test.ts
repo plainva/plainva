@@ -108,6 +108,8 @@ describe("OneDriveSyncTarget", () => {
     expect(result.etagMap.get("b.md")).toBe("c2");
     expect(result.etagMap.get("sub/c.md")).toBe("e3"); // eTag fallback when cTag missing
     expect(result.etagMap.size).toBe(3);
+    // Empty-folder sync (2026-07-17): the walked folder is reported.
+    expect(result.folders).toEqual(["sub"]);
   });
 
   it("creates the app root on first connect (404 listing) and reports an empty map", async () => {

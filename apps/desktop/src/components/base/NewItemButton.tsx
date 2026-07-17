@@ -3,6 +3,8 @@ import { useFixedPopover } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
+import { listVaultFolders } from "../../services/vaultFolders";
+import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 
 type TFn = (key: string, opts?: any) => string;
 
@@ -252,14 +254,9 @@ export function NewItemFolderDialog({
   onConfirm: (folder: string) => void;
   onCancel: () => void;
 }) {
-  const { queryService } = useVault();
-  const [folders, setFolders] = useState<string[]>([]);
+  const { vaultAdapter } = useVault();
   const [value, setValue] = useState<string>(current ?? folderSources[0] ?? "");
-
-  useEffect(() => {
-    if (mode !== "setup" || !queryService) return;
-    queryService.getAllFolders().then(setFolders).catch(() => setFolders([]));
-  }, [mode, queryService]);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
@@ -297,22 +294,38 @@ export function NewItemFolderDialog({
             ))}
           </div>
         ) : (
-          <div className="pv-modal-row" style={{ margin: "0.4rem 0" }}>
+          <div className="pv-modal-row" style={{ margin: "0.4rem 0", gap: "6px" }}>
             <input
               autoFocus
               className="pv-input"
               style={{ flex: 1, boxSizing: "border-box" }}
-              list="pv-newitem-folder-list"
               placeholder={t("database.newItemFolderPlaceholder", { defaultValue: "Ordner (z. B. Projekte/Aktiv)" })}
               value={value}
               aria-label={t("database.newItemFolderTitle", { defaultValue: "Ablage-Ordner für neue Elemente" })}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && clean) onConfirm(clean); }}
             />
-            <datalist id="pv-newitem-folder-list">
-              {folders.map((f) => <option key={f} value={f} />)}
-            </datalist>
+            {/* Browsable picker over the live file system (2026-07-17): also
+                lists folders the index does not know yet (empty ones). */}
+            {vaultAdapter && (
+              <button
+                type="button"
+                className="pv-btn-secondary"
+                onClick={() => setPickerOpen(true)}
+              >
+                {t("settings.browseFolders", { defaultValue: "Ordner auswählen…" })}
+              </button>
+            )}
           </div>
+        )}
+        {pickerOpen && vaultAdapter && (
+          <SyncFolderPickerModal
+            listFolders={(p) => listVaultFolders(vaultAdapter, p)}
+            rootLabel="/"
+            createFolder={async (p) => { await vaultAdapter.createDir(p); }}
+            onSelect={(path) => { setPickerOpen(false); if (path) setValue(path); }}
+            onCancel={() => setPickerOpen(false)}
+          />
         )}
         <div className="pv-modal-actions">
           <button type="button" className="pv-btn-secondary" onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</button>

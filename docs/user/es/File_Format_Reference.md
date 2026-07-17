@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -162,7 +162,7 @@ Todo lo específico de Plainva está bajo namespace. Tres ubicaciones:
 
 | Clave | Valor | Significado |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Tipo de vista exclusivo de Plainva (ver abajo) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Tipo de vista exclusivo de Plainva (ver abajo) |
 | `groupBy` | clave de propiedad sin prefijo | Columna de agrupación del tablero |
 | `dateField` | clave de propiedad sin prefijo | Fecha de inicio del calendario/cronología |
 | `endField` | clave de propiedad sin prefijo | Fecha de fin de la cronología |
@@ -170,6 +170,9 @@ Todo lo específico de Plainva está bajo namespace. Tres ubicaciones:
 | `subItemsProperty` | clave de propiedad sin prefijo | Columna de relación padre (auto-relación) para anidar subelementos |
 | `widths` | mapa de id → px | Anchos de columna |
 | `dateFormat` | string | Formato de fecha por vista (`default` es implícito — omitirlo) |
+| `pinboardOrder` | lista de rutas relativas al vault | Orden manual de las tarjetas del tablón SIN fijar |
+| `pinboardPinned` | lista de rutas relativas al vault | Tarjetas fijadas; el orden de la lista es el orden de la sección |
+| `pinboardFilterBy` | `tags` o una clave de selección múltiple sin prefijo | Origen de las etiquetas de la barra de chips del tablón (`tags` es implícito — omitirlo) |
 
 Además del bloque `plainva`, una vista puede llevar un objeto nativo **`views[i].filters`** — los **filtros de propiedad por vista** (la misma gramática de raíz única `and`/`or`/`not` que el `filters` de nivel de archivo). Plainva guarda aquí las reglas de filtro de propiedad, un conjunto por vista, de modo que cada vista filtra de forma independiente; el `filters` de nivel de archivo conserva entonces solo las fuentes. Obsidian aplica `views[i].filters` por vista de forma nativa.
 
@@ -448,6 +451,25 @@ views:
 Todas las claves de opción del grafo son opcionales; omítelas por completo cuando no estén definidas. Obsidian renderiza el mismo archivo como una tabla sencilla y no debe dar error.
 
 Una vista de **tablero** (`plainva.render: "board"`) puede llevar además `views[i].plainva.boardColumnOrder` — una lista de claves de columnas de grupo (`__UNGROUPED__` marca la columna sin valor) que recuerda un orden de columnas manual. Los tableros de Selección/Estado reordenan en su lugar las `options` de la propiedad. Omite la clave si no está definida.
+
+### La vista de tablón (`plainva.render: "pinboard"`)
+
+Un tablón se guarda como cualquier vista no nativa: `type: table` más el indicador de render. Sus claves viven en el mismo namespace `views[i].plainva`:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # orden manual de las tarjetas sin fijar
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # fijadas; el orden de la lista = el orden de la sección
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # origen de las etiquetas de la barra de chips; omitir = tags
+```
+
+Reglas: las rutas fijadas no se repiten en `pinboardOrder`. Las tarjetas que no están en ninguna de las dos listas se muestran arriba del todo, las más nuevas primero (por fecha de creación). Las entradas cuyo archivo ya no existe o que salieron del conjunto de fuentes se ignoran y se limpian en el siguiente guardado. Cuando una nota se renombra o se mueve, Plainva reajusta automáticamente las rutas en ambas listas; las herramientas externas deben hacer lo mismo. Obsidian ignora las claves y muestra la vista como una tabla.
 
 ## No tocar y seguridad
 

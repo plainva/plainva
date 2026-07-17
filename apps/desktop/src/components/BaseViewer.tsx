@@ -17,6 +17,7 @@ import {
 } from "@plainva/ui";
 import {
   baseStemOf,
+  buildCaptureContent,
   buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
@@ -24,6 +25,7 @@ import {
   nextItemName,
   relationPrefill,
 } from "../services/newItemFlow";
+import { captureFileName, captureTimestampName } from "@plainva/ui";
 import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -52,6 +54,7 @@ import { BaseViewTabs } from "./base/BaseViewTabs";
 import { BaseConfigPanel } from "./base/BaseConfigPanel";
 import { BaseTableView } from "./base/BaseTableView";
 import { BaseListView } from "./base/BaseListView";
+import { BasePinboardView } from "./base/BasePinboardView";
 import { BaseGalleryView } from "./base/BaseGalleryView";
 import { BaseBoardView } from "./base/BaseBoardView";
 import { BaseCalendarView } from "./base/BaseCalendarView";
@@ -343,6 +346,33 @@ export function BaseViewer({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick]);
+
+  // Body-refresh channel (plan Pinboard P2): the pinboard is the first view
+  // that renders note BODIES, and pure prose edits deliberately skip the
+  // fileTreeVersion bump (fix C, 2026-07-08) — without this listener a card
+  // would show stale text after "click → peek → edit → close". The editor
+  // dispatches plainva-note-saved after re-indexing; re-query (debounced) when
+  // the saved path can affect this base. Sync/external edits already arrive
+  // through the fileTreeVersionPaths effect above.
+  useEffect(() => {
+    const isPinboard = (dbConfig?.views?.[activeViewIndex]?.type ?? dbConfig?.views?.[0]?.type) === "pinboard";
+    if (!isPinboard || !dbConfig || !queryService) return;
+    let timer: number | null = null;
+    const onSaved = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path;
+      if (typeof path !== "string" || !baseNeedsRefresh(dbConfig, [path])) return;
+      if (timer != null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        setRefreshTick((t) => t + 1);
+      }, 250);
+    };
+    window.addEventListener("plainva-note-saved", onSaved);
+    return () => {
+      window.removeEventListener("plainva-note-saved", onSaved);
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [dbConfig, activeViewIndex, queryService]);
 
   // Detect which relations connect the embedded base to the host element's base
   // (both directions). resolveGoverningBase runs the host's base query (cached).
@@ -644,6 +674,54 @@ export function BaseViewer({
       return;
     }
     await doCreateItem(dbConfig, target.folder, target.inheritTags, template);
+  };
+
+  // Quick capture (plan Pinboard P4): Enter in the board's capture field
+  // creates a Keep-style sticky note via the title popup (2026-07-17): a typed
+  // TITLE becomes the file name AND the H1; without one the file gets a
+  // timestamp name and the note has no H1 — the text is the body either way
+  // (no template). The new card floats on top via ctime (§3); no peek opens —
+  // capture stays in the flow.
+  const quickCapture = async (input: { title: string; text: string }): Promise<boolean> => {
+    if (!dbConfig || !vaultAdapter || !vaultPath || newItemBusy) return false;
+    const title = input.title.trim();
+    const text = input.text;
+    if (!title && !text.trim()) return false;
+    const target = resolveNewItemTarget(dbConfig);
+    if (!target.folder) {
+      setFolderDialog({ mode: target.pending === "choice" ? "choice" : "setup", pendingTemplate: undefined });
+      return false;
+    }
+    setNewItemBusy(true);
+    try {
+      const dir = target.folder.replace(/\/+$/, "");
+      const withDir = (n: string) => (dir ? dir + "/" : "") + n + ".md";
+      const stem = (title ? captureFileName(title, 80) : null) ?? captureTimestampName(new Date());
+      let name = stem;
+      for (let n = 2; await vaultAdapter.exists(withDir(name)).catch(() => false); n++) {
+        name = `${stem} ${n}`;
+      }
+      const path = withDir(name);
+      const content = buildCaptureContent({
+        text,
+        title,
+        noteType: await getConfiguredNoteType(vaultPath),
+        inheritTags: target.inheritTags,
+      });
+      await vaultAdapter.writeTextFile(path, content);
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
+      triggerFileTreeUpdate();
+      notifyFileOps([{ type: "create", path }]);
+      window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+      setRefreshTick((n) => n + 1);
+      return true;
+    } catch (e) {
+      console.error("[BaseViewer] quick capture failed", e);
+      toast.error(String((e as { message?: string })?.message ?? e));
+      return false;
+    } finally {
+      setNewItemBusy(false);
+    }
   };
 
   const confirmFolderDialog = async (folder: string) => {
@@ -1613,6 +1691,21 @@ export function BaseViewer({
 
   const renderViewContent = () => {
     if (currentViewType === "list") return <BaseListView dbData={scopedData} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} />;
+    if (currentViewType === "pinboard")
+      return (
+        <BasePinboardView
+          dbData={scopedData}
+          dbConfig={dbConfig}
+          activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
+          visibleColumns={visibleColumns}
+          cells={cells}
+          onPatchView={patchActiveView}
+          onOpenNote={requestOpen}
+          onOpenInSplit={onOpenInSplit}
+          onQuickCapture={quickCapture}
+          embedded={embedded}
+        />
+      );
     if (currentViewType === "graph")
       return (
         <BaseGraphView
@@ -1829,6 +1922,8 @@ export function BaseViewer({
             onSetBoardGroupBy={setBoardGroupByPersisted}
             boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"}
             onSetBoardColorMode={(m) => patchActiveView({ boardColorMode: m === "column" ? "column" : undefined })}
+            pinboardFilterBy={typeof dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy === "string" ? dbConfig.views[activeViewIndex].pinboardFilterBy : "tags"}
+            onSetPinboardFilterBy={(src) => patchActiveView({ pinboardFilterBy: src === "tags" ? undefined : src })}
             onSetCoverImage={setCoverImagePersisted}
             onSetDateField={setDateField}
             onSetDateFieldType={setDateFieldType}

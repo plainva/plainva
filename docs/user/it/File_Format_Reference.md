@@ -1,6 +1,6 @@
 # File Format Reference
 
-Stand: 2026-07-16
+Stand: 2026-07-17
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -162,7 +162,7 @@ Tutto ciò che è specifico di Plainva è in namespace. Tre posizioni:
 
 | Chiave | Valore | Significato |
 |---|---|---|
-| `render` | `board` / `calendar` / `timeline` | Tipo di vista esclusivo di Plainva (vedi sotto) |
+| `render` | `board` / `calendar` / `timeline` / `graph` / `pinboard` | Tipo di vista esclusivo di Plainva (vedi sotto) |
 | `groupBy` | chiave di proprietà bare | Colonna di raggruppamento della bacheca |
 | `dateField` | chiave di proprietà bare | Data di inizio per calendario/cronologia |
 | `endField` | chiave di proprietà bare | Data di fine della cronologia |
@@ -170,6 +170,9 @@ Tutto ciò che è specifico di Plainva è in namespace. Tre posizioni:
 | `subItemsProperty` | chiave di proprietà bare | Colonna genitore per auto-relazione, per l'annidamento dei sottoelementi |
 | `widths` | mappa id → px | Larghezze delle colonne |
 | `dateFormat` | stringa | Formato data per vista (`default` è implicito — omettilo) |
+| `pinboardOrder` | elenco di percorsi vault-relativi | Ordine manuale delle schede della bacheca NON fissate |
+| `pinboardPinned` | elenco di percorsi vault-relativi | Schede fissate; l'ordine dell'elenco è l'ordine della sezione |
+| `pinboardFilterBy` | `tags` oppure una chiave di selezione multipla bare | Origine delle etichette della barra dei chip della bacheca (`tags` è implicito — omettilo) |
 
 Oltre al blocco `plainva`, una vista può portare un oggetto nativo **`views[i].filters`** — i **filtri delle proprietà per vista** (la stessa struttura a radice singola `and`/`or`/`not` del `filters` a livello di file). Plainva memorizza qui le regole di filtro delle proprietà, un insieme per vista, così che ogni vista filtri in modo indipendente; il `filters` a livello di file mantiene poi solo le origini. Obsidian applica `views[i].filters` per vista in modo nativo.
 
@@ -448,6 +451,25 @@ views:
 Tutte le chiavi di opzione del grafo sono opzionali; omettile del tutto quando non impostate. Obsidian rende lo stesso file come una semplice tabella e non deve generare errori.
 
 Una vista **Bacheca** (`plainva.render: "board"`) può inoltre portare `views[i].plainva.boardColumnOrder` — un elenco di chiavi delle colonne di gruppo (`__UNGROUPED__` contrassegna la colonna senza valore) che memorizza un ordine manuale delle colonne. Le bacheche Selezione/Stato riordinano invece le `options` della proprietà. Ometti la chiave quando non impostata.
+
+### La vista bacheca appunti (`plainva.render: "pinboard"`)
+
+Una bacheca viene memorizzata come ogni altra vista non nativa: `type: table` più il suggerimento di rendering. Le sue chiavi vivono nello stesso namespace `views[i].plainva`:
+
+```yaml
+views:
+  - type: table
+    name: Pinboard
+    plainva:
+      render: pinboard
+      pinboardOrder:                  # ordine manuale delle schede non fissate
+        - "Notes/Groceries.md"
+      pinboardPinned:                 # fissate; l'ordine dell'elenco = ordine della sezione
+        - "Notes/Idea.md"
+      pinboardFilterBy: note.labels   # origine delle etichette della barra dei chip; ometti = tags
+```
+
+Regole: i percorsi fissati non vengono ripetuti in `pinboardOrder`. Le schede che non compaiono in nessuno dei due elenchi vengono renderizzate in cima, dalla più recente (data di creazione). Le voci il cui file non esiste più o è uscito dall'insieme di origine vengono ignorate e ripulite al salvataggio successivo. Quando una nota viene rinominata o spostata, Plainva riassegna automaticamente i percorsi in entrambi gli elenchi; gli strumenti esterni devono fare lo stesso. Obsidian ignora le chiavi e mostra la vista come una tabella.
 
 ## Da non toccare e sicurezza
 

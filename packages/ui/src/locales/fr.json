@@ -515,6 +515,8 @@
     "viewBoard": "Kanban",
     "viewCalendar": "Calendrier",
     "viewTimeline": "Chronologie",
+    "viewPinboard": "Tableau d'affichage",
+    "pinboardFilterBy": "Source des libellés",
     "opIs": "est",
     "opIsNot": "n'est pas",
     "opContains": "contient",
@@ -1771,5 +1773,27 @@
     "renameAction": "Renommer",
     "renameDone": "#{{old}} renommée en #{{new}} dans {{notes}} notes",
     "renameHint": "Clic droit : renommer l’étiquette"
+  },
+  "pinboard": {
+    "pinned": "Épinglées",
+    "others": "Autres",
+    "pin": "Épingler",
+    "unpin": "Désépingler",
+    "open": "Ouvrir",
+    "openSplit": "Ouvrir dans le panneau divisé",
+    "delete": "Supprimer",
+    "color": "Couleur",
+    "noColor": "Aucune couleur",
+    "phTable": "Tableau",
+    "phMath": "Formule",
+    "phEmbed": "Contenu intégré",
+    "sortActive": "Règle de tri active — le classement manuel est désactivé.",
+    "cardMenu": "Menu de la carte",
+    "capturePlaceholder": "Écrire une note…",
+    "captureTitle": "Titre",
+    "labels": "Libellés",
+    "addLabel": "Rechercher un libellé…",
+    "newLabel": "Créer « {{name}} »",
+    "inlineTag": "dans le texte"
   }
 }
