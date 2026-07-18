@@ -157,7 +157,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     <Modal
       title={t("mail.composeTitle", { defaultValue: "Nachricht verfassen" })}
       onClose={onClose}
-      size="md"
+      size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

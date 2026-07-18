@@ -491,7 +491,7 @@
 }
 .pv-mail-cmpbody {
   width: 100%;
-  min-height: 168px;
+  min-height: 320px;
   resize: vertical;
   border: 1px solid var(--border-color-light);
   border-radius: var(--radius-sm);
