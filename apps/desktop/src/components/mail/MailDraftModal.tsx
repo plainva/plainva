@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Button, TextInput, toast } from "@plainva/ui";
+import { Modal, Button, toast } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
+import "./mail.css";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
@@ -156,14 +157,16 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 />
               </div>
             )}
-            <label style={{ fontSize: "var(--text-sm)" }}>
-              {t("mail.draftTo", { defaultValue: "An" })}
-              <TextInput value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus style={{ display: "block", width: "100%", marginTop: 2 }} />
-            </label>
-            <label style={{ fontSize: "var(--text-sm)" }}>
-              {t("mail.draftSubject", { defaultValue: "Betreff" })}
-              <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" style={{ display: "block", width: "100%", marginTop: 2 }} />
-            </label>
+            <div className="pv-mail-cmpfields">
+              <div className="pv-mail-cmpfield">
+                <span className="pv-mail-cmpfield-k">{t("mail.draftTo", { defaultValue: "An" })}</span>
+                <input value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus aria-label={t("mail.draftTo", { defaultValue: "An" })} />
+              </div>
+              <div className="pv-mail-cmpfield">
+                <span className="pv-mail-cmpfield-k">{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" aria-label={t("mail.draftSubject", { defaultValue: "Betreff" })} />
+              </div>
+            </div>
             {attachments && attachments.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }} data-testid="draft-attachments">
                 {attachments.map((a) => (

@@ -1971,6 +1971,7 @@
     "remoteBlocked": "Contenu distant bloqué ({{n}})",
     "captured": "E-mail enregistré : {{name}}",
     "captureNote": "Enregistrer comme note",
+    "intoVault": "Vers le Vault",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Tâche",
     "fromLabel": "De",

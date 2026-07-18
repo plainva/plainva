@@ -1965,6 +1965,7 @@
     "remoteBlocked": "Externe inhoud geblokkeerd ({{n}})",
     "captured": "E-mail vastgelegd: {{name}}",
     "captureNote": "Opslaan als notitie",
+    "intoVault": "Naar de Vault",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Taak",
     "fromLabel": "Van",

@@ -1977,6 +1977,7 @@
     "remoteBlocked": "Zablokowano zdalną zawartość ({{n}})",
     "captured": "Zapisano e-mail: {{name}}",
     "captureNote": "Zapisz jako notatkę",
+    "intoVault": "Do Vaultu",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Zadanie",
     "fromLabel": "Od",

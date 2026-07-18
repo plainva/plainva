@@ -1959,6 +1959,7 @@
     "remoteBlocked": "外部コンテンツをブロックしました（{{n}}）",
     "captured": "メールを保存しました: {{name}}",
     "captureNote": "ノートとして保存",
+    "intoVault": "Vault に保存",
     "captureWithEml": "+ .eml",
     "captureTask": "→ タスク",
     "fromLabel": "差出人",

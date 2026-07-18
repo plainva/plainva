@@ -1959,6 +1959,7 @@
     "remoteBlocked": "已拦截外部内容（{{n}}）",
     "captured": "已保存邮件：{{name}}",
     "captureNote": "保存为笔记",
+    "intoVault": "存入 Vault",
     "captureWithEml": "+ .eml",
     "captureTask": "→ 任务",
     "fromLabel": "发件人",

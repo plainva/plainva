@@ -1965,6 +1965,7 @@
     "remoteBlocked": "Remote content blocked ({{n}})",
     "captured": "Email captured: {{name}}",
     "captureNote": "Save as note",
+    "intoVault": "Into the Vault",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Task",
     "fromLabel": "From",

@@ -1971,6 +1971,7 @@
     "remoteBlocked": "Contenido remoto bloqueado ({{n}})",
     "captured": "Correo guardado: {{name}}",
     "captureNote": "Guardar como nota",
+    "intoVault": "Al Vault",
     "captureWithEml": "+ .eml",
     "captureTask": "→ Tarea",
     "fromLabel": "De",
