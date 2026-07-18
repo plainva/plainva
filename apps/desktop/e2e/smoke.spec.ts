@@ -772,7 +772,7 @@ test('Calendar: the open daily note is highlighted with precedence over today', 
   await expect(page.getByTestId('calendar-month-label')).toContainText('2020');
 });
 
-test('Sidebar calendar: a day click opens the day peek; its daily action opens the note; right-click offers the menu', async ({ page }) => {
+test('Sidebar calendar: a day click opens the calendar tab; right-click offers a menu with a date header + daily action', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
@@ -780,30 +780,33 @@ test('Sidebar calendar: a day click opens the day peek; its daily action opens t
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-  // A day click opens the DAY PEEK (it no longer creates/opens the daily note).
-  await page.getByTestId(`sidecal-day-${todayKey}`).click();
-  const peek = page.getByTestId('sidecal-day-peek');
-  await expect(peek).toBeVisible();
+  // No daily note yet; a click no longer creates one.
   await expect(page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey)).resolves.toBeNull();
 
-  // The peek's daily action opens (creates) the daily note — the in-app
-  // create-confirm dialog is part of the flow.
-  await page.getByTestId('sidecal-peek-daily').click();
+  // Right-click opens the context menu; its header shows which day we're over
+  // (the day number is language-independent), plus the open-calendar action.
+  // (Right-click first: a plain click opens the calendar tab, whose view type
+  // collapses the right sidebar and hides this widget.)
+  await page.getByTestId(`sidecal-day-${todayKey}`).click({ button: 'right' });
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(menu).toContainText(String(now.getDate()));
+  await expect(menu.getByRole('menuitem', { name: /Kalender öffnen|Open calendar/i })).toBeVisible();
+
+  // The daily action creates (opens) the daily note — the in-app create-confirm
+  // dialog is part of the flow.
+  await menu.getByRole('menuitem', { name: /Tageseintrag|Daily Note/i }).click();
   await page.getByRole('button', { name: /^(Confirm|Bestätigen)$/ }).click();
   await expect
     .poll(() => page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey))
     .toBeTruthy();
-  await expect(peek).toHaveCount(0);
 
-  // …and the day now carries the tiny sunrise marker instead of a plain dot.
-  await expect(page.getByTestId(`sidecal-day-${todayKey}`).locator('svg.lucide-sunrise')).toBeVisible();
+  // …and the day now carries the tiny sun marker instead of a plain dot.
+  await expect(page.getByTestId(`sidecal-day-${todayKey}`).locator('svg.lucide-sun')).toBeVisible();
 
-  // Right-click offers the same as a context menu (daily entry present).
-  await page.getByTestId(`sidecal-day-${todayKey}`).click({ button: 'right' });
-  const menu = page.getByRole('menu');
-  await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /Tageseintrag|Daily Note/i })).toBeVisible();
-  await page.keyboard.press('Escape');
+  // Finally, a plain CLICK opens the calendar tab at that day.
+  await page.getByTestId(`sidecal-day-${todayKey}`).click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
 });
 
 /* ---------------------------------------------------------------- Gesamtplan 2026-07-05: Tabellen-Widget rendert Inline-Markdown in Zellen */
