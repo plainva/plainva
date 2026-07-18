@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Copy, Folder, Hash, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
@@ -9,6 +9,8 @@ import {
   addGroupWithRule,
   addRuleToGroup,
   addTopFilterRule,
+  BASE_CONFIG_AREAS,
+  baseConfigArea,
   buildSourceClause,
   buildUIFilterModel,
   isSourceCondition,
@@ -91,8 +93,10 @@ export function BaseConfigSheet({
   // Data-source editing (R3.7): folder/tag clauses in filters.and/or —
   // identical contract to the desktop's source editor (base-global).
   const [pickSourceFolder, setPickSourceFolder] = useState<"and" | "or" | null>(null);
-  // Sort + filters collapse by default so the common config isn't buried (E9).
-  const [advOpen, setAdvOpen] = useState(false);
+  // Master-detail (config redesign P6): null = the area master list, otherwise
+  // the open detail area. "views" is the mobile-only view-management area (the
+  // desktop keeps that in the view tab strip); the rest mirror the desktop tabs.
+  const [activeArea, setActiveArea] = useState<string | null>(null);
 
   const sourceList = (logic: "and" | "or"): any[] =>
     Array.isArray(config?.filters?.[logic]) ? config.filters[logic] : [];
@@ -341,13 +345,59 @@ export function BaseConfigSheet({
     return input === "select" || input === "status" || input === "multiselect" || input === "relation" || input === "link";
   });
 
+  // Master list (config redesign P6): "views" (mobile-only view management)
+  // first, then the five config areas from the shared catalog. Each row shows a
+  // live one-glance summary.
+  const filterCount = simpleRules.length + groupEntries.length + leftoverEntries.length;
+  const sourceCount = sourcesOf("and").length + sourcesOf("or").length;
+  const masterAreas: { id: string; icon: typeof Layers; labelKey: string; summary: string }[] = [
+    { id: "views", icon: Layers, labelKey: "database.viewOptions", summary: String(views.length) },
+    ...BASE_CONFIG_AREAS.map((a) => ({
+      id: a.id,
+      icon: a.icon,
+      labelKey: a.labelKey,
+      summary:
+        a.id === "view" ? viewTypeLabel(view.type ?? "table")
+          : a.id === "columns" ? String(shown.length)
+            : a.id === "filter" ? (filterCount > 0 ? String(filterCount) : "—")
+              : a.id === "sort" ? (sortRules.length > 0 ? String(sortRules.length) : "—")
+                : sourceCount > 0 ? String(sourceCount) : "—",
+    })),
+  ];
+  const detailLabel =
+    activeArea === "views" ? t("database.viewOptions") : t(baseConfigArea(activeArea ?? "")?.labelKey ?? "database.configure");
+
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet m-sheet--config" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <p className="m-sheet-title">{t("database.configure")}</p>
+
+        {activeArea === null && (
+          <>
+            <p className="m-sheet-title">{t("database.configure")}</p>
+            {masterAreas.map((a) => {
+              const AreaIcon = a.icon;
+              return (
+                <button className="m-row m-row--split" key={a.id} onClick={() => setActiveArea(a.id)}>
+                  <span className="m-row-main m-row--static"><AreaIcon size={18} /><span>{t(a.labelKey)}</span></span>
+                  <span className="m-cfg-summary">{a.summary}</span>
+                  <ChevronRight size={18} />
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {activeArea !== null && (
+          <div className="m-cfg-detailhead">
+            <button className="m-iconbtn" aria-label={t("editor.back")} onClick={() => setActiveArea(null)}><ChevronLeft size={20} /></button>
+            <span className="m-sheet-title" style={{ margin: 0 }}>{detailLabel}</span>
+          </div>
+        )}
 
         {/* Data source (base-global, desktop contract: filters.and/or) */}
+        {activeArea === "source" && (
+        <>
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sourceConfig")}</p>
         {sourcesOf("and").length + sourcesOf("or").length === 0 && (
           <p className="m-hint m-hint--inset">{t("database.noSources")}</p>
@@ -395,9 +445,12 @@ export function BaseConfigSheet({
             + {t("database.tag")}
           </button>
         </div>
+        </>
+        )}
 
-        {/* Views */}
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewOptions")}</p>
+        {/* Views — mobile-only view management (desktop: view tab strip) */}
+        {activeArea === "views" && (
+        <>
         {views.map((v, i) => (
           <div className="m-row m-row--split" key={`${v.name ?? ""}-${i}`}>
             <button className="m-row-main" onClick={() => onSelectView(i)}>
@@ -439,8 +492,12 @@ export function BaseConfigSheet({
             </button>
           )}
         </div>
+        </>
+        )}
 
-        {/* View type */}
+        {/* View — type + type-specific options + date format */}
+        {activeArea === "view" && (
+        <>
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewType")}</p>
         <div className="m-turninto">
           {VIEW_TYPES.map((type) => (
@@ -609,7 +666,12 @@ export function BaseConfigSheet({
           </>
         )}
 
+        </>
+        )}
+
         {/* Columns (E3: pencil opens the schema sheet, + adds a property) */}
+        {activeArea === "columns" && (
+        <>
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.properties")}</p>
         {shown.map((c, idx) => (
           <div className="m-row m-row--split" key={c}>
@@ -664,24 +726,12 @@ export function BaseConfigSheet({
           <Plus size={18} />
           <span>{t("properties.addProperty")}</span>
         </button>
+        </>
+        )}
 
-        {/* Sort + filters collapse by default (E9 clarity) so the common
-            source/views/columns config isn't buried in a long scroll. */}
-        <button
-          type="button"
-          className="m-cfg-adv-toggle"
-          aria-expanded={advOpen}
-          onClick={() => setAdvOpen((o) => !o)}
-        >
-          <span>
-            {t("database.sort")} · {t("database.addFilter")}
-          </span>
-          {advOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        {advOpen && (
-          <>
-            {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sort")}</p>
+        {/* Sort (E2: priorities reorder, file.* columns join the pool) */}
+        {activeArea === "sort" && (
+        <>
         {sortRules.map((rule, idx) => (
           <div className="m-row m-row--split" key={`${rule.property}-${idx}`}>
             <button
@@ -749,11 +799,15 @@ export function BaseConfigSheet({
               </button>
             ))}
         </div>
+        </>
+        )}
 
         {/* Property filters on THIS view (desktop per-view contract, E2:
             top logic toggle + Notion-style groups + raw leftovers). */}
+        {activeArea === "filter" && (
+        <>
         <p className="m-sectionlabel m-sectionlabel--inset">
-          {t("database.addFilter")} · {t("database.filterPerViewHint")}
+          {t("database.filterPerViewHint")}
         </p>
         <div className="m-turninto">
           {(["all", "any"] as const).map((logic) => (

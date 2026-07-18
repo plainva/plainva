@@ -227,24 +227,24 @@ textarea {
   margin-right: 16px;
   border-top: 1px solid var(--m-outline);
 }
-/* Config sheet: tappable header for the collapsed sort/filter block. */
-.m-cfg-adv-toggle {
+/* Config sheet master-detail (config redesign P6): a back header above the
+   open area, and a right-aligned live summary on each master-list row. */
+.m-cfg-detailhead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  width: calc(100% - 32px);
-  margin: 16px 16px 4px;
-  padding: 12px 0 0;
-  border: none;
-  border-top: 1px solid var(--m-outline);
-  background: none;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.m-cfg-detailhead .m-sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+.m-cfg-summary {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-right: 4px;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
 /* ---- List items (M3 one-line list: 52px, state layer, no hard rules) ---- */
