@@ -45,6 +45,7 @@ export * from "./lib/wordCount";
 // the filter-expression model/mutators and the board grouping helpers —
 // shared so the mobile shell edits databases through the SAME contract
 // (never hand-written YAML).
+export * from "./base/baseConfigCatalog";
 export * from "./base/baseFormat";
 export * from "./base/baseRelations";
 export * from "./base/boardOrder";
