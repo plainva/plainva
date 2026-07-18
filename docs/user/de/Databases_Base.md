@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-07-17
+Stand: 2026-07-18
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -44,14 +44,17 @@ Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp
 
 **Ansicht hinzufügen** legt neue an; über **Ansichts-Optionen** kannst Du **Umbenennen**, **Duplizieren**, **Löschen** und die Reihenfolge per Drag ändern. Welche Ansicht zuletzt aktiv war, merkt sich Plainva pro Datei. Kalender und Zeitachse brauchen ein Datumsfeld (**Nur Datum** oder **Datum & Uhrzeit** als **Format**); Einträge zeigen die in den **Eigenschaften** aktivierten Felder an.
 
-## Konfigurieren: Quellen, Filter, Sortierung, Eigenschaften
+## Konfigurieren: Reiter für Ansicht, Spalten, Filter, Sortierung, Datenquelle
 
-Der Knopf **Konfigurieren** (oben rechts) öffnet das Panel mit vier Bereichen:
+Der Knopf **Konfigurieren** (oben rechts) öffnet das Panel **neben** der laufenden Ansicht — so siehst Du jede Änderung sofort in der Tabelle bzw. dem Board. Oben wählst Du über **Reiter** einen Bereich; es ist immer nur einer sichtbar, statt einer langen Liste. Eine kleine Marke zeigt je Bereich, ob er **Diese Ansicht** oder die **Ganze Datenbank** betrifft:
 
-- **Datenquelle** — Ordner- und Tag-Quellen der Datenbank (auch das **Hauptverzeichnis** ist wählbar). Keine Quelle = alle Dateien.
-- **Filter** — Regelzeilen aus Eigenschaft, Operator und Wert. Die Operatoren passen sich dem Feldtyp an: **ist** / **ist nicht** / **enthält** / **enthält nicht** / **ist leer** / **ist nicht leer**, für Zahlen **größer als** / **kleiner als** / **mindestens** / **höchstens**, für Datumsfelder **nach** / **vor** / **ab** / **bis**. Die **Logik** oben entscheidet, ob **Alle** Bedingungen (UND) oder **Beliebige** (ODER) gelten. Mit **Gruppe hinzufügen** baust Du Notion-artige Filtergruppen: ein Kasten mit eigener UND/ODER-Logik innerhalb der Hauptlogik. Sehr verschachtelte Filter aus Obsidian zeigt Plainva als **Komplexer Filter (nicht editierbar)** an — sie bleiben erhalten und werden angewendet. Filter werden **pro Ansicht** gespeichert (das Panel weist mit **Gilt für diese Ansicht** darauf hin): Jede Ansicht behält ihre eigenen Filterregeln, während die **Datenquelle** (Ordner/Tags) für die ganze Datenbank gilt. Alles lebt in der `.base`-Datei, nicht in einem separaten Speicher.
+- **Ansicht** — der **Ansichtstyp** als Kachel-Auswahl mit Symbolen (Tabelle, Liste, Karte, Board, Galerie, Kalender, Zeitachse, Pinnwand) samt seinen typ-eigenen Optionen: Board-Gruppierung und Spaltenfarbe, Datumsfeld für Kalender/Zeitachse, Galerie-Titelbild, Unterelemente, Datumsformat.
+- **Spalten** — die Eigenschaften der Ansicht, getrennt in **Sichtbar** und **Ausgeblendet**. Ein Klick aufs Auge blendet eine Spalte ein oder aus; per Drag am Griff änderst Du die Reihenfolge. Jede Zeile zeigt ein Feldtyp-Kürzel, das Zahnrad öffnet den Spalten-Editor, **Neue Eigenschaft** legt eine an.
+- **Filter** — jede Regel erscheint als lesbarer **Chip-Satz** (z. B. „Status ist nicht Erledigt"); ein Klick klappt sie zum Editor auf (Eigenschaft, Operator, Wert). Die Operatoren passen sich dem Feldtyp an: **ist** / **ist nicht** / **enthält** / **enthält nicht** / **ist leer** / **ist nicht leer**, für Zahlen **größer als** / **kleiner als** / **mindestens** / **höchstens**, für Datumsfelder **nach** / **vor** / **ab** / **bis**. Die **Logik** oben entscheidet, ob **Alle** Bedingungen (UND) oder **Beliebige** (ODER) gelten. Mit **Gruppe hinzufügen** baust Du Notion-artige Filtergruppen: ein Kasten mit eigener UND/ODER-Logik innerhalb der Hauptlogik. Sehr verschachtelte Filter aus Obsidian zeigt Plainva als **Komplexer Filter (nicht editierbar)** an — sie bleiben erhalten und werden angewendet. Filter werden **pro Ansicht** gespeichert; alles lebt in der `.base`-Datei, nicht in einem separaten Speicher.
 - **Sortierung** — mehrere Sortierregeln (**Aufsteigend**/**Absteigend**); die Priorität änderst Du per Drag.
-- **Eigenschaften** — Spalten ein-/ausblenden, die Reihenfolge per Drag ändern, **Neue Eigenschaft** anlegen.
+- **Datenquelle** — Ordner- und Tag-Quellen der Datenbank (auch das **Hauptverzeichnis** ist wählbar). Keine Quelle = alle Dateien. Gilt für die ganze Datenbank, nicht nur die aktive Ansicht.
+
+Auf dem Smartphone öffnet **Konfigurieren** dieselben Bereiche als Liste; ein Tippen führt in den jeweiligen Detail-Bereich, der Zurück-Pfeil führt heraus.
 
 ## Eigenschaften und Feldtypen
 

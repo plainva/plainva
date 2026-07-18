@@ -503,6 +503,19 @@ async function openBase(page: Page, name: string) {
   await entry.click();
 }
 
+// Config redesign 2026-07-18: the panel shows one AREA per tab. Reach a
+// non-default area (view is the default) by clicking its icon tab.
+const CFG_TAB = {
+  view: /^(Ansicht|View)$/,
+  columns: /^(Eigenschaften|Properties)$/,
+  filter: /^Filter$/,
+  sort: /^(Sortierung|Sort)$/,
+  source: /^(Datenquelle|Data source)$/,
+} as const;
+async function configTab(page: Page, area: keyof typeof CFG_TAB) {
+  await page.locator('.base-config-panel').getByRole('tab', { name: CFG_TAB[area] }).click();
+}
+
 test('Base table: rows render, filter row narrows, sort rule flips order', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Cockpit');
@@ -517,12 +530,14 @@ test('Base table: rows render, filter row narrows, sort rule flips order', async
 
   // Add a sort rule (defaults to the first free column = file.name, ASC) and
   // flip its direction — the first data row becomes Gamma.
+  await configTab(page, 'sort');
   await page.getByRole('button', { name: /Sortierung hinzufügen|Add sort/ }).click();
   await expect(table.locator('tbody tr').first()).toContainText('Alpha');
   await page.getByRole('button', { name: /Aufsteigend|Ascending/ }).click();
   await expect(table.locator('tbody tr').first()).toContainText('Gamma');
 
   // Add a property filter status == active via the draft row.
+  await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   await page.getByRole('option', { name: 'Status', exact: true }).click();
@@ -547,6 +562,7 @@ test('Base filter on a list property: "is" matches membership and the value drop
 
   // Add the filter tags == typ/tagebuch via the config panel's draft row.
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   await page.getByRole('option', { name: 'Tags', exact: true }).click();
@@ -558,8 +574,10 @@ test('Base filter on a list property: "is" matches membership and the value drop
   await expect(table.getByText('Alpha')).toBeVisible();
   await expect(table.getByText('Beta')).toBeVisible();
 
-  // The value editor is still a dropdown and still offers the full source
-  // vocabulary (not just the values surviving the active filter).
+  // Committed rules render as chip sentences (config redesign P4); click the
+  // chip to re-open its editor. The value editor is still a dropdown and still
+  // offers the full source vocabulary (not just the surviving values).
+  await page.locator('.base-cfg-chipsentence').first().click();
   await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
   await expect(page.getByRole('option', { name: 'thema/psyche', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -856,6 +874,7 @@ test('Base per-view filters: a filter applies only to the view it was added in',
 
   // Add a status == active filter in the Tabelle view (hides the paused Beta).
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   await page.getByRole('option', { name: 'Status', exact: true }).click();
@@ -895,6 +914,7 @@ test('Base filter value: a wiki-link column without a relation schema is treated
   await openBase(page, 'MultiView');
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   // `kunde` (Alpha -> [[ACME]]) has no schema entry in MultiView.
@@ -917,6 +937,7 @@ test('Base: renaming a property updates the config and the note frontmatter', as
   await expect(page.locator('table').getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
   await page.locator('.base-config-panel').getByRole('button', { name: /Eigenschaft: status|Property: status/ }).click();
   const dialog = page.getByRole('dialog', { name: /Eigenschaft: status|Property: status/ });
   await dialog.getByRole('textbox', { name: 'Name' }).fill('zustand');
@@ -1034,6 +1055,7 @@ test('Show on target: the column editor writes the reverse column into the other
 
   // Open the kunde column editor from the config panel.
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
   // Both the table header and the panel expose the editor button — scope to the panel.
   await page.locator('.base-config-panel').getByRole('button', { name: /Eigenschaft: kunde|Property: kunde/ }).click();
 
@@ -1137,6 +1159,7 @@ test('New property of type Relation opens the column editor for the target setup
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
   const panel = page.locator('.base-config-panel');
+  await configTab(page, 'columns');
   await panel.getByRole('button', { name: /Neue Eigenschaft|New property/ }).click();
   await page.getByPlaceholder(/Name der Eigenschaft|Property name/).fill('verknuepft');
   await panel.getByRole('button', { name: /^(Typ|Type)$/ }).click();
@@ -1159,6 +1182,7 @@ test('Relation filter: note dropdown narrows by linked note', async ({ page }) =
   await expect(table.getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   await page.getByRole('option', { name: 'Kunde', exact: true }).click();
@@ -1334,6 +1358,7 @@ test('Base filter groups: OR group narrows, switches logic and persists single-r
   await expect(table.getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
 
   // Draft group with status == active -> Beta (paused) disappears.
   await page.getByRole('button', { name: /Gruppe hinzufügen|Add group/ }).click();
@@ -1377,6 +1402,7 @@ test('Delete property: column vanishes everywhere and the frontmatter is cleaned
   await expect(table.getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
   // Scoped to the config panel — the table column header offers the same button.
   await page.getByRole('complementary', { name: /Konfigurieren|Configure/ })
     .getByRole('button', { name: /^(Eigenschaft|Property): status$/ }).click();
@@ -1403,6 +1429,7 @@ test('Delete relation property: the reverse column in the target base goes along
   await expect(table.getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
   await page.getByRole('complementary', { name: /Konfigurieren|Configure/ })
     .getByRole('button', { name: /^(Eigenschaft|Property): kunde$/ }).click();
   await page.getByRole('button', { name: /Eigenschaft löschen|Delete property/ }).click();
@@ -1428,6 +1455,7 @@ test('Konfigurieren: dragging a property row reorders the table columns and pers
   await expect(page.locator('table').getByText('Alpha')).toBeVisible();
 
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
   const grips = page.locator('[aria-label="Eigenschaft verschieben (ziehen)"], [aria-label="Reorder property (drag)"]');
   await expect(grips.first()).toBeVisible();
   expect(await grips.count()).toBeGreaterThan(1);
@@ -1468,6 +1496,7 @@ test('Column editor: grouped type picker with the panel vocabulary; OKF system f
   await page.goto('/');
   await openBase(page, 'Typed');
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
 
   // Normal property: the grouped picker (same menu as the markdown panel)
   // offers the extended vocabulary — tags/contact types and relation, no link.
@@ -1648,3 +1677,38 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
   expect(tsContent).not.toContain('# ');
 });
 
+
+// --- Config redesign 2026-07-18 (variant C): reiter panel ---
+test('Config reiter: tabs switch areas; view-type tile grid; filter shows a chip sentence', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  const panel = page.locator('.base-config-panel');
+  await expect(panel).toBeVisible();
+
+  // The panel opens on the VIEW area: the view-type tile grid (icon tiles for
+  // all view types) is shown, with the current type (Table) marked active.
+  const tiles = panel.locator('.base-cfg-typetile');
+  await expect(tiles).toHaveCount(8);
+  await expect(panel.locator('.base-cfg-typetile.active')).toHaveText(/Tabelle|Table/);
+  await expect(panel.getByRole('radio', { name: /^(Board)$/ })).toBeVisible();
+
+  // The Columns tab shows the visible/hidden split (not the view tiles).
+  await configTab(page, 'columns');
+  await expect(tiles).toHaveCount(0);
+  await expect(panel.getByText(/^(Sichtbar|Visible)$/)).toBeVisible();
+
+  // The Filter tab: a committed rule renders as a readable chip sentence.
+  await configTab(page, 'filter');
+  await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
+  await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
+  await page.getByRole('option', { name: 'Status', exact: true }).click();
+  await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
+  await page.getByRole('option', { name: 'active', exact: true }).click();
+  const chip = panel.locator('.base-cfg-chipsentence').first();
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText(/Status/);
+  await expect(chip).toContainText('active');
+});

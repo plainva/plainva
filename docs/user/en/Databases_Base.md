@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-17
+Last reviewed: 2026-07-18
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -44,14 +44,17 @@ A database can have any number of views; each has a **View type**:
 
 **Add view** creates more; **View options** offers **Rename**, **Duplicate**, **Delete** and drag-reordering. Plainva remembers the last active view per file. Calendar and Timeline need a date field (**Date only** or **Date & time** as the **Format**); entries display the fields enabled under **Properties**.
 
-## Configure: sources, filters, sort, properties
+## Configure: tabs for view, columns, filter, sort, data source
 
-The **Configure** button (top right) opens the panel with four areas:
+The **Configure** button (top right) opens the panel **beside** the running view, so every change shows up immediately in the table or board. **Tabs** at the top pick one area — only one is shown at a time, instead of a long list. A small marker tells you whether each area affects **This view** or the **Whole database**:
 
-- **Data source** — the database's folder and tag sources (the **Root folder** can be selected too). No source = all files.
-- **Filter** — rule rows made of property, operator and value. Operators adapt to the field type: **is** / **is not** / **contains** / **does not contain** / **is empty** / **is not empty**, for numbers **greater than** / **less than** / **at least** / **at most**, for dates **after** / **before** / **from** / **until**. The **Logic** at the top decides whether **All** conditions (AND) or **Any** (OR) must match. **Add group** builds Notion-style filter groups: a box with its own AND/OR logic inside the main logic. Deeply nested filters from Obsidian appear as **Complex filter (not editable)** — they are kept and applied. Filters are saved **per view** (the panel notes **Applies to this view**): each view keeps its own filter rules, while the **Data source** (folders/tags) stays shared across the database. Everything lives in the `.base` file, not in a separate store.
+- **View** — the **view type** as an icon tile picker (Table, List, Card, Board, Gallery, Calendar, Timeline, Pinboard) together with its type-specific options: board grouping and column color, the date field for calendar/timeline, the gallery cover image, sub-items, date format.
+- **Columns** — the view's properties, split into **Visible** and **Hidden**. Click the eye to show or hide a column; drag the grip to reorder. Each row shows a field-type badge, the gear opens the column editor, **New property** adds one.
+- **Filter** — each rule shows as a readable **chip sentence** (e.g. "Status is not Done"); click it to expand the editor (property, operator, value). Operators adapt to the field type: **is** / **is not** / **contains** / **does not contain** / **is empty** / **is not empty**, for numbers **greater than** / **less than** / **at least** / **at most**, for dates **after** / **before** / **from** / **until**. The **Logic** at the top decides whether **All** conditions (AND) or **Any** (OR) must match. **Add group** builds Notion-style filter groups: a box with its own AND/OR logic inside the main logic. Deeply nested filters from Obsidian appear as **Complex filter (not editable)** — they are kept and applied. Filters are saved **per view**; everything lives in the `.base` file, not in a separate store.
 - **Sort** — multiple sort rules (**Ascending**/**Descending**); change their priority by dragging.
-- **Properties** — show/hide columns, drag to reorder, create a **New property**.
+- **Data source** — the database's folder and tag sources (the **Root folder** can be selected too). No source = all files. This applies to the whole database, not just the active view.
+
+On the phone, **Configure** opens the same areas as a list; tapping one enters that detail area and the back arrow leaves it.
 
 ## Properties and field types
 
