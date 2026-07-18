@@ -10,11 +10,13 @@ import {
   IconButton,
   buildMonthCells,
   buildWeekCells,
+  buildContiguousDays,
+  minutesToHHMM,
   startOfMonth,
   toast,
   type WeekStartDay,
 } from "@plainva/ui";
-import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar } from "@plainva/core";
+import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
@@ -36,6 +38,8 @@ import {
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
 import { EventEditModal } from "./EventEditModal";
 import { SeriesScopeModal } from "./SeriesScopeModal";
+import { DayTimeGrid } from "./DayTimeGrid";
+import { QuickCreatePopover, type QuickCreateValues } from "./QuickCreatePopover";
 
 /**
  * Calendar tab (PIM stage 2c, virtual path plainva://calendar): a month grid
@@ -59,7 +63,8 @@ type CalTask = DueTask;
 const SHOW_TASKS_KEY = "plainva-calendar-show-tasks";
 const VIEW_MODE_KEY = "plainva-calendar-view";
 
-type CalViewMode = "month" | "week" | "agenda";
+type CalViewMode = "day" | "3day" | "week" | "month" | "agenda";
+const ALL_VIEW_MODES: CalViewMode[] = ["day", "3day", "week", "month", "agenda"];
 const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 const AGENDA_DAYS = 60;
 
@@ -73,7 +78,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   const [viewMode, setViewMode] = useState<CalViewMode>(() => {
     try {
       const v = localStorage.getItem(VIEW_MODE_KEY);
-      return v === "week" || v === "agenda" ? v : "month";
+      return (ALL_VIEW_MODES as string[]).includes(v ?? "") ? (v as CalViewMode) : "month";
     } catch {
       return "month";
     }
@@ -124,20 +129,24 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     return new Date(y, (m ?? 1) - 1, d ?? 1);
   }, [selectedDay]);
 
-  const { cells, weekCells, rangeStartTs, rangeEndTs } = useMemo(() => {
-    // The queried cache window follows the view: month grid, the selected
-    // week, or the rolling agenda range (today .. +60d).
+  const { cells, gridDays, rangeStartTs, rangeEndTs } = useMemo(() => {
+    // The queried cache window follows the view: a day, three days, the
+    // selected week, the month grid, or the rolling agenda range (today .. +60d).
+    if (viewMode === "day" || viewMode === "3day") {
+      const dd = buildContiguousDays(selectedDate, viewMode === "3day" ? 3 : 1);
+      return { cells: [] as Date[], gridDays: dd, rangeStartTs: dd[0].getTime(), rangeEndTs: dd[dd.length - 1].getTime() + DAY_MS };
+    }
     if (viewMode === "week") {
       const wk = buildWeekCells(selectedDate, weekStartDay);
-      return { cells: [] as Date[], weekCells: wk, rangeStartTs: wk[0].getTime(), rangeEndTs: wk[6].getTime() + DAY_MS };
+      return { cells: [] as Date[], gridDays: wk, rangeStartTs: wk[0].getTime(), rangeEndTs: wk[6].getTime() + DAY_MS };
     }
     if (viewMode === "agenda") {
       const today = new Date();
       const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      return { cells: [] as Date[], weekCells: [] as Date[], rangeStartTs: start.getTime(), rangeEndTs: start.getTime() + AGENDA_DAYS * DAY_MS_LOCAL };
+      return { cells: [] as Date[], gridDays: [] as Date[], rangeStartTs: start.getTime(), rangeEndTs: start.getTime() + AGENDA_DAYS * DAY_MS_LOCAL };
     }
     const grid = buildMonthCells(viewDate, weekStartDay);
-    return { cells: grid, weekCells: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
+    return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
 
   // Sidebar calendar hand-off: "show this day in the calendar tab". A freshly
@@ -262,7 +271,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     return map;
   }, [calendars]);
   const colorOf = useCallback(
-    (e: PimEventRow) => calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
+    (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
     [calColor]
   );
 
@@ -282,6 +291,34 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     );
   }, [i18n.language, selectedDay]);
 
+  // Period label per mode (a single day, a day range, the month, or Agenda).
+  const periodTitle = useMemo(() => {
+    if (viewMode === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
+    if (viewMode === "month") return monthTitle;
+    if (viewMode === "day") return dayTitle;
+    const first = gridDays[0];
+    const last = gridDays[gridDays.length - 1];
+    if (!first || !last) return monthTitle;
+    const dayNum = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
+    const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
+    return `${dayNum.format(first)}.–${dayMonth.format(last)}`;
+  }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t]);
+
+  // Prev/next steps by the visible period (1 / 3 / 7 days, or one month).
+  const navPeriod = useCallback(
+    (dir: -1 | 1) => {
+      if (viewMode === "month") {
+        setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + dir, 1));
+        return;
+      }
+      const step = viewMode === "3day" ? 3 : viewMode === "week" ? 7 : 1;
+      const next = new Date(selectedDate.getTime() + dir * step * DAY_MS_LOCAL);
+      setSelectedDay(localIsoKey(next));
+      setViewDate(startOfMonth(next));
+    },
+    [viewMode, selectedDate]
+  );
+
   const refresh = useCallback(() => {
     pimRuntime?.worker.triggerImmediate().catch(() => undefined);
   }, [pimRuntime]);
@@ -289,6 +326,10 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
   // ---- event writes (stage 3: single events; series stay read-only) -------
 
   const [editState, setEditState] = useState<{ mode: "create" | "edit"; event?: PimEventRow } | null>(null);
+  // Prefilled create form (from quick-create "more options"); null = fresh form.
+  const [createInitial, setCreateInitial] = useState<EventFormValues | null>(null);
+  // Quick-create popover after a click/drag on an empty slot.
+  const [quickCreate, setQuickCreate] = useState<{ dayKey: string; startMin: number; endMin: number; anchor: { x: number; y: number } } | null>(null);
   const enabledAccounts = useMemo(() => new Set(accounts.filter((a) => a.enabled).map((a) => a.id)), [accounts]);
   const writableCalendars = useMemo(
     () =>
@@ -346,9 +387,131 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         await target.createEvent(calId, draft);
       }
       setEditState(null);
+      setCreateInitial(null);
       refresh();
     },
     [editState, targetFor, refresh, t]
+  );
+
+  // ---- drag reschedule (move/resize existing single events) ----------------
+
+  const canEditEvent = useCallback(
+    (e: PimEventRow) => {
+      if (e.seriesMaster) return false; // series instances stay read-only (v1)
+      const key = `${e.accountId} ${e.calendarId}`;
+      return writableCalendars.some((c) => `${c.accountId} ${c.id}` === key);
+    },
+    [writableCalendars]
+  );
+
+  const rescheduleEvent = useCallback(
+    async (e: PimEventRow, newStartMs: number, newEndMs: number) => {
+      const target = await targetFor(e.accountId);
+      if (!target) {
+        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+        return;
+      }
+      // Direct draft from the event's current fields with new times; the
+      // adapter GET-modify-PUTs, so attendees/alarms/color are preserved.
+      const draft: PimEventDraft = {
+        title: e.title,
+        allDay: false,
+        start: { ts: newStartMs },
+        end: { ts: Math.max(newStartMs + 60000, newEndMs) },
+        location: e.location ?? undefined,
+        description: e.description ?? undefined,
+        color: e.color,
+      };
+      try {
+        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+      } catch (err) {
+        if (err instanceof PimConflictError) {
+          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
+          refresh();
+          return;
+        }
+        toast.error(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      refresh();
+    },
+    [targetFor, refresh, t]
+  );
+
+  const onEventMove = useCallback(
+    (e: PimEventRow, newStartMs: number, newEndMs: number) => void rescheduleEvent(e, newStartMs, newEndMs),
+    [rescheduleEvent]
+  );
+  const onEventResize = useCallback(
+    (e: PimEventRow, newEndMs: number) => void rescheduleEvent(e, e.start.ts, newEndMs),
+    [rescheduleEvent]
+  );
+
+  // ---- RSVP (accept/decline an invitation; provider-native scheduling) ------
+  const respondToEventAs = useCallback(
+    async (e: PimEventRow, response: "accepted" | "declined" | "tentative") => {
+      const target = await targetFor(e.accountId);
+      if (!target?.respondToEvent) {
+        throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
+      }
+      await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
+      refresh();
+    },
+    [targetFor, refresh, t]
+  );
+
+  // ---- quick create (feedback round 3: click/drag on an empty slot) --------
+
+  const timedForm = useCallback(
+    (dayKey: string, startMin: number, endMin: number, v: QuickCreateValues): EventFormValues => ({
+      title: v.title,
+      allDay: false,
+      dayKey,
+      endDayKey: dayKey,
+      startTime: minutesToHHMM(startMin),
+      endTime: minutesToHHMM(endMin),
+      location: v.location,
+      description: "",
+      color: "",
+      calendarKey: v.calendarKey || calendarOptions[0]?.value || "",
+      repeat: "",
+    }),
+    [calendarOptions]
+  );
+
+  const onCreateSlot = useCallback(
+    (dayKey: string, startMin: number, endMin: number, anchor: { x: number; y: number }) => {
+      if (calendarOptions.length === 0) return;
+      setSelectedDay(dayKey);
+      setQuickCreate({ dayKey, startMin, endMin, anchor });
+    },
+    [calendarOptions.length]
+  );
+
+  const quickSave = useCallback(
+    async (v: QuickCreateValues) => {
+      const qc = quickCreate;
+      if (!qc) return;
+      setQuickCreate(null);
+      const title = v.title.trim() || t("pim.untitledEvent", { defaultValue: "(ohne Titel)" });
+      try {
+        await submitEventForm(timedForm(qc.dayKey, qc.startMin, qc.endMin, { ...v, title }));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [quickCreate, submitEventForm, timedForm, t]
+  );
+
+  const openMoreFromQuick = useCallback(
+    (v: QuickCreateValues) => {
+      const qc = quickCreate;
+      if (!qc) return;
+      setCreateInitial(timedForm(qc.dayKey, qc.startMin, qc.endMin, v));
+      setQuickCreate(null);
+      setEditState({ mode: "create" });
+    },
+    [quickCreate, timedForm]
   );
 
   /** Provider delete WITHOUT its own confirmation (callers confirm). */
@@ -464,41 +627,6 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, onOpenPath, t]
   );
 
-  // "Per Mail versenden" (mail-client E6): build an iCal REQUEST invite and
-  // open the compose dialog with it attached, recipients pre-filled from the
-  // event's attendees. The recipients' own calendar apps handle the RSVP
-  // (iMIP); Plainva does not track those replies for events it doesn't own.
-  const emailInvite = useCallback(
-    async (e: PimEventRow) => {
-      if (!vaultPath) return;
-      try {
-        const accounts = await listMailAccounts(vaultPath);
-        if (accounts.length === 0) {
-          toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
-          return;
-        }
-        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
-        const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
-        const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
-        window.dispatchEvent(
-          new CustomEvent("plainva-compose-mail", {
-            detail: {
-              subject: t("pim.inviteSubject", { defaultValue: "Einladung: {{title}}", title: e.title }),
-              markdown: body,
-              to: (e.attendees ?? []).join(", "),
-              attachments: [{ name: "invite.ics", mime: "text/calendar; method=REQUEST; charset=UTF-8", contentBase64: utf8ToBase64(ics) }],
-            },
-          })
-        );
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
-      }
-    },
-    [vaultPath, t, i18n.language]
-  );
-
-  const dayEvents = byDay.get(selectedDay) ?? [];
-  const dayTasks = showTasks ? tasksByDay.get(selectedDay) ?? [] : [];
   const viewMonth = viewDate.getMonth();
 
   // Agenda: upcoming days (events and/or due tasks) inside the rolling range.
@@ -521,6 +649,42 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
 
   /** The full event card (times, location, meeting-note/edit/delete actions) —
    * shared between the month view's day pane and the agenda list. */
+  // "Per Mail versenden" (mail-client E6): build an iCal REQUEST invite and open
+  // the compose dialog with it attached, recipients pre-filled from the event's
+  // attendees (rsvps emails, else the plain attendee list). The recipients' own
+  // calendar apps handle the RSVP (iMIP); Plainva tracks replies only for events
+  // it owns.
+  const emailInvite = useCallback(
+    async (e: PimEventRow) => {
+      if (!vaultPath) return;
+      try {
+        const accounts = await listMailAccounts(vaultPath);
+        if (accounts.length === 0) {
+          toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
+          return;
+        }
+        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
+        const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
+        const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
+        const emails = (e.rsvps ?? []).filter((a) => !a.organizer && a.email).map((a) => a.email as string);
+        const to = (emails.length ? emails : e.attendees ?? []).join(", ");
+        window.dispatchEvent(
+          new CustomEvent("plainva-compose-mail", {
+            detail: {
+              subject: t("pim.inviteSubject", { defaultValue: "Einladung: {{title}}", title: e.title }),
+              markdown: body,
+              to,
+              attachments: [{ name: "invite.ics", mime: "text/calendar; method=REQUEST; charset=UTF-8", contentBase64: utf8ToBase64(ics) }],
+            },
+          })
+        );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [vaultPath, t, i18n.language]
+  );
+
   const eventCard = (e: PimEventRow) => (
     <div
       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
@@ -592,6 +756,30 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     </button>
   );
 
+  const calNameOf = (e: PimEventRow) => calName.get(`${e.accountId} ${e.calendarId}`) ?? "";
+
+  /** The shared time grid for the day / 3-day / week views and the month day
+   * pane (feedback round 3). */
+  const renderTimeGrid = (gridDaysArg: Date[], showColumnHeaders: boolean) => (
+    <DayTimeGrid
+      days={gridDaysArg}
+      byDay={byDay}
+      tasksByDay={showTasks ? tasksByDay : undefined}
+      colorOf={colorOf}
+      calName={calNameOf}
+      todayKey={todayKey}
+      locale={i18n.language}
+      canCreate={calendarOptions.length > 0}
+      canEditEvent={canEditEvent}
+      onEventClick={requestEdit}
+      onOpenTask={(p) => onOpenPath(p, false)}
+      onCreateSlot={onCreateSlot}
+      onEventMove={onEventMove}
+      onEventResize={onEventResize}
+      showColumnHeaders={showColumnHeaders}
+    />
+  );
+
   if (accounts.length === 0) {
     return (
       <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
@@ -630,39 +818,15 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         }}
       >
         {viewMode !== "agenda" && (
-          <IconButton
-            label={viewMode === "week" ? t("pim.prevWeek", { defaultValue: "Vorige Woche" }) : t("calendar.prevMonth", { defaultValue: "Voriger Monat" })}
-            onClick={() => {
-              if (viewMode === "week") {
-                const prev = new Date(selectedDate.getTime() - 7 * DAY_MS_LOCAL);
-                setSelectedDay(localIsoKey(prev));
-                setViewDate(startOfMonth(prev));
-              } else {
-                setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-              }
-            }}
-            data-testid="calendar-prev"
-          >
+          <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)} data-testid="calendar-prev">
             <ChevronLeft size={16} />
           </IconButton>
         )}
         <h2 data-testid="calendar-month-title" style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, minWidth: 170 }}>
-          {viewMode === "agenda" ? t("pim.viewAgenda", { defaultValue: "Agenda" }) : monthTitle}
+          {periodTitle}
         </h2>
         {viewMode !== "agenda" && (
-          <IconButton
-            label={viewMode === "week" ? t("pim.nextWeek", { defaultValue: "Nächste Woche" }) : t("calendar.nextMonth", { defaultValue: "Nächster Monat" })}
-            onClick={() => {
-              if (viewMode === "week") {
-                const next = new Date(selectedDate.getTime() + 7 * DAY_MS_LOCAL);
-                setSelectedDay(localIsoKey(next));
-                setViewDate(startOfMonth(next));
-              } else {
-                setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-              }
-            }}
-            data-testid="calendar-next"
-          >
+          <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)} data-testid="calendar-next">
             <ChevronRight size={16} />
           </IconButton>
         )}
@@ -678,8 +842,10 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-secondary)", borderRadius: "var(--radius-pill)", padding: 2, marginLeft: "var(--space-2)" }}>
           {(
             [
-              ["month", t("pim.viewMonth", { defaultValue: "Monat" })],
+              ["day", t("pim.viewDay", { defaultValue: "Tag" })],
+              ["3day", t("pim.view3Day", { defaultValue: "3 Tage" })],
               ["week", t("pim.viewWeek", { defaultValue: "Woche" })],
+              ["month", t("pim.viewMonth", { defaultValue: "Monat" })],
               ["agenda", t("pim.viewAgenda", { defaultValue: "Agenda" })],
             ] as [CalViewMode, string][]
           ).map(([mode, label]) => (
@@ -719,6 +885,11 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
             data-testid="calendar-toggle-tasks"
           >
             <ListChecks size={15} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
+          </IconButton>
+        )}
+        {viewMode !== "month" && viewMode !== "agenda" && calendarOptions.length > 0 && (
+          <IconButton label={t("pim.newEvent", { defaultValue: "Neuer Termin" })} onClick={() => setEditState({ mode: "create" })} data-testid="calendar-new-event-top">
+            <Plus size={15} />
           </IconButton>
         )}
         <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={refresh} data-testid="calendar-refresh">
@@ -833,22 +1004,13 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           </div>
         </div>
 
-        {/* Day pane */}
+        {/* Day pane: single-day time grid for the selected day */}
         <div
           data-testid="calendar-day-pane"
-          style={{
-            width: 300,
-            flexShrink: 0,
-            borderLeft: "1px solid var(--border-color-light)",
-            overflow: "auto",
-            padding: "var(--space-3)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-2)",
-          }}
+          style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, flex: 1, minWidth: 0 }}>{dayTitle}</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)" }}>
+            <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dayTitle}</h3>
             {calendarOptions.length > 0 && (
               <IconButton
                 label={t("pim.newEvent", { defaultValue: "Neuer Termin" })}
@@ -859,83 +1021,13 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
               </IconButton>
             )}
           </div>
-          {dayEvents.length === 0 && dayTasks.length === 0 ? (
-            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {t("pim.noEventsForDay", { defaultValue: "Keine Termine an diesem Tag." })}
-            </div>
-          ) : (
-            dayEvents.map(eventCard)
-          )}
-
-          {dayTasks.length > 0 && (
-            <div data-testid="calendar-day-tasks" style={{ marginTop: "var(--space-2)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500, marginBottom: "var(--space-1)" }}>
-                <ListChecks size={12} /> {t("pim.calendarTasks", { defaultValue: "Aufgaben" })}
-              </div>
-              {dayTasks.map(taskRow)}
-            </div>
-          )}
+          {renderTimeGrid([selectedDate], false)}
         </div>
         </>
         )}
 
-        {viewMode === "week" && (
-          <div
-            data-testid="calendar-week"
-            style={{ flex: 1, minWidth: 0, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, padding: "var(--space-2)", overflow: "auto", alignItems: "stretch" }}
-          >
-            {weekCells.map((cell) => {
-              const key = localIsoKey(cell);
-              const list = byDay.get(key) ?? [];
-              const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
-              const isToday = key === todayKey;
-              return (
-                <div
-                  key={key}
-                  data-testid={`calendar-weekday-${key}`}
-                  style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "4px 5px", background: "var(--bg-primary)" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: isToday ? 700 : 500, color: isToday ? "var(--accent-color)" : "var(--text-muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric" }).format(cell)}
-                    </span>
-                    {calendarOptions.length > 0 && (
-                      <IconButton
-                        label={t("pim.newEvent", { defaultValue: "Neuer Termin" })}
-                        onClick={() => {
-                          setSelectedDay(key);
-                          setEditState({ mode: "create" });
-                        }}
-                        size="sm"
-                      >
-                        <Plus size={12} />
-                      </IconButton>
-                    )}
-                  </div>
-                  {list.map((e) => (
-                    <button
-                      key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
-                      type="button"
-                      onClick={() => requestEdit(e)}
-                      data-testid="calendar-week-event"
-                      style={{ display: "flex", alignItems: "flex-start", gap: 4, border: "none", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "3px 4px", cursor: "pointer", textAlign: "left", minWidth: 0 }}
-                    >
-                      <span aria-hidden style={{ width: 3, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
-                      <span style={{ minWidth: 0, overflow: "hidden" }}>
-                        <span style={{ display: "block", fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language)}
-                          {e.seriesMaster ? " ↻" : ""}
-                        </span>
-                        <span style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-main)", overflowWrap: "anywhere" }}>{e.title}</span>
-                      </span>
-                    </button>
-                  ))}
-                  {dayTaskList.map(taskRow)}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {(viewMode === "day" || viewMode === "3day" || viewMode === "week") &&
+          renderTimeGrid(gridDays, viewMode !== "day")}
 
         {viewMode === "agenda" && (
           <div data-testid="calendar-agenda" style={{ flex: 1, minWidth: 0, overflow: "auto", padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -958,17 +1050,46 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         )}
       </div>
 
+      {quickCreate && (
+        <QuickCreatePopover
+          anchor={quickCreate.anchor}
+          dateLabel={formatDayLong(quickCreate.dayKey)}
+          timeLabel={`${minutesToHHMM(quickCreate.startMin)}–${minutesToHHMM(quickCreate.endMin)}`}
+          calendarOptions={calendarOptions}
+          initialCalendarKey={calendarOptions[0]?.value ?? ""}
+          onCancel={() => setQuickCreate(null)}
+          onSave={(v) => void quickSave(v)}
+          onMore={openMoreFromQuick}
+        />
+      )}
       {editState && (
         <EventEditModal
           mode={editState.mode}
           initial={
             editState.mode === "edit" && editState.event
               ? eventFormFromEvent(editState.event)
-              : emptyEventForm(selectedDay, calendarOptions[0]?.value ?? "")
+              : createInitial ?? emptyEventForm(selectedDay, calendarOptions[0]?.value ?? "")
           }
           calendarOptions={calendarOptions}
-          onCancel={() => setEditState(null)}
+          onCancel={() => { setEditState(null); setCreateInitial(null); }}
           onSubmit={submitEventForm}
+          onMeetingNote={
+            editState.mode === "edit" && editState.event
+              ? () => { const ev = editState.event!; setEditState(null); void openMeetingNote(ev); }
+              : undefined
+          }
+          onDelete={
+            editState.mode === "edit" && editState.event
+              ? () => { const ev = editState.event!; setEditState(null); requestDelete(ev); }
+              : undefined
+          }
+          rsvps={editState.mode === "edit" ? editState.event?.rsvps : undefined}
+          selfResponse={editState.mode === "edit" ? editState.event?.selfResponse : undefined}
+          onRespond={
+            editState.mode === "edit" && editState.event
+              ? (response) => respondToEventAs(editState.event!, response)
+              : undefined
+          }
         />
       )}
       {seriesPrompt && (

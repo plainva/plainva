@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarCheck, CalendarRange, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Square, Sunrise, X } from "lucide-react";
+import { CalendarCheck, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenuSurface, MenuItem, MenuLabel, buildMonthCells, isoWeeksForCells, startOfMonth, type WeekStartDay } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
@@ -49,14 +49,12 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const [pickerYear, setPickerYear] = useState(() => today.getFullYear());
   const [showWeeks, setShowWeeks] = useState(() => localStorage.getItem(SHOW_WEEKS_KEY) === "true");
   const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1);
-  const [peekDay, setPeekDay] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ dayKey: string; at: { x: number; y: number } } | null>(null);
   const [pimTick, setPimTick] = useState(0);
   const [events, setEvents] = useState<PimEventRow[]>([]);
   const [calColors, setCalColors] = useState<Map<string, string>>(new Map());
   const [tasks, setTasks] = useState<DueTask[]>([]);
   const navRef = useRef<HTMLDivElement | null>(null);
-  const peekRef = useRef<HTMLDivElement | null>(null);
   const lang = i18n.language || "en";
 
   const monthLabel = new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(viewDate);
@@ -104,19 +102,15 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
     });
   };
 
-  // Close the month/year picker or the day peek on outside click / Escape.
+  // Close the month/year picker on outside click / Escape.
   useEffect(() => {
-    if (!pickerOpen && !peekDay) return;
+    if (!pickerOpen) return;
     const onDown = (e: MouseEvent) => {
       const tgt = e.target as Node;
-      if (pickerOpen && navRef.current && !navRef.current.contains(tgt)) setPickerOpen(false);
-      if (peekDay && peekRef.current && !peekRef.current.contains(tgt)) setPeekDay(null);
+      if (navRef.current && !navRef.current.contains(tgt)) setPickerOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setPickerOpen(false);
-        setPeekDay(null);
-      }
+      if (e.key === "Escape") setPickerOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -124,7 +118,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [pickerOpen, peekDay]);
+  }, [pickerOpen]);
 
   // Mark days that already have a daily note (tiny sunrise under the number).
   useEffect(() => {
@@ -227,7 +221,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
     return (
       <button
         key={key}
-        onClick={() => setPeekDay(dayKey)}
+        onClick={() => (onOpenCalendarDay ? onOpenCalendarDay(dayKey) : onOpenDaily(d))}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -255,7 +249,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
             }}
           >
-            {hasDaily && <Sunrise size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
+            {hasDaily && <Sun size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
             {dotColors.map((c, i) => (
               <span key={i} style={{ width: "4px", height: "4px", borderRadius: "var(--radius-pill)", background: isActive ? "var(--accent-on)" : c }} />
             ))}
@@ -271,16 +265,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
     paddingRight: "2px", borderRight: "1px solid var(--border-color-light)", marginRight: "2px",
   };
 
-  const peekEvents = peekDay ? eventsByDay.get(peekDay) ?? [] : [];
-  const peekTasks = peekDay ? tasksByDay.get(peekDay) ?? [] : [];
   const menuEvents = menu ? eventsByDay.get(menu.dayKey) ?? [] : [];
   const menuTasks = menu ? tasksByDay.get(menu.dayKey) ?? [] : [];
-
-  const peekRow: React.CSSProperties = {
-    display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
-    border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px",
-    color: "var(--text-main)", fontSize: "0.8rem", minWidth: 0,
-  };
 
   return (
     <div style={{ position: "relative", padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
@@ -365,102 +351,25 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
         })}
       </div>
 
-      {/* Day peek: events + due tasks + the daily-note / calendar actions. */}
-      {peekDay && (
-        <div
-          ref={peekRef}
-          data-testid="sidecal-day-peek"
-          style={{
-            position: "absolute", left: "0.5rem", right: "0.5rem", top: "2.4rem", zIndex: 30,
-            background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
-            boxShadow: "var(--shadow-2)", padding: "0.5rem", maxHeight: "310px", overflowY: "auto",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.3rem" }}>
-            <strong style={{ fontSize: "0.8rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" }).format(dateOfKey(peekDay))}
-            </strong>
-            <button onClick={() => setPeekDay(null)} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("common.close", { defaultValue: "Schließen" })} title={t("common.close", { defaultValue: "Schließen" })}>
-              <X size={13} />
-            </button>
-          </div>
-          <button
-            type="button"
-            style={peekRow}
-            data-testid="sidecal-peek-daily"
-            onClick={() => {
-              const d = dateOfKey(peekDay);
-              setPeekDay(null);
-              onOpenDaily(d);
-            }}
-          >
-            <Sunrise size={13} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
-            {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
-          </button>
-          {onOpenCalendarDay && (
-            <button
-              type="button"
-              style={peekRow}
-              data-testid="sidecal-peek-calendar"
-              onClick={() => {
-                const key = peekDay;
-                setPeekDay(null);
-                onOpenCalendarDay(key);
-              }}
-            >
-              <CalendarRange size={13} style={{ flexShrink: 0, color: "var(--text-muted)" }} />
-              {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
-            </button>
-          )}
-          {peekEvents.length === 0 && peekTasks.length === 0 ? (
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", padding: "3px 2px" }}>
-              {t("pim.noEventsForDay", { defaultValue: "Keine Termine an diesem Tag." })}
-            </div>
-          ) : (
-            <>
-              {peekEvents.map((e) => (
-                <button
-                  key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
-                  type="button"
-                  style={peekRow}
-                  data-testid="sidecal-peek-event"
-                  onClick={() => {
-                    const key = peekDay;
-                    setPeekDay(null);
-                    onOpenCalendarDay?.(key);
-                  }}
-                >
-                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.72rem", flexShrink: 0 }}>
-                    {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, lang)}
-                  </span>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
-                </button>
-              ))}
-              {peekTasks.map((task) => (
-                <button
-                  key={task.path}
-                  type="button"
-                  style={{ ...peekRow, color: task.done ? "var(--text-muted)" : "var(--text-main)" }}
-                  data-testid="sidecal-peek-task"
-                  onClick={() => {
-                    setPeekDay(null);
-                    onOpenNote?.(task.path);
-                  }}
-                >
-                  {task.done ? <CheckSquare size={12} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={12} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
-                </button>
-              ))}
-            </>
-          )}
-        </div>
-      )}
 
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("rightPanel.calendar", { defaultValue: "Kalender" })}>
+          <MenuLabel>
+            {new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" }).format(dateOfKey(menu.dayKey))}
+          </MenuLabel>
           <MenuItem
-            icon={<Sunrise size={14} />}
+            icon={<CalendarRange size={14} />}
+            data-testid="sidecal-menu-open"
+            onSelect={() => {
+              const key = menu.dayKey;
+              setMenu(null);
+              onOpenCalendarDay?.(key);
+            }}
+          >
+            {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
+          </MenuItem>
+          <MenuItem
+            icon={<Sun size={14} />}
             onSelect={() => {
               const d = dateOfKey(menu.dayKey);
               setMenu(null);
@@ -469,18 +378,6 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           >
             {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
           </MenuItem>
-          {onOpenCalendarDay && (
-            <MenuItem
-              icon={<CalendarRange size={14} />}
-              onSelect={() => {
-                const key = menu.dayKey;
-                setMenu(null);
-                onOpenCalendarDay(key);
-              }}
-            >
-              {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
-            </MenuItem>
-          )}
           {menuEvents.length > 0 && <MenuLabel>{t("pim.eventsLabel", { defaultValue: "Termine" })}</MenuLabel>}
           {menuEvents.map((e) => (
             <MenuItem

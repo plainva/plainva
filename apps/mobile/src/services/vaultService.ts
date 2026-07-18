@@ -8,6 +8,7 @@ import {
   SyncStateRepository,
   VaultIndexer,
   VaultQueryService,
+  type IDatabaseAdapter,
   type IVaultAdapter,
   type SearchResult,
   type VaultFileInfo,
@@ -64,6 +65,8 @@ export interface MobileVault {
   backup: BackupVaultAdapter | null;
   syncQueue: SyncQueue | null;
   syncRepo: SyncStateRepository | null;
+  /** Raw index DB (also carries the pim_* tables) — the calendar/PIM runtime. */
+  db: IDatabaseAdapter | null;
   indexer: VaultIndexer | null;
   queryService: VaultQueryService | null;
   searchAvailable: boolean;
@@ -276,6 +279,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     backup,
     syncQueue: queue,
     syncRepo,
+    db,
     indexer,
     queryService,
     searchAvailable,

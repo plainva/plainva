@@ -37,6 +37,17 @@ export function buildWeekCells(date: Date, weekStart: WeekStartDay = 1): Date[] 
   });
 }
 
+/** `count` contiguous days starting at `start` (local, from midnight). Used by
+ * the day (count=1) and 3-day (count=3) calendar views. */
+export function buildContiguousDays(start: Date, count: number): Date[] {
+  const base = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  return Array.from({ length: Math.max(1, count) }, (_, i) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    return d;
+  });
+}
+
 /**
  * ISO-8601 week number per grid row, taken from the row's Monday (rows always
  * start on Monday, so this is the calendar week of the whole row — including

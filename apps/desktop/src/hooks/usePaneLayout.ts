@@ -38,6 +38,27 @@ export function openInPane(pane: Pane, path: string, newTab: boolean): Pane {
   return { ...pane, tabs };
 }
 
+/** Open a VIRTUAL singleton path (graph/tasks/calendar/mail) without stacking
+ * duplicates: if any pane already has a tab showing it, focus that tab;
+ * otherwise open a fresh tab in the focused pane. Pure transform (unit tested;
+ * the hook wraps it with notifyOpen). */
+export function focusOrOpenVirtualInLayout(prev: Layout, path: string): Layout {
+  for (let p = 0; p < prev.panes.length; p++) {
+    const idx = prev.panes[p].tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
+    if (idx !== -1) {
+      return {
+        ...prev,
+        activePaneIndex: p,
+        panes: prev.panes.map((pane, i) => (i === p ? { ...pane, activeIndex: idx } : pane)),
+      };
+    }
+  }
+  return {
+    ...prev,
+    panes: prev.panes.map((pane, i) => (i === prev.activePaneIndex ? openInPane(pane, path, true) : pane)),
+  };
+}
+
 export function navigateInPane(pane: Pane, dir: -1 | 1): Pane {
   if (pane.activeIndex < 0) return pane;
   const tab = pane.tabs[pane.activeIndex];
@@ -289,6 +310,15 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     }));
   }, []);
 
+  // Open a VIRTUAL singleton path (graph/tasks/calendar/mail) without stacking
+  // duplicates: if any pane already has a tab showing it, focus that tab;
+  // otherwise open a fresh tab in the focused pane. The ribbon/palette entry
+  // points route through here so repeated clicks don't pile up second copies.
+  const focusOrOpenVirtual = useCallback((path: string) => {
+    notifyOpen(path);
+    setLayout((prev) => focusOrOpenVirtualInLayout(prev, path));
+  }, []);
+
   // Open a path in the pane NEXT TO `fromPane` (Base-UX2 P5: Ctrl+click on a
   // base element, the peek window's "open in split", the card drop zone).
   // Splits vertically first when there is only one pane; if the target pane
@@ -436,6 +466,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     ...derived,
     openTab,
     openInFocusedPane,
+    focusOrOpenVirtual,
     openInOtherPane,
     openPathInSplit,
     navigateTab,

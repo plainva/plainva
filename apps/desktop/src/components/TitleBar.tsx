@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Sun, Moon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { SunMoon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/theme";
 import { PlainvaLogo } from "@plainva/ui";
@@ -39,20 +39,17 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
   const dnd = useTabDnd(paneIndex, onMoveTab ?? (() => {}), onSplitWithTab);
   const docIcons = useDocumentIcons();
   const dirtyPaths = useDirtyPaths();
-  const [dark, setDark] = useState(() => document.documentElement.getAttribute("data-theme") === "dark");
   const [themeName, setThemeName] = useState(() => document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME);
   const [showHailing, setShowHailing] = useState(false);
   // 5 quick clicks on the logo open the hailing-frequencies dialog (easter
   // egg). Rolling 3s window between clicks; plain clicks do nothing else.
   const logoClicks = useRef({ n: 0, t: 0 });
 
-  // Keep the toggle icon in sync with the resolved theme (also when "system"
-  // mode flips or the quick toggle is used elsewhere) and track the theme name
-  // for mode pinning (single-mode themes disable the light/dark toggle).
+  // Track the theme name for mode pinning (single-mode themes disable the
+  // light/dark toggle). The toggle icon itself is static (SunMoon).
   useEffect(() => {
     const root = document.documentElement;
     const obs = new MutationObserver(() => {
-      setDark(root.getAttribute("data-theme") === "dark");
       setThemeName(root.getAttribute("data-theme-name") || DEFAULT_THEME_NAME);
     });
     obs.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-theme-name"] });
@@ -229,12 +226,12 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
         aria-label={t("titlebar.toggleTheme", { defaultValue: "Hell/Dunkel umschalten" })}
         data-tip={isModePinned(themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : t("titlebar.toggleTheme", { defaultValue: "Hell/Dunkel umschalten" })}
         disabled={isModePinned(themeName)}
-        onClick={() => { toggleLightDark().then((m) => setDark(m === "dark")).catch(console.error); }}
+        onClick={() => { toggleLightDark().catch(console.error); }}
         style={{ ...iconBtn, opacity: isModePinned(themeName) ? 0.35 : 1, cursor: isModePinned(themeName) ? "default" : "pointer" }}
         onMouseOver={(e) => { if (!isModePinned(themeName)) { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; } }}
         onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
       >
-        {dark ? <Sun size={16} /> : <Moon size={16} />}
+        <SunMoon size={16} />
       </button>
 
       {/* Window controls — Windows/Linux only (right). macOS uses native traffic lights (left). */}
