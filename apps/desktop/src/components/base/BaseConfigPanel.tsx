@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
@@ -518,6 +518,9 @@ export function BaseConfigPanel({
   // stacked sections — the panel stays docked beside the live view but no
   // longer scrolls a 30-45-control wall. `activeArea` is pure UI state.
   const [activeArea, setActiveArea] = useState<BaseConfigAreaId>("view");
+  // Property type -> localized label, for the compact type badge on each
+  // property row (config redesign P3). Reuses the existing type option labels.
+  const typeLabelMap: Record<string, string> = Object.fromEntries(baseInputTypeOptions(t).map((o) => [o.value, o.label]));
 
   // Pointer-drag reorder of the enabled property rows — dropping rewrites the
   // active view's `order` (plan UI-UX-Paket P3).
@@ -837,19 +840,26 @@ export function BaseConfigPanel({
       </section>
       )}
 
-      {/* Properties (visible columns + new property) */}
+      {/* Properties — split into VISIBLE (drag-reorderable, in this view) and
+          HIDDEN (config redesign P3, clearer than one mixed checkbox list). The
+          visible/hidden state IS the per-view `order`; toggling moves a column
+          between the groups (onToggleColumn). */}
       {activeArea === "columns" && (
       <section className="base-cfg-section">
         <div className="base-cfg-title">{t("database.properties", "Eigenschaften")}</div>
         {(() => {
-          // One list in column order: the view's enabled columns (incl. file.*)
-          // are drag-reorderable — dropping rewrites `order` —, the not-enabled
-          // leftovers follow below without a grip (plan UI-UX-Paket P3).
           const disabled = [
             ...["file.name", "file.mtime"].filter((c) => !visibleColumns.includes(c)),
             ...availableColumns.filter((c) => !visibleColumns.includes(c)),
           ];
+          const typeLabelOf = (col: string): string | null => {
+            if (col.startsWith("file.")) return null;
+            const input = cells.getColumnInput?.(col);
+            if (!input) return null;
+            return typeLabelMap[input] ?? null;
+          };
           const renderRow = (col: string, dragIndex: number | null) => {
+            const visible = dragIndex != null;
             // Relation direction badge: "→ target" for owning relations, "← source"
             // for computed reverse columns (P8); the stem keeps the row compact.
             const schema = cells.getColumnSchema?.(col);
@@ -859,6 +869,7 @@ export function BaseConfigPanel({
               : schema?.input === "relation" && schema.relationBase
                 ? { text: `→ ${stemOf(schema.relationBase)}`, tip: t("database.badgeRelation", "Relation zu „{{base}}“", { base: schema.relationBase }) }
                 : null;
+            const typeLabel = typeLabelOf(col);
             return (
               <div
                 key={col}
@@ -866,7 +877,7 @@ export function BaseConfigPanel({
                 className={`base-cfg-colrow${dragIndex != null && colDrag.overIdx === dragIndex && colDrag.dragIdx !== null && colDrag.dragIdx !== dragIndex ? " base-cfg-row-drop" : ""}`}
                 style={{ opacity: dragIndex != null && colDrag.dragIdx === dragIndex ? 0.5 : 1 }}
               >
-                {dragIndex != null ? (
+                {visible ? (
                   <span
                     className="base-cfg-grip"
                     role="button"
@@ -879,26 +890,35 @@ export function BaseConfigPanel({
                 ) : (
                   <span style={{ width: 12, flexShrink: 0 }} aria-hidden="true" />
                 )}
-                <label className="base-cfg-check" style={{ flex: 1, minWidth: 0 }}>
-                  <input type="checkbox" className="pv-check" checked={visibleColumns.includes(col)} onChange={() => onToggleColumn(col)} />
-                  {" "}<span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{cells.columnLabel(col)}</span>
-                  {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
-                  {availableColumns.includes(col) && (
-                    <span
-                      className="base-cfg-badge"
-                      title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
-                    >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
-                  )}
-                </label>
+                <span className="base-cfg-colname">{cells.columnLabel(col)}</span>
+                {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
+                {typeLabel && <span className="base-cfg-typebadge">{typeLabel}</span>}
+                {availableColumns.includes(col) && (
+                  <span
+                    className="base-cfg-badge"
+                    title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
+                  >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
+                )}
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={12} /></button>
                 )}
+                <button
+                  onClick={() => onToggleColumn(col)}
+                  aria-label={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
+                  title={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
+                  className="base-cfg-iconbtn"
+                >
+                  {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                </button>
               </div>
             );
           };
           return (
             <>
+              <div className="base-cfg-subtitle" style={{ marginTop: 0 }}>{t("database.visibleColumns", "Sichtbar")}</div>
+              {visibleColumns.length === 0 && <div className="base-cfg-empty">{t("database.noVisibleColumns", "Keine Spalte sichtbar")}</div>}
               {visibleColumns.map((col, i) => renderRow(col, i))}
+              {disabled.length > 0 && <div className="base-cfg-subtitle">{t("database.hiddenColumns", "Ausgeblendet")}</div>}
               {disabled.map((col) => renderRow(col, null))}
             </>
           );

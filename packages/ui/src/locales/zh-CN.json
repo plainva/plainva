@@ -738,6 +738,11 @@
     "sectionView": "视图",
     "scopeView": "此视图",
     "scopeDatabase": "整个数据库",
+    "visibleColumns": "显示",
+    "hiddenColumns": "隐藏",
+    "noVisibleColumns": "无可见列",
+    "hideColumn": "隐藏",
+    "showColumn": "显示",
     "emptyView": "此视图中没有条目。",
     "viewGraph": "关系图"
   },

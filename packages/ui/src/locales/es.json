@@ -742,6 +742,11 @@
     "sectionView": "Vista",
     "scopeView": "Esta vista",
     "scopeDatabase": "Toda la base",
+    "visibleColumns": "Visibles",
+    "hiddenColumns": "Ocultas",
+    "noVisibleColumns": "Ninguna columna visible",
+    "hideColumn": "Ocultar",
+    "showColumn": "Mostrar",
     "emptyView": "No hay entradas en esta vista.",
     "viewGraph": "Grafo"
   },

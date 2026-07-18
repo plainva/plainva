@@ -738,6 +738,11 @@
     "sectionView": "ビュー",
     "scopeView": "このビュー",
     "scopeDatabase": "データベース全体",
+    "visibleColumns": "表示中",
+    "hiddenColumns": "非表示",
+    "noVisibleColumns": "表示中の列がありません",
+    "hideColumn": "非表示",
+    "showColumn": "表示",
     "emptyView": "このビューにはエントリーがありません。",
     "viewGraph": "グラフ"
   },

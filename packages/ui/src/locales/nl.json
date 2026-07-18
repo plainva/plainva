@@ -740,6 +740,11 @@
     "sectionView": "Weergave",
     "scopeView": "Deze weergave",
     "scopeDatabase": "Hele database",
+    "visibleColumns": "Zichtbaar",
+    "hiddenColumns": "Verborgen",
+    "noVisibleColumns": "Geen kolommen zichtbaar",
+    "hideColumn": "Verbergen",
+    "showColumn": "Tonen",
     "emptyView": "Geen items in deze weergave.",
     "viewGraph": "Graaf"
   },

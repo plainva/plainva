@@ -740,6 +740,11 @@
     "sectionView": "Ansicht",
     "scopeView": "Diese Ansicht",
     "scopeDatabase": "Ganze Datenbank",
+    "visibleColumns": "Sichtbar",
+    "hiddenColumns": "Ausgeblendet",
+    "noVisibleColumns": "Keine Spalte sichtbar",
+    "hideColumn": "Ausblenden",
+    "showColumn": "Einblenden",
     "emptyView": "Keine Einträge in dieser Ansicht.",
     "viewGraph": "Graph"
   },

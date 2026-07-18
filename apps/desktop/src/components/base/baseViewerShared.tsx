@@ -229,6 +229,8 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
   .base-cfg-typetile.active { border-color: var(--accent-color); background: var(--bg-hover); color: var(--accent-color); }
   .base-cfg-typetile-label { line-height: 1.2; }
+  .base-cfg-colname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-ui); color: var(--text-main); }
+  .base-cfg-typebadge { flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 0 6px; border-radius: var(--radius-pill); }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
   .base-cfg-close:hover { background: var(--state-hover); }

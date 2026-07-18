@@ -742,6 +742,11 @@
     "sectionView": "Visualização",
     "scopeView": "Esta visualização",
     "scopeDatabase": "Todo o banco",
+    "visibleColumns": "Visíveis",
+    "hiddenColumns": "Ocultas",
+    "noVisibleColumns": "Nenhuma coluna visível",
+    "hideColumn": "Ocultar",
+    "showColumn": "Mostrar",
     "emptyView": "Nenhuma entrada nesta visualização.",
     "viewGraph": "Grafo"
   },
