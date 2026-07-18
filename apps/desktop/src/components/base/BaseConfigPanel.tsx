@@ -718,8 +718,9 @@ export function BaseConfigPanel({
         <button onClick={onClose} aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} className="base-cfg-close"><X size={16} /></button>
       </div>
 
-      {/* Reiter: one config area at a time (icon-only tabs, active = accent).
-          The active area's title lives in its own section below. */}
+      {/* Reiter: one config area at a time as labelled chips/pills (active =
+          accent fill; maintainer 2026-07-18). The active area's title also
+          lives in its own section below. */}
       <div className="base-cfg-tabs" role="tablist" aria-label={t("database.configure", "Konfigurieren")}>
         {BASE_CONFIG_AREAS.map((area) => {
           const AreaIcon = area.icon;
@@ -730,12 +731,11 @@ export function BaseConfigPanel({
               type="button"
               role="tab"
               aria-selected={activeArea === area.id}
-              aria-label={label}
-              title={label}
               className={`base-cfg-tab${activeArea === area.id ? " active" : ""}`}
               onClick={() => setActiveArea(area.id)}
             >
-              <AreaIcon size={16} />
+              <AreaIcon size={14} />
+              <span className="base-cfg-tab-label">{label}</span>
             </button>
           );
         })}
@@ -750,10 +750,13 @@ export function BaseConfigPanel({
       {activeArea === "source" && (
       <section className="base-cfg-section">
         <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} alwaysExpanded />
-        {currentViewType === "table" && onEnableSubItems && onSetSubItemsProperty && (() => {
+        {onEnableSubItems && onSetSubItemsProperty && (() => {
           // Sub-items (P10, Notion "Sub-items"): the switch nests rows under
           // their parent (a self-relation). Enabling creates the parent
-          // property + reverse column when the base has none yet.
+          // property + reverse column when the base has none yet. It is a
+          // database-STRUCTURE change (a self-relation), so the toggle lives in
+          // the data-source area and shows for every view type (maintainer
+          // 2026-07-18) — only the table view renders the nesting.
           const selfRelationColumns = Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
             .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf)
             .map(([name]) => name);

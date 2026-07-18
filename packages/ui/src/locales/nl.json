@@ -577,7 +577,7 @@
     "embedLinkSkipped": "Niet gekoppeld — \"{{host}}\" is al toegewezen.",
     "enableSubItems": "Subitems inschakelen",
     "subItemsProperty": "Bovenliggende eigenschap",
-    "subItemsHint": "Genest: items met een bovenliggende relatie verschijnen uitklapbaar onder hun bovenliggende item. Uit = platte lijst; de eigenschappen blijven behouden.",
+    "subItemsHint": "Genest: items met een bovenliggende relatie verschijnen uitklapbaar onder hun bovenliggende item in de tabelweergave. Uit = platte lijst; de eigenschappen blijven behouden.",
     "subItemsCountTooltip": "{{count}} subitems",
     "expandRow": "Uitklappen",
     "collapseRow": "Inklappen",

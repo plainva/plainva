@@ -576,7 +576,7 @@
     "embedLinkSkipped": "未关联——“{{host}}”已被分配。",
     "enableSubItems": "启用子项",
     "subItemsProperty": "父级属性",
-    "subItemsHint": "嵌套：带父级关联的条目会以可折叠方式显示在其父条目下。关闭=平铺列表；属性会保留。",
+    "subItemsHint": "嵌套：带父级关联的条目会在表格视图中以可折叠方式显示在其父条目下。关闭=平铺列表；属性会保留。",
     "subItemsCountTooltip": "{{count}}个子项",
     "expandRow": "展开",
     "collapseRow": "折叠",

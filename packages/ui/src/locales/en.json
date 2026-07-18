@@ -577,7 +577,7 @@
     "embedLinkSkipped": "Not linked — \"{{host}}\" is already assigned.",
     "enableSubItems": "Enable sub-items",
     "subItemsProperty": "Parent property",
-    "subItemsHint": "Nested: entries with a parent relation appear collapsible under their parent entry. Off = flat list; the properties are kept.",
+    "subItemsHint": "Nested: entries with a parent relation appear collapsible under their parent entry in the table view. Off = flat list; the properties are kept.",
     "subItemsCountTooltip": "{{count}} sub-items",
     "expandRow": "Expand",
     "collapseRow": "Collapse",

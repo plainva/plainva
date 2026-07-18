@@ -577,7 +577,7 @@
     "embedLinkSkipped": "Nicht verknüpft — „{{host}}“ ist bereits zugeordnet.",
     "enableSubItems": "Unterelemente aktivieren",
     "subItemsProperty": "Übergeordnete Eigenschaft",
-    "subItemsHint": "Verschachtelt: Einträge mit übergeordneter Relation erscheinen aufklappbar unter ihrem übergeordneten Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.",
+    "subItemsHint": "Verschachtelt: Einträge mit übergeordneter Relation erscheinen in der Tabellen-Ansicht aufklappbar unter ihrem übergeordneten Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.",
     "subItemsCountTooltip": "{{count}} Unterelemente",
     "expandRow": "Aufklappen",
     "collapseRow": "Zuklappen",

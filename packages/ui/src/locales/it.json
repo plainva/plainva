@@ -578,7 +578,7 @@
     "embedLinkSkipped": "Non collegato — \"{{host}}\" è già assegnato.",
     "enableSubItems": "Abilita sottoelementi",
     "subItemsProperty": "Proprietà genitore",
-    "subItemsHint": "Annidato: le voci con una relazione genitore appaiono comprimibili sotto la loro voce genitore. Disattivato = elenco piatto; le proprietà restano invariate.",
+    "subItemsHint": "Annidato: le voci con una relazione genitore appaiono comprimibili sotto la loro voce genitore nella vista tabella. Disattivato = elenco piatto; le proprietà restano invariate.",
     "subItemsCountTooltip": "{{count}} sottoelementi",
     "expandRow": "Espandi",
     "collapseRow": "Comprimi",

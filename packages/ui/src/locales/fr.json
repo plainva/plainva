@@ -578,7 +578,7 @@
     "embedLinkSkipped": "Non lié — « {{host}} » est déjà attribué.",
     "enableSubItems": "Activer les sous-éléments",
     "subItemsProperty": "Propriété parent",
-    "subItemsHint": "Imbriqué : les entrées avec une relation parent apparaissent repliables sous leur entrée parente. Désactivé = liste plate ; les propriétés sont conservées.",
+    "subItemsHint": "Imbriqué : les entrées avec une relation parent apparaissent repliables sous leur entrée parente dans la vue tableau. Désactivé = liste plate ; les propriétés sont conservées.",
     "subItemsCountTooltip": "{{count}} sous-éléments",
     "expandRow": "Déplier",
     "collapseRow": "Replier",

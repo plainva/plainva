@@ -578,7 +578,7 @@
     "embedLinkSkipped": "Não vinculado — \"{{host}}\" já está atribuído.",
     "enableSubItems": "Ativar subitens",
     "subItemsProperty": "Propriedade pai",
-    "subItemsHint": "Aninhado: entradas com uma relação de pai aparecem recolhíveis sob a entrada pai. Desativado = lista plana; as propriedades são mantidas.",
+    "subItemsHint": "Aninhado: entradas com uma relação de pai aparecem recolhíveis sob a entrada pai na visualização de tabela. Desativado = lista plana; as propriedades são mantidas.",
     "subItemsCountTooltip": "{{count}} subitens",
     "expandRow": "Expandir",
     "collapseRow": "Recolher",

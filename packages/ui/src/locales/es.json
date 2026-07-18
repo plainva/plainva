@@ -578,7 +578,7 @@
     "embedLinkSkipped": "No vinculado: “{{host}}” ya está asignado.",
     "enableSubItems": "Activar subelementos",
     "subItemsProperty": "Propiedad padre",
-    "subItemsHint": "Anidado: las entradas con una relación padre aparecen plegables bajo su entrada padre. Desactivado = lista plana; las propiedades se conservan.",
+    "subItemsHint": "Anidado: las entradas con una relación padre aparecen plegables bajo su entrada padre en la vista de tabla. Desactivado = lista plana; las propiedades se conservan.",
     "subItemsCountTooltip": "{{count}} subelementos",
     "expandRow": "Desplegar",
     "collapseRow": "Plegar",

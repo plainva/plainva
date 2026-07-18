@@ -1688,6 +1688,9 @@ test('Config reiter: tabs switch areas; view-type tile grid; filter shows a chip
   const panel = page.locator('.base-config-panel');
   await expect(panel).toBeVisible();
 
+  // The area tabs are labelled chips/pills (maintainer 2026-07-18), not icon-only.
+  await expect(panel.locator('.base-cfg-tab').first()).toHaveText(/Ansicht|View/);
+
   // The panel opens on the VIEW area: the view-type tile grid (icon tiles for
   // all view types) is shown, with the current type (Table) marked active.
   const tiles = panel.locator('.base-cfg-typetile');
@@ -1711,4 +1714,33 @@ test('Config reiter: tabs switch areas; view-type tile grid; filter shows a chip
   await expect(chip).toBeVisible();
   await expect(chip).toContainText(/Status/);
   await expect(chip).toContainText('active');
+});
+
+test('Sub-items lives in the data-source tab for every view type; graph shows the compat hint', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  const panel = page.locator('.base-config-panel');
+  await expect(panel).toBeVisible();
+
+  // Sub-items is a database-STRUCTURE control (a self-relation), so it lives in
+  // the data-source tab — and shows for every view type, not just the table
+  // (maintainer 2026-07-18). Table view first:
+  await configTab(page, 'source');
+  await expect(panel.getByText(/^(Unterelemente|Sub-items)$/).first()).toBeVisible();
+
+  // Switch the view type to List, then back to the data-source tab: the
+  // sub-items control must still be there (it is not table-gated any more).
+  await configTab(page, 'view');
+  await panel.getByRole('radio', { name: /^(Liste|List)$/ }).click();
+  await configTab(page, 'source');
+  await expect(panel.getByText(/^(Unterelemente|Sub-items)$/).first()).toBeVisible();
+
+  // Every Plainva-only view type shows the Obsidian-compatibility hint, incl.
+  // graph (previously only board/calendar/timeline warned).
+  await configTab(page, 'view');
+  await panel.getByRole('radio', { name: /^(Graph)$/ }).click();
+  await expect(page.getByRole('button', { name: /Trotzdem verwenden|Use anyway/ })).toBeVisible();
 });

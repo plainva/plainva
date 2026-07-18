@@ -579,7 +579,7 @@
     "embedLinkSkipped": "Nie połączono — „{{host}}” jest już przypisany.",
     "enableSubItems": "Włącz elementy podrzędne",
     "subItemsProperty": "Właściwość rodzica",
-    "subItemsHint": "Zagnieżdżenie: wpisy z relacją do rodzica pojawiają się jako rozwijane pod wpisem nadrzędnym. Wyłączone = płaska lista; właściwości zostają zachowane.",
+    "subItemsHint": "Zagnieżdżenie: wpisy z relacją do rodzica pojawiają się jako rozwijane pod wpisem nadrzędnym w widoku tabeli. Wyłączone = płaska lista; właściwości zostają zachowane.",
     "subItemsCountTooltip": "Elementy podrzędne: {{count}}",
     "expandRow": "Rozwiń",
     "collapseRow": "Zwiń",
