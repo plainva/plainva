@@ -1942,7 +1942,9 @@
     "prevWeek": "Vorige Woche",
     "nextWeek": "Nächste Woche",
     "agendaEmpty": "Keine anstehenden Termine.",
-    "eventsLabel": "Termine"
+    "eventsLabel": "Termine",
+    "emailInvite": "Per Mail versenden",
+    "inviteSubject": "Einladung: {{title}}"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",
@@ -2003,6 +2005,8 @@
     "delete": "Löschen",
     "deleteTitle": "In den Papierkorb verschieben?",
     "deleteMsg": "Die Nachricht wird in den Papierkorb verschoben.",
-    "noTrash": "Kein Papierkorb-Ordner gefunden."
+    "noTrash": "Kein Papierkorb-Ordner gefunden.",
+    "sendNoteViaEmail": "Per Mail verschicken",
+    "sendNoteAsAttachment": "Per Mail als Anhang"
   }
 }

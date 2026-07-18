@@ -1936,7 +1936,9 @@
     "prevWeek": "上一周",
     "nextWeek": "下一周",
     "agendaEmpty": "没有即将到来的日程。",
-    "eventsLabel": "日程"
+    "eventsLabel": "日程",
+    "emailInvite": "通过邮件发送",
+    "inviteSubject": "邀请：{{title}}"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",
@@ -1997,6 +1999,8 @@
     "delete": "删除",
     "deleteTitle": "移动到回收站？",
     "deleteMsg": "邮件将被移动到回收站。",
-    "noTrash": "未找到回收站文件夹。"
+    "noTrash": "未找到回收站文件夹。",
+    "sendNoteViaEmail": "通过邮件发送",
+    "sendNoteAsAttachment": "作为附件发送"
   }
 }

@@ -1948,7 +1948,9 @@
     "prevWeek": "Semaine précédente",
     "nextWeek": "Semaine suivante",
     "agendaEmpty": "Aucun événement à venir.",
-    "eventsLabel": "Événements"
+    "eventsLabel": "Événements",
+    "emailInvite": "Envoyer par e-mail",
+    "inviteSubject": "Invitation : {{title}}"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, lecture seule)",
@@ -2009,6 +2011,8 @@
     "delete": "Supprimer",
     "deleteTitle": "Déplacer vers la corbeille ?",
     "deleteMsg": "Le message sera déplacé vers la corbeille.",
-    "noTrash": "Aucun dossier corbeille trouvé."
+    "noTrash": "Aucun dossier corbeille trouvé.",
+    "sendNoteViaEmail": "Envoyer par e-mail",
+    "sendNoteAsAttachment": "Envoyer en pièce jointe"
   }
 }

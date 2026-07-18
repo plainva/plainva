@@ -1936,7 +1936,9 @@
     "prevWeek": "前の週",
     "nextWeek": "次の週",
     "agendaEmpty": "今後の予定はありません。",
-    "eventsLabel": "予定"
+    "eventsLabel": "予定",
+    "emailInvite": "メールで送信",
+    "inviteSubject": "招待: {{title}}"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",
@@ -1997,6 +1999,8 @@
     "delete": "削除",
     "deleteTitle": "ゴミ箱に移動しますか？",
     "deleteMsg": "メッセージをゴミ箱に移動します。",
-    "noTrash": "ゴミ箱フォルダーが見つかりません。"
+    "noTrash": "ゴミ箱フォルダーが見つかりません。",
+    "sendNoteViaEmail": "メールで送信",
+    "sendNoteAsAttachment": "添付ファイルとして送信"
   }
 }

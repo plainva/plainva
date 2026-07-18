@@ -1942,7 +1942,9 @@
     "prevWeek": "Previous week",
     "nextWeek": "Next week",
     "agendaEmpty": "No upcoming events.",
-    "eventsLabel": "Events"
+    "eventsLabel": "Events",
+    "emailInvite": "Send by email",
+    "inviteSubject": "Invitation: {{title}}"
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",
@@ -2003,6 +2005,8 @@
     "delete": "Delete",
     "deleteTitle": "Move to Trash?",
     "deleteMsg": "The message will be moved to Trash.",
-    "noTrash": "No Trash folder found."
+    "noTrash": "No Trash folder found.",
+    "sendNoteViaEmail": "Send via email",
+    "sendNoteAsAttachment": "Send as email attachment"
   }
 }

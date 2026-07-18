@@ -1954,7 +1954,9 @@
     "prevWeek": "Poprzedni tydzień",
     "nextWeek": "Następny tydzień",
     "agendaEmpty": "Brak nadchodzących wydarzeń.",
-    "eventsLabel": "Wydarzenia"
+    "eventsLabel": "Wydarzenia",
+    "emailInvite": "Wyślij e-mailem",
+    "inviteSubject": "Zaproszenie: {{title}}"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",
@@ -2015,6 +2017,8 @@
     "delete": "Usuń",
     "deleteTitle": "Przenieść do kosza?",
     "deleteMsg": "Wiadomość zostanie przeniesiona do kosza.",
-    "noTrash": "Nie znaleziono folderu kosza."
+    "noTrash": "Nie znaleziono folderu kosza.",
+    "sendNoteViaEmail": "Wyślij e-mailem",
+    "sendNoteAsAttachment": "Wyślij jako załącznik"
   }
 }

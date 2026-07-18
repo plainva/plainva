@@ -5,7 +5,8 @@ import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
-import { appendDraft, guessDraftsMailbox, sendMail } from "../../services/mail/mailOut";
+import { appendDraft, guessDraftsMailbox, sendMail, type MailAttachment } from "../../services/mail/mailOut";
+import { Paperclip } from "lucide-react";
 
 /**
  * Compose dialog (mail-client E3). Two ways OUT: SEND directly via the
@@ -19,17 +20,21 @@ interface MailDraftModalProps {
   /** Prefill: the active note's title + markdown body. */
   subject: string;
   markdown: string;
+  /** Optional file attachments (mail-client E5: "…as attachment"). */
+  attachments?: MailAttachment[];
+  /** Optional recipient prefill (E6: invite attendees). */
+  initialTo?: string;
   onClose: () => void;
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, onClose }: MailDraftModalProps) {
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState("");
   const [mailboxes, setMailboxes] = useState<string[]>([]);
   const [mailbox, setMailbox] = useState("");
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState(initialTo ?? "");
   const [subject, setSubject] = useState(initialSubject);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,14 +83,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
     setBusy(true);
     setError(null);
     try {
-      await appendDraft(vaultPath, account, mailbox, to.trim(), subject.trim(), markdown);
+      await appendDraft(vaultPath, account, mailbox, to.trim(), subject.trim(), markdown, attachments);
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, subject, mailbox, markdown, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, subject, mailbox, markdown, attachments, onClose, t]);
 
   const send = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
@@ -97,14 +102,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
     setBusy(true);
     setError(null);
     try {
-      await sendMail(vaultPath, account, to.trim(), subject.trim(), markdown);
+      await sendMail(vaultPath, account, to.trim(), subject.trim(), markdown, attachments);
       toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, subject, markdown, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, subject, markdown, attachments, onClose, t]);
 
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
 
@@ -159,6 +164,16 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
               {t("mail.draftSubject", { defaultValue: "Betreff" })}
               <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" style={{ display: "block", width: "100%", marginTop: 2 }} />
             </label>
+            {attachments && attachments.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }} data-testid="draft-attachments">
+                {attachments.map((a) => (
+                  <span key={a.name} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 8px" }}>
+                    <Paperclip size={11} />
+                    {a.name}
+                  </span>
+                ))}
+              </div>
+            )}
             {mailboxes.length > 0 && (
               <div>
                 <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}</label>

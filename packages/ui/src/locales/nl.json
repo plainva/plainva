@@ -1942,7 +1942,9 @@
     "prevWeek": "Vorige week",
     "nextWeek": "Volgende week",
     "agendaEmpty": "Geen aankomende afspraken.",
-    "eventsLabel": "Afspraken"
+    "eventsLabel": "Afspraken",
+    "emailInvite": "Verzenden per e-mail",
+    "inviteSubject": "Uitnodiging: {{title}}"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",
@@ -2003,6 +2005,8 @@
     "delete": "Verwijderen",
     "deleteTitle": "Naar prullenbak verplaatsen?",
     "deleteMsg": "Het bericht wordt naar de prullenbak verplaatst.",
-    "noTrash": "Geen prullenbakmap gevonden."
+    "noTrash": "Geen prullenbakmap gevonden.",
+    "sendNoteViaEmail": "Verzenden per e-mail",
+    "sendNoteAsAttachment": "Verzenden als bijlage"
   }
 }

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, FilePlus2, ListChecks, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, FilePlus2, ListChecks, Mail, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
+import { buildInviteIcs } from "../../services/mail/inviteIcs";
+import { utf8ToBase64 } from "../../services/mail/mailOut";
+import { listMailAccounts } from "../../services/mail/mailAccounts";
 import {
   Button,
   EmptyState,
@@ -461,6 +464,39 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, onOpenPath, t]
   );
 
+  // "Per Mail versenden" (mail-client E6): build an iCal REQUEST invite and
+  // open the compose dialog with it attached, recipients pre-filled from the
+  // event's attendees. The recipients' own calendar apps handle the RSVP
+  // (iMIP); Plainva does not track those replies for events it doesn't own.
+  const emailInvite = useCallback(
+    async (e: PimEventRow) => {
+      if (!vaultPath) return;
+      try {
+        const accounts = await listMailAccounts(vaultPath);
+        if (accounts.length === 0) {
+          toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
+          return;
+        }
+        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
+        const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
+        const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
+        window.dispatchEvent(
+          new CustomEvent("plainva-compose-mail", {
+            detail: {
+              subject: t("pim.inviteSubject", { defaultValue: "Einladung: {{title}}", title: e.title }),
+              markdown: body,
+              to: (e.attendees ?? []).join(", "),
+              attachments: [{ name: "invite.ics", mime: "text/calendar; method=REQUEST; charset=UTF-8", contentBase64: utf8ToBase64(ics) }],
+            },
+          })
+        );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [vaultPath, t, i18n.language]
+  );
+
   const dayEvents = byDay.get(selectedDay) ?? [];
   const dayTasks = showTasks ? tasksByDay.get(selectedDay) ?? [] : [];
   const viewMonth = viewDate.getMonth();
@@ -523,6 +559,14 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           size="sm"
         >
           <FilePlus2 size={14} />
+        </IconButton>
+        <IconButton
+          label={t("pim.emailInvite", { defaultValue: "Per Mail versenden" })}
+          onClick={() => void emailInvite(e)}
+          data-testid="calendar-email-invite"
+          size="sm"
+        >
+          <Mail size={13} />
         </IconButton>
         {/* Series instances route through the scope dialog (stage 4). */}
         <IconButton label={t("pim.editEvent", { defaultValue: "Termin bearbeiten" })} onClick={() => requestEdit(e)} data-testid="calendar-edit-event" size="sm">

@@ -89,7 +89,7 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_send') {
-          (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, subject: args.subject, text: args.text, html: args.html };
+          (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
         }
         if (cmd === 'mail_list_envelopes') {
@@ -321,6 +321,27 @@ test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) 
   await expect.poll(() => page.evaluate(() => (window as any).__moved ?? null)).toBeTruthy();
   expect(await page.evaluate(() => (window as any).__moved)).toMatchObject({ uid: 2, target: 'Trash' });
   await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+});
+
+test('mail-client E5: compose from an attachment payload sends the file', async ({ page }) => {
+  await openVault(page);
+  // The editor ⋮ "Send as attachment" dispatches this compose event (the App
+  // renders the dialog globally); assert the attachment rides to SMTP.
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+      detail: { subject: 'Meine Notiz', markdown: '', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+    }));
+  });
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Meine Notiz');
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.subject).toBe('Meine Notiz');
+  expect(sent.attachments[0].name).toBe('Note.md');
+  expect(sent.attachments[0].mime).toBe('text/markdown');
 });
 
 test('mail-out: reply-as-note quotes the original; the draft dialog appends via IMAP', async ({ page }) => {

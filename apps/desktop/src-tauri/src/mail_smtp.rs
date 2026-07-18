@@ -88,8 +88,32 @@ fn split_recipients(to: &str) -> Vec<String> {
         .collect()
 }
 
-/// Builds the outgoing message MIME (From + To + text[/html]). Pure.
-fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option<&str>) -> Result<Vec<u8>, String> {
+/// An outgoing attachment (mail-client E5): base64 content decoded in Rust.
+#[derive(serde::Deserialize)]
+pub struct MailAttachment {
+    pub name: String,
+    pub mime: String,
+    #[serde(rename = "contentBase64")]
+    pub content_base64: String,
+}
+
+/// Adds the decoded attachments to a mail-builder message. Shared by send +
+/// draft (E5/E6).
+pub fn attach_all<'a>(
+    mut builder: mail_builder::MessageBuilder<'a>,
+    attachments: &'a [MailAttachment],
+) -> Result<mail_builder::MessageBuilder<'a>, String> {
+    for a in attachments {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(a.content_base64.trim())
+            .map_err(|e| format!("attachment decode failed: {e}"))?;
+        builder = builder.attachment(a.mime.clone(), a.name.clone(), bytes);
+    }
+    Ok(builder)
+}
+
+/// Builds the outgoing message MIME (From + To + text[/html] + attachments). Pure.
+fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[MailAttachment]) -> Result<Vec<u8>, String> {
     let mut builder = mail_builder::MessageBuilder::new()
         .from(from.to_string())
         .to(to.to_string())
@@ -98,6 +122,7 @@ fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option
     if let Some(html) = html {
         builder = builder.html_body(html.to_string());
     }
+    builder = attach_all(builder, attachments)?;
     builder
         .write_to_vec()
         .map_err(|e| format!("mime build failed: {e}"))
@@ -166,13 +191,14 @@ pub async fn mail_send(
     subject: String,
     text: String,
     html: Option<String>,
+    attachments: Option<Vec<MailAttachment>>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let recipients = split_recipients(&to);
         if recipients.is_empty() {
             return Err("no recipient".into());
         }
-        let mime = build_send_mime(&from, &to, &subject, &text, html.as_deref())?;
+        let mime = build_send_mime(&from, &to, &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
 
         let tcp = TcpStream::connect((host.as_str(), port)).map_err(|e| format!("connect failed: {e}"))?;
         tcp.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| format!("socket setup failed: {e}"))?;
@@ -282,12 +308,22 @@ mod tests {
 
     #[test]
     fn builds_a_from_to_text_html_mime() {
-        let mime = build_send_mime("me@example.org", "you@example.org", "Grüße", "Hallo", Some("<p>Hallo</p>")).expect("builds");
+        let mime = build_send_mime("me@example.org", "you@example.org", "Grüße", "Hallo", Some("<p>Hallo</p>"), &[]).expect("builds");
         let s = String::from_utf8_lossy(&mime);
         assert!(s.contains("me@example.org"));
         assert!(s.contains("you@example.org"));
         // Subject is RFC 2047 encoded for the non-ASCII "Grüße".
         assert!(s.to_lowercase().contains("subject:"));
         assert!(mime.windows(2).any(|w| w == b"\r\n"));
+    }
+
+    #[test]
+    fn attaches_a_decoded_file() {
+        // "hello" base64 = aGVsbG8=
+        let att = MailAttachment { name: "note.md".into(), mime: "text/markdown".into(), content_base64: "aGVsbG8=".into() };
+        let mime = build_send_mime("me@example.org", "you@example.org", "S", "body", None, std::slice::from_ref(&att)).expect("builds");
+        let s = String::from_utf8_lossy(&mime);
+        assert!(s.contains("note.md"));
+        assert!(s.to_lowercase().contains("multipart/"));
     }
 }

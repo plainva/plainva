@@ -93,6 +93,7 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           // Standard task database (calendar task overlay): a test opts in via fs.__taskDb.
           if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
+          if (String(args.key || '').startsWith('mailAccounts_')) return [[{ id: 'm1', label: 'me@example.org', host: 'imap.example.org', port: 993, user: 'me@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 }], true];
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
@@ -289,6 +290,30 @@ test('calendar tab shows cached events, day selection and creates a meeting note
   await expect
     .poll(() => page.evaluate((p: string) => Boolean((window as any).mockFs[p]), `/test-vault/Meetings/${todayKey} Standup 2.md`))
     .toBe(false);
+});
+
+test('mail-client E6: an event can be emailed as an iCal invite', async ({ page }) => {
+  await openVault(page);
+  await page.evaluate(() => {
+    (window as any).__composed = null;
+    window.addEventListener('plainva-compose-mail', (e) => { (window as any).__composed = (e as CustomEvent).detail; });
+  });
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-${todayKey}`).click();
+  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-email-invite').click();
+
+  await expect.poll(() => page.evaluate(() => (window as any).__composed ?? null)).toBeTruthy();
+  const c = await page.evaluate(() => (window as any).__composed);
+  expect(c.to).toContain('a@example.org');
+  expect(c.attachments[0].name).toBe('invite.ics');
+  expect(c.attachments[0].mime).toContain('text/calendar');
+  const ics = await page.evaluate((b64: string) => decodeURIComponent(escape(atob(b64))), c.attachments[0].contentBase64);
+  expect(ics).toContain('METHOD:REQUEST');
+  expect(ics).toContain('SUMMARY:Standup');
+  expect(ics).toContain('ORGANIZER:mailto:me@example.org');
+  // The compose dialog opens globally with the invite attachment chip.
+  await expect(page.getByTestId('draft-attachments')).toContainText('invite.ics');
 });
 
 test('event dialog: create validation + provider-error surface, edit prefill, delete confirm', async ({ page }) => {

@@ -113,6 +113,23 @@ export function sortMailFolders(names: string[]): string[] {
   });
 }
 
+/** An outgoing attachment (mail-client E5): base64 payload decoded natively. */
+export interface MailAttachment {
+  name: string;
+  mime: string;
+  contentBase64: string;
+}
+
+/** UTF-8 string -> base64 (chunked so large notes don't blow the call stack). */
+export function utf8ToBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
 /** Sends an outgoing message via the account's SMTP submission host
  * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
  * the account user. Never relays — this only submits the user's own mail. */
@@ -121,7 +138,8 @@ export async function sendMail(
   account: MailAccountConfig,
   to: string,
   subject: string,
-  markdown: string
+  markdown: string,
+  attachments: MailAttachment[] = []
 ): Promise<void> {
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
   if (!to.trim()) throw new Error("no recipient");
@@ -138,6 +156,7 @@ export async function sendMail(
     subject,
     text,
     html,
+    attachments: attachments.length ? attachments : null,
   });
 }
 
@@ -148,7 +167,8 @@ export async function appendDraft(
   mailbox: string,
   to: string,
   subject: string,
-  markdown: string
+  markdown: string,
+  attachments: MailAttachment[] = []
 ): Promise<void> {
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
@@ -163,5 +183,6 @@ export async function appendDraft(
     subject,
     text,
     html,
+    attachments: attachments.length ? attachments : null,
   });
 }

@@ -1948,7 +1948,9 @@
     "prevWeek": "Settimana precedente",
     "nextWeek": "Settimana successiva",
     "agendaEmpty": "Nessun evento in arrivo.",
-    "eventsLabel": "Eventi"
+    "eventsLabel": "Eventi",
+    "emailInvite": "Invia per email",
+    "inviteSubject": "Invito: {{title}}"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, sola lettura)",
@@ -2009,6 +2011,8 @@
     "delete": "Elimina",
     "deleteTitle": "Spostare nel cestino?",
     "deleteMsg": "Il messaggio verrà spostato nel cestino.",
-    "noTrash": "Nessuna cartella cestino trovata."
+    "noTrash": "Nessuna cartella cestino trovata.",
+    "sendNoteViaEmail": "Invia per email",
+    "sendNoteAsAttachment": "Invia come allegato"
   }
 }

@@ -1948,7 +1948,9 @@
     "prevWeek": "Semana anterior",
     "nextWeek": "Próxima semana",
     "agendaEmpty": "Nenhum evento futuro.",
-    "eventsLabel": "Eventos"
+    "eventsLabel": "Eventos",
+    "emailInvite": "Enviar por e-mail",
+    "inviteSubject": "Convite: {{title}}"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, somente leitura)",
@@ -2009,6 +2011,8 @@
     "delete": "Excluir",
     "deleteTitle": "Mover para a lixeira?",
     "deleteMsg": "A mensagem será movida para a lixeira.",
-    "noTrash": "Nenhuma pasta de lixeira encontrada."
+    "noTrash": "Nenhuma pasta de lixeira encontrada.",
+    "sendNoteViaEmail": "Enviar por e-mail",
+    "sendNoteAsAttachment": "Enviar como anexo"
   }
 }

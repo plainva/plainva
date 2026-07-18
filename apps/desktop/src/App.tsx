@@ -28,6 +28,7 @@ const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
+import type { MailAttachment } from "./services/mail/mailOut";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
@@ -99,8 +100,9 @@ function App() {
   }, []);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
-  // Mail-raus (stage 6): the draft dialog is prefilled from the active note.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string } | null>(null);
+  // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
+  // from the active note, optionally with the note as an attachment.
+  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string } | null>(null);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -124,13 +126,20 @@ function App() {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       if (detail?.path) setConflictResolveTarget(detail.path);
     };
+    // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
+    const onComposeMail = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+    };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
+    window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
+      window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
   // "Was ist OKF?" explainer (P12): shown once per vault; with violations it
@@ -1506,7 +1515,7 @@ function App() {
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
         {mailDraft && (
           <Suspense fallback={null}>
-            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} onClose={() => setMailDraft(null)} />
+            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} attachments={mailDraft.attachments} initialTo={mailDraft.to} onClose={() => setMailDraft(null)} />
           </Suspense>
         )}
         {showFindReplace && (

@@ -1948,7 +1948,9 @@
     "prevWeek": "Semana anterior",
     "nextWeek": "Semana siguiente",
     "agendaEmpty": "No hay eventos próximos.",
-    "eventsLabel": "Eventos"
+    "eventsLabel": "Eventos",
+    "emailInvite": "Enviar por correo",
+    "inviteSubject": "Invitación: {{title}}"
   },
   "mail": {
     "sectionTitle": "Correo (IMAP, solo lectura)",
@@ -2009,6 +2011,8 @@
     "delete": "Eliminar",
     "deleteTitle": "¿Mover a la papelera?",
     "deleteMsg": "El mensaje se moverá a la papelera.",
-    "noTrash": "No se encontró la carpeta de papelera."
+    "noTrash": "No se encontró la carpeta de papelera.",
+    "sendNoteViaEmail": "Enviar por correo",
+    "sendNoteAsAttachment": "Enviar como adjunto"
   }
 }
