@@ -744,10 +744,52 @@ export function BaseConfigPanel({
       {PageHead}
 
       {/* Data source — its own tab (config redesign P5), so render it always
-          open instead of behind the component's internal collapse. */}
+          open instead of behind the component's internal collapse. Sub-items
+          lives here too (maintainer 2026-07-18): it is a database-STRUCTURE
+          change (a self-relation), not a per-view display option. */}
       {activeArea === "source" && (
       <section className="base-cfg-section">
         <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} alwaysExpanded />
+        {currentViewType === "table" && onEnableSubItems && onSetSubItemsProperty && (() => {
+          // Sub-items (P10, Notion "Sub-items"): the switch nests rows under
+          // their parent (a self-relation). Enabling creates the parent
+          // property + reverse column when the base has none yet.
+          const selfRelationColumns = Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
+            .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf)
+            .map(([name]) => name);
+          return (
+            <div className="base-cfg-group">
+              <div className="base-cfg-grouplabel">{t("database.subItems", "Unterelemente")}</div>
+              <div className="base-cfg-card">
+                <div className="base-cfg-cardrow base-cfg-cardrow--split">
+                  <span className="base-cfg-rowlabel">{t("database.subItems", "Unterelemente")}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!subItemsProperty}
+                    aria-label={t("database.enableSubItems", "Unterelemente aktivieren")}
+                    className={`pv-switch${subItemsProperty ? " pv-switch-on" : ""}`}
+                    onClick={() => { if (subItemsProperty) onSetSubItemsProperty(null); else onEnableSubItems(); }}
+                  >
+                    <span className="pv-switch-knob" />
+                  </button>
+                </div>
+                {subItemsProperty && selfRelationColumns.length > 1 && (
+                  <div className="base-cfg-cardrow base-cfg-cardrow--split">
+                    <span className="base-cfg-rowlabel">{t("database.subItemsProperty", "Eltern-Eigenschaft")}</span>
+                    <Select
+                      ariaLabel={t("database.subItemsProperty", "Eltern-Eigenschaft")}
+                      value={subItemsProperty}
+                      onChange={(v) => onSetSubItemsProperty(v || null)}
+                      options={selfRelationColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))}
+                    />
+                  </div>
+                )}
+                <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("database.subItemsHint", "Verschachtelt: Einträge mit Eltern-Relation erscheinen aufklappbar unter ihrem Eltern-Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.")}</span></div>
+              </div>
+            </div>
+          );
+        })()}
       </section>
       )}
 
@@ -848,42 +890,6 @@ export function BaseConfigPanel({
             <Select ariaLabel={t("database.coverImage", "Titelbild")} value={coverImageProperty || ""} onChange={(v) => onSetCoverImage(v || null)} options={[{ value: "", label: t("database.noCover", "Kein Titelbild") }, ...availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))]} />
           </label>
         )}
-        {currentViewType === "table" && onEnableSubItems && onSetSubItemsProperty && (() => {
-          // Sub-items (P10, Notion "Sub-items"): the switch nests rows under
-          // their parent (a self-relation). Enabling creates the parent
-          // property + reverse column when the base has none yet.
-          const selfRelationColumns = Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
-            .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf)
-            .map(([name]) => name);
-          return (
-            <>
-              <div className="base-cfg-field" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                {t("database.subItems", "Unterelemente")}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!subItemsProperty}
-                  aria-label={t("database.enableSubItems", "Unterelemente aktivieren")}
-                  className={`pv-switch${subItemsProperty ? " pv-switch-on" : ""}`}
-                  onClick={() => { if (subItemsProperty) onSetSubItemsProperty(null); else onEnableSubItems(); }}
-                >
-                  <span className="pv-switch-knob" />
-                </button>
-              </div>
-              {subItemsProperty && selfRelationColumns.length > 1 && (
-                <label className="base-cfg-field">{t("database.subItemsProperty", "Eltern-Eigenschaft")}
-                  <Select
-                    ariaLabel={t("database.subItemsProperty", "Eltern-Eigenschaft")}
-                    value={subItemsProperty}
-                    onChange={(v) => onSetSubItemsProperty(v || null)}
-                    options={selfRelationColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))}
-                  />
-                </label>
-              )}
-              <div className="base-cfg-empty">{t("database.subItemsHint", "Verschachtelt: Einträge mit Eltern-Relation erscheinen aufklappbar unter ihrem Eltern-Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.")}</div>
-            </>
-          );
-        })()}
         <label className="base-cfg-field">{t("database.dateFormat", "Datumsformat")}
           <Select
             ariaLabel={t("database.dateFormat", "Datumsformat")}
