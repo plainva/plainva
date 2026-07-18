@@ -203,7 +203,7 @@ export function StatusBar() {
           <button
             type="button"
             data-testid="statusbar-backup-error"
-            onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings"))}
+            onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "backup" } }))}
             data-tip={backupState.message || t("statusbar.backupError", { defaultValue: "Backup fehlgeschlagen" })}
             style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--error-text)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
           >

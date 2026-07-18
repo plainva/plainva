@@ -45,7 +45,7 @@ import { HeaderColorPicker } from "./HeaderColorPicker";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
-import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, BASE_VIEWER_STYLES } from "./base/baseViewerShared";
+import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, BASE_VIEWER_STYLES, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems } from "../services/baseViewState";
 import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
@@ -995,7 +995,11 @@ export function BaseViewer({
   };
 
   const setViewType = (type: string) => {
-    if (type === "board" || type === "calendar" || type === "timeline") {
+    // Every Plainva-only view type (board/calendar/timeline/graph/pinboard)
+    // serializes as `type: table` + `plainva.render`, so it must show the
+    // Obsidian-compatibility hint — not just board/calendar/timeline
+    // (maintainer 2026-07-18: the hint was missing for graph and pinboard).
+    if (EXTENDED_TYPES.includes(type)) {
       if (!extendedDbEnabled) return;
 
       let missingType = null;
@@ -1434,12 +1438,19 @@ export function BaseViewer({
     });
   };
 
-  const subItemsProperty: string | null =
-    (currentViewType === "table" && dbConfig?.views?.[activeViewIndex]?.subItemsProperty) || null;
+  // Sub-items is a database-level structure (a self-relation), not a per-view
+  // toggle (maintainer 2026-07-18): derive the parent column from the WHOLE
+  // config (any view that designates one) so the config toggle reads correctly
+  // in every view type. Only table views render the nesting.
+  const dbSubItemsParent: string | null =
+    (dbConfig?.views ?? [])
+      .map((v: any) => (typeof v?.subItemsProperty === "string" && v.subItemsProperty ? v.subItemsProperty : null))
+      .find((p: string | null): p is string => !!p) ?? null;
 
   // The switch's ON path: reuse an existing self-relation as the parent
   // property (or create `parent`, limit 1), ensure the computed reverse column
-  // exists, and set the view key — one saveConfig, like Notion's one-click setup.
+  // exists, and designate it on EVERY view — one saveConfig, like Notion's
+  // one-click setup. Database-global so any table view nests by it.
   const enableSubItems = () => {
     if (!dbConfig) return;
     // Auto-created columns keep stable, portable keys (`parent` / `subitems`)
@@ -1450,25 +1461,22 @@ export function BaseViewer({
       subItems: t("database.subItems", "Unterelemente"),
     });
     const nc = withCols;
-    const views = [...ensureViews(nc)];
-    const i = clampIdx(views);
-    views[i] = { ...views[i], subItemsProperty: parentProperty };
-    nc.views = views;
+    nc.views = ensureViews(nc).map((v: any) => ({ ...v, subItemsProperty: parentProperty }));
     saveConfig(nc);
   };
 
-  // OFF / property switch: only the view key changes — columns stay (removing
-  // them fully goes through the regular column mechanisms, see the panel hint).
+  // OFF / property switch: the view key changes on ALL views (database-global,
+  // maintainer 2026-07-18) — columns stay (removing them fully goes through the
+  // regular column mechanisms, see the panel hint).
   const setSubItemsProperty = (col: string | null) => {
     if (!dbConfig) return;
     const nc = JSON.parse(JSON.stringify(dbConfig));
-    const views = [...ensureViews(nc)];
-    const i = clampIdx(views);
-    const nv = { ...views[i] };
-    if (col) nv.subItemsProperty = col;
-    else delete nv.subItemsProperty;
-    views[i] = nv;
-    nc.views = views;
+    nc.views = ensureViews(nc).map((v: any) => {
+      const nv = { ...v };
+      if (col) nv.subItemsProperty = col;
+      else delete nv.subItemsProperty;
+      return nv;
+    });
     saveConfig(nc);
   };
 
@@ -1736,7 +1744,7 @@ export function BaseViewer({
         onPersistColumnWidth={persistColumnWidth}
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
-        subItems={subItemsProperty ? { property: subItemsProperty, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
+        subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
       />
     );
   };
@@ -1929,7 +1937,7 @@ export function BaseViewer({
             onSetDateFieldType={setDateFieldType}
             onSetEndDateField={setEndDateField}
             onSetDateFormat={setDateFormat}
-            subItemsProperty={subItemsProperty}
+            subItemsProperty={dbSubItemsParent}
             onEnableSubItems={enableSubItems}
             onSetSubItemsProperty={setSubItemsProperty}
           />
@@ -1991,6 +1999,8 @@ export function BaseViewer({
             pendingViewType === "board" ? t("database.viewBoard", "Board") :
             pendingViewType === "calendar" ? t("database.viewCalendar", "Kalender") :
             pendingViewType === "timeline" ? t("database.viewTimeline", "Zeitachse") :
+            pendingViewType === "graph" ? t("database.viewGraph", "Graph") :
+            pendingViewType === "pinboard" ? t("database.viewPinboard", "Pinnwand") :
             pendingViewType
           }
           onConfirm={() => {

@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { SlidersHorizontal, Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
-import { ALL_VIEW_TYPES, EXTENDED_TYPES, baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, BASE_VIEW_TYPES, type BaseConfigAreaId } from "@plainva/ui";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -233,6 +234,56 @@ function FilterValueEditor({
   );
 }
 
+// Localized operator words, shared by the editable row and the read-only chip
+// sentence (config redesign P4). Date columns get temporal wording.
+function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
+  return {
+    "==": t("database.opIs", "ist"),
+    "!=": t("database.opIsNot", "ist nicht"),
+    contains: t("database.opContains", "enthält"),
+    notContains: t("database.opNotContains", "enthält nicht"),
+    ">": isDate ? t("database.opAfter", "nach") : t("database.opGt", "größer als"),
+    "<": isDate ? t("database.opBefore", "vor") : t("database.opLt", "kleiner als"),
+    ">=": isDate ? t("database.opFrom", "ab") : t("database.opGte", "mindestens"),
+    "<=": isDate ? t("database.opUntil", "bis") : t("database.opLte", "höchstens"),
+    empty: t("database.opEmpty", "ist leer"),
+    notEmpty: t("database.opNotEmpty", "ist nicht leer"),
+  };
+}
+
+// Read-only chip SENTENCE of a committed filter rule (config redesign P4):
+// "[Column] [op word] [value chip]" — click to expand the editor, ✕ to remove.
+// Far more scannable than three stacked dropdowns per rule.
+function FilterChip({
+  rule,
+  cells,
+  t,
+  onEdit,
+  onRemove,
+}: {
+  rule: PropertyFilterRule;
+  cells: BaseCells;
+  t: TFunction;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const input = rule.column ? cells.getColumnInput(rule.column) : undefined;
+  const isDate = input === "date" || input === "datetime";
+  const op = filterOpLabels(t, isDate)[rule.op] ?? rule.op;
+  const showValue = rule.op !== "empty" && rule.op !== "notEmpty";
+  const valDisplay = parseWikiLinkValue(rule.value)?.display ?? rule.value;
+  return (
+    <div className="base-cfg-chiprow base-cfg-filterchip">
+      <button type="button" className="base-cfg-chipsentence" onClick={onEdit} aria-label={t("database.editFilter", "Filter bearbeiten")} title={t("database.editFilter", "Filter bearbeiten")}>
+        <span className="base-cfg-chip-col">{cells.columnLabel(rule.column)}</span>
+        <span className="base-cfg-chip-op">{op}</span>
+        {showValue && <span className="base-cfg-chip-val">{valDisplay}</span>}
+      </button>
+      <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+    </div>
+  );
+}
+
 // One editable property-filter row: [column] [operator] [typed value] [delete].
 function FilterRow({
   rule,
@@ -263,18 +314,7 @@ function FilterRow({
       input === "link" ||
       cells.isReverseColumn?.(rule.column) ||
       (input === undefined && columnValuesAreWikiLinks(filterValueRows, rule.column)));
-  const opLabels: Record<FilterOp, string> = {
-    "==": t("database.opIs", "ist"),
-    "!=": t("database.opIsNot", "ist nicht"),
-    contains: t("database.opContains", "enthält"),
-    notContains: t("database.opNotContains", "enthält nicht"),
-    ">": isDate ? t("database.opAfter", "nach") : t("database.opGt", "größer als"),
-    "<": isDate ? t("database.opBefore", "vor") : t("database.opLt", "kleiner als"),
-    ">=": isDate ? t("database.opFrom", "ab") : t("database.opGte", "mindestens"),
-    "<=": isDate ? t("database.opUntil", "bis") : t("database.opLte", "höchstens"),
-    empty: t("database.opEmpty", "ist leer"),
-    notEmpty: t("database.opNotEmpty", "ist nicht leer"),
-  };
+  const opLabels = filterOpLabels(t, isDate);
   const availableOps: FilterOp[] = isRelation
     ? ["contains", "notContains", "empty", "notEmpty"]
     : (Object.keys(opLabels) as FilterOp[]);
@@ -360,8 +400,8 @@ function SortSection({
 
   return (
     <section className="base-cfg-section">
-      <div className="base-cfg-title">{t("database.sort", "Sortierung")}</div>
-      {sortRules.length === 0 && <div className="base-cfg-empty">{t("database.noSort", "Keine Sortierung – Standardreihenfolge")}</div>}
+      <div className="base-cfg-card">
+      {sortRules.length === 0 && <div className="base-cfg-filterrow"><span className="base-cfg-empty">{t("database.noSort", "Keine Sortierung – Standardreihenfolge")}</span></div>}
       {sortRules.map((rule, i) => (
         <div
           key={i}
@@ -403,6 +443,7 @@ function SortSection({
           <button onClick={() => onSetSortRules(sortRules.filter((_, j) => j !== i))} aria-label={t("database.removeSort", "Sortierung entfernen")} title={t("database.removeSort", "Sortierung entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
         </div>
       ))}
+      </div>
       <button
         className="base-cfg-addrow"
         onClick={() => {
@@ -513,6 +554,14 @@ export function BaseConfigPanel({
 }) {
   const { t } = useTranslation();
 
+  // Config redesign 2026-07-18 (variant C): one AREA per tab instead of five
+  // stacked sections — the panel stays docked beside the live view but no
+  // longer scrolls a 30-45-control wall. `activeArea` is pure UI state.
+  const [activeArea, setActiveArea] = useState<BaseConfigAreaId>("view");
+  // Property type -> localized label, for the compact type badge on each
+  // property row (config redesign P3). Reuses the existing type option labels.
+  const typeLabelMap: Record<string, string> = Object.fromEntries(baseInputTypeOptions(t).map((o) => [o.value, o.label]));
+
   // Pointer-drag reorder of the enabled property rows — dropping rewrites the
   // active view's `order` (plan UI-UX-Paket P3).
   const colDrag = useRowDrag((from, to) => {
@@ -567,6 +616,9 @@ export function BaseConfigPanel({
   const [draftFilter, setDraftFilter] = useState<PropertyFilterRule | null>(null);
   const [draftGroup, setDraftGroup] = useState<{ logic: "all" | "any"; rule: PropertyFilterRule } | null>(null);
   const [groupDrafts, setGroupDrafts] = useState<Record<string, PropertyFilterRule>>({});
+  // Committed rules render as read-only chip sentences; clicking one expands its
+  // inline editor (config redesign P4). One rule editable at a time by key.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const groupKey = (ref: FilterEntryRef) => `${ref.list}:${ref.idx}`;
 
   // "Diese Notiz" is not a native filter (E1=B): it lands in the plainva-side
@@ -634,27 +686,151 @@ export function BaseConfigPanel({
 
   const currentDateType = dateProp && cells.getColumnInput(dateProp) === "datetime" ? "datetime" : "date";
 
+  // Context strip labels (which view is being configured) + the active area's
+  // page head (title + one-line description conveying the per-view vs.
+  // database-wide scope — the mockup treatment, like the settings menu).
+  const CtxTypeIcon = baseViewTypeMeta(currentViewType).icon;
+  const ctxTypeLabel = defaultViewName(t, currentViewType);
+  const ctxViewName = activeView?.name || ctxTypeLabel;
+  const activeAreaDef = baseConfigArea(activeArea);
+  const areaTitle = activeAreaDef ? t(activeAreaDef.labelKey) : "";
+  const areaDescKey =
+    activeArea === "view" ? "database.pageDescView"
+      : activeArea === "columns" ? "database.pageDescColumns"
+        : activeArea === "filter" ? "database.pageDescFilter"
+          : activeArea === "sort" ? "database.pageDescSort"
+            : "database.pageDescSource";
+  const areaDesc = t(areaDescKey);
+  const PageHead = (
+    <div className="base-cfg-pagehead">
+      <div className="base-cfg-pagetitle">{areaTitle}</div>
+      <div className="base-cfg-pagedesc">{areaDesc}</div>
+    </div>
+  );
+
   return (
     <aside className="base-config-panel" aria-label={t("database.configure", "Konfigurieren")}>
-      <div className="base-cfg-head">
-        <span className="base-cfg-headtitle"><SlidersHorizontal size={14} />{t("database.configure", "Konfigurieren")}</span>
+      <div className="base-cfg-ctx">
+        <span className="base-cfg-ctx-icon"><CtxTypeIcon size={15} /></span>
+        <span className="base-cfg-ctx-name">{ctxViewName}</span>
+        {activeView?.name && <span className="base-cfg-ctx-type">· {ctxTypeLabel}</span>}
+        {!activeView?.name && <span className="base-cfg-ctx-type" />}
         <button onClick={onClose} aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} className="base-cfg-close"><X size={16} /></button>
       </div>
 
-      {/* 1. Data source — at the very top (P2); its own header lives inside. */}
-      <section className="base-cfg-section">
-        <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} />
-      </section>
+      {/* Reiter: one config area at a time as an icon-only segmented control
+          (pill track, active tab lifts onto the surface; maintainer
+          2026-07-18). The active area's title lives in its own section below. */}
+      <div className="base-cfg-tabs" role="tablist" aria-label={t("database.configure", "Konfigurieren")}>
+        {BASE_CONFIG_AREAS.map((area) => {
+          const AreaIcon = area.icon;
+          const label = t(area.labelKey);
+          return (
+            <button
+              key={area.id}
+              type="button"
+              role="tab"
+              aria-selected={activeArea === area.id}
+              aria-label={label}
+              title={label}
+              className={`base-cfg-tab${activeArea === area.id ? " active" : ""}`}
+              onClick={() => setActiveArea(area.id)}
+            >
+              <AreaIcon size={15} />
+            </button>
+          );
+        })}
+      </div>
+      <div className="base-cfg-body custom-scrollbar">
+      {PageHead}
 
-      {/* 2. View — the view type WITH its view-specific options right below
+      {/* Data source — its own tab (config redesign P5), so render it always
+          open instead of behind the component's internal collapse. Sub-items
+          lives here too (maintainer 2026-07-18): it is a database-STRUCTURE
+          change (a self-relation), not a per-view display option. */}
+      {activeArea === "source" && (
+      <section className="base-cfg-section">
+        <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} alwaysExpanded />
+        {onEnableSubItems && onSetSubItemsProperty && (() => {
+          // Sub-items (P10, Notion "Sub-items"): the switch nests rows under
+          // their parent (a self-relation). Enabling creates the parent
+          // property + reverse column when the base has none yet. It is a
+          // database-STRUCTURE change (a self-relation), so the toggle lives in
+          // the data-source area and shows for every view type (maintainer
+          // 2026-07-18) — only the table view renders the nesting.
+          const selfRelationColumns = Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
+            .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf)
+            .map(([name]) => name);
+          return (
+            <div className="base-cfg-group">
+              <div className="base-cfg-grouplabel">{t("database.subItems", "Unterelemente")}</div>
+              <div className="base-cfg-card">
+                <div className="base-cfg-cardrow base-cfg-cardrow--split">
+                  <span className="base-cfg-rowlabel">{t("database.subItems", "Unterelemente")}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!subItemsProperty}
+                    aria-label={t("database.enableSubItems", "Unterelemente aktivieren")}
+                    className={`pv-switch${subItemsProperty ? " pv-switch-on" : ""}`}
+                    onClick={() => { if (subItemsProperty) onSetSubItemsProperty(null); else onEnableSubItems(); }}
+                  >
+                    <span className="pv-switch-knob" />
+                  </button>
+                </div>
+                {subItemsProperty && selfRelationColumns.length > 1 && (
+                  <div className="base-cfg-cardrow base-cfg-cardrow--split">
+                    <span className="base-cfg-rowlabel">{t("database.subItemsProperty", "Eltern-Eigenschaft")}</span>
+                    <Select
+                      ariaLabel={t("database.subItemsProperty", "Eltern-Eigenschaft")}
+                      value={subItemsProperty}
+                      onChange={(v) => onSetSubItemsProperty(v || null)}
+                      options={selfRelationColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))}
+                    />
+                  </div>
+                )}
+                <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("database.subItemsHint", "Verschachtelt: Einträge mit Eltern-Relation erscheinen aufklappbar unter ihrem Eltern-Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.")}</span></div>
+              </div>
+            </div>
+          );
+        })()}
+      </section>
+      )}
+
+      {/* View — the view type WITH its view-specific options right below
           (layout redesign, maintainer 2026-07-03): board grouping, calendar/
           timeline date fields, gallery cover, table sub-items and the date
           format live here instead of a detached "Layout" section at the end. */}
+      {activeArea === "view" && (
       <section className="base-cfg-section">
-        <div className="base-cfg-title">{t("database.sectionView", "Ansicht")}</div>
-        <label className="base-cfg-field">{t("database.viewType", "Ansichtstyp")}
-          <Select ariaLabel={t("database.viewType", "Ansichtstyp")} value={currentViewType} onChange={(v) => onSetViewType(v)} options={ALL_VIEW_TYPES.filter((ty) => extendedDbEnabled || !EXTENDED_TYPES.includes(ty)).map((ty) => ({ value: ty, label: defaultViewName(t, ty) }))} />
-        </label>
+        <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">{t("database.viewType", "Ansichtstyp")}</div>
+        <div className="base-cfg-typegrid" role="radiogroup" aria-label={t("database.viewType", "Ansichtstyp")}>
+          {BASE_VIEW_TYPES.filter((v) => extendedDbEnabled || !v.extended).map((v) => {
+            const TileIcon = v.icon;
+            const label = defaultViewName(t, v.type);
+            return (
+              <button
+                key={v.type}
+                type="button"
+                role="radio"
+                aria-checked={currentViewType === v.type}
+                aria-label={label}
+                title={label}
+                className={`base-cfg-typetile${currentViewType === v.type ? " active" : ""}`}
+                onClick={() => onSetViewType(v.type)}
+              >
+                <TileIcon size={17} />
+                <span className="base-cfg-typetile-label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+        </div>
+
+        <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">{t("database.displayOptions", "Anzeige")}</div>
+        <div className="base-cfg-card">
         {currentViewType === "board" && (
           <label className="base-cfg-field">{t("database.groupBy", "Gruppieren nach")}
             <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
@@ -718,42 +894,6 @@ export function BaseConfigPanel({
             <Select ariaLabel={t("database.coverImage", "Titelbild")} value={coverImageProperty || ""} onChange={(v) => onSetCoverImage(v || null)} options={[{ value: "", label: t("database.noCover", "Kein Titelbild") }, ...availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))]} />
           </label>
         )}
-        {currentViewType === "table" && onEnableSubItems && onSetSubItemsProperty && (() => {
-          // Sub-items (P10, Notion "Sub-items"): the switch nests rows under
-          // their parent (a self-relation). Enabling creates the parent
-          // property + reverse column when the base has none yet.
-          const selfRelationColumns = Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
-            .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf)
-            .map(([name]) => name);
-          return (
-            <>
-              <div className="base-cfg-field" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                {t("database.subItems", "Unterelemente")}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!subItemsProperty}
-                  aria-label={t("database.enableSubItems", "Unterelemente aktivieren")}
-                  className={`pv-switch${subItemsProperty ? " pv-switch-on" : ""}`}
-                  onClick={() => { if (subItemsProperty) onSetSubItemsProperty(null); else onEnableSubItems(); }}
-                >
-                  <span className="pv-switch-knob" />
-                </button>
-              </div>
-              {subItemsProperty && selfRelationColumns.length > 1 && (
-                <label className="base-cfg-field">{t("database.subItemsProperty", "Eltern-Eigenschaft")}
-                  <Select
-                    ariaLabel={t("database.subItemsProperty", "Eltern-Eigenschaft")}
-                    value={subItemsProperty}
-                    onChange={(v) => onSetSubItemsProperty(v || null)}
-                    options={selfRelationColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))}
-                  />
-                </label>
-              )}
-              <div className="base-cfg-empty">{t("database.subItemsHint", "Verschachtelt: Einträge mit Eltern-Relation erscheinen aufklappbar unter ihrem Eltern-Eintrag. Aus = flache Liste; die Eigenschaften bleiben erhalten.")}</div>
-            </>
-          );
-        })()}
         <label className="base-cfg-field">{t("database.dateFormat", "Datumsformat")}
           <Select
             ariaLabel={t("database.dateFormat", "Datumsformat")}
@@ -767,20 +907,30 @@ export function BaseConfigPanel({
             ]}
           />
         </label>
+        </div>
+        </div>
       </section>
+      )}
 
-      {/* 3. Properties (visible columns + new property) */}
+      {/* Properties — split into VISIBLE (drag-reorderable, in this view) and
+          HIDDEN (config redesign P3, clearer than one mixed checkbox list). The
+          visible/hidden state IS the per-view `order`; toggling moves a column
+          between the groups (onToggleColumn). */}
+      {activeArea === "columns" && (
       <section className="base-cfg-section">
-        <div className="base-cfg-title">{t("database.properties", "Eigenschaften")}</div>
         {(() => {
-          // One list in column order: the view's enabled columns (incl. file.*)
-          // are drag-reorderable — dropping rewrites `order` —, the not-enabled
-          // leftovers follow below without a grip (plan UI-UX-Paket P3).
           const disabled = [
             ...["file.name", "file.mtime"].filter((c) => !visibleColumns.includes(c)),
             ...availableColumns.filter((c) => !visibleColumns.includes(c)),
           ];
+          const typeLabelOf = (col: string): string | null => {
+            if (col.startsWith("file.")) return null;
+            const input = cells.getColumnInput?.(col);
+            if (!input) return null;
+            return typeLabelMap[input] ?? null;
+          };
           const renderRow = (col: string, dragIndex: number | null) => {
+            const visible = dragIndex != null;
             // Relation direction badge: "→ target" for owning relations, "← source"
             // for computed reverse columns (P8); the stem keeps the row compact.
             const schema = cells.getColumnSchema?.(col);
@@ -790,6 +940,7 @@ export function BaseConfigPanel({
               : schema?.input === "relation" && schema.relationBase
                 ? { text: `→ ${stemOf(schema.relationBase)}`, tip: t("database.badgeRelation", "Relation zu „{{base}}“", { base: schema.relationBase }) }
                 : null;
+            const typeLabel = typeLabelOf(col);
             return (
               <div
                 key={col}
@@ -797,7 +948,7 @@ export function BaseConfigPanel({
                 className={`base-cfg-colrow${dragIndex != null && colDrag.overIdx === dragIndex && colDrag.dragIdx !== null && colDrag.dragIdx !== dragIndex ? " base-cfg-row-drop" : ""}`}
                 style={{ opacity: dragIndex != null && colDrag.dragIdx === dragIndex ? 0.5 : 1 }}
               >
-                {dragIndex != null ? (
+                {visible ? (
                   <span
                     className="base-cfg-grip"
                     role="button"
@@ -810,27 +961,44 @@ export function BaseConfigPanel({
                 ) : (
                   <span style={{ width: 12, flexShrink: 0 }} aria-hidden="true" />
                 )}
-                <label className="base-cfg-check" style={{ flex: 1, minWidth: 0 }}>
-                  <input type="checkbox" className="pv-check" checked={visibleColumns.includes(col)} onChange={() => onToggleColumn(col)} />
-                  {" "}<span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{cells.columnLabel(col)}</span>
-                  {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
-                  {availableColumns.includes(col) && (
-                    <span
-                      className="base-cfg-badge"
-                      title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
-                    >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
-                  )}
-                </label>
+                <span className="base-cfg-colname">{cells.columnLabel(col)}</span>
+                {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
+                {typeLabel && <span className="base-cfg-typebadge">{typeLabel}</span>}
+                {availableColumns.includes(col) && (
+                  <span
+                    className="base-cfg-badge"
+                    title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
+                  >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
+                )}
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={12} /></button>
                 )}
+                <button
+                  onClick={() => onToggleColumn(col)}
+                  aria-label={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
+                  title={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
+                  className="base-cfg-iconbtn"
+                >
+                  {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                </button>
               </div>
             );
           };
           return (
             <>
-              {visibleColumns.map((col, i) => renderRow(col, i))}
-              {disabled.map((col) => renderRow(col, null))}
+              <div className="base-cfg-group">
+                <div className="base-cfg-grouplabel">{t("database.visibleColumns", "Sichtbar")}</div>
+                <div className="base-cfg-card">
+                  {visibleColumns.length === 0 && <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("database.noVisibleColumns", "Keine Spalte sichtbar")}</span></div>}
+                  {visibleColumns.map((col, i) => renderRow(col, i))}
+                </div>
+              </div>
+              {disabled.length > 0 && (
+                <div className="base-cfg-group">
+                  <div className="base-cfg-grouplabel">{t("database.hiddenColumns", "Ausgeblendet")}</div>
+                  <div className="base-cfg-card">{disabled.map((col) => renderRow(col, null))}</div>
+                </div>
+              )}
             </>
           );
         })()}
@@ -867,26 +1035,25 @@ export function BaseConfigPanel({
           </div>
         )}
       </section>
+      )}
 
-      {/* 4. Property filters — editable rows with an all/any toggle (P4, F3). */}
+      {/* Property filters — editable rows with an all/any toggle (P4, F3). */}
+      {activeArea === "filter" && (
       <section className="base-cfg-section">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-          <div className="base-cfg-title" style={{ margin: 0 }}>{t("database.filter", "Filter")}</div>
-          <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")}>
-            <button
-              className={filterLogic === "all" ? "active" : ""}
-              title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
-              onClick={() => setFilterLogic("all")}
-            >{t("database.filterMatchAll", "Alle")}</button>
-            <button
-              className={filterLogic === "any" ? "active" : ""}
-              title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
-              onClick={() => setFilterLogic("any")}
-            >{t("database.filterMatchAny", "Beliebige")}</button>
-          </div>
+        <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")} style={{ alignSelf: "flex-start" }}>
+          <button
+            className={filterLogic === "all" ? "active" : ""}
+            title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+            onClick={() => setFilterLogic("all")}
+          >{t("database.filterMatchAll", "Alle")}</button>
+          <button
+            className={filterLogic === "any" ? "active" : ""}
+            title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+            onClick={() => setFilterLogic("any")}
+          >{t("database.filterMatchAny", "Beliebige")}</button>
         </div>
-        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "-2px", marginBottom: "2px" }}>{t("database.filterPerViewHint", "Gilt für diese Ansicht")}</div>
-        {!filterModel.hasEntries && getContextFilters(dbConfig).length === 0 && !embedScope && !draftFilter && !draftGroup && <div className="base-cfg-empty">{t("database.noFilters", "Keine Filter aktiv")}</div>}
+        <div className="base-cfg-card">
+        {!filterModel.hasEntries && getContextFilters(dbConfig).length === 0 && !embedScope && !draftFilter && !draftGroup && <div className="base-cfg-filterchip"><span className="base-cfg-empty">{t("database.noFilters", "Keine Filter aktiv")}</span></div>}
         {filterModel.entries.map((entry) => {
           const key = `${entry.ref.list}-${entry.ref.idx}`;
           if (entry.kind === "opaque") {
@@ -906,27 +1073,42 @@ export function BaseConfigPanel({
             );
           }
           if (entry.kind === "rule") {
+            if (editingKey !== key) {
+              return (
+                <FilterChip
+                  key={key}
+                  rule={entry.rule}
+                  cells={cells}
+                  t={t}
+                  onEdit={() => setEditingKey(key)}
+                  onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
+                />
+              );
+            }
             return (
-              <FilterRow
-                key={key}
-                rule={entry.rule}
-                availableColumns={availableColumns}
-                filterValueRows={filterValueRows}
-                cells={cells}
-                t={t}
-                onChange={(rule) => {
-                  if (rule.value === SELF_MARKER && rule.column) {
-                    // Convert a per-view rule into a base-global context filter:
-                    // remove from the active view, add to the config's contextFilters.
-                    onMutateFilters((cfg) => { removeFilterEntry(viewOf(cfg), entry.ref); return addContextFilter(cfg, rule.column); });
-                    return;
-                  }
-                  if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || entry.rule.value === rule.value)) {
-                    mutateViewFilters((v) => updateTopFilterRule(v, entry.ref, serializePropertyFilter(rule)));
-                  }
-                }}
-                onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
-              />
+              <div key={key} className="base-cfg-filteredit">
+                <FilterRow
+                  rule={entry.rule}
+                  availableColumns={availableColumns}
+                  filterValueRows={filterValueRows}
+                  cells={cells}
+                  t={t}
+                  onChange={(rule) => {
+                    if (rule.value === SELF_MARKER && rule.column) {
+                      // Convert a per-view rule into a base-global context filter:
+                      // remove from the active view, add to the config's contextFilters.
+                      onMutateFilters((cfg) => { removeFilterEntry(viewOf(cfg), entry.ref); return addContextFilter(cfg, rule.column); });
+                      setEditingKey(null);
+                      return;
+                    }
+                    if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || entry.rule.value === rule.value)) {
+                      mutateViewFilters((v) => updateTopFilterRule(v, entry.ref, serializePropertyFilter(rule)));
+                    }
+                  }}
+                  onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
+                />
+                <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setEditingKey(null)}>{t("database.filterDone", "Fertig")}</button>
+              </div>
             );
           }
           // Group box: own all/any toggle, its rules, a per-group draft row.
@@ -951,34 +1133,50 @@ export function BaseConfigPanel({
                   <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("database.removeGroup", "Gruppe entfernen")} title={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
                 </div>
               </div>
-              {entry.items.map((item) =>
-                item.rule ? (
-                  <FilterRow
-                    key={item.idx}
-                    rule={item.rule}
-                    availableColumns={availableColumns}
-                    filterValueRows={filterValueRows}
-                    cells={cells}
-                    t={t}
-                    onChange={(rule) => {
-                      if (rule.value === SELF_MARKER && rule.column) {
-                        // Convert a per-view group rule into a base-global context filter.
-                        onMutateFilters((cfg) => { removeGroupRule(viewOf(cfg), entry.ref, item.idx); return addContextFilter(cfg, rule.column); });
-                        return;
-                      }
-                      if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || item.rule!.value === rule.value)) {
-                        mutateViewFilters((v) => updateGroupRule(v, entry.ref, item.idx, serializePropertyFilter(rule)));
-                      }
-                    }}
-                    onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
-                  />
+              {entry.items.map((item) => {
+                const itemKey = `${key}-${item.idx}`;
+                if (item.rule && editingKey !== itemKey) {
+                  return (
+                    <FilterChip
+                      key={item.idx}
+                      rule={item.rule}
+                      cells={cells}
+                      t={t}
+                      onEdit={() => setEditingKey(itemKey)}
+                      onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
+                    />
+                  );
+                }
+                return item.rule ? (
+                  <div key={item.idx} className="base-cfg-filteredit">
+                    <FilterRow
+                      rule={item.rule}
+                      availableColumns={availableColumns}
+                      filterValueRows={filterValueRows}
+                      cells={cells}
+                      t={t}
+                      onChange={(rule) => {
+                        if (rule.value === SELF_MARKER && rule.column) {
+                          // Convert a per-view group rule into a base-global context filter.
+                          onMutateFilters((cfg) => { removeGroupRule(viewOf(cfg), entry.ref, item.idx); return addContextFilter(cfg, rule.column); });
+                          setEditingKey(null);
+                          return;
+                        }
+                        if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || item.rule!.value === rule.value)) {
+                          mutateViewFilters((v) => updateGroupRule(v, entry.ref, item.idx, serializePropertyFilter(rule)));
+                        }
+                      }}
+                      onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
+                    />
+                    <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setEditingKey(null)}>{t("database.filterDone", "Fertig")}</button>
+                  </div>
                 ) : (
                   <div key={item.idx} className="base-cfg-chiprow">
                     <span style={{ wordBreak: "break-all" }}>{item.raw}</span>
                     <button onClick={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
                   </div>
-                )
-              )}
+                );
+              })}
               {draft && (
                 <FilterRow
                   rule={draft}
@@ -1055,6 +1253,7 @@ export function BaseConfigPanel({
             />
           </div>
         )}
+        </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {!draftFilter && (
             <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftFilter({ column: "", op: "==", value: "" })}><Plus size={12} /> {t("database.addFilter", "Filter hinzufügen")}</button>
@@ -1064,9 +1263,14 @@ export function BaseConfigPanel({
           )}
         </div>
       </section>
+      )}
 
-      {/* 5. Sort — rule rows for every view type (P9). */}
-      <SortSection sortRules={sortRules} availableColumns={availableColumns} cells={cells} t={t} onSetSortRules={onSetSortRules} />
+      {/* Sort — rule rows for every view type (P9). */}
+      {activeArea === "sort" && (
+        <SortSection sortRules={sortRules} availableColumns={availableColumns} cells={cells} t={t} onSetSortRules={onSetSortRules} />
+      )}
+
+      </div>
     </aside>
   );
 }

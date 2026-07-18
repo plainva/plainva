@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-07-17
+Última revisão: 2026-07-18
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -44,14 +44,17 @@ Um banco de dados pode ter qualquer número de visualizações; cada uma tem um 
 
 **Adicionar visualização** cria mais; **Opções da visualização** oferece **Renomear**, **Duplicar**, **Excluir** e reordenação por arrastar. O Plainva lembra qual foi a última visualização ativa por arquivo. Calendário e Linha do tempo precisam de um campo de data (**Somente data** ou **Data e hora** como **Formato**); os itens exibem os campos ativados em **Propriedades**.
 
-## Configurar: fontes, filtros, ordenação, propriedades
+## Configurar: abas para visualização, colunas, filtro, ordenação, fonte de dados
 
-O botão **Configurar** (no canto superior direito) abre o painel com quatro áreas:
+O botão **Configurar** (no canto superior direito) abre o painel **ao lado** da visualização em uso, de modo que toda alteração aparece imediatamente na tabela ou no quadro. **Abas** no topo selecionam uma área — só uma fica visível de cada vez, em vez de uma lista longa. Um pequeno indicador mostra, em cada área, se ela afeta **Esta visualização** ou **Todo o banco**:
 
-- **Fonte de dados** — as fontes de pasta e tag do banco de dados (a **Pasta raiz** também pode ser selecionada). Sem fonte = todos os arquivos.
-- **Filtro** — linhas de regra compostas por propriedade, operador e valor. Os operadores se adaptam ao tipo de campo: **é** / **não é** / **contém** / **não contém** / **está vazio** / **não está vazio**, para números **maior que** / **menor que** / **no mínimo** / **no máximo**, para datas **depois de** / **antes de** / **a partir de** / **até**. A **Lógica** no topo decide se **Todas** as condições (E) ou **Qualquer** (OU) devem ser atendidas. **Adicionar grupo** cria grupos de filtro ao estilo Notion: um bloco com sua própria lógica E/OU dentro da lógica principal. Filtros profundamente aninhados vindos do Obsidian aparecem como **Filtro complexo (não editável)** — eles são mantidos e aplicados. Os filtros são salvos **por visualização** (o painel indica **Aplica-se a esta vista**): cada visualização mantém suas próprias regras de filtro, enquanto a **Fonte de dados** (pastas/tags) permanece compartilhada em todo o banco de dados. Tudo vive no arquivo `.base`, não em um repositório separado.
+- **Visualização** — o **tipo de visualização** como um seletor de blocos com ícones (Tabela, Lista, Cartão, Quadro, Galeria, Calendário, Linha do tempo, Mural) junto com suas opções específicas do tipo: agrupamento e cor da coluna do quadro, o campo de data para calendário/linha do tempo, a imagem de capa da galeria, subitens, formato de data.
+- **Colunas** — as propriedades da visualização, divididas em **Visíveis** e **Ocultas**. Clique no olho para mostrar ou ocultar uma coluna; arraste a alça para reordenar. Cada linha mostra uma etiqueta com o tipo de campo, a engrenagem abre o editor de coluna, **Nova propriedade** adiciona uma.
+- **Filtro** — cada regra aparece como uma frase em **chip** legível (por exemplo, "O status não é Concluído"); clique para expandir o editor (propriedade, operador, valor). Os operadores se adaptam ao tipo de campo: **é** / **não é** / **contém** / **não contém** / **está vazio** / **não está vazio**, para números **maior que** / **menor que** / **no mínimo** / **no máximo**, para datas **depois de** / **antes de** / **a partir de** / **até**. A **Lógica** no topo decide se **Todas** as condições (E) ou **Qualquer** (OU) devem ser atendidas. **Adicionar grupo** cria grupos de filtro ao estilo Notion: um bloco com sua própria lógica E/OU dentro da lógica principal. Filtros profundamente aninhados vindos do Obsidian aparecem como **Filtro complexo (não editável)** — eles são mantidos e aplicados. Os filtros são salvos **por visualização**; tudo vive no arquivo `.base`, não em um repositório separado.
 - **Ordenação** — várias regras de ordenação (**Crescente**/**Decrescente**); altere a prioridade delas arrastando.
-- **Propriedades** — mostrar/ocultar colunas, arrastar para reordenar, criar uma **Nova propriedade**.
+- **Fonte de dados** — as fontes de pasta e tag do banco de dados (a **Pasta raiz** também pode ser selecionada). Sem fonte = todos os arquivos. Aplica-se a todo o banco de dados, não apenas à visualização ativa.
+
+No celular, **Configurar** abre as mesmas áreas como uma lista; tocar em uma delas entra nessa área de detalhe, e a seta de voltar sai dela.
 
 ## Propriedades e tipos de campo
 

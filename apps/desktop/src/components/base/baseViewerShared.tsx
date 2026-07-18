@@ -209,8 +209,61 @@ export const BASE_VIEWER_STYLES = `
   .base-nav-btn:hover { background: var(--state-hover); }
   .base-today-btn { padding: 4px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; font-size: var(--text-sm); }
   .base-today-btn:hover { background: var(--state-hover); }
-  .base-config-panel { flex: 0 1 360px; min-width: 280px; max-width: 460px; border-left: 1px solid var(--border-color); background: var(--bg-secondary); overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .base-config-panel { flex: 0 1 360px; min-width: 280px; max-width: 460px; border-left: 1px solid var(--border-color); background: var(--bg-secondary); display: flex; flex-direction: column; min-height: 0; }
   .base-cfg-head { display: flex; align-items: center; justify-content: space-between; }
+  /* Config redesign 2026-07-18 (variant C, reiter panel): context strip +
+     icon-only tabs at the top, one area in a scrolling body below. */
+  .base-cfg-ctx { display: flex; align-items: center; gap: 6px; padding: 0.75rem 0.9rem 0.5rem; }
+  .base-cfg-ctx-icon { color: var(--text-muted); display: flex; flex-shrink: 0; }
+  .base-cfg-ctx-name { font-weight: 600; font-size: var(--text-md); color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .base-cfg-ctx-type { font-size: var(--text-sm); color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Icon-only segmented control (maintainer 2026-07-18): a filled pill track,
+     the active tab lifts onto the surface with a soft shadow — same look as the
+     shared .pv-segmented and the mobile settings segment. One row, no wrap. */
+  .base-cfg-tabs { display: flex; gap: 2px; padding: 3px; margin: 0 0.9rem 8px; background: var(--surface-container); border-radius: var(--radius-pill); }
+  .base-cfg-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; height: calc(var(--control-md) - 6px); border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-pill); }
+  .base-cfg-tab:hover:not(.active) { background: var(--state-hover); color: var(--text-main); }
+  .base-cfg-tab.active { background: var(--surface); color: var(--accent-color); box-shadow: var(--shadow-1); }
+  .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.7rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 14px; }
+  /* Per-area page head + named group cards (mockup treatment 2026-07-18, same
+     quiet-card tokens as the settings menu). */
+  .base-cfg-pagehead { display: flex; flex-direction: column; gap: 1px; }
+  .base-cfg-pagetitle { font-size: var(--text-md); font-weight: 600; color: var(--text-main); }
+  .base-cfg-pagedesc { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
+  .base-cfg-group { display: flex; flex-direction: column; gap: 6px; }
+  .base-cfg-grouplabel { padding: 0 2px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-faint); }
+  .base-cfg-card { background: var(--surface-container-low); border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); overflow: hidden; }
+  .base-cfg-cardrow { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-cardrow:last-child { border-bottom: none; }
+  .base-cfg-cardrow--split { justify-content: space-between; }
+  .base-cfg-cardrow--field { flex-direction: column; align-items: stretch; gap: 6px; }
+  .base-cfg-rowlabel { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-main); }
+  .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 12px 2px; min-height: 62px; border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); background: var(--surface-container-low); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
+  .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
+  .base-cfg-typetile.active { border-color: var(--accent-color); background: var(--bg-hover); color: var(--accent-color); }
+  .base-cfg-typetile-label { line-height: 1.2; }
+  .base-cfg-colname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-ui); color: var(--text-main); }
+  .base-cfg-typebadge { flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 0 6px; border-radius: var(--radius-pill); }
+  .base-cfg-filterchip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filterchip:last-child { border-bottom: none; }
+  .base-cfg-chipsentence { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; text-align: left; background: transparent; border: none; padding: 0; cursor: pointer; color: var(--text-main); font-size: var(--text-sm); }
+  .base-cfg-chip-col { font-weight: 600; color: var(--text-main); }
+  .base-cfg-chip-op { color: var(--text-muted); }
+  .base-cfg-chip-val { background: var(--bg-hover); color: var(--accent-color); padding: 1px 7px; border-radius: var(--radius-pill); font-size: var(--text-xs); }
+  .base-cfg-filteredit { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filteredit:last-child { border-bottom: none; }
+  /* Option blocks + rows dropped into a card become label-left/control-right
+     card rows with hairline separators (mockup treatment). */
+  .base-cfg-card .base-cfg-field { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card .base-cfg-field:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-colrow { padding: 8px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-colrow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-chiprow { padding: 10px 14px; border-bottom: 1px solid var(--border-color-light); background: transparent; }
+  .base-cfg-card > .base-cfg-chiprow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-filterrow { padding: 8px 14px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filterrow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-filtergroup { margin: 8px; }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
   .base-cfg-close:hover { background: var(--state-hover); }

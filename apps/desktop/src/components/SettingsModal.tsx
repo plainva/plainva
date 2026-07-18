@@ -5,7 +5,6 @@ import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "@plainva/ui";
 import { mkdir } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { Cloud, Folder, Settings2, Keyboard } from "lucide-react";
 import { DEFAULT_BACKUP_RETENTION } from "@plainva/core";
 import {
   DEFAULT_ZIP_KEEP,
@@ -23,14 +22,11 @@ import { credentialManager } from "../services/CredentialManager";
 import { runDriveAuthorization } from "../services/driveAuth";
 import { runOneDriveAuthorization } from "../services/oneDriveAuth";
 import { runDropboxAuthorization } from "../services/dropboxAuth";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
-import { GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../services/docsLinks";
+import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY, firstSettingsArea, settingsArea, type SettingsWorld } from "@plainva/ui";
 import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { buildDriveTarget, buildOneDriveTarget, buildDropboxTarget, buildS3Target } from "../services/syncTargets";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { PimAccountsSection } from "./pim/PimAccountsSection";
-import { MailAccountsSection } from "./mail/MailAccountsSection";
 import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
@@ -38,66 +34,48 @@ import { scanVaultOkf } from "../services/okfConversion";
 import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
-import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getThemeDef, isModePinned } from "../services/theme";
-import { APP_LANGUAGES } from "@plainva/ui";
-import { ThemePickerCards } from "./ThemePickerCards";
-import { Select } from "./Select";
+import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName } from "../services/theme";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
 import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "../services/weekStart";
-import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type ContentFontSettings, type ContentFontFamily } from "../services/contentFont";
-import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM, MIN_UI_ZOOM, MAX_UI_ZOOM, UI_ZOOM_STEP } from "../services/uiZoom";
+import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, type ContentFontSettings } from "../services/contentFont";
+import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatDiagnosticsExport } from "@plainva/ui";
-import { syncStatusStore } from "../services/syncStatusStore";
-import { Button, IconButton } from "@plainva/ui";
+import { SettingsNav } from "./settings/SettingsNav";
+import { VaultPickerModal } from "./settings/VaultPickerModal";
+import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from "./settings/AppPages";
+import { SyncPage, type SyncProvider } from "./settings/SyncPage";
+import { PimPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 
 interface SettingsModalProps {
   onClose: () => void;
   /** Preselects a sync-provider form once (splash online-vault deep link). */
   initialProvider?: string;
+  /** Opens a specific VAULT settings page (e.g. "backup" from the status-bar
+   * backup-error chip, "pim" from the mail/calendar empty states). */
+  initialArea?: string;
 }
 
 const GENERAL = "general";
 
 const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
-const SettingRow: React.FC<{ label: string; desc?: string; children: React.ReactNode }> = ({ label, desc, children }) => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.5rem", padding: "0.9rem 0", borderBottom: "1px solid var(--border-color-light)" }}>
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-main)" }}>{label}</div>
-      {desc && <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "2px", maxWidth: "460px" }}>{desc}</div>}
-    </div>
-    <div style={{ flexShrink: 0, width: "300px", maxWidth: "46%", display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>{children}</div>
+/* Every settings page stays mounted in one grid cell (.pv-setpages), so the
+ * window is sized by the TALLEST page and never resizes between areas.
+ * Inactive pages are visibility-hidden: not clickable, not focusable, not in
+ * the a11y tree — their handlers can only fire while their area is active. */
+const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active, children }) => (
+  <div className="pv-setpage" data-active={active ? "true" : "false"}>
+    {children}
   </div>
 );
 
-// BYO marker + handbook deep link for provider forms (P3.12): rendered while
-// providerDefaults ship empty (no central app registration yet). Mirrors the
-// splash badge, plus the guide the splash cannot link.
-const ByoBadgeRow: React.FC<{ guidePage: string }> = ({ guidePage }) => {
-  const { t } = useTranslation();
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", margin: "0.5rem 0 0.25rem", flexWrap: "wrap" }}>
-      <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", border: "1px solid var(--warning-border)", whiteSpace: "nowrap" }}>
-        {t("splash.providerByoBadge")}
-      </span>
-      <a
-        href="#"
-        onClick={(e) => { e.preventDefault(); void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(userGuideUrl(guidePage))); }}
-        style={{ color: "var(--accent-color)", fontSize: "0.8rem", textDecoration: "underline" }}
-      >
-        {t("settings.byoGuideLink", { defaultValue: "Registrierungs-Anleitung öffnen" })}
-      </a>
-    </div>
-  );
-};
-
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
@@ -107,8 +85,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const vaults = Array.from(new Set([vaultPath, ...recentVaults].filter(Boolean) as string[]));
 
   const [section, setSection] = useState<string>(vaultPath || GENERAL);
-  // Which vault the VAULT areas show (two-worlds nav); the dropdown changes it.
+  // Which vault the VAULT areas show (two-worlds nav); the identity card's
+  // "switch" link changes it via the vault picker (redesign P2 — no dropdown).
   const [selectedVault, setSelectedVault] = useState<string>(vaultPath || vaults[0] || "");
+  // One PAGE per settings area (redesign P2): clicking a rail entry renders
+  // exactly that area — the scroll-spy over one long document is gone.
+  const [appPage, setAppPage] = useState<string>(firstSettingsArea("app").id);
+  const [vaultPage, setVaultPage] = useState<string>(() =>
+    initialArea && settingsArea(initialArea)?.world === "vault" ? initialArea : firstSettingsArea("vault").id
+  );
+  const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
@@ -181,7 +167,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // config panel is shown); `activeProvider` reflects what is actually saved, so
   // the UI can show the real state even after the user picks a different option
   // in the dropdown without saving/disconnecting yet.
-  type SyncProvider = "none" | "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
   const [provider, setProvider] = useState<SyncProvider>("none");
   const [activeProvider, setActiveProvider] = useState<SyncProvider>("none");
 
@@ -361,7 +346,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         } catch { /* ignore */ }
       }
       setConfiguredVaults(set);
-      
+
       const store = await getSettingsStore().catch(() => null);
       if (store) {
         const showWarn = await store.get<boolean>(SHOW_COMPATIBILITY_WARNING_KEY);
@@ -477,11 +462,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     return () => window.removeEventListener("plainva-backup-zip-status", onZipStatus);
   }, []);
 
+  // A page switch starts at the top of the fresh page.
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTop = 0;
     }
-  }, [section]);
+  }, [section, appPage, vaultPage]);
 
   // Escape/overlay-close come from <Modal> (plan Designsprache P4); its modal
   // stack lets child modals own Escape while they are open.
@@ -1104,912 +1090,257 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     }
   };
 
+  // One page per area (redesign P2): a rail click renders exactly that page.
+  // The section contract (GENERAL vs. vault path) is untouched — it still
+  // decides which WORLD the content shows and keys every persistence handler.
+  const openArea = (world: SettingsWorld, areaId: string) => {
+    if (world === "app") {
+      setSection(GENERAL);
+      setAppPage(areaId);
+    } else {
+      if (selectedVault) setSection(selectedVault);
+      setVaultPage(areaId);
+    }
+  };
 
-  // Two-worlds nav (settings redesign 2026-07-11, variant B): the left rail
-  // shows the APP areas and the VAULT areas at once; a dropdown picks WHICH
-  // vault the vault areas show. `section` still carries GENERAL vs. a vault
-  // path, so every persistence handler keeps its existing contract. Clicking
-  // an area of the other world switches the page first, then scrolls.
-  const appAnchors = [
-    { id: "sec-appearance", label: t("settings.sectionAppearance", { defaultValue: "Erscheinungsbild" }) },
-    { id: "sec-editor", label: t("settings.sectionEditor", { defaultValue: "Editor & Notizen" }) },
-    { id: "sec-behavior", label: t("settings.sectionBehavior", { defaultValue: "Start & Verhalten" }) },
-    { id: "sec-updates", label: t("settings.updates", "Updates") },
-    { id: "sec-about", label: t("settings.about") },
-  ];
-  const vaultAnchors = [
-    { id: "sec-sync", label: t("settings.syncSection", { defaultValue: "Synchronisation" }) },
-    { id: "sec-pim", label: t("settings.sectionPim", { defaultValue: "Kalender & Konten" }) },
-    { id: "sec-content", label: t("settings.sectionContent", { defaultValue: "Inhalt & Struktur" }) },
-    { id: "sec-backup", label: t("settings.backupSection") },
-    { id: "sec-maintenance", label: t("settings.sectionMaintenance", { defaultValue: "Wartung" }) },
-  ];
-  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
-  // Click wins: sections near the end can never scroll up to the spy line, so
-  // scrollIntoView alone shows no feedback there (maintainer report 2026-07-05).
-  // The click highlights its target directly and pauses the spy for the smooth
-  // scroll; any real user input on the container hands control back to the spy.
-  const spyPausedRef = useRef(false);
-  const spyResumeTimerRef = useRef<number | undefined>(undefined);
-  const jumpToAnchor = (id: string, behavior: ScrollBehavior = "smooth") => {
-    setActiveAnchor(id);
-    spyPausedRef.current = true;
-    window.clearTimeout(spyResumeTimerRef.current);
-    spyResumeTimerRef.current = window.setTimeout(() => { spyPausedRef.current = false; }, 1000);
-    contentRef.current?.querySelector(`#${id}`)?.scrollIntoView({ block: "start", behavior });
-  };
-  // Cross-world clicks land on a page that has not rendered yet — park the
-  // anchor, switch the section, jump after the new content mounted.
-  const pendingJumpRef = useRef<string | null>(null);
-  const openArea = (target: string, anchorId: string) => {
-    if (!target) return;
-    if (section === target) { jumpToAnchor(anchorId); return; }
-    pendingJumpRef.current = anchorId;
-    setSection(target);
-  };
-  useEffect(() => {
-    const id = pendingJumpRef.current;
-    if (!id) return;
-    pendingJumpRef.current = null;
-    requestAnimationFrame(() => jumpToAnchor(id, "auto"));
-  }, [section]);
-  useEffect(() => {
-    const c = contentRef.current;
-    if (!c) return;
-    const ids = (section === GENERAL ? appAnchors : vaultAnchors).map((a) => a.id);
-    const onScroll = () => {
-      if (spyPausedRef.current) return;
-      const top = c.getBoundingClientRect().top;
-      let current: string | null = ids[0] ?? null;
-      for (const id of ids) {
-        const el = c.querySelector<HTMLElement>(`#${id}`);
-        if (el && el.getBoundingClientRect().top - top <= 48) current = id;
-      }
-      setActiveAnchor(current);
-    };
-    const resumeSpy = () => {
-      window.clearTimeout(spyResumeTimerRef.current);
-      spyPausedRef.current = false;
-    };
-    resumeSpy(); // section switch: drop any pending click-pause before the initial sync
-    onScroll();
-    c.addEventListener("scroll", onScroll);
-    c.addEventListener("wheel", resumeSpy);
-    c.addEventListener("pointerdown", resumeSpy);
-    c.addEventListener("keydown", resumeSpy);
-    return () => {
-      window.clearTimeout(spyResumeTimerRef.current);
-      c.removeEventListener("scroll", onScroll);
-      c.removeEventListener("wheel", resumeSpy);
-      c.removeEventListener("pointerdown", resumeSpy);
-      c.removeEventListener("keydown", resumeSpy);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section]);
-  // One button per settings area. Both worlds stay visible; a click on an area
-  // of the inactive world switches the page first (openArea), so the rail acts
-  // as one flat map of every setting.
-  const navGroupLabel: React.CSSProperties = { padding: "0 0.4rem 0.25rem", fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" };
-  const navAreaBtn = (target: string, a: { id: string; label: string }) => {
-    const active = section === target && activeAnchor === a.id;
-    return (
-      <button
-        key={a.id}
-        onClick={() => openArea(target, a.id)}
-        className={active ? "pv-navlink is-active" : "pv-navlink"}
-      >
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
-      </button>
-    );
-  };
+  // Whether the vault the VAULT pages render for is the currently open one.
+  // Based on selectedVault (not section): while a vault page is interactive,
+  // section === selectedVault, so this equals the old section check — but the
+  // stacked (hidden) vault pages must render their full-height forms even
+  // while the APP world is visible, not the "open vault first" hints.
+  const isActiveVault = selectedVault === vaultPath;
+  const inAppWorld = section === GENERAL;
+
+  const zipStatusDesc =
+    zipStatus.state === "running"
+      ? t("settings.backupRunning")
+      : zipStatus.state === "error"
+        ? t("settings.backupError", { message: zipStatus.message ?? "" })
+        : zipLastRun
+          ? t("settings.backupLastRun", { when: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(zipLastRun)) })
+          : t("settings.backupNever");
 
   return (
     <>
       <Modal
         onClose={onClose}
         title={t("settings.title")}
-        size="xl"
+        size="lg"
+        className="pv-modal--settings"
         bodyClassName="pv-modal-body--flush"
       >
         <div style={{ display: "flex", flexDirection: "row", flex: 1, minHeight: 0 }}>
-          {/* Left navigation: two worlds — app-wide areas above, the selected vault's areas below. */}
-          <div className="custom-scrollbar" style={{ width: "220px", flexShrink: 0, borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)", padding: "0.75rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <div style={{ ...navGroupLabel, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <Settings2 size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
-              {t("settings.sectionApp", { defaultValue: "App" })}
-            </div>
-            {appAnchors.map((a) => navAreaBtn(GENERAL, a))}
+          <SettingsNav
+            world={section === GENERAL ? "app" : "vault"}
+            page={section === GENERAL ? appPage : vaultPage}
+            onOpenArea={openArea}
+            vaultName={selectedVault ? basename(selectedVault) : null}
+            vaultPath={selectedVault || null}
+            vaultIsActive={selectedVault === vaultPath}
+            vaultHasSync={configuredVaults.has(selectedVault)}
+            canSwitchVault={vaults.length > 1}
+            onSwitchVault={() => setShowVaultPicker(true)}
+            onShowShortcuts={() => setShowShortcuts(true)}
+          />
 
-            {vaults.length > 0 && (
-              <>
-                <div style={{ ...navGroupLabel, marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Folder size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
-                  {t("settings.sectionVault", { defaultValue: "Vault" })}
-                </div>
-                <div style={{ padding: "0 0.1rem 0.25rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Select
-                      ariaLabel={t("settings.vaultSelect", { defaultValue: "Vault wählen" })}
-                      value={selectedVault}
-                      onChange={(v) => {
-                        setSelectedVault(v);
-                        setSection(v);
-                      }}
-                      options={vaults.map((v) => ({ value: v, label: basename(v) }))}
-                    />
-                  </div>
-                  {configuredVaults.has(selectedVault) && <Cloud size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
-                  {selectedVault === vaultPath && <span title={t("settings.activeVault")} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-color)", flexShrink: 0 }} />}
-                </div>
-                {vaultAnchors.map((a) => navAreaBtn(selectedVault, a))}
-              </>
-            )}
-
-            <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
-              <button
-                onClick={() => setShowShortcuts(true)}
-                className="pv-navlink"
-                style={{ color: "var(--text-muted)", fontSize: "0.8rem", padding: "0.4rem" }}
-              >
-                <Keyboard size={15} style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, textAlign: "left" }}>{t("settings.showShortcuts")}</span>
-                <kbd style={{ fontSize: "0.7rem", fontFamily: "monospace", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", padding: "0 4px", color: "var(--text-faint)", flexShrink: 0 }}>F1</kbd>
-              </button>
-            </div>
-          </div>
-
-          {/* Right content */}
+          {/* Right content: all pages stacked in one grid cell — the tallest
+              page defines the (stable) window height, only the active one is
+              visible. See SettingsPage / .pv-setpages. */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <div ref={contentRef} className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "1.75rem" }}>
-              {section === GENERAL ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                  <div>
-                    <h3 id="sec-appearance" style={{ marginTop: 0, scrollMarginTop: "8px" }}>{t("settings.sectionAppearance", { defaultValue: "Erscheinungsbild" })}</h3>
-                    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-
-                      {/* Theme picker as full-width preview cards (E6). */}
-                      <div style={{ padding: "0.9rem 0", borderBottom: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", gap: "0.7rem" }}>
-                        <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-main)" }}>{t("settings.themeName", { defaultValue: "Theme" })}</div>
-                        <ThemePickerCards
-                          value={themeName}
-                          onChange={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
-                        />
-                      </div>
-
-                      <SettingRow
-                        label={t("settings.themeMode", { defaultValue: "Modus" })}
-                        desc={isModePinned(themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : undefined}
-                      >
-                        <div style={{ width: "100%" }}>
-                          {isModePinned(themeName) ? (
-                            <Select
-                              ariaLabel={t("settings.themeMode", { defaultValue: "Modus" })}
-                              value={getThemeDef(themeName)?.modes[0] ?? "dark"}
-                              onChange={() => {}}
-                              disabled
-                              options={[
-                                { value: "light", label: t("settings.themeLight") },
-                                { value: "dark", label: t("settings.themeDark") },
-                              ]}
-                            />
-                          ) : (
-                            <Select
-                              ariaLabel={t("settings.themeMode", { defaultValue: "Modus" })}
-                              value={themePref}
-                              onChange={(v) => handleThemeChange(v as ThemePref)}
-                              options={[
-                                { value: "system", label: t("settings.themeSystem") },
-                                { value: "light", label: t("settings.themeLight") },
-                                { value: "dark", label: t("settings.themeDark") },
-                              ]}
-                            />
-                          )}
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow label={t("settings.language")}>
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.language")}
-                            value={appLanguage}
-                            onChange={(v) => handleLanguageChange(v)}
-                            options={APP_LANGUAGES.map((l) => ({ value: l.code, label: l.nativeName }))}
-                          />
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow
-                        label={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
-                        desc={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
-                      >
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
-                            value={weekStart}
-                            onChange={(v) => {
-                              setWeekStart(v as WeekStartSetting);
-                              void setWeekStartSetting(v as WeekStartSetting);
-                            }}
-                            options={[
-                              { value: "monday", label: t("settings.weekStartMonday", { defaultValue: "Montag" }) },
-                              { value: "saturday", label: t("settings.weekStartSaturday", { defaultValue: "Samstag" }) },
-                              { value: "sunday", label: t("settings.weekStartSunday", { defaultValue: "Sonntag" }) },
-                            ]}
-                          />
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow
-                        label={t("settings.density", { defaultValue: "Kompaktheitsgrad" })}
-                        desc={t("settings.densityDesc", { defaultValue: "Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert." })}
-                      >
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.density", { defaultValue: "Kompaktheitsgrad" })}
-                            value={density}
-                            onChange={(v) => { setDensity(v as Density); void setStoredDensity(v as Density); }}
-                            options={[
-                              { value: "comfortable", label: t("settings.densityComfortable", { defaultValue: "Standard" }) },
-                              { value: "compact", label: t("settings.densityCompact", { defaultValue: "Kompakt" }) },
-                            ]}
-                          />
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow
-                        label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-                        desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
-                      >
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-                            value={String(uiZoom)}
-                            onChange={(v) => {
-                              const z = Number(v);
-                              setUiZoom(z);
-                              void setStoredUiZoom(z);
-                            }}
-                            options={Array.from(
-                              { length: (MAX_UI_ZOOM - MIN_UI_ZOOM) / UI_ZOOM_STEP + 1 },
-                              (_, i) => MIN_UI_ZOOM + i * UI_ZOOM_STEP
-                            ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
-                          />
-                        </div>
-                      </SettingRow>
-
-                      <h4 id="sec-editor" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionEditor", { defaultValue: "Editor & Notizen" })}</h4>
-                      <SettingRow
-                        label={t("settings.defaultViewMode", { defaultValue: "Standard-Ansicht" })}
-                        desc={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
-                      >
-                        <div style={{ width: "100%" }}>
-                          <Select
-                            ariaLabel={t("settings.defaultViewMode", { defaultValue: "Standard-Ansicht" })}
-                            value={defaultViewMode}
-                            onChange={(v) => { setDefaultViewMode(v as EditorViewMode); void setStoredDefaultViewMode(v as EditorViewMode); }}
-                            options={[
-                              { value: "read", label: t("editor.readMode") },
-                              { value: "live", label: t("editor.livePreview") },
-                              { value: "source", label: t("editor.sourceMode") },
-                            ]}
-                          />
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow
-                        label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-                        desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
-                      >
-                        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px" }}>
-                          <input
-                            type="range"
-                            min={MIN_CONTENT_FONT_SIZE}
-                            max={MAX_CONTENT_FONT_SIZE}
-                            step={1}
-                            value={contentFont.size}
-                            aria-label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-                            onChange={(e) => {
-                              const next = { ...contentFont, size: Number(e.target.value) };
-                              setContentFont(next);
-                              void setStoredContentFont(next);
-                            }}
-                            style={{ flex: 1 }}
-                          />
-                          <span style={{ minWidth: "44px", textAlign: "right", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                            {contentFont.size} px
-                          </span>
-                        </div>
-                      </SettingRow>
-
-                      <SettingRow
-                        label={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
-                        desc={t("settings.contentFontFamilyDesc", { defaultValue: "Schriftart des Notiz-Inhalts. „Theme-Standard“ folgt dem gewählten Theme." })}
-                      >
-                        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px" }}>
-                          <Select
-                            ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
-                            value={contentFont.family}
-                            onChange={(v) => {
-                              const next = { ...contentFont, family: v as ContentFontFamily };
-                              setContentFont(next);
-                              void setStoredContentFont(next);
-                            }}
-                            options={[
-                              { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
-                              { value: "serif", label: t("settings.fontSerif", { defaultValue: "Serif" }) },
-                              { value: "sans", label: t("settings.fontSans", { defaultValue: "Sans-Serif" }) },
-                              { value: "mono", label: t("settings.fontMono", { defaultValue: "Monospace" }) },
-                              { value: "custom", label: t("settings.fontCustom", { defaultValue: "Benutzerdefiniert…" }) },
-                            ]}
-                          />
-                          {contentFont.family === "custom" && (
-                            <input
-                              autoComplete="off"
-                              value={contentFont.customName}
-                              placeholder={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
-                              onChange={(e) => {
-                                const next = { ...contentFont, customName: e.target.value };
-                                setContentFont(next);
-                                void setStoredContentFont(next);
-                              }}
-                              className="pv-field" style={{ width: "100%" }}
-                            />
-                          )}
-                        </div>
-                      </SettingRow>
-
-                      <h4 id="sec-behavior" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionBehavior", { defaultValue: "Start & Verhalten" })}</h4>
-                      <SettingRow label={t("splash.autoOpenLastVault")} desc={t("settings.autoOpenLastVaultDesc")}>
-                        <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={autoOpenLastVault} onChange={(e) => { void setAutoOpenLastVault(e.target.checked); }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.showCompatWarning")}>
-                        <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={showCompatibilityWarning} onChange={async (e) => {
-                          const val = e.target.checked;
-                          setShowCompatibilityWarning(val);
+            <div ref={contentRef} className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "1.5rem 1.75rem" }}>
+              <div className="pv-setpages">
+                  <SettingsPage active={inAppWorld && appPage === "appearance"}>
+                    <AppearancePage
+                      themeName={themeName}
+                      onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
+                      themePref={themePref}
+                      onThemePref={handleThemeChange}
+                      appLanguage={appLanguage}
+                      onLanguage={(v) => { void handleLanguageChange(v); }}
+                      weekStart={weekStart}
+                      onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v); }}
+                      density={density}
+                      onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
+                      uiZoom={uiZoom}
+                      onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "editor"}>
+                    <EditorPage
+                      defaultViewMode={defaultViewMode}
+                      onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
+                      contentFont={contentFont}
+                      onContentFont={(next) => { setContentFont(next); void setStoredContentFont(next); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "behavior"}>
+                    <BehaviorPage
+                      autoOpenLastVault={autoOpenLastVault}
+                      onAutoOpenLastVault={(v) => { void setAutoOpenLastVault(v); }}
+                      showCompatibilityWarning={showCompatibilityWarning}
+                      onShowCompatibilityWarning={(val) => {
+                        setShowCompatibilityWarning(val);
+                        void (async () => {
                           const store = await getSettingsStore();
                           await store.set(SHOW_COMPATIBILITY_WARNING_KEY, val);
                           await store.save();
-                        }} />
-                      </SettingRow>
-
-                      <h4 id="sec-updates" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.updates", "Updates")}</h4>
-                      <SettingRow label={t("settings.autoUpdateCheck")} desc={t("settings.autoUpdateCheckDesc")}>
-                        <input type="checkbox" id="autoUpdateCheck" aria-label={t("settings.autoUpdateCheck")} checked={autoUpdateCheckEnabled} onChange={(e) => {
-                          const val = e.target.checked;
-                          setAutoUpdateCheckEnabled(val);
-                          void setAutoUpdateCheck(val);
-                        }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.updates", "Updates")} desc={updateStatus || undefined}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-                          <button
-                            onClick={checkForUpdates}
-                            disabled={isUpdating}
-                            className="pv-btn pv-btn--secondary" style={{ cursor: isUpdating ? "not-allowed" : "pointer" }}
-                          >
-                            {t("settings.checkUpdates", "Nach Updates suchen")}
-                          </button>
-                          {updateAvailable && !isUpdating && (
-                            <button
-                              onClick={installUpdate}
-                              className="pv-btn pv-btn--primary"
-                            >
-                              {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
-                            </button>
-                          )}
-                        </div>
-                      </SettingRow>
-
-                      <h4 id="sec-about" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.about")}</h4>
-                      <SettingRow label={t("settings.aboutVersions")} desc={aboutInfo ? `Plainva ${aboutInfo.appVersion} · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}>
-                        <Button variant="secondary" size="sm" onClick={() => { void handleExportDiagnostics(); }}>
-                          {t("settings.exportDiagnostics")}
-                        </Button>
-                      </SettingRow>
-                      <SettingRow label={t("settings.osKeychain")}>
-                        <strong style={{ color: keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "0.9rem" }}>{keychainStatus === "checking" ? t("settings.keychainChecking") : keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}</strong>
-                      </SettingRow>
-                      <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <Button variant="secondary" size="sm" onClick={() => { void refreshPerfStats(); }}>
-                            {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => { void handleExportPerfMetrics(); }}>
-                            {t("settings.perfMetricsExport", { defaultValue: "Als JSON exportieren…" })}
-                          </Button>
-                        </div>
-                      </SettingRow>
-                      {perfStats && perfStats.length > 0 && (
-                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-                            <thead>
-                              <tr>
-                                <th style={{ textAlign: "left", padding: "2px 8px 2px 0" }}>{t("settings.perfMetricPoint", { defaultValue: "Messpunkt" })}</th>
-                                <th style={{ textAlign: "right", padding: "2px 8px" }}>n</th>
-                                <th style={{ textAlign: "right", padding: "2px 8px" }}>Median</th>
-                                <th style={{ textAlign: "right", padding: "2px 8px" }}>p95</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {perfStats.map((s) => (
-                                <tr key={s.name}>
-                                  <td style={{ padding: "2px 8px 2px 0" }}>{s.name}</td>
-                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.count}</td>
-                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.medianMs} ms</td>
-                                  <td style={{ textAlign: "right", padding: "2px 8px" }}>{s.p95Ms} ms</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {perfStats && perfStats.length === 0 && (
-                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                          {t("settings.perfMetricsEmpty", { defaultValue: "Noch keine Messwerte in dieser Sitzung." })}
-                        </div>
-                      )}
-                      <SettingRow label={t("settings.reportIssue")} desc={t("settings.reportIssueDesc")}>
-                        <Button variant="secondary" size="sm" onClick={() => { void handleReportIssue(); }}>
-                          {t("settings.reportIssueAction")}
-                        </Button>
-                      </SettingRow>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <Folder size={18} color="var(--accent-color)" /> {basename(section)}
-                    {section === vaultPath && <span style={{ fontSize: "0.75rem", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs)", padding: "0 0.4rem" }}>{t("settings.activeVault")}</span>}
-                  </h3>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", wordBreak: "break-all", marginBottom: "0.5rem" }}>{section}</div>
-
-                  <h4 id="sec-sync" style={{ marginTop: 0, marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.syncSection", { defaultValue: "Synchronisation" })}</h4>
-                  <SettingRow
-                    label={t("settings.provider")}
-                    desc={`${t("settings.activeSync")}: ${
-                      activeProvider === "webdav" ? t("settings.providerWebDav")
-                      : activeProvider === "drive" ? t("settings.providerDrive")
-                      : activeProvider === "onedrive" ? t("settings.providerOneDrive")
-                      : activeProvider === "dropbox" ? t("settings.providerDropbox")
-                      : activeProvider === "s3" ? t("settings.providerS3")
-                      : t("settings.providerNone")
-                    }`}
-                  >
-                    <div style={{ width: "100%" }}>
-                      <Select
-                        ariaLabel={t("settings.provider")}
-                        value={provider}
-                        onChange={(v) => { initialProviderRef.current = null; setProvider(v as SyncProvider); setDriveError(null); setOneDriveError(null); setDropboxError(null); }}
-                        options={[
-                          { value: "none", label: t("settings.providerNone") },
-                          { value: "webdav", label: t("settings.providerWebDav") },
-                          { value: "drive", label: t("settings.providerDrive") },
-                          { value: "onedrive", label: t("settings.providerOneDrive") },
-                          { value: "dropbox", label: t("settings.providerDropbox") },
-                          { value: "s3", label: t("settings.providerS3") },
-                        ]}
-                      />
-                    </div>
-                  </SettingRow>
-                  {provider !== activeProvider && activeProvider !== "none" && (
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginTop: "0.5rem" }}>
-                      {t("settings.activeSyncHint")}
-                    </span>
-                  )}
-                  {provider !== "none" && (
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-faint)", display: "block", marginTop: "0.25rem" }}>
-                      {t("settings.providerSaveHint")}
-                    </span>
-                  )}
-
-                  {provider === "none" && (
-                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                      <span>{t("sync.none")}</span>
-                      {activeProvider !== "none" && (
-                        <button onClick={handleDisableSync} className="pv-btn pv-btn--danger-soft" style={{ alignSelf: "flex-start" }}>{t("sync.disconnect")}</button>
-                      )}
-                    </div>
-                  )}
-
-                  {provider === "webdav" && (
-                    <>
-                      <SettingRow label={t("settings.serverUrl")}>
-                        <input autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.username")}>
-                        <input autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.password")}>
-                        <input type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setShowPicker(true)} disabled={saving || !url || !user || !pass} className="pv-btn pv-btn--secondary">{t("settings.browseServer")}</button>
-                        <button onClick={handleSaveVault} disabled={saving} className="pv-btn pv-btn--primary">{t("settings.save")}</button>
-                        <button onClick={handleDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
-                      </div>
-                    </>
-                  )}
-
-                  {provider === "drive" && (
-                    <>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.75rem 0 0.25rem", lineHeight: 1.5 }}>
-                        {t("settings.driveByoDesc")}
-                      </div>
-                      <ByoBadgeRow guidePage={GDRIVE_BYO_GUIDE} />
-                      <SettingRow label={t("settings.clientId")}>
-                        <input autoComplete="off" value={driveClientId} onChange={(e) => setDriveClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.clientSecret")}>
-                        <input type="password" autoComplete="new-password" value={driveClientSecret} onChange={(e) => setDriveClientSecret(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.driveFolder")} desc={t("settings.driveFolderDesc")}>
-                        <input autoComplete="off" readOnly value={driveFolderName} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("drive")} disabled={driveSaving || !driveConnected} title={!driveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeDrive} disabled={driveSaving || !driveClientId || !driveClientSecret} className="pv-btn pv-btn--primary">{driveConnected ? t("settings.reconnectGoogle") : t("settings.connectGoogle")}</button>
-                        <button onClick={handleSaveDrive} disabled={driveSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
-                        <button onClick={handleDisconnectDrive} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
-                      </div>
-                      <span style={{ fontSize: "0.8rem", color: driveError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
-                        {driveSaving
-                          ? t("settings.driveAuthProgress")
-                          : driveError
-                            ? t("settings.error", { error: driveError })
-                            : driveConnected
-                              ? t("settings.driveConnected")
-                              : t("settings.driveAuthHint")}
-                      </span>
-                    </>
-                  )}
-
-                  {provider === "onedrive" && (
-                    <>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.75rem 0 0.25rem", lineHeight: 1.5 }}>
-                        {t("settings.oneDriveDesc")}
-                      </div>
-                      {!PLAINVA_ONEDRIVE_CLIENT_ID && <ByoBadgeRow guidePage={ONEDRIVE_DROPBOX_BYO_GUIDE} />}
-                      {!PLAINVA_ONEDRIVE_CLIENT_ID || oneDriveShowId ? (
-                        <SettingRow label={t("settings.clientId")} desc={t("settings.oneDriveClientIdDesc")}>
-                          <input autoComplete="off" value={oneDriveClientId} onChange={(e) => setOneDriveClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="pv-field" style={{ width: "100%" }} />
-                        </SettingRow>
-                      ) : (
-                        <button type="button" onClick={() => setOneDriveShowId(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
-                      )}
-                      <SettingRow label={t("settings.oneDriveFolder")} desc={t("settings.oneDriveFolderDesc")}>
-                        <input autoComplete="off" readOnly value={oneDriveFolderName} placeholder="Plainva" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("onedrive")} disabled={oneDriveSaving || !oneDriveConnected} title={!oneDriveConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeOneDrive} disabled={oneDriveSaving || !(oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID)} className="pv-btn pv-btn--primary">{oneDriveConnected ? t("settings.reconnectOneDrive") : t("settings.connectOneDrive")}</button>
-                        <button onClick={handleSaveOneDrive} disabled={oneDriveSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
-                        <button onClick={handleDisconnectOneDrive} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
-                      </div>
-                      <span style={{ fontSize: "0.8rem", color: oneDriveError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
-                        {oneDriveSaving
-                          ? t("settings.oneDriveAuthProgress")
-                          : oneDriveError
-                            ? t("settings.error", { error: oneDriveError })
-                            : oneDriveConnected
-                              ? t("settings.oneDriveConnected")
-                              : t("settings.oneDriveAuthHint")}
-                      </span>
-                    </>
-                  )}
-
-                  {provider === "dropbox" && (
-                    <>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.75rem 0 0.25rem", lineHeight: 1.5 }}>
-                        {t("settings.dropboxDesc")}
-                      </div>
-                      {!PLAINVA_DROPBOX_APP_KEY && <ByoBadgeRow guidePage={ONEDRIVE_DROPBOX_BYO_GUIDE} />}
-                      {!PLAINVA_DROPBOX_APP_KEY || dropboxShowKey ? (
-                        <SettingRow label={t("settings.appKey")} desc={t("settings.dropboxAppKeyDesc")}>
-                          <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                        </SettingRow>
-                      ) : (
-                        <button type="button" onClick={() => setDropboxShowKey(true)} className="pv-linkbtn" style={{ alignSelf: "flex-start", padding: "0.4rem 0" }}>{t("settings.useOwnAppId")}</button>
-                      )}
-                      <SettingRow label={t("settings.dropboxRootPath")} desc={t("settings.dropboxRootPathDesc")}>
-                        <input autoComplete="off" readOnly value={dropboxRootPath} placeholder="/Plainva" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("dropbox")} disabled={dropboxSaving || !dropboxConnected} title={!dropboxConnected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
-                        <button onClick={handleAuthorizeDropbox} disabled={dropboxSaving || !(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY)} className="pv-btn pv-btn--primary">{dropboxConnected ? t("settings.reconnectDropbox") : t("settings.connectDropbox")}</button>
-                        <button onClick={handleSaveDropbox} disabled={dropboxSaving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
-                        <button onClick={handleDisconnectDropbox} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
-                      </div>
-                      <span style={{ fontSize: "0.8rem", color: dropboxError ? "var(--error-text)" : "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
-                        {dropboxSaving
-                          ? t("settings.dropboxAuthProgress")
-                          : dropboxError
-                            ? t("settings.error", { error: dropboxError })
-                            : dropboxConnected
-                              ? t("settings.dropboxConnected")
-                              : t("settings.dropboxAuthHint")}
-                      </span>
-                    </>
-                  )}
-
-                  {provider === "s3" && (
-                    <>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.75rem 0 0.25rem", lineHeight: 1.5 }}>
-                        {t("settings.s3Desc")}
-                      </div>
-                      <SettingRow label={t("settings.s3Endpoint")} desc={t("settings.s3EndpointDesc")}>
-                        <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3Bucket")}>
-                        <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3Region")} desc={t("settings.s3RegionDesc")}>
-                        <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3AccessKeyId")}>
-                        <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3SecretAccessKey")}>
-                        <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3Prefix")} desc={t("settings.s3PrefixDesc")}>
-                        <input autoComplete="off" value={s3Prefix} onChange={(e) => setS3Prefix(e.target.value)} placeholder="vault" className="pv-field" style={{ width: "100%" }} />
-                      </SettingRow>
-                      <SettingRow label={t("settings.s3PathStyle")} desc={t("settings.s3PathStyleDesc")}>
-                        <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} style={{ width: "18px", height: "18px", accentColor: "var(--accent-color)" }} />
-                      </SettingRow>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                        <button onClick={() => setSyncPicker("s3")} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
-                        <button onClick={handleSaveS3} disabled={s3Saving || !s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretKey} className="pv-btn pv-btn--primary">{t("settings.save")}</button>
-                        <button onClick={handleDisconnectS3} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
-                      </div>
-                    </>
-                  )}
-
-                  {provider !== "none" && (
-                    <>
-                      <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
-                      <SettingRow label={t("settings.syncInterval")} desc={t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}>
-                        <input type="number" min={MIN_SYNC_INTERVAL_SECONDS} value={intervalSec} onChange={(e) => handleIntervalChange(e.target.value)} onBlur={normalizeIntervalDisplay} className="pv-field" style={{ flex: 1, minWidth: 0 }} />
-                      </SettingRow>
-                      {section === vaultPath && syncWorker && (
-                        <SettingRow
-                          label={t("settings.syncQueue", { defaultValue: "Ausstehende Übertragungen" })}
-                          desc={t("settings.syncQueueDesc", { defaultValue: "Zeigt, was noch zur Cloud übertragen wird (älteste zuerst)." })}
-                        >
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              void syncWorker
-                                .listPendingOperations(20)
-                                .then((snap) => setSyncQueueSnapshot(snap))
-                                .catch(() => setSyncQueueSnapshot({ total: 0, items: [] }));
-                            }}
-                          >
-                            {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
-                          </Button>
-                        </SettingRow>
-                      )}
-                      {section === vaultPath && syncQueueSnapshot && (
-                        <div style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                          {syncQueueSnapshot.total === 0
-                            ? t("settings.syncQueueEmpty", { defaultValue: "Nichts ausstehend — alles übertragen." })
-                            : (
-                              <>
-                                <div style={{ marginBottom: "0.3rem" }}>
-                                  {t("settings.syncQueueCount", { defaultValue: "{{n}} Operation(en) ausstehend:", n: syncQueueSnapshot.total })}
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
-                                  {syncQueueSnapshot.items.map((it, i) => (
-                                    <div key={`${it.file_path}-${i}`} style={{ overflowWrap: "anywhere" }}>
-                                      <span style={{ color: "var(--text-faint)" }}>{it.operation}</span>{" "}
-                                      {it.file_path}
-                                      {it.retry_count > 0 ? ` (${t("settings.syncQueueRetries", { defaultValue: "Versuch {{n}}", n: it.retry_count + 1 })})` : ""}
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            )}
-                        </div>
-                      )}
-                      {section === vaultPath && syncStatusStore.getErrorHistory().length > 0 && (
-                        <div style={{ marginTop: "0.75rem" }}>
-                          <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
-                            {[...syncStatusStore.getErrorHistory()].reverse().map((e, i) => (
-                              <div key={`${e.ts}-${i}`} style={{ fontSize: "0.76rem", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                                <span style={{ color: "var(--text-faint)" }}>{new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "medium" }).format(new Date(e.ts))}</span>{" — "}{e.message}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
-                  <h4 id="sec-pim" style={{ marginTop: 0, marginBottom: "0.4rem", scrollMarginTop: "8px" }}>{t("settings.sectionPim", { defaultValue: "Kalender & Konten" })}</h4>
-                  {section === vaultPath ? (
-                    <>
-                      <PimAccountsSection />
-                      <h5 style={{ margin: "1rem 0 0.4rem" }}>{t("mail.sectionTitle", { defaultValue: "E-Mail (IMAP, nur Lesen)" })}</h5>
-                      <MailAccountsSection />
-                    </>
-                  ) : (
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</p>
-                  )}
-
-                  <hr style={{ border: "none", borderTop: "1px solid var(--border-color-light)", margin: "1.5rem 0 0.75rem" }} />
-                  <h4 id="sec-content" style={{ marginTop: 0, marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionContent", { defaultValue: "Inhalt & Struktur" })}</h4>
-                  <h5 style={{ margin: "0.5rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.features")}</h5>
-
-                  <SettingRow label={t("settings.dailyNotesFolder")}>
-                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-                      <input autoComplete="off" value={dailyNotesFolder} onChange={(e) => { setDailyNotesFolder(e.target.value); void persistFeature(section, dailyNotesFolderKey(section), e.target.value); }} placeholder="Tagebuch/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
-                      <IconButton
-                        label={t("settings.browseFolders")}
-                        data-testid="browse-daily-folder"
-                        disabled={section !== vaultPath}
-                        onClick={() => setVaultFolderPicker("daily")}
-                      >
-                        <Folder size={14} />
-                      </IconButton>
-                    </div>
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
-                    <input autoComplete="off" value={dailyNotesFormat} onChange={(e) => { const v = e.target.value.replace(/[./\\]/g, '-'); setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.templateFolder")}>
-                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-                      <input autoComplete="off" value={templateFolder} onChange={(e) => { setTemplateFolder(e.target.value); void persistFeature(section, templateFolderKey(section), e.target.value); }} placeholder="Templates/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
-                      <IconButton
-                        label={t("settings.browseFolders")}
-                        data-testid="browse-template-folder"
-                        disabled={section !== vaultPath}
-                        onClick={() => setVaultFolderPicker("templates")}
-                      >
-                        <Folder size={14} />
-                      </IconButton>
-                    </div>
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.dailyNotesTemplate")}>
-                    {templateFiles.length > 0 ? (
-                      <Select
-                        ariaLabel={t("settings.dailyNotesTemplate")}
-                        value={templateFiles.includes(dailyNoteTemplate) ? dailyNoteTemplate : ""}
-                        onChange={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
-                        options={[{ value: "", label: "—" }, ...templateFiles.map((f) => ({ value: f, label: f }))]}
-                      />
-                    ) : (
-                      <input autoComplete="off" value={dailyNoteTemplate} onChange={(e) => { setDailyNoteTemplate(e.target.value); void persistFeature(section, dailyNoteTemplateKey(section), e.target.value); }} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
-                    )}
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")}>
-                    <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-                      {baseFiles.length > 0 ? (
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <Select
-                            ariaLabel={t("settings.taskDatabase")}
-                            value={baseFiles.some((b) => b.path === taskDatabase) ? taskDatabase : ""}
-                            onChange={(v) => { setTaskDatabase(v); void persistFeature(section, taskDatabaseKey(section), v); }}
-                            options={[{ value: "", label: "—" }, ...baseFiles.map((b) => ({ value: b.path, label: b.title }))]}
-                          />
-                        </div>
-                      ) : (
-                        <input autoComplete="off" value={taskDatabase} onChange={(e) => { setTaskDatabase(e.target.value); void persistFeature(section, taskDatabaseKey(section), e.target.value); }} placeholder="Tasks.base" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
-                      )}
-                      <button
-                        onClick={() => void handleCreateTaskDb()}
-                        disabled={section !== vaultPath || !vaultAdapter}
-                        data-testid="create-task-db"
-                        className="pv-btn pv-btn--secondary"
-                        style={{ whiteSpace: "nowrap" }}
-                      >
-                        {t("settings.taskDatabaseCreate")}
-                      </button>
-                    </div>
-                  </SettingRow>
-
-                  <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.okfHeading")}</h5>
-
-                  <SettingRow label={t("settings.defaultNoteType")} desc={t("settings.defaultNoteTypeDesc")}>
-                    <input autoComplete="off" value={defaultNoteType} onChange={(e) => { setDefaultNoteType(e.target.value); void persistFeature(section, defaultNoteTypeKey(section), e.target.value.trim() || DEFAULT_NOTE_TYPE); }} placeholder={DEFAULT_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.dailyNoteType")} desc={t("settings.dailyNoteTypeDesc")}>
-                    <input autoComplete="off" value={dailyNoteType} onChange={(e) => { setDailyNoteType(e.target.value); void persistFeature(section, dailyNoteTypeKey(section), e.target.value.trim() || DEFAULT_DAILY_NOTE_TYPE); }} placeholder={DEFAULT_DAILY_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
-                  </SettingRow>
-
-                  {section === vaultPath && (
-                    <>
-                      {okfViolations !== null && okfViolations > 0 && (
-                        <SettingRow
-                          label={t("settings.okfConversionLabel")}
-                          desc={t("settings.okfConversionDesc", { count: okfViolations })}
-                        >
-                          <button
-                            onClick={() => setShowOkfWizard(true)}
-                            className="pv-btn pv-btn--primary"
-                          >
-                            {t("settings.okfConversionButton")}
-                          </button>
-                        </SettingRow>
-                      )}
-                      <SettingRow label={t("okfInfo.settingsButton")} desc={t("okfInfo.settingsDesc")}>
-                        <button
-                          onClick={() => setShowOkfInfo(true)}
-                          className="pv-btn pv-btn--secondary"
-                        >
-                          {t("okfInfo.settingsButton")}
-                        </button>
-                      </SettingRow>
-                      <SettingRow label={t("settings.okfIndexLabel")} desc={t("settings.okfIndexDesc")}>
-                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                          <button
-                            onClick={() => setShowIndexManager(true)}
-                            className="pv-btn pv-btn--secondary"
-                          >
-                            {t("settings.okfIndexButton")}
-                          </button>
-                          <button
-                            onClick={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
-                            className="pv-btn pv-btn--secondary"
-                          >
-                            {t("indexMd.updateAllAction")}
-                          </button>
-                        </div>
-                      </SettingRow>
-                    </>
-                  )}
-
-                  <h5 style={{ margin: "1.25rem 0 0.1rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)" }}>{t("settings.extendedDatabases")}</h5>
-                  <SettingRow label={t("settings.allowExtendedDb")} desc={t("settings.allowExtendedDbDesc")}>
-                    <input type="checkbox" id="extDb" checked={extendedDatabases} onChange={(e) => { setExtendedDatabases(e.target.checked); void persistFeature(section, extendedDatabasesKey(section), e.target.checked); }} />
-                  </SettingRow>
-
-                  {/* Backup & Versionierung (Gesamtplan 2026-07-05, P7). Plain
-                      settings persist on change; retention changes reach the
-                      running adapter via plainva-backup-settings-changed. */}
-                  <h4 id="sec-backup" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.backupSection")}</h4>
-
-                  <SettingRow label={t("settings.backupZipEnabled")} desc={t("settings.backupZipEnabledDesc")}>
-                    <input
-                      type="checkbox"
-                      data-testid="backup-zip-enabled"
-                      checked={zipEnabled}
-                      onChange={(e) => { setZipEnabled(e.target.checked); void persistBackupSetting(section, backupZipEnabledKey(section), e.target.checked); }}
+                        })();
+                      }}
                     />
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.backupZipDest")} desc={zipDest || zipDefaultDest || undefined}>
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={async () => {
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "updates"}>
+                    <UpdatesPage
+                      autoUpdateCheckEnabled={autoUpdateCheckEnabled}
+                      onAutoUpdateCheck={(val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); }}
+                      updateStatus={updateStatus}
+                      updateAvailable={!!updateAvailable && !isUpdating}
+                      isUpdating={isUpdating}
+                      onCheckUpdates={() => { void checkForUpdates(); }}
+                      onInstallUpdate={() => { void installUpdate(); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "about"}>
+                    <AboutPage
+                      aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
+                      keychainStatus={keychainStatus}
+                      perfStats={perfStats}
+                      onRefreshPerfStats={() => { void refreshPerfStats(); }}
+                      onExportPerfMetrics={() => { void handleExportPerfMetrics(); }}
+                      onExportDiagnostics={() => { void handleExportDiagnostics(); }}
+                      onReportIssue={() => { void handleReportIssue(); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
+                    <SyncPage
+                      provider={provider}
+                      activeProvider={activeProvider}
+                      onProviderChange={(v) => { initialProviderRef.current = null; setProvider(v); setDriveError(null); setOneDriveError(null); setDropboxError(null); }}
+                      onDisableSync={() => { void handleDisableSync(); }}
+                      webdav={{
+                        url, setUrl, user, setUser, pass, setPass,
+                        saving,
+                        onBrowse: () => setShowPicker(true),
+                        onSave: () => { void handleSaveVault(); },
+                        onDisconnect: () => { void handleDisconnect(); },
+                      }}
+                      drive={{
+                        clientId: driveClientId, setClientId: setDriveClientId,
+                        clientSecret: driveClientSecret, setClientSecret: setDriveClientSecret,
+                        folderName: driveFolderName,
+                        connected: driveConnected,
+                        saving: driveSaving,
+                        error: driveError,
+                        onBrowse: () => setSyncPicker("drive"),
+                        onAuthorize: () => { void handleAuthorizeDrive(); },
+                        onSave: () => { void handleSaveDrive(); },
+                        onDisconnect: () => { void handleDisconnectDrive(); },
+                      }}
+                      oneDrive={{
+                        clientId: oneDriveClientId, setClientId: setOneDriveClientId,
+                        showId: oneDriveShowId, setShowId: setOneDriveShowId,
+                        folderName: oneDriveFolderName,
+                        connected: oneDriveConnected,
+                        saving: oneDriveSaving,
+                        error: oneDriveError,
+                        onBrowse: () => setSyncPicker("onedrive"),
+                        onAuthorize: () => { void handleAuthorizeOneDrive(); },
+                        onSave: () => { void handleSaveOneDrive(); },
+                        onDisconnect: () => { void handleDisconnectOneDrive(); },
+                      }}
+                      dropbox={{
+                        appKey: dropboxAppKey, setAppKey: setDropboxAppKey,
+                        showKey: dropboxShowKey, setShowKey: setDropboxShowKey,
+                        rootPath: dropboxRootPath,
+                        connected: dropboxConnected,
+                        saving: dropboxSaving,
+                        error: dropboxError,
+                        onBrowse: () => setSyncPicker("dropbox"),
+                        onAuthorize: () => { void handleAuthorizeDropbox(); },
+                        onSave: () => { void handleSaveDropbox(); },
+                        onDisconnect: () => { void handleDisconnectDropbox(); },
+                      }}
+                      s3={{
+                        endpoint: s3Endpoint, setEndpoint: setS3Endpoint,
+                        region: s3Region, setRegion: setS3Region,
+                        bucket: s3Bucket, setBucket: setS3Bucket,
+                        accessKeyId: s3AccessKeyId, setAccessKeyId: setS3AccessKeyId,
+                        secretKey: s3SecretKey, setSecretKey: setS3SecretKey,
+                        prefix: s3Prefix, setPrefix: setS3Prefix,
+                        pathStyle: s3PathStyle, setPathStyle: setS3PathStyle,
+                        saving: s3Saving,
+                        onBrowse: () => setSyncPicker("s3"),
+                        onSave: () => { void handleSaveS3(); },
+                        onDisconnect: () => { void handleDisconnectS3(); },
+                      }}
+                      intervalSec={intervalSec}
+                      onIntervalChange={handleIntervalChange}
+                      onIntervalBlur={normalizeIntervalDisplay}
+                      isActiveVault={isActiveVault}
+                      hasSyncWorker={!!syncWorker}
+                      syncQueueSnapshot={syncQueueSnapshot}
+                      onLoadQueue={() => {
+                        if (!syncWorker) return;
+                        void syncWorker
+                          .listPendingOperations(20)
+                          .then((snap) => setSyncQueueSnapshot(snap))
+                          .catch(() => setSyncQueueSnapshot({ total: 0, items: [] }));
+                      }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
+                    <PimPage isActiveVault={isActiveVault} />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "content"}>
+                    <ContentPage
+                      isActiveVault={isActiveVault}
+                      dailyNotesFolder={dailyNotesFolder}
+                      onDailyNotesFolder={(v) => { setDailyNotesFolder(v); void persistFeature(section, dailyNotesFolderKey(section), v); }}
+                      onBrowseDailyFolder={() => setVaultFolderPicker("daily")}
+                      dailyNotesFormat={dailyNotesFormat}
+                      onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
+                      templateFolder={templateFolder}
+                      onTemplateFolder={(v) => { setTemplateFolder(v); void persistFeature(section, templateFolderKey(section), v); }}
+                      onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
+                      dailyNoteTemplate={dailyNoteTemplate}
+                      onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
+                      templateFiles={templateFiles}
+                      taskDatabase={taskDatabase}
+                      onTaskDatabase={(v) => { setTaskDatabase(v); void persistFeature(section, taskDatabaseKey(section), v); }}
+                      baseFiles={baseFiles}
+                      onCreateTaskDb={() => { void handleCreateTaskDb(); }}
+                      canCreateTaskDb={isActiveVault && !!vaultAdapter}
+                      defaultNoteType={defaultNoteType}
+                      onDefaultNoteType={(v) => { setDefaultNoteType(v); void persistFeature(section, defaultNoteTypeKey(section), v.trim() || DEFAULT_NOTE_TYPE); }}
+                      dailyNoteType={dailyNoteType}
+                      onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
+                      okfViolations={okfViolations}
+                      onShowOkfWizard={() => setShowOkfWizard(true)}
+                      onShowOkfInfo={() => setShowOkfInfo(true)}
+                      onShowIndexManager={() => setShowIndexManager(true)}
+                      onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
+                      extendedDatabases={extendedDatabases}
+                      onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "backup"}>
+                    <BackupPage
+                      isActiveVault={isActiveVault}
+                      zipEnabled={zipEnabled}
+                      onZipEnabled={(v) => { setZipEnabled(v); void persistBackupSetting(section, backupZipEnabledKey(section), v); }}
+                      zipDest={zipDest}
+                      zipDefaultDest={zipDefaultDest}
+                      onChooseZipDest={() => {
+                        void (async () => {
                           const picked = await openFolderDialog({ directory: true, multiple: false, title: t("settings.backupZipChoose") }).catch(() => null);
                           if (typeof picked === "string" && picked) {
                             setZipDest(picked);
                             void persistBackupSetting(section, backupZipDestKey(section), picked);
                           }
-                        }}
-                        className="pv-btn pv-btn--secondary"
-                      >
-                        {t("settings.backupZipChoose")}
-                      </button>
-                      {zipDest && (
-                        <button
-                          onClick={() => { setZipDest(""); void persistBackupSetting(section, backupZipDestKey(section), ""); }}
-                          className="pv-btn pv-btn--secondary"
-                        >
-                          {t("settings.backupZipDefault")}
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
+                        })();
+                      }}
+                      onResetZipDest={() => { setZipDest(""); void persistBackupSetting(section, backupZipDestKey(section), ""); }}
+                      onOpenZipDest={() => {
+                        void (async () => {
                           const dir = zipDest || zipDefaultDest;
                           if (!dir) return;
                           try {
@@ -2020,158 +1351,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           } catch (e) {
                             toast.error(String(e));
                           }
-                        }}
-                        className="pv-btn pv-btn--secondary"
-                      >
-                        {t("settings.backupZipOpen")}
-                      </button>
-                    </div>
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.backupZipKeep")} desc={t("settings.backupZipKeepDesc")}>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={zipKeep}
-                      onChange={(e) => {
-                        setZipKeep(e.target.value);
-                        const n = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || DEFAULT_ZIP_KEEP));
-                        void persistBackupSetting(section, backupZipKeepKey(section), n);
+                        })();
                       }}
-                      className="pv-field" style={{ width: "90px" }}
-                    />
-                  </SettingRow>
-
-                  {section === vaultPath && (
-                    <SettingRow
-                      label={t("settings.backupNow")}
-                      desc={
-                        zipStatus.state === "running"
-                          ? t("settings.backupRunning")
-                          : zipStatus.state === "error"
-                            ? t("settings.backupError", { message: zipStatus.message ?? "" })
-                            : zipLastRun
-                              ? t("settings.backupLastRun", { when: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(zipLastRun)) })
-                              : t("settings.backupNever")
-                      }
-                    >
-                      <button
-                        data-testid="backup-now"
-                        disabled={zipStatus.state === "running"}
-                        onClick={() => window.dispatchEvent(new CustomEvent("plainva-backup-now", { detail: { vaultPath: section } }))}
-                        className="pv-btn pv-btn--primary" style={{ opacity: zipStatus.state === "running" ? 0.6 : 1 }}
-                      >
-                        {t("settings.backupNowButton")}
-                      </button>
-                    </SettingRow>
-                  )}
-
-                  <SettingRow label={t("settings.versionInterval")} desc={t("settings.versionIntervalDesc")}>
-                    <Select
-                      ariaLabel={t("settings.versionInterval")}
-                      value={snapshotIntervalSec}
-                      minWidth={180}
-                      align="right"
-                      options={[
-                        { value: "0", label: t("settings.versionIntervalEvery") },
-                        { value: "30", label: "30 s" },
-                        { value: "120", label: "2 min" },
-                        { value: "300", label: "5 min" },
-                        { value: "600", label: "10 min" },
-                      ]}
-                      onChange={(v) => { setSnapshotIntervalSec(v); void persistBackupSetting(section, backupSnapshotIntervalKey(section), parseInt(v, 10)); }}
-                    />
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.versionMaxCount")} desc={t("settings.versionMaxCountDesc")}>
-                    <input
-                      type="number"
-                      min={5}
-                      max={1000}
-                      value={versionMaxCount}
-                      onChange={(e) => {
-                        setVersionMaxCount(e.target.value);
-                        const n = Math.min(1000, Math.max(5, parseInt(e.target.value, 10) || DEFAULT_BACKUP_RETENTION.maxBackupsPerFile));
-                        void persistBackupSetting(section, backupMaxCountKey(section), n);
+                      zipKeep={zipKeep}
+                      onZipKeep={(raw) => {
+                        setZipKeep(raw);
+                        void persistBackupSetting(section, backupZipKeepKey(section), clampZipKeep(raw));
                       }}
-                      className="pv-field" style={{ width: "90px" }}
+                      zipStatusDesc={zipStatusDesc}
+                      zipRunning={zipStatus.state === "running"}
+                      onBackupNow={() => window.dispatchEvent(new CustomEvent("plainva-backup-now", { detail: { vaultPath: section } }))}
+                      snapshotIntervalSec={snapshotIntervalSec}
+                      onSnapshotInterval={(v) => { setSnapshotIntervalSec(v); void persistBackupSetting(section, backupSnapshotIntervalKey(section), parseInt(v, 10)); }}
+                      versionMaxCount={versionMaxCount}
+                      onVersionMaxCount={(raw) => {
+                        setVersionMaxCount(raw);
+                        void persistBackupSetting(section, backupMaxCountKey(section), clampVersionMaxCount(raw));
+                      }}
+                      versionMaxAgeDays={versionMaxAgeDays}
+                      onVersionMaxAge={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
                     />
-                  </SettingRow>
-
-                  <SettingRow label={t("settings.versionMaxAge")} desc={t("settings.versionMaxAgeDesc")}>
-                    <Select
-                      ariaLabel={t("settings.versionMaxAge")}
-                      value={versionMaxAgeDays}
-                      minWidth={180}
-                      align="right"
-                      options={[
-                        { value: "30", label: t("settings.versionAgeDays", { days: 30 }) },
-                        { value: "90", label: t("settings.versionAgeDays", { days: 90 }) },
-                        { value: "180", label: t("settings.versionAgeDays", { days: 180 }) },
-                        { value: "365", label: t("settings.versionAgeDays", { days: 365 }) },
-                        { value: "0", label: t("settings.versionAgeUnlimited") },
-                      ]}
-                      onChange={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
+                    <MaintenancePage
+                      isActiveVault={isActiveVault}
+                      reindexRunning={reindexRunning}
+                      onReindex={() => {
+                        setReindexRunning(true);
+                        void refreshVault()
+                          .catch((e) => console.error("[Settings] reindex failed", e))
+                          .finally(() => setReindexRunning(false));
+                      }}
+                      onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
+                      vaultStats={vaultStats}
                     />
-                  </SettingRow>
-
-                  {/* Maintenance (settings redesign 2026-07-11): repair/recovery
-                      actions and the vault's stats — everything here operates on
-                      the OPEN vault, hence the active-vault gate per row. */}
-                  <h4 id="sec-maintenance" style={{ marginTop: "1.5rem", marginBottom: "0.25rem", scrollMarginTop: "8px" }}>{t("settings.sectionMaintenance", { defaultValue: "Wartung" })}</h4>
-                  {section === vaultPath && (
-                    <>
-                      <SettingRow
-                        label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}
-                        desc={t("settings.rebuildIndexDesc", { defaultValue: "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken." })}
-                      >
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={reindexRunning}
-                          onClick={() => {
-                            setReindexRunning(true);
-                            void refreshVault()
-                              .catch((e) => console.error("[Settings] reindex failed", e))
-                              .finally(() => setReindexRunning(false));
-                          }}
-                        >
-                          {reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("settings.rebuildIndexAction", { defaultValue: "Index neu aufbauen" })}
-                        </Button>
-                      </SettingRow>
-                      <SettingRow label={t("versions.deletedTitle")} desc={t("settings.deletedFilesDesc")}>
-                        <button
-                          data-testid="settings-deleted-files"
-                          onClick={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
-                          className="pv-btn pv-btn--secondary"
-                        >
-                          {t("settings.deletedFilesButton")}
-                        </button>
-                      </SettingRow>
-                      {vaultStats && (
-                        <SettingRow
-                          label={t("settings.vaultStats", { defaultValue: "Vault-Statistik" })}
-                          desc={t("settings.vaultStatsValue", { defaultValue: "Notizen: {{notes}} · Anhänge: {{attachments}}", notes: vaultStats.notes, attachments: vaultStats.attachments })}
-                        >
-                          <span />
-                        </SettingRow>
-                      )}
-                    </>
-                  )}
-
-                  {section !== vaultPath && (
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>
-                      {t("settings.vaultNotOpenHint")}
-                    </span>
-                  )}
-                </div>
-              )}
+                  </SettingsPage>
+              </div>
             </div>
           </div>
         </div>
       </Modal>
 
+      {showVaultPicker && (
+        <VaultPickerModal
+          vaults={vaults}
+          selected={selectedVault}
+          activeVaultPath={vaultPath}
+          onSelect={(v) => {
+            setSelectedVault(v);
+            setSection(v);
+          }}
+          onClose={() => setShowVaultPicker(false)}
+        />
+      )}
       {showPicker && (
         <WebDavFolderPickerModal
           initialUrl={url}

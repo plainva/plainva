@@ -227,24 +227,24 @@ textarea {
   margin-right: 16px;
   border-top: 1px solid var(--m-outline);
 }
-/* Config sheet: tappable header for the collapsed sort/filter block. */
-.m-cfg-adv-toggle {
+/* Config sheet master-detail (config redesign P6): a back header above the
+   open area, and a right-aligned live summary on each master-list row. */
+.m-cfg-detailhead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  width: calc(100% - 32px);
-  margin: 16px 16px 4px;
-  padding: 12px 0 0;
-  border: none;
-  border-top: 1px solid var(--m-outline);
-  background: none;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.m-cfg-detailhead .m-sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+.m-cfg-summary {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-right: 4px;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
 /* ---- List items (M3 one-line list: 52px, state layer, no hard rules) ---- */
@@ -2250,4 +2250,62 @@ textarea {
   height: 36px;
   font-size: 1.4rem;
   color: var(--text-muted);
+}
+
+/* ---- More screen: arrange the tab order (settings redesign P3) ---- */
+
+/* The drag handle owns the gesture — touch-action: none keeps the page from
+   scrolling while the finger is on the grip; rows themselves keep tap+scroll. */
+.m-grip {
+  touch-action: none;
+  cursor: grab;
+  color: var(--text-muted);
+}
+.m-more-bargroup {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--m-surface-container);
+  overflow: hidden;
+  margin: 0 0 4px;
+}
+.m-row.is-dragging {
+  opacity: 0.55;
+}
+.m-row.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--m-primary);
+}
+
+/* ---- Settings master: active-vault block (redesign P4) ---- */
+
+.m-vaultblock {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--m-surface-container);
+  margin: 0 0 4px;
+}
+.m-vaultblock-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.m-vaultblock-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.m-vaultblock-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.m-vaultblock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--m-primary);
+  flex-shrink: 0;
 }

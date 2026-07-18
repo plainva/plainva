@@ -64,7 +64,6 @@ const BUDGET: Record<string, Counts> = {
   "base/propertyModel.ts": { hex: 8 },
   "components/Select.tsx": { fixedOverlay: 1 },
   "components/SelectionToolbar.tsx": { fixedOverlay: 1 },
-  "components/SettingsModal.tsx": { radiusPx: 1, rgba: 1, fixedOverlay: 1 },
   "components/TableSizePicker.tsx": { fixedOverlay: 1 },
   "components/ThemePickerCards.tsx": { radiusPx: 6, rgba: 2 },
   "components/WindowControls.tsx": { hex: 2 },

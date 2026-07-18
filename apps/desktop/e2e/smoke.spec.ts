@@ -955,6 +955,8 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   // (the sync-provider forms would have one, but no provider is configured).
   await expect(page.getByRole('button', { name: /^(Speichern|Save)$/ })).toHaveCount(0);
 
+  // The daily-notes folder lives on the Content & structure page (pages redesign).
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
   const folderInput = page.getByPlaceholder('Tagebuch/');
   await folderInput.fill('Journal');
 
@@ -963,6 +965,7 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /Schließen|Close/ }).click();
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toHaveCount(0);
   await page.keyboard.press('Control+,');
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
   await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Journal');
 
   // Clicking the overlay closes it as well.
@@ -1188,8 +1191,8 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await expect(page.locator('.markdown-reader')).toHaveCount(0);
 });
 
-test('Settings two-worlds nav: vault dropdown switches the vault; cross-world clicks change the page', async ({ page }) => {
-  // A second (not-open) vault so the dropdown has something to switch to.
+test('Settings two-worlds nav: vault card switch opens the picker; cross-world clicks change the page', async ({ page }) => {
+  // A second (not-open) vault so the picker has something to switch to.
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
     (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
@@ -1204,23 +1207,28 @@ test('Settings two-worlds nav: vault dropdown switches the vault; cross-world cl
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
 
-  // Opens on the ACTIVE vault's page: the sync area heading is there.
+  // Opens on the ACTIVE vault's sync page: the area title is the page heading.
   await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toBeVisible();
 
-  // Cross-world: clicking an APP area switches to the app page.
+  // Cross-world: clicking an APP area renders exactly that page.
   await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
   await expect(dialog.getByRole('heading', { name: /^(Erscheinungsbild|Appearance)$/ })).toBeVisible();
   await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toHaveCount(0);
 
-  // …and a VAULT area click returns to the vault page (maintenance holds the reindex row).
+  // …and a VAULT area click returns to the vault world (maintenance holds the reindex row).
   await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
   await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toBeVisible();
 
-  // The dropdown picks WHICH vault the vault areas show; a not-open vault
-  // renders the "not open" hint instead of the active-only maintenance rows.
-  await dialog.getByLabel(/Vault wählen|Choose vault/).click();
-  await page.getByRole('option', { name: 'zweiter-vault' }).click();
-  await expect(dialog.getByText('/zweiter-vault', { exact: true })).toBeVisible();
+  // The identity card is no dropdown: its "switch" link opens the vault
+  // picker; picking the not-open vault swaps the VAULT pages to it and the
+  // maintenance page shows the "not open" hint instead of the reindex row.
+  await expect(dialog.getByTestId('settings-vault-name')).toHaveText('test-vault');
+  await dialog.getByRole('button', { name: /^(Wechseln|Switch)$/ }).click();
+  const picker = page.getByRole('dialog', { name: /Vault wählen|Choose vault/ });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: /zweiter-vault/ }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(dialog.getByTestId('settings-vault-name')).toHaveText('zweiter-vault');
   await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toHaveCount(0);
 });
@@ -1237,6 +1245,8 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
+  // The folder fields live on the Content & structure page (pages redesign).
+  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
 
   // Daily-notes folder: browse → navigate into "Tagebuch" → use this folder.
   await page.getByTestId('browse-daily-folder').click();
@@ -1286,6 +1296,8 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
+  // The task-database row lives on the Content & structure page (pages redesign).
+  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
 
   await page.getByTestId('create-task-db').click();
   const dlg = page.getByRole('dialog', { name: /Neue Datenbank anlegen|Create new database/ });
@@ -1313,7 +1325,7 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   await expect(dialog.getByLabel(/Standard-Aufgabendatenbank|Standard task database/)).toContainText('Aufgaben');
 });
 
-test('Settings nav: clicking a late anchor highlights it even when it cannot scroll to the top', async ({ page }) => {
+test('Settings nav: exactly the clicked area is active; one vault shows no switch link', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
@@ -1321,17 +1333,50 @@ test('Settings nav: clicking a late anchor highlights it even when it cannot scr
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
 
-  // Two-worlds nav: the modal opens on the vault page; clicking an APP area
-  // switches the page AND scrolls. "Updates" is a late group the container
-  // cannot scroll up to the spy line, so before the click-wins fix the
-  // highlight never moved. The clicked entry must become the active one.
+  // Pages redesign: a rail click renders that page and highlights exactly its
+  // entry (no scroll spy anymore — the highlight IS the active page).
   const updates = dialog.getByRole('button', { name: /^Updates$/ });
   await updates.click();
   await expect(updates).toHaveCSS('font-weight', '600');
 
-  // Clicking another anchor hands the highlight over.
+  // Clicking another area hands the highlight over.
   const appearance = dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ });
   await appearance.click();
   await expect(appearance).toHaveCSS('font-weight', '600');
   await expect(updates).toHaveCSS('font-weight', '400');
+
+  // Single known vault: the identity card is display-only (no switch link).
+  await expect(dialog.getByTestId('settings-vault-name')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Wechseln|Switch)$/ })).toHaveCount(0);
+});
+
+test('Settings window keeps one stable height across areas (sized by the tallest page)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  // Tall enough that the max-height clamp does not mask a size jump.
+  await page.setViewportSize({ width: 1280, height: 1000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  const heightOn = async (area: RegExp) => {
+    await dialog.getByRole('button', { name: area }).click();
+    const box = await dialog.boundingBox();
+    return box ? box.height : 0;
+  };
+
+  // Tallest app page, a short app page and a vault page must all render the
+  // window at the SAME height (stacked pages — feedback round 2: no jumping).
+  const tall = await heightOn(/^(Erscheinungsbild|Appearance)$/);
+  const short = await heightOn(/^Updates$/);
+  const vault = await heightOn(/^Backup/);
+  expect(tall).toBeGreaterThan(0);
+  expect(Math.abs(tall - short)).toBeLessThanOrEqual(1);
+  expect(Math.abs(tall - vault)).toBeLessThanOrEqual(1);
+
+  // The active page's content is interactive, the stacked hidden pages not:
+  // exactly one visible area heading at a time.
+  await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
+  await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
 });

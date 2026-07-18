@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft } from "lucide-react";
-import { AVAILABLE_THEMES, clampContentFontSize, PlainvaLogo } from "@plainva/ui";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, PlainvaLogo } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
+import { mSelect } from "../services/mobileDialogs";
 import {
   getMobileSettings,
   updateMobileSettings,
@@ -56,14 +57,38 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
     ["off", t("mobile.motionOff")],
   ];
 
+  // Language sits in the appearance area (desktop parity, redesign P4).
+  const languageLabel = (code: string) =>
+    code
+      ? (APP_LANGUAGES.find((l) => l.code === code)?.nativeName ?? code)
+      : t("mobile.settingLanguageSystem");
+  const pickLanguage = () => {
+    void mSelect({
+      title: t("mobile.settingLanguage"),
+      options: [
+        { value: "", label: t("mobile.settingLanguageSystem") },
+        ...APP_LANGUAGES.map((l) => ({ value: l.code, label: l.nativeName })),
+      ],
+      value: settings.language,
+    }).then((v) => {
+      if (v !== null) update({ language: v });
+    });
+  };
+
   return (
     <div className="m-page">
       <header className="m-header">
         <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={20} />
         </button>
-        <h1>{t("mobile.settingTheme")}</h1>
+        <h1>{t("settings.sectionAppearance")}</h1>
       </header>
+
+      <button className="m-row" onClick={pickLanguage}>
+        <span>{t("mobile.settingLanguage")}</span>
+        <span className="m-prop-val">{languageLabel(settings.language)}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
 
       <p className="m-sectionlabel">{t("settings.theme")}</p>
       <div className="m-themegrid">

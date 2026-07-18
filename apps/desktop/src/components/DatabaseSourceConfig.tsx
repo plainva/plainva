@@ -9,17 +9,20 @@ import { listVaultFolders } from "../services/vaultFolders";
 interface DatabaseSourceConfigProps {
   dbConfig: any;
   onSaveConfig: (newConfig: any) => void;
+  /** In the reiter panel (config redesign P5) the source has its OWN tab, so the
+   * internal collapse is redundant — render it always open, header non-toggling. */
+  alwaysExpanded?: boolean;
 }
 
 // Data-source section of the config panel (folder/tag conditions). Property
 // filters live in their own panel section — this component only shows and edits
 // the SOURCE conditions and leaves everything else in filters.and/or untouched.
-export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbConfig, onSaveConfig }) => {
+export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbConfig, onSaveConfig, alwaysExpanded }) => {
   const { t } = useTranslation();
   const { queryService, vaultAdapter } = useVault();
 
   const [tags, setTags] = useState<string[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!!alwaysExpanded);
 
   useEffect(() => {
     if (queryService) {
@@ -83,8 +86,8 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
   return (
     <div style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", overflow: "hidden" }}>
       <div
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-secondary)", cursor: "pointer", borderBottom: isExpanded ? "1px solid var(--border-color)" : "none" }}
+        onClick={alwaysExpanded ? undefined : () => setIsExpanded(!isExpanded)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-secondary)", cursor: alwaysExpanded ? "default" : "pointer", borderBottom: isExpanded ? "1px solid var(--border-color)" : "none" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500, fontSize: "0.9rem", color: "var(--text-main)" }}>
           <Settings size={16} color="var(--accent-color)" />

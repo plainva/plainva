@@ -11,5 +11,15 @@ export { Switch, type SwitchProps } from "./Switch";
 export { MenuSurface, MenuItem, MenuSeparator, MenuLabel, type MenuSurfaceProps } from "./Menu";
 export { Modal, type ModalProps, type ModalSize } from "./Modal";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export {
+  SettingsPageHead,
+  SettingCard,
+  SettingRow,
+  SettingCardNote,
+  type SettingsPageHeadProps,
+  type SettingCardProps,
+  type SettingRowProps,
+  type SettingCardNoteProps,
+} from "./SettingsSurface";
 export { TooltipHost } from "./Tooltip";
 export { cx } from "./cx";

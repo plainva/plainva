@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   backStep,
-  DEFAULT_TAB_SLOTS,
+  BAR_TAB_COUNT,
+  barTabs,
+  DEFAULT_TAB_ORDER,
   initialNavState,
-  MAX_TAB_SLOTS,
+  moveTabId,
   navTop,
   popTop,
   pushCapturedNote,
@@ -13,29 +15,54 @@ import {
   tapTab,
 } from "./navigation";
 
-describe("sanitizeTabSlots", () => {
-  it("falls back to the default for missing/invalid input", () => {
-    expect(sanitizeTabSlots(undefined)).toEqual(DEFAULT_TAB_SLOTS);
-    expect(sanitizeTabSlots("notes")).toEqual(DEFAULT_TAB_SLOTS);
-    expect(sanitizeTabSlots([])).toEqual(DEFAULT_TAB_SLOTS);
-    expect(sanitizeTabSlots(["nope", 42])).toEqual(DEFAULT_TAB_SLOTS);
+describe("sanitizeTabSlots (full-order model, redesign P3)", () => {
+  it("falls back to the pool order for missing/invalid input", () => {
+    expect(sanitizeTabSlots(undefined)).toEqual(DEFAULT_TAB_ORDER);
+    expect(sanitizeTabSlots("notes")).toEqual(DEFAULT_TAB_ORDER);
+    expect(sanitizeTabSlots([])).toEqual(DEFAULT_TAB_ORDER);
+    expect(sanitizeTabSlots(["nope", 42])).toEqual(DEFAULT_TAB_ORDER);
   });
 
-  it("drops unknown ids and duplicates, keeps order, caps the count", () => {
-    expect(sanitizeTabSlots(["calendar", "notes", "calendar", "bogus", "tags"])).toEqual([
-      "calendar",
-      "notes",
-      "tags",
-    ]);
-    const all = TAB_POOL.map((t) => t.id);
-    expect(sanitizeTabSlots(all)).toHaveLength(MAX_TAB_SLOTS);
+  it("drops unknown ids and duplicates, keeps order, appends the missing pool ids", () => {
+    const out = sanitizeTabSlots(["calendar", "notes", "calendar", "bogus", "tags"]);
+    expect(out.slice(0, 3)).toEqual(["calendar", "notes", "tags"]);
+    expect([...out].sort()).toEqual([...TAB_POOL.map((t) => t.id)].sort());
+  });
+
+  it("keeps a legacy 4-slot value readable: its entries lead, the bar shows three", () => {
+    const out = sanitizeTabSlots(["notes", "today", "tags", "bookmarks"]);
+    expect(out.slice(0, 4)).toEqual(["notes", "today", "tags", "bookmarks"]);
+    expect(out).toHaveLength(TAB_POOL.length);
+    expect(barTabs(out)).toEqual(["notes", "today", "tags"]);
+    expect(barTabs(out)).toHaveLength(BAR_TAB_COUNT);
   });
 
   it("returns a fresh array (callers mutate for reordering)", () => {
     const a = sanitizeTabSlots(undefined);
     const b = sanitizeTabSlots(undefined);
     expect(a).not.toBe(b);
-    expect(a).not.toBe(DEFAULT_TAB_SLOTS);
+    expect(a).not.toBe(DEFAULT_TAB_ORDER);
+  });
+});
+
+describe("moveTabId (drag-handle reorder)", () => {
+  it("moves an id to the target index; membership follows from position", () => {
+    const order = sanitizeTabSlots(undefined);
+    // Drag "calendar" (index 4) to the top -> it enters the bar.
+    const up = moveTabId(order, "calendar", 0);
+    expect(up[0]).toBe("calendar");
+    expect(barTabs(up)).toContain("calendar");
+    // Drag "notes" below the bar -> it leaves the bar.
+    const down = moveTabId(order, "notes", 5);
+    expect(barTabs(down)).not.toContain("notes");
+    expect(down).toHaveLength(order.length);
+  });
+
+  it("clamps the target and ignores unknown ids", () => {
+    const order = sanitizeTabSlots(undefined);
+    const clamped = moveTabId(order, "notes", 99);
+    expect(clamped[clamped.length - 1]).toBe("notes");
+    expect(moveTabId(order, "nope" as never, 0)).toEqual(order);
   });
 });
 
