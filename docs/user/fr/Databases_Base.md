@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-07-17
+Dernière mise à jour : 2026-07-18
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -44,14 +44,17 @@ Une base de données peut avoir un nombre quelconque de vues ; chacune a un **Ty
 
 **Ajouter une vue** en crée de nouvelles ; **Options de la vue** propose **Renommer**, **Dupliquer**, **Supprimer** et le réordonnancement par glisser-déposer. Plainva se souvient de la dernière vue active par fichier. Le calendrier et la chronologie ont besoin d'un champ de date (**Date seule** ou **Date & heure** comme **Format**) ; les entrées affichent les champs activés sous **Propriétés**.
 
-## Configurer : sources, filtres, tri, propriétés
+## Configurer : onglets pour la vue, les colonnes, le filtre, le tri, la source de données
 
-Le bouton **Configurer** (en haut à droite) ouvre le panneau avec quatre zones :
+Le bouton **Configurer** (en haut à droite) ouvre le panneau **à côté** de la vue en cours, de sorte que chaque changement s'affiche immédiatement dans le tableau ou le kanban. Des **onglets** en haut permettent de choisir une zone — une seule est affichée à la fois, plutôt qu'une longue liste. Un petit repère indique, pour chaque zone, si elle affecte **Cette vue** ou la **Base entière** :
 
-- **Source de données** — les sources de dossiers et de tags de la base de données (le **Dossier racine** peut aussi être sélectionné). Aucune source = tous les fichiers.
-- **Filtre** — des lignes de règles composées de propriété, opérateur et valeur. Les opérateurs s'adaptent au type de champ : **est** / **n'est pas** / **contient** / **ne contient pas** / **est vide** / **n'est pas vide**, pour les nombres **supérieur à** / **inférieur à** / **au moins** / **au plus**, pour les dates **après** / **avant** / **à partir de** / **jusqu'à**. La **Logique** en haut décide si **Toutes** les conditions (ET) ou **Au moins une** (OU) doivent correspondre. **Ajouter un groupe** construit des groupes de filtres à la Notion : un encadré avec sa propre logique ET/OU à l'intérieur de la logique principale. Les filtres profondément imbriqués provenant d'Obsidian apparaissent comme **Filtre complexe (non modifiable)** — ils sont conservés et appliqués. Les filtres sont enregistrés **par vue** (le panneau indique **S'applique à cette vue**) : chaque vue conserve ses propres règles de filtre, tandis que la **Source de données** (dossiers/tags) reste partagée pour toute la base de données. Tout vit dans le fichier `.base`, pas dans un stockage séparé.
+- **Vue** — le **type de vue** sous forme de sélecteur de vignettes avec icônes (Tableau, Liste, Carte, Kanban, Galerie, Calendrier, Chronologie, Tableau d'affichage), avec ses options spécifiques au type : regroupement et couleur de colonne pour le kanban, champ de date pour le calendrier/la chronologie, image de couverture de la galerie, sous-éléments, format de date.
+- **Colonnes** — les propriétés de la vue, réparties en **Visibles** et **Masquées**. Cliquez sur l'œil pour afficher ou masquer une colonne ; faites glisser la poignée pour réordonner. Chaque ligne affiche un badge de type de champ, la roue crantée ouvre l'éditeur de colonne, **Nouvelle propriété** en ajoute une.
+- **Filtre** — chaque règle s'affiche comme une **puce** lisible (par ex. « Statut n'est pas Terminé ») ; cliquez dessus pour déployer l'éditeur (propriété, opérateur, valeur). Les opérateurs s'adaptent au type de champ : **est** / **n'est pas** / **contient** / **ne contient pas** / **est vide** / **n'est pas vide**, pour les nombres **supérieur à** / **inférieur à** / **au moins** / **au plus**, pour les dates **après** / **avant** / **à partir de** / **jusqu'à**. La **Logique** en haut décide si **Toutes** les conditions (ET) ou **Au moins une** (OU) doivent correspondre. **Ajouter un groupe** construit des groupes de filtres à la Notion : un encadré avec sa propre logique ET/OU à l'intérieur de la logique principale. Les filtres profondément imbriqués provenant d'Obsidian apparaissent comme **Filtre complexe (non modifiable)** — ils sont conservés et appliqués. Les filtres sont enregistrés **par vue** ; tout vit dans le fichier `.base`, pas dans un stockage séparé.
 - **Tri** — plusieurs règles de tri (**Croissant**/**Décroissant**) ; changez leur priorité en les faisant glisser.
-- **Propriétés** — afficher/masquer des colonnes, réordonner par glisser-déposer, créer une **Nouvelle propriété**.
+- **Source de données** — les sources de dossiers et de tags de la base de données (le **Dossier racine** peut aussi être sélectionné). Aucune source = tous les fichiers. S'applique à toute la base de données, pas uniquement à la vue active.
+
+Sur le téléphone, **Configurer** ouvre les mêmes zones sous forme de liste ; toucher l'une d'elles ouvre la zone de détail correspondante, et la flèche retour permet d'en sortir.
 
 ## Propriétés et types de champ
 

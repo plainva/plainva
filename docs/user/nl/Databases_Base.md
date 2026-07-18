@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-07-17
+Laatst bijgewerkt: 2026-07-18
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -44,14 +44,17 @@ Een database kan willekeurig veel weergaven hebben; elke heeft een **Weergavetyp
 
 **Weergave toevoegen** maakt nieuwe aan; via **Weergaveopties** kun je **Hernoemen**, **Dupliceren**, **Verwijderen** en de volgorde per sleep wijzigen. Welke weergave het laatst actief was, onthoudt Plainva per bestand. Kalender en Tijdlijn hebben een datumveld nodig (**Alleen datum** of **Datum & tijd** als **Formaat**); items tonen de velden die zijn ingeschakeld onder **Eigenschappen**.
 
-## Configureren: bronnen, filters, sortering, eigenschappen
+## Configureren: tabbladen voor weergave, kolommen, filter, sortering, gegevensbron
 
-De knop **Configureren** (rechtsboven) opent het paneel met vier gebieden:
+De knop **Configureren** (rechtsboven) opent het paneel **naast** de actieve weergave, zodat elke wijziging meteen zichtbaar wordt in de tabel of het bord. **Tabbladen** bovenaan kiezen één gebied — er wordt er telkens maar één getoond, in plaats van een lange lijst. Een klein merkteken laat per gebied zien of het **Deze weergave** of de **Hele database** betreft:
 
-- **Gegevensbron** — de map- en tagbronnen van de database (ook het **Hoofdmap** is kiesbaar). Geen bron = alle bestanden.
-- **Filter** — regelrijen bestaande uit eigenschap, operator en waarde. De operatoren passen zich aan het veldtype aan: **is** / **is niet** / **bevat** / **bevat niet** / **is leeg** / **is niet leeg**, voor getallen **groter dan** / **kleiner dan** / **minstens** / **hoogstens**, voor datumvelden **na** / **voor** / **vanaf** / **tot**. De **Logica** bovenaan bepaalt of **Alle** voorwaarden (EN) of **Minstens één** (OF) moeten kloppen. Met **Groep toevoegen** bouw je Notion-achtige filtergroepen: een kader met eigen EN/OF-logica binnen de hoofdlogica. Sterk geneste filters uit Obsidian toont Plainva als **Complex filter (niet bewerkbaar)** — ze blijven behouden en worden toegepast. Filters worden **per weergave** opgeslagen (het paneel vermeldt **Geldt voor deze weergave**): elke weergave houdt eigen filterregels bij, terwijl de **Gegevensbron** (mappen/tags) voor de hele database gedeeld blijft. Alles staat in het `.base`-bestand, niet in een aparte opslag.
+- **Weergave** — het **weergavetype** als een icoontegel-kiezer (Tabel, Lijst, Kaart, Bord, Galerij, Kalender, Tijdlijn, Prikbord) samen met de typegebonden opties: bordgroepering en kolomkleur, het datumveld voor kalender/tijdlijn, de omslagafbeelding van de galerij, subitems, datumformaat.
+- **Kolommen** — de eigenschappen van de weergave, opgesplitst in **Zichtbaar** en **Verborgen**. Klik op het oog om een kolom te tonen of te verbergen; sleep aan de greep om de volgorde te wijzigen. Elke rij toont een veldtype-badge, het tandwiel opent de kolomeditor, **Nieuwe eigenschap** voegt er een toe.
+- **Filter** — elke regel verschijnt als een leesbare **chip-zin** (bijv. "Status is niet Klaar"); klik erop om de editor uit te klappen (eigenschap, operator, waarde). De operatoren passen zich aan het veldtype aan: **is** / **is niet** / **bevat** / **bevat niet** / **is leeg** / **is niet leeg**, voor getallen **groter dan** / **kleiner dan** / **minstens** / **hoogstens**, voor datums **na** / **voor** / **vanaf** / **tot**. De **Logica** bovenaan bepaalt of **Alle** voorwaarden (EN) of **Minstens één** (OF) moeten kloppen. Met **Groep toevoegen** bouw je Notion-achtige filtergroepen: een kader met eigen EN/OF-logica binnen de hoofdlogica. Sterk geneste filters uit Obsidian toont Plainva als **Complex filter (niet bewerkbaar)** — ze blijven behouden en worden toegepast. Filters worden **per weergave** opgeslagen; alles staat in het `.base`-bestand, niet in een aparte opslag.
 - **Sortering** — meerdere sorteerregels (**Oplopend**/**Aflopend**); de prioriteit wijzig je door slepen.
-- **Eigenschappen** — kolommen tonen/verbergen, de volgorde per sleep wijzigen, een **Nieuwe eigenschap** aanmaken.
+- **Gegevensbron** — de map- en tagbronnen van de database (ook de **Hoofdmap** is kiesbaar). Geen bron = alle bestanden. Geldt voor de hele database, niet alleen de actieve weergave.
+
+Op de telefoon opent **Configureren** dezelfde gebieden als een lijst; tikken op één ervan opent het bijbehorende detailgebied, en de terugpijl sluit het weer.
 
 ## Eigenschappen en veldtypen
 

@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-07-17
+Ultimo aggiornamento: 2026-07-18
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -44,14 +44,17 @@ Un database può avere un numero qualsiasi di viste; ognuna ha un **Tipo di vist
 
 **Aggiungi vista** ne crea altre; **Opzioni della vista** offre **Rinomina**, **Duplica**, **Elimina** e riordino trascinando. Plainva ricorda l'ultima vista attiva per file. Calendario e Cronologia richiedono un campo data (**Solo data** o **Data e ora** come **Formato**); le voci mostrano i campi abilitati sotto **Proprietà**.
 
-## Configura: origini, filtri, ordinamento, proprietà
+## Configura: schede per vista, colonne, filtro, ordinamento, origine dati
 
-Il pulsante **Configura** (in alto a destra) apre il pannello con quattro aree:
+Il pulsante **Configura** (in alto a destra) apre il pannello **accanto** alla vista attiva, così ogni modifica compare subito nella tabella o nella bacheca. In alto, delle **schede** permettono di scegliere un'area — ne viene mostrata solo una alla volta, invece di un lungo elenco. Un piccolo indicatore mostra, per ogni area, se riguarda **Questa vista** o l'**Intero database**:
 
-- **Origine dati** — le origini a cartella e tag del database (si può selezionare anche la **Cartella radice**). Nessuna origine = tutti i file.
-- **Filtro** — righe di regole composte da proprietà, operatore e valore. Gli operatori si adattano al tipo di campo: **è** / **non è** / **contiene** / **non contiene** / **è vuoto** / **non è vuoto**, per i numeri **maggiore di** / **minore di** / **almeno** / **al massimo**, per le date **dopo** / **prima di** / **da** / **fino a**. La **Logica** in alto decide se devono corrispondere **Tutte** le condizioni (E) o **Almeno una** (O). **Aggiungi gruppo** costruisce gruppi di filtri in stile Notion: un riquadro con una propria logica E/O all'interno della logica principale. I filtri profondamente annidati provenienti da Obsidian appaiono come **Filtro complesso (non modificabile)** — vengono mantenuti e applicati. I filtri vengono salvati **per vista** (il pannello indica **Si applica a questa vista**): ogni vista mantiene le proprie regole di filtro, mentre l'**Origine dati** (cartelle/tag) resta condivisa in tutto il database. Tutto vive nel file `.base`, non in un archivio separato.
+- **Vista** — il **tipo di vista** come selettore a icone (Tabella, Elenco, Scheda, Bacheca, Galleria, Calendario, Cronologia, Bacheca appunti) insieme alle sue opzioni specifiche per tipo: raggruppamento e colore delle colonne per la bacheca, il campo data per calendario/cronologia, l'immagine di copertina della galleria, i sottoelementi, il formato data.
+- **Colonne** — le proprietà della vista, suddivise in **Visibili** e **Nascoste**. Clicca sull'occhio per mostrare o nascondere una colonna; trascina la maniglia per riordinare. Ogni riga mostra un'etichetta con il tipo di campo, l'ingranaggio apre l'editor della colonna, **Nuova proprietà** ne aggiunge una.
+- **Filtro** — ogni regola compare come una frase a **chip** leggibile (ad es. "Lo stato non è Completato"); cliccandoci si espande l'editor (proprietà, operatore, valore). Gli operatori si adattano al tipo di campo: **è** / **non è** / **contiene** / **non contiene** / **è vuoto** / **non è vuoto**, per i numeri **maggiore di** / **minore di** / **almeno** / **al massimo**, per le date **dopo** / **prima di** / **da** / **fino a**. La **Logica** in alto decide se devono corrispondere **Tutte** le condizioni (E) o **Almeno una** (O). **Aggiungi gruppo** crea gruppi di filtri in stile Notion: un riquadro con una propria logica E/O all'interno della logica principale. I filtri profondamente annidati provenienti da Obsidian appaiono come **Filtro complesso (non modificabile)** — vengono mantenuti e applicati. I filtri vengono salvati **per vista**; tutto vive nel file `.base`, non in un archivio separato.
 - **Ordina** — più regole di ordinamento (**Crescente**/**Decrescente**); cambia la loro priorità trascinandole.
-- **Proprietà** — mostra/nascondi colonne, trascina per riordinare, crea una **Nuova proprietà**.
+- **Origine dati** — le origini a cartella e tag del database (si può selezionare anche la **Cartella radice**). Nessuna origine = tutti i file. Si applica all'intero database, non solo alla vista attiva.
+
+Sul telefono, **Configura** apre le stesse aree come un elenco; toccarne una apre l'area di dettaglio corrispondente, e la freccia indietro ne esce.
 
 ## Proprietà e tipi di campo
 

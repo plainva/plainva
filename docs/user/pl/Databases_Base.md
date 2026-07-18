@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-07-17
+Stan na: 2026-07-18
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -44,14 +44,17 @@ Baza danych może mieć dowolną liczbę widoków; każdy ma **typ widoku**:
 
 **Dodaj widok** tworzy kolejne; **Opcje widoku** oferują **Zmień nazwę**, **Duplikuj**, **Usuń** oraz zmianę kolejności przez przeciąganie. Plainva zapamiętuje ostatnio aktywny widok dla każdego pliku. Kalendarz i Oś czasu wymagają pola daty (**Tylko data** lub **Data i godzina** jako **Format**); wpisy pokazują pola włączone w **Właściwościach**.
 
-## Konfiguracja: źródła, filtry, sortowanie, właściwości
+## Konfiguracja: karty dla widoku, kolumn, filtra, sortowania, źródła danych
 
-Przycisk **Konfiguruj** (w prawym górnym rogu) otwiera panel z czterema obszarami:
+Przycisk **Konfiguruj** (w prawym górnym rogu) otwiera panel **obok** aktywnego widoku, dzięki czemu każda zmiana od razu widać w tabeli lub na tablicy. **Karty** u góry pozwalają wybrać jeden obszar — zawsze widoczny jest tylko jeden, zamiast długiej listy. Mały znacznik pokazuje przy każdym obszarze, czy jest to **Ten widok**, czy **Cała baza**:
 
-- **Źródło danych** — źródła folderów i tagów bazy danych (można też wybrać **folder główny**). Brak źródła = wszystkie pliki.
-- **Filtr** — wiersze reguł złożone z właściwości, operatora i wartości. Operatory dostosowują się do typu pola: **jest** / **nie jest** / **zawiera** / **nie zawiera** / **jest puste** / **nie jest puste**, dla liczb **większe niż** / **mniejsze niż** / **co najmniej** / **co najwyżej**, dla dat **po** / **przed** / **od** / **do**. **Logika** na górze decyduje, czy muszą pasować **wszystkie** warunki (AND), czy **dowolny** (OR). **Dodaj grupę** buduje grupy filtrów w stylu Notion: kaset z własną logiką AND/OR wewnątrz logiki głównej. Głęboko zagnieżdżone filtry z Obsidian pojawiają się jako **Filtr złożony (bez możliwości edycji)** — są zachowywane i stosowane. Filtry są zapisywane **osobno dla każdego widoku** (panel wskazuje na to etykietą **Dotyczy tego widoku**): każdy widok zachowuje własne reguły filtrów, natomiast **Źródło danych** (foldery/tagi) jest wspólne dla całej bazy danych. Wszystko znajduje się w pliku `.base`, a nie w osobnym magazynie danych.
+- **Widok** — **typ widoku** jako wybór kafelków z ikonami (Tabela, Lista, Karta, Tablica, Galeria, Kalendarz, Oś czasu, Tablica korkowa) wraz z opcjami właściwymi dla danego typu: grupowanie i kolor kolumn tablicy, pole daty dla kalendarza/osi czasu, okładka galerii, elementy podrzędne, format daty.
+- **Kolumny** — właściwości widoku, podzielone na **Widoczne** i **Ukryte**. Kliknij ikonę oka, aby pokazać lub ukryć kolumnę; przeciągnij uchwyt, aby zmienić kolejność. Każdy wiersz pokazuje odznakę typu pola, ikona koła zębatego otwiera edytor kolumny, **Nowa właściwość** dodaje kolejną.
+- **Filtr** — każda reguła wyświetla się jako czytelne zdanie w formie **chipu** (np. „Status nie jest Ukończone”); kliknięcie rozwija edytor (właściwość, operator, wartość). Operatory dostosowują się do typu pola: **jest** / **nie jest** / **zawiera** / **nie zawiera** / **jest puste** / **nie jest puste**, dla liczb **większe niż** / **mniejsze niż** / **co najmniej** / **co najwyżej**, dla dat **po** / **przed** / **od** / **do**. **Logika** na górze decyduje, czy muszą pasować **Wszystkie** warunki (AND), czy **Dowolny** (OR). **Dodaj grupę** buduje grupy filtrów w stylu Notion: ramkę z własną logiką AND/OR wewnątrz logiki głównej. Głęboko zagnieżdżone filtry z Obsidian pojawiają się jako **Filtr złożony (bez możliwości edycji)** — są zachowywane i stosowane. Filtry są zapisywane **osobno dla każdego widoku**; wszystko znajduje się w pliku `.base`, a nie w osobnym magazynie danych.
 - **Sortowanie** — wiele reguł sortowania (**Rosnąco**/**Malejąco**); priorytet zmieniasz przez przeciąganie.
-- **Właściwości** — pokaż/ukryj kolumny, zmień kolejność przez przeciąganie, utwórz **Nową właściwość**.
+- **Źródło danych** — źródła folderów i tagów bazy danych (można też wybrać **Folder główny**). Brak źródła = wszystkie pliki. Dotyczy całej bazy danych, nie tylko aktywnego widoku.
+
+Na telefonie **Konfiguruj** otwiera te same obszary jako listę; dotknięcie jednego z nich wchodzi w odpowiedni obszar szczegółów, a strzałka wstecz z niego wychodzi.
 
 ## Właściwości i typy pól
 

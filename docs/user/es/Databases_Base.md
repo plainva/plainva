@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-07-17
+Última actualización: 2026-07-18
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -44,14 +44,17 @@ Una base de datos puede tener cualquier número de vistas; cada una tiene un **T
 
 **Añadir vista** crea más; **Opciones de vista** ofrece **Renombrar**, **Duplicar**, **Eliminar** y reordenar por arrastre. Plainva recuerda la última vista activa por archivo. Calendario y Cronología necesitan un campo de fecha (**Solo fecha** o **Fecha y hora** como **Formato**); las entradas muestran los campos activados en **Propiedades**.
 
-## Configurar: fuentes, filtros, orden, propiedades
+## Configurar: pestañas para vista, columnas, filtro, orden, fuente de datos
 
-El botón **Configurar** (arriba a la derecha) abre el panel con cuatro áreas:
+El botón **Configurar** (arriba a la derecha) abre el panel **junto a** la vista activa, de modo que cada cambio se refleja de inmediato en la tabla o el tablero. Unas **pestañas** en la parte superior permiten elegir un área — solo se muestra una a la vez, en lugar de una lista larga. Un pequeño indicador muestra, en cada área, si afecta a **Esta vista** o a **Toda la base**:
 
-- **Fuente de datos** — las fuentes de carpeta y etiqueta de la base de datos (también se puede elegir la **Carpeta raíz**). Sin fuente = todos los archivos.
-- **Filtro** — filas de reglas formadas por propiedad, operador y valor. Los operadores se adaptan al tipo de campo: **es** / **no es** / **contiene** / **no contiene** / **está vacío** / **no está vacío**, para números **mayor que** / **menor que** / **como mínimo** / **como máximo**, para fechas **después de** / **antes de** / **desde** / **hasta**. La **Lógica** de arriba decide si deben cumplirse **Todas** las condiciones (Y) o **Cualquiera** (O). **Añadir grupo** construye grupos de filtros al estilo Notion: un cuadro con su propia lógica Y/O dentro de la lógica principal. Los filtros muy anidados procedentes de Obsidian aparecen como **Filtro complejo (no editable)** — se conservan y se aplican. Los filtros se guardan **por vista** (el panel indica **Se aplica a esta vista**): cada vista conserva sus propias reglas de filtro, mientras que la **Fuente de datos** (carpetas/etiquetas) se comparte en toda la base de datos. Todo vive en el archivo `.base`, no en un almacén aparte.
+- **Vista** — el **tipo de vista** como selector de mosaicos con iconos (Tabla, Lista, Tarjeta, Tablero, Galería, Calendario, Cronología, Tablón) junto con sus opciones específicas del tipo: agrupación y color de columna del tablero, el campo de fecha para calendario/cronología, la imagen de portada de la galería, subelementos, formato de fecha.
+- **Columnas** — las propiedades de la vista, divididas en **Visibles** y **Ocultas**. Haz clic en el ojo para mostrar u ocultar una columna; arrastra el asa para reordenar. Cada fila muestra una etiqueta con el tipo de campo, el engranaje abre el editor de columnas, **Nueva propiedad** añade una.
+- **Filtro** — cada regla se muestra como una frase en **chip** legible (p. ej. "El estado no es Hecho"); haz clic para desplegar el editor (propiedad, operador, valor). Los operadores se adaptan al tipo de campo: **es** / **no es** / **contiene** / **no contiene** / **está vacío** / **no está vacío**, para números **mayor que** / **menor que** / **como mínimo** / **como máximo**, para fechas **después de** / **antes de** / **desde** / **hasta**. La **Lógica** de arriba decide si deben cumplirse **Todas** las condiciones (Y) o **Cualquiera** (O). **Añadir grupo** crea grupos de filtros al estilo Notion: un cuadro con su propia lógica Y/O dentro de la lógica principal. Los filtros muy anidados procedentes de Obsidian aparecen como **Filtro complejo (no editable)** — se conservan y se aplican. Los filtros se guardan **por vista**; todo vive en el archivo `.base`, no en un almacén aparte.
 - **Orden** — varias reglas de orden (**Ascendente**/**Descendente**); cambia su prioridad arrastrando.
-- **Propiedades** — mostrar/ocultar columnas, reordenar por arrastre, crear una **Nueva propiedad**.
+- **Fuente de datos** — las fuentes de carpeta y etiqueta de la base de datos (también se puede elegir la **Carpeta raíz**). Sin fuente = todos los archivos. Se aplica a toda la base de datos, no solo a la vista activa.
+
+En el teléfono, **Configurar** abre las mismas áreas como una lista; tocar una de ellas entra en esa área de detalle, y la flecha atrás permite salir.
 
 ## Propiedades y tipos de campo
 
