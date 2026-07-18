@@ -72,6 +72,8 @@ export function buildInviteIcs(
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
     `DTSTAMP:${icsUtcStamp(opts.stampMs)}`,
+    // SEQUENCE is required for a well-formed REQUEST; a fresh invite is 0.
+    "SEQUENCE:0",
   ];
   if (event.allDay) {
     lines.push(`DTSTART;VALUE=DATE:${icsDate(event.start.date, event.start.ts)}`);
@@ -86,8 +88,9 @@ export function buildInviteIcs(
   lines.push(`ORGANIZER:mailto:${opts.organizer}`);
   for (const a of event.attendees ?? []) {
     const email = a.trim();
-    if (email) lines.push(`ATTENDEE;ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${email}`);
+    // CUTYPE + PARTSTAT=NEEDS-ACTION make Gmail/Outlook render the RSVP card.
+    if (email) lines.push(`ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${email}`);
   }
-  lines.push("STATUS:CONFIRMED", "END:VEVENT", "END:VCALENDAR");
+  lines.push("STATUS:CONFIRMED", "TRANSP:OPAQUE", "END:VEVENT", "END:VCALENDAR");
   return lines.map(fold).join("\r\n") + "\r\n";
 }

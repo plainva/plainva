@@ -368,6 +368,17 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
             />
           </div>
+          {attendeeList.length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <Checkbox
+                checked={values.notifyAttendees}
+                onChange={(e) => set("notifyAttendees", e.target.checked)}
+                data-testid="event-notify-attendees"
+              >
+                {t("pim.notifyAttendees", { defaultValue: "Teilnehmer per E-Mail benachrichtigen" })}
+              </Checkbox>
+            </div>
+          )}
         </div>
         <div>
           <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>

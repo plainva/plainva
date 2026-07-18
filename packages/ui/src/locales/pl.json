@@ -1977,6 +1977,7 @@
     "attendeesHint": "Jeden adres e-mail w wierszu",
     "attendeesChipHint": "Wpisz adres e-mail i naciśnij Enter",
     "attendeeRemove": "Usuń uczestnika: {{email}}",
+    "notifyAttendees": "Powiadom uczestników e-mailem",
     "attendeeResponses": "Odpowiedzi",
     "showTasks": "Pokaż zadania",
     "calendarTasks": "Zadania",

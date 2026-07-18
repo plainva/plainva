@@ -1959,6 +1959,7 @@
     "attendeesHint": "メールアドレスを1行に1件",
     "attendeesChipHint": "メールアドレスを入力して Enter キーを押す",
     "attendeeRemove": "参加者を削除: {{email}}",
+    "notifyAttendees": "参加者にメールで通知",
     "attendeeResponses": "返信",
     "showTasks": "タスクを表示",
     "calendarTasks": "タスク",

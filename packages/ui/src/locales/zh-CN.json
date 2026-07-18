@@ -1959,6 +1959,7 @@
     "attendeesHint": "每行一个电子邮件地址",
     "attendeesChipHint": "输入电子邮件地址并按回车",
     "attendeeRemove": "移除参与者：{{email}}",
+    "notifyAttendees": "通过电子邮件通知参与者",
     "attendeeResponses": "回复",
     "showTasks": "显示任务",
     "calendarTasks": "任务",

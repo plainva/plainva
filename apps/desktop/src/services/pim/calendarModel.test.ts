@@ -111,6 +111,7 @@ describe("event form helpers (stage 3)", () => {
       calendarKey: "a c",
       attendees: "",
       attendeesTouched: false,
+      notifyAttendees: false,
       repeatFreq: "",
       repeatInterval: 1,
       repeatByWeekday: [],
@@ -139,6 +140,7 @@ describe("event form helpers (stage 3)", () => {
       calendarKey: "",
       attendees: "",
       attendeesTouched: false,
+      notifyAttendees: false,
       repeatFreq: "",
       repeatInterval: 1,
       repeatByWeekday: [],
@@ -148,6 +150,16 @@ describe("event form helpers (stage 3)", () => {
       repeatTouched: false,
     });
     expect(inverted.end.ts).toBe(inverted.start.ts + 30 * 60 * 1000);
+  });
+
+  it("notifyAttendees only rides along when there are invitees", () => {
+    const base = emptyEventForm("2026-08-01", "a c");
+    // no invitees -> gated off even when flagged (default true)
+    expect(eventFormToDraft(base).notifyAttendees).toBeUndefined();
+    const withInvitees = { ...base, attendees: "x@y.org", attendeesTouched: true, notifyAttendees: true };
+    expect(eventFormToDraft(withInvitees).notifyAttendees).toBe(true);
+    // invitees present but the box unchecked -> not sent
+    expect(eventFormToDraft({ ...withInvitees, notifyAttendees: false }).notifyAttendees).toBeUndefined();
   });
 
   it("all-day form values convert the inclusive dialog end to the exclusive iCal end", () => {
@@ -164,6 +176,7 @@ describe("event form helpers (stage 3)", () => {
       calendarKey: "",
       attendees: "",
       attendeesTouched: false,
+      notifyAttendees: false,
       repeatFreq: "",
       repeatInterval: 1,
       repeatByWeekday: [],

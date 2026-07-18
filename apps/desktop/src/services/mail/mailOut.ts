@@ -212,12 +212,18 @@ export async function sendMail(
   to: string,
   subject: string,
   markdown: string,
-  attachments: MailAttachment[] = []
+  attachments: MailAttachment[] = [],
+  /** When set, the message carries this iCalendar text as an inline
+   * `text/calendar; method=…` invitation (iMIP) so Gmail renders it as an
+   * event. The SMTP path builds a proper multipart/alternative + .ics copy. */
+  calendar?: { ics: string; method?: string }
 ): Promise<void> {
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
   if (mailAccountKind(account) === "microsoft") {
-    // Microsoft Graph sends directly (no SMTP) via /me/sendMail.
+    // Microsoft Graph sends directly (no SMTP) via /me/sendMail. Outlook/Graph
+    // renders the .ics attachment as an invite, so the calendar rides along as
+    // an attachment there.
     await graphSendMail(vaultPath, account, to, subject, html, attachments);
     return;
   }
@@ -235,6 +241,8 @@ export async function sendMail(
     text,
     html,
     attachments: attachments.length ? attachments : null,
+    calendar: calendar?.ics ?? null,
+    calendarMethod: calendar?.method ?? null,
   });
 }
 

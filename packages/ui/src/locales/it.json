@@ -1971,6 +1971,7 @@
     "attendeesHint": "Un indirizzo email per riga",
     "attendeesChipHint": "Inserisci un indirizzo email e premi Invio",
     "attendeeRemove": "Rimuovi partecipante: {{email}}",
+    "notifyAttendees": "Avvisa i partecipanti via email",
     "attendeeResponses": "Risposte",
     "showTasks": "Mostra attività",
     "calendarTasks": "Attività",

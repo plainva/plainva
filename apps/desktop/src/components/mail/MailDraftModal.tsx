@@ -207,7 +207,20 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     setBusy(true);
     setError(null);
     try {
-      await sendMail(vaultPath, account, to.trim(), subject.trim(), body, attach);
+      // A text/calendar; method=… attachment (from "Termin per Mail versenden")
+      // is sent as an INLINE iMIP invitation so Gmail renders it as an event.
+      const calIdx = attach.findIndex((a) => /^text\/calendar/i.test(a.mime));
+      let calendar: { ics: string; method?: string } | undefined;
+      let files = attach;
+      if (calIdx >= 0) {
+        const a = attach[calIdx];
+        try {
+          const bytes = Uint8Array.from(atob(a.contentBase64.trim()), (c) => c.charCodeAt(0));
+          calendar = { ics: new TextDecoder("utf-8").decode(bytes), method: /method=([A-Za-z-]+)/i.exec(a.mime)?.[1]?.toUpperCase() };
+          files = attach.filter((_, i) => i !== calIdx);
+        } catch { /* fall back to a normal attachment */ }
+      }
+      await sendMail(vaultPath, account, to.trim(), subject.trim(), body, files, calendar);
       toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
       onClose();
     } catch (e) {

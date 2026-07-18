@@ -1965,6 +1965,7 @@
     "attendeesHint": "One email address per line",
     "attendeesChipHint": "Enter an email address and press Enter",
     "attendeeRemove": "Remove attendee: {{email}}",
+    "notifyAttendees": "Email invitees about this event",
     "attendeeResponses": "Responses",
     "showTasks": "Show tasks",
     "calendarTasks": "Tasks",

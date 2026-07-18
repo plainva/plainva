@@ -221,7 +221,10 @@ export class GooglePimTarget implements IPimTarget {
   // ---- write side (stage 3) ----------------------------------------------
 
   async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
-    const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`, {
+    // `sendUpdates=all` makes Google email the invitees — the native invite that
+    // Gmail renders as an event (same uid, RSVP syncs back). Only when asked.
+    const notify = draft.notifyAttendees ? "?sendUpdates=all" : "";
+    const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events${notify}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(googleEventBody(draft)),
@@ -232,8 +235,9 @@ export class GooglePimTarget implements IPimTarget {
   }
 
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
+    const notify = draft.notifyAttendees ? "?sendUpdates=all" : "";
     const res = await this.request(
-      `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
+      `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}${notify}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },

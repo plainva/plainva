@@ -109,6 +109,9 @@ export interface EventFormValues {
   /** Set true once the user edits the invitees so an unrelated edit never
    * REPLACES the remote attendee list (which would reset RSVP status). */
   attendeesTouched: boolean;
+  /** Ask the provider to email the invitees (Google `sendUpdates=all`). Default
+   * on for new events with attendees, off for edits (opt-in re-notify). */
+  notifyAttendees: boolean;
   // ---- recurrence (Outlook-style) ----
   repeatFreq: "" | PimRecurrenceFreq;
   repeatInterval: number;
@@ -127,7 +130,7 @@ function baseForm(dayKey: string, calendarKey: string): EventFormValues {
   return {
     title: "", allDay: false, dayKey, endDayKey: dayKey, startTime: "09:00", endTime: "10:00",
     location: "", description: "", color: "", calendarKey,
-    attendees: "", attendeesTouched: false,
+    attendees: "", attendeesTouched: false, notifyAttendees: true,
     repeatFreq: "", repeatInterval: 1, repeatByWeekday: [], repeatEnd: "never", repeatUntil: "", repeatCount: 10, repeatTouched: false,
   };
 }
@@ -154,6 +157,8 @@ export function eventFormFromEvent(e: PimEventRow): EventFormValues {
     color: e.color ?? "",
     // Prefer real addresses (rsvps) over the plain display list.
     attendees: (e.rsvps?.map((a) => a.email).filter((x): x is string => !!x) ?? e.attendees ?? []).join("\n"),
+    // Editing defaults to NOT re-notifying; the user opts in per edit.
+    notifyAttendees: false,
     repeatFreq: rec?.freq ?? "",
     repeatInterval: rec?.interval && rec.interval > 1 ? rec.interval : 1,
     repeatByWeekday: rec?.byWeekday ?? [],
@@ -216,6 +221,9 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
   const color = v.color.trim() || undefined;
   const attendees = v.attendeesTouched ? parseEmails(v.attendees) : undefined;
   const recurrence = v.repeatTouched ? formRecurrence(v) : undefined;
+  // Only meaningful when there ARE invitees; harmless otherwise, but gate it so
+  // an attendee-less event never sends sendUpdates.
+  const notifyAttendees = v.notifyAttendees && parseEmails(v.attendees).length > 0 ? true : undefined;
   if (v.allDay) {
     const startKey = v.dayKey;
     const endInclusive = v.endDayKey && v.endDayKey >= startKey ? v.endDayKey : startKey;
@@ -230,10 +238,11 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
       color,
       attendees,
       recurrence,
+      notifyAttendees,
     };
   }
   const startTs = new Date(`${v.dayKey}T${v.startTime || "09:00"}:00`).getTime();
   let endTs = new Date(`${v.dayKey}T${v.endTime || "10:00"}:00`).getTime();
   if (!(endTs > startTs)) endTs = startTs + 30 * 60 * 1000;
-  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, color, attendees, recurrence };
+  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, color, attendees, recurrence, notifyAttendees };
 }

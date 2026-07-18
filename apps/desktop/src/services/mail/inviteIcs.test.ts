@@ -23,6 +23,7 @@ describe("iCal invitation builder (mail-client E6)", () => {
     expect(ics).toContain("BEGIN:VCALENDAR");
     expect(ics).toContain("METHOD:REQUEST");
     expect(ics).toContain("UID:evt-1");
+    expect(ics).toContain("SEQUENCE:0");
     expect(ics).toContain("DTSTART:20260701T090000Z");
     expect(ics).toContain("DTEND:20260701T100000Z");
     // TEXT escaping: the semicolon and comma are backslash-escaped.
@@ -30,8 +31,11 @@ describe("iCal invitation builder (mail-client E6)", () => {
     expect(ics).toContain("LOCATION:Room 3\\, HQ");
     expect(ics).toContain("DESCRIPTION:Line1\\nLine2");
     expect(ics).toContain("ORGANIZER:mailto:me@example.org");
-    expect(ics).toContain("ATTENDEE;ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:a@example.org");
-    expect(ics).toContain("mailto:b@example.org");
+    expect(ics).toContain("TRANSP:OPAQUE");
+    // Attendee lines fold past 75 octets (RFC 5545) — unfold before asserting.
+    const unfolded = ics.replace(/\r\n /g, "");
+    expect(unfolded).toContain("ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:a@example.org");
+    expect(unfolded).toContain("mailto:b@example.org");
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
     // CRLF line endings throughout.
     expect(ics).toContain("\r\n");

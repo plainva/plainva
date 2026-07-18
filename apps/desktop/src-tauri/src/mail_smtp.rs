@@ -9,6 +9,8 @@
 //! pure and unit-tested; the live socket exchange is verified natively.
 
 use base64::Engine as _;
+use mail_builder::headers::content_type::ContentType;
+use mail_builder::mime::MimePart;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::Arc;
@@ -128,6 +130,52 @@ fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option
         .map_err(|e| format!("mime build failed: {e}"))
 }
 
+/// Builds a standards-compliant iMIP invitation message: the calendar rides as
+/// an INLINE `text/calendar; method=REQUEST` part inside multipart/alternative
+/// (exactly how Google Calendar sends it), so Gmail and other clients render it
+/// as an event with an RSVP card — not merely as an attachment. A `.ics` copy is
+/// also attached for clients that prefer that. Pure.
+fn build_invite_mime(
+    from: &str,
+    to: &str,
+    subject: &str,
+    text: &str,
+    ics: &str,
+    method: &str,
+    attachments: &[MailAttachment],
+) -> Result<Vec<u8>, String> {
+    let cal_ct = || {
+        ContentType::new("text/calendar")
+            .attribute("method", method.to_string())
+            .attribute("charset", "utf-8")
+    };
+    let alternative = MimePart::new(
+        "multipart/alternative",
+        vec![
+            MimePart::new("text/plain", text.to_string()),
+            MimePart::new(cal_ct(), ics.to_string()),
+        ],
+    );
+    let mut parts = vec![
+        alternative,
+        MimePart::new(cal_ct(), ics.to_string()).attachment("invite.ics"),
+    ];
+    for a in attachments {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(a.content_base64.trim())
+            .map_err(|e| format!("attachment decode failed: {e}"))?;
+        parts.push(MimePart::new(a.mime.clone(), bytes).attachment(a.name.clone()));
+    }
+    let root = MimePart::new("multipart/mixed", parts);
+    mail_builder::MessageBuilder::new()
+        .from(from.to_string())
+        .to(to.to_string())
+        .subject(subject.to_string())
+        .body(root)
+        .write_to_vec()
+        .map_err(|e| format!("mime build failed: {e}"))
+}
+
 fn read_reply(stream: &mut SmtpStream) -> Result<(u16, String), String> {
     let mut buf = Vec::new();
     let mut byte = [0u8; 1];
@@ -192,13 +240,24 @@ pub async fn mail_send(
     text: String,
     html: Option<String>,
     attachments: Option<Vec<MailAttachment>>,
+    // When present, the message carries this iCalendar text as an inline
+    // `text/calendar; method=…` invitation (iMIP), so Gmail renders it as an
+    // event (mail-client E6 / calendar #7).
+    calendar: Option<String>,
+    calendar_method: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let recipients = split_recipients(&to);
         if recipients.is_empty() {
             return Err("no recipient".into());
         }
-        let mime = build_send_mime(&from, &to, &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
+        let atts = attachments.as_deref().unwrap_or(&[]);
+        let mime = if let Some(ics) = calendar.as_deref() {
+            let method = calendar_method.as_deref().unwrap_or("REQUEST");
+            build_invite_mime(&from, &to, &subject, &text, ics, method, atts)?
+        } else {
+            build_send_mime(&from, &to, &subject, &text, html.as_deref(), atts)?
+        };
 
         let tcp = TcpStream::connect((host.as_str(), port)).map_err(|e| format!("connect failed: {e}"))?;
         tcp.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| format!("socket setup failed: {e}"))?;
@@ -297,6 +356,29 @@ mod tests {
         assert_eq!(split_recipients("a@x.org, b@y.org"), vec!["a@x.org", "b@y.org"]);
         assert_eq!(split_recipients(" one@x.org ,, "), vec!["one@x.org"]);
         assert!(split_recipients("").is_empty());
+    }
+
+    #[test]
+    fn invite_mime_is_imip_standards_compliant() {
+        let ics = "BEGIN:VCALENDAR\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:abc\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let mime = build_invite_mime(
+            "me@x.org",
+            "you@y.org",
+            "Invitation: Standup",
+            "Please join.",
+            ics,
+            "REQUEST",
+            &[],
+        )
+        .unwrap();
+        // Attribute values may be quoted (method="REQUEST"); normalise them out.
+        let s = String::from_utf8_lossy(&mime).to_lowercase().replace('"', "");
+        // Inline calendar alternative (how Gmail recognises an event invite).
+        assert!(s.contains("multipart/alternative"));
+        assert!(s.contains("text/calendar"));
+        assert!(s.contains("method=request"));
+        assert!(s.contains("multipart/mixed")); // + the .ics attachment copy
+        assert!(s.contains("begin:vcalendar"));
     }
 
     #[test]

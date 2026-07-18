@@ -153,6 +153,11 @@ export interface PimEventDraft {
   /** Recurrence rule. `undefined` = leave the remote rule untouched (drag /
    * single-instance edits); `null` = clear it; an object = set/replace it. */
   recurrence?: PimRecurrence | null;
+  /** Ask the provider to email its attendees about this create/update (Google
+   * `sendUpdates=all` — the native, standards-compliant invite Gmail renders as
+   * an event with the SAME uid so RSVPs sync back). Providers without server
+   * scheduling (CalDAV) ignore it; there the caller sends an iMIP email itself. */
+  notifyAttendees?: boolean;
 }
 
 /** Addresses an existing event for update/delete. `etag` (when known) arms

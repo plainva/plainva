@@ -1965,6 +1965,7 @@
     "attendeesHint": "Eén e-mailadres per regel",
     "attendeesChipHint": "Voer een e-mailadres in en druk op Enter",
     "attendeeRemove": "Deelnemer verwijderen: {{email}}",
+    "notifyAttendees": "Deelnemers per e-mail op de hoogte stellen",
     "attendeeResponses": "Reacties",
     "showTasks": "Taken tonen",
     "calendarTasks": "Taken",

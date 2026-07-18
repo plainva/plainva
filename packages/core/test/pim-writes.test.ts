@@ -55,6 +55,21 @@ describe("GooglePimTarget writes", () => {
     expect(sent.location).toBe("Room 5");
   });
 
+  it("adds sendUpdates=all ONLY when the draft asks to notify attendees", async () => {
+    const urls: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (input, init) => {
+      urls.push(String(input));
+      return init?.method === "POST" ? jsonRes({ id: "n", etag: '"e"' }) : jsonRes({ etag: '"e"' });
+    });
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await t.createEvent("cal1", { ...timedDraft, attendees: ["a@x.org"], notifyAttendees: true });
+    await t.updateEvent({ calendarId: "cal1", uid: "e1" }, { ...timedDraft, notifyAttendees: true });
+    await t.createEvent("cal1", { ...timedDraft }); // no flag
+    expect(urls[0]).toContain("sendUpdates=all");
+    expect(urls[1]).toContain("sendUpdates=all");
+    expect(urls[2]).not.toContain("sendUpdates");
+  });
+
   it("sends civil dates (and nulls dateTime) for all-day events", async () => {
     let sent: any;
     const fetchFn: FetchFn = vi.fn(async (_input, init) => {

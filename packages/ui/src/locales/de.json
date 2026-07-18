@@ -1965,6 +1965,7 @@
     "attendeesHint": "Eine E-Mail-Adresse pro Zeile",
     "attendeesChipHint": "E-Mail-Adresse eingeben und Enter drücken",
     "attendeeRemove": "Teilnehmer entfernen: {{email}}",
+    "notifyAttendees": "Teilnehmer per E-Mail benachrichtigen",
     "attendeeResponses": "Antworten",
     "showTasks": "Aufgaben anzeigen",
     "calendarTasks": "Aufgaben",

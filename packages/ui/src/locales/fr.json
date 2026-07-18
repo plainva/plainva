@@ -1971,6 +1971,7 @@
     "attendeesHint": "Une adresse e-mail par ligne",
     "attendeesChipHint": "Saisir une adresse e-mail et appuyer sur Entrée",
     "attendeeRemove": "Retirer le participant : {{email}}",
+    "notifyAttendees": "Notifier les participants par e-mail",
     "attendeeResponses": "Réponses",
     "showTasks": "Afficher les tâches",
     "calendarTasks": "Tâches",
