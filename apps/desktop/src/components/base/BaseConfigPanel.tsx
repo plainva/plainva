@@ -732,10 +732,11 @@ export function BaseConfigPanel({
 
       <div className="base-cfg-body custom-scrollbar">
 
-      {/* Data source — its own header lives inside the component. */}
+      {/* Data source — its own tab (config redesign P5), so render it always
+          open instead of behind the component's internal collapse. */}
       {activeArea === "source" && (
       <section className="base-cfg-section">
-        <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} />
+        <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} alwaysExpanded />
       </section>
       )}
 
