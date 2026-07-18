@@ -231,6 +231,13 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-typetile-label { line-height: 1.2; }
   .base-cfg-colname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-ui); color: var(--text-main); }
   .base-cfg-typebadge { flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 0 6px; border-radius: var(--radius-pill); }
+  .base-cfg-filterchip { background: transparent; padding: 0; }
+  .base-cfg-chipsentence { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; text-align: left; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 5px 8px; cursor: pointer; color: var(--text-main); font-size: var(--text-sm); }
+  .base-cfg-chipsentence:hover { border-color: var(--text-muted); }
+  .base-cfg-chip-col { font-weight: 600; color: var(--text-main); }
+  .base-cfg-chip-op { color: var(--text-muted); }
+  .base-cfg-chip-val { background: var(--bg-hover); color: var(--accent-color); padding: 1px 7px; border-radius: var(--radius-pill); font-size: var(--text-xs); }
+  .base-cfg-filteredit { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 6px; background: var(--bg-primary); }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
   .base-cfg-close:hover { background: var(--state-hover); }

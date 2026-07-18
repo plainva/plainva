@@ -745,6 +745,8 @@
     "noVisibleColumns": "No columns visible",
     "hideColumn": "Hide",
     "showColumn": "Show",
+    "editFilter": "Edit filter",
+    "filterDone": "Done",
     "emptyView": "No entries in this view.",
     "viewGraph": "Graph"
   },

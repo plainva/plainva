@@ -745,6 +745,8 @@
     "noVisibleColumns": "Geen kolommen zichtbaar",
     "hideColumn": "Verbergen",
     "showColumn": "Tonen",
+    "editFilter": "Filter bewerken",
+    "filterDone": "Klaar",
     "emptyView": "Geen items in deze weergave.",
     "viewGraph": "Graaf"
   },

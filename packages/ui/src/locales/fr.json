@@ -747,6 +747,8 @@
     "noVisibleColumns": "Aucune colonne visible",
     "hideColumn": "Masquer",
     "showColumn": "Afficher",
+    "editFilter": "Modifier le filtre",
+    "filterDone": "Terminé",
     "emptyView": "Aucune entrée dans cette vue.",
     "viewGraph": "Graphe"
   },

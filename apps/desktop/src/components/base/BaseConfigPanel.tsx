@@ -234,6 +234,56 @@ function FilterValueEditor({
   );
 }
 
+// Localized operator words, shared by the editable row and the read-only chip
+// sentence (config redesign P4). Date columns get temporal wording.
+function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
+  return {
+    "==": t("database.opIs", "ist"),
+    "!=": t("database.opIsNot", "ist nicht"),
+    contains: t("database.opContains", "enthält"),
+    notContains: t("database.opNotContains", "enthält nicht"),
+    ">": isDate ? t("database.opAfter", "nach") : t("database.opGt", "größer als"),
+    "<": isDate ? t("database.opBefore", "vor") : t("database.opLt", "kleiner als"),
+    ">=": isDate ? t("database.opFrom", "ab") : t("database.opGte", "mindestens"),
+    "<=": isDate ? t("database.opUntil", "bis") : t("database.opLte", "höchstens"),
+    empty: t("database.opEmpty", "ist leer"),
+    notEmpty: t("database.opNotEmpty", "ist nicht leer"),
+  };
+}
+
+// Read-only chip SENTENCE of a committed filter rule (config redesign P4):
+// "[Column] [op word] [value chip]" — click to expand the editor, ✕ to remove.
+// Far more scannable than three stacked dropdowns per rule.
+function FilterChip({
+  rule,
+  cells,
+  t,
+  onEdit,
+  onRemove,
+}: {
+  rule: PropertyFilterRule;
+  cells: BaseCells;
+  t: TFunction;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const input = rule.column ? cells.getColumnInput(rule.column) : undefined;
+  const isDate = input === "date" || input === "datetime";
+  const op = filterOpLabels(t, isDate)[rule.op] ?? rule.op;
+  const showValue = rule.op !== "empty" && rule.op !== "notEmpty";
+  const valDisplay = parseWikiLinkValue(rule.value)?.display ?? rule.value;
+  return (
+    <div className="base-cfg-chiprow base-cfg-filterchip">
+      <button type="button" className="base-cfg-chipsentence" onClick={onEdit} aria-label={t("database.editFilter", "Filter bearbeiten")} title={t("database.editFilter", "Filter bearbeiten")}>
+        <span className="base-cfg-chip-col">{cells.columnLabel(rule.column)}</span>
+        <span className="base-cfg-chip-op">{op}</span>
+        {showValue && <span className="base-cfg-chip-val">{valDisplay}</span>}
+      </button>
+      <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+    </div>
+  );
+}
+
 // One editable property-filter row: [column] [operator] [typed value] [delete].
 function FilterRow({
   rule,
@@ -264,18 +314,7 @@ function FilterRow({
       input === "link" ||
       cells.isReverseColumn?.(rule.column) ||
       (input === undefined && columnValuesAreWikiLinks(filterValueRows, rule.column)));
-  const opLabels: Record<FilterOp, string> = {
-    "==": t("database.opIs", "ist"),
-    "!=": t("database.opIsNot", "ist nicht"),
-    contains: t("database.opContains", "enthält"),
-    notContains: t("database.opNotContains", "enthält nicht"),
-    ">": isDate ? t("database.opAfter", "nach") : t("database.opGt", "größer als"),
-    "<": isDate ? t("database.opBefore", "vor") : t("database.opLt", "kleiner als"),
-    ">=": isDate ? t("database.opFrom", "ab") : t("database.opGte", "mindestens"),
-    "<=": isDate ? t("database.opUntil", "bis") : t("database.opLte", "höchstens"),
-    empty: t("database.opEmpty", "ist leer"),
-    notEmpty: t("database.opNotEmpty", "ist nicht leer"),
-  };
+  const opLabels = filterOpLabels(t, isDate);
   const availableOps: FilterOp[] = isRelation
     ? ["contains", "notContains", "empty", "notEmpty"]
     : (Object.keys(opLabels) as FilterOp[]);
@@ -576,6 +615,9 @@ export function BaseConfigPanel({
   const [draftFilter, setDraftFilter] = useState<PropertyFilterRule | null>(null);
   const [draftGroup, setDraftGroup] = useState<{ logic: "all" | "any"; rule: PropertyFilterRule } | null>(null);
   const [groupDrafts, setGroupDrafts] = useState<Record<string, PropertyFilterRule>>({});
+  // Committed rules render as read-only chip sentences; clicking one expands its
+  // inline editor (config redesign P4). One rule editable at a time by key.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const groupKey = (ref: FilterEntryRef) => `${ref.list}:${ref.idx}`;
 
   // "Diese Notiz" is not a native filter (E1=B): it lands in the plainva-side
@@ -997,27 +1039,42 @@ export function BaseConfigPanel({
             );
           }
           if (entry.kind === "rule") {
+            if (editingKey !== key) {
+              return (
+                <FilterChip
+                  key={key}
+                  rule={entry.rule}
+                  cells={cells}
+                  t={t}
+                  onEdit={() => setEditingKey(key)}
+                  onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
+                />
+              );
+            }
             return (
-              <FilterRow
-                key={key}
-                rule={entry.rule}
-                availableColumns={availableColumns}
-                filterValueRows={filterValueRows}
-                cells={cells}
-                t={t}
-                onChange={(rule) => {
-                  if (rule.value === SELF_MARKER && rule.column) {
-                    // Convert a per-view rule into a base-global context filter:
-                    // remove from the active view, add to the config's contextFilters.
-                    onMutateFilters((cfg) => { removeFilterEntry(viewOf(cfg), entry.ref); return addContextFilter(cfg, rule.column); });
-                    return;
-                  }
-                  if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || entry.rule.value === rule.value)) {
-                    mutateViewFilters((v) => updateTopFilterRule(v, entry.ref, serializePropertyFilter(rule)));
-                  }
-                }}
-                onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
-              />
+              <div key={key} className="base-cfg-filteredit">
+                <FilterRow
+                  rule={entry.rule}
+                  availableColumns={availableColumns}
+                  filterValueRows={filterValueRows}
+                  cells={cells}
+                  t={t}
+                  onChange={(rule) => {
+                    if (rule.value === SELF_MARKER && rule.column) {
+                      // Convert a per-view rule into a base-global context filter:
+                      // remove from the active view, add to the config's contextFilters.
+                      onMutateFilters((cfg) => { removeFilterEntry(viewOf(cfg), entry.ref); return addContextFilter(cfg, rule.column); });
+                      setEditingKey(null);
+                      return;
+                    }
+                    if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || entry.rule.value === rule.value)) {
+                      mutateViewFilters((v) => updateTopFilterRule(v, entry.ref, serializePropertyFilter(rule)));
+                    }
+                  }}
+                  onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
+                />
+                <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setEditingKey(null)}>{t("database.filterDone", "Fertig")}</button>
+              </div>
             );
           }
           // Group box: own all/any toggle, its rules, a per-group draft row.
@@ -1042,34 +1099,50 @@ export function BaseConfigPanel({
                   <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("database.removeGroup", "Gruppe entfernen")} title={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
                 </div>
               </div>
-              {entry.items.map((item) =>
-                item.rule ? (
-                  <FilterRow
-                    key={item.idx}
-                    rule={item.rule}
-                    availableColumns={availableColumns}
-                    filterValueRows={filterValueRows}
-                    cells={cells}
-                    t={t}
-                    onChange={(rule) => {
-                      if (rule.value === SELF_MARKER && rule.column) {
-                        // Convert a per-view group rule into a base-global context filter.
-                        onMutateFilters((cfg) => { removeGroupRule(viewOf(cfg), entry.ref, item.idx); return addContextFilter(cfg, rule.column); });
-                        return;
-                      }
-                      if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || item.rule!.value === rule.value)) {
-                        mutateViewFilters((v) => updateGroupRule(v, entry.ref, item.idx, serializePropertyFilter(rule)));
-                      }
-                    }}
-                    onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
-                  />
+              {entry.items.map((item) => {
+                const itemKey = `${key}-${item.idx}`;
+                if (item.rule && editingKey !== itemKey) {
+                  return (
+                    <FilterChip
+                      key={item.idx}
+                      rule={item.rule}
+                      cells={cells}
+                      t={t}
+                      onEdit={() => setEditingKey(itemKey)}
+                      onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
+                    />
+                  );
+                }
+                return item.rule ? (
+                  <div key={item.idx} className="base-cfg-filteredit">
+                    <FilterRow
+                      rule={item.rule}
+                      availableColumns={availableColumns}
+                      filterValueRows={filterValueRows}
+                      cells={cells}
+                      t={t}
+                      onChange={(rule) => {
+                        if (rule.value === SELF_MARKER && rule.column) {
+                          // Convert a per-view group rule into a base-global context filter.
+                          onMutateFilters((cfg) => { removeGroupRule(viewOf(cfg), entry.ref, item.idx); return addContextFilter(cfg, rule.column); });
+                          setEditingKey(null);
+                          return;
+                        }
+                        if (rule.column && (rule.value !== "" || rule.op === "empty" || rule.op === "notEmpty" || item.rule!.value === rule.value)) {
+                          mutateViewFilters((v) => updateGroupRule(v, entry.ref, item.idx, serializePropertyFilter(rule)));
+                        }
+                      }}
+                      onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
+                    />
+                    <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setEditingKey(null)}>{t("database.filterDone", "Fertig")}</button>
+                  </div>
                 ) : (
                   <div key={item.idx} className="base-cfg-chiprow">
                     <span style={{ wordBreak: "break-all" }}>{item.raw}</span>
                     <button onClick={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
                   </div>
-                )
-              )}
+                );
+              })}
               {draft && (
                 <FilterRow
                   rule={draft}

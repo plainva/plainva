@@ -743,6 +743,8 @@
     "noVisibleColumns": "无可见列",
     "hideColumn": "隐藏",
     "showColumn": "显示",
+    "editFilter": "编辑筛选",
+    "filterDone": "完成",
     "emptyView": "此视图中没有条目。",
     "viewGraph": "关系图"
   },
