@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Bookmark, Sunrise, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
+import { Bookmark, Sun, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
 
 /**
  * Configurable bottom navigation (settings redesign 2026-07-18, P3): the bar
@@ -20,7 +20,7 @@ export interface TabDef {
 
 export const TAB_POOL: TabDef[] = [
   { id: "notes", icon: Home, labelKey: "mobile.tabHome" },
-  { id: "today", icon: Sunrise, labelKey: "mobile.tabToday" },
+  { id: "today", icon: Sun, labelKey: "mobile.tabToday" },
   { id: "tags", icon: Hash, labelKey: "mobile.tags" },
   { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },

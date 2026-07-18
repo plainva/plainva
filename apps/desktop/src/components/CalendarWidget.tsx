@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarCheck, CalendarRange, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Square, Sunrise, X } from "lucide-react";
+import { CalendarCheck, CalendarRange, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Square, Sun, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenuSurface, MenuItem, MenuLabel, buildMonthCells, isoWeeksForCells, startOfMonth, type WeekStartDay } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
@@ -255,7 +255,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
             }}
           >
-            {hasDaily && <Sunrise size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
+            {hasDaily && <Sun size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
             {dotColors.map((c, i) => (
               <span key={i} style={{ width: "4px", height: "4px", borderRadius: "var(--radius-pill)", background: isActive ? "var(--accent-on)" : c }} />
             ))}
@@ -394,7 +394,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               onOpenDaily(d);
             }}
           >
-            <Sunrise size={13} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
+            <Sun size={13} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
             {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
           </button>
           {onOpenCalendarDay && (
@@ -460,7 +460,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("rightPanel.calendar", { defaultValue: "Kalender" })}>
           <MenuItem
-            icon={<Sunrise size={14} />}
+            icon={<Sun size={14} />}
             onSelect={() => {
               const d = dateOfKey(menu.dayKey);
               setMenu(null);
