@@ -13,7 +13,7 @@ import {
   toast,
   type WeekStartDay,
 } from "@plainva/ui";
-import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar } from "@plainva/core";
+import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
@@ -390,6 +390,59 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     [editState, targetFor, refresh, t]
   );
 
+  // ---- drag reschedule (move/resize existing single events) ----------------
+
+  const canEditEvent = useCallback(
+    (e: PimEventRow) => {
+      if (e.seriesMaster) return false; // series instances stay read-only (v1)
+      const key = `${e.accountId} ${e.calendarId}`;
+      return writableCalendars.some((c) => `${c.accountId} ${c.id}` === key);
+    },
+    [writableCalendars]
+  );
+
+  const rescheduleEvent = useCallback(
+    async (e: PimEventRow, newStartMs: number, newEndMs: number) => {
+      const target = await targetFor(e.accountId);
+      if (!target) {
+        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+        return;
+      }
+      // Direct draft from the event's current fields with new times; the
+      // adapter GET-modify-PUTs, so attendees/alarms/color are preserved.
+      const draft: PimEventDraft = {
+        title: e.title,
+        allDay: false,
+        start: { ts: newStartMs },
+        end: { ts: Math.max(newStartMs + 60000, newEndMs) },
+        location: e.location ?? undefined,
+        description: e.description ?? undefined,
+      };
+      try {
+        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+      } catch (err) {
+        if (err instanceof PimConflictError) {
+          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
+          refresh();
+          return;
+        }
+        toast.error(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      refresh();
+    },
+    [targetFor, refresh, t]
+  );
+
+  const onEventMove = useCallback(
+    (e: PimEventRow, newStartMs: number, newEndMs: number) => void rescheduleEvent(e, newStartMs, newEndMs),
+    [rescheduleEvent]
+  );
+  const onEventResize = useCallback(
+    (e: PimEventRow, newEndMs: number) => void rescheduleEvent(e, e.start.ts, newEndMs),
+    [rescheduleEvent]
+  );
+
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
 
   const timedForm = useCallback(
@@ -655,9 +708,12 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       todayKey={todayKey}
       locale={i18n.language}
       canCreate={calendarOptions.length > 0}
+      canEditEvent={canEditEvent}
       onEventClick={requestEdit}
       onOpenTask={(p) => onOpenPath(p, false)}
       onCreateSlot={onCreateSlot}
+      onEventMove={onEventMove}
+      onEventResize={onEventResize}
       showColumnHeaders={showColumnHeaders}
     />
   );

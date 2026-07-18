@@ -42,7 +42,7 @@ test.beforeEach(async ({ page }) => {
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-standup', title: 'Standup',
               start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).getTime(),
-              end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30).getTime(),
+              end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0).getTime(),
               start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: 'Kurzes Standup',
               attendees: JSON.stringify(['a@example.org']), status: 'confirmed', etag: 'e1',
               series_master: null, recurrence: null, href: null,
@@ -313,7 +313,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
-  await expect(page.getByTestId('event-end-time')).toHaveValue('10:30');
+  await expect(page.getByTestId('event-end-time')).toHaveValue('11:00');
   await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
   await expect(page.getByTestId('event-description')).toHaveValue('Kurzes Standup');
 
@@ -370,6 +370,54 @@ test('quick-create: clicking an empty slot opens the popover; "more options" -> 
   await page.getByTestId('calendar-quick-more').click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
   await expect(page.getByTestId('event-title')).toHaveValue('Kaffeepause');
+});
+
+test('an existing event can be dragged to reschedule and resized; a tiny drag stays a click', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-day').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  const col = page.getByTestId(`calendar-timecol-${todayKey}`);
+  await expect(col).toBeVisible();
+  const block = col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
+  await block.scrollIntoViewIfNeeded();
+  const box = await block.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  // Drag the body down ~2 hours -> reschedule. The mock has no provider, so the
+  // write attempt surfaces an error toast; the block is treated as a drag, NOT a
+  // click, so the edit dialog stays closed.
+  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 8 + 44, { steps: 4 });
+  await page.mouse.move(box.x + box.width / 2, box.y + 8 + 92, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+
+  // Drag the bottom-edge resize handle down -> another reschedule write attempt.
+  const handle = block.getByTestId('calendar-event-resize');
+  const hbox = await handle.boundingBox();
+  expect(hbox).not.toBeNull();
+  if (hbox) {
+    await page.mouse.move(hbox.x + hbox.width / 2, hbox.y + hbox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hbox.x + hbox.width / 2, hbox.y + 60, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+    await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  }
+
+  // A tiny drag (below the snap threshold) is still a click -> the dialog opens.
+  const box2 = await block.boundingBox();
+  if (box2) {
+    await page.mouse.move(box2.x + box2.width / 2, box2.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(box2.x + box2.width / 2, box2.y + 10, { steps: 2 });
+    await page.mouse.up();
+  }
+  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
 });
 
 const CAL_TASK_DB_YAML = `properties:

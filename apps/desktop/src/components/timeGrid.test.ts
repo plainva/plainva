@@ -8,6 +8,8 @@ import {
   minutesToHHMM,
   startOfDayMs,
   buildContiguousDays,
+  moveEventMinutes,
+  resizeEventEndMinutes,
   type TimeGridEvent,
 } from "@plainva/ui";
 
@@ -98,6 +100,36 @@ describe("buildContiguousDays", () => {
   });
   it("never returns fewer than one day", () => {
     expect(buildContiguousDays(new Date(2026, 6, 9), 0)).toHaveLength(1);
+  });
+});
+
+describe("moveEventMinutes (drag to reschedule, duration preserved)", () => {
+  it("places the start under the pointer minus the grab offset, snapped", () => {
+    // grabbed 10 min into a 60-min block; pointer at 09:37 → start snaps to 09:30
+    const r = moveEventMinutes({ pointerMin: 9 * 60 + 37, grabOffsetMin: 10, durationMin: 60 });
+    expect(r).toEqual({ startMin: 9 * 60 + 30, endMin: 10 * 60 + 30 });
+  });
+  it("keeps the whole block inside the day (clamps at both ends)", () => {
+    expect(moveEventMinutes({ pointerMin: 0, grabOffsetMin: 30, durationMin: 60 }).startMin).toBe(0);
+    const late = moveEventMinutes({ pointerMin: 24 * 60, grabOffsetMin: 0, durationMin: 90 });
+    expect(late).toEqual({ startMin: 24 * 60 - 90, endMin: 24 * 60 });
+  });
+  it("preserves the duration regardless of pointer position", () => {
+    const r = moveEventMinutes({ pointerMin: 13 * 60, grabOffsetMin: 0, durationMin: 45 });
+    expect(r.endMin - r.startMin).toBe(45);
+  });
+});
+
+describe("resizeEventEndMinutes (drag the bottom edge)", () => {
+  it("snaps the new end to the pointer", () => {
+    expect(resizeEventEndMinutes({ pointerMin: 11 * 60 + 3, startMin: 10 * 60 })).toBe(11 * 60);
+    expect(resizeEventEndMinutes({ pointerMin: 11 * 60 + 8, startMin: 10 * 60 })).toBe(11 * 60 + 15);
+  });
+  it("never shrinks below one snap step above the start", () => {
+    expect(resizeEventEndMinutes({ pointerMin: 9 * 60, startMin: 10 * 60 })).toBe(10 * 60 + 15);
+  });
+  it("clamps the end to the day", () => {
+    expect(resizeEventEndMinutes({ pointerMin: 25 * 60, startMin: 23 * 60 })).toBe(24 * 60);
   });
 });
 

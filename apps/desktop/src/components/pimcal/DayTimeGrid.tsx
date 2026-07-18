@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, MapPin, Repeat, Square } from "lucide-react";
-import { layoutDayEvents, minutesInDay, snapMinutes, pxToMinutes, minutesToPx, minutesToHHMM } from "@plainva/ui";
+import { layoutDayEvents, minutesInDay, snapMinutes, pxToMinutes, minutesToPx, minutesToHHMM, moveEventMinutes, resizeEventEndMinutes } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../../services/dailyNotePath";
 import { formatTimeRange } from "../../services/pim/calendarModel";
@@ -12,14 +12,20 @@ import type { DueTask } from "../../services/pim/taskOverlay";
  * gutter (feedback round 3). Timed events are positioned by start/duration and
  * fanned into lanes when they overlap; all-day events and due tasks sit in a
  * strip above the grid. Clicking an empty slot creates a 30-min event; dragging
- * sets the duration. Layout math is the shared @plainva/ui time-grid helpers.
+ * sets the duration. An existing event can be dragged to reschedule (body →
+ * move, incl. across day columns) or resized (bottom edge → change duration);
+ * a tiny drag stays a click and opens the dialog. Layout math is the shared
+ * @plainva/ui time-grid helpers.
  */
 
 const PX_PER_HOUR = 44;
 const DAY_HEIGHT = 24 * PX_PER_HOUR;
 const MIN_BLOCK_PX = 16;
 const DRAG_THRESHOLD_PX = 4;
+/** A drag under one snap step (15 min) and without a column change is a click. */
+const MOVE_SNAP = 15;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RESIZE_HANDLE_PX = 7;
 
 export interface DayTimeGridProps {
   days: Date[];
@@ -31,11 +37,20 @@ export interface DayTimeGridProps {
   locale: string;
   /** Whether new events can be created (a writable calendar exists). */
   canCreate: boolean;
+  /** Whether THIS event can be dragged/resized (writable calendar, not a
+   * series instance) — series stay read-only until the scope editor covers
+   * them. Non-editable events are click-only. */
+  canEditEvent: (e: PimEventRow) => boolean;
   onEventClick: (e: PimEventRow) => void;
   onOpenTask?: (path: string) => void;
   /** Click/drag on an empty slot → create. Minutes are snapped day-minutes;
    * `anchor` is the pointer position for the quick-create popover. */
   onCreateSlot: (dayKey: string, startMin: number, endMin: number, anchor: { x: number; y: number }) => void;
+  /** Drop after dragging an event body — reschedule to absolute ms (duration
+   * preserved; the day may change across columns). */
+  onEventMove: (e: PimEventRow, newStartMs: number, newEndMs: number) => void;
+  /** Drop after dragging an event's bottom edge — new absolute end ms. */
+  onEventResize: (e: PimEventRow, newEndMs: number) => void;
   /** Show the weekday header row above each column (week/3-day); the month day
    * pane passes its own header outside and hides this. */
   showColumnHeaders: boolean;
@@ -50,12 +65,34 @@ interface DragState {
   moved: boolean;
 }
 
+interface BlockDrag {
+  ev: PimEventRow;
+  mode: "move" | "resize";
+  pointerId: number;
+  originCol: number;
+  /** Move only: minutes between the event start and the grab point. */
+  grabOffsetMin: number;
+  /** Move only: preserved duration. */
+  durationMin: number;
+  /** The event's own start-of-day minutes (resize keeps it). */
+  startMin: number;
+  curCol: number;
+  curStartMin: number;
+  curEndMin: number;
+  moved: boolean;
+}
+
+const eventKey = (e: PimEventRow) => `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`;
+
 export function DayTimeGrid(props: DayTimeGridProps) {
-  const { days, byDay, tasksByDay, colorOf, calName, todayKey, locale, canCreate, onEventClick, onOpenTask, onCreateSlot, showColumnHeaders } = props;
+  const { days, byDay, tasksByDay, colorOf, calName, todayKey, locale, canCreate, canEditEvent, onEventClick, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const laneRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [blockDrag, setBlockDrag] = useState<BlockDrag | null>(null);
+  /** Set on a moved event drag so the trailing click does not open the dialog. */
+  const suppressClickRef = useRef(false);
   const [nowMin, setNowMin] = useState(() => {
     const n = new Date();
     return n.getHours() * 60 + n.getMinutes();
@@ -98,7 +135,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
         startMs: Math.max(e.start.ts, dayStartMs),
         endMs: Math.min(Math.max(e.end.ts, e.start.ts + 1), dayEndMs),
       }));
-      const laid = layoutDayEvents(clamped, (c) => `${c.ev.accountId}-${c.ev.calendarId}-${c.ev.uid}-${c.ev.start.ts}`);
+      const laid = layoutDayEvents(clamped, (c) => eventKey(c.ev));
       const blocks = laid.map((l) => {
         const startMin = minutesInDay(l.event.startMs, dayStartMs);
         const endMin = Math.max(startMin + 1, minutesInDay(l.event.endMs, dayStartMs));
@@ -118,6 +155,21 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     if (!lane) return 0;
     return Math.max(0, Math.min(DAY_HEIGHT, clientY - lane.getBoundingClientRect().top));
   };
+  const minAt = (col: number, clientY: number) => pxToMinutes(relY(col, clientY), PX_PER_HOUR);
+  /** Which day column the pointer's x is over (clamped to the visible range). */
+  const colAt = (clientX: number, fallback: number): number => {
+    let best = fallback;
+    for (let i = 0; i < perDay.length; i++) {
+      const el = laneRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return i;
+      if (i === 0 && clientX < r.left) best = 0;
+      if (i === perDay.length - 1 && clientX > r.right) best = perDay.length - 1;
+    }
+    return best;
+  };
+
   const onColDown = (col: number, dayKey: string, e: React.PointerEvent) => {
     if (!canCreate || e.button !== 0) return;
     laneRefs.current[col]?.setPointerCapture(e.pointerId);
@@ -144,6 +196,55 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       let endMin = d.moved ? snapMinutes(pxToMinutes(bottom, PX_PER_HOUR)) : startMin + 30;
       if (endMin <= startMin) endMin = startMin + (d.moved ? 15 : 30);
       onCreateSlot(d.dayKey, startMin, Math.min(24 * 60, endMin), { x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // ---- existing-event drag: move (body) / resize (bottom edge) -------------
+  const startBlockDrag = (mode: "move" | "resize", col: number, block: { ev: PimEventRow; startMin: number; endMin: number }, e: React.PointerEvent) => {
+    e.stopPropagation(); // never let the column start a create-drag
+    if (!canEditEvent(block.ev) || e.button !== 0) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const pointerMin = minAt(col, e.clientY);
+    setBlockDrag({
+      ev: block.ev,
+      mode,
+      pointerId: e.pointerId,
+      originCol: col,
+      grabOffsetMin: pointerMin - block.startMin,
+      durationMin: Math.max(MOVE_SNAP, block.endMin - block.startMin),
+      startMin: block.startMin,
+      curCol: col,
+      curStartMin: block.startMin,
+      curEndMin: block.endMin,
+      moved: false,
+    });
+  };
+  const onBlockMove = (e: React.PointerEvent) => {
+    setBlockDrag((d) => {
+      if (!d || d.pointerId !== e.pointerId) return d;
+      if (d.mode === "resize") {
+        const endMin = resizeEventEndMinutes({ pointerMin: minAt(d.originCol, e.clientY), startMin: d.startMin });
+        return { ...d, curEndMin: endMin, moved: d.moved || Math.abs(endMin - (d.startMin + d.durationMin)) >= MOVE_SNAP };
+      }
+      const col = colAt(e.clientX, d.originCol);
+      const { startMin, endMin } = moveEventMinutes({ pointerMin: minAt(col, e.clientY), grabOffsetMin: d.grabOffsetMin, durationMin: d.durationMin });
+      const moved = d.moved || col !== d.originCol || Math.abs(startMin - d.startMin) >= MOVE_SNAP;
+      return { ...d, curCol: col, curStartMin: startMin, curEndMin: endMin, moved };
+    });
+  };
+  const onBlockUp = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    const d = blockDrag;
+    setBlockDrag(null);
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (!d.moved) return; // a tiny drag stays a click → onClick opens the dialog
+    suppressClickRef.current = true; // a real drag happened; swallow the click
+    if (d.mode === "resize") {
+      const originStart = perDay[d.originCol]?.dayStartMs ?? 0;
+      onEventResize(d.ev, originStart + d.curEndMin * 60000);
+    } else {
+      const dayStartMs = perDay[d.curCol]?.dayStartMs ?? perDay[d.originCol]?.dayStartMs ?? 0;
+      onEventMove(d.ev, dayStartMs + d.curStartMin * 60000, dayStartMs + d.curEndMin * 60000);
     }
   };
 
@@ -246,7 +347,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   <div key={h} style={{ position: "absolute", left: 0, right: 0, top: h * PX_PER_HOUR, borderTop: "1px solid var(--border-color-light)", opacity: 0.6 }} />
                 ))}
 
-                {/* Drag selection preview */}
+                {/* Drag selection preview (create) */}
                 {drag && drag.col === col && (() => {
                   const top = Math.min(drag.y0, drag.y1);
                   const height = Math.max(MIN_BLOCK_PX, Math.abs(drag.y1 - drag.y0));
@@ -259,19 +360,44 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   );
                 })()}
 
+                {/* Event-drag ghost (move/resize) */}
+                {blockDrag && blockDrag.moved && blockDrag.curCol === col && (() => {
+                  const top = minutesToPx(blockDrag.curStartMin, PX_PER_HOUR);
+                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(blockDrag.curEndMin - blockDrag.curStartMin, PX_PER_HOUR));
+                  return (
+                    <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "flex-start", padding: "2px 5px", fontSize: 11, color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
+                      {minutesToHHMM(blockDrag.curStartMin)}–{minutesToHHMM(blockDrag.curEndMin)}
+                    </div>
+                  );
+                })()}
+
                 {/* Timed event blocks */}
                 {d.blocks.map((b) => {
                   const top = minutesToPx(b.startMin, PX_PER_HOUR);
                   const height = Math.max(MIN_BLOCK_PX, minutesToPx(b.endMin - b.startMin, PX_PER_HOUR));
                   const widthPct = 100 / b.lanes;
                   const leftPct = b.lane * widthPct;
+                  const editable = canEditEvent(b.ev);
+                  const dragging = blockDrag?.moved && eventKey(blockDrag.ev) === eventKey(b.ev);
                   return (
                     <button
-                      key={`${b.ev.accountId}-${b.ev.calendarId}-${b.ev.uid}-${b.ev.start.ts}`}
+                      key={eventKey(b.ev)}
                       type="button"
                       data-testid="calendar-timed-event"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => { e.stopPropagation(); onEventClick(b.ev); }}
+                      onPointerDown={(e) => {
+                        // Clear a stale suppression left by a prior drag that
+                        // ended off the block (resize) so this click still works.
+                        suppressClickRef.current = false;
+                        if (editable) startBlockDrag("move", col, b, e);
+                        else e.stopPropagation();
+                      }}
+                      onPointerMove={onBlockMove}
+                      onPointerUp={onBlockUp}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+                        onEventClick(b.ev);
+                      }}
                       title={`${b.ev.title}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
                       style={{
                         position: "absolute",
@@ -287,7 +413,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         textAlign: "left",
                         padding: "2px 5px",
                         overflow: "hidden",
-                        cursor: "pointer",
+                        cursor: editable ? "grab" : "pointer",
+                        opacity: dragging ? 0.4 : 1,
+                        touchAction: "none",
                         display: "flex",
                         flexDirection: "column",
                         gap: 1,
@@ -304,6 +432,18 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.ev.location}</span>
                         </span>
                       ) : null}
+                      {/* Resize handle (bottom edge) — only for editable, tall-enough blocks */}
+                      {editable && height >= MIN_BLOCK_PX + RESIZE_HANDLE_PX && (
+                        <span
+                          data-testid="calendar-event-resize"
+                          onPointerDown={(e) => startBlockDrag("resize", col, b, e)}
+                          onPointerMove={(e) => { e.stopPropagation(); onBlockMove(e); }}
+                          onPointerUp={(e) => { e.stopPropagation(); onBlockUp(e); }}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-hidden
+                          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: RESIZE_HANDLE_PX, cursor: "ns-resize", touchAction: "none" }}
+                        />
+                      )}
                     </button>
                   );
                 })}

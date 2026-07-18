@@ -103,3 +103,27 @@ export function minutesToHHMM(min: number): string {
   const h = Math.floor(m / 60) % 24;
   return `${String(h).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
+
+/**
+ * Drag an existing block to a new time, keeping its duration. `pointerMin` is
+ * the pointer's minute-of-day; `grabOffsetMin` is how far inside the block it
+ * was grabbed (pointerMin − startMin at grab time). The result is snapped and
+ * clamped so the whole block stays within the day.
+ */
+export function moveEventMinutes(opts: { pointerMin: number; grabOffsetMin: number; durationMin: number; step?: number }): { startMin: number; endMin: number } {
+  const step = opts.step ?? 15;
+  const duration = Math.max(step, Math.round(opts.durationMin));
+  const raw = Math.round((opts.pointerMin - opts.grabOffsetMin) / step) * step;
+  const startMin = Math.max(0, Math.min(DAY_MINUTES - duration, raw));
+  return { startMin, endMin: startMin + duration };
+}
+
+/**
+ * Drag a block's bottom edge to a new end, keeping the start and at least one
+ * snap step of height. Snapped and clamped to the day.
+ */
+export function resizeEventEndMinutes(opts: { pointerMin: number; startMin: number; step?: number }): number {
+  const step = opts.step ?? 15;
+  const raw = Math.round(opts.pointerMin / step) * step;
+  return Math.max(opts.startMin + step, Math.min(DAY_MINUTES, raw));
+}
