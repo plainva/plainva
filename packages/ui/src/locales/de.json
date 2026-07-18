@@ -1953,7 +1953,18 @@
     "untitledEvent": "(ohne Titel)",
     "eventDescription": "Beschreibung",
     "eventColor": "Farbe",
-    "eventColorDefault": "Kalenderfarbe"
+    "eventColorDefault": "Kalenderfarbe",
+    "attendees": "Teilnehmer",
+    "yourResponse": "Deine Antwort",
+    "organizer": "Organisator",
+    "rsvpAccept": "Zusagen",
+    "rsvpDecline": "Absagen",
+    "rsvpTentative": "Vorläufig",
+    "rsvpAccepted": "Zugesagt",
+    "rsvpDeclined": "Abgesagt",
+    "rsvpTentativeState": "Vorläufig",
+    "rsvpPending": "Ausstehend",
+    "rsvpUnsupported": "Zu-/Absagen wird für dieses Konto nicht unterstützt."
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",

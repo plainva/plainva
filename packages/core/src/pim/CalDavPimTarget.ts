@@ -3,6 +3,8 @@ import ICAL from "ical.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
 import type {
   IPimTarget,
+  PimAttendee,
+  PimAttendeeStatus,
   PimCalendar,
   PimEvent,
   PimEventDraft,
@@ -177,7 +179,31 @@ export class CalDavPimTarget implements IPimTarget {
         console.warn(`[CalDavPimTarget] skipping unparseable object ${e.href}:`, err);
       }
     }
+    markSelfRsvps(events, this.selfEmail());
     return { events };
+  }
+
+  /** The account email for self-RSVP detection (only if the user is an email). */
+  private selfEmail(): string | undefined {
+    return this.creds.user.includes("@") ? this.creds.user.toLowerCase() : undefined;
+  }
+
+  /** RSVP: set the own ATTENDEE's PARTSTAT and PUT back. RFC 6638
+   * auto-scheduling servers then notify the organiser; others simply record it. */
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+    if (!ref.href) return;
+    const me = this.selfEmail();
+    if (!me) return; // cannot identify the account attendee (user is not an email)
+    const partstat = response === "accepted" ? "ACCEPTED" : response === "declined" ? "DECLINED" : "TENTATIVE";
+    await this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => {
+      for (const p of comp.getAllProperties("attendee")) {
+        if (mailtoEmail(p) === me) {
+          p.setParameter("partstat", partstat);
+          break;
+        }
+      }
+      bumpRevision(comp);
+    });
   }
 
   // ---- tasks --------------------------------------------------------------
@@ -586,6 +612,7 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     location: ev.location ?? undefined,
     description: ev.description ?? undefined,
     attendees: veventAttendees(ev.component),
+    rsvps: veventRsvps(ev.component),
     status: veventStatus(ev.component),
     etag,
     href,
@@ -603,6 +630,60 @@ function veventAttendees(vevent: InstanceType<typeof ICAL.Component>): string[] 
     out.push(typeof cn === "string" && cn ? cn : value.replace(/^mailto:/i, ""));
   }
   return out.filter(Boolean);
+}
+
+/** iCal PARTSTAT -> normalised status. */
+function partstatToStatus(partstat: string | undefined): PimAttendeeStatus {
+  switch ((partstat ?? "").toUpperCase()) {
+    case "ACCEPTED":
+      return "accepted";
+    case "DECLINED":
+      return "declined";
+    case "TENTATIVE":
+      return "tentative";
+    default:
+      return "needsAction";
+  }
+}
+
+/** The mailto email from an ATTENDEE/ORGANIZER property value, lowercased. */
+function mailtoEmail(p: InstanceType<typeof ICAL.Property> | null): string | undefined {
+  if (!p) return undefined;
+  const v = String(p.getFirstValue() ?? "").toLowerCase();
+  return v.startsWith("mailto:") ? v.slice(7) : undefined;
+}
+
+function veventRsvps(vevent: InstanceType<typeof ICAL.Component>): PimAttendee[] | undefined {
+  const props = vevent.getAllProperties("attendee");
+  if (props.length === 0) return undefined;
+  const organizerEmail = mailtoEmail(vevent.getFirstProperty("organizer"));
+  const out: PimAttendee[] = [];
+  for (const p of props) {
+    const cn = p.getParameter("cn");
+    const email = mailtoEmail(p);
+    const name = typeof cn === "string" && cn ? cn : email ?? "";
+    if (!name) continue;
+    out.push({
+      name,
+      email,
+      status: partstatToStatus(p.getParameter("partstat") as string | undefined),
+      organizer: !!organizerEmail && email === organizerEmail,
+    });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/** Marks the account user's own attendee entry and derives selfResponse. */
+export function markSelfRsvps(events: PimEvent[], selfEmail: string | undefined): void {
+  if (!selfEmail) return;
+  const me = selfEmail.toLowerCase();
+  for (const e of events) {
+    const mine = e.rsvps?.find((a) => a.email === me);
+    if (mine) {
+      mine.self = true;
+      if (!mine.organizer) e.selfResponse = mine.status;
+    }
+  }
 }
 
 function veventStatus(vevent: InstanceType<typeof ICAL.Component>): PimEvent["status"] {

@@ -146,6 +146,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       recurrence    TEXT,
       href          TEXT,
       color         TEXT,
+      rsvps         TEXT,
       PRIMARY KEY (account_id, cal_id, uid)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_tasklists (
@@ -254,6 +255,13 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   try {
     // Per-event colour (2026-07-18): overrides the calendar colour on the grid.
     await db.execute(`ALTER TABLE pim_events ADD COLUMN color TEXT;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Attendee RSVP details (2026-07-18): the accept/decline back-channel.
+    await db.execute(`ALTER TABLE pim_events ADD COLUMN rsvps TEXT;`);
   } catch {
     // Column might already exist
   }

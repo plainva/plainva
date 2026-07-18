@@ -148,4 +148,27 @@ describe("PimCacheRepository", () => {
     await repo.setScopeState("acc1", "events:cal1", { cursor: "tok", lastSyncTs: 42, lastError: null });
     expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({ cursor: "tok", lastSyncTs: 42, lastError: null });
   });
+
+  it("round-trips per-event colour and RSVP details, deriving selfResponse", async () => {
+    const range = Date.parse("2027-01-01T00:00:00Z");
+    await repo.replaceEventWindow("acc1", "cal1", 0, range, [
+      ev("e1", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z", {
+        color: "#f4511e",
+        rsvps: [
+          { name: "Chef", email: "chef@x.org", status: "accepted", organizer: true },
+          { name: "Me", email: "me@x.org", status: "declined", self: true },
+        ],
+      }),
+    ]);
+    const [row] = await repo.listEvents(0, range);
+    expect(row.color).toBe("#f4511e");
+    expect(row.rsvps).toEqual([
+      { name: "Chef", email: "chef@x.org", status: "accepted", organizer: true },
+      { name: "Me", email: "me@x.org", status: "declined", self: true },
+    ]);
+    expect(row.selfResponse).toBe("declined");
+    const single = await repo.getEventByUid("acc1", "cal1", "e1");
+    expect(single?.color).toBe("#f4511e");
+    expect(single?.selfResponse).toBe("declined");
+  });
 });

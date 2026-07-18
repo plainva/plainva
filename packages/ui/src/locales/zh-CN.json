@@ -1947,7 +1947,18 @@
     "untitledEvent": "(无标题)",
     "eventDescription": "描述",
     "eventColor": "颜色",
-    "eventColorDefault": "日历颜色"
+    "eventColorDefault": "日历颜色",
+    "attendees": "参与者",
+    "yourResponse": "你的回复",
+    "organizer": "组织者",
+    "rsvpAccept": "接受",
+    "rsvpDecline": "拒绝",
+    "rsvpTentative": "暂定",
+    "rsvpAccepted": "已接受",
+    "rsvpDeclined": "已拒绝",
+    "rsvpTentativeState": "暂定",
+    "rsvpPending": "待定",
+    "rsvpUnsupported": "此账户不支持回复。"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",

@@ -444,6 +444,19 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     [rescheduleEvent]
   );
 
+  // ---- RSVP (accept/decline an invitation; provider-native scheduling) ------
+  const respondToEventAs = useCallback(
+    async (e: PimEventRow, response: "accepted" | "declined" | "tentative") => {
+      const target = await targetFor(e.accountId);
+      if (!target?.respondToEvent) {
+        throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
+      }
+      await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
+      refresh();
+    },
+    [targetFor, refresh, t]
+  );
+
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
 
   const timedForm = useCallback(
@@ -1021,6 +1034,13 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           onDelete={
             editState.mode === "edit" && editState.event
               ? () => { const ev = editState.event!; setEditState(null); requestDelete(ev); }
+              : undefined
+          }
+          rsvps={editState.mode === "edit" ? editState.event?.rsvps : undefined}
+          selfResponse={editState.mode === "edit" ? editState.event?.selfResponse : undefined}
+          onRespond={
+            editState.mode === "edit" && editState.event
+              ? (response) => respondToEventAs(editState.event!, response)
               : undefined
           }
         />

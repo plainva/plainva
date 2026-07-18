@@ -1,6 +1,8 @@
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
 import type {
   IPimTarget,
+  PimAttendee,
+  PimAttendeeStatus,
   PimAuthProvider,
   PimCalendar,
   PimEvent,
@@ -57,6 +59,31 @@ function hexToGoogleColorId(hex: string | undefined): string | null {
   const norm = hex.toLowerCase();
   for (const [id, h] of Object.entries(GOOGLE_EVENT_COLORS)) if (h === norm) return id;
   return null;
+}
+
+/** Google responseStatus -> normalised PARTSTAT (Google already uses the same
+ * accepted/declined/tentative vocabulary; needsAction is the default). */
+function googleResponseToStatus(r: string | undefined): PimAttendeeStatus {
+  return r === "accepted" ? "accepted" : r === "declined" ? "declined" : r === "tentative" ? "tentative" : "needsAction";
+}
+
+function googleRsvps(item: GoogleEventItem): { rsvps?: PimAttendee[]; selfResponse?: PimAttendeeStatus } {
+  const attendees = (item.attendees ?? []).filter((a) => !a.resource);
+  if (attendees.length === 0) return {};
+  const rsvps = attendees
+    .map((a) => ({
+      name: a.displayName || a.email || "",
+      email: a.email,
+      status: googleResponseToStatus(a.responseStatus),
+      self: a.self,
+      organizer: a.organizer,
+    }))
+    .filter((a) => a.name);
+  const self = attendees.find((a) => a.self && !a.organizer);
+  return {
+    rsvps: rsvps.length > 0 ? rsvps : undefined,
+    selfResponse: self ? googleResponseToStatus(self.responseStatus) : undefined,
+  };
 }
 
 export class GooglePimTarget implements IPimTarget {
@@ -231,6 +258,23 @@ export class GooglePimTarget implements IPimTarget {
     if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`google delete event ${res.status}`);
   }
 
+  /** RSVP: GET the event, set the own attendee's responseStatus, PATCH the full
+   * attendee list back (Google replaces the array on patch). Google notifies the
+   * organiser via its own scheduling. */
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+    const url = `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`;
+    const ev = await this.getJson<{ attendees?: Array<{ email?: string; self?: boolean; responseStatus?: string }> }>(url);
+    const attendees = ev.attendees ?? [];
+    if (!attendees.some((a) => a.self)) return; // not an attendee — nothing to RSVP
+    const patched = attendees.map((a) => (a.self ? { ...a, responseStatus: response } : a));
+    const res = await this.request(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attendees: patched }),
+    });
+    if (!res.ok) throw new Error(`google rsvp ${res.status}`);
+  }
+
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
     const res = await this.request(`${TASKS_BASE}/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
@@ -280,6 +324,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
       .filter((a) => !a.resource)
       .map((a) => a.displayName || a.email || "")
       .filter(Boolean),
+    ...googleRsvps(item),
     status: item.status === "tentative" ? "tentative" : item.status === "cancelled" ? "cancelled" : "confirmed",
     etag: item.etag,
     seriesMaster: item.recurringEventId,

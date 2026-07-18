@@ -1953,7 +1953,18 @@
     "untitledEvent": "(no title)",
     "eventDescription": "Description",
     "eventColor": "Color",
-    "eventColorDefault": "Calendar color"
+    "eventColorDefault": "Calendar color",
+    "attendees": "Attendees",
+    "yourResponse": "Your response",
+    "organizer": "Organizer",
+    "rsvpAccept": "Accept",
+    "rsvpDecline": "Decline",
+    "rsvpTentative": "Tentative",
+    "rsvpAccepted": "Accepted",
+    "rsvpDeclined": "Declined",
+    "rsvpTentativeState": "Tentative",
+    "rsvpPending": "Pending",
+    "rsvpUnsupported": "Responding isn't supported for this account."
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",

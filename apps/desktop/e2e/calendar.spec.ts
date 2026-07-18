@@ -46,6 +46,10 @@ test.beforeEach(async ({ page }) => {
               start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: 'Kurzes Standup',
               attendees: JSON.stringify(['a@example.org']), status: 'confirmed', etag: 'e1',
               series_master: null, recurrence: null, href: null, color: '#039be5',
+              rsvps: JSON.stringify([
+                { name: 'Chef', email: 'chef@example.org', status: 'accepted', organizer: true },
+                { name: 'Ich', email: 'me@example.org', status: 'needsAction', self: true },
+              ]),
             },
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-holiday', title: 'Feiertag',
@@ -321,6 +325,15 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await page.getByTestId('event-color-#d50000').click();
   await expect(page.getByTestId('event-color-#d50000')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'false');
+
+  // RSVP back-channel: attendees with their status, plus the own accept/decline
+  // buttons (the user is an invited attendee). No provider in the mock, so a
+  // response surfaces the "unsupported" error inline instead of pretending.
+  await expect(page.getByTestId('event-attendees')).toContainText('Chef');
+  await expect(page.getByTestId('event-attendees')).toContainText('Ich');
+  await expect(page.getByTestId('rsvp-accept')).toBeVisible();
+  await page.getByTestId('rsvp-decline').click();
+  await expect(page.getByTestId('event-error')).toBeVisible();
 
   // Delete from the dialog -> danger confirm naming the event; cancel keeps it.
   await page.getByTestId('event-delete').click();

@@ -1953,7 +1953,18 @@
     "untitledEvent": "(zonder titel)",
     "eventDescription": "Beschrijving",
     "eventColor": "Kleur",
-    "eventColorDefault": "Agendakleur"
+    "eventColorDefault": "Agendakleur",
+    "attendees": "Deelnemers",
+    "yourResponse": "Jouw reactie",
+    "organizer": "Organisator",
+    "rsvpAccept": "Accepteren",
+    "rsvpDecline": "Weigeren",
+    "rsvpTentative": "Voorlopig",
+    "rsvpAccepted": "Geaccepteerd",
+    "rsvpDeclined": "Geweigerd",
+    "rsvpTentativeState": "Voorlopig",
+    "rsvpPending": "In afwachting",
+    "rsvpUnsupported": "Reageren wordt niet ondersteund voor dit account."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",

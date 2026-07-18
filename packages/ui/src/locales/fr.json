@@ -1959,7 +1959,18 @@
     "untitledEvent": "(sans titre)",
     "eventDescription": "Description",
     "eventColor": "Couleur",
-    "eventColorDefault": "Couleur de l'agenda"
+    "eventColorDefault": "Couleur de l'agenda",
+    "attendees": "Participants",
+    "yourResponse": "Votre réponse",
+    "organizer": "Organisateur",
+    "rsvpAccept": "Accepter",
+    "rsvpDecline": "Refuser",
+    "rsvpTentative": "Provisoire",
+    "rsvpAccepted": "Accepté",
+    "rsvpDeclined": "Refusé",
+    "rsvpTentativeState": "Provisoire",
+    "rsvpPending": "En attente",
+    "rsvpUnsupported": "La réponse n'est pas prise en charge pour ce compte."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, lecture seule)",
