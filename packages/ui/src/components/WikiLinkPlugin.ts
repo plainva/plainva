@@ -304,11 +304,12 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         cursor: "pointer"
       },
       // Unresolved (note doesn't exist yet): muted + dashed underline, still
-      // clickable — clicking creates the note (Obsidian parity).
+      // clickable — clicking creates the note (Obsidian parity). Kept visually
+      // identical to the reading view's `underline dashed` (maintainer: the
+      // live-preview link must look the same as in reading mode).
       ".cm-wiki-link--unresolved": {
         color: "var(--wiki-link-unresolved-color, var(--text-muted))",
         textDecorationStyle: "dashed",
-        textDecorationThickness: "from-font",
       },
     }),
     EditorView.domEventHandlers({

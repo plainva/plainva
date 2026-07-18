@@ -10,6 +10,7 @@ import { undoDepth } from "@codemirror/commands";
 import type { i18n as I18nInstance } from "i18next";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { tableLinkHandlers } from "@plainva/ui";
+import { setWikiResolver, buildWikiTargetSet } from "@plainva/ui";
 
 /**
  * Session-level regression tests for the editor-stability plan (2026-07-05).
@@ -296,6 +297,24 @@ describe("live preview decorations", () => {
     expect(lineWith(session, "Text")).toBe(doc);
     session.view.dispatch({ selection: { anchor: 0 } });
     expect(lineWith(session, "Text")).toBe("Alpha Text Omega");
+  });
+
+  it("styles an unresolved wiki link in live preview and clears it once the target exists (2026-07-18)", () => {
+    const { session } = makeSession("live", "See [[Ghost]] here.\n");
+    const dom = session.view.contentDOM;
+    const ghost = () =>
+      [...dom.querySelectorAll<HTMLElement>(".cm-wiki-link")].find((s) => s.getAttribute("data-link-target") === "Ghost");
+    // No resolver set yet -> nothing is flagged (index not loaded).
+    expect(ghost()).toBeTruthy();
+    expect(ghost()!.classList.contains("cm-wiki-link--unresolved")).toBe(false);
+    // Resolver set WITHOUT "Ghost" -> the link renders unresolved in LIVE preview,
+    // the same muted class the reading view applies (maintainer: live == read).
+    session.view.dispatch({ effects: setWikiResolver.of(buildWikiTargetSet([{ title: "Other", path: "Other.md" }])) });
+    expect(ghost()!.classList.contains("cm-wiki-link--unresolved")).toBe(true);
+    expect(ghost()!.getAttribute("title")).toBeTruthy();
+    // Once "Ghost" exists, the unresolved style clears again.
+    session.view.dispatch({ effects: setWikiResolver.of(buildWikiTargetSet([{ title: "Ghost", path: "Ghost.md" }])) });
+    expect(ghost()!.classList.contains("cm-wiki-link--unresolved")).toBe(false);
   });
 });
 
