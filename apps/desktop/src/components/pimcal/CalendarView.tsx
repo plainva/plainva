@@ -401,6 +401,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       startTime: minutesToHHMM(startMin),
       endTime: minutesToHHMM(endMin),
       location: v.location,
+      description: "",
       calendarKey: v.calendarKey || calendarOptions[0]?.value || "",
       repeat: "",
     }),

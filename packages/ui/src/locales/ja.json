@@ -1944,7 +1944,8 @@
     "quickCreateTitle": "タイトルを追加",
     "quickCreateLocation": "場所を追加",
     "quickCreateMore": "その他のオプション",
-    "untitledEvent": "(タイトルなし)"
+    "untitledEvent": "(タイトルなし)",
+    "eventDescription": "説明"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",

@@ -1962,7 +1962,8 @@
     "quickCreateTitle": "Dodaj tytuł",
     "quickCreateLocation": "Dodaj miejsce",
     "quickCreateMore": "Więcej opcji",
-    "untitledEvent": "(bez tytułu)"
+    "untitledEvent": "(bez tytułu)",
+    "eventDescription": "Opis"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",

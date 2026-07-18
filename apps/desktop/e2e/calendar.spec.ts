@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-standup', title: 'Standup',
               start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).getTime(),
               end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30).getTime(),
-              start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: null,
+              start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: 'Kurzes Standup',
               attendees: JSON.stringify(['a@example.org']), status: 'confirmed', etag: 'e1',
               series_master: null, recurrence: null, href: null,
             },
@@ -315,6 +315,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
   await expect(page.getByTestId('event-end-time')).toHaveValue('10:30');
   await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
+  await expect(page.getByTestId('event-description')).toHaveValue('Kurzes Standup');
 
   // Delete from the dialog -> danger confirm naming the event; cancel keeps it.
   await page.getByTestId('event-delete').click();

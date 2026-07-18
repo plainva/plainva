@@ -105,11 +105,13 @@ describe("event form helpers (stage 3)", () => {
       startTime: "10:00",
       endTime: "11:30",
       location: " Raum 5 ",
+      description: " Agenda besprechen ",
       calendarKey: "a c",
       repeat: "",
     });
     expect(draft.title).toBe("Planning");
     expect(draft.location).toBe("Raum 5");
+    expect(draft.description).toBe("Agenda besprechen");
     expect(draft.allDay).toBe(false);
     expect(draft.start.ts).toBe(new Date(2026, 7, 1, 10, 0).getTime());
     expect(draft.end.ts).toBe(new Date(2026, 7, 1, 11, 30).getTime());
@@ -121,6 +123,7 @@ describe("event form helpers (stage 3)", () => {
       startTime: "10:00",
       endTime: "09:00",
       location: "",
+      description: "",
       calendarKey: "",
       repeat: "",
     });
@@ -136,6 +139,7 @@ describe("event form helpers (stage 3)", () => {
       startTime: "",
       endTime: "",
       location: "",
+      description: "",
       calendarKey: "",
       repeat: "",
     });

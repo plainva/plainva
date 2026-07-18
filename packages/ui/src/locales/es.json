@@ -1956,7 +1956,8 @@
     "quickCreateTitle": "Añadir título",
     "quickCreateLocation": "Añadir ubicación",
     "quickCreateMore": "Más opciones",
-    "untitledEvent": "(sin título)"
+    "untitledEvent": "(sin título)",
+    "eventDescription": "Descripción"
   },
   "mail": {
     "sectionTitle": "Correo (IMAP, solo lectura)",

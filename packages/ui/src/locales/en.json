@@ -1950,7 +1950,8 @@
     "quickCreateTitle": "Add title",
     "quickCreateLocation": "Add location",
     "quickCreateMore": "More options",
-    "untitledEvent": "(no title)"
+    "untitledEvent": "(no title)",
+    "eventDescription": "Description"
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",

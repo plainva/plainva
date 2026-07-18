@@ -52,7 +52,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 
 Il pulsante **Nota giornaliera** nella barra delle azioni a sinistra apre o crea la nota di oggi. Configura la cartella base, il formato della data e un modello opzionale in **Impostazioni → Vault → Contenuto e struttura** (**Scegli cartella…** accanto al campo permette di scegliere la cartella direttamente nel vault).
 
-Il **Calendario** a destra è una panoramica del giorno: un clic su una data apre una piccola anteprima con gli eventi e le attività in scadenza di quel giorno, più l'azione **Nota giornaliera**; un clic destro offre lo stesso come menu. I giorni con una nota giornaliera hanno un piccolo simbolo a forma di alba, i giorni con eventi hanno puntini colorati per calendario. Il pulsante **Oggi** torna al mese corrente; un clic sull'etichetta del mese apre un selettore rapido di mese/anno. Lì puoi anche attivare **Mostra i numeri di settimana** per aggiungere una colonna con la settimana ISO — l'impostazione viene ricordata.
+Il **Calendario** a destra è una panoramica del giorno: un **clic** su una data apre la [scheda del calendario](Calendar_and_Tasks.md) in quel giorno; un **clic destro** apre un menu che indica il giorno in alto e offre **Apri calendario**, **Nota giornaliera** e gli eventi e le attività in scadenza di quel giorno. I giorni con una nota giornaliera hanno un piccolo **simbolo del sole**, i giorni con eventi hanno puntini colorati per calendario. Il pulsante **Oggi** torna al mese corrente; un clic sull'etichetta del mese apre un selettore rapido di mese/anno. Lì puoi anche attivare **Mostra i numeri di settimana** per aggiungere una colonna con la settimana ISO — l'impostazione viene ricordata.
 
 ## Impostazioni
 

@@ -53,7 +53,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
     <Modal
       title={mode === "create" ? t("pim.newEvent", { defaultValue: "Neuer Termin" }) : t("pim.editEvent", { defaultValue: "Termin bearbeiten" })}
       onClose={onCancel}
-      size="sm"
+      size="md"
       footer={
         <>
           {mode === "edit" && onMeetingNote && (
@@ -160,6 +160,17 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             value={values.location}
             onChange={(e) => set("location", e.target.value)}
             data-testid="event-location"
+            style={{ display: "block", width: "100%", marginTop: 2 }}
+          />
+        </label>
+        <label style={{ fontSize: "var(--text-sm)" }}>
+          {t("pim.eventDescription", { defaultValue: "Beschreibung" })}
+          <textarea
+            className="pv-field pv-field--area"
+            value={values.description}
+            onChange={(e) => set("description", e.target.value)}
+            data-testid="event-description"
+            rows={3}
             style={{ display: "block", width: "100%", marginTop: 2 }}
           />
         </label>

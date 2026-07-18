@@ -78,29 +78,31 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "10px 12px 4px" }}>
+        <div style={{ padding: "12px 14px 6px" }}>
           <input
             ref={titleRef}
+            className="pv-field"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onSave(values()); } }}
             placeholder={t("pim.quickCreateTitle", { defaultValue: "Titel hinzufügen" })}
             data-testid="calendar-quick-title"
-            style={{ width: "100%", border: "none", borderBottom: "2px solid var(--accent-color)", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-md)", fontWeight: 600, padding: "2px 0 5px", outline: "none" }}
+            style={{ width: "100%", fontWeight: 600 }}
           />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "8px 12px 4px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 8px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Clock size={14} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
             <span>{dateLabel} · {timeLabel}</span>
           </div>
           {calendarOptions.length > 1 && (
             <select
+              className="pv-field pv-field--select"
               value={calendarKey}
               onChange={(e) => setCalendarKey(e.target.value)}
               aria-label={t("pim.eventCalendar", { defaultValue: "Kalender" })}
               data-testid="calendar-quick-calendar"
-              style={{ width: "100%", padding: "4px 6px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", background: "var(--bg-primary)", color: "var(--text-main)", fontSize: "var(--text-sm)" }}
+              style={{ width: "100%" }}
             >
               {calendarOptions.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -110,10 +112,11 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <MapPin size={14} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
             <input
+              className="pv-field"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder={t("pim.quickCreateLocation", { defaultValue: "Ort hinzufügen" })}
-              style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", color: "var(--text-main)", fontSize: "var(--text-sm)", outline: "none" }}
+              style={{ flex: 1, minWidth: 0 }}
             />
           </div>
         </div>

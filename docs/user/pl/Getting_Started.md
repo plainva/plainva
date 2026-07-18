@@ -52,7 +52,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 
 Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta).
 
-**Kalendarz** po prawej to podgląd dnia: kliknięcie daty otwiera mały podgląd z wydarzeniami i terminami zadań tego dnia oraz akcją **Notatka dzienna**; kliknięcie prawym przyciskiem oferuje to samo w postaci menu. Dni z notatką dzienną są oznaczone małym symbolem wschodzącego słońca, dni z wydarzeniami — kolorowymi kropkami dla każdego kalendarza. Przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
+**Kalendarz** po prawej to podgląd dnia: **kliknięcie** daty otwiera [kartę kalendarza](Calendar_and_Tasks.md) na ten dzień; **kliknięcie prawym przyciskiem** otwiera menu, które u góry nazywa dany dzień i oferuje **Otwórz kalendarz**, **Notatka dzienna** oraz wydarzenia i zadania z terminem tego dnia. Dni z notatką dzienną są oznaczone małym symbolem **słońca**, dni z wydarzeniami — kolorowymi kropkami dla każdego kalendarza. Przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
 
 ## Ustawienia
 
