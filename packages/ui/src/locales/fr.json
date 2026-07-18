@@ -22,6 +22,9 @@
     "dismiss": "Masquer"
   },
   "settings": {
+    "groupLinks": "Liens",
+    "askBeforeCreateLink": "Demander avant de créer des liens vides",
+    "askBeforeCreateLinkDesc": "Normalement, un clic sur un lien vers une note qui n'existe pas encore la crée aussitôt. Avec cette option, une confirmation vous est demandée au préalable.",
     "title": "Paramètres",
     "theme": "Thème",
     "themeLight": "Clair",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Dimanche"
   },
   "editor": {
+    "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",
     "fileNotFound": "Fichier introuvable",
     "loading": "Chargement...",
     "menu": "Menu",
@@ -529,6 +533,8 @@
     "bookmarkSaveFailed": "Impossible d'enregistrer les signets."
   },
   "database": {
+    "graphNoColumns": "Le graphe n'affiche aucune colonne de propriété.",
+    "noDateColumn": "Aucune propriété de date",
     "configure": "Configurer",
     "iconColor": "Couleur de l'icône de la base de données",
     "confirmRenameProperty": "La propriété « {{old}} » sera renommée en « {{new}} » dans {{count}} fichiers. Continuer ?",
@@ -876,6 +882,9 @@
     "folderExists": "Un dossier portant ce nom existe déjà."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Créer la note ?",
+    "createNoteFromLinkMsg": "« {{title}} » n'existe pas encore. La créer maintenant ?",
+    "createNoteFromLinkConfirm": "Créer",
     "discardConflictTitle": "Rejeter le conflit",
     "discardConflictMsg": "Voulez-vous vraiment rejeter « {{name}} » ? Toutes les modifications de ce fichier seront définitivement perdues.",
     "deleteConfirmTitle": "Confirmer la suppression",

@@ -43,6 +43,7 @@ import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from 
 import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, type ContentFontSettings } from "../services/contentFont";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
+import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatDiagnosticsExport } from "@plainva/ui";
@@ -104,6 +105,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredDefaultViewMode().then(setDefaultViewMode).catch(() => {}); }, []);
   const [contentFont, setContentFont] = useState<ContentFontSettings>({ size: DEFAULT_CONTENT_FONT_SIZE, family: "theme", customName: "" });
   useEffect(() => { getStoredContentFont().then(setContentFont).catch(() => {}); }, []);
+  const [askBeforeCreateLink, setAskBeforeCreateLinkState] = useState(false);
+  useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
@@ -1171,6 +1174,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
                       contentFont={contentFont}
                       onContentFont={(next) => { setContentFont(next); void setStoredContentFont(next); }}
+                      askBeforeCreateLink={askBeforeCreateLink}
+                      onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "behavior"}>

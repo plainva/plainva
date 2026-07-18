@@ -22,6 +22,9 @@
     "dismiss": "閉じる"
   },
   "settings": {
+    "groupLinks": "リンク",
+    "askBeforeCreateLink": "空のリンクを作成する前に確認する",
+    "askBeforeCreateLinkDesc": "まだ存在しないノートへのリンクをクリックすると、通常はそのノートがすぐに作成されます。このオプションを有効にすると、作成前に確認を求められます。",
     "title": "設定",
     "theme": "テーマ",
     "themeLight": "ライト",
@@ -270,6 +273,7 @@
     "weekStartSunday": "日曜日"
   },
   "editor": {
+    "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
     "fileNotFound": "ファイルが見つかりません",
     "loading": "読み込み中...",
     "menu": "メニュー",
@@ -527,6 +531,8 @@
     "bookmarkSaveFailed": "ブックマークを保存できませんでした。"
   },
   "database": {
+    "graphNoColumns": "グラフに表示できるプロパティ列がありません。",
+    "noDateColumn": "日付プロパティなし",
     "configure": "設定",
     "iconColor": "データベースアイコンの色",
     "confirmRenameProperty": "プロパティ「{{old}}」を{{count}}件のファイルで「{{new}}」に名前変更します。続行しますか？",
@@ -872,6 +878,9 @@
     "folderExists": "同じ名前のフォルダーが既に存在します。"
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "ノートを作成しますか？",
+    "createNoteFromLinkMsg": "「{{title}}」はまだ存在しません。今すぐ作成しますか？",
+    "createNoteFromLinkConfirm": "作成",
     "discardConflictTitle": "競合を破棄",
     "discardConflictMsg": "「{{name}}」を本当に破棄しますか？ このファイル内のすべての変更が完全に失われます。",
     "deleteConfirmTitle": "削除の確認",

@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-07-14
+Ultimo aggiornamento: 2026-07-18
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -53,6 +53,7 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 ## Link e backlink
 
 - **Link interni**: `[[Nome nota]]` (wiki-link) — tramite il menu slash o `@` con ricerca integrata delle note. Funzionano anche i classici link Markdown `[testo](percorso.md)`.
+- **Destinazioni non ancora create**: un wiki-link a una nota che non esiste ancora viene mostrato **attenuato e con una sottolineatura tratteggiata** (sia in anteprima dal vivo sia in modalità lettura). Un **clic crea la nota** e la apre — viene collocata nella cartella della nota corrente (oppure nel percorso indicato, se il link ne contiene uno, ad es. `[[Cartella/Nuova nota]]`). Per essere avvisato prima, abilita **Impostazioni → App → Editor e note → Chiedi prima di creare link vuoti**.
 - **Backlink**: la sezione **Backlink** nella barra laterale destra mostra quali note collegano quella attiva — raggruppate per file sorgente, con un contatore per le occorrenze multiple.
 - **Rinomina con cura dei link**: quando rinomini un file nell'albero dei file, Plainva aggiorna ogni link ad esso in tutto il vault (le ancore come `#Sezione` vengono preservate) e riporta: "N link in M file sono stati aggiornati al nuovo nome."
 

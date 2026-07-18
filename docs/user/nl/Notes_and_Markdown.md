@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-14
+Laatst bijgewerkt: 2026-07-18
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -53,6 +53,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 ## Links en backlinks
 
 - **Interne links**: `[[Notitienaam]]` (wiki-link) — via het slash-menu of `@` met ingebouwde notitiezoekfunctie. Klassieke Markdown-links `[tekst](pad.md)` werken ook.
+- **Doelen die nog niet bestaan**: Een wiki-link naar een notitie die nog niet is aangemaakt, wordt **gedempt met een gestreepte onderstreping** weergegeven (zowel in het live-voorbeeld als in de leesmodus). **Erop klikken maakt de notitie aan** en opent hem — in de map van de huidige notitie (of op het opgegeven pad als de link er een bevat, bijv. `[[Map/Nieuwe notitie]]`). Om eerst te worden gevraagd, schakel je **Instellingen → App → Editor en notities → Vragen voordat lege links worden aangemaakt** in.
 - **Backlinks**: De sectie **Backlinks** in de rechterzijbalk toont welke notities naar de actieve notitie linken — gegroepeerd per bronbestand, met een teller bij meerdere voorkomens.
 - **Hernoemen met linkzorg**: Wanneer je een bestand hernoemt in de bestandsboom, werkt Plainva elke link ernaartoe bij in de hele vault (ankers zoals `#Sectie` blijven behouden) en meldt: "N link(s) in M bestand(en) zijn bijgewerkt naar de nieuwe naam."
 

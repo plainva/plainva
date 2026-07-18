@@ -224,6 +224,8 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; height: calc(var(--control-md) - 6px); border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-pill); }
   .base-cfg-tab:hover:not(.active) { background: var(--state-hover); color: var(--text-main); }
   .base-cfg-tab.active { background: var(--surface); color: var(--accent-color); box-shadow: var(--shadow-1); }
+  .base-cfg-tab.disabled { opacity: 0.4; cursor: not-allowed; }
+  .base-cfg-tab.disabled:hover { background: transparent; color: var(--text-muted); }
   .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.7rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 14px; }
   /* Per-area page head + named group cards (mockup treatment 2026-07-18, same
      quiet-card tokens as the settings menu). */

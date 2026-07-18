@@ -22,6 +22,9 @@
     "dismiss": "Dismiss"
   },
   "settings": {
+    "groupLinks": "Links",
+    "askBeforeCreateLink": "Ask before creating empty links",
+    "askBeforeCreateLinkDesc": "Clicking a link to a note that doesn't exist yet normally creates it right away. With this option, you're asked first.",
     "title": "Settings",
     "theme": "Theme",
     "themeLight": "Light",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Sunday"
   },
   "editor": {
+    "unresolvedLinkTip": "Note doesn't exist yet — click to create",
     "fileNotFound": "File not found",
     "loading": "Loading...",
     "menu": "Menu",
@@ -528,6 +532,8 @@
     "bookmarkSaveFailed": "Bookmarks could not be saved."
   },
   "database": {
+    "graphNoColumns": "The graph shows no property columns.",
+    "noDateColumn": "No date property",
     "configure": "Configure",
     "iconColor": "Database icon color",
     "confirmRenameProperty": "Rename property \"{{old}}\" to \"{{new}}\" in {{count}} files. Continue?",
@@ -874,6 +880,9 @@
     "folderExists": "A folder with this name already exists."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Create note?",
+    "createNoteFromLinkMsg": "“{{title}}” doesn't exist yet. Create it now?",
+    "createNoteFromLinkConfirm": "Create",
     "discardConflictTitle": "Discard Conflict",
     "discardConflictMsg": "Do you really want to discard '{{name}}'? All changes in this file will be permanently lost.",
     "deleteConfirmTitle": "Confirm Deletion",

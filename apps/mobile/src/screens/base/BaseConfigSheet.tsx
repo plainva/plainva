@@ -17,6 +17,7 @@ import {
   isValidNewPropertyName,
   moveTopFilterEntries,
   parsePropertyFilter,
+  columnsForBaseSelector,
   parseSourceClause,
   removeFilterEntry,
   removeGroupRule,
@@ -336,14 +337,14 @@ export function BaseConfigSheet({
     })();
   };
 
-  const dateColumns = columnsPool.filter((c) => {
-    const input = config?.columns?.[c]?.input;
-    return input === "date" || input === "datetime";
-  });
-  const groupColumns = columnsPool.filter((c) => {
-    const input = config?.columns?.[c]?.input;
-    return input === "select" || input === "status" || input === "multiselect" || input === "relation" || input === "link";
-  });
+  // View-specific selectors offer only the property types they can display
+  // (maintainer 2026-07-18), via the shared helper so desktop + mobile agree.
+  // The active value is always kept so an existing config never silently drops.
+  const getColInput = (c: string): string | undefined => config?.columns?.[c]?.input;
+  const dateColumns = columnsForBaseSelector("dateField", columnsPool, getColInput, { current: view.dateField });
+  const endColumns = columnsForBaseSelector("dateField", columnsPool.filter((c) => c !== view.dateField), getColInput, { current: view.endField });
+  const groupColumns = columnsForBaseSelector("boardGroup", columnsPool, getColInput, { current: view.groupBy });
+  const coverColumns = columnsForBaseSelector("galleryCover", columnsPool, getColInput, { current: view.coverImage });
 
   // Master list (config redesign P6): "views" (mobile-only view management)
   // first, then the five config areas from the shared catalog. Each row shows a
@@ -558,7 +559,10 @@ export function BaseConfigSheet({
           <>
             <p className="m-sectionlabel m-sectionlabel--inset">{t("database.dateField")}</p>
             <div className="m-turninto">
-              {(dateColumns.length > 0 ? dateColumns : columnsPool).map((c) => (
+              {dateColumns.length === 0 && (
+                <span className="m-sectionlabel m-sectionlabel--inset" style={{ fontWeight: 400, textTransform: "none" }}>{t("database.noDateColumn")}</span>
+              )}
+              {dateColumns.map((c) => (
                 <button
                   className={`m-chip${view.dateField === c ? " is-on" : ""}`}
                   key={c}
@@ -586,7 +590,7 @@ export function BaseConfigSheet({
                   >
                     {t("database.noEndDate")}
                   </button>
-                  {(dateColumns.length > 0 ? dateColumns : columnsPool).map((c) => (
+                  {endColumns.map((c) => (
                     <button
                       className={`m-chip${view.endField === c ? " is-on" : ""}`}
                       key={c}
@@ -619,7 +623,7 @@ export function BaseConfigSheet({
               >
                 {t("database.noCover")}
               </button>
-              {columnsPool.map((c) => (
+              {coverColumns.map((c) => (
                 <button
                   className={`m-chip${view.coverImage === c ? " is-on" : ""}`}
                   key={c}

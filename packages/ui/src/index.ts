@@ -15,6 +15,7 @@ export * from "./lib/renameNote";
 export * from "./lib/startrekQuotes";
 export * from "./lib/themeRegistry";
 export * from "./lib/concurrencyLimiter";
+export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
 export * from "./lib/externalUpdateDecision";
@@ -46,6 +47,7 @@ export * from "./lib/wordCount";
 // shared so the mobile shell edits databases through the SAME contract
 // (never hand-written YAML).
 export * from "./base/baseConfigCatalog";
+export * from "./base/baseSelectorTypes";
 export * from "./base/baseFormat";
 export * from "./base/baseRelations";
 export * from "./base/boardOrder";

@@ -22,6 +22,9 @@
     "dismiss": "关闭提示"
   },
   "settings": {
+    "groupLinks": "链接",
+    "askBeforeCreateLink": "创建空链接前先询问",
+    "askBeforeCreateLinkDesc": "点击指向尚不存在的笔记的链接，通常会立即创建该笔记。启用此选项后，会先询问你。",
     "title": "设置",
     "theme": "外观",
     "themeLight": "浅色",
@@ -270,6 +273,7 @@
     "weekStartSunday": "周日"
   },
   "editor": {
+    "unresolvedLinkTip": "笔记尚不存在——点击以新建",
     "fileNotFound": "未找到文件",
     "loading": "加载中…",
     "menu": "菜单",
@@ -527,6 +531,8 @@
     "bookmarkSaveFailed": "无法保存书签。"
   },
   "database": {
+    "graphNoColumns": "关系图未显示任何属性列。",
+    "noDateColumn": "无日期属性",
     "configure": "配置",
     "iconColor": "数据库图标颜色",
     "confirmRenameProperty": "将在{{count}}个文件中把属性“{{old}}”重命名为“{{new}}”。是否继续？",
@@ -872,6 +878,9 @@
     "folderExists": "已存在同名文件夹。"
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "新建笔记？",
+    "createNoteFromLinkMsg": "“{{title}}”尚不存在。现在新建吗？",
+    "createNoteFromLinkConfirm": "创建",
     "discardConflictTitle": "丢弃冲突",
     "discardConflictMsg": "确定要丢弃“{{name}}”吗？此文件中的所有更改将永久丢失。",
     "deleteConfirmTitle": "确认删除",

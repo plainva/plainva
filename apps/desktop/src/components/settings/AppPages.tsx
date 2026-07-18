@@ -159,6 +159,9 @@ export interface EditorPageProps {
   onDefaultViewMode: (m: EditorViewMode) => void;
   contentFont: ContentFontSettings;
   onContentFont: (next: ContentFontSettings) => void;
+  /** Ask before creating a note from an unresolved wiki link (default off). */
+  askBeforeCreateLink: boolean;
+  onAskBeforeCreateLink: (value: boolean) => void;
 }
 
 export const EditorPage: React.FC<EditorPageProps> = (p) => {
@@ -234,6 +237,21 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               />
             )}
           </div>
+        </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupLinks", { defaultValue: "Links" })}>
+        <SettingRow
+          label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
+          desc={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
+        >
+          <input
+            type="checkbox"
+            id="askBeforeCreateLink"
+            aria-label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
+            checked={p.askBeforeCreateLink}
+            onChange={(e) => p.onAskBeforeCreateLink(e.target.checked)}
+          />
         </SettingRow>
       </SettingCard>
     </div>

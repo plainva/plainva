@@ -39,6 +39,7 @@ import {
   serializeRecentsFile,
   sweepPinboardRefs,
   toast,
+  wikiTargetToPath,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
@@ -607,6 +608,20 @@ export const vaultOps = {
 
   async ensureNote(v: MobileVault, path: string, type: string, title: string): Promise<string> {
     if (!(await v.files.exists(path))) await this.save(v, path, OKF(type, title, ""));
+    return path;
+  },
+
+  /**
+   * Create-and-return the note a click on an unresolved wiki link points to
+   * (maintainer 2026-07-18, Obsidian parity). Same placement rules as desktop
+   * (shared wikiTargetToPath): explicit folder, else the host note's folder,
+   * else the vault root. Existing target = just return it (race-safe).
+   */
+  async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
+    const { path, title } = wikiTargetToPath(target, hostPath);
+    if (!title) return null;
+    if (await v.files.exists(path)) return path;
+    await this.save(v, path, OKF("Note", title, ""));
     return path;
   },
 

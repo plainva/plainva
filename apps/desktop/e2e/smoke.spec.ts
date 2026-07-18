@@ -1380,3 +1380,33 @@ test('Settings window keeps one stable height across areas (sized by the tallest
   await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
   await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
 });
+
+/* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */
+
+test('Clicking an unresolved wiki link creates and opens the note', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/LinkTest.md'] = '# Link Test\n\nGo to [[Ghost]] now.\n';
+    // The wiki resolver must report "Ghost" as non-existent so the click creates it.
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:sql|select' && String(args?.query || '').includes('WHERE title = ?')
+        && String(args?.values?.[0] ?? '') === 'Ghost') {
+        return [];
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('LinkTest', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('LinkTest', { exact: true }).click();
+
+  // Click the [[Ghost]] link in the live-preview editor.
+  const link = page.locator('.cm-editor .cm-wiki-link', { hasText: 'Ghost' });
+  await expect(link).toBeVisible();
+  await link.click();
+
+  // The note is created on disk (OKF + an H1 = its title) and opens.
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Ghost.md'] ?? null), { timeout: 8000 })
+    .toContain('# Ghost');
+});

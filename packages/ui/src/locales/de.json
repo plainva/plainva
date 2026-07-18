@@ -22,6 +22,9 @@
     "dismiss": "Ausblenden"
   },
   "settings": {
+    "groupLinks": "Links",
+    "askBeforeCreateLink": "Vor dem Anlegen leerer Links fragen",
+    "askBeforeCreateLinkDesc": "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt.",
     "title": "Einstellungen",
     "theme": "Design",
     "themeLight": "Hell",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Sonntag"
   },
   "editor": {
+    "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
     "fileNotFound": "Datei nicht gefunden",
     "loading": "Laden...",
     "menu": "Menü",
@@ -528,6 +532,8 @@
     "bookmarkSaveFailed": "Lesezeichen konnten nicht gespeichert werden."
   },
   "database": {
+    "graphNoColumns": "Der Graph zeigt keine Eigenschaftsspalten.",
+    "noDateColumn": "Keine Datumseigenschaft",
     "configure": "Konfigurieren",
     "iconColor": "Icon-Farbe der Datenbank",
     "confirmRenameProperty": "Die Eigenschaft \"{{old}}\" wird in {{count}} Dateien in \"{{new}}\" umbenannt. Fortfahren?",
@@ -874,6 +880,9 @@
     "folderExists": "Ein Ordner mit diesem Namen existiert bereits."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Notiz anlegen?",
+    "createNoteFromLinkMsg": "„{{title}}“ existiert noch nicht. Jetzt anlegen?",
+    "createNoteFromLinkConfirm": "Anlegen",
     "discardConflictTitle": "Konflikt verwerfen",
     "discardConflictMsg": "Möchtest du die Datei '{{name}}' wirklich verwerfen? Alle Änderungen in dieser Datei gehen dauerhaft verloren.",
     "invalidNameTitle": "Ungültiger Name",
