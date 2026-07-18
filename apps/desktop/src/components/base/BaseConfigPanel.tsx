@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { SlidersHorizontal, Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
-import { ALL_VIEW_TYPES, EXTENDED_TYPES, baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, BASE_VIEW_TYPES, type BaseConfigAreaId } from "@plainva/ui";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -513,6 +514,11 @@ export function BaseConfigPanel({
 }) {
   const { t } = useTranslation();
 
+  // Config redesign 2026-07-18 (variant C): one AREA per tab instead of five
+  // stacked sections — the panel stays docked beside the live view but no
+  // longer scrolls a 30-45-control wall. `activeArea` is pure UI state.
+  const [activeArea, setActiveArea] = useState<BaseConfigAreaId>("view");
+
   // Pointer-drag reorder of the enabled property rows — dropping rewrites the
   // active view's `order` (plan UI-UX-Paket P3).
   const colDrag = useRowDrag((from, to) => {
@@ -634,27 +640,88 @@ export function BaseConfigPanel({
 
   const currentDateType = dateProp && cells.getColumnInput(dateProp) === "datetime" ? "datetime" : "date";
 
+  // Context strip labels (which view is being configured) + the active area's
+  // scope chip (the per-view vs. database-wide distinction made visible).
+  const CtxTypeIcon = baseViewTypeMeta(currentViewType).icon;
+  const ctxTypeLabel = defaultViewName(t, currentViewType);
+  const ctxViewName = activeView?.name || ctxTypeLabel;
+  const activeAreaDef = baseConfigArea(activeArea);
+  const scopeLabel =
+    activeAreaDef?.scope === "database"
+      ? t("database.scopeDatabase", "Ganze Datenbank")
+      : t("database.scopeView", "Diese Ansicht");
+
   return (
     <aside className="base-config-panel" aria-label={t("database.configure", "Konfigurieren")}>
-      <div className="base-cfg-head">
-        <span className="base-cfg-headtitle"><SlidersHorizontal size={14} />{t("database.configure", "Konfigurieren")}</span>
+      <div className="base-cfg-ctx">
+        <span className="base-cfg-ctx-icon"><CtxTypeIcon size={15} /></span>
+        <span className="base-cfg-ctx-name">{ctxViewName}</span>
+        {activeView?.name && <span className="base-cfg-ctx-type">· {ctxTypeLabel}</span>}
+        {!activeView?.name && <span className="base-cfg-ctx-type" />}
         <button onClick={onClose} aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} className="base-cfg-close"><X size={16} /></button>
       </div>
 
-      {/* 1. Data source — at the very top (P2); its own header lives inside. */}
+      {/* Reiter: one config area at a time (icon-only tabs, active = accent).
+          The active area's title lives in its own section below. */}
+      <div className="base-cfg-tabs" role="tablist" aria-label={t("database.configure", "Konfigurieren")}>
+        {BASE_CONFIG_AREAS.map((area) => {
+          const AreaIcon = area.icon;
+          const label = t(area.labelKey);
+          return (
+            <button
+              key={area.id}
+              type="button"
+              role="tab"
+              aria-selected={activeArea === area.id}
+              aria-label={label}
+              title={label}
+              className={`base-cfg-tab${activeArea === area.id ? " active" : ""}`}
+              onClick={() => setActiveArea(area.id)}
+            >
+              <AreaIcon size={16} />
+            </button>
+          );
+        })}
+      </div>
+      <div className="base-cfg-scopeline"><span className="base-cfg-scope">{scopeLabel}</span></div>
+
+      <div className="base-cfg-body custom-scrollbar">
+
+      {/* Data source — its own header lives inside the component. */}
+      {activeArea === "source" && (
       <section className="base-cfg-section">
         <DatabaseSourceConfig dbConfig={dbConfig} onSaveConfig={onSaveConfig} />
       </section>
+      )}
 
-      {/* 2. View — the view type WITH its view-specific options right below
+      {/* View — the view type WITH its view-specific options right below
           (layout redesign, maintainer 2026-07-03): board grouping, calendar/
           timeline date fields, gallery cover, table sub-items and the date
           format live here instead of a detached "Layout" section at the end. */}
+      {activeArea === "view" && (
       <section className="base-cfg-section">
-        <div className="base-cfg-title">{t("database.sectionView", "Ansicht")}</div>
-        <label className="base-cfg-field">{t("database.viewType", "Ansichtstyp")}
-          <Select ariaLabel={t("database.viewType", "Ansichtstyp")} value={currentViewType} onChange={(v) => onSetViewType(v)} options={ALL_VIEW_TYPES.filter((ty) => extendedDbEnabled || !EXTENDED_TYPES.includes(ty)).map((ty) => ({ value: ty, label: defaultViewName(t, ty) }))} />
-        </label>
+        <div className="base-cfg-title">{t("database.viewType", "Ansichtstyp")}</div>
+        <div className="base-cfg-typegrid" role="radiogroup" aria-label={t("database.viewType", "Ansichtstyp")}>
+          {BASE_VIEW_TYPES.filter((v) => extendedDbEnabled || !v.extended).map((v) => {
+            const TileIcon = v.icon;
+            const label = defaultViewName(t, v.type);
+            return (
+              <button
+                key={v.type}
+                type="button"
+                role="radio"
+                aria-checked={currentViewType === v.type}
+                aria-label={label}
+                title={label}
+                className={`base-cfg-typetile${currentViewType === v.type ? " active" : ""}`}
+                onClick={() => onSetViewType(v.type)}
+              >
+                <TileIcon size={17} />
+                <span className="base-cfg-typetile-label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
         {currentViewType === "board" && (
           <label className="base-cfg-field">{t("database.groupBy", "Gruppieren nach")}
             <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
@@ -768,8 +835,10 @@ export function BaseConfigPanel({
           />
         </label>
       </section>
+      )}
 
-      {/* 3. Properties (visible columns + new property) */}
+      {/* Properties (visible columns + new property) */}
+      {activeArea === "columns" && (
       <section className="base-cfg-section">
         <div className="base-cfg-title">{t("database.properties", "Eigenschaften")}</div>
         {(() => {
@@ -867,8 +936,10 @@ export function BaseConfigPanel({
           </div>
         )}
       </section>
+      )}
 
-      {/* 4. Property filters — editable rows with an all/any toggle (P4, F3). */}
+      {/* Property filters — editable rows with an all/any toggle (P4, F3). */}
+      {activeArea === "filter" && (
       <section className="base-cfg-section">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
           <div className="base-cfg-title" style={{ margin: 0 }}>{t("database.filter", "Filter")}</div>
@@ -1064,9 +1135,14 @@ export function BaseConfigPanel({
           )}
         </div>
       </section>
+      )}
 
-      {/* 5. Sort — rule rows for every view type (P9). */}
-      <SortSection sortRules={sortRules} availableColumns={availableColumns} cells={cells} t={t} onSetSortRules={onSetSortRules} />
+      {/* Sort — rule rows for every view type (P9). */}
+      {activeArea === "sort" && (
+        <SortSection sortRules={sortRules} availableColumns={availableColumns} cells={cells} t={t} onSetSortRules={onSetSortRules} />
+      )}
+
+      </div>
     </aside>
   );
 }

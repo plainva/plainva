@@ -738,6 +738,8 @@
     "newFieldName": "Naam van het nieuwe veld...",
     "typeStatus": "Status",
     "sectionView": "Weergave",
+    "scopeView": "Deze weergave",
+    "scopeDatabase": "Hele database",
     "emptyView": "Geen items in deze weergave.",
     "viewGraph": "Graaf"
   },

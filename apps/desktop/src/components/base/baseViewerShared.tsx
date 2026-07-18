@@ -209,8 +209,26 @@ export const BASE_VIEWER_STYLES = `
   .base-nav-btn:hover { background: var(--state-hover); }
   .base-today-btn { padding: 4px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; font-size: var(--text-sm); }
   .base-today-btn:hover { background: var(--state-hover); }
-  .base-config-panel { flex: 0 1 360px; min-width: 280px; max-width: 460px; border-left: 1px solid var(--border-color); background: var(--bg-secondary); overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .base-config-panel { flex: 0 1 360px; min-width: 280px; max-width: 460px; border-left: 1px solid var(--border-color); background: var(--bg-secondary); display: flex; flex-direction: column; min-height: 0; }
   .base-cfg-head { display: flex; align-items: center; justify-content: space-between; }
+  /* Config redesign 2026-07-18 (variant C, reiter panel): context strip +
+     icon-only tabs at the top, one area in a scrolling body below. */
+  .base-cfg-ctx { display: flex; align-items: center; gap: 6px; padding: 0.75rem 0.9rem 0.5rem; }
+  .base-cfg-ctx-icon { color: var(--text-muted); display: flex; flex-shrink: 0; }
+  .base-cfg-ctx-name { font-weight: 600; font-size: var(--text-md); color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .base-cfg-ctx-type { font-size: var(--text-sm); color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .base-cfg-tabs { display: flex; gap: 2px; padding: 0 0.6rem 6px; }
+  .base-cfg-tab { flex: 1; display: flex; align-items: center; justify-content: center; padding: 7px 0; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-md); }
+  .base-cfg-tab:hover { background: var(--state-hover); color: var(--text-main); }
+  .base-cfg-tab.active { background: var(--bg-active); color: var(--accent-color); }
+  .base-cfg-scopeline { padding: 0 0.95rem; margin-top: 0.6rem; }
+  .base-cfg-scope { font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-hover); padding: 1px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
+  .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.6rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 4px; }
+  .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
+  .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
+  .base-cfg-typetile.active { border-color: var(--accent-color); background: var(--bg-hover); color: var(--accent-color); }
+  .base-cfg-typetile-label { line-height: 1.2; }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
   .base-cfg-close:hover { background: var(--state-hover); }

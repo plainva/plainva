@@ -738,6 +738,8 @@
     "newFieldName": "Name des neuen Feldes...",
     "typeStatus": "Status",
     "sectionView": "Ansicht",
+    "scopeView": "Diese Ansicht",
+    "scopeDatabase": "Ganze Datenbank",
     "emptyView": "Keine Einträge in dieser Ansicht.",
     "viewGraph": "Graph"
   },

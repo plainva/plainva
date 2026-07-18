@@ -742,6 +742,8 @@
     "newFieldName": "Nazwa nowego pola...",
     "typeStatus": "Status",
     "sectionView": "Widok",
+    "scopeView": "Ten widok",
+    "scopeDatabase": "Cała baza",
     "emptyView": "Brak wpisów w tym widoku.",
     "viewGraph": "Graf"
   },

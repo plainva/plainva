@@ -736,6 +736,8 @@
     "newFieldName": "新しいフィールドの名前...",
     "typeStatus": "ステータス",
     "sectionView": "ビュー",
+    "scopeView": "このビュー",
+    "scopeDatabase": "データベース全体",
     "emptyView": "このビューにはエントリーがありません。",
     "viewGraph": "グラフ"
   },

@@ -740,6 +740,8 @@
     "newFieldName": "Nombre del nuevo campo...",
     "typeStatus": "Estado",
     "sectionView": "Vista",
+    "scopeView": "Esta vista",
+    "scopeDatabase": "Toda la base",
     "emptyView": "No hay entradas en esta vista.",
     "viewGraph": "Grafo"
   },

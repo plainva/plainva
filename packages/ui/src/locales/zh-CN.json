@@ -736,6 +736,8 @@
     "newFieldName": "新字段的名称…",
     "typeStatus": "状态",
     "sectionView": "视图",
+    "scopeView": "此视图",
+    "scopeDatabase": "整个数据库",
     "emptyView": "此视图中没有条目。",
     "viewGraph": "关系图"
   },
