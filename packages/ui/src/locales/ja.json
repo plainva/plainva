@@ -2004,6 +2004,7 @@
     "folderHint": "取り込んだメール（ノートと .eml ファイル）の保存先です。",
     "account": "アカウント",
     "noMessages": "メッセージはありません。",
+    "messagesLabel": "件",
     "noSubject": "（件名なし）",
     "loadMore": "さらに読み込む",
     "pickMessage": "メッセージを選択してください。",

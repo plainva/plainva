@@ -36,6 +36,8 @@ export interface DayTimeGridProps {
   tasksByDay?: Map<string, DueTask[]>;
   colorOf: (e: PimEventRow) => string;
   calName: (e: PimEventRow) => string;
+  /** Current wall-clock ms; events ending before it render dimmer (past). */
+  nowTs: number;
   todayKey: string;
   locale: string;
   /** Whether new events can be created (a writable calendar exists). */
@@ -88,7 +90,7 @@ interface BlockDrag {
 const eventKey = (e: PimEventRow) => `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`;
 
 export function DayTimeGrid(props: DayTimeGridProps) {
-  const { days, byDay, tasksByDay, colorOf, calName, todayKey, locale, canCreate, canEditEvent, onEventClick, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
+  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const laneRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -318,7 +320,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   onClick={() => onEventClick(e)}
                   data-testid="calendar-allday-event"
                   title={`${e.title}${calName(e) ? ` · ${calName(e)}` : ""}`}
-                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
                   {e.title}
                 </button>
@@ -437,7 +439,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         padding: "2px 5px",
                         overflow: "hidden",
                         cursor: editable ? "grab" : "pointer",
-                        opacity: dragging ? 0.4 : 1,
+                        opacity: dragging ? 0.4 : b.ev.end.ts <= nowTs ? 0.5 : 1,
                         touchAction: "none",
                         display: "flex",
                         flexDirection: "column",

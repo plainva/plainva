@@ -2004,6 +2004,7 @@
     "folderHint": "已保存邮件（笔记和 .eml 文件）的存放位置。",
     "account": "账户",
     "noMessages": "没有邮件。",
+    "messagesLabel": "封",
     "noSubject": "（无主题）",
     "loadMore": "加载更多",
     "pickMessage": "请选择一封邮件。",

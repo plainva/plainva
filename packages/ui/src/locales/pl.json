@@ -2022,6 +2022,7 @@
     "folderHint": "Miejsce zapisu przechwyconych e-maili (notatki i pliki .eml).",
     "account": "Konto",
     "noMessages": "Brak wiadomości.",
+    "messagesLabel": "wiadomości",
     "noSubject": "(bez tematu)",
     "loadMore": "Wczytaj więcej",
     "pickMessage": "Wybierz wiadomość.",

@@ -2010,6 +2010,7 @@
     "folderHint": "Where captured emails (notes and .eml files) are stored.",
     "account": "Account",
     "noMessages": "No messages.",
+    "messagesLabel": "messages",
     "noSubject": "(no subject)",
     "loadMore": "Load more",
     "pickMessage": "Select a message.",

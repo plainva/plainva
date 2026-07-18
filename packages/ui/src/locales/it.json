@@ -2016,6 +2016,7 @@
     "folderHint": "Dove vengono salvate le e-mail catturate (note e file .eml).",
     "account": "Account",
     "noMessages": "Nessun messaggio.",
+    "messagesLabel": "messaggi",
     "noSubject": "(senza oggetto)",
     "loadMore": "Carica altro",
     "pickMessage": "Seleziona un messaggio.",

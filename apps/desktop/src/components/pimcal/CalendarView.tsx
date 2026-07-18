@@ -26,6 +26,8 @@ import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from ".
 import { localIsoKey } from "../../services/dailyNotePath";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
+import { activeDocument } from "../../services/activeDocument";
+import { CALENDAR_TAB_PATH } from "../graph/virtualPaths";
 import {
   bucketEventsByDay,
   emptyEventForm,
@@ -54,6 +56,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface CalendarViewProps {
   onOpenPath: (path: string, newTab?: boolean) => void;
+  /** Whether this pane is the focused one — only then does the calendar publish
+   * its status-bar info line (so a background split pane never clobbers it). */
+  isActivePane?: boolean;
 }
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
@@ -68,11 +73,19 @@ const ALL_VIEW_MODES: CalViewMode[] = ["day", "3day", "week", "month", "agenda"]
 const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 const AGENDA_DAYS = 60;
 
-export function CalendarView({ onOpenPath }: CalendarViewProps) {
+export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
 
   const todayKey = localIsoKey(new Date());
+  // Per-minute "now" so past events dim live (Google-Calendar style) without a
+  // re-query; the value drives only presentation.
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+  const isPast = useCallback((e: PimEventRow) => e.end.ts <= nowTs, [nowTs]);
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [viewMode, setViewMode] = useState<CalViewMode>(() => {
@@ -294,6 +307,17 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
     [calColor]
   );
+
+  // Status-bar info line (#4): show a live "N Termine · M Aufgaben" for the
+  // visible range instead of the last-opened file's stale stats. Only the
+  // focused pane publishes; leaving the tab resets it via App's activePath
+  // effect. `events` already reflects the queried range window.
+  useEffect(() => {
+    if (!isActivePane) return;
+    const parts = [`${events.length} ${t("pim.eventsLabel", { defaultValue: "Termine" })}`];
+    if (showTasks) parts.push(`${tasks.length} ${t("tasks.title", { defaultValue: "Aufgaben" })}`);
+    activeDocument.set({ path: CALENDAR_TAB_PATH, content: "", kind: "virtual", meta: { info: parts.join(" · ") } });
+  }, [isActivePane, events.length, showTasks, tasks.length, t]);
 
   const monthTitle = useMemo(
     () => new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(viewDate),
@@ -711,6 +735,8 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         borderRadius: "var(--radius-sm)",
         padding: "var(--space-2)",
         alignItems: "flex-start",
+        // Past events read dimmer (Google-Calendar style).
+        opacity: isPast(e) ? 0.55 : 1,
       }}
     >
       <span aria-hidden style={{ width: 4, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
@@ -782,6 +808,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       tasksByDay={showTasks ? tasksByDay : undefined}
       colorOf={colorOf}
       calName={calNameOf}
+      nowTs={nowTs}
       todayKey={todayKey}
       locale={i18n.language}
       canCreate={calendarOptions.length > 0}
@@ -982,6 +1009,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         minWidth: 0,
+                        opacity: isPast(e) ? 0.5 : 1,
                       }}
                     >
                       <span
@@ -1020,10 +1048,11 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           </div>
         </div>
 
-        {/* Day pane: single-day time grid for the selected day */}
+        {/* Day pane: single-day time grid for the selected day. Kept narrower so
+            the month grid's day columns get a little more width (#5). */}
         <div
           data-testid="calendar-day-pane"
-          style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
+          style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)" }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dayTitle}</h3>

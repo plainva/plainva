@@ -2010,6 +2010,7 @@
     "folderHint": "Ablage für abgelegte E-Mails (Notizen und .eml-Dateien).",
     "account": "Konto",
     "noMessages": "Keine Nachrichten.",
+    "messagesLabel": "Nachrichten",
     "noSubject": "(kein Betreff)",
     "loadMore": "Mehr laden",
     "pickMessage": "Nachricht auswählen.",

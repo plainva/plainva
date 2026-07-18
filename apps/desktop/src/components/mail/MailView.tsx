@@ -6,6 +6,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { activeDocument } from "../../services/activeDocument";
+import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
@@ -73,9 +75,11 @@ function FolderGlyph({ name }: { name: string }): ReactElement {
 
 interface MailViewProps {
   onOpenPath: (path: string, newTab?: boolean) => void;
+  /** Only the focused pane publishes the status-bar info line (#4). */
+  isActivePane?: boolean;
 }
 
-export function MailView({ onOpenPath }: MailViewProps) {
+export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate } = useVault();
 
@@ -126,6 +130,14 @@ export function MailView({ onOpenPath }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+
+  // Status-bar info line (#4): the selected mailbox + its message count, instead
+  // of the last-opened file's stale word stats. Only the focused pane publishes.
+  useEffect(() => {
+    if (!isActivePane) return;
+    const info = `${mailFolderLabel(mailbox)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
+    activeDocument.set({ path: MAIL_TAB_PATH, content: "", kind: "virtual", meta: { info } });
+  }, [isActivePane, mailbox, total, t]);
 
   useEffect(() => {
     let alive = true;

@@ -869,6 +869,12 @@ function App() {
   // (The active pane's BaseViewer refines meta.entries once its rows are loaded — plan D4.)
   useEffect(() => {
     if (!activePath) activeDocument.clear();
+    // Virtual tabs (calendar/mail/graph/tasks) are not vault files, so the
+    // Editor never publishes for them — without this the status bar would keep
+    // showing the LAST markdown/base file's stale word count. Publish a
+    // "virtual" doc so the status bar shows the tab name (and the view fills in
+    // a live info line). The label is derived from the path by the status bar.
+    else if (isVirtualPath(activePath)) activeDocument.set({ path: activePath, content: "", kind: "virtual", meta: {} });
     else if (activePath.endsWith(".base")) activeDocument.set({ path: activePath, content: "", kind: "base", meta: {} });
   }, [activePath]);
 
@@ -1233,11 +1239,11 @@ function App() {
                       </Suspense>
                     ) : path === CALENDAR_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
-                        <CalendarView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                        <CalendarView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} isActivePane={isActivePane} />
                       </Suspense>
                     ) : path === MAIL_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
-                        <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                        <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} isActivePane={isActivePane} />
                       </Suspense>
                     ) : isImagePath(path) ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>

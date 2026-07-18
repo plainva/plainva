@@ -18,11 +18,15 @@
  * exported singleton only.
  */
 
-export type ActiveDocKind = "markdown" | "base" | "none";
+export type ActiveDocKind = "markdown" | "base" | "virtual" | "none";
 
 export interface ActiveDocMeta {
   /** Number of entries, for `.base` database files. */
   entries?: number;
+  /** A short live status line for `virtual` tabs (calendar/mail), e.g.
+   * "12 Termine · 3 Aufgaben" or "Posteingang · 5 ungelesen". The tab name
+   * itself is derived from the path by the status bar. */
+  info?: string;
 }
 
 export interface ActiveDoc {

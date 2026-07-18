@@ -2010,6 +2010,7 @@
     "folderHint": "Waar vastgelegde e-mails (notities en .eml-bestanden) worden opgeslagen.",
     "account": "Account",
     "noMessages": "Geen berichten.",
+    "messagesLabel": "berichten",
     "noSubject": "(geen onderwerp)",
     "loadMore": "Meer laden",
     "pickMessage": "Selecteer een bericht.",

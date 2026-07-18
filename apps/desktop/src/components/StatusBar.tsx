@@ -4,6 +4,7 @@ import { Folder, Cloud, RefreshCw, AlertTriangle, Archive } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { useDisplaySyncStatus } from "../services/syncStatusStore";
 import { activeDocument, type ActiveDoc, type SelectionStats } from "../services/activeDocument";
+import { virtualTabMeta } from "./graph/virtualPaths";
 import { computeEmbedInfo } from "../services/embedStats";
 import { countWords } from "@plainva/ui";
 import { parseMarkdownAst } from "@plainva/core";
@@ -100,6 +101,11 @@ export function StatusBar() {
   const base = parts.pop() || "";
   const dir = parts.join(" / ");
 
+  // Virtual tabs (calendar/mail/graph/tasks) show the localized view name
+  // instead of a vault path — the status bar has no meaningful file stats there.
+  const vmeta = doc.kind === "virtual" ? virtualTabMeta(doc.path) : null;
+  const virtualLabel = vmeta ? t(vmeta.labelKey, { defaultValue: vmeta.defaultLabel }) : "";
+
   const formatLabel = doc.kind === "base" ? "Base" : doc.kind === "markdown" ? "Markdown" : "";
 
   const sep: React.CSSProperties = { padding: "0 10px", borderLeft: "1px solid var(--border-color)" };
@@ -153,7 +159,14 @@ export function StatusBar() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-        {doc.path ? (
+        {doc.kind === "virtual" && vmeta ? (
+          <>
+            <vmeta.icon size={13} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <b style={{ color: "var(--text-main)", fontWeight: 600 }}>{virtualLabel}</b>
+            </span>
+          </>
+        ) : doc.path ? (
           <>
             <Folder size={13} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -188,6 +201,9 @@ export function StatusBar() {
         )}
         {doc.kind === "base" && (
           <span style={sep}>{nf.format(doc.meta.entries ?? 0)} {t("statusbar.entries", { defaultValue: "Einträge" })}</span>
+        )}
+        {doc.kind === "virtual" && doc.meta.info && (
+          <span style={sep}>{doc.meta.info}</span>
         )}
         {backupState.state === "running" && (
           <span data-testid="statusbar-backup-running" style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6 }}>
