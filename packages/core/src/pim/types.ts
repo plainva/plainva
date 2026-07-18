@@ -122,6 +122,19 @@ export interface PullTasksResult {
  * a series via "this instance" overrides or the master's non-rule fields. */
 export type PimRecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
+/** Structured recurrence (Outlook-style). Serialized to an RRULE (CalDAV/Google)
+ * or Graph's recurrence object per adapter. */
+export interface PimRecurrence {
+  freq: PimRecurrenceFreq;
+  /** Every N periods (default 1). */
+  interval?: number;
+  /** Weekly only: weekday codes MO,TU,WE,TH,FR,SA,SU (empty = the start day). */
+  byWeekday?: string[];
+  /** End condition — at most one of `until` / `count`; neither = no end. */
+  until?: string; // civil date YYYY-MM-DD (inclusive)
+  count?: number;
+}
+
 /** The editable fields of an event. */
 export interface PimEventDraft {
   title: string;
@@ -133,9 +146,13 @@ export interface PimEventDraft {
   /** Per-event colour (CSS colour / hex). Written to the provider where
    * supported (CalDAV COLOR, Google colorId); undefined clears it. */
   color?: string;
-  /** Create only: attach a simple no-end recurrence rule. Ignored on update
-   * (an existing rule is never rewritten by the field editor). */
-  recurrenceFreq?: PimRecurrenceFreq;
+  /** Invitees (email addresses). `undefined` leaves the remote list untouched
+   * (drag reschedule); an array (incl. empty) REPLACES it — new invitees are
+   * added as "needs action". iMIP sending stays with the mail client. */
+  attendees?: string[];
+  /** Recurrence rule. `undefined` = leave the remote rule untouched (drag /
+   * single-instance edits); `null` = clear it; an object = set/replace it. */
+  recurrence?: PimRecurrence | null;
 }
 
 /** Addresses an existing event for update/delete. `etag` (when known) arms

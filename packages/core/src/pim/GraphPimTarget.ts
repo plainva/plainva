@@ -7,6 +7,7 @@ import type {
   PimCalendar,
   PimEvent,
   PimEventDraft,
+  PimRecurrence,
   PimEventRef,
   PimTask,
   PimTaskDraft,
@@ -204,7 +205,7 @@ export class GraphPimTarget implements IPimTarget {
     const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(graphEventBody(draft, true)),
+      body: JSON.stringify(graphEventBody(draft)),
     });
     if (!res.ok) throw new Error(`graph create event ${res.status}`);
     const data = (await res.json()) as { id: string; "@odata.etag"?: string };
@@ -216,7 +217,7 @@ export class GraphPimTarget implements IPimTarget {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
       // Never sends `recurrence` (a PATCH must not rewrite an existing rule).
-      body: JSON.stringify(graphEventBody(draft, false)),
+      body: JSON.stringify(graphEventBody(draft)),
     });
     if (res.status === 412) throw new PimConflictError();
     if (!res.ok) throw new Error(`graph update event ${res.status}`);
@@ -273,7 +274,7 @@ export class GraphPimTarget implements IPimTarget {
 
 /** Event write body. Graph wants UTC wall-clock dateTimes with an explicit
  * timeZone; all-day events must be midnight-to-midnight (end exclusive). */
-function graphEventBody(draft: PimEventDraft, includeRecurrence: boolean): Record<string, unknown> {
+function graphEventBody(draft: PimEventDraft): Record<string, unknown> {
   const time = (t: PimEventDraft["start"]) =>
     draft.allDay && t.date
       ? { dateTime: `${t.date}T00:00:00`, timeZone: "UTC" }
@@ -285,29 +286,48 @@ function graphEventBody(draft: PimEventDraft, includeRecurrence: boolean): Recor
     end: time(draft.end),
     location: { displayName: draft.location ?? "" },
     ...(draft.description !== undefined ? { body: { contentType: "text", content: draft.description } } : {}),
-    ...(includeRecurrence && draft.recurrenceFreq ? { recurrence: graphRecurrence(draft) } : {}),
+    // A provided list replaces the invitees; undefined leaves them (drag).
+    ...(draft.attendees !== undefined
+      ? { attendees: draft.attendees.filter((e) => e.trim()).map((email) => ({ emailAddress: { address: email.trim() }, type: "required" })) }
+      : {}),
+    // undefined leaves the rule, null clears it, an object sets/replaces it —
+    // so an existing series' rule CAN now be edited from the field dialog.
+    ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? graphRecurrence(draft.recurrence, draft) : null } : {}),
   };
 }
 
-/** Graph has no raw-RRULE transport — the simple no-end rule maps to the
- * structured pattern/range pair, anchored on the event's start day. */
-function graphRecurrence(draft: PimEventDraft): Record<string, unknown> {
-  const GRAPH_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const GRAPH_DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const RRULE_DAY_TO_GRAPH: Record<string, string> = {
+  MO: "monday", TU: "tuesday", WE: "wednesday", TH: "thursday", FR: "friday", SA: "saturday", SU: "sunday",
+};
+
+/** Graph has no raw-RRULE transport — the structured PimRecurrence maps to the
+ * pattern/range pair (interval, weekly days, and the end condition), anchored on
+ * the event's start day. */
+function graphRecurrence(r: PimRecurrence, draft: PimEventDraft): Record<string, unknown> {
   const allDayDate = draft.allDay && draft.start.date ? draft.start.date : null;
   const local = new Date(draft.start.ts);
   const startDate = allDayDate ?? new Date(draft.start.ts).toISOString().slice(0, 10);
-  const dayOfWeek = allDayDate ? GRAPH_DAYS[new Date(`${allDayDate}T00:00:00Z`).getUTCDay()] : GRAPH_DAYS[local.getDay()];
+  const dayOfWeek = allDayDate ? GRAPH_DAY_NAMES[new Date(`${allDayDate}T00:00:00Z`).getUTCDay()] : GRAPH_DAY_NAMES[local.getDay()];
   const dayOfMonth = allDayDate ? Number(allDayDate.slice(8, 10)) : local.getDate();
   const month = allDayDate ? Number(allDayDate.slice(5, 7)) : local.getMonth() + 1;
+  const interval = r.interval && r.interval > 1 ? Math.floor(r.interval) : 1;
+  const daysOfWeek = r.byWeekday && r.byWeekday.length > 0 ? r.byWeekday.map((d) => RRULE_DAY_TO_GRAPH[d] ?? dayOfWeek) : [dayOfWeek];
   const pattern =
-    draft.recurrenceFreq === "daily"
-      ? { type: "daily", interval: 1 }
-      : draft.recurrenceFreq === "weekly"
-        ? { type: "weekly", interval: 1, daysOfWeek: [dayOfWeek] }
-        : draft.recurrenceFreq === "monthly"
-          ? { type: "absoluteMonthly", interval: 1, dayOfMonth }
-          : { type: "absoluteYearly", interval: 1, dayOfMonth, month };
-  return { pattern, range: { type: "noEnd", startDate } };
+    r.freq === "daily"
+      ? { type: "daily", interval }
+      : r.freq === "weekly"
+        ? { type: "weekly", interval, daysOfWeek }
+        : r.freq === "monthly"
+          ? { type: "absoluteMonthly", interval, dayOfMonth }
+          : { type: "absoluteYearly", interval, dayOfMonth, month };
+  const range =
+    r.count && r.count > 0
+      ? { type: "numbered", startDate, numberOfOccurrences: Math.floor(r.count) }
+      : r.until
+        ? { type: "endDate", startDate, endDate: r.until }
+        : { type: "noEnd", startDate };
+  return { pattern, range };
 }
 
 function graphTaskBody(draft: PimTaskDraft): Record<string, unknown> {

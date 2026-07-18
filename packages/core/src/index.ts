@@ -46,6 +46,7 @@ export * from "./db/IDatabaseAdapter.js";
 export * from "./db/Schema.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";
+export * from "./pim/recurrence.js";
 export * from "./pim/PimCacheRepository.js";
 export * from "./pim/CalDavPimTarget.js";
 export * from "./pim/GooglePimTarget.js";

@@ -102,10 +102,16 @@ describe("GooglePimTarget writes", () => {
       return jsonRes({ id: "x", etag: '"e"' });
     });
     const t = new GooglePimTarget(auth(), fetchFn);
-    await t.createEvent("cal1", { ...timedDraft, recurrenceFreq: "monthly" });
+    await t.createEvent("cal1", { ...timedDraft, recurrence: { freq: "monthly" } });
     expect(bodies[0].recurrence).toEqual(["RRULE:FREQ=MONTHLY"]);
-    await t.updateEvent({ calendarId: "cal1", uid: "x" }, { ...timedDraft, recurrenceFreq: "monthly" });
-    expect(bodies[1].recurrence).toBeUndefined();
+    // Update now WRITES the rule (the field dialog can edit an existing series);
+    // a drag reschedule leaves `recurrence` undefined so the rule is preserved.
+    await t.updateEvent({ calendarId: "cal1", uid: "x" }, { ...timedDraft, recurrence: { freq: "weekly", interval: 2 } });
+    expect(bodies[1].recurrence).toEqual(["RRULE:FREQ=WEEKLY;INTERVAL=2"]);
+    await t.updateEvent({ calendarId: "cal1", uid: "x" }, { ...timedDraft });
+    expect(bodies[2].recurrence).toBeUndefined(); // undefined draft field = not sent
+    await t.updateEvent({ calendarId: "cal1", uid: "x" }, { ...timedDraft, recurrence: null });
+    expect(bodies[3].recurrence).toEqual([]); // null clears the rule
   });
 
   it("createTask transports the day-granular due as midnight UTC", async () => {
@@ -154,13 +160,21 @@ describe("GraphPimTarget writes", () => {
     });
     const t = new GraphPimTarget(auth(), fetchFn);
     // 2026-08-10 is a Monday (all-day anchors via the civil date).
-    await t.createEvent("calX", { ...allDayDraft, recurrenceFreq: "weekly" });
+    await t.createEvent("calX", { ...allDayDraft, recurrence: { freq: "weekly" } });
     expect(bodies[0].recurrence).toEqual({
       pattern: { type: "weekly", interval: 1, daysOfWeek: ["monday"] },
       range: { type: "noEnd", startDate: "2026-08-10" },
     });
-    await t.updateEvent({ calendarId: "calX", uid: "x" }, { ...allDayDraft, recurrenceFreq: "weekly" });
-    expect(bodies[1].recurrence).toBeUndefined();
+    // Update writes the structured recurrence (interval + count map through).
+    await t.updateEvent({ calendarId: "calX", uid: "x" }, { ...allDayDraft, recurrence: { freq: "daily", interval: 3, count: 5 } });
+    expect(bodies[1].recurrence).toEqual({
+      pattern: { type: "daily", interval: 3 },
+      range: { type: "numbered", startDate: "2026-08-10", numberOfOccurrences: 5 },
+    });
+    await t.updateEvent({ calendarId: "calX", uid: "x" }, { ...allDayDraft });
+    expect(bodies[2].recurrence).toBeUndefined(); // undefined = not sent
+    await t.updateEvent({ calendarId: "calX", uid: "x" }, { ...allDayDraft, recurrence: null });
+    expect(bodies[3].recurrence).toBeNull(); // null clears the rule
   });
 
   it("task updates carry status + dueDateTime (null clears the due)", async () => {
@@ -424,9 +438,13 @@ describe("CalDavPimTarget writes", () => {
     });
     await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", {
       ...timedDraft,
-      recurrenceFreq: "weekly",
+      recurrence: { freq: "weekly", interval: 2, byWeekday: ["MO", "WE"] },
     });
-    expect(putBody).toContain("RRULE:FREQ=WEEKLY");
+    // ical.js may reorder the RRULE parts — assert the components, not the order.
+    expect(putBody).toContain("RRULE:");
+    expect(putBody).toContain("FREQ=WEEKLY");
+    expect(putBody).toContain("INTERVAL=2");
+    expect(putBody).toContain("BYDAY=MO,WE");
   });
 
   it("deleteEvent sends If-Match and treats 404 as success", async () => {

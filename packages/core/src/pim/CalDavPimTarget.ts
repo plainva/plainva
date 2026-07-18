@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import ICAL from "ical.js";
+import { recurrenceToRRule } from "./recurrence.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
 import type {
   IPimTarget,
@@ -490,10 +491,26 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
   // clients that expect a CSS3 name simply ignore an unknown value.
   if (draft.color) vevent.updatePropertyWithValue("color", draft.color);
   else vevent.removeAllProperties("color");
-  // Create only (stage 4): a simple no-end rule. An EXISTING rule is never
-  // rewritten here — series edits go through overrides or the master fields.
-  if (draft.recurrenceFreq && !vevent.getFirstPropertyValue("rrule")) {
-    vevent.updatePropertyWithValue("rrule", ICAL.Recur.fromString(`FREQ=${draft.recurrenceFreq.toUpperCase()}`));
+  // Invitees: a provided list REPLACES the ATTENDEE lines (undefined = leave
+  // them, e.g. a drag reschedule). New invitees are marked NEEDS-ACTION; iMIP
+  // scheduling stays with the mail client.
+  if (draft.attendees !== undefined) {
+    vevent.removeAllProperties("attendee");
+    for (const email of draft.attendees) {
+      const addr = email.trim();
+      if (!addr) continue;
+      const p = vevent.addPropertyWithValue("attendee", `mailto:${addr}`);
+      p.setParameter("cn", addr);
+      p.setParameter("role", "REQ-PARTICIPANT");
+      p.setParameter("partstat", "NEEDS-ACTION");
+      p.setParameter("rsvp", "TRUE");
+    }
+  }
+  // Recurrence: undefined leaves the rule, null clears it, an object sets it —
+  // so an existing series' rule CAN now be edited from the field dialog.
+  if (draft.recurrence !== undefined) {
+    if (draft.recurrence === null) vevent.removeAllProperties("rrule");
+    else vevent.updatePropertyWithValue("rrule", ICAL.Recur.fromString(recurrenceToRRule(draft.recurrence)));
   }
 }
 

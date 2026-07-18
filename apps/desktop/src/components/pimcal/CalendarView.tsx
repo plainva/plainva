@@ -484,17 +484,11 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
 
   const timedForm = useCallback(
     (dayKey: string, startMin: number, endMin: number, v: QuickCreateValues): EventFormValues => ({
+      ...emptyEventForm(dayKey, v.calendarKey || calendarOptions[0]?.value || ""),
       title: v.title,
-      allDay: false,
-      dayKey,
-      endDayKey: dayKey,
       startTime: minutesToHHMM(startMin),
       endTime: minutesToHHMM(endMin),
       location: v.location,
-      description: "",
-      color: "",
-      calendarKey: v.calendarKey || calendarOptions[0]?.value || "",
-      repeat: "",
     }),
     [calendarOptions]
   );

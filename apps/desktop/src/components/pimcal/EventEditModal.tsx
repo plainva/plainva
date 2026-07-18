@@ -40,7 +40,7 @@ interface EventEditModalProps {
 }
 
 export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, rsvps, selfResponse, onRespond }: EventEditModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +71,29 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   };
 
   const set = <K extends keyof EventFormValues>(key: K, v: EventFormValues[K]) => setValues((prev) => ({ ...prev, [key]: v }));
+  // Editing invitees / recurrence marks them "touched" so an unrelated edit
+  // never REPLACES the remote value (attendee RSVP status, an unreadable Graph
+  // rule) — the draft leaves untouched fields undefined.
+  const setAttendees = (v: string) => setValues((prev) => ({ ...prev, attendees: v, attendeesTouched: true }));
+  const setRepeat = <K extends keyof EventFormValues>(key: K, v: EventFormValues[K]) => setValues((prev) => ({ ...prev, [key]: v, repeatTouched: true }));
+  const toggleWeekday = (code: string) =>
+    setValues((prev) => ({
+      ...prev,
+      repeatByWeekday: prev.repeatByWeekday.includes(code) ? prev.repeatByWeekday.filter((d) => d !== code) : [...prev.repeatByWeekday, code],
+      repeatTouched: true,
+    }));
+
+  const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  // 2024-01-01 was a Monday → index 0 = Monday, matching WEEKDAY_CODES.
+  const weekdayShort = (i: number) => new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(new Date(2024, 0, 1 + i));
+  const freqUnit =
+    values.repeatFreq === "daily"
+      ? t("pim.freqDay", { defaultValue: "Tag(e)" })
+      : values.repeatFreq === "weekly"
+        ? t("pim.freqWeek", { defaultValue: "Woche(n)" })
+        : values.repeatFreq === "monthly"
+          ? t("pim.freqMonth", { defaultValue: "Monat(e)" })
+          : t("pim.freqYear", { defaultValue: "Jahr(e)" });
 
   const submit = async () => {
     if (busy) return;
@@ -193,6 +216,74 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             </>
           )}
         </div>
+        {/* Recurrence (Outlook-style) — right after date/time, in create AND
+            edit. A rule is only written when a control is actually touched. */}
+        <div data-testid="event-repeat-section">
+          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>
+            {t("pim.repeat", { defaultValue: "Wiederholung" })}
+          </label>
+          <Select
+            ariaLabel={t("pim.repeat", { defaultValue: "Wiederholung" })}
+            value={values.repeatFreq}
+            onChange={(v) => setRepeat("repeatFreq", v as EventFormValues["repeatFreq"])}
+            options={[
+              { value: "", label: t("pim.repeatNone", { defaultValue: "Nie" }) },
+              { value: "daily", label: t("pim.repeatDaily", { defaultValue: "Täglich" }) },
+              { value: "weekly", label: t("pim.repeatWeekly", { defaultValue: "Wöchentlich" }) },
+              { value: "monthly", label: t("pim.repeatMonthly", { defaultValue: "Monatlich" }) },
+              { value: "yearly", label: t("pim.repeatYearly", { defaultValue: "Jährlich" }) },
+            ]}
+          />
+          {values.repeatFreq && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-2)", paddingLeft: "var(--space-2)", borderLeft: "2px solid var(--border-color-light)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)", flexWrap: "wrap" }}>
+                <span>{t("pim.repeatEvery", { defaultValue: "Alle" })}</span>
+                <input type="number" min={1} className="pv-field" value={values.repeatInterval} onChange={(e) => setRepeat("repeatInterval", Math.max(1, Number(e.target.value) || 1))} data-testid="event-repeat-interval" style={{ width: 64 }} />
+                <span>{freqUnit}</span>
+              </div>
+              {values.repeatFreq === "weekly" && (
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }} data-testid="event-repeat-weekdays">
+                  {WEEKDAY_CODES.map((code, idx) => {
+                    const on = values.repeatByWeekday.includes(code);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => toggleWeekday(code)}
+                        aria-pressed={on}
+                        style={{ minWidth: 34, padding: "3px 6px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--text-xs)", background: on ? "var(--accent-color)" : "transparent", color: on ? "var(--accent-on)" : "var(--text-muted)" }}
+                      >
+                        {weekdayShort(idx)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)", flexWrap: "wrap" }}>
+                <span>{t("pim.repeatEnds", { defaultValue: "Endet" })}</span>
+                <Select
+                  ariaLabel={t("pim.repeatEnds", { defaultValue: "Endet" })}
+                  value={values.repeatEnd}
+                  onChange={(v) => setRepeat("repeatEnd", v as EventFormValues["repeatEnd"])}
+                  options={[
+                    { value: "never", label: t("pim.repeatEndNever", { defaultValue: "Nie" }) },
+                    { value: "until", label: t("pim.repeatEndOn", { defaultValue: "Am" }) },
+                    { value: "count", label: t("pim.repeatEndAfter", { defaultValue: "Nach" }) },
+                  ]}
+                />
+                {values.repeatEnd === "until" && (
+                  <input type="date" className="pv-field" value={values.repeatUntil} onChange={(e) => setRepeat("repeatUntil", e.target.value)} data-testid="event-repeat-until" />
+                )}
+                {values.repeatEnd === "count" && (
+                  <>
+                    <input type="number" min={1} className="pv-field" value={values.repeatCount} onChange={(e) => setRepeat("repeatCount", Math.max(1, Number(e.target.value) || 1))} data-testid="event-repeat-count" style={{ width: 64 }} />
+                    <span>{t("pim.repeatOccurrences", { defaultValue: "Terminen" })}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <label style={{ fontSize: "var(--text-sm)" }}>
           {t("pim.eventLocation", { defaultValue: "Ort" })}
           <TextInput
@@ -210,6 +301,20 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             onChange={(e) => set("description", e.target.value)}
             data-testid="event-description"
             rows={3}
+            style={{ display: "block", width: "100%", marginTop: 2 }}
+          />
+        </label>
+        {/* Invitees: editable email list (create + edit). The RSVP status list
+            below shows their responses. */}
+        <label style={{ fontSize: "var(--text-sm)" }}>
+          {t("pim.attendees", { defaultValue: "Teilnehmer" })}
+          <textarea
+            className="pv-field pv-field--area"
+            value={values.attendees}
+            onChange={(e) => setAttendees(e.target.value)}
+            data-testid="event-attendees-input"
+            rows={2}
+            placeholder={t("pim.attendeesHint", { defaultValue: "Eine E-Mail-Adresse pro Zeile" })}
             style={{ display: "block", width: "100%", marginTop: 2 }}
           />
         </label>
@@ -247,7 +352,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
         {mode === "edit" && rsvps && rsvps.length > 0 && (
           <div>
             <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
-              {t("pim.attendees", { defaultValue: "Teilnehmer" })}
+              {t("pim.attendeeResponses", { defaultValue: "Antworten" })}
             </label>
             <div data-testid="event-attendees" style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 120, overflow: "auto" }}>
               {rsvps.map((a) => (
@@ -279,25 +384,6 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 {t("pim.rsvpDecline", { defaultValue: "Absagen" })}
               </Button>
             </div>
-          </div>
-        )}
-        {mode === "create" && (
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>
-              {t("pim.repeat", { defaultValue: "Wiederholung" })}
-            </label>
-            <Select
-              ariaLabel={t("pim.repeat", { defaultValue: "Wiederholung" })}
-              value={values.repeat}
-              onChange={(v) => set("repeat", v as EventFormValues["repeat"])}
-              options={[
-                { value: "", label: t("pim.repeatNone", { defaultValue: "Nie" }) },
-                { value: "daily", label: t("pim.repeatDaily", { defaultValue: "Täglich" }) },
-                { value: "weekly", label: t("pim.repeatWeekly", { defaultValue: "Wöchentlich" }) },
-                { value: "monthly", label: t("pim.repeatMonthly", { defaultValue: "Monatlich" }) },
-                { value: "yearly", label: t("pim.repeatYearly", { defaultValue: "Jährlich" }) },
-              ]}
-            />
           </div>
         )}
         {error && (

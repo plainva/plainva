@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PimEventRow } from "@plainva/core";
 import {
   bucketEventsByDay,
+  emptyEventForm,
   eventDayKeys,
   eventFormFromEvent,
   eventFormToDraft,
@@ -108,7 +109,15 @@ describe("event form helpers (stage 3)", () => {
       description: " Agenda besprechen ",
       color: " #f4511e ",
       calendarKey: "a c",
-      repeat: "",
+      attendees: "",
+      attendeesTouched: false,
+      repeatFreq: "",
+      repeatInterval: 1,
+      repeatByWeekday: [],
+      repeatEnd: "never",
+      repeatUntil: "",
+      repeatCount: 10,
+      repeatTouched: false,
     });
     expect(draft.title).toBe("Planning");
     expect(draft.location).toBe("Raum 5");
@@ -128,7 +137,15 @@ describe("event form helpers (stage 3)", () => {
       description: "",
       color: "",
       calendarKey: "",
-      repeat: "",
+      attendees: "",
+      attendeesTouched: false,
+      repeatFreq: "",
+      repeatInterval: 1,
+      repeatByWeekday: [],
+      repeatEnd: "never",
+      repeatUntil: "",
+      repeatCount: 10,
+      repeatTouched: false,
     });
     expect(inverted.end.ts).toBe(inverted.start.ts + 30 * 60 * 1000);
   });
@@ -145,7 +162,15 @@ describe("event form helpers (stage 3)", () => {
       description: "",
       color: "",
       calendarKey: "",
-      repeat: "",
+      attendees: "",
+      attendeesTouched: false,
+      repeatFreq: "",
+      repeatInterval: 1,
+      repeatByWeekday: [],
+      repeatEnd: "never",
+      repeatUntil: "",
+      repeatCount: 10,
+      repeatTouched: false,
     });
     expect(draft.start.date).toBe("2026-08-10");
     expect(draft.end.date).toBe("2026-08-13");
@@ -189,5 +214,32 @@ describe("eventStartDayKey / formatTimeRange", () => {
     expect(range).toContain("10:30");
     const allDay = ev({ allDay: true, start: { ts: 0, date: "2026-07-20" }, end: { ts: 0, date: "2026-07-21" } });
     expect(formatTimeRange(allDay, "de")).toBe("");
+  });
+
+  it("only writes attendees / recurrence when the user touched them (else undefined)", () => {
+    const base = emptyEventForm("2026-08-01", "acc cal");
+    // Untouched: both stay undefined (a drag / unrelated edit preserves them).
+    const untouched = eventFormToDraft({ ...base, title: "X", attendees: "a@b.de", repeatFreq: "weekly" });
+    expect(untouched.attendees).toBeUndefined();
+    expect(untouched.recurrence).toBeUndefined();
+    // Touched: written.
+    const touched = eventFormToDraft({ ...base, title: "X", attendees: "a@b.de, a@b.de\nc@d.de", attendeesTouched: true, repeatFreq: "weekly", repeatInterval: 2, repeatByWeekday: ["MO"], repeatEnd: "count", repeatCount: 6, repeatTouched: true });
+    expect(touched.attendees).toEqual(["a@b.de", "c@d.de"]); // deduped, split on comma/newline
+    expect(touched.recurrence).toEqual({ freq: "weekly", interval: 2, byWeekday: ["MO"], count: 6 });
+    // "none" with a touched control clears the rule.
+    const cleared = eventFormToDraft({ ...base, repeatFreq: "", repeatTouched: true });
+    expect(cleared.recurrence).toBeNull();
+  });
+
+  it("fills the recurrence controls from an existing RRULE (edit an existing series)", () => {
+    const e = ev({ start: { ts: Date.parse("2026-08-01T08:00:00Z") }, end: { ts: Date.parse("2026-08-01T09:00:00Z") }, recurrence: "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=4" });
+    const form = eventFormFromEvent(e);
+    expect(form.repeatFreq).toBe("weekly");
+    expect(form.repeatInterval).toBe(2);
+    expect(form.repeatByWeekday).toEqual(["MO", "WE"]);
+    expect(form.repeatEnd).toBe("count");
+    expect(form.repeatCount).toBe(4);
+    // A Graph master exposes only the pattern type -> at least the frequency.
+    expect(eventFormFromEvent(ev({ start: { ts: 0 }, end: { ts: 0 }, recurrence: "absoluteMonthly" })).repeatFreq).toBe("monthly");
   });
 });
