@@ -3,8 +3,9 @@ import { markdownToHtml, markdownToPlainText } from "@plainva/ui";
 import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../newNote";
 import type { MailAccountConfig } from "./mailAccounts";
-import { getMailPassword } from "./mailAccounts";
+import { getMailPassword, mailAccountKind } from "./mailAccounts";
 import type { MailMessage } from "./mailClient";
+import { graphSendMail, graphAppendDraft } from "./graphMail";
 
 /**
  * "Mail-raus" without ever sending (PIM stage 6): Plainva deliberately never
@@ -213,11 +214,16 @@ export async function sendMail(
   markdown: string,
   attachments: MailAttachment[] = []
 ): Promise<void> {
-  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
   if (!to.trim()) throw new Error("no recipient");
+  const { html, text } = noteToClipboardFlavors(markdown);
+  if (mailAccountKind(account) === "microsoft") {
+    // Microsoft Graph sends directly (no SMTP) via /me/sendMail.
+    await graphSendMail(vaultPath, account, to, subject, html, attachments);
+    return;
+  }
+  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
-  const { html, text } = noteToClipboardFlavors(markdown);
   await invoke("mail_send", {
     host: account.smtpHost,
     port: account.smtpPort ?? 587,
@@ -242,9 +248,13 @@ export async function appendDraft(
   markdown: string,
   attachments: MailAttachment[] = []
 ): Promise<void> {
+  const { html, text } = noteToClipboardFlavors(markdown);
+  if (mailAccountKind(account) === "microsoft") {
+    await graphAppendDraft(vaultPath, account, to, subject, html, attachments);
+    return;
+  }
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
-  const { html, text } = noteToClipboardFlavors(markdown);
   await invoke("mail_append_draft", {
     host: account.host,
     port: account.port,

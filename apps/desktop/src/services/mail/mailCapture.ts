@@ -42,7 +42,9 @@ export function buildEmailNoteContent(message: MailMessage, accountId: string, m
     content = upsertFrontmatterKeys(content, {
       from: message.from || undefined,
       date: dayKey,
-      plainva: { pim: { kind: "email", account: accountId, mailbox, uid: message.uid } },
+      // `uid` holds the message identifier (IMAP UID as string, or the opaque
+      // Graph id) — the idempotency anchor for a second capture.
+      plainva: { pim: { kind: "email", account: accountId, mailbox, uid: message.id } },
     });
   } catch {
     /* anchor best-effort */
@@ -85,7 +87,7 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
     try {
       const existing = await adapter.readTextFile(path);
       if (
-        readFrontmatterPath(existing, ["plainva", "pim", "uid"]) === message.uid &&
+        String(readFrontmatterPath(existing, ["plainva", "pim", "uid"]) ?? "") === message.id &&
         readFrontmatterPath(existing, ["plainva", "pim", "mailbox"]) === mailbox &&
         readFrontmatterPath(existing, ["plainva", "pim", "account"]) === accountId
       ) {
@@ -95,7 +97,10 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
       /* unreadable sibling — probe the next slot */
     }
   }
-  const path = prefix + `${stem} ${message.uid}.md`;
+  // Rare fallback after 50 same-named notes: append a filesystem-safe slice of
+  // the message id (Graph ids carry "/" and "=").
+  const safeId = message.id.replace(/[^A-Za-z0-9._-]/g, "").slice(-16) || "0";
+  const path = prefix + `${stem} ${safeId}.md`;
   if (!(await adapter.exists(path))) {
     if (dir) await adapter.createDir(dir).catch(() => undefined);
     await adapter.writeTextFile(path, buildEmailNoteContent(message, accountId, mailbox, dayKey));

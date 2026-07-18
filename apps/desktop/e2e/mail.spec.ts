@@ -238,7 +238,7 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   });
   expect(noteContent).toContain('type: Email');
   expect(noteContent).toContain('kind: email');
-  expect(noteContent).toContain('uid: 2');
+  expect(noteContent).toMatch(/uid:\s*['"]?2['"]?/); // the message id (IMAP uid as string) — YAML may quote it
   expect(noteContent).toContain('# Rechnung Q3');
   expect(noteContent).toContain('anbei die Rechnung.');
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();

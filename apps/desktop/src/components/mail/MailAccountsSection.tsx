@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { toast, Button, IconButton } from "@plainva/ui";
+import { toast, Button, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
-import { listMailAccounts, saveMailAccount, removeMailAccount, type MailAccountConfig } from "../../services/mail/mailAccounts";
+import { listMailAccounts, saveMailAccount, saveMicrosoftMailAccount, removeMailAccount, mailAccountKind, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { checkMailLogin } from "../../services/mail/mailClient";
+import { authorizeMicrosoftMail, graphMailAddress, forgetGraphMailRuntime } from "../../services/mail/graphMail";
 import { MAIL_PRESETS, presetById, presetForEmail } from "../../services/mail/mailPresets";
 import { Select } from "../Select";
 
@@ -24,6 +25,10 @@ export function MailAccountsSection() {
   const [showAdd, setShowAdd] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Backend: Microsoft (Graph direct login, no app password) or IMAP.
+  const [backend, setBackend] = useState<"imap" | "microsoft">("imap");
+  const [msClientId, setMsClientId] = useState("");
+  const [msShowId, setMsShowId] = useState(false);
   const [host, setHost] = useState("");
   const [port, setPort] = useState("993");
   const [smtpHost, setSmtpHost] = useState("");
@@ -143,6 +148,47 @@ export function MailAccountsSection() {
     }
   }, [vaultPath, busy, host, port, smtpHost, smtpPort, user, pass, reload, t]);
 
+  // Microsoft (Graph) direct login: opens the browser consent, saves the
+  // account only after /me proves the token (the address becomes the label).
+  const connectMicrosoft = useCallback(async () => {
+    if (!vaultPath || busy) return;
+    const clientId = (msClientId || PLAINVA_ONEDRIVE_CLIENT_ID).trim();
+    if (!clientId) {
+      setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { refreshToken } = await authorizeMicrosoftMail({ clientId });
+      const id = crypto.randomUUID().slice(0, 8);
+      const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 993, user: "", kind: "microsoft", clientId };
+      await saveMicrosoftMailAccount(vaultPath, account, refreshToken);
+      // Validate + derive the label from Graph /me (a login that cannot read
+      // /me is a failed login → drop it and surface the error).
+      let address = "";
+      try {
+        address = await graphMailAddress(vaultPath, account);
+      } catch (e) {
+        forgetGraphMailRuntime(account.id);
+        await removeMailAccount(vaultPath, account.id);
+        throw e;
+      }
+      account.label = address;
+      account.user = address;
+      await saveMicrosoftMailAccount(vaultPath, account, refreshToken);
+      setShowAdd(false);
+      setMsClientId("");
+      setMsShowId(false);
+      await reload();
+      toast.info(t("pim.connected", { defaultValue: "Konto verbunden." }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [vaultPath, busy, msClientId, reload, t]);
+
   const remove = useCallback(
     async (account: MailAccountConfig) => {
       if (!vaultPath) return;
@@ -152,6 +198,7 @@ export function MailAccountsSection() {
         kind: "danger",
       });
       if (!ok) return;
+      forgetGraphMailRuntime(account.id);
       await removeMailAccount(vaultPath, account.id);
       await reload();
     },
@@ -171,7 +218,7 @@ export function MailAccountsSection() {
         <div key={account.id} data-testid="mail-account" style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.45rem 0.75rem", marginBottom: "0.5rem" }}>
           <strong style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{account.label}</strong>
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {account.host}:{account.port}
+            {mailAccountKind(account) === "microsoft" ? "Microsoft" : `${account.host}:${account.port}`}
           </span>
           <IconButton label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })} onClick={() => void remove(account)}>
             <Trash2 size={14} />
@@ -185,6 +232,43 @@ export function MailAccountsSection() {
 
       {showAdd && (
         <div data-testid="mail-add-form" style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem" }}>
+          <div style={{ marginBottom: "0.5rem", maxWidth: "20rem" }} data-testid="mail-backend">
+            <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 2 }}>
+              {t("mail.backend", { defaultValue: "Verbindungsart" })}
+            </label>
+            <Select
+              ariaLabel={t("mail.backend", { defaultValue: "Verbindungsart" })}
+              value={backend}
+              onChange={(v) => {
+                setBackend(v as "imap" | "microsoft");
+                setError(null);
+              }}
+              options={[
+                { value: "microsoft", label: t("mail.backendMicrosoft", { defaultValue: "Microsoft (Anmelden)" }) },
+                { value: "imap", label: t("mail.backendImap", { defaultValue: "IMAP (App-Passwort)" }) },
+              ]}
+            />
+          </div>
+
+          {backend === "microsoft" ? (
+            <div data-testid="mail-microsoft-form">
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
+                {t("mail.microsoftHint", { defaultValue: "Für Outlook.com / Microsoft 365: direkte Anmeldung im Browser — kein App-Passwort, kein IMAP." })}
+              </p>
+              {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
+                <input autoComplete="off" value={msClientId} onChange={(e) => setMsClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
+              ) : (
+                <button type="button" onClick={() => setMsShowId(true)} className="pv-linkbtn" style={{ padding: 0, marginBottom: "0.4rem" }}>
+                  {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
+                </button>
+              )}
+              {error && <p style={{ color: "var(--error-text)", fontSize: "0.8rem", margin: "0.2rem 0" }}>{error}</p>}
+              <Button variant="primary" data-testid="mail-connect-microsoft" disabled={busy} onClick={() => void connectMicrosoft()}>
+                {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.connectMicrosoft", { defaultValue: "Mit Microsoft anmelden" })}
+              </Button>
+            </div>
+          ) : (
+          <>
           <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
             {t("mail.imapHint", { defaultValue: "Nur Lesen — Plainva ändert nichts im Postfach. Gmail: imap.gmail.com, Port 993, mit App-Passwort." })}
           </p>
@@ -213,6 +297,8 @@ export function MailAccountsSection() {
           <Button variant="primary" data-testid="mail-connect" disabled={busy} onClick={() => void connect()}>
             {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("pim.connect", { defaultValue: "Verbinden" })}
           </Button>
+          </>
+          )}
         </div>
       )}
 

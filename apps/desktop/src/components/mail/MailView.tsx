@@ -88,7 +88,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
   const [total, setTotal] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [selectedUid, setSelectedUid] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(false);
   // Remote https images: global per-vault opt-in (settings) or a one-shot
@@ -98,7 +98,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
   // Mailbox actions (E4): a text search over the current folder, plus a
   // "Move to…" menu anchored on the reader toolbar.
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchUids, setSearchUids] = useState<Set<number> | null>(null);
+  const [searchIds, setSearchIds] = useState<Set<string> | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
   const [moveMenu, setMoveMenu] = useState<{ x: number; y: number } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -184,15 +184,15 @@ export function MailView({ onOpenPath }: MailViewProps) {
 
   useEffect(() => {
     setEnvelopes([]);
-    setSelectedUid(null);
+    setSelectedId(null);
     setMessage(null);
     if (account) void loadList(0);
   }, [account, loadList]);
 
   const openMessage = useCallback(
-    async (uid: number) => {
+    async (uid: string) => {
       if (!vaultPath || !account) return;
-      setSelectedUid(uid);
+      setSelectedId(uid);
       setLoadingMessage(true);
       setMessage(null);
       setShowRemoteOnce(false);
@@ -214,20 +214,20 @@ export function MailView({ onOpenPath }: MailViewProps) {
   );
 
   // ---- Mailbox actions (E4) ----
-  const displayedEnvelopes = searchUids ? envelopes.filter((e) => searchUids.has(e.uid)) : envelopes;
-  const currentSeen = envelopes.find((e) => e.uid === selectedUid)?.seen ?? false;
+  const displayedEnvelopes = searchIds ? envelopes.filter((e) => searchIds.has(e.id)) : envelopes;
+  const currentSeen = envelopes.find((e) => e.id === selectedId)?.seen ?? false;
 
   const runSearch = useCallback(async () => {
     if (!vaultPath || !account) return;
     const q = searchQuery.trim();
     if (!q) {
-      setSearchUids(null);
+      setSearchIds(null);
       return;
     }
     setSearchBusy(true);
     try {
       const uids = await searchMessages(vaultPath, account, mailbox, q);
-      setSearchUids(new Set(uids));
+      setSearchIds(new Set(uids));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -237,32 +237,32 @@ export function MailView({ onOpenPath }: MailViewProps) {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setSearchUids(null);
+    setSearchIds(null);
   }, []);
 
   const markSeen = useCallback(
     async (seen: boolean) => {
-      if (!vaultPath || !account || selectedUid == null || actionBusy) return;
+      if (!vaultPath || !account || selectedId == null || actionBusy) return;
       setActionBusy(true);
       try {
-        await setMessageSeen(vaultPath, account, mailbox, selectedUid, seen);
-        setEnvelopes((list) => list.map((e) => (e.uid === selectedUid ? { ...e, seen } : e)));
+        await setMessageSeen(vaultPath, account, mailbox, selectedId, seen);
+        setEnvelopes((list) => list.map((e) => (e.id === selectedId ? { ...e, seen } : e)));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, selectedUid, actionBusy]
+    [vaultPath, account, mailbox, selectedId, actionBusy]
   );
 
   // Auto-mark-read: a message left open for a few seconds switches to "read" on
   // its own (like every mail client). Switching messages cancels the timer.
   useEffect(() => {
-    if (!message || selectedUid == null || currentSeen) return;
+    if (!message || selectedId == null || currentSeen) return;
     const timer = setTimeout(() => void markSeen(true), 3000);
     return () => clearTimeout(timer);
-  }, [message, selectedUid, currentSeen, markSeen]);
+  }, [message, selectedId, currentSeen, markSeen]);
 
   // Make links in the sandboxed viewer clickable: the frame is allow-same-origin
   // but has NO allow-scripts (so the mail HTML still can't run any code), which
@@ -286,24 +286,24 @@ export function MailView({ onOpenPath }: MailViewProps) {
     );
   }, []);
 
-  const removeFromList = useCallback((uid: number) => {
-    setEnvelopes((list) => list.filter((e) => e.uid !== uid));
-    setSearchUids((s) => {
+  const removeFromList = useCallback((uid: string) => {
+    setEnvelopes((list) => list.filter((e) => e.id !== uid));
+    setSearchIds((s) => {
       if (!s) return s;
       const n = new Set(s);
       n.delete(uid);
       return n;
     });
-    setSelectedUid((cur) => (cur === uid ? null : cur));
-    setMessage((m) => (m && m.uid === uid ? null : m));
+    setSelectedId((cur) => (cur === uid ? null : cur));
+    setMessage((m) => (m && m.id === uid ? null : m));
   }, []);
 
   const moveTo = useCallback(
     async (target: string) => {
       setMoveMenu(null);
-      if (!vaultPath || !account || selectedUid == null || actionBusy || target === mailbox) return;
+      if (!vaultPath || !account || selectedId == null || actionBusy || target === mailbox) return;
       setActionBusy(true);
-      const uid = selectedUid;
+      const uid = selectedId;
       try {
         await moveMessage(vaultPath, account, mailbox, uid, target);
         removeFromList(uid);
@@ -314,11 +314,11 @@ export function MailView({ onOpenPath }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, selectedUid, actionBusy, removeFromList, t]
+    [vaultPath, account, mailbox, selectedId, actionBusy, removeFromList, t]
   );
 
   const deleteMessage = useCallback(async () => {
-    if (!vaultPath || !account || selectedUid == null || actionBusy) return;
+    if (!vaultPath || !account || selectedId == null || actionBusy) return;
     const trash = guessTrashMailbox(folders);
     if (!trash || trash === mailbox) {
       toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
@@ -329,7 +329,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
       message: t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
     });
     if (ok) await moveTo(trash);
-  }, [vaultPath, account, mailbox, selectedUid, actionBusy, folders, moveTo, t]);
+  }, [vaultPath, account, mailbox, selectedId, actionBusy, folders, moveTo, t]);
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -344,7 +344,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
         const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: account.id, mailbox, folder });
         const touched = [res.path];
         if (withEml && res.created) {
-          const raw = await fetchRawMessage(vaultPath, account, mailbox, message.uid);
+          const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);
           const emlPath = await saveEmlFile(vaultAdapter, message, raw, folder);
           const content = await vaultAdapter.readTextFile(res.path);
           await vaultAdapter.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
@@ -533,7 +533,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
               aria-label={t("mail.searchPlaceholder", { defaultValue: "In diesem Ordner suchen…" })}
               data-testid="mail-search"
             />
-            {(searchUids || searchQuery) && (
+            {(searchIds || searchQuery) && (
               <button type="button" className="pv-mail-search-clear" onClick={clearSearch} aria-label={t("mail.clearSearch", { defaultValue: "Suche leeren" })} data-testid="mail-search-clear">
                 <X size={13} />
               </button>
@@ -549,18 +549,18 @@ export function MailView({ onOpenPath }: MailViewProps) {
             <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
           ) : displayedEnvelopes.length === 0 && !loadingList && !searchBusy ? (
             <p className="pv-mail-hint">
-              {searchUids ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
+              {searchIds ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
             </p>
           ) : (
             displayedEnvelopes.map((e) => {
-              const on = e.uid === selectedUid;
+              const on = e.id === selectedId;
               return (
                 <button
-                  key={e.uid}
+                  key={e.id}
                   type="button"
                   data-testid="mail-envelope"
                   className={`pv-mail-env${on ? " on" : ""}${e.seen ? " read" : ""}`}
-                  onClick={() => void openMessage(e.uid)}
+                  onClick={() => void openMessage(e.id)}
                 >
                   <span className="pv-mail-unread" />
                   <span className="pv-mail-ebody">
@@ -575,7 +575,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
               );
             })
           )}
-          {!searchUids && envelopes.length < total && (
+          {!searchIds && envelopes.length < total && (
             <div style={{ padding: "var(--space-2)" }}>
               <Button variant="ghost" disabled={loadingList} onClick={() => void loadList(envelopes.length)}>
                 {t("mail.loadMore", { defaultValue: "Mehr laden" })}

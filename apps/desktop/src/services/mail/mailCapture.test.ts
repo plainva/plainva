@@ -25,7 +25,7 @@ function fakeAdapter(initial: Record<string, string> = {}) {
 
 function msg(partial: Partial<MailMessage> = {}): MailMessage {
   return {
-    uid: 4711,
+    id: "4711",
     subject: "Rechnung Q3",
     from: "Anna Beispiel <anna@example.org>",
     to: "marco@example.org",
@@ -44,7 +44,7 @@ describe("mail capture", () => {
     expect(readFrontmatterPath(content, ["from"])).toBe("Anna Beispiel <anna@example.org>");
     expect(readFrontmatterPath(content, ["date"])).toBe("2026-07-20");
     expect(readFrontmatterPath(content, ["plainva", "pim", "kind"])).toBe("email");
-    expect(readFrontmatterPath(content, ["plainva", "pim", "uid"])).toBe(4711);
+    expect(String(readFrontmatterPath(content, ["plainva", "pim", "uid"]))).toBe("4711");
     expect(content).toContain("# Rechnung Q3");
     expect(content).toContain("anbei die Rechnung.");
   });

@@ -1,12 +1,17 @@
 # E-Mail-Capture
 
-Stand: 2026-07-18
+Stand: 2026-07-19
 
-Plainva kann Dein Postfach lesen — und nur lesen —, um Wissen aus E-Mails in Deinen Vault zu holen. Es ist bewusst **kein** Mail-Client: die Verbindung läuft über IMAP im Nur-Lesen-Modus, im Postfach ändert sich nichts (nicht einmal die Ungelesen-Markierungen), und Plainva versendet nie selbst.
+Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; über **IMAP** verbundene Postfächer werden dabei nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen).
 
 ## Ein Postfach verbinden
 
-**Einstellungen → Dein Vault → Kalender & Konten → E-Mail (IMAP, nur Lesen) → Konto hinzufügen…**: Host, Port und ein **App-Passwort**. Für Gmail ist das `imap.gmail.com`, Port `993`, mit einem App-Passwort von [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (setzt Zwei-Faktor-Anmeldung voraus) — kein OAuth, keine Verifizierung. Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; das Passwort landet im Schlüsselbund Deines Betriebssystems. Die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
+**Einstellungen → Dein Vault → Kalender & Konten → E-Mail → Konto hinzufügen…** Unter **Verbindungsart** wählst Du:
+
+- **Microsoft (Anmelden)** — für Outlook.com und Microsoft 365: Du meldest Dich direkt im Browser an, ganz ohne App-Passwort oder IMAP. Plainva nutzt dafür die zentrale Plainva-App-Registrierung (Deine eigene App-ID kannst Du optional hinterlegen). Postfach lesen, ablegen und **direkt senden** laufen über die Microsoft-Anmeldung.
+- **IMAP (App-Passwort)** — für alle anderen Anbieter: Host, Port und ein **App-Passwort**. Für Gmail ist das `imap.gmail.com`, Port `993`, mit einem App-Passwort von [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (setzt Zwei-Faktor-Anmeldung voraus) — kein OAuth, keine Verifizierung. Für **web.de** und **GMX** stehen fertige Voreinstellungen bereit. Für den Direktversand kann ein SMTP-Host hinterlegt werden.
+
+Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
 ## Mails lesen
 
