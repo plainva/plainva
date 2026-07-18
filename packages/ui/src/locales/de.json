@@ -1982,6 +1982,11 @@
     "loadRemoteImages": "Externe Bilder immer laden",
     "loadRemoteImagesHint": "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",
     "newMessage": "Neue Nachricht",
-    "forward": "Weiterleiten"
+    "forward": "Weiterleiten",
+    "provider": "Anbieter",
+    "customProvider": "Anderer Anbieter",
+    "emailAddress": "E-Mail-Adresse",
+    "imapPort": "IMAP-Port",
+    "smtpPort": "SMTP-Port"
   }
 }

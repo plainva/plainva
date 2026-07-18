@@ -1988,6 +1988,11 @@
     "loadRemoteImages": "Toujours charger les images distantes",
     "loadRemoteImagesHint": "Charger les images distantes révèle votre adresse IP et le moment d'ouverture à l'expéditeur (pistage). Plainva les bloque par défaut — utilisez « Afficher les images » pour les révéler par message.",
     "newMessage": "Nouveau message",
-    "forward": "Transférer"
+    "forward": "Transférer",
+    "provider": "Fournisseur",
+    "customProvider": "Autre fournisseur",
+    "emailAddress": "Adresse e-mail",
+    "imapPort": "Port IMAP",
+    "smtpPort": "Port SMTP"
   }
 }

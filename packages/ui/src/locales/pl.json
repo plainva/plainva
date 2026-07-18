@@ -1994,6 +1994,11 @@
     "loadRemoteImages": "Zawsze wczytuj zdalne obrazy",
     "loadRemoteImagesHint": "Wczytanie zdalnych obrazów ujawnia nadawcy Twój adres IP i moment otwarcia wiadomości (śledzenie). Plainva domyślnie je blokuje — użyj „Pokaż obrazy”, aby pokazać je dla pojedynczej wiadomości.",
     "newMessage": "Nowa wiadomość",
-    "forward": "Przekaż dalej"
+    "forward": "Przekaż dalej",
+    "provider": "Dostawca",
+    "customProvider": "Inny dostawca",
+    "emailAddress": "Adres e-mail",
+    "imapPort": "Port IMAP",
+    "smtpPort": "Port SMTP"
   }
 }

@@ -1976,6 +1976,11 @@
     "loadRemoteImages": "始终加载外部图片",
     "loadRemoteImagesHint": "加载外部图片会让发件人看到你的 IP 地址和打开邮件的时间（跟踪）。Plainva 默认阻止它们——可通过“显示图片”按邮件显示。",
     "newMessage": "写邮件",
-    "forward": "转发"
+    "forward": "转发",
+    "provider": "服务商",
+    "customProvider": "其他服务商",
+    "emailAddress": "电子邮件地址",
+    "imapPort": "IMAP 端口",
+    "smtpPort": "SMTP 端口"
   }
 }

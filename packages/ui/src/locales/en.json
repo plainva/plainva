@@ -1982,6 +1982,11 @@
     "loadRemoteImages": "Always load remote images",
     "loadRemoteImagesHint": "Loading remote images lets the sender see your IP address and when you opened the mail (tracking). Plainva blocks them by default — use “Show images” to reveal them per message.",
     "newMessage": "New message",
-    "forward": "Forward"
+    "forward": "Forward",
+    "provider": "Provider",
+    "customProvider": "Other provider",
+    "emailAddress": "Email address",
+    "imapPort": "IMAP port",
+    "smtpPort": "SMTP port"
   }
 }

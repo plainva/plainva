@@ -1988,6 +1988,11 @@
     "loadRemoteImages": "Sempre carregar imagens remotas",
     "loadRemoteImagesHint": "Ao carregar imagens remotas, o remetente vê seu endereço IP e quando você abriu o e-mail (rastreamento). O Plainva as bloqueia por padrão — use “Mostrar imagens” para exibi-las por mensagem.",
     "newMessage": "Nova mensagem",
-    "forward": "Encaminhar"
+    "forward": "Encaminhar",
+    "provider": "Provedor",
+    "customProvider": "Outro provedor",
+    "emailAddress": "Endereço de e-mail",
+    "imapPort": "Porta IMAP",
+    "smtpPort": "Porta SMTP"
   }
 }

@@ -1976,6 +1976,11 @@
     "loadRemoteImages": "リモート画像を常に読み込む",
     "loadRemoteImagesHint": "リモート画像を読み込むと、送信者にあなたの IP アドレスとメールを開いた時刻が伝わります（トラッキング）。Plainva は既定でブロックします。メールごとに「画像を表示」で表示できます。",
     "newMessage": "新規メール",
-    "forward": "転送"
+    "forward": "転送",
+    "provider": "プロバイダー",
+    "customProvider": "その他のプロバイダー",
+    "emailAddress": "メールアドレス",
+    "imapPort": "IMAP ポート",
+    "smtpPort": "SMTP ポート"
   }
 }
