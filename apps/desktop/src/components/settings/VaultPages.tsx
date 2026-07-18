@@ -126,7 +126,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             </IconButton>
           </div>
         </SettingRow>
-        <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")}>
+        <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")} wide>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
             {p.baseFiles.length > 0 ? (
               <div style={{ flex: 1, minWidth: 0 }}>
