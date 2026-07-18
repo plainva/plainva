@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, IconButton, MenuSurface, MenuItem, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -23,7 +24,8 @@ import { MailDraftModal } from "./MailDraftModal";
  * IMAP browser whose one job is getting knowledge OUT of the mailbox and
  * INTO the vault. Left: envelope list of the selected mailbox (newest
  * first). Right: the message in a hard-sandboxed viewer (see mailSanitize —
- * remote content is blocked, links are inert) plus the capture actions
+ * no scripts, remote content blocked; links open in the system browser on an
+ * explicit click) plus the capture actions
  * ("Als Notiz ablegen", "+ .eml", "→ Aufgabe"). The mailbox itself is never
  * mutated (EXAMINE + BODY.PEEK on the Rust side).
  */
@@ -253,6 +255,36 @@ export function MailView({ onOpenPath }: MailViewProps) {
     },
     [vaultPath, account, mailbox, selectedUid, actionBusy]
   );
+
+  // Auto-mark-read: a message left open for a few seconds switches to "read" on
+  // its own (like every mail client). Switching messages cancels the timer.
+  useEffect(() => {
+    if (!message || selectedUid == null || currentSeen) return;
+    const timer = setTimeout(() => void markSeen(true), 3000);
+    return () => clearTimeout(timer);
+  }, [message, selectedUid, currentSeen, markSeen]);
+
+  // Make links in the sandboxed viewer clickable: the frame is allow-same-origin
+  // but has NO allow-scripts (so the mail HTML still can't run any code), which
+  // lets us reach its document from the parent and route anchor clicks to the
+  // SYSTEM browser via the opener plugin — a bare target=_blank never opens
+  // inside a Tauri WebView. Only safe schemes survive the sanitizer.
+  const handleFrameLoad = useCallback((ev: SyntheticEvent<HTMLIFrameElement>) => {
+    const doc = ev.currentTarget.contentDocument;
+    if (!doc) return;
+    doc.addEventListener(
+      "click",
+      (e) => {
+        const a = (e.target as Element | null)?.closest?.("a[href]");
+        const href = a?.getAttribute("href") ?? "";
+        if (a && /^(https?:|mailto:|tel:)/i.test(href)) {
+          e.preventDefault();
+          void openUrl(href).catch(() => {});
+        }
+      },
+      true
+    );
+  }, []);
 
   const removeFromList = useCallback((uid: number) => {
     setEnvelopes((list) => list.filter((e) => e.uid !== uid));
@@ -645,7 +677,12 @@ export function MailView({ onOpenPath }: MailViewProps) {
               {sanitized ? (
                 <iframe
                   title={t("mail.viewer", { defaultValue: "E-Mail-Inhalt" })}
-                  sandbox=""
+                  // allow-same-origin WITHOUT allow-scripts: the mail HTML still
+                  // cannot run any code (no scripts, no forms, no remote content),
+                  // but the parent can reach the document to route link clicks to
+                  // the system browser (handleFrameLoad).
+                  sandbox="allow-same-origin"
+                  onLoad={handleFrameLoad}
                   srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote })}
                   data-testid="mail-frame"
                   className="pv-mail-frame"

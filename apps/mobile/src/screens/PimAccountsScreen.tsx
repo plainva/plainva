@@ -34,7 +34,11 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const [pass, setPass] = useState("");
   const [gClientId, setGClientId] = useState("");
   const [gClientSecret, setGClientSecret] = useState("");
-  const [msClientId, setMsClientId] = useState(PLAINVA_ONEDRIVE_CLIENT_ID);
+  // Microsoft uses the shipped central client id; the field stays EMPTY and
+  // hidden (never expose our app id). beginPimOAuth falls back to the central
+  // id when this is blank — an opt-in reveals the field for a user's own.
+  const [msClientId, setMsClientId] = useState("");
+  const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(() => {
@@ -80,8 +84,8 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     }
   };
   const connectMicrosoft = async () => {
-    if (!msClientId.trim()) return;
     try {
+      // Empty msClientId → beginPimOAuth uses the shipped central client id.
       await beginPimOAuth("microsoft", { clientId: msClientId, label });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -196,11 +200,17 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
         {addProvider === "microsoft" && (
           <>
             <p className="m-hint">{t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}</p>
-            <label className="m-field">
-              <span>Client-ID</span>
-              <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
-            </label>
-            <button className="m-btn m-btn--filled" disabled={busy || !msClientId.trim()} onClick={() => void connectMicrosoft()}>
+            {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
+              <label className="m-field">
+                <span>Client-ID</span>
+                <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
+              </label>
+            ) : (
+              <button className="m-btn m-btn--ghost" onClick={() => setMsShowId(true)}>
+                {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
+              </button>
+            )}
+            <button className="m-btn m-btn--filled" disabled={busy} onClick={() => void connectMicrosoft()}>
               <Plus size={16} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
             </button>
           </>

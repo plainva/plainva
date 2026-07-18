@@ -5,8 +5,10 @@ import { sanitizeEmailHtml, buildMailFrameDoc } from "./mailSanitize";
 /**
  * The sandbox sanitizer is the security boundary of the mail viewer — these
  * tests pin the hard-block contract: no script survives, no REMOTE reference
- * survives (tracking pixels, css url(), form actions), links are inert, and
- * self-contained data: images pass.
+ * survives (tracking pixels, css url(), form actions), and self-contained
+ * data: images pass. Safe-scheme link hrefs (http/https/mailto/tel) are KEPT
+ * so the reader can open them in the system browser on an explicit click;
+ * unsafe schemes (javascript:/data:) are dropped.
  */
 
 describe("sanitizeEmailHtml", () => {
@@ -40,15 +42,23 @@ describe("sanitizeEmailHtml", () => {
     expect(blockedRemote).toBe(2);
   });
 
-  it("renders links as inert text (no href) and drops css url() styles", () => {
+  it("keeps safe-scheme link hrefs (clickable) and drops css url() styles", () => {
     const { html, blockedRemote } = sanitizeEmailHtml(
-      `<a href="https://phish.example.org/login">Klick mich</a><div style="background-image:url('https://t.example/px')">X</div>`
+      `<a href="https://mail.example.org/read">Klick mich</a><div style="background-image:url('https://t.example/px')">X</div>`
     );
     expect(html).toContain("Klick mich");
-    expect(html).not.toContain("phish.example.org");
-    expect(html).not.toContain("t.example");
-    expect(html).not.toContain("href=");
-    expect(blockedRemote).toBe(1); // the css url(); the href is inert, not "remote content"
+    expect(html).toContain(`href="https://mail.example.org/read"`); // safe href kept — the reader opens it externally on click
+    expect(html).not.toContain("t.example"); // css url() is a fetch → blocked
+    expect(blockedRemote).toBe(1); // the css url(); a link href is not "remote content"
+  });
+
+  it("drops javascript:/data: hrefs but keeps mailto/http/tel", () => {
+    const { html } = sanitizeEmailHtml(
+      `<a href="javascript:alert(1)">x</a><a href="mailto:a@b.de">m</a><a href="tel:+49123">t</a>`
+    );
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("mailto:a@b.de");
+    expect(html).toContain("tel:+49123");
   });
 
   it("removes style/link/form/meta/base tags wholesale", () => {
@@ -85,7 +95,7 @@ describe("sanitizeEmailHtml", () => {
     expect(html).not.toContain("srcset");
     expect(html).not.toContain("poster.jpg");
     expect(html).not.toContain("t.example");
-    expect(html).not.toContain("href=");
+    expect(html).toContain(`href="https://phish.example.org/login"`); // link href kept (clickable), not a remote fetch
     // http img + srcset + poster + css url() were blocked and counted.
     expect(blockedRemote).toBe(4);
   });

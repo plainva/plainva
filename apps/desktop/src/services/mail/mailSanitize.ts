@@ -17,11 +17,14 @@ function purifier(): ReturnType<typeof createDOMPurify> {
  *   2. REMOTE CONTENT IS HARD-BLOCKED (tracking pixels, remote images, css
  *      url() loaders): every fetching attribute with a remote target is
  *      removed and counted; only self-contained data: images survive.
- *      Links lose their href (shown as text) — a sandboxed iframe cannot
- *      open them safely anyway; opening in the system browser is a later,
- *      explicit affordance.
- *   3. The caller renders the result into <iframe sandbox=""> with a
- *      default-src 'none' CSP meta — belt and braces should 1+2 ever miss.
+ *      Links KEEP their (DOMPurify-vetted, safe-scheme) href; the reader routes
+ *      a click to the SYSTEM browser (MailView.handleFrameLoad) — a bare
+ *      target=_blank never opens inside a Tauri WebView. No scripts and no
+ *      remote content run, so a link can only navigate on an explicit click.
+ *   3. The caller renders the result into an allow-same-origin sandboxed
+ *      <iframe> that has NO allow-scripts (so the mail HTML cannot execute any
+ *      code) plus a default-src 'none' CSP meta — belt and braces should 1+2
+ *      miss.
  */
 
 export interface SanitizedEmail {
@@ -69,11 +72,10 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
       data.keepAttr = false;
       return;
     }
-    if (name === "href") {
-      // Links render as plain text — no navigation surface in the sandbox.
-      data.keepAttr = false;
-      return;
-    }
+    // href is KEPT: DOMPurify's default URI policy already drops javascript:/
+    // data: and other unsafe schemes, leaving safe http/https/mailto/tel links.
+    // Opening is handled by the reader (MailView.handleFrameLoad routes a click
+    // to the system browser) — no target/rel rewriting needed here.
     if (name === "style" && /url\s*\(/i.test(value)) {
       // css url() is a fetch too (background-image tracking pixels et al.).
       blockedRemote++;
@@ -105,8 +107,10 @@ export function buildMailFrameDoc(sanitizedHtml: string, options?: SanitizeEmail
   return (
     `<!doctype html><html><head>` +
     `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imgSrc}; style-src 'unsafe-inline'">` +
+    // Never leak the referrer if a link ever does navigate.
+    `<meta name="referrer" content="no-referrer">` +
     `<style>body{font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;margin:12px;word-break:break-word;color:#222;background:#fff}` +
-    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline}</style>` +
+    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`
   );
 }

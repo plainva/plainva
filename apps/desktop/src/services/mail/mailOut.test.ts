@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7 } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -22,6 +22,19 @@ describe("mail-out helpers (stage 6)", () => {
     expect(guessDraftsMailbox(["INBOX", "Entwürfe", "Sent"])).toBe("Entwürfe");
     expect(guessDraftsMailbox(["INBOX", "[Gmail]/Drafts", "[Gmail]/Sent Mail"])).toBe("[Gmail]/Drafts");
     expect(guessDraftsMailbox(["INBOX", "Sent"])).toBe("Drafts");
+    // Modified UTF-7 encoded name (what the IMAP LIST actually returns) still
+    // matches the drafts role and is returned RAW for the follow-up command.
+    expect(guessDraftsMailbox(["INBOX", "Entw&APw-rfe", "Gesendet"])).toBe("Entw&APw-rfe");
+  });
+
+  it("decodes IMAP modified UTF-7 mailbox names (RFC 3501)", () => {
+    expect(decodeImapUtf7("Entw&APw-rfe")).toBe("Entwürfe"); // ü = U+00FC
+    expect(decodeImapUtf7("INBOX")).toBe("INBOX"); // plain names pass through
+    expect(decodeImapUtf7("R&AOk-sum&AOk-s")).toBe("Résumés"); // multiple runs
+    expect(decodeImapUtf7("Mail &- Test")).toBe("Mail & Test"); // "&-" is a literal &
+    expect(decodeImapUtf7("&AKM-")).toBe("£"); // U+00A3
+    // mailFolderLabel shows the decoded last segment.
+    expect(mailFolderLabel("Ordner.Entw&APw-rfe")).toBe("Entwürfe");
   });
 
   it("builds a reply note addressed at the sender with the original quoted", () => {

@@ -199,7 +199,7 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   await expect(page.getByTestId('mail-blocked-hint')).toBeVisible();
   const frame = page.getByTestId('mail-frame');
   await expect(frame).toBeVisible();
-  await expect(frame).toHaveAttribute('sandbox', '');
+  await expect(frame).toHaveAttribute('sandbox', 'allow-same-origin');
   const srcdoc = await frame.getAttribute('srcdoc');
   expect(srcdoc).toContain('Rechnung');
   expect(srcdoc).not.toContain('tracker.example.org');

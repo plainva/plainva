@@ -23,6 +23,8 @@ export const MAIL_PRESETS: MailPreset[] = [
   { id: "yahoo", label: "Yahoo", host: "imap.mail.yahoo.com", port: 993, smtpHost: "smtp.mail.yahoo.com", smtpPort: 465, domains: ["yahoo.com", "yahoo.de", "ymail.com"] },
   { id: "icloud", label: "iCloud", host: "imap.mail.me.com", port: 993, smtpHost: "smtp.mail.me.com", smtpPort: 587, domains: ["icloud.com", "me.com", "mac.com"] },
   { id: "fastmail", label: "Fastmail", host: "imap.fastmail.com", port: 993, smtpHost: "smtp.fastmail.com", smtpPort: 465, domains: ["fastmail.com", "fastmail.fm"] },
+  { id: "webde", label: "WEB.DE", host: "imap.web.de", port: 993, smtpHost: "smtp.web.de", smtpPort: 587, domains: ["web.de"] },
+  { id: "gmx", label: "GMX", host: "imap.gmx.net", port: 993, smtpHost: "mail.gmx.net", smtpPort: 587, domains: ["gmx.de", "gmx.net", "gmx.com", "gmx.at", "gmx.ch"] },
 ];
 
 /** Preset for a preset id, or null. */

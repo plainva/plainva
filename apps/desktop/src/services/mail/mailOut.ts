@@ -39,19 +39,45 @@ export function noteToClipboardFlavors(markdown: string): { html: string; text: 
   return { html: markdownToHtml(markdown), text: markdownToPlainText(markdown) };
 }
 
+/** Decodes an IMAP mailbox name from modified UTF-7 (RFC 3501): "&" opens a
+ * modified-base64 run of UTF-16BE code units and "-" closes it; "&-" is a
+ * literal "&". So "Entw&APw-rfe" -> "Entwürfe". Non-encoded names pass through.
+ * Used for DISPLAY and folder-role matching only — IMAP commands keep the raw
+ * (encoded) name. Pure. */
+export function decodeImapUtf7(name: string): string {
+  return name.replace(/&([^-]*)-/g, (_m, run: string) => {
+    if (run === "") return "&";
+    const std = run.replace(/,/g, "/");
+    const pad = (4 - (std.length % 4)) % 4;
+    let bin: string;
+    try {
+      bin = atob(std + "=".repeat(pad));
+    } catch {
+      return _m; // not valid base64 — leave the run untouched
+    }
+    let out = "";
+    for (let i = 0; i + 1 < bin.length; i += 2) {
+      out += String.fromCharCode((bin.charCodeAt(i) << 8) | bin.charCodeAt(i + 1));
+    }
+    return out;
+  });
+}
+
 /** Best-guess Trash mailbox for "delete" (a reversible move), or null when the
- * account has no recognizable Trash folder (delete then falls back to a flag). */
+ * account has no recognizable Trash folder (delete then falls back to a flag).
+ * Matches on the DECODED name but returns the raw (IMAP) name. */
 export function guessTrashMailbox(names: string[]): string | null {
-  const byName = names.find((n) => /trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted/i.test(n));
+  const byName = names.find((n) => /trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted/i.test(decodeImapUtf7(n)));
   if (byName) return byName;
   const gmail = names.find((n) => n.toLowerCase() === "[gmail]/trash" || n.toLowerCase() === "[gmail]/bin");
   return gmail ?? null;
 }
 
 /** Best-guess drafts mailbox: localized "draft"/"entwurf" names first, then
- * the Gmail special-use folder, then a literal fallback. */
+ * the Gmail special-use folder, then a literal fallback. Matches on the DECODED
+ * name but returns the raw (IMAP) name. */
 export function guessDraftsMailbox(names: string[]): string {
-  const byName = names.find((n) => /draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/i.test(n));
+  const byName = names.find((n) => /draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/i.test(decodeImapUtf7(n)));
   if (byName) return byName;
   const gmail = names.find((n) => n.toLowerCase() === "[gmail]/drafts");
   return gmail ?? "Drafts";
@@ -135,9 +161,10 @@ export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" |
 /** Display label for an IMAP mailbox name: drop a leading "[Gmail]/" special-use
  * container and show the last hierarchy segment (separator-agnostic). Pure. */
 export function mailFolderLabel(name: string): string {
-  const stripped = name.replace(/^\[Gmail\]\//i, "");
+  const decoded = decodeImapUtf7(name);
+  const stripped = decoded.replace(/^\[Gmail\]\//i, "");
   const segs = stripped.split(/[/.]/).filter(Boolean);
-  return segs.length ? segs[segs.length - 1] : name;
+  return segs.length ? segs[segs.length - 1] : decoded;
 }
 
 const FOLDER_ORDER = ["inbox", "sent", "draft", "archive", "junk", "spam", "trash"];

@@ -23,6 +23,9 @@ describe("mail provider presets (E2)", () => {
     expect(presetForEmail("a@outlook.com")?.id).toBe("outlook");
     expect(presetForEmail("a@hotmail.com")?.id).toBe("outlook");
     expect(presetForEmail("a@corp.fastmail.com")?.id).toBe("fastmail");
+    expect(presetForEmail("a@web.de")?.id).toBe("webde");
+    expect(presetForEmail("a@gmx.de")?.id).toBe("gmx");
+    expect(presetForEmail("a@gmx.net")?.id).toBe("gmx");
     expect(presetForEmail("a@example.org")).toBeNull();
     expect(presetForEmail("not-an-email")).toBeNull();
     expect(presetForEmail("a@")).toBeNull();

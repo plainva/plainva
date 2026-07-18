@@ -196,24 +196,24 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 />
               </div>
             )}
-            <div className="pv-mail-cmpfields">
-              <div className="pv-mail-cmpfield">
-                <span className="pv-mail-cmpfield-k">{t("mail.draftTo", { defaultValue: "An" })}</span>
-                <input value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus aria-label={t("mail.draftTo", { defaultValue: "An" })} />
-              </div>
-              <div className="pv-mail-cmpfield">
-                <span className="pv-mail-cmpfield-k">{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
-                <input value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" aria-label={t("mail.draftSubject", { defaultValue: "Betreff" })} />
-              </div>
-            </div>
-            <textarea
-              className="pv-mail-cmpbody"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              data-testid="draft-body"
-              aria-label={t("mail.body", { defaultValue: "Nachricht" })}
-              placeholder={t("mail.bodyPlaceholder", { defaultValue: "Nachricht schreiben… (Markdown, wie im Editor)" })}
-            />
+            <label className="pv-mail-cmplabel">
+              <span>{t("mail.draftTo", { defaultValue: "An" })}</span>
+              <input className="pv-field" value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus placeholder="name@example.org" />
+            </label>
+            <label className="pv-mail-cmplabel">
+              <span>{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
+              <input className="pv-field" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" />
+            </label>
+            <label className="pv-mail-cmplabel">
+              <span>{t("mail.body", { defaultValue: "Nachricht" })}</span>
+              <textarea
+                className="pv-mail-cmpbody"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                data-testid="draft-body"
+                placeholder={t("mail.bodyPlaceholder", { defaultValue: "Nachricht schreiben… (Markdown, wie im Editor)" })}
+              />
+            </label>
             <div className="pv-mail-cmpattach">
               {attach.map((a, i) => (
                 <span key={`${a.name}-${i}`} className="pv-mail-attach-chip" data-testid="draft-attachments">

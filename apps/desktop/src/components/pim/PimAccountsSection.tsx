@@ -41,7 +41,11 @@ export function PimAccountsSection() {
   const [davPass, setDavPass] = useState("");
   const [gClientId, setGClientId] = useState("");
   const [gClientSecret, setGClientSecret] = useState("");
-  const [msClientId, setMsClientId] = useState(PLAINVA_ONEDRIVE_CLIENT_ID);
+  // Microsoft uses the shipped central client id; the field stays EMPTY and
+  // hidden (never expose our app id), with an opt-in to bring your own — same
+  // as the OneDrive sync BYO flow.
+  const [msClientId, setMsClientId] = useState("");
+  const [msShowId, setMsShowId] = useState(false);
   const [meetingFolder, setMeetingFolder] = useState("");
 
   // Meetings folder ("Termin → Meeting-Notiz" target, stage 2c). Loaded once,
@@ -112,8 +116,9 @@ export function PimAccountsSection() {
         if (!gClientId.trim()) throw new Error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
         await connectGoogleAccount(pimRuntime, vaultPath, { clientId: gClientId.trim(), clientSecret: gClientSecret.trim() });
       } else {
-        if (!msClientId.trim()) throw new Error(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
-        await connectMicrosoftAccount(pimRuntime, vaultPath, { clientId: msClientId.trim() });
+        const clientId = (msClientId || PLAINVA_ONEDRIVE_CLIENT_ID).trim();
+        if (!clientId) throw new Error(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
+        await connectMicrosoftAccount(pimRuntime, vaultPath, { clientId });
       }
       pimRuntime.worker.start();
       setShowAdd(false);
@@ -284,7 +289,13 @@ export function PimAccountsSection() {
               <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
                 {t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}
               </p>
-              <input autoComplete="off" value={msClientId} onChange={(e) => setMsClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
+              {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
+                <input autoComplete="off" value={msClientId} onChange={(e) => setMsClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
+              ) : (
+                <button type="button" onClick={() => setMsShowId(true)} className="pv-linkbtn" style={{ padding: 0, marginBottom: "0.4rem" }}>
+                  {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
+                </button>
+              )}
             </>
           )}
 
