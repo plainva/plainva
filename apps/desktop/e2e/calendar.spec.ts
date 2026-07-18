@@ -299,9 +299,10 @@ test('mail-client E6: an event can be emailed as an iCal invite', async ({ page 
     window.addEventListener('plainva-compose-mail', (e) => { (window as any).__composed = (e as CustomEvent).detail; });
   });
   await page.getByTestId('ribbon-calendar').click();
-  const todayKey = await page.evaluate(() => (window as any).__todayKey);
-  await page.getByTestId(`calendar-day-${todayKey}`).click();
-  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-email-invite').click();
+  // The full event action card (with the invite button) lives in the agenda view.
+  await page.getByTestId('calendar-mode-agenda').click();
+  await expect(page.getByTestId('calendar-agenda')).toBeVisible();
+  await page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-email-invite').click();
 
   await expect.poll(() => page.evaluate(() => (window as any).__composed ?? null)).toBeTruthy();
   const c = await page.evaluate(() => (window as any).__composed);

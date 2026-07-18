@@ -77,6 +77,51 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   return content;
 }
 
+/** Reply body: a blank area for the user's text, then the quoted original with
+ * an attribution line — ready to drop into a real reply compose (SMTP send),
+ * NOT a vault note. Pure. */
+export function buildReplyBody(message: Pick<MailMessage, "from" | "text" | "dateTs">): string {
+  const when = message.dateTs > 0 ? new Date(message.dateTs).toISOString() : "";
+  const attribution = message.from ? `${[when, message.from].filter(Boolean).join(" — ")}:` : "";
+  const quoted = (message.text ?? "")
+    .trim()
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+  return `\n\n${attribution ? attribution + "\n" : ""}${quoted}\n`;
+}
+
+/** Reply-all recipients: the sender plus the original To recipients, minus the
+ * account's own address, deduped (case-insensitive). Addresses are unwrapped
+ * from "Name <addr>". Pure. */
+export function replyAllRecipients(message: Pick<MailMessage, "from" | "to">, selfEmail: string): string {
+  const addr = (s: string): string => {
+    const m = s.match(/<([^>]+)>/);
+    return (m ? m[1] : s).trim();
+  };
+  const self = selfEmail.trim().toLowerCase();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [message.from, ...(message.to ?? "").split(/[,;]/)]) {
+    const a = addr((raw ?? "").trim());
+    const key = a.toLowerCase();
+    if (a && key !== self && !seen.has(key)) {
+      seen.add(key);
+      out.push(a);
+    }
+  }
+  return out.join(", ");
+}
+
+/** Uint8Array -> base64 (chunked so a large attachment doesn't blow the stack). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
 /** Forwarded-message body (mail-client E1): the quoted original with a header
  * block, ready to drop into a compose draft. Pure. */
 export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {

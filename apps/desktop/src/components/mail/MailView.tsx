@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
+import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, IconButton, MenuSurface, MenuItem, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -11,7 +11,7 @@ import { listMailAccounts, type MailAccountConfig } from "../../services/mail/ma
 import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchMessages, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
-import { buildReplyNoteContent, buildForwardBody, mailFolderLabel, sortMailFolders, guessTrashMailbox } from "../../services/mail/mailOut";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, guessTrashMailbox } from "../../services/mail/mailOut";
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
@@ -81,7 +81,7 @@ export function MailView({ onOpenPath }: MailViewProps) {
   const [accountId, setAccountId] = useState<string>("");
   const [mailbox, setMailbox] = useState("INBOX");
   const [folders, setFolders] = useState<string[]>([]);
-  const [compose, setCompose] = useState<{ subject: string; markdown: string } | null>(null);
+  const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
@@ -395,6 +395,22 @@ export function MailView({ onOpenPath }: MailViewProps) {
     }
   }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath]);
 
+  // Real reply / reply-all: open the compose window (SMTP send), NOT a vault
+  // note. Subject "Re: …", recipients from the sender (reply) or sender + the
+  // original recipients minus self (reply-all), body = the quoted original.
+  const replySubject = useCallback(
+    (m: MailMessage) => `Re: ${m.subject.trim().replace(/^(re|aw|antw):\s*/i, "")}`.trim(),
+    []
+  );
+  const handleReply = useCallback(() => {
+    if (!message) return;
+    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: fromAddr(message.from) });
+  }, [message, replySubject]);
+  const handleReplyAll = useCallback(() => {
+    if (!message) return;
+    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: replyAllRecipients(message, account?.user ?? "") });
+  }, [message, account, replySubject]);
+
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
   // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
   const envTime = useMemo(() => {
@@ -564,10 +580,13 @@ export function MailView({ onOpenPath }: MailViewProps) {
               </div>
             </div>
 
-            {/* Mail-action toolbar (reply / forward / mailbox actions) */}
+            {/* Mail-action toolbar: real reply / reply-all / forward + mailbox actions */}
             <div className="pv-mail-toolbar">
-              <Button variant="primary" size="sm" onClick={() => void replyAsNote()} data-testid="mail-reply-note" icon={<Reply size={13} />}>
-                {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
+              <Button variant="primary" size="sm" onClick={handleReply} data-testid="mail-reply" icon={<Reply size={13} />}>
+                {t("mail.reply", { defaultValue: "Antworten" })}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleReplyAll} data-testid="mail-reply-all" icon={<ReplyAll size={13} />}>
+                {t("mail.replyAll", { defaultValue: "Allen antworten" })}
               </Button>
               <Button
                 variant="secondary"
@@ -650,13 +669,16 @@ export function MailView({ onOpenPath }: MailViewProps) {
               <button type="button" className="pv-mail-capchip" onClick={() => void captureNote(true)} data-testid="mail-capture-eml">
                 <FileText size={13} /> {t("mail.captureWithEml", { defaultValue: "+ .eml" })}
               </button>
+              <button type="button" className="pv-mail-capchip" onClick={() => void replyAsNote()} data-testid="mail-reply-note">
+                <Reply size={13} /> {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
+              </button>
             </div>
           </>
         )}
       </div>
     </div>
     {compose && (
-      <MailDraftModal subject={compose.subject} markdown={compose.markdown} onClose={() => setCompose(null)} />
+      <MailDraftModal subject={compose.subject} markdown={compose.markdown} initialTo={compose.to} onClose={() => setCompose(null)} />
     )}
     {moveMenu && (
       <MenuSurface open at={moveMenu} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>

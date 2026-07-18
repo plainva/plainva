@@ -294,6 +294,27 @@ test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });
 
+test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the original', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  // "Antworten" opens the compose window (NOT a vault note), prefilled to the sender.
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-to')).toHaveValue('anna@example.org');
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
+  await expect(page.getByTestId('draft-body')).toHaveValue(/anbei die Rechnung\./);
+  // The body is editable; sending goes straight through SMTP with the edited text.
+  await page.getByTestId('draft-body').fill('Danke, passt!');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toMatch(/Re: Rechnung Q3/);
+  expect(sent.text).toContain('Danke, passt!');
+});
+
 test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();

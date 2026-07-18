@@ -666,8 +666,9 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
         const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
         const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
-        const emails = (e.rsvps ?? []).filter((a) => !a.organizer && a.email).map((a) => a.email as string);
-        const to = (emails.length ? emails : e.attendees ?? []).join(", ");
+        // Recipients = the event's invitees (the plain attendee list); the
+        // organizer's own rsvp entry is deliberately not a recipient.
+        const to = (e.attendees ?? []).join(", ");
         window.dispatchEvent(
           new CustomEvent("plainva-compose-mail", {
             detail: {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -45,6 +45,28 @@ describe("mail-out helpers (stage 6)", () => {
     expect(html).toContain("Titel");
     expect(text).toContain("Hallo Welt.");
     expect(text).not.toContain("**");
+  });
+
+  it("builds a reply body: blank area on top, attribution line, quoted original", () => {
+    const body = buildReplyBody({ from: "Anna <anna@example.org>", text: "Hallo,\nanbei die Rechnung.", dateTs: Date.UTC(2026, 6, 1) });
+    expect(body.startsWith("\n\n")).toBe(true); // room to type above the quote
+    expect(body).toContain("Anna <anna@example.org>:");
+    expect(body).toContain("> Hallo,");
+    expect(body).toContain("> anbei die Rechnung.");
+  });
+
+  it("reply-all keeps sender + original To, drops self, dedupes and unwraps addresses", () => {
+    const to = replyAllRecipients(
+      { from: "Anna <anna@example.org>", to: "me@example.org, Bob <bob@example.org>, anna@example.org" },
+      "me@example.org"
+    );
+    expect(to).toBe("anna@example.org, bob@example.org");
+  });
+
+  it("bytesToBase64 round-trips arbitrary bytes (incl. NUL + high bytes) through atob", () => {
+    const bytes = new Uint8Array([0, 1, 200, 255, 65, 0xc3, 0xa4]);
+    const back = Uint8Array.from(atob(bytesToBase64(bytes)), (c) => c.charCodeAt(0));
+    expect(Array.from(back)).toEqual(Array.from(bytes));
   });
 
   it("builds a forwarded body with a header block and the quoted original (E1)", () => {
