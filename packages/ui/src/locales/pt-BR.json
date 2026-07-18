@@ -1970,7 +1970,18 @@
     "rsvpDeclined": "Recusado",
     "rsvpTentativeState": "Provisório",
     "rsvpPending": "Pendente",
-    "rsvpUnsupported": "Responder não é compatível com esta conta."
+    "rsvpUnsupported": "Responder não é compatível com esta conta.",
+    "rsvpSent": "Resposta enviada",
+    "today": "Hoje",
+    "noAccountsMobile": "Nenhuma conta de calendário conectada ainda.",
+    "connectAccount": "Conectar conta",
+    "accounts": "Contas de calendário",
+    "accountAdded": "Conta conectada",
+    "removeAccountConfirm": "As credenciais e os eventos em cache são removidos (o calendário no provedor permanece).",
+    "accountRemoved": "Conta removida",
+    "connectCaldavHint": "Conecte CalDAV com uma senha de app (p. ex. Fastmail, Nextcloud, iCloud). Google/Microsoft usam login no navegador.",
+    "accountLabel": "Rótulo (opcional)",
+    "caldavUrl": "URL CalDAV"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, somente leitura)",

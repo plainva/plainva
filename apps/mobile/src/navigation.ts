@@ -89,6 +89,8 @@ export type NavKind =
   | "base"
   | "today"
   | "calendar"
+  | "pimcalendar"
+  | "pimaccounts"
   | "databases"
   | "graphmap"
   | "tags"

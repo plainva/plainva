@@ -1964,7 +1964,18 @@
     "rsvpDeclined": "Declined",
     "rsvpTentativeState": "Tentative",
     "rsvpPending": "Pending",
-    "rsvpUnsupported": "Responding isn't supported for this account."
+    "rsvpUnsupported": "Responding isn't supported for this account.",
+    "rsvpSent": "Response sent",
+    "today": "Today",
+    "noAccountsMobile": "No calendar account connected yet.",
+    "connectAccount": "Connect account",
+    "accounts": "Calendar accounts",
+    "accountAdded": "Account connected",
+    "removeAccountConfirm": "The credentials and cached events are removed (the calendar at the provider stays).",
+    "accountRemoved": "Account removed",
+    "connectCaldavHint": "Connect CalDAV with an app password (e.g. Fastmail, Nextcloud, iCloud). Google/Microsoft follow via browser sign-in.",
+    "accountLabel": "Label (optional)",
+    "caldavUrl": "CalDAV URL"
   },
   "mail": {
     "sectionTitle": "Email (IMAP, read-only)",

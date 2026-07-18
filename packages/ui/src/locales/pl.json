@@ -1976,7 +1976,18 @@
     "rsvpDeclined": "Odrzucono",
     "rsvpTentativeState": "Wstępnie",
     "rsvpPending": "Oczekuje",
-    "rsvpUnsupported": "Odpowiadanie nie jest obsługiwane dla tego konta."
+    "rsvpUnsupported": "Odpowiadanie nie jest obsługiwane dla tego konta.",
+    "rsvpSent": "Odpowiedź wysłana",
+    "today": "Dziś",
+    "noAccountsMobile": "Nie połączono jeszcze żadnych kont kalendarza.",
+    "connectAccount": "Połącz konto",
+    "accounts": "Konta kalendarza",
+    "accountAdded": "Konto połączone",
+    "removeAccountConfirm": "Dane logowania i wydarzenia z pamięci podręcznej zostają usunięte (kalendarz u dostawcy pozostaje).",
+    "accountRemoved": "Konto usunięte",
+    "connectCaldavHint": "Połącz CalDAV za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud). Google/Microsoft łączą się przez logowanie w przeglądarce.",
+    "accountLabel": "Etykieta (opcjonalnie)",
+    "caldavUrl": "Adres URL CalDAV"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",

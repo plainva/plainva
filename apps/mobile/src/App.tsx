@@ -14,6 +14,7 @@ import {
 import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
+import { startPim, stopPim } from "./services/pim/pimService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
@@ -35,6 +36,8 @@ import { NoteScreen } from "./screens/NoteScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
+import { PimCalendarScreen } from "./screens/PimCalendarScreen";
+import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { MoreScreen } from "./screens/MoreScreen";
 import { GraphScreen } from "./screens/GraphScreen";
@@ -138,18 +141,21 @@ export default function App() {
     void getMobileVault().then((v) => {
       setVault(v);
       void startSyncIfConfigured(v);
+      void startPim(v);
     });
     void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onChanged = () => setBump((n) => n + 1);
     // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
     // reboot the vault and restart sync for the newly active container.
     const onSwitched = () => {
+      stopPim();
       setVault(null);
       setNav((s) => initialNavState(s.activeTab));
       void getMobileVault().then((v) => {
         setVault(v);
         setBump((n) => n + 1);
         void startSyncIfConfigured(v);
+        void startPim(v);
       });
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
@@ -632,7 +638,11 @@ export default function App() {
         ) : top?.kind === "today" ? (
           <TodayScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "calendar" ? (
-          <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} vault={vault} />
+          <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenPim={() => push({ kind: "pimcalendar", path: "" })} vault={vault} />
+        ) : top?.kind === "pimcalendar" ? (
+          <PimCalendarScreen bump={bump} onBack={pop} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
+        ) : top?.kind === "pimaccounts" ? (
+          <PimAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "graphmap" ? (
@@ -669,7 +679,7 @@ export default function App() {
         ) : nav.activeTab === "bookmarks" ? (
           <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "calendar" ? (
-          <CalendarScreen bump={bump} onOpenDate={openDaily} vault={vault} />
+          <CalendarScreen bump={bump} onOpenDate={openDaily} onOpenPim={() => push({ kind: "pimcalendar", path: "" })} vault={vault} />
         ) : nav.activeTab === "graph" ? (
           <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : (

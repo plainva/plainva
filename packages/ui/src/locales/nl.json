@@ -1964,7 +1964,18 @@
     "rsvpDeclined": "Geweigerd",
     "rsvpTentativeState": "Voorlopig",
     "rsvpPending": "In afwachting",
-    "rsvpUnsupported": "Reageren wordt niet ondersteund voor dit account."
+    "rsvpUnsupported": "Reageren wordt niet ondersteund voor dit account.",
+    "rsvpSent": "Reactie verzonden",
+    "today": "Vandaag",
+    "noAccountsMobile": "Nog geen agenda-accounts verbonden.",
+    "connectAccount": "Account verbinden",
+    "accounts": "Agenda-accounts",
+    "accountAdded": "Account verbonden",
+    "removeAccountConfirm": "De toegangsgegevens en gecachte afspraken worden verwijderd (de agenda bij de provider blijft).",
+    "accountRemoved": "Account verwijderd",
+    "connectCaldavHint": "Verbind CalDAV met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud). Bij Google en Microsoft meld je je aan in de browser.",
+    "accountLabel": "Label (optioneel)",
+    "caldavUrl": "CalDAV-URL"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",

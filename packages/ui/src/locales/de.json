@@ -1964,7 +1964,18 @@
     "rsvpDeclined": "Abgesagt",
     "rsvpTentativeState": "Vorläufig",
     "rsvpPending": "Ausstehend",
-    "rsvpUnsupported": "Zu-/Absagen wird für dieses Konto nicht unterstützt."
+    "rsvpUnsupported": "Zu-/Absagen wird für dieses Konto nicht unterstützt.",
+    "rsvpSent": "Antwort gesendet",
+    "today": "Heute",
+    "noAccountsMobile": "Noch kein Kalenderkonto verbunden.",
+    "connectAccount": "Konto verbinden",
+    "accounts": "Kalenderkonten",
+    "accountAdded": "Konto verbunden",
+    "removeAccountConfirm": "Zugangsdaten und zwischengespeicherte Termine werden entfernt (der Kalender beim Anbieter bleibt).",
+    "accountRemoved": "Konto entfernt",
+    "connectCaldavHint": "CalDAV mit einem App-Passwort verbinden (z. B. Fastmail, Nextcloud, iCloud). Google/Microsoft folgen über die Anmeldung im Browser.",
+    "accountLabel": "Bezeichnung (optional)",
+    "caldavUrl": "CalDAV-URL"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",

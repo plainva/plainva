@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Hash } from "lucide-react";
+import { ChevronLeft, ChevronRight, Hash, CalendarClock } from "lucide-react";
 import { getISOWeek } from "date-fns";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
 import { mSelect } from "../services/mobileDialogs";
@@ -24,11 +24,13 @@ export function CalendarScreen({
   bump,
   onBack,
   onOpenDate,
+  onOpenPim,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
   onOpenDate: (iso: string) => void;
+  onOpenPim?: () => void;
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
@@ -155,6 +157,15 @@ export function CalendarScreen({
           {monthLabel}
         </button>
         <span className="m-headactions">
+          {onOpenPim && (
+            <button
+              aria-label={t("pim.openCalendar", { defaultValue: "Termine" })}
+              className="m-iconbtn"
+              onClick={onOpenPim}
+            >
+              <CalendarClock size={18} />
+            </button>
+          )}
           <button
             aria-label={t("calendar.showWeeks")}
             aria-pressed={showWeeks}

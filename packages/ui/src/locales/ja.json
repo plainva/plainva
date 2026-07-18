@@ -1958,7 +1958,18 @@
     "rsvpDeclined": "辞退済み",
     "rsvpTentativeState": "仮承諾",
     "rsvpPending": "保留中",
-    "rsvpUnsupported": "このアカウントでは返答に対応していません。"
+    "rsvpUnsupported": "このアカウントでは返答に対応していません。",
+    "rsvpSent": "返答を送信しました",
+    "today": "今日",
+    "noAccountsMobile": "まだカレンダーアカウントが接続されていません。",
+    "connectAccount": "アカウントを接続",
+    "accounts": "カレンダーアカウント",
+    "accountAdded": "アカウントを接続しました",
+    "removeAccountConfirm": "認証情報とキャッシュされた予定が削除されます（プロバイダー側のカレンダーは残ります）。",
+    "accountRemoved": "アカウントを削除しました",
+    "connectCaldavHint": "アプリパスワードで CalDAV に接続します（Fastmail、Nextcloud、iCloud など）。Google/Microsoft はブラウザー経由のログインで接続します。",
+    "accountLabel": "ラベル（任意）",
+    "caldavUrl": "CalDAV アドレス"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",

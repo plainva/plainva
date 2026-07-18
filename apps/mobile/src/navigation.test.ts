@@ -152,4 +152,22 @@ describe("nav state (overlay + tab stacks)", () => {
     expect(s.overlay.map((e) => e.kind)).toEqual(["settings", "note"]);
     expect(popTop(s).overlay.map((e) => e.kind)).toEqual(["settings"]);
   });
+
+  it("routes the PIM calendar screens through the active tab, and its accounts screen stacks on top", () => {
+    // calendar-mobile: the PIM calendar opens from the daily calendar (a tab
+    // root) — as content it lands in the active tab's stack (back returns to
+    // the daily calendar), and its accounts screen pushes on top of it.
+    let s = tapTab(initialNavState("notes"), "calendar");
+    s = pushEntry(s, { kind: "pimcalendar", path: "" });
+    expect(s.overlay).toHaveLength(0);
+    expect(navTop(s)).toEqual({ kind: "pimcalendar", path: "" });
+    s = pushEntry(s, { kind: "pimaccounts", path: "" });
+    expect(navTop(s)).toEqual({ kind: "pimaccounts", path: "" });
+    expect(popTop(s).stacks.calendar.map((e) => e.kind)).toEqual(["pimcalendar"]);
+    // From an open overlay (More → Calendar) both stay in the overlay.
+    let o = pushEntry(initialNavState("notes"), { kind: "more", path: "" });
+    o = pushEntry(o, { kind: "calendar", path: "" });
+    o = pushEntry(o, { kind: "pimcalendar", path: "" });
+    expect(o.overlay.map((e) => e.kind)).toEqual(["more", "calendar", "pimcalendar"]);
+  });
 });
