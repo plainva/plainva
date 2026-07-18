@@ -1993,6 +1993,22 @@
     "customProvider": "Outro provedor",
     "emailAddress": "Endereço de e-mail",
     "imapPort": "Porta IMAP",
-    "smtpPort": "Porta SMTP"
+    "smtpPort": "Porta SMTP",
+    "composeTitle": "Redigir mensagem",
+    "send": "Enviar",
+    "sent": "Mensagem enviada.",
+    "composeHint": "“Enviar” despacha diretamente via SMTP; “Salvar como rascunho” coloca a mensagem na caixa.",
+    "noSmtpHint": "Adicione um host SMTP à conta para enviar diretamente.",
+    "searchPlaceholder": "Pesquisar nesta pasta…",
+    "clearSearch": "Limpar pesquisa",
+    "noSearchResults": "Nenhum resultado nesta pasta.",
+    "markRead": "Marcar como lido",
+    "markUnread": "Marcar como não lido",
+    "moveTo": "Mover para…",
+    "moved": "Movido para {{folder}}",
+    "delete": "Excluir",
+    "deleteTitle": "Mover para a lixeira?",
+    "deleteMsg": "A mensagem será movida para a lixeira.",
+    "noTrash": "Nenhuma pasta de lixeira encontrada."
   }
 }

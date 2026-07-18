@@ -82,3 +82,20 @@ export async function fetchMessage(vaultPath: string, account: MailAccountConfig
 export async function fetchRawMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, uid: number): Promise<string> {
   return invoke<string>("mail_fetch_raw", { ...(await creds(vaultPath, account)), mailbox, uid });
 }
+
+// ---- Mailbox actions (mail-client E4) -------------------------------------
+
+/** Marks a message read/unread (\Seen flag). */
+export async function setMessageSeen(vaultPath: string, account: MailAccountConfig, mailbox: string, uid: number, seen: boolean): Promise<void> {
+  await invoke("mail_set_seen", { ...(await creds(vaultPath, account)), mailbox, uid, seen });
+}
+
+/** Moves a message to another mailbox (move, or delete = move to Trash). */
+export async function moveMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, uid: number, target: string): Promise<void> {
+  await invoke("mail_move_message", { ...(await creds(vaultPath, account)), mailbox, uid, target });
+}
+
+/** Full-text search in a mailbox; returns matching UIDs, newest first. */
+export async function searchMessages(vaultPath: string, account: MailAccountConfig, mailbox: string, query: string): Promise<number[]> {
+  return invoke<number[]>("mail_search", { ...(await creds(vaultPath, account)), mailbox, query });
+}

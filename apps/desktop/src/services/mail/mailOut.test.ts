@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, guessDraftsMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -62,6 +62,13 @@ describe("mail-out helpers (stage 6)", () => {
     expect(mailFolderLabel("[Gmail]/Sent Mail")).toBe("Sent Mail");
     expect(mailFolderLabel("Work/Clients/ACME")).toBe("ACME");
     expect(mailFolderLabel("INBOX.Archive")).toBe("Archive");
+  });
+
+  it("finds the Trash folder for delete (localized names + Gmail), else null (E4)", () => {
+    expect(guessTrashMailbox(["INBOX", "Trash", "Sent"])).toBe("Trash");
+    expect(guessTrashMailbox(["INBOX", "Papierkorb"])).toBe("Papierkorb");
+    expect(guessTrashMailbox(["INBOX", "[Gmail]/Trash"])).toBe("[Gmail]/Trash");
+    expect(guessTrashMailbox(["INBOX", "Sent", "Drafts"])).toBeNull();
   });
 
   it("orders folders INBOX-first then special-use then alphabetical (E1)", () => {

@@ -1993,6 +1993,22 @@
     "customProvider": "Altro provider",
     "emailAddress": "Indirizzo email",
     "imapPort": "Porta IMAP",
-    "smtpPort": "Porta SMTP"
+    "smtpPort": "Porta SMTP",
+    "composeTitle": "Scrivi messaggio",
+    "send": "Invia",
+    "sent": "Messaggio inviato.",
+    "composeHint": "“Invia” spedisce direttamente via SMTP; “Salva come bozza” inserisce il messaggio nella casella.",
+    "noSmtpHint": "Aggiungi un host SMTP all’account per inviare direttamente.",
+    "searchPlaceholder": "Cerca in questa cartella…",
+    "clearSearch": "Cancella ricerca",
+    "noSearchResults": "Nessun risultato in questa cartella.",
+    "markRead": "Segna come letto",
+    "markUnread": "Segna come non letto",
+    "moveTo": "Sposta in…",
+    "moved": "Spostato in {{folder}}",
+    "delete": "Elimina",
+    "deleteTitle": "Spostare nel cestino?",
+    "deleteMsg": "Il messaggio verrà spostato nel cestino.",
+    "noTrash": "Nessuna cartella cestino trovata."
   }
 }

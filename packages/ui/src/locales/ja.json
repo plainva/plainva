@@ -1981,6 +1981,22 @@
     "customProvider": "その他のプロバイダー",
     "emailAddress": "メールアドレス",
     "imapPort": "IMAP ポート",
-    "smtpPort": "SMTP ポート"
+    "smtpPort": "SMTP ポート",
+    "composeTitle": "メールを作成",
+    "send": "送信",
+    "sent": "メールを送信しました。",
+    "composeHint": "「送信」は SMTP 経由で直接送信します。「下書きとして保存」はメッセージをメールボックスに入れます。",
+    "noSmtpHint": "直接送信するには、アカウントに SMTP ホストを追加してください。",
+    "searchPlaceholder": "このフォルダー内を検索…",
+    "clearSearch": "検索をクリア",
+    "noSearchResults": "このフォルダーに一致するものはありません。",
+    "markRead": "既読にする",
+    "markUnread": "未読にする",
+    "moveTo": "移動先…",
+    "moved": "{{folder}} に移動しました",
+    "delete": "削除",
+    "deleteTitle": "ゴミ箱に移動しますか？",
+    "deleteMsg": "メッセージをゴミ箱に移動します。",
+    "noTrash": "ゴミ箱フォルダーが見つかりません。"
   }
 }

@@ -1999,6 +1999,22 @@
     "customProvider": "Inny dostawca",
     "emailAddress": "Adres e-mail",
     "imapPort": "Port IMAP",
-    "smtpPort": "Port SMTP"
+    "smtpPort": "Port SMTP",
+    "composeTitle": "Napisz wiadomość",
+    "send": "Wyślij",
+    "sent": "Wiadomość wysłana.",
+    "composeHint": "„Wyślij” dostarcza bezpośrednio przez SMTP; „Zapisz jako szkic” umieszcza wiadomość w skrzynce.",
+    "noSmtpHint": "Dodaj host SMTP do konta, aby wysyłać bezpośrednio.",
+    "searchPlaceholder": "Szukaj w tym folderze…",
+    "clearSearch": "Wyczyść wyszukiwanie",
+    "noSearchResults": "Brak wyników w tym folderze.",
+    "markRead": "Oznacz jako przeczytane",
+    "markUnread": "Oznacz jako nieprzeczytane",
+    "moveTo": "Przenieś do…",
+    "moved": "Przeniesiono do {{folder}}",
+    "delete": "Usuń",
+    "deleteTitle": "Przenieść do kosza?",
+    "deleteMsg": "Wiadomość zostanie przeniesiona do kosza.",
+    "noTrash": "Nie znaleziono folderu kosza."
   }
 }

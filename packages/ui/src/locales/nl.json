@@ -1987,6 +1987,22 @@
     "customProvider": "Andere provider",
     "emailAddress": "E-mailadres",
     "imapPort": "IMAP-poort",
-    "smtpPort": "SMTP-poort"
+    "smtpPort": "SMTP-poort",
+    "composeTitle": "Bericht opstellen",
+    "send": "Verzenden",
+    "sent": "Bericht verzonden.",
+    "composeHint": "“Verzenden” verstuurt rechtstreeks via SMTP; “Opslaan als concept” zet het bericht in de mailbox.",
+    "noSmtpHint": "Voeg een SMTP-host toe aan het account om direct te kunnen verzenden.",
+    "searchPlaceholder": "Zoek in deze map…",
+    "clearSearch": "Zoekopdracht wissen",
+    "noSearchResults": "Geen resultaten in deze map.",
+    "markRead": "Markeren als gelezen",
+    "markUnread": "Markeren als ongelezen",
+    "moveTo": "Verplaatsen naar…",
+    "moved": "Verplaatst naar {{folder}}",
+    "delete": "Verwijderen",
+    "deleteTitle": "Naar prullenbak verplaatsen?",
+    "deleteMsg": "Het bericht wordt naar de prullenbak verplaatst.",
+    "noTrash": "Geen prullenbakmap gevonden."
   }
 }

@@ -39,6 +39,15 @@ export function noteToClipboardFlavors(markdown: string): { html: string; text: 
   return { html: markdownToHtml(markdown), text: markdownToPlainText(markdown) };
 }
 
+/** Best-guess Trash mailbox for "delete" (a reversible move), or null when the
+ * account has no recognizable Trash folder (delete then falls back to a flag). */
+export function guessTrashMailbox(names: string[]): string | null {
+  const byName = names.find((n) => /trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted/i.test(n));
+  if (byName) return byName;
+  const gmail = names.find((n) => n.toLowerCase() === "[gmail]/trash" || n.toLowerCase() === "[gmail]/bin");
+  return gmail ?? null;
+}
+
 /** Best-guess drafts mailbox: localized "draft"/"entwurf" names first, then
  * the Gmail special-use folder, then a literal fallback. */
 export function guessDraftsMailbox(names: string[]): string {
@@ -101,6 +110,34 @@ export function sortMailFolders(names: string[]): string[] {
     const rb = rank(b);
     if (ra !== rb) return ra - rb;
     return mailFolderLabel(a).localeCompare(mailFolderLabel(b));
+  });
+}
+
+/** Sends an outgoing message via the account's SMTP submission host
+ * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
+ * the account user. Never relays — this only submits the user's own mail. */
+export async function sendMail(
+  vaultPath: string,
+  account: MailAccountConfig,
+  to: string,
+  subject: string,
+  markdown: string
+): Promise<void> {
+  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
+  if (!to.trim()) throw new Error("no recipient");
+  const pass = await getMailPassword(vaultPath, account.id);
+  if (!pass) throw new Error("missing mail credentials");
+  const { html, text } = noteToClipboardFlavors(markdown);
+  await invoke("mail_send", {
+    host: account.smtpHost,
+    port: account.smtpPort ?? 587,
+    user: account.user,
+    pass,
+    from: account.user,
+    to,
+    subject,
+    text,
+    html,
   });
 }
 

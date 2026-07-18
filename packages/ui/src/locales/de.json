@@ -1987,6 +1987,22 @@
     "customProvider": "Anderer Anbieter",
     "emailAddress": "E-Mail-Adresse",
     "imapPort": "IMAP-Port",
-    "smtpPort": "SMTP-Port"
+    "smtpPort": "SMTP-Port",
+    "composeTitle": "Nachricht verfassen",
+    "send": "Senden",
+    "sent": "Nachricht gesendet.",
+    "composeHint": "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach.",
+    "noSmtpHint": "Für den Direktversand einen SMTP-Host im Konto hinterlegen.",
+    "searchPlaceholder": "In diesem Ordner suchen…",
+    "clearSearch": "Suche leeren",
+    "noSearchResults": "Keine Treffer in diesem Ordner.",
+    "markRead": "Als gelesen markieren",
+    "markUnread": "Als ungelesen markieren",
+    "moveTo": "Verschieben nach…",
+    "moved": "Verschoben nach {{folder}}",
+    "delete": "Löschen",
+    "deleteTitle": "In den Papierkorb verschieben?",
+    "deleteMsg": "Die Nachricht wird in den Papierkorb verschoben.",
+    "noTrash": "Kein Papierkorb-Ordner gefunden."
   }
 }

@@ -1993,6 +1993,22 @@
     "customProvider": "Otro proveedor",
     "emailAddress": "Dirección de correo",
     "imapPort": "Puerto IMAP",
-    "smtpPort": "Puerto SMTP"
+    "smtpPort": "Puerto SMTP",
+    "composeTitle": "Redactar mensaje",
+    "send": "Enviar",
+    "sent": "Mensaje enviado.",
+    "composeHint": "“Enviar” despacha directamente por SMTP; “Guardar como borrador” coloca el mensaje en el buzón.",
+    "noSmtpHint": "Añade un host SMTP a la cuenta para enviar directamente.",
+    "searchPlaceholder": "Buscar en esta carpeta…",
+    "clearSearch": "Borrar búsqueda",
+    "noSearchResults": "Sin resultados en esta carpeta.",
+    "markRead": "Marcar como leído",
+    "markUnread": "Marcar como no leído",
+    "moveTo": "Mover a…",
+    "moved": "Movido a {{folder}}",
+    "delete": "Eliminar",
+    "deleteTitle": "¿Mover a la papelera?",
+    "deleteMsg": "El mensaje se moverá a la papelera.",
+    "noTrash": "No se encontró la carpeta de papelera."
   }
 }

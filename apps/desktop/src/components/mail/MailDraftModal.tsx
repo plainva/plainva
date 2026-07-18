@@ -5,13 +5,14 @@ import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
-import { appendDraft, guessDraftsMailbox } from "../../services/mail/mailOut";
+import { appendDraft, guessDraftsMailbox, sendMail } from "../../services/mail/mailOut";
 
 /**
- * "Als E-Mail-Entwurf ins Postfach" (stage 6): appends the note as a \Draft
- * into the chosen mailbox via IMAP — the user's mail program opens and SENDS
- * it. Plainva never speaks SMTP. The mailbox list loads from the account and
- * pre-selects the drafts folder.
+ * Compose dialog (mail-client E3). Two ways OUT: SEND directly via the
+ * account's SMTP submission host, or (as before) append the message as a
+ * \Draft into the mailbox for the mail program to send. The mailbox list
+ * loads from the account and pre-selects the drafts folder; Send is offered
+ * when the account has an SMTP host configured.
  */
 
 interface MailDraftModalProps {
@@ -86,9 +87,30 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
     }
   }, [vaultPath, accounts, accountId, busy, to, subject, mailbox, markdown, onClose, t]);
 
+  const send = useCallback(async () => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!vaultPath || !account || busy) return;
+    if (!to.trim() || !subject.trim()) {
+      setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await sendMail(vaultPath, account, to.trim(), subject.trim(), markdown);
+      toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }, [vaultPath, accounts, accountId, busy, to, subject, markdown, onClose, t]);
+
+  const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
+
   return (
     <Modal
-      title={t("mail.draftTitle", { defaultValue: "E-Mail-Entwurf ablegen" })}
+      title={t("mail.composeTitle", { defaultValue: "Nachricht verfassen" })}
       onClose={onClose}
       size="sm"
       footer={
@@ -96,8 +118,17 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel", { defaultValue: "Abbrechen" })}
           </Button>
-          <Button variant="primary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
-            {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("common.save", { defaultValue: "Speichern" })}
+          <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
+            {t("mail.saveDraft", { defaultValue: "Als Entwurf" })}
+          </Button>
+          <Button
+            variant="primary"
+            data-testid="draft-send"
+            disabled={busy || accounts.length === 0 || !canSend}
+            onClick={() => void send()}
+            title={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
+          >
+            {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
           </Button>
         </>
       }
@@ -140,7 +171,9 @@ export function MailDraftModal({ subject: initialSubject, markdown, onClose }: M
               </div>
             )}
             <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-              {t("mail.draftHint", { defaultValue: "Plainva sendet nie selbst — der Entwurf landet im Postfach und wird im Mail-Programm verschickt." })}
+              {canSend
+                ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
+                : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
             </p>
           </>
         )}

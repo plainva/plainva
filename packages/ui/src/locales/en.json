@@ -1987,6 +1987,22 @@
     "customProvider": "Other provider",
     "emailAddress": "Email address",
     "imapPort": "IMAP port",
-    "smtpPort": "SMTP port"
+    "smtpPort": "SMTP port",
+    "composeTitle": "Compose message",
+    "send": "Send",
+    "sent": "Message sent.",
+    "composeHint": "“Send” delivers directly via SMTP; “Save as draft” puts the message in your mailbox.",
+    "noSmtpHint": "Add an SMTP host to the account to send directly.",
+    "searchPlaceholder": "Search this folder…",
+    "clearSearch": "Clear search",
+    "noSearchResults": "No matches in this folder.",
+    "markRead": "Mark as read",
+    "markUnread": "Mark as unread",
+    "moveTo": "Move to…",
+    "moved": "Moved to {{folder}}",
+    "delete": "Delete",
+    "deleteTitle": "Move to Trash?",
+    "deleteMsg": "The message will be moved to Trash.",
+    "noTrash": "No Trash folder found."
   }
 }

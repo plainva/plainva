@@ -1981,6 +1981,22 @@
     "customProvider": "其他服务商",
     "emailAddress": "电子邮件地址",
     "imapPort": "IMAP 端口",
-    "smtpPort": "SMTP 端口"
+    "smtpPort": "SMTP 端口",
+    "composeTitle": "撰写邮件",
+    "send": "发送",
+    "sent": "邮件已发送。",
+    "composeHint": "“发送”会通过 SMTP 直接寄出；“保存为草稿”会将邮件放入邮箱。",
+    "noSmtpHint": "如需直接发送，请为账户添加 SMTP 主机。",
+    "searchPlaceholder": "在此文件夹中搜索…",
+    "clearSearch": "清除搜索",
+    "noSearchResults": "此文件夹中没有匹配项。",
+    "markRead": "标记为已读",
+    "markUnread": "标记为未读",
+    "moveTo": "移动到…",
+    "moved": "已移动到 {{folder}}",
+    "delete": "删除",
+    "deleteTitle": "移动到回收站？",
+    "deleteMsg": "邮件将被移动到回收站。",
+    "noTrash": "未找到回收站文件夹。"
   }
 }
