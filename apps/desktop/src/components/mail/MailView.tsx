@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { FilePlus2, FileText, ListChecks, Mail, Paperclip, RefreshCw, Reply, ShieldOff } from "lucide-react";
-import { Button, EmptyState, IconButton, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
+import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
+import { Button, EmptyState, IconButton, MenuSurface, MenuItem, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
+import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listEnvelopes, fetchMessage, fetchRawMessage, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
+import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchMessages, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
-import { buildReplyNoteContent } from "../../services/mail/mailOut";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, guessTrashMailbox } from "../../services/mail/mailOut";
+import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
 import { findColumnKey } from "../../services/taskPromotion";
+import { MailDraftModal } from "./MailDraftModal";
 
 /**
  * Mail-capture tab (PIM stage 5, virtual path plainva://mail): a read-only
@@ -27,6 +30,45 @@ import { findColumnKey } from "../../services/taskPromotion";
 
 const PAGE_SIZE = 50;
 
+// ---- Display helpers (mockup section 05: designed list + reader) ----
+
+/** Stable palette color for a sender/account avatar, from --palette-1..10. */
+function avatarVar(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return `var(--palette-${(h % 10) + 1})`;
+}
+
+/** "Name <addr>" -> the display name (or the whole string when unnamed). */
+function fromName(from: string): string {
+  const m = from.match(/^\s*"?([^"<]+?)"?\s*<[^>]*>\s*$/);
+  return (m ? m[1] : from).trim() || from;
+}
+
+/** "Name <addr>" -> just the address (or the whole string when bare). */
+function fromAddr(from: string): string {
+  const m = from.match(/<([^>]+)>/);
+  return (m ? m[1] : from).trim();
+}
+
+function avatarInitial(name: string): string {
+  const c = name.trim()[0];
+  return c ? c.toUpperCase() : "?";
+}
+
+/** Icon per mailbox role — matches the mockup's folder rail. */
+function FolderGlyph({ name }: { name: string }): ReactElement {
+  const l = name.toLowerCase();
+  if (/inbox|posteingang|entrada|boîte|posta in arrivo|skrzynka|受信/.test(l)) return <Inbox size={15} />;
+  if (/sent|gesend|gesendet|envoy|enviad|inviat|verzonden|wys[łl]|送信/.test(l)) return <Send size={15} />;
+  if (/draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/.test(l)) return <FileText size={15} />;
+  if (/archive|archiv|archiwum|アーカイブ/.test(l)) return <Archive size={15} />;
+  if (/trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted|bin/.test(l)) return <Trash2 size={15} />;
+  if (/junk|spam|pourriel|correo no|posta indes/.test(l)) return <ShieldOff size={15} />;
+  if (/star|markiert|flagged|wichtig|suivi|destacad|speciali|oznaczone|スター/.test(l)) return <Star size={15} />;
+  return <Folder size={15} />;
+}
+
 interface MailViewProps {
   onOpenPath: (path: string, newTab?: boolean) => void;
 }
@@ -37,7 +79,9 @@ export function MailView({ onOpenPath }: MailViewProps) {
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
-  const [mailbox] = useState("INBOX");
+  const [mailbox, setMailbox] = useState("INBOX");
+  const [folders, setFolders] = useState<string[]>([]);
+  const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
@@ -49,6 +93,13 @@ export function MailView({ onOpenPath }: MailViewProps) {
   // per-message reveal — default stays blocked (loading = tracking beacon).
   const [remoteOptIn, setRemoteOptIn] = useState(false);
   const [showRemoteOnce, setShowRemoteOnce] = useState(false);
+  // Mailbox actions (E4): a text search over the current folder, plus a
+  // "Move to…" menu anchored on the reader toolbar.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchUids, setSearchUids] = useState<Set<number> | null>(null);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [moveMenu, setMoveMenu] = useState<{ x: number; y: number } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -87,6 +138,29 @@ export function MailView({ onOpenPath }: MailViewProps) {
       alive = false;
     };
   }, [vaultPath]);
+
+  // Folder column (mail-client E1): the account's mailboxes, INBOX first. The
+  // read-only login command already returns the mailbox list, so this needs no
+  // new Rust. A failure leaves the single INBOX entry (list still works).
+  useEffect(() => {
+    let alive = true;
+    setFolders([]);
+    setMailbox("INBOX");
+    if (!vaultPath || !account) return;
+    void listMailboxesFor(vaultPath, account)
+      .then((boxes) => {
+        if (!alive) return;
+        const names = sortMailFolders(boxes.map((b) => b.name).filter(Boolean));
+        setFolders(names);
+        setMailbox((m) => (names.includes(m) ? m : names.find((n) => /inbox/i.test(n)) ?? names[0] ?? "INBOX"));
+      })
+      .catch(() => {
+        /* keep the implicit INBOX; the envelope list still loads */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, account]);
 
   const loadList = useCallback(
     async (offset: number) => {
@@ -136,6 +210,94 @@ export function MailView({ onOpenPath }: MailViewProps) {
     () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
     [message, allowRemote]
   );
+
+  // ---- Mailbox actions (E4) ----
+  const displayedEnvelopes = searchUids ? envelopes.filter((e) => searchUids.has(e.uid)) : envelopes;
+  const currentSeen = envelopes.find((e) => e.uid === selectedUid)?.seen ?? false;
+
+  const runSearch = useCallback(async () => {
+    if (!vaultPath || !account) return;
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchUids(null);
+      return;
+    }
+    setSearchBusy(true);
+    try {
+      const uids = await searchMessages(vaultPath, account, mailbox, q);
+      setSearchUids(new Set(uids));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSearchBusy(false);
+    }
+  }, [vaultPath, account, mailbox, searchQuery]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchUids(null);
+  }, []);
+
+  const markSeen = useCallback(
+    async (seen: boolean) => {
+      if (!vaultPath || !account || selectedUid == null || actionBusy) return;
+      setActionBusy(true);
+      try {
+        await setMessageSeen(vaultPath, account, mailbox, selectedUid, seen);
+        setEnvelopes((list) => list.map((e) => (e.uid === selectedUid ? { ...e, seen } : e)));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [vaultPath, account, mailbox, selectedUid, actionBusy]
+  );
+
+  const removeFromList = useCallback((uid: number) => {
+    setEnvelopes((list) => list.filter((e) => e.uid !== uid));
+    setSearchUids((s) => {
+      if (!s) return s;
+      const n = new Set(s);
+      n.delete(uid);
+      return n;
+    });
+    setSelectedUid((cur) => (cur === uid ? null : cur));
+    setMessage((m) => (m && m.uid === uid ? null : m));
+  }, []);
+
+  const moveTo = useCallback(
+    async (target: string) => {
+      setMoveMenu(null);
+      if (!vaultPath || !account || selectedUid == null || actionBusy || target === mailbox) return;
+      setActionBusy(true);
+      const uid = selectedUid;
+      try {
+        await moveMessage(vaultPath, account, mailbox, uid, target);
+        removeFromList(uid);
+        toast.info(t("mail.moved", { defaultValue: "Verschoben nach {{folder}}", folder: mailFolderLabel(target) }));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [vaultPath, account, mailbox, selectedUid, actionBusy, removeFromList, t]
+  );
+
+  const deleteMessage = useCallback(async () => {
+    if (!vaultPath || !account || selectedUid == null || actionBusy) return;
+    const trash = guessTrashMailbox(folders);
+    if (!trash || trash === mailbox) {
+      toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
+      return;
+    }
+    const ok = await appConfirm({
+      title: t("mail.deleteTitle", { defaultValue: "In den Papierkorb verschieben?" }),
+      message: t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
+    });
+    if (ok) await moveTo(trash);
+  }, [vaultPath, account, mailbox, selectedUid, actionBusy, folders, moveTo, t]);
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -233,7 +395,37 @@ export function MailView({ onOpenPath }: MailViewProps) {
     }
   }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath]);
 
+  // Real reply / reply-all: open the compose window (SMTP send), NOT a vault
+  // note. Subject "Re: …", recipients from the sender (reply) or sender + the
+  // original recipients minus self (reply-all), body = the quoted original.
+  const replySubject = useCallback(
+    (m: MailMessage) => `Re: ${m.subject.trim().replace(/^(re|aw|antw):\s*/i, "")}`.trim(),
+    []
+  );
+  const handleReply = useCallback(() => {
+    if (!message) return;
+    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: fromAddr(message.from) });
+  }, [message, replySubject]);
+  const handleReplyAll = useCallback(() => {
+    if (!message) return;
+    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: replyAllRecipients(message, account?.user ?? "") });
+  }, [message, account, replySubject]);
+
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
+  const envTime = useMemo(() => {
+    const timeFmt = new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" });
+    const dowFmt = new Intl.DateTimeFormat(i18n.language, { weekday: "short" });
+    const shortFmt = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" });
+    return (ts: number): string => {
+      if (ts <= 0) return "";
+      const d = new Date(ts);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return timeFmt.format(d);
+      const days = Math.floor((now.getTime() - d.getTime()) / 86400000);
+      return days >= 0 && days < 6 ? dowFmt.format(d) : shortFmt.format(d);
+    };
+  }, [i18n.language]);
 
   if (accounts.length === 0) {
     return (
@@ -258,10 +450,14 @@ export function MailView({ onOpenPath }: MailViewProps) {
   }
 
   return (
-    <div data-testid="mail-view" style={{ flex: 1, minHeight: 0, display: "flex", background: "var(--bg-primary)" }}>
-      {/* Envelope list */}
-      <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2)", borderBottom: "1px solid var(--border-color-light)" }}>
+    <>
+    <div data-testid="mail-view" className="pv-mail">
+      {/* Column 1 — accounts + mailboxes */}
+      <div className="pv-mail-folders">
+        <div className="pv-mail-acct">
+          <span className="pv-mail-av" style={{ "--pv-mail-av": avatarVar(account?.user ?? account?.label ?? "") } as CSSProperties}>
+            {avatarInitial(account?.label ?? account?.user ?? "?")}
+          </span>
           {accounts.length > 1 ? (
             <div style={{ flex: 1, minWidth: 0 }}>
               <Select
@@ -272,49 +468,82 @@ export function MailView({ onOpenPath }: MailViewProps) {
               />
             </div>
           ) : (
-            <strong style={{ flex: 1, minWidth: 0, fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {account?.label} · {mailbox}
-            </strong>
+            <span className="pv-mail-acct-name">{account?.label}</span>
           )}
+        </div>
+        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => setCompose({ subject: "", markdown: "" })}>
+          <Pencil size={14} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
+        </button>
+        <div className="pv-mail-flist" data-testid="mail-folders">
+          {(folders.length ? folders : ["INBOX"]).map((name) => {
+            const on = name === mailbox;
+            return (
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} title={name}>
+                <FolderGlyph name={name} />
+                <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
+                {on && total > 0 && <span className="pv-mail-folder-ct">{total}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Column 2 — message list */}
+      <div className="pv-mail-list">
+        <div className="pv-mail-listhead">
+          <span className="pv-mail-search">
+            <Search size={14} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
+              placeholder={t("mail.searchPlaceholder", { defaultValue: "In diesem Ordner suchen…" })}
+              aria-label={t("mail.searchPlaceholder", { defaultValue: "In diesem Ordner suchen…" })}
+              data-testid="mail-search"
+            />
+            {(searchUids || searchQuery) && (
+              <button type="button" className="pv-mail-search-clear" onClick={clearSearch} aria-label={t("mail.clearSearch", { defaultValue: "Suche leeren" })} data-testid="mail-search-clear">
+                <X size={13} />
+              </button>
+            )}
+          </span>
           <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={() => void loadList(0)} data-testid="mail-refresh">
             <RefreshCw size={14} />
           </IconButton>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }} data-testid="mail-list">
+        <div className="pv-mail-scroll" data-testid="mail-list">
+          {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {listError ? (
-            <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", padding: "var(--space-2)" }}>{listError}</p>
-          ) : envelopes.length === 0 && !loadingList ? (
-            <p style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", padding: "var(--space-2)" }}>
-              {t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
+            <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
+          ) : displayedEnvelopes.length === 0 && !loadingList && !searchBusy ? (
+            <p className="pv-mail-hint">
+              {searchUids ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
             </p>
           ) : (
-            envelopes.map((e) => (
-              <button
-                key={e.uid}
-                data-testid="mail-envelope"
-                onClick={() => void openMessage(e.uid)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "var(--space-2)",
-                  border: "none",
-                  borderBottom: "1px solid var(--border-color-light)",
-                  background: e.uid === selectedUid ? "var(--bg-hover)" : "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", gap: 6 }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.from}</span>
-                  <span style={{ flexShrink: 0 }}>{e.dateTs > 0 ? dateFmt.format(new Date(e.dateTs)) : ""}</span>
-                </div>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: e.seen ? 400 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {e.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}
-                </div>
-              </button>
-            ))
+            displayedEnvelopes.map((e) => {
+              const on = e.uid === selectedUid;
+              return (
+                <button
+                  key={e.uid}
+                  type="button"
+                  data-testid="mail-envelope"
+                  className={`pv-mail-env${on ? " on" : ""}${e.seen ? " read" : ""}`}
+                  onClick={() => void openMessage(e.uid)}
+                >
+                  <span className="pv-mail-unread" />
+                  <span className="pv-mail-ebody">
+                    <span className="pv-mail-erow">
+                      <span className="pv-mail-from">{fromName(e.from)}</span>
+                      <span className="pv-mail-when">{envTime(e.dateTs)}</span>
+                    </span>
+                    <span className="pv-mail-subj">{e.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}</span>
+                    <span className="pv-mail-prev">{fromAddr(e.from)}</span>
+                  </span>
+                </button>
+              );
+            })
           )}
-          {envelopes.length < total && (
+          {!searchUids && envelopes.length < total && (
             <div style={{ padding: "var(--space-2)" }}>
               <Button variant="ghost" disabled={loadingList} onClick={() => void loadList(envelopes.length)}>
                 {t("mail.loadMore", { defaultValue: "Mehr laden" })}
@@ -324,83 +553,142 @@ export function MailView({ onOpenPath }: MailViewProps) {
         </div>
       </div>
 
-      {/* Reader */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* Column 3 — reader */}
+      <div className="pv-mail-read">
         {!message ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+          <div className="pv-mail-empty">
             {loadingMessage ? t("pim.syncing", { defaultValue: "Aktualisiere…" }) : t("mail.pickMessage", { defaultValue: "Nachricht auswählen." })}
           </div>
         ) : (
           <>
-            <div style={{ padding: "var(--space-2) var(--space-3)", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-2)" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: "var(--text-md)", overflowWrap: "anywhere" }} data-testid="mail-subject">
-                    {message.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}
-                  </h3>
-                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                    {message.from}
-                    {message.dateTs > 0 ? ` · ${dateFmt.format(new Date(message.dateTs))}` : ""}
+            <div className="pv-mail-rhead">
+              <h3 className="pv-mail-rsubj" data-testid="mail-subject">
+                {message.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}
+              </h3>
+              <div className="pv-mail-rfrom">
+                <span className="pv-mail-av pv-mail-av--round" style={{ "--pv-mail-av": avatarVar(fromName(message.from)) } as CSSProperties}>
+                  {avatarInitial(fromName(message.from))}
+                </span>
+                <div className="pv-mail-who">
+                  <div className="pv-mail-who-name">{fromName(message.from)}</div>
+                  <div className="pv-mail-who-addr">
+                    {fromAddr(message.from)}
+                    {message.to ? ` → ${fromAddr(message.to)}` : ""}
                   </div>
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => void captureNote(false)} data-testid="mail-capture-note" icon={<FilePlus2 size={13} />}>
-                  {t("mail.captureNote", { defaultValue: "Als Notiz ablegen" })}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void captureNote(true)} data-testid="mail-capture-eml" icon={<FileText size={13} />}>
-                  {t("mail.captureWithEml", { defaultValue: "+ .eml" })}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void captureTask()} data-testid="mail-capture-task" icon={<ListChecks size={13} />}>
-                  {t("mail.captureTask", { defaultValue: "→ Aufgabe" })}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void replyAsNote()} data-testid="mail-reply-note" icon={<Reply size={13} />}>
-                  {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
-                </Button>
+                {message.dateTs > 0 && <div className="pv-mail-rdate">{dateFmt.format(new Date(message.dateTs))}</div>}
               </div>
-              {message.attachments.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", flexWrap: "wrap" }}>
-                  <Paperclip size={11} />
-                  {message.attachments.map((a) => (
-                    <span key={a.index}>
-                      {a.name} ({Math.max(1, Math.round(a.size / 1024))} KB)
-                    </span>
-                  ))}
-                </div>
-              )}
-              {sanitized && sanitized.blockedRemote > 0 && (
-                <div data-testid="mail-blocked-hint" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                  <ShieldOff size={11} />
-                  {t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
-                  {!allowRemote && (
-                    <button
-                      type="button"
-                      onClick={() => setShowRemoteOnce(true)}
-                      data-testid="mail-show-images"
-                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--accent-color)", fontSize: "var(--text-xs)", textDecoration: "underline" }}
-                    >
-                      {t("mail.showImages", { defaultValue: "Bilder anzeigen" })}
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+
+            {/* Mail-action toolbar: real reply / reply-all / forward + mailbox actions */}
+            <div className="pv-mail-toolbar">
+              <Button variant="primary" size="sm" onClick={handleReply} data-testid="mail-reply" icon={<Reply size={13} />}>
+                {t("mail.reply", { defaultValue: "Antworten" })}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleReplyAll} data-testid="mail-reply-all" icon={<ReplyAll size={13} />}>
+                {t("mail.replyAll", { defaultValue: "Allen antworten" })}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setCompose({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                data-testid="mail-forward"
+                icon={<Forward size={13} />}
+              >
+                {t("mail.forward", { defaultValue: "Weiterleiten" })}
+              </Button>
+              <span className="pv-mail-toolbar-spacer" />
+              <IconButton
+                label={currentSeen ? t("mail.markUnread", { defaultValue: "Als ungelesen markieren" }) : t("mail.markRead", { defaultValue: "Als gelesen markieren" })}
+                onClick={() => void markSeen(!currentSeen)}
+                disabled={actionBusy}
+                data-testid="mail-mark-seen"
+              >
+                {currentSeen ? <Mail size={14} /> : <MailOpen size={14} />}
+              </IconButton>
+              <IconButton
+                label={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
+                onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY })}
+                disabled={actionBusy}
+                data-testid="mail-move"
+              >
+                <FolderInput size={14} />
+              </IconButton>
+              <IconButton label={t("mail.delete", { defaultValue: "Löschen" })} onClick={() => void deleteMessage()} disabled={actionBusy} data-testid="mail-delete">
+                <Trash2 size={14} />
+              </IconButton>
+            </div>
+
+            {message.attachments.length > 0 && (
+              <div className="pv-mail-attach">
+                {message.attachments.map((a) => (
+                  <span key={a.index} className="pv-mail-attach-chip">
+                    <Paperclip size={13} />
+                    {a.name} ({Math.max(1, Math.round(a.size / 1024))} KB)
+                  </span>
+                ))}
+              </div>
+            )}
+            {sanitized && sanitized.blockedRemote > 0 && (
+              <div className="pv-mail-blocked" data-testid="mail-blocked-hint">
+                <ShieldOff size={12} />
+                {t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
+                {!allowRemote && (
+                  <button type="button" onClick={() => setShowRemoteOnce(true)} data-testid="mail-show-images">
+                    {t("mail.showImages", { defaultValue: "Bilder anzeigen" })}
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className={`pv-mail-body${sanitized ? " pv-mail-body--frame" : ""}`}>
               {sanitized ? (
                 <iframe
                   title={t("mail.viewer", { defaultValue: "E-Mail-Inhalt" })}
                   sandbox=""
                   srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote })}
                   data-testid="mail-frame"
-                  style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-primary)" }}
+                  className="pv-mail-frame"
                 />
               ) : (
-                <pre data-testid="mail-text" style={{ margin: 0, padding: "var(--space-3)", whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "inherit", fontSize: "var(--text-sm)" }}>
+                <pre data-testid="mail-text" className="pv-mail-text">
                   {message.text ?? ""}
                 </pre>
               )}
+            </div>
+
+            {/* Vault-capture bar — Plainva's differentiator over any mail client */}
+            <div className="pv-mail-capbar">
+              <span className="pv-mail-capbar-label">{t("mail.intoVault", { defaultValue: "In den Vault" })}</span>
+              <button type="button" className="pv-mail-capchip" onClick={() => void captureNote(false)} data-testid="mail-capture-note">
+                <FilePlus2 size={13} /> {t("mail.captureNote", { defaultValue: "Als Notiz ablegen" })}
+              </button>
+              <button type="button" className="pv-mail-capchip" onClick={() => void captureTask()} data-testid="mail-capture-task">
+                <ListChecks size={13} /> {t("mail.captureTask", { defaultValue: "→ Aufgabe" })}
+              </button>
+              <button type="button" className="pv-mail-capchip" onClick={() => void captureNote(true)} data-testid="mail-capture-eml">
+                <FileText size={13} /> {t("mail.captureWithEml", { defaultValue: "+ .eml" })}
+              </button>
+              <button type="button" className="pv-mail-capchip" onClick={() => void replyAsNote()} data-testid="mail-reply-note">
+                <Reply size={13} /> {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
+              </button>
             </div>
           </>
         )}
       </div>
     </div>
+    {compose && (
+      <MailDraftModal subject={compose.subject} markdown={compose.markdown} initialTo={compose.to} onClose={() => setCompose(null)} />
+    )}
+    {moveMenu && (
+      <MenuSurface open at={moveMenu} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
+        {folders.filter((f) => f !== mailbox).map((f) => (
+          <MenuItem key={f} onClick={() => void moveTo(f)}>
+            {mailFolderLabel(f)}
+          </MenuItem>
+        ))}
+      </MenuSurface>
+    )}
+    </>
   );
 }

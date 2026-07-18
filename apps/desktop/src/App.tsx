@@ -28,6 +28,7 @@ const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
+import type { MailAttachment } from "./services/mail/mailOut";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
@@ -57,7 +58,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sunrise, X, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, X, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -99,8 +100,9 @@ function App() {
   }, []);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
-  // Mail-raus (stage 6): the draft dialog is prefilled from the active note.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string } | null>(null);
+  // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
+  // from the active note, optionally with the note as an attachment.
+  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string } | null>(null);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -124,13 +126,20 @@ function App() {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       if (detail?.path) setConflictResolveTarget(detail.path);
     };
+    // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
+    const onComposeMail = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+    };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
+    window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
+      window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
   // "Was ist OKF?" explainer (P12): shown once per vault; with violations it
@@ -267,7 +276,7 @@ function App() {
   }, [vaultAdapter]);
   const {
     layout, splitRatio, activePane, activePath, isSplit, activeSplitDirection,
-    openTab, openInFocusedPane, openInOtherPane, openPathInSplit, navigateTab, selectTab, closeTab, closeTabsByPrefix,
+    openTab, openInFocusedPane, focusOrOpenVirtual, openInOtherPane, openPathInSplit, navigateTab, selectTab, closeTab, closeTabsByPrefix,
     renameTabPrefix, focusPane, splitEditor, splitEditorWithTab, moveTabTo, setSplitRatio, normalizeNow,
   } = usePaneLayout({
     vaultPath,
@@ -602,7 +611,7 @@ function App() {
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "g") {
         e.preventDefault();
         // New tab (report #10) — never replace the currently open file.
-        openInFocusedPane(GRAPH_TAB_PATH, true);
+        focusOrOpenVirtual(GRAPH_TAB_PATH);
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
         // Vault-wide find & replace (B6); the in-editor panel keeps Mod+F.
         e.preventDefault();
@@ -700,7 +709,7 @@ function App() {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openInFocusedPane, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
+  }, [vaultPath, splitEditor, focusOrOpenVirtual, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -945,10 +954,10 @@ function App() {
         onNewNote={() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } }))}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
-        onOpenGraph={() => openInFocusedPane(GRAPH_TAB_PATH, true)}
-        onOpenTasks={() => openInFocusedPane(TASKS_TAB_PATH, true)}
-        onOpenCalendar={() => openInFocusedPane(CALENDAR_TAB_PATH, true)}
-        onOpenMail={() => openInFocusedPane(MAIL_TAB_PATH, true)}
+        onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}
+        onOpenTasks={() => focusOrOpenVirtual(TASKS_TAB_PATH)}
+        onOpenCalendar={() => focusOrOpenVirtual(CALENDAR_TAB_PATH)}
+        onOpenMail={() => focusOrOpenVirtual(MAIL_TAB_PATH)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -1020,7 +1029,7 @@ function App() {
                 { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
                 { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
                 'separator',
-                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sunrise size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
+                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sun size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
               ]}
             />
           </div>
@@ -1320,7 +1329,7 @@ function App() {
           onSelectDate={handleOpenDailyNote}
           onOpenCalendarDay={(dayKey) => {
             requestCalendarDay(dayKey);
-            openInFocusedPane(CALENDAR_TAB_PATH, true);
+            focusOrOpenVirtual(CALENDAR_TAB_PATH);
           }}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
@@ -1390,10 +1399,10 @@ function App() {
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
-            openGraph: () => openInFocusedPane(GRAPH_TAB_PATH, true),
-            openTasks: () => openInFocusedPane(TASKS_TAB_PATH, true),
-            openCalendar: () => openInFocusedPane(CALENDAR_TAB_PATH, true),
-            openMail: () => openInFocusedPane(MAIL_TAB_PATH, true),
+            openGraph: () => focusOrOpenVirtual(GRAPH_TAB_PATH),
+            openTasks: () => focusOrOpenVirtual(TASKS_TAB_PATH),
+            openCalendar: () => focusOrOpenVirtual(CALENDAR_TAB_PATH),
+            openMail: () => focusOrOpenVirtual(MAIL_TAB_PATH),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
@@ -1506,7 +1515,7 @@ function App() {
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
         {mailDraft && (
           <Suspense fallback={null}>
-            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} onClose={() => setMailDraft(null)} />
+            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} attachments={mailDraft.attachments} initialTo={mailDraft.to} onClose={() => setMailDraft(null)} />
           </Suspense>
         )}
         {showFindReplace && (

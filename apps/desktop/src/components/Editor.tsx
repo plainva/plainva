@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -527,6 +527,27 @@ export const Editor: React.FC<{
     void import("../services/exportNote")
       .then(({ exportNoteAsMarkdown }) => exportNoteAsMarkdown(vaultAdapter, activePath))
       .catch((e) => { console.error("[Editor] markdown export failed", e); toast.error(t("editor.exportFailed")); });
+  };
+
+  // Send via email (mail-client E5): the LIVE document (view = source of truth)
+  // opens the compose dialog — inline as the body, or as a .md attachment.
+  const currentDocText = () => sessionRef.current?.view?.state.doc.toString() ?? "";
+  const noteTitleFromPath = () => (activePath?.split("/").pop() ?? "").replace(/\.md$/i, "");
+  const handleMenuSendMail = () => {
+    if (!activePath) return;
+    window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: noteTitleFromPath(), markdown: currentDocText() } }));
+  };
+  const handleMenuSendMailAttachment = () => {
+    if (!activePath) return;
+    const bytes = new TextEncoder().encode(currentDocText());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const name = activePath.split("/").pop() ?? "note.md";
+    window.dispatchEvent(
+      new CustomEvent("plainva-compose-mail", {
+        detail: { subject: noteTitleFromPath(), markdown: "", attachments: [{ name, mime: "text/markdown", contentBase64: btoa(bin) }] },
+      })
+    );
   };
 
   const openExternalUrl = (url: string) => {
@@ -1635,6 +1656,12 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<FileDown size={15} />} onSelect={handleMenuExportMarkdown}>
                 {t("editor.exportMarkdown", "Als Markdown exportieren…")}
+              </MenuItem>
+              <MenuItem icon={<Mail size={15} />} data-testid="editor-menu-send-mail" onSelect={handleMenuSendMail}>
+                {t("mail.sendNoteViaEmail", { defaultValue: "Per Mail verschicken" })}
+              </MenuItem>
+              <MenuItem icon={<Paperclip size={15} />} data-testid="editor-menu-send-mail-attachment" onSelect={handleMenuSendMailAttachment}>
+                {t("mail.sendNoteAsAttachment", { defaultValue: "Per Mail als Anhang" })}
               </MenuItem>
               {onDelete && (
                 <>

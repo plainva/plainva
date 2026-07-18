@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   openInPane,
+  focusOrOpenVirtualInLayout,
   navigateInPane,
   closeTabInPane,
   closeByPrefixInPane,
@@ -154,5 +155,30 @@ describe("moveTab", () => {
   it("ignores an out-of-range source", () => {
     const l = layout([pane(["a"], 0)], 0);
     expect(moveTab(l, 0, 5, 0, 0)).toBe(l);
+  });
+});
+
+describe("focusOrOpenVirtualInLayout (ribbon/palette singleton tabs)", () => {
+  const V = "plainva://calendar";
+
+  it("opens a fresh tab in the focused pane when not open anywhere", () => {
+    const r = focusOrOpenVirtualInLayout(layout([pane(["a", "b"], 0)], 0), V);
+    expect(paths(r.panes[0])).toEqual(["a", "b", V]);
+    expect(r.panes[0].activeIndex).toBe(2);
+    expect(r.activePaneIndex).toBe(0);
+  });
+
+  it("focuses the existing tab instead of duplicating it (same pane)", () => {
+    const r = focusOrOpenVirtualInLayout(layout([pane([V, "a"], 1)], 0), V);
+    expect(paths(r.panes[0])).toEqual([V, "a"]);
+    expect(r.panes[0].activeIndex).toBe(0);
+  });
+
+  it("switches to the other pane when the tab lives there", () => {
+    const l = layout([pane(["a"], 0), pane(["b", V], 0)], 0);
+    const r = focusOrOpenVirtualInLayout(l, V);
+    expect(r.activePaneIndex).toBe(1);
+    expect(r.panes[1].activeIndex).toBe(1);
+    expect(r.panes.flatMap(paths).filter((p) => p === V)).toHaveLength(1);
   });
 });

@@ -42,10 +42,14 @@ test.beforeEach(async ({ page }) => {
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-standup', title: 'Standup',
               start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).getTime(),
-              end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30).getTime(),
-              start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: null,
+              end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0).getTime(),
+              start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: 'Kurzes Standup',
               attendees: JSON.stringify(['a@example.org']), status: 'confirmed', etag: 'e1',
-              series_master: null, recurrence: null, href: null,
+              series_master: null, recurrence: null, href: null, color: '#039be5',
+              rsvps: JSON.stringify([
+                { name: 'Chef', email: 'chef@example.org', status: 'accepted', organizer: true },
+                { name: 'Ich', email: 'me@example.org', status: 'needsAction', self: true },
+              ]),
             },
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-holiday', title: 'Feiertag',
@@ -93,6 +97,7 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           // Standard task database (calendar task overlay): a test opts in via fs.__taskDb.
           if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
+          if (String(args.key || '').startsWith('mailAccounts_')) return [[{ id: 'm1', label: 'me@example.org', host: 'imap.example.org', port: 993, user: 'me@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 }], true];
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
@@ -238,39 +243,36 @@ async function openVault(page: any) {
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
 }
 
-test('calendar tab shows cached events, day selection and creates a meeting note on disk', async ({ page }) => {
+test('month day-pane time grid; event -> meeting note on disk', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
 
   await expect(page.getByTestId('calendar-view')).toBeVisible();
   await expect(page.getByTestId('calendar-month-title')).not.toBeEmpty();
 
-  // Today's cell carries both fixture events (title snippets are rendered).
+  // Today's month cell carries both fixture events (title snippets rendered).
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
   const todayCell = page.getByTestId(`calendar-day-${todayKey}`);
   await expect(todayCell).toContainText('Standup');
   await expect(todayCell).toContainText('Feiertag');
 
-  // The virtual view lands in the recents strip with its localized name +
-  // dedicated icon — never as a raw "calendar" pseudo note.
+  // The virtual view lands in the recents strip with its localized name + icon.
   const recentRow = page.locator('button[title="plainva://calendar"]');
   await expect(recentRow).toHaveText(/^(Calendar|Kalender)$/);
   await expect(recentRow.locator('svg.lucide-calendar-range')).toBeVisible();
 
-  // Select today -> the day pane lists the all-day event FIRST, then the
-  // timed one with its time range and location.
+  // Select today -> the day pane is a time grid: all-day strip + a timed block.
   await todayCell.click();
-  const events = page.getByTestId('calendar-event');
-  await expect(events).toHaveCount(3);
-  await expect(events.first()).toContainText('Feiertag');
-  await expect(events.nth(1)).toContainText('Standup');
-  await expect(events.nth(1)).toContainText('10:00');
-  await expect(events.nth(1)).toContainText('Raum 5');
-  await expect(events.nth(2)).toContainText('Wochenmeeting');
+  const dayPane = page.getByTestId('calendar-day-pane');
+  await expect(dayPane.getByTestId('calendar-timegrid')).toBeVisible();
+  await expect(page.getByTestId('calendar-allday-event').filter({ hasText: 'Feiertag' })).toBeVisible();
+  const standup = page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
+  await expect(standup).toBeVisible();
 
-  // "Termin -> Meeting-Notiz": creates the anchored note in Meetings/ and
-  // opens it in a tab.
-  await events.filter({ hasText: 'Standup' }).getByTestId('calendar-meeting-note').click();
+  // Click the event -> edit dialog carries a "Meeting-Notiz" action -> note on disk.
+  await standup.click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  await page.getByTestId('event-meeting-note').click();
   const notePath = `/test-vault/Meetings/${todayKey} Standup.md`;
   await expect.poll(() => page.evaluate((p: string) => (window as any).mockFs[p], notePath)).toBeTruthy();
   const noteContent = await page.evaluate((p: string) => (window as any).mockFs[p], notePath);
@@ -278,17 +280,41 @@ test('calendar tab shows cached events, day selection and creates a meeting note
   expect(noteContent).toContain('type: Meeting');
   expect(noteContent).toContain(`date: ${todayKey}`);
   expect(noteContent).toContain('# Standup');
-
-  // The note opened as a tab (editor shows the H1 as its content).
   await expect(page.locator('.cm-content').getByText('Standup').first()).toBeVisible();
 
-  // Clicking the SAME event again reuses the note (no duplicate sibling).
+  // The SAME event again reuses the note (no duplicate sibling).
   await page.getByTestId('ribbon-calendar').click();
   await page.getByTestId(`calendar-day-${todayKey}`).click();
-  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-meeting-note').click();
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-meeting-note').click();
   await expect
     .poll(() => page.evaluate((p: string) => Boolean((window as any).mockFs[p]), `/test-vault/Meetings/${todayKey} Standup 2.md`))
     .toBe(false);
+});
+
+test('mail-client E6: an event can be emailed as an iCal invite', async ({ page }) => {
+  await openVault(page);
+  await page.evaluate(() => {
+    (window as any).__composed = null;
+    window.addEventListener('plainva-compose-mail', (e) => { (window as any).__composed = (e as CustomEvent).detail; });
+  });
+  await page.getByTestId('ribbon-calendar').click();
+  // The full event action card (with the invite button) lives in the agenda view.
+  await page.getByTestId('calendar-mode-agenda').click();
+  await expect(page.getByTestId('calendar-agenda')).toBeVisible();
+  await page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-email-invite').click();
+
+  await expect.poll(() => page.evaluate(() => (window as any).__composed ?? null)).toBeTruthy();
+  const c = await page.evaluate(() => (window as any).__composed);
+  expect(c.to).toContain('a@example.org');
+  expect(c.attachments[0].name).toBe('invite.ics');
+  expect(c.attachments[0].mime).toContain('text/calendar');
+  const ics = await page.evaluate((b64: string) => decodeURIComponent(escape(atob(b64))), c.attachments[0].contentBase64);
+  expect(ics).toContain('METHOD:REQUEST');
+  expect(ics).toContain('SUMMARY:Standup');
+  expect(ics).toContain('ORGANIZER:mailto:me@example.org');
+  // The compose dialog opens globally with the invite attachment chip.
+  await expect(page.getByTestId('draft-attachments')).toContainText('invite.ics');
 });
 
 test('event dialog: create validation + provider-error surface, edit prefill, delete confirm', async ({ page }) => {
@@ -297,7 +323,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
   await page.getByTestId(`calendar-day-${todayKey}`).click();
 
-  // "+" opens the create dialog (the mock calendar is writable + selected).
+  // The day-pane "+" opens the create dialog (mock calendar is writable).
   await page.getByTestId('calendar-new-event').click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
 
@@ -305,63 +331,139 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await page.getByTestId('event-save').click();
   await expect(page.getByTestId('event-error')).toBeVisible();
 
-  // With a title the submit reaches the provider layer; the mock keychain has
-  // no credentials, so the write fails INLINE (dialog still open) instead of
-  // pretending success.
+  // With a title the submit reaches the provider layer; no mock credentials ->
+  // the write fails INLINE instead of pretending success.
   await page.getByTestId('event-title').fill('Neuer Test-Termin');
   await page.getByTestId('event-save').click();
   await expect(page.getByTestId('event-error')).toBeVisible();
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
 
-  // Edit prefills the event's values (title + local times).
-  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-edit-event').click();
+  // Clicking the timed block opens the edit dialog prefilled with its values.
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
-  await expect(page.getByTestId('event-end-time')).toHaveValue('10:30');
+  await expect(page.getByTestId('event-end-time')).toHaveValue('11:00');
   await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
-  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(page.getByTestId('event-description')).toHaveValue('Kurzes Standup');
+  // The event's own colour preselects its swatch, and the dialog offers the palette.
+  await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('event-color-#d50000').click();
+  await expect(page.getByTestId('event-color-#d50000')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'false');
 
-  // Delete asks first (danger dialog naming the event); cancel keeps it.
-  await page.getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-delete-event').click();
+  // RSVP back-channel: attendees with their status, plus the own accept/decline
+  // buttons (the user is an invited attendee). No provider in the mock, so a
+  // response surfaces the "unsupported" error inline instead of pretending.
+  await expect(page.getByTestId('event-attendees')).toContainText('Chef');
+  await expect(page.getByTestId('event-attendees')).toContainText('Ich');
+  await expect(page.getByTestId('rsvp-accept')).toBeVisible();
+  await page.getByTestId('rsvp-decline').click();
+  await expect(page.getByTestId('event-error')).toBeVisible();
+
+  // Delete from the dialog -> danger confirm naming the event; cancel keeps it.
+  await page.getByTestId('event-delete').click();
   const confirm = page.getByRole('dialog').filter({ hasText: /Termin löschen|Delete event/ });
   await expect(confirm).toBeVisible();
   await expect(confirm).toContainText('Standup');
   await confirm.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
-  await expect(page.getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
 });
 
-test('series instance: edit/delete route through the scope dialog; "all" prefills from the master', async ({ page }) => {
+test('series instance: clicking routes through the scope dialog; "all" prefills from the master', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
   await page.getByTestId(`calendar-day-${todayKey}`).click();
 
-  const seriesRow = page.getByTestId('calendar-event').filter({ hasText: 'Wochenmeeting' });
-  // The row carries the recurrence badge.
-  await expect(seriesRow.locator('svg.lucide-repeat')).toBeVisible();
+  const seriesBlock = page.getByTestId('calendar-timed-event').filter({ hasText: 'Wochenmeeting' });
+  // The block carries the recurrence badge.
+  await expect(seriesBlock.locator('svg.lucide-repeat')).toBeVisible();
 
-  // Edit -> scope dialog; "Alle Termine" opens the editor prefilled from the
+  // Click -> scope dialog; "Alle Termine" opens the editor prefilled from the
   // MASTER row (the series' own start time, not the instance's).
-  await seriesRow.getByTestId('calendar-edit-event').click();
+  await seriesBlock.click();
   await expect(page.getByTestId('series-scope')).toBeVisible();
   await page.getByTestId('series-scope-all').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
   await expect(page.getByTestId('event-start-time')).toHaveValue('14:00');
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 
-  // Edit -> "Nur diesen Termin" edits the instance directly.
-  await seriesRow.getByTestId('calendar-edit-event').click();
+  // Click -> "Nur diesen Termin" edits the instance directly.
+  await seriesBlock.click();
   await page.getByTestId('series-scope-this').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+});
 
-  // Delete -> the scope dialog IS the confirmation; cancel keeps everything.
-  await seriesRow.getByTestId('calendar-delete-event').click();
-  await expect(page.getByTestId('series-scope')).toBeVisible();
-  await expect(page.getByTestId('series-scope')).toContainText('Wochenmeeting');
-  await page.getByRole('dialog').filter({ has: page.getByTestId('series-scope') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
-  await expect(seriesRow).toBeVisible();
+test('quick-create: clicking an empty slot opens the popover; "more options" -> full dialog', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-day').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  const col = page.getByTestId(`calendar-timecol-${todayKey}`);
+  await expect(col).toBeVisible();
+
+  // Click an empty area near the top (early hours have no fixture events) ->
+  // the quick-create popover appears.
+  await col.click({ position: { x: 40, y: 90 } });
+  await expect(page.getByTestId('calendar-quick-create')).toBeVisible();
+  await page.getByTestId('calendar-quick-title').fill('Kaffeepause');
+
+  // "More options" carries the draft into the full editor.
+  await page.getByTestId('calendar-quick-more').click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  await expect(page.getByTestId('event-title')).toHaveValue('Kaffeepause');
+});
+
+test('an existing event can be dragged to reschedule and resized; a tiny drag stays a click', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-day').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  const col = page.getByTestId(`calendar-timecol-${todayKey}`);
+  await expect(col).toBeVisible();
+  const block = col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
+  await block.scrollIntoViewIfNeeded();
+  // The block is tinted with the event's own colour (#039be5), not the calendar colour.
+  await expect(block).toHaveCSS('background-color', 'rgb(3, 155, 229)');
+  const box = await block.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  // Drag the body down ~2 hours -> reschedule. The mock has no provider, so the
+  // write attempt surfaces an error toast; the block is treated as a drag, NOT a
+  // click, so the edit dialog stays closed.
+  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 8 + 44, { steps: 4 });
+  await page.mouse.move(box.x + box.width / 2, box.y + 8 + 92, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+
+  // Drag the bottom-edge resize handle down -> another reschedule write attempt.
+  const handle = block.getByTestId('calendar-event-resize');
+  const hbox = await handle.boundingBox();
+  expect(hbox).not.toBeNull();
+  if (hbox) {
+    await page.mouse.move(hbox.x + hbox.width / 2, hbox.y + hbox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hbox.x + hbox.width / 2, hbox.y + 60, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+    await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  }
+
+  // A tiny drag (below the snap threshold) is still a click -> the dialog opens.
+  const box2 = await block.boundingBox();
+  if (box2) {
+    await page.mouse.move(box2.x + box2.width / 2, box2.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(box2.x + box2.width / 2, box2.y + 10, { steps: 2 });
+    await page.mouse.up();
+  }
+  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
 });
 
 const CAL_TASK_DB_YAML = `properties:
@@ -402,48 +504,54 @@ test('the calendar optionally overlays due tasks from the standard task database
   await page.getByTestId('ribbon-calendar').click();
   await expect(page.getByTestId('calendar-view')).toBeVisible();
 
-  // Off by default: no task section, the task title is not on the grid.
-  await expect(page.getByTestId('calendar-day-tasks')).toHaveCount(0);
+  // Off by default: the due task is not shown on the grid.
+  await expect(page.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toHaveCount(0);
 
-  // Toggle tasks on -> the due task appears in today's day pane and can be opened.
+  // Toggle tasks on -> the due task appears in today's day-pane strip.
   await page.getByTestId('calendar-toggle-tasks').click();
-  const dayTasks = page.getByTestId('calendar-day-tasks');
-  await expect(dayTasks).toBeVisible();
-  await expect(dayTasks.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
+  await expect(page.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
 
   // The preference persists across a reload (device-local, like the graph pins).
   await page.reload();
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
   await page.getByTestId('ribbon-calendar').click();
-  await expect(page.getByTestId('calendar-day-tasks')).toBeVisible();
+  await expect(page.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
 });
 
-test('week and agenda views: segment switch, week columns without day pane, agenda groups', async ({ page }) => {
+test('view modes: month / day / 3-day / week are time grids, agenda is a list', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
   await expect(page.getByTestId('calendar-view')).toBeVisible();
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
 
-  // Month is the default: grid + day pane visible.
+  // Month is the default: grid + day-pane time grid.
   await expect(page.getByTestId('calendar-grid')).toBeVisible();
   await expect(page.getByTestId('calendar-day-pane')).toBeVisible();
 
-  // Week: 7 day columns, today's column carries the timed event, NO day pane.
-  await page.getByTestId('calendar-mode-week').click();
-  await expect(page.getByTestId('calendar-week')).toBeVisible();
+  // Day: a single-column time grid, no day pane, no month grid.
+  await page.getByTestId('calendar-mode-day').click();
+  await expect(page.getByTestId('calendar-timegrid')).toBeVisible();
+  await expect(page.getByTestId('calendar-grid')).toHaveCount(0);
   await expect(page.getByTestId('calendar-day-pane')).toHaveCount(0);
-  const todayCol = page.getByTestId(`calendar-weekday-${todayKey}`);
-  await expect(todayCol.getByTestId('calendar-week-event').filter({ hasText: 'Standup' })).toBeVisible();
+  await expect(page.getByTestId(`calendar-timecol-${todayKey}`).getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
 
-  // Clicking a week event opens the edit dialog (single event -> no scope prompt).
-  await todayCol.getByTestId('calendar-week-event').filter({ hasText: 'Standup' }).click();
+  // 3-day: still a time grid.
+  await page.getByTestId('calendar-mode-3day').click();
+  await expect(page.getByTestId('calendar-timegrid')).toBeVisible();
+
+  // Week: 7 columns, no day pane, today's column carries the timed event ->
+  // clicking it opens the edit dialog (single event -> no scope prompt).
+  await page.getByTestId('calendar-mode-week').click();
+  await expect(page.getByTestId('calendar-timegrid')).toBeVisible();
+  await expect(page.getByTestId('calendar-day-pane')).toHaveCount(0);
+  await page.getByTestId(`calendar-timecol-${todayKey}`).getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 
-  // Agenda: grouped upcoming list carries today's events with full action cards.
+  // Agenda: no time grid; grouped list with the event's full action card.
   await page.getByTestId('calendar-mode-agenda').click();
   await expect(page.getByTestId('calendar-agenda')).toBeVisible();
-  await expect(page.getByTestId('calendar-week')).toHaveCount(0);
+  await expect(page.getByTestId('calendar-timegrid')).toHaveCount(0);
   await expect(page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
 
   // The chosen view persists across a reload.

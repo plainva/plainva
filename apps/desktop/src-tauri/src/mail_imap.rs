@@ -1,8 +1,11 @@
-//! Read-only IMAP mail capture (PIM stage 5).
+//! IMAP mail capture (PIM stage 5) + a few explicit mailbox actions (mail-
+//! client E4).
 //!
 //! Design constraints:
-//! - STRICTLY read-only: `EXAMINE` instead of `SELECT` (the session cannot
-//!   change flags) and `BODY.PEEK[…]` fetches (never sets `\Seen`).
+//! - Reads are non-mutating: `EXAMINE` instead of `SELECT` and `BODY.PEEK[…]`
+//!   fetches (never sets `\Seen`). The write commands (mail_set_seen,
+//!   mail_move_message, mail_search) are the ONLY ones that `SELECT` the
+//!   mailbox; deletion is a MOVE to Trash (reversible), never a hard expunge.
 //! - No credential state in Rust: every command receives host/port/user/pass
 //!   from the frontend (which reads the OS keychain) and opens a fresh
 //!   connection. Personal-mailbox scale; pooling/IDLE is a later optimization.
@@ -321,7 +324,7 @@ pub async fn mail_fetch_attachment(
 /// Builds the draft MIME (multipart/alternative when HTML is present;
 /// RFC 2047 header encoding via mail-builder). Extracted for the roundtrip
 /// unit test below.
-fn build_draft_mime(to: &str, subject: &str, text: &str, html: Option<&str>) -> Result<Vec<u8>, String> {
+fn build_draft_mime(to: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[crate::mail_smtp::MailAttachment]) -> Result<Vec<u8>, String> {
     let mut builder = mail_builder::MessageBuilder::new()
         .to(to.to_string())
         .subject(subject.to_string())
@@ -329,6 +332,7 @@ fn build_draft_mime(to: &str, subject: &str, text: &str, html: Option<&str>) -> 
     if let Some(html) = html {
         builder = builder.html_body(html.to_string());
     }
+    builder = crate::mail_smtp::attach_all(builder, attachments)?;
     builder
         .write_to_vec()
         .map_err(|e| format!("mime build failed: {e}"))
@@ -350,9 +354,10 @@ pub async fn mail_append_draft(
     subject: String,
     text: String,
     html: Option<String>,
+    attachments: Option<Vec<crate::mail_smtp::MailAttachment>>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mime = build_draft_mime(&to, &subject, &text, html.as_deref())?;
+        let mime = build_draft_mime(&to, &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
         let mut session = open_session(&host, port, &user, &pass)?;
         session
             .append_with_flags(&mailbox, &mime, &[imap::types::Flag::Draft])
@@ -364,15 +369,85 @@ pub async fn mail_append_draft(
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
+// ---- Mailbox actions (mail-client E4) -------------------------------------
+
+/// Opens a session and SELECTs the mailbox writable (for flag/move commands).
+fn open_writable(host: &str, port: u16, user: &str, pass: &str, mailbox: &str) -> Result<ImapSession, String> {
+    let mut session = open_session(host, port, user, pass)?;
+    session.select(mailbox).map_err(|e| format!("select failed: {e}"))?;
+    Ok(session)
+}
+
+/// IMAP quoted-string escape for a free-text SEARCH term (backslash + quote). Pure.
+fn escape_imap_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Sets or clears the `\Seen` flag on a message.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, seen: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
+        let op = if seen { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" };
+        session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
+        let _ = session.logout();
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// Moves a message to another mailbox (used for both "move" and "delete to
+/// Trash"). Uses the MOVE extension; deletion stays reversible.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_move_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, target: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
+        session.uid_mv(uid.to_string(), &target).map_err(|e| format!("move failed: {e}"))?;
+        let _ = session.logout();
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// Full-text SEARCH in a mailbox (read-only EXAMINE); returns matching UIDs,
+/// newest first.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_search(host: String, port: u16, user: String, pass: String, mailbox: String, query: String) -> Result<Vec<u32>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_session(&host, port, &user, &pass)?;
+        session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+        let search = format!("TEXT \"{}\"", escape_imap_string(&query));
+        let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
+        let _ = session.logout();
+        let mut v: Vec<u32> = uids.into_iter().collect();
+        v.sort_unstable_by(|a, b| b.cmp(a));
+        Ok(v)
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escapes_imap_search_strings() {
+        assert_eq!(escape_imap_string("hello"), "hello");
+        assert_eq!(escape_imap_string("a\"b"), "a\\\"b");
+        assert_eq!(escape_imap_string("a\\b"), "a\\\\b");
+    }
 
     const SAMPLE: &[u8] = b"From: Anna Beispiel <anna@example.org>\r\nTo: marco@example.org\r\nSubject: =?utf-8?q?Gr=C3=BC=C3=9Fe?=\r\nDate: Mon, 20 Jul 2026 10:00:00 +0200\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo Welt\r\n--B\r\nContent-Type: application/pdf; name=doc.pdf\r\nContent-Disposition: attachment; filename=doc.pdf\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERi0=\r\n--B--\r\n";
 
     #[test]
     fn draft_mime_roundtrips_through_the_parser() {
-        let mime = build_draft_mime("empfaenger@example.org", "Grüße aus Plainva", "Hallo Welt", Some("<p>Hallo <b>Welt</b></p>"))
+        let mime = build_draft_mime("empfaenger@example.org", "Grüße aus Plainva", "Hallo Welt", Some("<p>Hallo <b>Welt</b></p>"), &[])
             .expect("builds");
         let parsed = parse_message(&mime).expect("parses");
         assert_eq!(header_text(&parsed, mail_parser::HeaderName::Subject), "Grüße aus Plainva");

@@ -15,6 +15,10 @@ export interface MailAccountConfig {
   host: string;
   port: number;
   user: string;
+  /** SMTP submission host (mail-client E3 sending); absent = send disabled. */
+  smtpHost?: string;
+  /** SMTP submission port (587 STARTTLS by default, 465 implicit TLS). */
+  smtpPort?: number;
 }
 
 const accountsKey = (vaultPath: string) => `mailAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;

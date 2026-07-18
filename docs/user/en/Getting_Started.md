@@ -52,7 +52,7 @@ You can also toggle between **Readable width** and **Full width**.
 
 The **Daily Note** button in the left action rail opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault → Content & structure** (**Choose folder…** next to the field lets you pick the folder right inside the vault).
 
-The **Calendar** on the right is a day overview: clicking a date opens a small preview with that day's events and due tasks plus the **Daily Note** action; a right-click offers the same as a menu. Days with a daily note carry a tiny sunrise glyph, days with events colored dots per calendar. The **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
+The **Calendar** on the right is a day overview: **clicking** a date opens the [calendar tab](Calendar_and_Tasks.md) at that day; a **right-click** opens a menu that names the day at the top and offers **Open calendar**, **Daily Note** and that day's events and due tasks. Days with a daily note carry a tiny **sun glyph**, days with events colored dots per calendar. The **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
 
 ## Settings
 

@@ -112,4 +112,51 @@ describe("GraphPimTarget", () => {
     expect(tasks[0]).toMatchObject({ uid: "T1", title: "Rechnung", due: "2026-08-01", completed: false, notes: "Details hier", etag: 'W/"9"' });
     expect(tasks[1]).toMatchObject({ uid: "T2", completed: true, notes: undefined });
   });
+
+  it("maps attendee responses and the user's own status (the RSVP back-channel)", async () => {
+    const fetchFn: FetchFn = vi.fn(async (input) => {
+      if (String(input).includes("/calendarView")) {
+        return jsonRes({
+          value: [
+            {
+              id: "e1",
+              subject: "Review",
+              start: { dateTime: "2026-08-01T09:00:00.0000000" },
+              end: { dateTime: "2026-08-01T10:00:00.0000000" },
+              organizer: { emailAddress: { name: "Chef", address: "chef@example.org" } },
+              responseStatus: { response: "tentativelyAccepted" },
+              attendees: [
+                { emailAddress: { name: "Chef", address: "chef@example.org" }, status: { response: "organizer" } },
+                { emailAddress: { name: "Me", address: "me@example.org" }, status: { response: "tentativelyAccepted" } },
+                { emailAddress: { name: "Kim", address: "kim@example.org" }, status: { response: "declined" } },
+              ],
+            },
+          ],
+        });
+      }
+      return jsonRes({ value: [] });
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    const { events } = await t.pullEvents("c1", Date.UTC(2026, 6, 1), Date.UTC(2026, 8, 1));
+    expect(events[0].selfResponse).toBe("tentative");
+    expect(events[0].rsvps).toEqual([
+      { name: "Chef", email: "chef@example.org", status: "accepted", organizer: true },
+      { name: "Me", email: "me@example.org", status: "tentative", organizer: false },
+      { name: "Kim", email: "kim@example.org", status: "declined", organizer: false },
+    ]);
+  });
+
+  it("responds to an invitation via the dedicated accept/decline actions", async () => {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const fetchFn: FetchFn = vi.fn(async (input, init) => {
+      calls.push({ url: String(input), body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      return jsonRes({}, 202);
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    await t.respondToEvent({ calendarId: "c1", uid: "e1" }, "declined");
+    expect(calls[0].url).toContain("/me/events/e1/decline");
+    expect(calls[0].body).toEqual({ sendResponse: true });
+    await t.respondToEvent({ calendarId: "c1", uid: "e1" }, "tentative");
+    expect(calls[1].url).toContain("/me/events/e1/tentativelyAccept");
+  });
 });

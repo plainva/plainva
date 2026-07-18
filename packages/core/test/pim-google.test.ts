@@ -120,4 +120,46 @@ describe("GooglePimTarget", () => {
     expect(tasks[0].completed).toBe(false);
     expect(tasks[1].completed).toBe(true);
   });
+
+  it("maps a per-event colour (colorId) and the attendee RSVP back-channel", async () => {
+    const fetchFn: FetchFn = vi.fn(async () =>
+      jsonRes({
+        items: [
+          {
+            id: "e1",
+            summary: "Sync",
+            colorId: "6",
+            start: { dateTime: "2026-08-01T09:00:00Z" },
+            end: { dateTime: "2026-08-01T10:00:00Z" },
+            attendees: [
+              { email: "chef@x.org", displayName: "Chef", organizer: true, responseStatus: "accepted" },
+              { email: "me@x.org", self: true, responseStatus: "declined" },
+            ],
+          },
+        ],
+      })
+    );
+    const t = new GooglePimTarget(auth(), fetchFn);
+    const { events } = await t.pullEvents("c1", Date.UTC(2026, 6, 1), Date.UTC(2026, 8, 1));
+    expect(events[0].color).toBe("#f4511e"); // colorId 6 = Tangerine
+    expect(events[0].selfResponse).toBe("declined");
+    expect(events[0].rsvps?.find((a) => a.self)?.status).toBe("declined");
+  });
+
+  it("responds to an invitation by patching the own attendee responseStatus", async () => {
+    let patchBody: any;
+    const fetchFn: FetchFn = vi.fn(async (input, init) => {
+      if (!init || init.method !== "PATCH") {
+        // GET the event first.
+        return jsonRes({ attendees: [{ email: "chef@x.org" }, { email: "me@x.org", self: true, responseStatus: "needsAction" }] });
+      }
+      patchBody = JSON.parse(String(init.body));
+      return jsonRes({ etag: "e2" });
+    });
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await t.respondToEvent({ calendarId: "c1", uid: "e1" }, "accepted");
+    expect(patchBody).toEqual({
+      attendees: [{ email: "chef@x.org" }, { email: "me@x.org", self: true, responseStatus: "accepted" }],
+    });
+  });
 });

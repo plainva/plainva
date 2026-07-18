@@ -1,0 +1,556 @@
+/*
+ * Full mail-client shell (plan "PIM-Feinschliff & voller E-Mail-Client",
+ * mockup section 05). A three-column grid — folder/account rail · designed
+ * message list · reader with a mail-action toolbar and a distinct Vault-capture
+ * bar. Token-only (no raw color/radius literals) so every theme repaints it and
+ * both light/dark adapt automatically; designLint therefore ignores this file
+ * (it scans .tsx? + App.css). Widths mirror the app panes (210 / 320 / rest).
+ */
+
+.pv-mail {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 210px 320px minmax(0, 1fr);
+  background: var(--bg-primary);
+}
+
+/* Reusable sender/account avatar. --pv-mail-av carries the palette color. */
+.pv-mail-av {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  flex: 0 0 auto;
+  background: var(--pv-mail-av, var(--accent-color));
+}
+.pv-mail-av--round {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-md);
+}
+
+/* ---------- column 1: folders + accounts ---------- */
+.pv-mail-folders {
+  border-right: 1px solid var(--border-color-light);
+  background: var(--surface-container-low);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pv-mail-acct {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  min-width: 0;
+}
+.pv-mail-acct-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-mail-compose {
+  margin: 10px 12px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--accent-color);
+  color: var(--accent-on);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px;
+  font-size: var(--text-ui);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--dur-1) var(--ease-1);
+}
+.pv-mail-compose:hover {
+  filter: brightness(0.94);
+}
+.pv-mail-flist {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pv-mail-folder {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-main);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+.pv-mail-folder > svg {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.pv-mail-folder:hover {
+  background: var(--state-hover);
+}
+.pv-mail-folder.on {
+  background: var(--accent-container);
+  color: var(--accent-color);
+  font-weight: 600;
+}
+.pv-mail-folder.on > svg {
+  color: var(--accent-color);
+}
+.pv-mail-folder-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-mail-folder-ct {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.pv-mail-folder.on .pv-mail-folder-ct {
+  color: var(--accent-color);
+}
+.pv-mail-flist-label {
+  margin-top: var(--space-2);
+  padding: 6px 8px 2px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+/* ---------- column 2: message list ---------- */
+.pv-mail-list {
+  border-right: 1px solid var(--border-color-light);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pv-mail-listhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+.pv-mail-search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+}
+.pv-mail-search:focus-within {
+  border-color: var(--accent-color);
+}
+.pv-mail-search > svg {
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+.pv-mail-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  padding: 0;
+}
+.pv-mail-search input::placeholder {
+  color: var(--text-faint);
+}
+.pv-mail-search-clear {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  display: flex;
+  flex: 0 0 auto;
+}
+.pv-mail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.pv-mail-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-2);
+}
+.pv-mail-hint--error {
+  color: var(--error-text);
+}
+.pv-mail-env {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-color-light);
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+}
+.pv-mail-env:hover {
+  background: var(--state-hover);
+}
+.pv-mail-env.on {
+  background: var(--accent-container);
+}
+.pv-mail-env.on::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-color);
+}
+.pv-mail-unread {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  flex: 0 0 auto;
+  margin-top: 6px;
+}
+.pv-mail-env.read .pv-mail-unread {
+  background: transparent;
+  border: 1px solid var(--border-color);
+}
+.pv-mail-ebody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pv-mail-erow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.pv-mail-from {
+  font-weight: 640;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-mail-env.read .pv-mail-from {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.pv-mail-when {
+  color: var(--text-faint);
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+}
+.pv-mail-subj {
+  display: block;
+  font-size: var(--text-ui);
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.pv-mail-env.read .pv-mail-subj {
+  color: var(--text-muted);
+}
+.pv-mail-prev {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+/* ---------- column 3: reader ---------- */
+.pv-mail-read {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.pv-mail-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.pv-mail-rhead {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color-light);
+  flex-shrink: 0;
+}
+.pv-mail-rsubj {
+  font-size: 1.0625rem;
+  font-weight: 660;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.pv-mail-rfrom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pv-mail-who {
+  flex: 1;
+  min-width: 0;
+}
+.pv-mail-who-name {
+  font-weight: 600;
+  font-size: var(--text-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-mail-who-addr {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.pv-mail-rdate {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+  text-align: right;
+  flex: 0 0 auto;
+}
+.pv-mail-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border-color-light);
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--surface-container-low);
+  flex-shrink: 0;
+}
+.pv-mail-toolbar-spacer {
+  flex: 1;
+}
+.pv-mail-attach {
+  display: flex;
+  gap: var(--space-2);
+  padding: 10px 18px 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pv-mail-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-xs);
+  padding: 5px 10px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+.pv-mail-attach-chip > svg {
+  color: var(--accent-color);
+  flex: 0 0 auto;
+}
+.pv-mail-blocked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-mail-blocked button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--accent-color);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+}
+.pv-mail-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 18px;
+}
+.pv-mail-body--frame {
+  padding: 0;
+}
+.pv-mail-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--bg-primary);
+}
+.pv-mail-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: var(--text-md);
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+/* Vault-capture bar — Plainva's differentiator: pull the message INTO the
+   vault. Distinct from the mail-action toolbar, sitting at the reader's foot. */
+.pv-mail-capbar {
+  display: flex;
+  gap: 7px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border-color-light);
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+}
+.pv-mail-capbar-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin-right: 2px;
+}
+.pv-mail-capchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--accent-color);
+  background: var(--accent-container);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: filter var(--dur-1) var(--ease-1);
+}
+.pv-mail-capchip:hover {
+  filter: brightness(0.96);
+}
+.pv-mail-capchip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pv-mail-capchip > svg {
+  flex: 0 0 auto;
+}
+
+/* ---------- compose peek (MailDraftModal internals) ---------- */
+.pv-mail-cmpfields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.pv-mail-cmpfield {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-md);
+}
+.pv-mail-cmpfield:last-child {
+  border-bottom: none;
+}
+.pv-mail-cmpfield-k {
+  color: var(--text-faint);
+  width: 60px;
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+}
+.pv-mail-cmpfield input,
+.pv-mail-cmpfield .pv-select {
+  flex: 1;
+  min-width: 0;
+}
+.pv-mail-cmpfield input {
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--text-md);
+  outline: none;
+  padding: 0;
+}
+.pv-mail-cmpbody {
+  width: 100%;
+  min-height: 168px;
+  resize: vertical;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  padding: 10px 12px;
+  outline: none;
+}
+.pv-mail-cmpbody:focus {
+  border-color: var(--accent-color);
+}
+.pv-mail-cmpbody::placeholder {
+  color: var(--text-faint);
+}
+.pv-mail-cmpattach {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.pv-mail-attach-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.pv-mail-attach-remove:hover {
+  color: var(--text-main);
+}

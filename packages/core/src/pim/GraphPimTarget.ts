@@ -1,6 +1,8 @@
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
 import type {
   IPimTarget,
+  PimAttendee,
+  PimAttendeeStatus,
   PimAuthProvider,
   PimCalendar,
   PimEvent,
@@ -41,9 +43,26 @@ interface GraphEventItem {
   location?: { displayName?: string };
   start?: { dateTime?: string; timeZone?: string };
   end?: { dateTime?: string; timeZone?: string };
-  attendees?: Array<{ emailAddress?: { name?: string; address?: string } }>;
+  attendees?: Array<{ emailAddress?: { name?: string; address?: string }; status?: { response?: string }; type?: string }>;
+  organizer?: { emailAddress?: { name?: string; address?: string } };
+  responseStatus?: { response?: string };
   recurrence?: { pattern?: { type?: string } } | null;
   "@odata.etag"?: string;
+}
+
+/** Graph attendee response -> normalised PARTSTAT. */
+function graphResponseToStatus(r: string | undefined): PimAttendeeStatus {
+  switch (r) {
+    case "accepted":
+    case "organizer":
+      return "accepted";
+    case "declined":
+      return "declined";
+    case "tentativelyAccepted":
+      return "tentative";
+    default:
+      return "needsAction";
+  }
 }
 
 export class GraphPimTarget implements IPimTarget {
@@ -214,6 +233,17 @@ export class GraphPimTarget implements IPimTarget {
     if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`graph delete event ${res.status}`);
   }
 
+  /** RSVP via the dedicated Graph actions; sendResponse notifies the organiser. */
+  async respondToEvent(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void> {
+    const action = response === "accepted" ? "accept" : response === "declined" ? "decline" : "tentativelyAccept";
+    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sendResponse: true }),
+    });
+    if (!res.ok && res.status !== 200 && res.status !== 202) throw new Error(`graph rsvp ${res.status}`);
+  }
+
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
     const res = await this.request(`${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
@@ -311,10 +341,31 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
     attendees: (item.attendees ?? [])
       .map((a) => a.emailAddress?.name || a.emailAddress?.address || "")
       .filter(Boolean),
+    rsvps: graphRsvps(item),
+    selfResponse:
+      item.responseStatus?.response && !["none", "organizer"].includes(item.responseStatus.response)
+        ? graphResponseToStatus(item.responseStatus.response)
+        : undefined,
     status: item.showAs === "tentative" ? "tentative" : "confirmed",
     etag: item["@odata.etag"],
     seriesMaster: item.seriesMasterId,
   };
+}
+
+function graphRsvps(item: GraphEventItem): PimAttendee[] | undefined {
+  const list: PimAttendee[] = [];
+  const organizerAddr = item.organizer?.emailAddress?.address?.toLowerCase();
+  for (const a of item.attendees ?? []) {
+    const name = a.emailAddress?.name || a.emailAddress?.address || "";
+    if (!name) continue;
+    list.push({
+      name,
+      email: a.emailAddress?.address,
+      status: graphResponseToStatus(a.status?.response),
+      organizer: !!organizerAddr && a.emailAddress?.address?.toLowerCase() === organizerAddr,
+    });
+  }
+  return list.length > 0 ? list : undefined;
 }
 
 function graphTime(t: { dateTime?: string; timeZone?: string } | undefined, allDay: boolean): PimEvent["start"] | null {

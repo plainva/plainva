@@ -7,6 +7,8 @@ import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
 import { listMailAccounts, saveMailAccount, removeMailAccount, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { checkMailLogin } from "../../services/mail/mailClient";
+import { MAIL_PRESETS, presetById, presetForEmail } from "../../services/mail/mailPresets";
+import { Select } from "../Select";
 
 /**
  * Settings block "E-Mail (IMAP, nur Lesen)" (PIM stage 5): read-only IMAP
@@ -24,9 +26,33 @@ export function MailAccountsSection() {
   const [error, setError] = useState<string | null>(null);
   const [host, setHost] = useState("");
   const [port, setPort] = useState("993");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState("587");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [presetId, setPresetId] = useState("custom");
   const [mailFolder, setMailFolder] = useState("");
+
+  // Preset picker (E2): fill IMAP + SMTP host/port for a known provider.
+  const applyPreset = useCallback((id: string) => {
+    setPresetId(id);
+    const p = presetById(id);
+    if (!p) return;
+    setHost(p.host);
+    setPort(String(p.port));
+    setSmtpHost(p.smtpHost);
+    setSmtpPort(String(p.smtpPort));
+  }, []);
+
+  // Typing the email: if nothing is filled yet, guess the provider from its domain.
+  const guessFromEmail = useCallback(
+    (email: string) => {
+      if (host.trim() || presetId !== "custom") return;
+      const p = presetForEmail(email);
+      if (p) applyPreset(p.id);
+    },
+    [host, presetId, applyPreset]
+  );
 
   const reload = useCallback(async () => {
     if (!vaultPath) return;
@@ -98,9 +124,16 @@ export function MailAccountsSection() {
       // Validate BEFORE persisting anything (list mailboxes = real login).
       await checkMailLogin({ host: h, port: p, user: u }, pass);
       const id = crypto.randomUUID().slice(0, 8);
-      await saveMailAccount(vaultPath, { id, label: u, host: h, port: p, user: u }, pass);
+      const sh = smtpHost.trim();
+      const sp = Number(smtpPort) || 587;
+      await saveMailAccount(
+        vaultPath,
+        { id, label: u, host: h, port: p, user: u, ...(sh ? { smtpHost: sh, smtpPort: sp } : {}) },
+        pass
+      );
       setShowAdd(false);
       setPass("");
+      setPresetId("custom");
       await reload();
       toast.info(t("pim.connected", { defaultValue: "Konto verbunden." }));
     } catch (e) {
@@ -108,7 +141,7 @@ export function MailAccountsSection() {
     } finally {
       setBusy(false);
     }
-  }, [vaultPath, busy, host, port, user, pass, reload, t]);
+  }, [vaultPath, busy, host, port, smtpHost, smtpPort, user, pass, reload, t]);
 
   const remove = useCallback(
     async (account: MailAccountConfig) => {
@@ -155,9 +188,26 @@ export function MailAccountsSection() {
           <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
             {t("mail.imapHint", { defaultValue: "Nur Lesen — Plainva ändert nichts im Postfach. Gmail: imap.gmail.com, Port 993, mit App-Passwort." })}
           </p>
-          <input autoComplete="off" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-          <input autoComplete="off" value={port} onChange={(e) => setPort(e.target.value)} placeholder="993" className="pv-field" style={{ width: "8rem", marginBottom: "0.4rem" }} />
-          <input autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} placeholder={t("pim.davUser", { defaultValue: "Benutzername" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
+          <div style={{ marginBottom: "0.4rem", maxWidth: "20rem" }} data-testid="mail-provider">
+            <Select
+              ariaLabel={t("mail.provider", { defaultValue: "Anbieter" })}
+              value={presetId}
+              onChange={applyPreset}
+              options={[
+                { value: "custom", label: t("mail.customProvider", { defaultValue: "Anderer Anbieter" }) },
+                ...MAIL_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+              ]}
+            />
+          </div>
+          <input autoComplete="off" value={user} onChange={(e) => setUser(e.target.value)} onBlur={() => guessFromEmail(user)} placeholder={t("mail.emailAddress", { defaultValue: "E-Mail-Adresse" })} className="pv-field" data-testid="mail-user" style={{ width: "100%", marginBottom: "0.4rem" }} />
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.4rem" }}>
+            <input autoComplete="off" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" className="pv-field" data-testid="mail-imap-host" style={{ flex: 1 }} />
+            <input autoComplete="off" value={port} onChange={(e) => setPort(e.target.value)} placeholder="993" className="pv-field" aria-label={t("mail.imapPort", { defaultValue: "IMAP-Port" })} style={{ width: "6rem" }} />
+          </div>
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.4rem" }}>
+            <input autoComplete="off" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.gmail.com" className="pv-field" data-testid="mail-smtp-host" style={{ flex: 1 }} />
+            <input autoComplete="off" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} placeholder="587" className="pv-field" aria-label={t("mail.smtpPort", { defaultValue: "SMTP-Port" })} style={{ width: "6rem" }} />
+          </div>
           <input autoComplete="off" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder={t("pim.davPass", { defaultValue: "App-Passwort" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
           {error && <p style={{ color: "var(--error-text)", fontSize: "0.8rem", margin: "0.2rem 0" }}>{error}</p>}
           <Button variant="primary" data-testid="mail-connect" disabled={busy} onClick={() => void connect()}>

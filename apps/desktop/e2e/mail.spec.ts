@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
         });
 
     const NOW = Date.now();
-    const mailAccount = { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org' };
+    const mailAccount = { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 };
     const envelopes = [
       { uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false },
       { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true },
@@ -70,10 +70,26 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_check_login') {
-          return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }];
+          return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
+        }
+        if (cmd === 'mail_set_seen') {
+          (window as any).__setSeen = { mailbox: args.mailbox, uid: args.uid, seen: args.seen };
+          return null;
+        }
+        if (cmd === 'mail_move_message') {
+          (window as any).__moved = { mailbox: args.mailbox, uid: args.uid, target: args.target };
+          return null;
+        }
+        if (cmd === 'mail_search') {
+          const q = String(args.query || '').toLowerCase();
+          return envelopes.filter((e) => e.subject.toLowerCase().includes(q)).map((e) => e.uid);
         }
         if (cmd === 'mail_append_draft') {
           (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
+          return null;
+        }
+        if (cmd === 'mail_send') {
+          (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
         }
         if (cmd === 'mail_list_envelopes') {
@@ -226,6 +242,127 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   expect(noteContent).toContain('# Rechnung Q3');
   expect(noteContent).toContain('anbei die Rechnung.');
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+});
+
+test('mail-client E1: folder column, new-message compose and forward', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  // Folder column lists the account's mailboxes (from mail_check_login), INBOX first.
+  const folders = page.getByTestId('mail-folder');
+  await expect(folders).toHaveCount(4);
+  await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
+  await expect(page.getByTestId('mail-folders')).toContainText('Sent');
+  // Switching folders keeps the envelope list working.
+  await folders.filter({ hasText: 'Sent' }).click();
+  await expect(page.getByTestId('mail-envelope').first()).toBeVisible();
+
+  // New message opens the compose draft dialog (empty); Escape closes it.
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Forward: compose opens prefilled with a "Fwd:" subject.
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+});
+
+test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  // Forward pre-fills the compose dialog; Send goes straight through SMTP.
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.host).toBe('smtp.example.org');
+  expect(sent.port).toBe(587);
+  expect(sent.from).toBe('marco@example.org');
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toMatch(/Fwd: Rechnung Q3/);
+  expect(sent.text).toContain('Forwarded message');
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the original', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  // "Antworten" opens the compose window (NOT a vault note), prefilled to the sender.
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-to')).toHaveValue('anna@example.org');
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
+  await expect(page.getByTestId('draft-body')).toHaveValue(/anbei die Rechnung\./);
+  // The body is editable; sending goes straight through SMTP with the edited text.
+  await page.getByTestId('draft-body').fill('Danke, passt!');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toMatch(/Re: Rechnung Q3/);
+  expect(sent.text).toContain('Danke, passt!');
+});
+
+test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+
+  // Search filters the folder to the matching message; clearing restores it.
+  await page.getByTestId('mail-search').fill('Newsletter');
+  await page.getByTestId('mail-search').press('Enter');
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+  await expect(page.getByTestId('mail-envelope').first()).toContainText('Newsletter');
+  await page.getByTestId('mail-search-clear').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+
+  // Open the unread message and mark it read.
+  await page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' }).click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-mark-seen').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__setSeen ?? null)).toBeTruthy();
+  expect(await page.evaluate(() => (window as any).__setSeen)).toMatchObject({ uid: 2, seen: true });
+
+  // Delete moves it to Trash (confirmed in-app) and drops it from the list.
+  await page.getByTestId('mail-delete').click();
+  await page.locator('.pv-modal-footer button.pv-btn--primary').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__moved ?? null)).toBeTruthy();
+  expect(await page.evaluate(() => (window as any).__moved)).toMatchObject({ uid: 2, target: 'Trash' });
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+});
+
+test('mail-client E5: compose from an attachment payload sends the file', async ({ page }) => {
+  await openVault(page);
+  // The editor ⋮ "Send as attachment" dispatches this compose event (the App
+  // renders the dialog globally); assert the attachment rides to SMTP.
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+      detail: { subject: 'Meine Notiz', markdown: '', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+    }));
+  });
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Meine Notiz');
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.subject).toBe('Meine Notiz');
+  expect(sent.attachments[0].name).toBe('Note.md');
+  expect(sent.attachments[0].mime).toBe('text/markdown');
 });
 
 test('mail-out: reply-as-note quotes the original; the draft dialog appends via IMAP', async ({ page }) => {

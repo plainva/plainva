@@ -32,6 +32,18 @@ export interface PimEventTime {
   date?: string;
 }
 
+/** iCal PARTSTAT-style participation status, provider-normalised. */
+export type PimAttendeeStatus = "accepted" | "declined" | "tentative" | "needsAction";
+
+export interface PimAttendee {
+  name: string;
+  email?: string;
+  status: PimAttendeeStatus;
+  /** True for the account user's own attendee entry. */
+  self?: boolean;
+  organizer?: boolean;
+}
+
 export interface PimEvent {
   /** Instance key: the provider event/instance id; expanded recurrence
    * instances carry their own id (Google/Graph) or `uid#<recurrenceId>`
@@ -46,6 +58,14 @@ export interface PimEvent {
   description?: string;
   /** Display names or addresses, provider-normalized. */
   attendees?: string[];
+  /** Detailed attendees with their RSVP status — the "back-channel" that shows
+   * who accepted/declined an invitation. `attendees` stays the plain name list
+   * for compact display. */
+  rsvps?: PimAttendee[];
+  /** The account user's own RSVP status when they are an invited attendee
+   * (drives the accept/decline buttons); undefined when they are the organiser
+   * or not on the attendee list. */
+  selfResponse?: PimAttendeeStatus;
   status?: "confirmed" | "tentative" | "cancelled";
   etag?: string;
   /** Master uid when this row is an expanded instance of a series. */
@@ -55,6 +75,9 @@ export interface PimEvent {
   recurrence?: string;
   /** CalDAV object href (the write path addresses objects by href). */
   href?: string;
+  /** Per-event colour override (CSS colour / hex), overriding the calendar
+   * colour on the grid. CalDAV `COLOR` (RFC 7986) / Google `colorId` mapping. */
+  color?: string;
 }
 
 export interface PimTaskList {
@@ -107,6 +130,9 @@ export interface PimEventDraft {
   allDay: boolean;
   location?: string;
   description?: string;
+  /** Per-event colour (CSS colour / hex). Written to the provider where
+   * supported (CalDAV COLOR, Google colorId); undefined clears it. */
+  color?: string;
   /** Create only: attach a simple no-end recurrence rule. Ignored on update
    * (an existing rule is never rewritten by the field editor). */
   recurrenceFreq?: PimRecurrenceFreq;
@@ -175,6 +201,10 @@ export interface IPimTarget {
    * (partial update / read-modify-write). */
   updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }>;
   deleteEvent(ref: PimEventRef): Promise<void>;
+  /** RSVP to an invitation as the account user: set the own PARTSTAT and let
+   * the provider notify the organiser. Providers without native scheduling
+   * (or where the user is not an attendee) may leave this undefined. */
+  respondToEvent?(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<void>;
   createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */

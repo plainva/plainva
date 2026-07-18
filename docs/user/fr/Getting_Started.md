@@ -52,7 +52,7 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 
 Le bouton **Note quotidienne** dans la barre d'actions à gauche ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault).
 
-Le **Calendrier** à droite est un aperçu du jour : cliquer sur une date ouvre un petit aperçu avec les événements et les tâches à échéance de ce jour-là, plus l'action **Note quotidienne** ; un clic droit propose la même chose sous forme de menu. Les jours avec une note quotidienne portent une petite icône de lever de soleil, les jours avec des événements des points colorés par calendrier. Le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
+Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ouvre l'[onglet calendrier](Calendar_and_Tasks.md) à ce jour ; un **clic droit** ouvre un menu qui indique le jour en haut et propose **Ouvrir le calendrier**, **Note quotidienne** ainsi que les événements et tâches à échéance de ce jour. Les jours avec une note quotidienne portent une petite **icône soleil**, les jours avec des événements des points colorés par calendrier. Le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
 
 ## Paramètres
 

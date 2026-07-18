@@ -39,6 +39,15 @@ export function noteToClipboardFlavors(markdown: string): { html: string; text: 
   return { html: markdownToHtml(markdown), text: markdownToPlainText(markdown) };
 }
 
+/** Best-guess Trash mailbox for "delete" (a reversible move), or null when the
+ * account has no recognizable Trash folder (delete then falls back to a flag). */
+export function guessTrashMailbox(names: string[]): string | null {
+  const byName = names.find((n) => /trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted/i.test(n));
+  if (byName) return byName;
+  const gmail = names.find((n) => n.toLowerCase() === "[gmail]/trash" || n.toLowerCase() === "[gmail]/bin");
+  return gmail ?? null;
+}
+
 /** Best-guess drafts mailbox: localized "draft"/"entwurf" names first, then
  * the Gmail special-use folder, then a literal fallback. */
 export function guessDraftsMailbox(names: string[]): string {
@@ -68,6 +77,134 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   return content;
 }
 
+/** Reply body: a blank area for the user's text, then the quoted original with
+ * an attribution line — ready to drop into a real reply compose (SMTP send),
+ * NOT a vault note. Pure. */
+export function buildReplyBody(message: Pick<MailMessage, "from" | "text" | "dateTs">): string {
+  const when = message.dateTs > 0 ? new Date(message.dateTs).toISOString() : "";
+  const attribution = message.from ? `${[when, message.from].filter(Boolean).join(" — ")}:` : "";
+  const quoted = (message.text ?? "")
+    .trim()
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+  return `\n\n${attribution ? attribution + "\n" : ""}${quoted}\n`;
+}
+
+/** Reply-all recipients: the sender plus the original To recipients, minus the
+ * account's own address, deduped (case-insensitive). Addresses are unwrapped
+ * from "Name <addr>". Pure. */
+export function replyAllRecipients(message: Pick<MailMessage, "from" | "to">, selfEmail: string): string {
+  const addr = (s: string): string => {
+    const m = s.match(/<([^>]+)>/);
+    return (m ? m[1] : s).trim();
+  };
+  const self = selfEmail.trim().toLowerCase();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [message.from, ...(message.to ?? "").split(/[,;]/)]) {
+    const a = addr((raw ?? "").trim());
+    const key = a.toLowerCase();
+    if (a && key !== self && !seen.has(key)) {
+      seen.add(key);
+      out.push(a);
+    }
+  }
+  return out.join(", ");
+}
+
+/** Uint8Array -> base64 (chunked so a large attachment doesn't blow the stack). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+/** Forwarded-message body (mail-client E1): the quoted original with a header
+ * block, ready to drop into a compose draft. Pure. */
+export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {
+  const header = ["---------- Forwarded message ----------"];
+  if (message.from) header.push(`From: ${message.from}`);
+  if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toISOString()}`);
+  if (message.subject) header.push(`Subject: ${message.subject}`);
+  return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
+}
+
+/** Display label for an IMAP mailbox name: drop a leading "[Gmail]/" special-use
+ * container and show the last hierarchy segment (separator-agnostic). Pure. */
+export function mailFolderLabel(name: string): string {
+  const stripped = name.replace(/^\[Gmail\]\//i, "");
+  const segs = stripped.split(/[/.]/).filter(Boolean);
+  return segs.length ? segs[segs.length - 1] : name;
+}
+
+const FOLDER_ORDER = ["inbox", "sent", "draft", "archive", "junk", "spam", "trash"];
+
+/** Orders mailbox names for the folder column: INBOX first, then the usual
+ * special-use folders, then the rest alphabetically (by display label). Pure. */
+export function sortMailFolders(names: string[]): string[] {
+  const rank = (n: string): number => {
+    const label = mailFolderLabel(n).toLowerCase();
+    const i = FOLDER_ORDER.findIndex((k) => label.includes(k) || n.toLowerCase().includes(k));
+    return i < 0 ? FOLDER_ORDER.length : i;
+  };
+  return [...names].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return mailFolderLabel(a).localeCompare(mailFolderLabel(b));
+  });
+}
+
+/** An outgoing attachment (mail-client E5): base64 payload decoded natively. */
+export interface MailAttachment {
+  name: string;
+  mime: string;
+  contentBase64: string;
+}
+
+/** UTF-8 string -> base64 (chunked so large notes don't blow the call stack). */
+export function utf8ToBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+/** Sends an outgoing message via the account's SMTP submission host
+ * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
+ * the account user. Never relays — this only submits the user's own mail. */
+export async function sendMail(
+  vaultPath: string,
+  account: MailAccountConfig,
+  to: string,
+  subject: string,
+  markdown: string,
+  attachments: MailAttachment[] = []
+): Promise<void> {
+  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
+  if (!to.trim()) throw new Error("no recipient");
+  const pass = await getMailPassword(vaultPath, account.id);
+  if (!pass) throw new Error("missing mail credentials");
+  const { html, text } = noteToClipboardFlavors(markdown);
+  await invoke("mail_send", {
+    host: account.smtpHost,
+    port: account.smtpPort ?? 587,
+    user: account.user,
+    pass,
+    from: account.user,
+    to,
+    subject,
+    text,
+    html,
+    attachments: attachments.length ? attachments : null,
+  });
+}
+
 /** Appends a \Draft message into the account's mailbox (IMAP APPEND). */
 export async function appendDraft(
   vaultPath: string,
@@ -75,7 +212,8 @@ export async function appendDraft(
   mailbox: string,
   to: string,
   subject: string,
-  markdown: string
+  markdown: string,
+  attachments: MailAttachment[] = []
 ): Promise<void> {
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
@@ -90,5 +228,6 @@ export async function appendDraft(
     subject,
     text,
     html,
+    attachments: attachments.length ? attachments : null,
   });
 }

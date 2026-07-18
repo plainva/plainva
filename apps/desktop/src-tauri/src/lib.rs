@@ -9,6 +9,7 @@ mod atomic_write;
 mod backup;
 mod db_batch;
 mod mail_imap;
+mod mail_smtp;
 
 // OS keychain bridge (ADR 0005, phase 5.1 A6).
 //
@@ -360,7 +361,11 @@ pub fn run() {
             mail_imap::mail_fetch_message,
             mail_imap::mail_fetch_raw,
             mail_imap::mail_fetch_attachment,
-            mail_imap::mail_append_draft
+            mail_imap::mail_append_draft,
+            mail_imap::mail_set_seen,
+            mail_imap::mail_move_message,
+            mail_imap::mail_search,
+            mail_smtp::mail_send
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
