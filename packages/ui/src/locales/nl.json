@@ -1945,6 +1945,8 @@
     "repeatEndAfter": "Na",
     "repeatOccurrences": "keer",
     "attendeesHint": "Eén e-mailadres per regel",
+    "attendeesChipHint": "Voer een e-mailadres in en druk op Enter",
+    "attendeeRemove": "Deelnemer verwijderen: {{email}}",
     "attendeeResponses": "Reacties",
     "showTasks": "Taken tonen",
     "calendarTasks": "Taken",

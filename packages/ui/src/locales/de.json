@@ -1945,6 +1945,8 @@
     "repeatEndAfter": "Nach",
     "repeatOccurrences": "Terminen",
     "attendeesHint": "Eine E-Mail-Adresse pro Zeile",
+    "attendeesChipHint": "E-Mail-Adresse eingeben und Enter drücken",
+    "attendeeRemove": "Teilnehmer entfernen: {{email}}",
     "attendeeResponses": "Antworten",
     "showTasks": "Aufgaben anzeigen",
     "calendarTasks": "Aufgaben",

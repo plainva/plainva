@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FilePlus2, Trash2 } from "lucide-react";
+import { FilePlus2, Trash2, X } from "lucide-react";
 import { Modal, Button, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
-import type { EventFormValues } from "../../services/pim/calendarModel";
+import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
 
 const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
   accepted: "var(--success-text)",
@@ -46,6 +46,10 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   const [error, setError] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
   const [ownStatus, setOwnStatus] = useState<PimAttendeeStatus | undefined>(selfResponse);
+  // The attendee field is stored as a newline-joined string (draft parsing is
+  // unchanged), but presented as Google-Calendar-style chips: type an address,
+  // Enter/comma/blur turns it into a chip. `attendeeDraft` is the text-in-flight.
+  const [attendeeDraft, setAttendeeDraft] = useState("");
 
   const statusLabel = (s: PimAttendeeStatus): string =>
     s === "accepted"
@@ -75,6 +79,13 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   // never REPLACES the remote value (attendee RSVP status, an unreadable Graph
   // rule) — the draft leaves untouched fields undefined.
   const setAttendees = (v: string) => setValues((prev) => ({ ...prev, attendees: v, attendeesTouched: true }));
+  const attendeeList = parseEmails(values.attendees);
+  const commitAttendees = (raw: string) => {
+    if (!raw.trim()) return;
+    setAttendees(parseEmails(`${values.attendees}\n${raw}`).join("\n"));
+    setAttendeeDraft("");
+  };
+  const removeAttendee = (email: string) => setAttendees(attendeeList.filter((a) => a !== email).join("\n"));
   const setRepeat = <K extends keyof EventFormValues>(key: K, v: EventFormValues[K]) => setValues((prev) => ({ ...prev, [key]: v, repeatTouched: true }));
   const toggleWeekday = (code: string) =>
     setValues((prev) => ({
@@ -104,7 +115,12 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ ...values, title: values.title.trim() });
+      // Fold a typed-but-not-yet-committed attendee into the value so pressing
+      // Save (without Enter first) still includes it.
+      const pending = attendeeDraft.trim();
+      const attendees = pending ? parseEmails(`${values.attendees}\n${pending}`).join("\n") : values.attendees;
+      const attendeesTouched = values.attendeesTouched || pending.length > 0;
+      await onSubmit({ ...values, title: values.title.trim(), attendees, attendeesTouched });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -304,20 +320,55 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             style={{ display: "block", width: "100%", marginTop: 2 }}
           />
         </label>
-        {/* Invitees: editable email list (create + edit). The RSVP status list
-            below shows their responses. */}
-        <label style={{ fontSize: "var(--text-sm)" }}>
-          {t("pim.attendees", { defaultValue: "Teilnehmer" })}
-          <textarea
-            className="pv-field pv-field--area"
-            value={values.attendees}
-            onChange={(e) => setAttendees(e.target.value)}
-            data-testid="event-attendees-input"
-            rows={2}
-            placeholder={t("pim.attendeesHint", { defaultValue: "Eine E-Mail-Adresse pro Zeile" })}
-            style={{ display: "block", width: "100%", marginTop: 2 }}
-          />
-        </label>
+        {/* Invitees: Google-Calendar-style chips — type an email, Enter/comma/
+            blur adds it as a chip. The RSVP status list below shows responses. */}
+        <div>
+          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }} htmlFor="event-attendees-input">
+            {t("pim.attendees", { defaultValue: "Teilnehmer" })}
+          </label>
+          <div
+            className="pv-field"
+            data-testid="event-attendees-field"
+            style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
+            onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
+          >
+            {attendeeList.map((email) => (
+              <span
+                key={email}
+                data-testid="event-attendee-chip"
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
+              >
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttendee(email)}
+                  aria-label={t("pim.attendeeRemove", { defaultValue: "Teilnehmer entfernen: {{email}}", email })}
+                  data-testid="event-attendee-remove"
+                  style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+            <input
+              id="event-attendees-input"
+              value={attendeeDraft}
+              onChange={(e) => setAttendeeDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === "," || e.key === ";") {
+                  e.preventDefault();
+                  commitAttendees(attendeeDraft);
+                } else if (e.key === "Backspace" && attendeeDraft === "" && attendeeList.length > 0) {
+                  removeAttendee(attendeeList[attendeeList.length - 1]);
+                }
+              }}
+              onBlur={() => commitAttendees(attendeeDraft)}
+              data-testid="event-attendees-input"
+              placeholder={attendeeList.length === 0 ? t("pim.attendeesChipHint", { defaultValue: "E-Mail-Adresse eingeben und Enter drücken" }) : ""}
+              style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
+            />
+          </div>
+        </div>
         <div>
           <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
             {t("pim.eventColor", { defaultValue: "Farbe" })}

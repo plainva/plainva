@@ -1951,6 +1951,8 @@
     "repeatEndAfter": "Dopo",
     "repeatOccurrences": "occorrenze",
     "attendeesHint": "Un indirizzo email per riga",
+    "attendeesChipHint": "Inserisci un indirizzo email e premi Invio",
+    "attendeeRemove": "Rimuovi partecipante: {{email}}",
     "attendeeResponses": "Risposte",
     "showTasks": "Mostra attività",
     "calendarTasks": "Attività",

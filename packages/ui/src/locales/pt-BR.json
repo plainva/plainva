@@ -1951,6 +1951,8 @@
     "repeatEndAfter": "Após",
     "repeatOccurrences": "ocorrências",
     "attendeesHint": "Um endereço de e-mail por linha",
+    "attendeesChipHint": "Digite um endereço de e-mail e pressione Enter",
+    "attendeeRemove": "Remover participante: {{email}}",
     "attendeeResponses": "Respostas",
     "showTasks": "Mostrar tarefas",
     "calendarTasks": "Tarefas",

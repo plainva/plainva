@@ -1939,6 +1939,8 @@
     "repeatEndAfter": "在",
     "repeatOccurrences": "次后",
     "attendeesHint": "每行一个电子邮件地址",
+    "attendeesChipHint": "输入电子邮件地址并按回车",
+    "attendeeRemove": "移除参与者：{{email}}",
     "attendeeResponses": "回复",
     "showTasks": "显示任务",
     "calendarTasks": "任务",

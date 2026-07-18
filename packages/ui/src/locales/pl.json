@@ -1957,6 +1957,8 @@
     "repeatEndAfter": "Po",
     "repeatOccurrences": "wystąpieniach",
     "attendeesHint": "Jeden adres e-mail w wierszu",
+    "attendeesChipHint": "Wpisz adres e-mail i naciśnij Enter",
+    "attendeeRemove": "Usuń uczestnika: {{email}}",
     "attendeeResponses": "Odpowiedzi",
     "showTasks": "Pokaż zadania",
     "calendarTasks": "Zadania",

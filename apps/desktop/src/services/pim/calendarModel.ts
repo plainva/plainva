@@ -176,7 +176,10 @@ function graphPatternToRecurrence(recurrence: string | undefined): PimRecurrence
   return null;
 }
 
-function parseEmails(s: string): string[] {
+/** Split a free-text attendee field (newline/comma/semicolon separated) into a
+ * de-duplicated, trimmed email list. Shared by the draft builder and the
+ * attendee chip input so both agree on parsing. */
+export function parseEmails(s: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of s.split(/[\n,;]+/)) {

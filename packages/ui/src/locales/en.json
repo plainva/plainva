@@ -1945,6 +1945,8 @@
     "repeatEndAfter": "After",
     "repeatOccurrences": "occurrences",
     "attendeesHint": "One email address per line",
+    "attendeesChipHint": "Enter an email address and press Enter",
+    "attendeeRemove": "Remove attendee: {{email}}",
     "attendeeResponses": "Responses",
     "showTasks": "Show tasks",
     "calendarTasks": "Tasks",
