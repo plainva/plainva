@@ -1951,7 +1951,9 @@
     "quickCreateLocation": "Locatie toevoegen",
     "quickCreateMore": "Meer opties",
     "untitledEvent": "(zonder titel)",
-    "eventDescription": "Beschrijving"
+    "eventDescription": "Beschrijving",
+    "eventColor": "Kleur",
+    "eventColorDefault": "Agendakleur"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",

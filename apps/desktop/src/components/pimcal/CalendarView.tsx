@@ -268,7 +268,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     return map;
   }, [calendars]);
   const colorOf = useCallback(
-    (e: PimEventRow) => calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
+    (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)",
     [calColor]
   );
 
@@ -417,6 +417,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
         end: { ts: Math.max(newStartMs + 60000, newEndMs) },
         location: e.location ?? undefined,
         description: e.description ?? undefined,
+        color: e.color,
       };
       try {
         await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
@@ -455,6 +456,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
       endTime: minutesToHHMM(endMin),
       location: v.location,
       description: "",
+      color: "",
       calendarKey: v.calendarKey || calendarOptions[0]?.value || "",
       repeat: "",
     }),

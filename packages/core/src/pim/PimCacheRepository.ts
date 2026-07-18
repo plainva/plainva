@@ -166,12 +166,13 @@ export class PimCacheRepository {
           e.etag ?? null,
           e.seriesMaster ?? null,
           e.recurrence ?? null,
-          e.href ?? null
+          e.href ?? null,
+          e.color ?? null
         );
       }
       await this.db.execute(
-        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         values
       );
     }
@@ -183,7 +184,7 @@ export class PimCacheRepository {
   async listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -210,6 +211,7 @@ export class PimCacheRepository {
       seriesMaster: r.series_master ? String(r.series_master) : undefined,
       recurrence: r.recurrence ? String(r.recurrence) : undefined,
       href: r.href ? String(r.href) : undefined,
+      color: r.color ? String(r.color) : undefined,
     }));
   }
 
@@ -289,7 +291,7 @@ export class PimCacheRepository {
   async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
     const r = await this.db.queryOne<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
@@ -310,6 +312,7 @@ export class PimCacheRepository {
       seriesMaster: r.series_master ? String(r.series_master) : undefined,
       recurrence: r.recurrence ? String(r.recurrence) : undefined,
       href: r.href ? String(r.href) : undefined,
+      color: r.color ? String(r.color) : undefined,
     };
   }
 

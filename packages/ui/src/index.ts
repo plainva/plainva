@@ -8,6 +8,7 @@
 export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/timeGrid";
+export * from "./pim/eventColors";
 export * from "./lib/contentFont";
 export * from "./lib/outline";
 export * from "./lib/palette";

@@ -1951,7 +1951,9 @@
     "quickCreateLocation": "Ort hinzufügen",
     "quickCreateMore": "Weitere Optionen",
     "untitledEvent": "(ohne Titel)",
-    "eventDescription": "Beschreibung"
+    "eventDescription": "Beschreibung",
+    "eventColor": "Farbe",
+    "eventColorDefault": "Kalenderfarbe"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",

@@ -1963,7 +1963,9 @@
     "quickCreateLocation": "Dodaj miejsce",
     "quickCreateMore": "Więcej opcji",
     "untitledEvent": "(bez tytułu)",
-    "eventDescription": "Opis"
+    "eventDescription": "Opis",
+    "eventColor": "Kolor",
+    "eventColorDefault": "Kolor kalendarza"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, tylko do odczytu)",

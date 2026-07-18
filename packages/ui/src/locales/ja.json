@@ -1945,7 +1945,9 @@
     "quickCreateLocation": "場所を追加",
     "quickCreateMore": "その他のオプション",
     "untitledEvent": "(タイトルなし)",
-    "eventDescription": "説明"
+    "eventDescription": "説明",
+    "eventColor": "色",
+    "eventColorDefault": "カレンダーの色"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",

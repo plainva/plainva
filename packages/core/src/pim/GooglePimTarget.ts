@@ -38,9 +38,25 @@ interface GoogleEventItem {
   start?: { date?: string; dateTime?: string };
   end?: { date?: string; dateTime?: string };
   etag?: string;
-  attendees?: Array<{ email?: string; displayName?: string; self?: boolean; resource?: boolean }>;
+  attendees?: Array<{ email?: string; displayName?: string; self?: boolean; resource?: boolean; responseStatus?: string; organizer?: boolean }>;
+  organizer?: { email?: string; self?: boolean };
+  colorId?: string;
   recurringEventId?: string;
   recurrence?: string[];
+}
+
+/** Google's fixed 11 event colours (colorId -> hex). Per-event colours use this
+ * palette; a colour outside it clears the id (falls back to the calendar). */
+const GOOGLE_EVENT_COLORS: Record<string, string> = {
+  "1": "#7986cb", "2": "#33b679", "3": "#8e24aa", "4": "#e67c73",
+  "5": "#f6bf26", "6": "#f4511e", "7": "#039be5", "8": "#616161",
+  "9": "#3f51b5", "10": "#0b8043", "11": "#d50000",
+};
+function hexToGoogleColorId(hex: string | undefined): string | null {
+  if (!hex) return null;
+  const norm = hex.toLowerCase();
+  for (const [id, h] of Object.entries(GOOGLE_EVENT_COLORS)) if (h === norm) return id;
+  return null;
 }
 
 export class GooglePimTarget implements IPimTarget {
@@ -267,6 +283,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     status: item.status === "tentative" ? "tentative" : item.status === "cancelled" ? "cancelled" : "confirmed",
     etag: item.etag,
     seriesMaster: item.recurringEventId,
+    color: item.colorId ? GOOGLE_EVENT_COLORS[item.colorId] : undefined,
   };
 }
 
@@ -284,6 +301,7 @@ function googleEventBody(draft: PimEventDraft, includeRecurrence: boolean): Reco
     end: time(draft.end),
     location: draft.location ?? "",
     description: draft.description ?? "",
+    colorId: hexToGoogleColorId(draft.color),
     ...(includeRecurrence && draft.recurrenceFreq
       ? { recurrence: [`RRULE:FREQ=${draft.recurrenceFreq.toUpperCase()}`] }
       : {}),

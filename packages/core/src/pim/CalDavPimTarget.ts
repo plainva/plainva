@@ -460,6 +460,10 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
   else vevent.removeAllProperties("location");
   if (draft.description) vevent.updatePropertyWithValue("description", draft.description);
   else vevent.removeAllProperties("description");
+  // Per-event colour (RFC 7986 COLOR). We store a CSS colour / hex; other
+  // clients that expect a CSS3 name simply ignore an unknown value.
+  if (draft.color) vevent.updatePropertyWithValue("color", draft.color);
+  else vevent.removeAllProperties("color");
   // Create only (stage 4): a simple no-end rule. An EXISTING rule is never
   // rewritten here — series edits go through overrides or the master fields.
   if (draft.recurrenceFreq && !vevent.getFirstPropertyValue("rrule")) {
@@ -585,6 +589,7 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     status: veventStatus(ev.component),
     etag,
     href,
+    color: (ev.component.getFirstPropertyValue("color") as string | null) ?? undefined,
   };
 }
 

@@ -55,6 +55,9 @@ export interface PimEvent {
   recurrence?: string;
   /** CalDAV object href (the write path addresses objects by href). */
   href?: string;
+  /** Per-event colour override (CSS colour / hex), overriding the calendar
+   * colour on the grid. CalDAV `COLOR` (RFC 7986) / Google `colorId` mapping. */
+  color?: string;
 }
 
 export interface PimTaskList {
@@ -107,6 +110,9 @@ export interface PimEventDraft {
   allDay: boolean;
   location?: string;
   description?: string;
+  /** Per-event colour (CSS colour / hex). Written to the provider where
+   * supported (CalDAV COLOR, Google colorId); undefined clears it. */
+  color?: string;
   /** Create only: attach a simple no-end recurrence rule. Ignored on update
    * (an existing rule is never rewritten by the field editor). */
   recurrenceFreq?: PimRecurrenceFreq;

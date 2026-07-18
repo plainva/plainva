@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }) => {
               end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 0).getTime(),
               start_date: null, end_date: null, all_day: 0, location: 'Raum 5', description: 'Kurzes Standup',
               attendees: JSON.stringify(['a@example.org']), status: 'confirmed', etag: 'e1',
-              series_master: null, recurrence: null, href: null,
+              series_master: null, recurrence: null, href: null, color: '#039be5',
             },
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-holiday', title: 'Feiertag',
@@ -316,6 +316,11 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await expect(page.getByTestId('event-end-time')).toHaveValue('11:00');
   await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
   await expect(page.getByTestId('event-description')).toHaveValue('Kurzes Standup');
+  // The event's own colour preselects its swatch, and the dialog offers the palette.
+  await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('event-color-#d50000').click();
+  await expect(page.getByTestId('event-color-#d50000')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'false');
 
   // Delete from the dialog -> danger confirm naming the event; cancel keeps it.
   await page.getByTestId('event-delete').click();
@@ -381,6 +386,8 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   await expect(col).toBeVisible();
   const block = col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
   await block.scrollIntoViewIfNeeded();
+  // The block is tinted with the event's own colour (#039be5), not the calendar colour.
+  await expect(block).toHaveCSS('background-color', 'rgb(3, 155, 229)');
   const box = await block.boundingBox();
   expect(box).not.toBeNull();
   if (!box) return;

@@ -96,6 +96,8 @@ export interface EventFormValues {
   endTime: string;
   location: string;
   description: string;
+  /** Per-event colour (hex from the palette; empty = the calendar's colour). */
+  color: string;
   /** Create only: "<accountId> <calendarId>" of the target calendar. */
   calendarKey: string;
   /** Create only: simple no-end recurrence ("" = none). The edit dialog never
@@ -104,7 +106,7 @@ export interface EventFormValues {
 }
 
 export function emptyEventForm(dayKey: string, calendarKey: string): EventFormValues {
-  return { title: "", allDay: false, dayKey, endDayKey: dayKey, startTime: "09:00", endTime: "10:00", location: "", description: "", calendarKey, repeat: "" };
+  return { title: "", allDay: false, dayKey, endDayKey: dayKey, startTime: "09:00", endTime: "10:00", location: "", description: "", color: "", calendarKey, repeat: "" };
 }
 
 export function eventFormFromEvent(e: PimEventRow): EventFormValues {
@@ -120,6 +122,7 @@ export function eventFormFromEvent(e: PimEventRow): EventFormValues {
     endTime: e.allDay ? "10:00" : hhmm(new Date(e.end.ts)),
     location: e.location ?? "",
     description: e.description ?? "",
+    color: e.color ?? "",
     calendarKey: `${e.accountId} ${e.calendarId}`,
     repeat: "",
   };
@@ -132,6 +135,7 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
   const title = v.title.trim();
   const location = v.location.trim() || undefined;
   const description = v.description.trim() || undefined;
+  const color = v.color.trim() || undefined;
   const recurrenceFreq = v.repeat || undefined;
   if (v.allDay) {
     const startKey = v.dayKey;
@@ -144,11 +148,12 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
       end: { ts: Date.parse(`${endExclusive}T00:00:00Z`), date: endExclusive },
       location,
       description,
+      color,
       recurrenceFreq,
     };
   }
   const startTs = new Date(`${v.dayKey}T${v.startTime || "09:00"}:00`).getTime();
   let endTs = new Date(`${v.dayKey}T${v.endTime || "10:00"}:00`).getTime();
   if (!(endTs > startTs)) endTs = startTs + 30 * 60 * 1000;
-  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, recurrenceFreq };
+  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, color, recurrenceFreq };
 }

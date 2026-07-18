@@ -1957,7 +1957,9 @@
     "quickCreateLocation": "Ajouter un lieu",
     "quickCreateMore": "Plus d'options",
     "untitledEvent": "(sans titre)",
-    "eventDescription": "Description"
+    "eventDescription": "Description",
+    "eventColor": "Couleur",
+    "eventColorDefault": "Couleur de l'agenda"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, lecture seule)",

@@ -1945,7 +1945,9 @@
     "quickCreateLocation": "添加地点",
     "quickCreateMore": "更多选项",
     "untitledEvent": "(无标题)",
-    "eventDescription": "描述"
+    "eventDescription": "描述",
+    "eventColor": "颜色",
+    "eventColorDefault": "日历颜色"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",

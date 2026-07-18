@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FilePlus2, Trash2 } from "lucide-react";
-import { Modal, Button, TextInput, Checkbox } from "@plainva/ui";
+import { Modal, Button, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
 import { Select } from "../Select";
 import type { EventFormValues } from "../../services/pim/calendarModel";
 
@@ -174,6 +174,37 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             style={{ display: "block", width: "100%", marginTop: 2 }}
           />
         </label>
+        <div>
+          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
+            {t("pim.eventColor", { defaultValue: "Farbe" })}
+          </label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} data-testid="event-color-picker">
+            <button
+              type="button"
+              onClick={() => set("color", "")}
+              data-testid="event-color-default"
+              aria-pressed={!values.color}
+              title={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
+              style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
+            >
+              ✕
+            </button>
+            {EVENT_COLOR_PALETTE.map((hex) => {
+              const active = values.color.toLowerCase() === hex;
+              return (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => set("color", hex)}
+                  aria-pressed={active}
+                  data-testid={`event-color-${hex}`}
+                  title={hex}
+                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
+                />
+              );
+            })}
+          </div>
+        </div>
         {mode === "create" && (
           <div>
             <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>

@@ -106,12 +106,14 @@ describe("event form helpers (stage 3)", () => {
       endTime: "11:30",
       location: " Raum 5 ",
       description: " Agenda besprechen ",
+      color: " #f4511e ",
       calendarKey: "a c",
       repeat: "",
     });
     expect(draft.title).toBe("Planning");
     expect(draft.location).toBe("Raum 5");
     expect(draft.description).toBe("Agenda besprechen");
+    expect(draft.color).toBe("#f4511e");
     expect(draft.allDay).toBe(false);
     expect(draft.start.ts).toBe(new Date(2026, 7, 1, 10, 0).getTime());
     expect(draft.end.ts).toBe(new Date(2026, 7, 1, 11, 30).getTime());
@@ -124,6 +126,7 @@ describe("event form helpers (stage 3)", () => {
       endTime: "09:00",
       location: "",
       description: "",
+      color: "",
       calendarKey: "",
       repeat: "",
     });
@@ -140,6 +143,7 @@ describe("event form helpers (stage 3)", () => {
       endTime: "",
       location: "",
       description: "",
+      color: "",
       calendarKey: "",
       repeat: "",
     });
@@ -161,13 +165,14 @@ describe("event form helpers (stage 3)", () => {
     expect(draft.end.date).toBe("2026-08-13"); // exclusive again
   });
 
-  it("prefills a timed event with its local times", () => {
-    const e = ev({ start: { ts: localTs(2026, 8, 1, 14, 30) }, end: { ts: localTs(2026, 8, 1, 15, 0) } });
+  it("prefills a timed event with its local times and colour", () => {
+    const e = ev({ start: { ts: localTs(2026, 8, 1, 14, 30) }, end: { ts: localTs(2026, 8, 1, 15, 0) }, color: "#33b679" });
     const form = eventFormFromEvent(e);
     expect(form.dayKey).toBe("2026-08-01");
     expect(form.startTime).toBe("14:30");
     expect(form.endTime).toBe("15:00");
     expect(form.calendarKey).toBe("acc cal");
+    expect(form.color).toBe("#33b679");
   });
 });
 
