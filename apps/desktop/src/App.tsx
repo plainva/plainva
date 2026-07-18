@@ -78,12 +78,17 @@ function App() {
   // below), so a status flip re-renders only that icon, never the editor.
   const [showSettings, setShowSettings] = useState(false);
   // Deep link from the splash's online-vault chooser: open Settings with the
-  // picked sync provider preselected once the vault has loaded.
+  // picked sync provider preselected once the vault has loaded. `area` (added
+  // with the pages redesign) picks WHICH vault settings page opens — e.g. the
+  // backup-error chip lands on Backup, the mail/calendar empty states on PIM.
   const [settingsInitialProvider, setSettingsInitialProvider] = useState<string | null>(null);
+  const [settingsInitialArea, setSettingsInitialArea] = useState<string | null>(null);
   useEffect(() => {
     const onOpenSyncSettings = (e: Event) => {
       const provider = (e as CustomEvent).detail?.provider;
+      const area = (e as CustomEvent).detail?.area;
       setSettingsInitialProvider(typeof provider === "string" ? provider : null);
+      setSettingsInitialArea(typeof area === "string" ? area : null);
       setShowSettings(true);
     };
     window.addEventListener("plainva-open-sync-settings", onOpenSyncSettings);
@@ -1289,7 +1294,7 @@ function App() {
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
           fallback is never visible longer than the chunk download. */}
       <Suspense fallback={null}>
-        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); }} />}
+        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); }} />}
         {showOkfInfo && (
           <OkfInfoModal
             violations={okfInfoViolations}

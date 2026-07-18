@@ -557,7 +557,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings"))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "pim" } }))}
               data-testid="calendar-open-settings"
             >
               {t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" })}

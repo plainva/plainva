@@ -176,7 +176,7 @@ test('Language picker lists every shipped language; switching to French localize
   await dialog.getByRole('button', { name: en.settings.sectionAppearance, exact: true }).click();
 
   // The language picker offers all registered languages under their native names.
-  await page.getByLabel(en.settings.language).click();
+  await page.getByLabel(en.settings.language, { exact: true }).click();
   for (const lang of APP_LANGUAGES) {
     await expect(page.getByRole('option', { name: lang.nativeName })).toBeVisible();
   }
@@ -198,5 +198,5 @@ test('Language picker lists every shipped language; switching to French localize
   await frSettingsButton.click();
   await expect(page.getByRole('dialog', { name: fr.settings.title })).toBeVisible();
   await page.getByRole('dialog', { name: fr.settings.title }).getByRole('button', { name: fr.settings.sectionAppearance, exact: true }).click();
-  await expect(page.getByLabel(fr.settings.language)).toContainText('Français');
+  await expect(page.getByLabel(fr.settings.language, { exact: true })).toContainText('Français');
 });

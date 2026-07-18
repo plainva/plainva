@@ -245,7 +245,8 @@ test('deleted files can be restored from their snapshots', async ({ page }) => {
 test('settings "Back up now" drives the status bar through running and done', async ({ page }) => {
   await openVault(page);
 
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-open-sync-settings')));
+  // Pages redesign: the deep link carries the target area (backup page).
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-open-sync-settings', { detail: { area: 'backup' } })));
   await expect(page.getByTestId('backup-zip-enabled')).toBeVisible({ timeout: 10000 });
 
   await page.getByTestId('backup-now').click();

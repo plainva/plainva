@@ -765,3 +765,62 @@
   max-width: none;
   justify-content: flex-start;
 }
+
+/* Vault identity card in the settings rail (redesign P2): name on the full
+   row width (never covered by the switch control), the switch link on its own
+   line below — deliberately no dropdown/select look. */
+.pv-vaultcard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 2px 6px;
+  padding: var(--space-2) 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+.pv-vaultcard-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.pv-vaultcard-icon {
+  flex-shrink: 0;
+  color: var(--accent-color);
+}
+.pv-vaultcard-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-ui);
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-vaultcard-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  flex-shrink: 0;
+}
+.pv-vaultcard-switch {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  padding: 1px 2px;
+  border-radius: var(--radius-xs);
+  color: var(--accent-color);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pv-vaultcard-switch:hover {
+  text-decoration: underline;
+}
