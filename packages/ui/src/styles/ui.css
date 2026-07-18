@@ -824,3 +824,11 @@
 .pv-vaultcard-switch:hover {
   text-decoration: underline;
 }
+
+/* Settings window (redesign feedback 2026-07-18): unlike the fixed-height xl
+   diff modals, the settings hug the ACTIVE page — short pages shrink the
+   window instead of leaving dead space (macOS System Settings pattern). The
+   rail defines the visual minimum; tall pages scroll inside max-height. */
+.pv-modal--settings {
+  min-height: min(620px, 86vh);
+}

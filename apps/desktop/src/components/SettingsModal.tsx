@@ -1109,7 +1109,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       <Modal
         onClose={onClose}
         title={t("settings.title")}
-        size="xl"
+        size="lg"
+        className="pv-modal--settings"
         bodyClassName="pv-modal-body--flush"
       >
         <div style={{ display: "flex", flexDirection: "row", flex: 1, minHeight: 0 }}>
