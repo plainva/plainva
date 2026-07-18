@@ -655,3 +655,113 @@
   font-weight: 600;
 }
 
+.pv-navlink svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.pv-navlink.is-active svg {
+  color: var(--on-accent-container);
+}
+
+/* Settings surface (settings redesign 2026-07-18, P1 — variant "quiet
+   cards"): one page per area; settings live in named group cards with
+   hairline-separated rows. Both shells share the AREA catalog
+   (lib/settingsCatalog); these classes carry the desktop look via tokens. */
+.pv-setpage-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-4);
+}
+.pv-setpage-headrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.pv-setpage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+.pv-setpage-desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-setgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+.pv-setgroup:first-of-type {
+  margin-top: 0;
+}
+.pv-setgroup-label {
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pv-setcard {
+  background: var(--surface-container-low);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.pv-setrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+}
+.pv-setcard .pv-setrow:last-child {
+  border-bottom: none;
+}
+.pv-setrow--wide {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+.pv-setrow--note {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-setrow-main {
+  min-width: 0;
+}
+.pv-setrow-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.pv-setrow-desc {
+  margin-top: 2px;
+  max-width: 52ch;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.pv-setrow-ctrl {
+  flex: 0 0 300px;
+  max-width: 46%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.pv-setrow--wide .pv-setrow-ctrl {
+  flex: initial;
+  max-width: none;
+  justify-content: flex-start;
+}

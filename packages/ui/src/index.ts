@@ -31,6 +31,7 @@ export * from "./lib/peekHistory";
 export * from "./lib/safeUrl";
 export * from "./lib/searchJump";
 export * from "./lib/searchSnippet";
+export * from "./lib/settingsCatalog";
 export * from "./lib/taskToggle";
 export * from "./lib/textDiff";
 export * from "./lib/treeFiles";
