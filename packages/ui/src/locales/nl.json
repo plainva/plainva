@@ -1969,6 +1969,8 @@
     "today": "Vandaag",
     "noAccountsMobile": "Nog geen agenda-accounts verbonden.",
     "connectAccount": "Account verbinden",
+      "connectGoogle": "Verbinden met Google",
+      "connectMicrosoft": "Verbinden met Microsoft",
     "accounts": "Agenda-accounts",
     "accountAdded": "Account verbonden",
     "removeAccountConfirm": "De toegangsgegevens en gecachte afspraken worden verwijderd (de agenda bij de provider blijft).",

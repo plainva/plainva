@@ -1969,6 +1969,8 @@
     "today": "Today",
     "noAccountsMobile": "No calendar account connected yet.",
     "connectAccount": "Connect account",
+      "connectGoogle": "Connect with Google",
+      "connectMicrosoft": "Connect with Microsoft",
     "accounts": "Calendar accounts",
     "accountAdded": "Account connected",
     "removeAccountConfirm": "The credentials and cached events are removed (the calendar at the provider stays).",

@@ -1981,6 +1981,8 @@
     "today": "Dziś",
     "noAccountsMobile": "Nie połączono jeszcze żadnych kont kalendarza.",
     "connectAccount": "Połącz konto",
+      "connectGoogle": "Połącz z Google",
+      "connectMicrosoft": "Połącz z Microsoft",
     "accounts": "Konta kalendarza",
     "accountAdded": "Konto połączone",
     "removeAccountConfirm": "Dane logowania i wydarzenia z pamięci podręcznej zostają usunięte (kalendarz u dostawcy pozostaje).",

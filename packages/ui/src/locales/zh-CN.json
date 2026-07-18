@@ -1963,6 +1963,8 @@
     "today": "今天",
     "noAccountsMobile": "尚未连接任何日历账户。",
     "connectAccount": "连接账户",
+      "connectGoogle": "连接 Google",
+      "connectMicrosoft": "连接 Microsoft",
     "accounts": "日历账户",
     "accountAdded": "账户已连接",
     "removeAccountConfirm": "凭据和缓存的日程将被移除（服务商端的日历保持不变）。",

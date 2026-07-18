@@ -16,6 +16,7 @@ import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./
 import { createProviderFolder, listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
+import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
@@ -208,23 +209,26 @@ export default function App() {
   useEffect(() => {
     let removed = false;
     let handle: { remove: () => Promise<void> } | undefined;
-    const routeAppUrl = (url: string) => {
+    const routeAppUrl = async (url: string) => {
       // Launcher shortcuts (package J) ride the app scheme.
       if (url.startsWith("com.plainva.app://shortcut/")) {
         const which = url.split("/").pop();
         window.dispatchEvent(new CustomEvent("m-shortcut", { detail: { which } }));
         return;
       }
+      // PIM (calendar) OAuth first — it only consumes a redirect matching its
+      // own pending state, otherwise the sync handler takes it.
+      if (await handlePimOAuthRedirect(url)) return;
       void handleOAuthRedirect(url);
     };
     void CapApp.addListener("appUrlOpen", ({ url }) => {
-      routeAppUrl(url);
+      void routeAppUrl(url);
     }).then((h) => {
       if (removed) void h.remove();
       else handle = h;
     });
     void CapApp.getLaunchUrl().then((r) => {
-      if (r?.url) routeAppUrl(r.url);
+      if (r?.url) void routeAppUrl(r.url);
     });
     // Returning to the app pulls a fresh full listing: WebView timers pause
     // in the background, so without this a user could wait forever for new

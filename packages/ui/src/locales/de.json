@@ -1969,6 +1969,8 @@
     "today": "Heute",
     "noAccountsMobile": "Noch kein Kalenderkonto verbunden.",
     "connectAccount": "Konto verbinden",
+      "connectGoogle": "Mit Google verbinden",
+      "connectMicrosoft": "Mit Microsoft verbinden",
     "accounts": "Kalenderkonten",
     "accountAdded": "Konto verbunden",
     "removeAccountConfirm": "Zugangsdaten und zwischengespeicherte Termine werden entfernt (der Kalender beim Anbieter bleibt).",

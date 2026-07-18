@@ -1975,6 +1975,8 @@
     "today": "Hoje",
     "noAccountsMobile": "Nenhuma conta de calendário conectada ainda.",
     "connectAccount": "Conectar conta",
+      "connectGoogle": "Conectar com o Google",
+      "connectMicrosoft": "Conectar com a Microsoft",
     "accounts": "Contas de calendário",
     "accountAdded": "Conta conectada",
     "removeAccountConfirm": "As credenciais e os eventos em cache são removidos (o calendário no provedor permanece).",
