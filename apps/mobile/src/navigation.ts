@@ -2,9 +2,12 @@ import type { ComponentType } from "react";
 import { Bookmark, Sunrise, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
 
 /**
- * Configurable bottom navigation (R2.2): the user picks up to four screens
- * for the tab bar (two left + two right of the fixed ＋). Every pool screen
- * stays reachable through the More menu regardless of the selection.
+ * Configurable bottom navigation (settings redesign 2026-07-18, P3): the bar
+ * carries THREE free slots plus a fixed "More" tab; ＋ capture floats as a
+ * FAB. The persisted `tabSlots` value is the FULL ordered pool — the bar
+ * renders its first three entries, the More screen shows the whole order and
+ * rearranges it with a drag handle. Every pool screen stays reachable through
+ * "More" regardless of the arrangement.
  */
 
 export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "databases" | "graph";
@@ -25,15 +28,17 @@ export const TAB_POOL: TabDef[] = [
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
 
-export const DEFAULT_TAB_SLOTS: TabScreenId[] = ["notes", "today", "tags", "bookmarks"];
-export const MAX_TAB_SLOTS = 4;
+/** Default order = pool order; the bar shows the first BAR_TAB_COUNT. */
+export const DEFAULT_TAB_ORDER: TabScreenId[] = TAB_POOL.map((t) => t.id);
+export const BAR_TAB_COUNT = 3;
 
 const POOL_IDS = new Set<string>(TAB_POOL.map((t) => t.id));
 
 /**
- * Normalizes a persisted slot list: unknown ids and duplicates drop, at most
- * MAX_TAB_SLOTS survive, an empty result falls back to the default so the
- * bar never renders empty.
+ * Normalizes a persisted order: unknown ids and duplicates drop, missing pool
+ * ids are appended in pool order — the result ALWAYS carries the whole pool.
+ * A legacy ≤4-slot value (pre-redesign `tabSlots`) therefore stays readable:
+ * its entries lead, the rest follows, the bar shows the first three.
  */
 export function sanitizeTabSlots(raw: unknown): TabScreenId[] {
   const out: TabScreenId[] = [];
@@ -41,10 +46,31 @@ export function sanitizeTabSlots(raw: unknown): TabScreenId[] {
     for (const v of raw) {
       if (typeof v !== "string" || !POOL_IDS.has(v) || out.includes(v as TabScreenId)) continue;
       out.push(v as TabScreenId);
-      if (out.length === MAX_TAB_SLOTS) break;
     }
   }
-  return out.length > 0 ? out : [...DEFAULT_TAB_SLOTS];
+  for (const t of TAB_POOL) {
+    if (!out.includes(t.id)) out.push(t.id);
+  }
+  return out;
+}
+
+/** The bar's free slots — the first three entries of the full order. */
+export function barTabs(order: TabScreenId[]): TabScreenId[] {
+  return order.slice(0, BAR_TAB_COUNT);
+}
+
+/**
+ * Drag-handle reorder (More screen): moves `id` to `toIndex` within the full
+ * order. Bar membership follows from POSITION (top three), never from a
+ * separate selection — dragging into the top three promotes into the bar.
+ */
+export function moveTabId(order: TabScreenId[], id: TabScreenId, toIndex: number): TabScreenId[] {
+  const from = order.indexOf(id);
+  if (from < 0) return [...order];
+  const next = order.filter((v) => v !== id);
+  const clamped = Math.max(0, Math.min(next.length, toIndex));
+  next.splice(clamped, 0, id);
+  return next;
 }
 
 /*
@@ -70,6 +96,8 @@ export type NavKind =
   | "search"
   | "more"
   | "settings"
+  | "settingsArea"
+  | "vaults"
   | "appearance"
   | "sync"
   | "vault";
@@ -87,7 +115,7 @@ export interface NavEntry {
   createTemplateId?: string;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "appearance", "sync", "vault"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "settingsArea", "vaults", "appearance", "sync", "vault"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 

@@ -5,6 +5,7 @@ import {
   Calendar,
   Cloud,
   Database as DatabaseIcon,
+  Ellipsis,
   FileText,
   FolderPlus,
   Plus,
@@ -37,8 +38,11 @@ import { CalendarScreen } from "./screens/CalendarScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { MoreScreen } from "./screens/MoreScreen";
 import { GraphScreen } from "./screens/GraphScreen";
+import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
+import { VaultsScreen } from "./screens/VaultsScreen";
 import {
   backStep,
+  barTabs,
   initialNavState,
   navTop,
   popTop,
@@ -149,11 +153,13 @@ export default function App() {
       });
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
-    // Live settings (R2.2): re-read the tab slots when settings change.
+    // Live settings (R2.2): re-read the tab order when settings change. The
+    // active tab must stay a BAR tab (first three) — rearranging the active
+    // one out of the bar falls back to the first bar slot.
     const onSettings = () => {
       const next = sanitizeTabSlots(getMobileSettings().tabSlots);
       setSlots((prev) => (prev.join() === next.join() ? prev : next));
-      setNav((s) => (next.includes(s.activeTab) ? s : { ...s, activeTab: next[0] }));
+      setNav((s) => (barTabs(next).includes(s.activeTab) ? s : { ...s, activeTab: barTabs(next)[0] }));
     };
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
@@ -516,10 +522,12 @@ export default function App() {
       )}
 
       {/* One shared large head on every tab root — title, search and ⋮ sit in
-          the same spot everywhere (maintainer feedback: nothing may jump). */}
+          the same spot everywhere (maintainer feedback: nothing may jump).
+          The ⋮ opens the SETTINGS directly (redesign P3); the area overview
+          lives behind the bar's fixed More tab instead. */}
       {!top && (
         <TabHead
-          onMore={() => push({ kind: "more", path: "" })}
+          onSettings={() => push({ kind: "settings", path: "" })}
           onSearch={() => push({ kind: "search", path: "" })}
           title={nav.activeTab === "notes" ? vaultName : t(activeDef.labelKey)}
         />
@@ -541,7 +549,35 @@ export default function App() {
         ) : top?.kind === "bookmarks" ? (
           <BookmarksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "settings" ? (
-          <SettingsScreen onBack={pop} onOpenAppearance={() => push({ kind: "appearance", path: "" })} vault={vault} />
+          <SettingsScreen
+            onBack={pop}
+            onOpenArea={(id) =>
+              id === "appearance"
+                ? push({ kind: "appearance", path: "" })
+                : id === "sync"
+                  ? push({ kind: "vault", path: vault.vaultId })
+                  : push({ kind: "settingsArea", path: id })
+            }
+            onOpenVaults={() => push({ kind: "vaults", path: "" })}
+          />
+        ) : top?.kind === "settingsArea" ? (
+          top.path === "editor" ? (
+            <EditorAreaScreen onBack={pop} />
+          ) : top.path === "content" ? (
+            <ContentAreaScreen onBack={pop} vault={vault} />
+          ) : top.path === "backup" ? (
+            <BackupAreaScreen onBack={pop} />
+          ) : (
+            <AboutAreaScreen onBack={pop} />
+          )
+        ) : top?.kind === "vaults" ? (
+          <VaultsScreen
+            activeVaultId={vault.vaultId}
+            onAddVault={() => push({ kind: "sync", path: "" })}
+            onBack={pop}
+            onCreateVault={createVaultFlow}
+            onOpenVault={(id) => push({ kind: "vault", path: id })}
+          />
         ) : top?.kind === "sync" ? (
           <AddVaultScreen createTemplateId={top.createTemplateId} onBack={pop} vault={vault} />
         ) : top?.kind === "vault" ? (
@@ -588,13 +624,10 @@ export default function App() {
           <SearchScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "more" ? (
           <MoreScreen
-            activeVaultId={vault.vaultId}
-            onAddVault={() => push({ kind: "sync", path: "" })}
-            onCreateVault={createVaultFlow}
             onBack={pop}
             onOpenScreen={(id) => push(SCREEN_ENTRY[id])}
-            onOpenSettings={() => push({ kind: "settings", path: "" })}
-            onOpenVault={(id) => push({ kind: "vault", path: id })}
+            onReorder={(next) => void updateMobileSettings({ tabSlots: next })}
+            order={slots}
           />
         ) : top?.kind === "today" ? (
           <TodayScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
@@ -644,21 +677,39 @@ export default function App() {
         )}
       </div>
 
+      {/* Capture floats as a FAB above the bar (redesign P3: the bar's center
+          slot went to the fixed More tab). Only on tab roots — pushed screens
+          (note editor, bases with their own FAB) keep their surface clean. */}
+      {onboarded && !top && (
+        <button
+          aria-label={t("mobile.newNote")}
+          className="m-fab-float m-fab-float--above-tabs"
+          data-testid="capture-fab"
+          onClick={() => setQuickCreate(true)}
+        >
+          <Plus size={24} />
+        </button>
+      )}
+
       {!noteOpen && (
         <nav aria-label="Tabs" className="m-tabbar">
-          {slots.slice(0, 2).map((id) => (
+          {barTabs(slots).map((id) => (
             <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
           ))}
+          {/* Fixed More tab: opens the area overview (arrange + everything
+              else); tapping it again keeps it open, any other tab dismisses. */}
           <button
-            aria-label={t("mobile.newNote")}
-            className="m-fab"
-            onClick={() => setQuickCreate(true)}
+            className={`m-tab${top?.kind === "more" ? " is-active" : ""}`}
+            onClick={() => {
+              haptics.light();
+              setNav((s) => (navTop(s)?.kind === "more" ? s : pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" })));
+            }}
           >
-            <Plus size={24} />
+            <span className="m-tab-pill">
+              <Ellipsis size={20} />
+            </span>
+            <span className="m-tab-label">{t("mobile.tabMore")}</span>
           </button>
-          {slots.slice(2).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
-          ))}
         </nav>
       )}
 
