@@ -1942,7 +1942,15 @@
     "prevWeek": "Vorige Woche",
     "nextWeek": "Nächste Woche",
     "agendaEmpty": "Keine anstehenden Termine.",
-    "eventsLabel": "Termine"
+    "eventsLabel": "Termine",
+    "viewDay": "Tag",
+    "view3Day": "3 Tage",
+    "prevPeriod": "Zurück",
+    "nextPeriod": "Weiter",
+    "quickCreateTitle": "Titel hinzufügen",
+    "quickCreateLocation": "Ort hinzufügen",
+    "quickCreateMore": "Weitere Optionen",
+    "untitledEvent": "(ohne Titel)"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP, nur Lesen)",

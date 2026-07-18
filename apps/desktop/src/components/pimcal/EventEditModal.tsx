@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FilePlus2, Trash2 } from "lucide-react";
 import { Modal, Button, TextInput, Checkbox } from "@plainva/ui";
 import { Select } from "../Select";
 import type { EventFormValues } from "../../services/pim/calendarModel";
@@ -19,9 +20,12 @@ interface EventEditModalProps {
   calendarOptions: Array<{ value: string; label: string }>;
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => Promise<void>;
+  /** Edit mode only: turn the event into a meeting note / delete it. */
+  onMeetingNote?: () => void;
+  onDelete?: () => void;
 }
 
-export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit }: EventEditModalProps) {
+export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete }: EventEditModalProps) {
   const { t } = useTranslation();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [busy, setBusy] = useState(false);
@@ -52,6 +56,17 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
       size="sm"
       footer={
         <>
+          {mode === "edit" && onMeetingNote && (
+            <Button variant="ghost" size="sm" data-testid="event-meeting-note" onClick={onMeetingNote} icon={<FilePlus2 size={14} />}>
+              {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+            </Button>
+          )}
+          {mode === "edit" && onDelete && (
+            <Button variant="ghost" size="sm" data-testid="event-delete" onClick={onDelete} icon={<Trash2 size={14} />}>
+              {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
+            </Button>
+          )}
+          <span style={{ flex: 1 }} />
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel", { defaultValue: "Abbrechen" })}
           </Button>

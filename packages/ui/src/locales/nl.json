@@ -1942,7 +1942,15 @@
     "prevWeek": "Vorige week",
     "nextWeek": "Volgende week",
     "agendaEmpty": "Geen aankomende afspraken.",
-    "eventsLabel": "Afspraken"
+    "eventsLabel": "Afspraken",
+    "viewDay": "Dag",
+    "view3Day": "3 dagen",
+    "prevPeriod": "Vorige",
+    "nextPeriod": "Volgende",
+    "quickCreateTitle": "Titel toevoegen",
+    "quickCreateLocation": "Locatie toevoegen",
+    "quickCreateMore": "Meer opties",
+    "untitledEvent": "(zonder titel)"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP, alleen-lezen)",

@@ -1936,7 +1936,15 @@
     "prevWeek": "上一周",
     "nextWeek": "下一周",
     "agendaEmpty": "没有即将到来的日程。",
-    "eventsLabel": "日程"
+    "eventsLabel": "日程",
+    "viewDay": "日",
+    "view3Day": "3 天",
+    "prevPeriod": "上一个",
+    "nextPeriod": "下一个",
+    "quickCreateTitle": "添加标题",
+    "quickCreateLocation": "添加地点",
+    "quickCreateMore": "更多选项",
+    "untitledEvent": "(无标题)"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP，只读）",

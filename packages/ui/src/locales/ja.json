@@ -1936,7 +1936,15 @@
     "prevWeek": "前の週",
     "nextWeek": "次の週",
     "agendaEmpty": "今後の予定はありません。",
-    "eventsLabel": "予定"
+    "eventsLabel": "予定",
+    "viewDay": "日",
+    "view3Day": "3 日",
+    "prevPeriod": "前へ",
+    "nextPeriod": "次へ",
+    "quickCreateTitle": "タイトルを追加",
+    "quickCreateLocation": "場所を追加",
+    "quickCreateMore": "その他のオプション",
+    "untitledEvent": "(タイトルなし)"
   },
   "mail": {
     "sectionTitle": "メール（IMAP・読み取り専用）",

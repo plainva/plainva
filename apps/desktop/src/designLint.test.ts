@@ -62,6 +62,7 @@ const BUDGET: Record<string, Counts> = {
   "components/ImageViewer.tsx": { hex: 3, rgba: 1 },
   "components/MarkdownTheme.ts": { radiusPx: 2 },
   "base/propertyModel.ts": { hex: 8 },
+  "components/pimcal/QuickCreatePopover.tsx": { fixedOverlay: 2 },
   "components/Select.tsx": { fixedOverlay: 1 },
   "components/SelectionToolbar.tsx": { fixedOverlay: 1 },
   "components/TableSizePicker.tsx": { fixedOverlay: 1 },
