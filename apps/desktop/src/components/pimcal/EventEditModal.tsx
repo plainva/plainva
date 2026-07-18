@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FilePlus2, Trash2, X } from "lucide-react";
+import { CopyPlus, FilePlus2, Trash2, X } from "lucide-react";
 import { Modal, Button, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
@@ -28,9 +28,11 @@ interface EventEditModalProps {
   calendarOptions: Array<{ value: string; label: string }>;
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => Promise<void>;
-  /** Edit mode only: turn the event into a meeting note / delete it. */
+  /** Edit mode only: turn the event into a meeting note / delete it / mirror it
+   * into other calendars as a blocker. */
   onMeetingNote?: () => void;
   onDelete?: () => void;
+  onBlock?: () => void;
   /** Edit mode: attendees with their RSVP status (the back-channel). */
   rsvps?: PimAttendee[];
   /** Edit mode: the user's own RSVP status when invited (shows accept/decline). */
@@ -39,7 +41,7 @@ interface EventEditModalProps {
   onRespond?: (response: "accepted" | "declined" | "tentative") => Promise<void>;
 }
 
-export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, rsvps, selfResponse, onRespond }: EventEditModalProps) {
+export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, onBlock, rsvps, selfResponse, onRespond }: EventEditModalProps) {
   const { t, i18n } = useTranslation();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [busy, setBusy] = useState(false);
@@ -137,6 +139,11 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
           {mode === "edit" && onMeetingNote && (
             <Button variant="ghost" size="sm" data-testid="event-meeting-note" onClick={onMeetingNote} icon={<FilePlus2 size={14} />}>
               {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+            </Button>
+          )}
+          {mode === "edit" && onBlock && (
+            <Button variant="ghost" size="sm" data-testid="event-block" onClick={onBlock} icon={<CopyPlus size={14} />}>
+              {t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
             </Button>
           )}
           {mode === "edit" && onDelete && (

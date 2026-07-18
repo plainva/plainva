@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, FilePlus2, ListChecks, Mail, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, CopyPlus, FilePlus2, ListChecks, Mail, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
@@ -16,7 +16,7 @@ import {
   toast,
   type WeekStartDay,
 } from "@plainva/ui";
-import { PimConflictError, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
+import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
@@ -35,10 +35,12 @@ import {
   eventFormToDraft,
   eventStartDayKey,
   formatTimeRange,
+  buildBlockDraft,
   type EventFormValues,
 } from "../../services/pim/calendarModel";
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
 import { EventEditModal } from "./EventEditModal";
+import { BlockCalendarsModal } from "./BlockCalendarsModal";
 import { SeriesScopeModal } from "./SeriesScopeModal";
 import { DayTimeGrid } from "./DayTimeGrid";
 import { QuickCreatePopover, type QuickCreateValues } from "./QuickCreatePopover";
@@ -590,6 +592,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // ---- series scope (stage 4): "only this event" vs. "all events" ---------
 
   const [seriesPrompt, setSeriesPrompt] = useState<{ action: "edit" | "delete"; event: PimEventRow } | null>(null);
+  // "Block in other calendars" (#1): the event being mirrored, or null.
+  const [blockEvent, setBlockEvent] = useState<PimEventRow | null>(null);
 
   const resolveSeriesMaster = useCallback(
     async (e: PimEventRow): Promise<PimEventRow | null> => {
@@ -724,6 +728,46 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [vaultPath, t, i18n.language]
   );
 
+  // "Block in other calendars" (#1): mirror the event into each chosen calendar
+  // as a Busy placeholder or a full copy. A series is mirrored from its master
+  // (start/end + recurrence) so the block recurs too.
+  const blockInCalendars = useCallback(
+    async (event: PimEventRow, selectedKeys: string[], mode: "busy" | "details") => {
+      setBlockEvent(null);
+      const master = event.seriesMaster ? await resolveSeriesMaster(event) : null;
+      const source = master ?? event;
+      const recurrence = master ? parseRRule(master.recurrence) : null;
+      const busyLabel = t("pim.busyTitle", { defaultValue: "Beschäftigt" });
+      let ok = 0;
+      for (const key of selectedKeys) {
+        const [accountId, ...rest] = key.split(" ");
+        const calId = rest.join(" ");
+        if (!accountId || !calId) continue;
+        const target = await targetFor(accountId);
+        if (!target) continue;
+        try {
+          await target.createEvent(calId, buildBlockDraft(source, mode, busyLabel, recurrence));
+          ok++;
+        } catch {
+          /* skip this calendar, keep the rest */
+        }
+      }
+      if (ok > 0) {
+        toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
+        refresh();
+      } else {
+        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+      }
+    },
+    [resolveSeriesMaster, targetFor, refresh, t]
+  );
+
+  /** The OTHER writable calendars (never the event's own) for the block dialog. */
+  const otherCalendarsFor = useCallback(
+    (e: PimEventRow) => calendarOptions.filter((c) => c.value !== `${e.accountId} ${e.calendarId}`),
+    [calendarOptions]
+  );
+
   const eventCard = (e: PimEventRow) => (
     <div
       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
@@ -773,6 +817,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         >
           <Mail size={13} />
         </IconButton>
+        {calendarOptions.length > 1 && (
+          <IconButton
+            label={t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
+            onClick={() => setBlockEvent(e)}
+            data-testid="calendar-block-event"
+            size="sm"
+          >
+            <CopyPlus size={13} />
+          </IconButton>
+        )}
         {/* Series instances route through the scope dialog (stage 4). */}
         <IconButton label={t("pim.editEvent", { defaultValue: "Termin bearbeiten" })} onClick={() => requestEdit(e)} data-testid="calendar-edit-event" size="sm">
           <Pencil size={13} />
@@ -1128,6 +1182,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               ? () => { const ev = editState.event!; setEditState(null); requestDelete(ev); }
               : undefined
           }
+          onBlock={
+            editState.mode === "edit" && editState.event && calendarOptions.length > 1
+              ? () => { const ev = editState.event!; setEditState(null); setBlockEvent(ev); }
+              : undefined
+          }
           rsvps={editState.mode === "edit" ? editState.event?.rsvps : undefined}
           selfResponse={editState.mode === "edit" ? editState.event?.selfResponse : undefined}
           onRespond={
@@ -1143,6 +1202,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           eventTitle={seriesPrompt.event.title}
           onPick={(scope) => void onSeriesScope(scope)}
           onCancel={() => setSeriesPrompt(null)}
+        />
+      )}
+      {blockEvent && (
+        <BlockCalendarsModal
+          eventTitle={blockEvent.title}
+          calendars={otherCalendarsFor(blockEvent)}
+          isSeries={!!blockEvent.seriesMaster}
+          onConfirm={(keys, mode) => void blockInCalendars(blockEvent, keys, mode)}
+          onCancel={() => setBlockEvent(null)}
         />
       )}
     </div>

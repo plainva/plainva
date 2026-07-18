@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PimEventRow } from "@plainva/core";
 import {
   bucketEventsByDay,
+  buildBlockDraft,
   emptyEventForm,
   eventDayKeys,
   eventFormFromEvent,
@@ -150,6 +151,23 @@ describe("event form helpers (stage 3)", () => {
       repeatTouched: false,
     });
     expect(inverted.end.ts).toBe(inverted.start.ts + 30 * 60 * 1000);
+  });
+
+  it("buildBlockDraft mirrors an event as busy or with details, carrying a series rule", () => {
+    const e = { title: "Meeting", allDay: false, start: { ts: 1000 }, end: { ts: 2000 }, location: "Room 5", description: "Notes" } as PimEventRow;
+    const busy = buildBlockDraft(e, "busy", "Busy");
+    expect(busy.title).toBe("Busy");
+    expect(busy.location).toBeUndefined();
+    expect(busy.description).toBeUndefined();
+    expect(busy.start.ts).toBe(1000);
+    expect(busy.end.ts).toBe(2000);
+    const det = buildBlockDraft(e, "details", "Busy");
+    expect(det.title).toBe("Meeting");
+    expect(det.location).toBe("Room 5");
+    expect(det.description).toBe("Notes");
+    // A recurrence (from the source series' master) rides along.
+    expect(buildBlockDraft(e, "busy", "Busy", { freq: "weekly" }).recurrence).toEqual({ freq: "weekly" });
+    expect(buildBlockDraft(e, "busy", "Busy").recurrence).toBeUndefined();
   });
 
   it("notifyAttendees only rides along when there are invitees", () => {

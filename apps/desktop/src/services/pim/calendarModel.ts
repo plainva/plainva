@@ -168,6 +168,27 @@ export function eventFormFromEvent(e: PimEventRow): EventFormValues {
   };
 }
 
+/** Builds a draft that mirrors an event into ANOTHER calendar as a blocker
+ * (calendar #1, Notion-Calendar style): either an opaque "Busy" placeholder or
+ * a full copy with details. A recurrence (from the source series' master) makes
+ * the block recur too. Pure. */
+export function buildBlockDraft(
+  e: Pick<PimEventRow, "title" | "allDay" | "start" | "end" | "location" | "description">,
+  mode: "busy" | "details",
+  busyLabel: string,
+  recurrence?: PimRecurrence | null
+): PimEventDraft {
+  return {
+    title: mode === "busy" ? busyLabel : e.title,
+    allDay: e.allDay,
+    start: e.allDay && e.start.date ? { ts: e.start.ts, date: e.start.date } : { ts: e.start.ts },
+    end: e.allDay && e.end.date ? { ts: e.end.ts, date: e.end.date } : { ts: e.end.ts },
+    location: mode === "details" ? e.location ?? undefined : undefined,
+    description: mode === "details" ? e.description ?? undefined : undefined,
+    recurrence: recurrence ?? undefined,
+  };
+}
+
 /** Graph masters only expose the pattern TYPE (no RRULE) — recover the
  * frequency for display so a series shows as recurring; interval/end are left
  * at defaults and only written back if the user actually edits them. */
