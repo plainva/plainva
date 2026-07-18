@@ -749,6 +749,12 @@
     "showColumn": "Mostrar",
     "editFilter": "Editar filtro",
     "filterDone": "Listo",
+    "pageDescView": "El tipo de vista y la presentación de esta vista.",
+    "pageDescColumns": "Visibilidad y orden en esta vista.",
+    "pageDescFilter": "Se aplica solo a esta vista.",
+    "pageDescSort": "El orden de las entradas en esta vista.",
+    "pageDescSource": "Carpetas y etiquetas para toda la base.",
+    "displayOptions": "Presentación",
     "emptyView": "No hay entradas en esta vista.",
     "viewGraph": "Grafo"
   },

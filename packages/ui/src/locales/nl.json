@@ -747,6 +747,12 @@
     "showColumn": "Tonen",
     "editFilter": "Filter bewerken",
     "filterDone": "Klaar",
+    "pageDescView": "Het weergavetype en de weergave van deze weergave.",
+    "pageDescColumns": "Zichtbaarheid en volgorde in deze weergave.",
+    "pageDescFilter": "Geldt alleen voor deze weergave.",
+    "pageDescSort": "De volgorde van items in deze weergave.",
+    "pageDescSource": "Mappen en tags voor de hele database.",
+    "displayOptions": "Weergave",
     "emptyView": "Geen items in deze weergave.",
     "viewGraph": "Graaf"
   },

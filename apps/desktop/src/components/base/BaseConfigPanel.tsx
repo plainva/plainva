@@ -400,8 +400,8 @@ function SortSection({
 
   return (
     <section className="base-cfg-section">
-      <div className="base-cfg-title">{t("database.sort", "Sortierung")}</div>
-      {sortRules.length === 0 && <div className="base-cfg-empty">{t("database.noSort", "Keine Sortierung – Standardreihenfolge")}</div>}
+      <div className="base-cfg-card">
+      {sortRules.length === 0 && <div className="base-cfg-filterrow"><span className="base-cfg-empty">{t("database.noSort", "Keine Sortierung – Standardreihenfolge")}</span></div>}
       {sortRules.map((rule, i) => (
         <div
           key={i}
@@ -443,6 +443,7 @@ function SortSection({
           <button onClick={() => onSetSortRules(sortRules.filter((_, j) => j !== i))} aria-label={t("database.removeSort", "Sortierung entfernen")} title={t("database.removeSort", "Sortierung entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
         </div>
       ))}
+      </div>
       <button
         className="base-cfg-addrow"
         onClick={() => {
@@ -686,15 +687,26 @@ export function BaseConfigPanel({
   const currentDateType = dateProp && cells.getColumnInput(dateProp) === "datetime" ? "datetime" : "date";
 
   // Context strip labels (which view is being configured) + the active area's
-  // scope chip (the per-view vs. database-wide distinction made visible).
+  // page head (title + one-line description conveying the per-view vs.
+  // database-wide scope — the mockup treatment, like the settings menu).
   const CtxTypeIcon = baseViewTypeMeta(currentViewType).icon;
   const ctxTypeLabel = defaultViewName(t, currentViewType);
   const ctxViewName = activeView?.name || ctxTypeLabel;
   const activeAreaDef = baseConfigArea(activeArea);
-  const scopeLabel =
-    activeAreaDef?.scope === "database"
-      ? t("database.scopeDatabase", "Ganze Datenbank")
-      : t("database.scopeView", "Diese Ansicht");
+  const areaTitle = activeAreaDef ? t(activeAreaDef.labelKey) : "";
+  const areaDescKey =
+    activeArea === "view" ? "database.pageDescView"
+      : activeArea === "columns" ? "database.pageDescColumns"
+        : activeArea === "filter" ? "database.pageDescFilter"
+          : activeArea === "sort" ? "database.pageDescSort"
+            : "database.pageDescSource";
+  const areaDesc = t(areaDescKey);
+  const PageHead = (
+    <div className="base-cfg-pagehead">
+      <div className="base-cfg-pagetitle">{areaTitle}</div>
+      <div className="base-cfg-pagedesc">{areaDesc}</div>
+    </div>
+  );
 
   return (
     <aside className="base-config-panel" aria-label={t("database.configure", "Konfigurieren")}>
@@ -728,9 +740,8 @@ export function BaseConfigPanel({
           );
         })}
       </div>
-      <div className="base-cfg-scopeline"><span className="base-cfg-scope">{scopeLabel}</span></div>
-
       <div className="base-cfg-body custom-scrollbar">
+      {PageHead}
 
       {/* Data source — its own tab (config redesign P5), so render it always
           open instead of behind the component's internal collapse. */}
@@ -746,7 +757,8 @@ export function BaseConfigPanel({
           format live here instead of a detached "Layout" section at the end. */}
       {activeArea === "view" && (
       <section className="base-cfg-section">
-        <div className="base-cfg-title">{t("database.viewType", "Ansichtstyp")}</div>
+        <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">{t("database.viewType", "Ansichtstyp")}</div>
         <div className="base-cfg-typegrid" role="radiogroup" aria-label={t("database.viewType", "Ansichtstyp")}>
           {BASE_VIEW_TYPES.filter((v) => extendedDbEnabled || !v.extended).map((v) => {
             const TileIcon = v.icon;
@@ -768,6 +780,11 @@ export function BaseConfigPanel({
             );
           })}
         </div>
+        </div>
+
+        <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">{t("database.displayOptions", "Anzeige")}</div>
+        <div className="base-cfg-card">
         {currentViewType === "board" && (
           <label className="base-cfg-field">{t("database.groupBy", "Gruppieren nach")}
             <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
@@ -880,6 +897,8 @@ export function BaseConfigPanel({
             ]}
           />
         </label>
+        </div>
+        </div>
       </section>
       )}
 
@@ -889,7 +908,6 @@ export function BaseConfigPanel({
           between the groups (onToggleColumn). */}
       {activeArea === "columns" && (
       <section className="base-cfg-section">
-        <div className="base-cfg-title">{t("database.properties", "Eigenschaften")}</div>
         {(() => {
           const disabled = [
             ...["file.name", "file.mtime"].filter((c) => !visibleColumns.includes(c)),
@@ -958,11 +976,19 @@ export function BaseConfigPanel({
           };
           return (
             <>
-              <div className="base-cfg-subtitle" style={{ marginTop: 0 }}>{t("database.visibleColumns", "Sichtbar")}</div>
-              {visibleColumns.length === 0 && <div className="base-cfg-empty">{t("database.noVisibleColumns", "Keine Spalte sichtbar")}</div>}
-              {visibleColumns.map((col, i) => renderRow(col, i))}
-              {disabled.length > 0 && <div className="base-cfg-subtitle">{t("database.hiddenColumns", "Ausgeblendet")}</div>}
-              {disabled.map((col) => renderRow(col, null))}
+              <div className="base-cfg-group">
+                <div className="base-cfg-grouplabel">{t("database.visibleColumns", "Sichtbar")}</div>
+                <div className="base-cfg-card">
+                  {visibleColumns.length === 0 && <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("database.noVisibleColumns", "Keine Spalte sichtbar")}</span></div>}
+                  {visibleColumns.map((col, i) => renderRow(col, i))}
+                </div>
+              </div>
+              {disabled.length > 0 && (
+                <div className="base-cfg-group">
+                  <div className="base-cfg-grouplabel">{t("database.hiddenColumns", "Ausgeblendet")}</div>
+                  <div className="base-cfg-card">{disabled.map((col) => renderRow(col, null))}</div>
+                </div>
+              )}
             </>
           );
         })()}
@@ -1004,23 +1030,20 @@ export function BaseConfigPanel({
       {/* Property filters — editable rows with an all/any toggle (P4, F3). */}
       {activeArea === "filter" && (
       <section className="base-cfg-section">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-          <div className="base-cfg-title" style={{ margin: 0 }}>{t("database.filter", "Filter")}</div>
-          <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")}>
-            <button
-              className={filterLogic === "all" ? "active" : ""}
-              title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
-              onClick={() => setFilterLogic("all")}
-            >{t("database.filterMatchAll", "Alle")}</button>
-            <button
-              className={filterLogic === "any" ? "active" : ""}
-              title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
-              onClick={() => setFilterLogic("any")}
-            >{t("database.filterMatchAny", "Beliebige")}</button>
-          </div>
+        <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")} style={{ alignSelf: "flex-start" }}>
+          <button
+            className={filterLogic === "all" ? "active" : ""}
+            title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+            onClick={() => setFilterLogic("all")}
+          >{t("database.filterMatchAll", "Alle")}</button>
+          <button
+            className={filterLogic === "any" ? "active" : ""}
+            title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+            onClick={() => setFilterLogic("any")}
+          >{t("database.filterMatchAny", "Beliebige")}</button>
         </div>
-        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "-2px", marginBottom: "2px" }}>{t("database.filterPerViewHint", "Gilt für diese Ansicht")}</div>
-        {!filterModel.hasEntries && getContextFilters(dbConfig).length === 0 && !embedScope && !draftFilter && !draftGroup && <div className="base-cfg-empty">{t("database.noFilters", "Keine Filter aktiv")}</div>}
+        <div className="base-cfg-card">
+        {!filterModel.hasEntries && getContextFilters(dbConfig).length === 0 && !embedScope && !draftFilter && !draftGroup && <div className="base-cfg-filterchip"><span className="base-cfg-empty">{t("database.noFilters", "Keine Filter aktiv")}</span></div>}
         {filterModel.entries.map((entry) => {
           const key = `${entry.ref.list}-${entry.ref.idx}`;
           if (entry.kind === "opaque") {
@@ -1220,6 +1243,7 @@ export function BaseConfigPanel({
             />
           </div>
         )}
+        </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {!draftFilter && (
             <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftFilter({ column: "", op: "==", value: "" })}><Plus size={12} /> {t("database.addFilter", "Filter hinzufügen")}</button>

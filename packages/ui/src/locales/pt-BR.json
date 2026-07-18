@@ -749,6 +749,12 @@
     "showColumn": "Mostrar",
     "editFilter": "Editar filtro",
     "filterDone": "Concluído",
+    "pageDescView": "O tipo de visualização e a apresentação desta visualização.",
+    "pageDescColumns": "Visibilidade e ordem nesta visualização.",
+    "pageDescFilter": "Aplica-se apenas a esta visualização.",
+    "pageDescSort": "A ordem das entradas nesta visualização.",
+    "pageDescSource": "Pastas e tags para todo o banco.",
+    "displayOptions": "Exibição",
     "emptyView": "Nenhuma entrada nesta visualização.",
     "viewGraph": "Grafo"
   },

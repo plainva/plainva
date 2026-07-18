@@ -749,6 +749,12 @@
     "showColumn": "Afficher",
     "editFilter": "Modifier le filtre",
     "filterDone": "Terminé",
+    "pageDescView": "Le type de vue et l'affichage de cette vue.",
+    "pageDescColumns": "Visibilité et ordre dans cette vue.",
+    "pageDescFilter": "S'applique uniquement à cette vue.",
+    "pageDescSort": "L'ordre des entrées dans cette vue.",
+    "pageDescSource": "Dossiers et tags pour toute la base.",
+    "displayOptions": "Affichage",
     "emptyView": "Aucune entrée dans cette vue.",
     "viewGraph": "Graphe"
   },

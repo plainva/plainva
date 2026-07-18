@@ -751,6 +751,12 @@
     "showColumn": "Pokaż",
     "editFilter": "Edytuj filtr",
     "filterDone": "Gotowe",
+    "pageDescView": "Typ widoku i prezentacja tego widoku.",
+    "pageDescColumns": "Widoczność i kolejność w tym widoku.",
+    "pageDescFilter": "Dotyczy tylko tego widoku.",
+    "pageDescSort": "Kolejność wpisów w tym widoku.",
+    "pageDescSource": "Foldery i tagi dla całej bazy.",
+    "displayOptions": "Wyświetlanie",
     "emptyView": "Brak wpisów w tym widoku.",
     "viewGraph": "Graf"
   },

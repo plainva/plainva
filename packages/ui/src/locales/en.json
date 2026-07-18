@@ -747,6 +747,12 @@
     "showColumn": "Show",
     "editFilter": "Edit filter",
     "filterDone": "Done",
+    "pageDescView": "The view type and display of this view.",
+    "pageDescColumns": "Visibility and order in this view.",
+    "pageDescFilter": "Applies to this view only.",
+    "pageDescSort": "The order of entries in this view.",
+    "pageDescSource": "Folders and tags for the whole database.",
+    "displayOptions": "Display",
     "emptyView": "No entries in this view.",
     "viewGraph": "Graph"
   },

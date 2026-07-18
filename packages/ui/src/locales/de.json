@@ -747,6 +747,12 @@
     "showColumn": "Einblenden",
     "editFilter": "Filter bearbeiten",
     "filterDone": "Fertig",
+    "pageDescView": "Ansichtstyp und Darstellung dieser Ansicht.",
+    "pageDescColumns": "Sichtbarkeit und Reihenfolge in dieser Ansicht.",
+    "pageDescFilter": "Gilt nur für diese Ansicht.",
+    "pageDescSort": "Reihenfolge der Einträge in dieser Ansicht.",
+    "pageDescSource": "Ordner und Tags für die ganze Datenbank.",
+    "displayOptions": "Anzeige",
     "emptyView": "Keine Einträge in dieser Ansicht.",
     "viewGraph": "Graph"
   },

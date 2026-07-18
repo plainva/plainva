@@ -221,23 +221,46 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-tab { flex: 1; display: flex; align-items: center; justify-content: center; padding: 7px 0; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-md); }
   .base-cfg-tab:hover { background: var(--state-hover); color: var(--text-main); }
   .base-cfg-tab.active { background: var(--bg-active); color: var(--accent-color); }
-  .base-cfg-scopeline { padding: 0 0.95rem; margin-top: 0.6rem; }
-  .base-cfg-scope { font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-hover); padding: 1px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
-  .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.6rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 4px; }
-  .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
+  .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.7rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 14px; }
+  /* Per-area page head + named group cards (mockup treatment 2026-07-18, same
+     quiet-card tokens as the settings menu). */
+  .base-cfg-pagehead { display: flex; flex-direction: column; gap: 1px; }
+  .base-cfg-pagetitle { font-size: var(--text-md); font-weight: 600; color: var(--text-main); }
+  .base-cfg-pagedesc { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
+  .base-cfg-group { display: flex; flex-direction: column; gap: 6px; }
+  .base-cfg-grouplabel { padding: 0 2px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-faint); }
+  .base-cfg-card { background: var(--surface-container-low); border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); overflow: hidden; }
+  .base-cfg-cardrow { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-cardrow:last-child { border-bottom: none; }
+  .base-cfg-cardrow--split { justify-content: space-between; }
+  .base-cfg-cardrow--field { flex-direction: column; align-items: stretch; gap: 6px; }
+  .base-cfg-rowlabel { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-main); }
+  .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 12px 2px; min-height: 62px; border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); background: var(--surface-container-low); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
   .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
   .base-cfg-typetile.active { border-color: var(--accent-color); background: var(--bg-hover); color: var(--accent-color); }
   .base-cfg-typetile-label { line-height: 1.2; }
   .base-cfg-colname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-ui); color: var(--text-main); }
   .base-cfg-typebadge { flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 0 6px; border-radius: var(--radius-pill); }
-  .base-cfg-filterchip { background: transparent; padding: 0; }
-  .base-cfg-chipsentence { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; text-align: left; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 5px 8px; cursor: pointer; color: var(--text-main); font-size: var(--text-sm); }
-  .base-cfg-chipsentence:hover { border-color: var(--text-muted); }
+  .base-cfg-filterchip { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filterchip:last-child { border-bottom: none; }
+  .base-cfg-chipsentence { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; text-align: left; background: transparent; border: none; padding: 0; cursor: pointer; color: var(--text-main); font-size: var(--text-sm); }
   .base-cfg-chip-col { font-weight: 600; color: var(--text-main); }
   .base-cfg-chip-op { color: var(--text-muted); }
   .base-cfg-chip-val { background: var(--bg-hover); color: var(--accent-color); padding: 1px 7px; border-radius: var(--radius-pill); font-size: var(--text-xs); }
-  .base-cfg-filteredit { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 6px; background: var(--bg-primary); }
+  .base-cfg-filteredit { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filteredit:last-child { border-bottom: none; }
+  /* Option blocks + rows dropped into a card become label-left/control-right
+     card rows with hairline separators (mockup treatment). */
+  .base-cfg-card .base-cfg-field { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card .base-cfg-field:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-colrow { padding: 8px 12px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-colrow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-chiprow { padding: 8px 12px; border-bottom: 1px solid var(--border-color-light); background: transparent; }
+  .base-cfg-card > .base-cfg-chiprow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-filterrow { padding: 8px 12px; border-bottom: 1px solid var(--border-color-light); }
+  .base-cfg-card > .base-cfg-filterrow:last-child { border-bottom: none; }
+  .base-cfg-card > .base-cfg-filtergroup { margin: 8px; }
   .base-cfg-headtitle { font-weight: 600; font-size: var(--text-md); display: flex; align-items: center; gap: 6px; color: var(--text-main); }
   .base-cfg-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; border-radius: var(--radius-xs); }
   .base-cfg-close:hover { background: var(--state-hover); }

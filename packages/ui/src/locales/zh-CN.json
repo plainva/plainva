@@ -745,6 +745,12 @@
     "showColumn": "显示",
     "editFilter": "编辑筛选",
     "filterDone": "完成",
+    "pageDescView": "此视图的视图类型和显示方式。",
+    "pageDescColumns": "此视图中的可见性和顺序。",
+    "pageDescFilter": "仅适用于此视图。",
+    "pageDescSort": "此视图中条目的顺序。",
+    "pageDescSource": "整个数据库的文件夹和标签。",
+    "displayOptions": "显示",
     "emptyView": "此视图中没有条目。",
     "viewGraph": "关系图"
   },

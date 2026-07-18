@@ -745,6 +745,12 @@
     "showColumn": "表示",
     "editFilter": "フィルターを編集",
     "filterDone": "完了",
+    "pageDescView": "このビューのビュータイプと表示。",
+    "pageDescColumns": "このビューでの表示と並び順。",
+    "pageDescFilter": "このビューにのみ適用されます。",
+    "pageDescSort": "このビューの項目の並び順。",
+    "pageDescSource": "データベース全体のフォルダーとタグ。",
+    "displayOptions": "表示",
     "emptyView": "このビューにはエントリーがありません。",
     "viewGraph": "グラフ"
   },
