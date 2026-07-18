@@ -1763,8 +1763,6 @@
     "tabDatabases": "Database",
     "tabCalendar": "Calendario",
     "databasesEmpty": "Ancora nessun database. Crea un file .base per iniziare.",
-    "settingTabs": "Barra delle schede",
-    "settingTabsHint": "Scegli fino a {{max}} sezioni per la barra inferiore; tutto resta disponibile in “Altro”.",
     "quickCreate": "Crea nuovo",
     "newDaily": "Nuova nota giornaliera",
     "newDatabase": "Nuovo database",

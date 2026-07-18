@@ -1757,8 +1757,6 @@
     "tabDatabases": "Datenbanken",
     "tabCalendar": "Kalender",
     "databasesEmpty": "Noch keine Datenbanken. Erstelle eine .base-Datei, um zu starten.",
-    "settingTabs": "Tab-Leiste",
-    "settingTabsHint": "Wähle bis zu {{max}} Bereiche für die untere Leiste; über „Mehr“ bleibt alles erreichbar.",
     "quickCreate": "Neu erstellen",
     "newDaily": "Neue Tagesnotiz",
     "newDatabase": "Neue Datenbank",

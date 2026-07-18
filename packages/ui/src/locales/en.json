@@ -1757,8 +1757,6 @@
     "tabDatabases": "Databases",
     "tabCalendar": "Calendar",
     "databasesEmpty": "No databases yet. Create a .base file to get started.",
-    "settingTabs": "Tab bar",
-    "settingTabsHint": "Pick up to {{max}} sections for the bottom bar; everything stays available under More.",
     "quickCreate": "Create new",
     "newDaily": "New daily note",
     "newDatabase": "New database",

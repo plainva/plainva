@@ -1763,8 +1763,6 @@
     "tabDatabases": "Bases de datos",
     "tabCalendar": "Calendario",
     "databasesEmpty": "Aún no hay bases de datos. Crea un archivo .base para empezar.",
-    "settingTabs": "Barra de pestañas",
-    "settingTabsHint": "Elige hasta {{max}} secciones para la barra inferior; todo sigue disponible en «Más».",
     "quickCreate": "Crear nuevo",
     "newDaily": "Nueva nota diaria",
     "newDatabase": "Nueva base de datos",

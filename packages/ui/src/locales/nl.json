@@ -1757,8 +1757,6 @@
     "tabDatabases": "Databases",
     "tabCalendar": "Kalender",
     "databasesEmpty": "Nog geen databases. Maak een .base-bestand om te beginnen.",
-    "settingTabs": "Tabbladbalk",
-    "settingTabsHint": "Kies maximaal {{max}} onderdelen voor de balk onderaan; alles blijft bereikbaar via ‘Meer’.",
     "quickCreate": "Nieuw maken",
     "newDaily": "Nieuwe dagnotitie",
     "newDatabase": "Nieuwe database",

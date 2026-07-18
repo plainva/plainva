@@ -1751,8 +1751,6 @@
     "tabDatabases": "数据库",
     "tabCalendar": "日历",
     "databasesEmpty": "还没有数据库。创建一个 .base 文件即可开始。",
-    "settingTabs": "标签栏",
-    "settingTabsHint": "为底部栏选择最多 {{max}} 个板块；所有内容仍可在“更多”中访问。",
     "quickCreate": "新建",
     "newDaily": "新建每日笔记",
     "newDatabase": "新建数据库",

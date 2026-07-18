@@ -1763,8 +1763,6 @@
     "tabDatabases": "Bancos de dados",
     "tabCalendar": "Calendário",
     "databasesEmpty": "Ainda não há bancos de dados. Crie um arquivo .base para começar.",
-    "settingTabs": "Barra de abas",
-    "settingTabsHint": "Escolha até {{max}} seções para a barra inferior; tudo continua disponível em “Mais”.",
     "quickCreate": "Criar novo",
     "newDaily": "Nova nota diária",
     "newDatabase": "Novo banco de dados",

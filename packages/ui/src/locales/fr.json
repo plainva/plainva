@@ -1763,8 +1763,6 @@
     "tabDatabases": "Bases de données",
     "tabCalendar": "Calendrier",
     "databasesEmpty": "Aucune base de données pour l’instant. Créez un fichier .base pour commencer.",
-    "settingTabs": "Barre d’onglets",
-    "settingTabsHint": "Choisissez jusqu’à {{max}} sections pour la barre inférieure ; tout reste accessible via « Plus ».",
     "quickCreate": "Créer",
     "newDaily": "Nouvelle note quotidienne",
     "newDatabase": "Nouvelle base de données",

@@ -1769,8 +1769,6 @@
     "tabDatabases": "Bazy danych",
     "tabCalendar": "Kalendarz",
     "databasesEmpty": "Brak baz danych. Utwórz plik .base, aby zacząć.",
-    "settingTabs": "Pasek kart",
-    "settingTabsHint": "Wybierz maksymalnie {{max}} sekcje dla dolnego paska; wszystko pozostaje dostępne w „Więcej”.",
     "quickCreate": "Utwórz nowy",
     "newDaily": "Nowa notatka dzienna",
     "newDatabase": "Nowa baza danych",
