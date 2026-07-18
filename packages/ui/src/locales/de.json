@@ -1876,6 +1876,24 @@
     "newLabel": "„{{name}}“ anlegen",
     "inlineTag": "im Text"
   },
+  "compose": {
+    "toolbar": "Formatierung",
+    "slashHint": "„/“ für Befehle",
+    "cmdH1": "Überschrift 1",
+    "cmdH2": "Überschrift 2",
+    "cmdH3": "Überschrift 3",
+    "cmdBold": "Fett",
+    "cmdItalic": "Kursiv",
+    "cmdStrike": "Durchgestrichen",
+    "cmdCode": "Inline-Code",
+    "cmdBullet": "Aufzählung",
+    "cmdNumbered": "Nummerierte Liste",
+    "cmdTask": "Aufgabe",
+    "cmdQuote": "Zitat",
+    "cmdCodeBlock": "Codeblock",
+    "cmdDivider": "Trennlinie",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Nur für den geöffneten Vault verfügbar.",
     "noAccounts": "Noch keine Kalender-Konten verbunden.",

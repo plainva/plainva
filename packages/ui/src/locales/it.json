@@ -1882,6 +1882,24 @@
     "newLabel": "Crea “{{name}}”",
     "inlineTag": "nel testo"
   },
+  "compose": {
+    "toolbar": "Formattazione",
+    "slashHint": "«/» per i comandi",
+    "cmdH1": "Titolo 1",
+    "cmdH2": "Titolo 2",
+    "cmdH3": "Titolo 3",
+    "cmdBold": "Grassetto",
+    "cmdItalic": "Corsivo",
+    "cmdStrike": "Barrato",
+    "cmdCode": "Codice inline",
+    "cmdBullet": "Elenco puntato",
+    "cmdNumbered": "Elenco numerato",
+    "cmdTask": "Attività",
+    "cmdQuote": "Citazione",
+    "cmdCodeBlock": "Blocco di codice",
+    "cmdDivider": "Separatore",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Disponibile solo per il vault aperto.",
     "noAccounts": "Nessun account calendario collegato.",

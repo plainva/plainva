@@ -1870,6 +1870,24 @@
     "newLabel": "创建“{{name}}”",
     "inlineTag": "在正文中"
   },
+  "compose": {
+    "toolbar": "格式",
+    "slashHint": "输入“/”打开命令",
+    "cmdH1": "标题 1",
+    "cmdH2": "标题 2",
+    "cmdH3": "标题 3",
+    "cmdBold": "加粗",
+    "cmdItalic": "斜体",
+    "cmdStrike": "删除线",
+    "cmdCode": "行内代码",
+    "cmdBullet": "项目符号列表",
+    "cmdNumbered": "编号列表",
+    "cmdTask": "任务",
+    "cmdQuote": "引用",
+    "cmdCodeBlock": "代码块",
+    "cmdDivider": "分隔线",
+    "cmdLink": "链接"
+  },
   "pim": {
     "openVaultFirst": "仅适用于当前打开的仓库。",
     "noAccounts": "尚未连接任何日历账户。",

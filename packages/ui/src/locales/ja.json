@@ -1870,6 +1870,24 @@
     "newLabel": "「{{name}}」を作成",
     "inlineTag": "本文内"
   },
+  "compose": {
+    "toolbar": "書式",
+    "slashHint": "「/」でコマンド",
+    "cmdH1": "見出し 1",
+    "cmdH2": "見出し 2",
+    "cmdH3": "見出し 3",
+    "cmdBold": "太字",
+    "cmdItalic": "斜体",
+    "cmdStrike": "取り消し線",
+    "cmdCode": "インラインコード",
+    "cmdBullet": "箇条書き",
+    "cmdNumbered": "番号付きリスト",
+    "cmdTask": "タスク",
+    "cmdQuote": "引用",
+    "cmdCodeBlock": "コードブロック",
+    "cmdDivider": "区切り線",
+    "cmdLink": "リンク"
+  },
   "pim": {
     "openVaultFirst": "開いている保管庫でのみ利用できます。",
     "noAccounts": "まだカレンダーアカウントが接続されていません。",

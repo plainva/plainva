@@ -489,13 +489,85 @@
   display: block;
   width: 100%;
 }
-.pv-mail-cmpbody {
-  width: 100%;
-  min-height: 320px;
-  resize: vertical;
+/* Floating compose window (built on the peek-window chrome). */
+.pv-mail-window {
+  min-width: 380px;
+}
+.pv-mail-winbody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+}
+.pv-mail-winfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+/* Message editor: toolbar + textarea inside one bordered field, slash menu overlaid. */
+.pv-mail-cmpeditor {
+  flex: 1;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border-color-light);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
+  overflow: hidden;
+}
+.pv-mail-cmpeditor:focus-within {
+  border-color: var(--accent-color);
+}
+.pv-mail-cmptoolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-color-light);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.pv-mail-cmptool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.pv-mail-cmptool:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+.pv-mail-cmptool-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding-right: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+.pv-mail-cmpbodywrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pv-mail-cmpbody {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: none;
+  background: transparent;
   color: var(--text-main);
   font: inherit;
   font-size: var(--text-md);
@@ -503,11 +575,38 @@
   padding: 10px 12px;
   outline: none;
 }
-.pv-mail-cmpbody:focus {
-  border-color: var(--accent-color);
-}
 .pv-mail-cmpbody::placeholder {
   color: var(--text-faint);
+}
+.pv-mail-cmpslash {
+  position: absolute;
+  z-index: var(--z-menu);
+  min-width: 220px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  padding: 4px;
+}
+.pv-mail-cmpslash-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.pv-mail-cmpslash-item.on,
+.pv-mail-cmpslash-item:hover {
+  background: var(--bg-hover);
 }
 .pv-mail-cmpattach {
   display: flex;

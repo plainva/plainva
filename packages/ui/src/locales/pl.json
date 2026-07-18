@@ -1888,6 +1888,24 @@
     "newLabel": "Utwórz „{{name}}”",
     "inlineTag": "w tekście"
   },
+  "compose": {
+    "toolbar": "Formatowanie",
+    "slashHint": "„/” dla poleceń",
+    "cmdH1": "Nagłówek 1",
+    "cmdH2": "Nagłówek 2",
+    "cmdH3": "Nagłówek 3",
+    "cmdBold": "Pogrubienie",
+    "cmdItalic": "Kursywa",
+    "cmdStrike": "Przekreślenie",
+    "cmdCode": "Kod w wierszu",
+    "cmdBullet": "Lista punktowana",
+    "cmdNumbered": "Lista numerowana",
+    "cmdTask": "Zadanie",
+    "cmdQuote": "Cytat",
+    "cmdCodeBlock": "Blok kodu",
+    "cmdDivider": "Separator",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Dostępne tylko dla otwartego vaulta.",
     "noAccounts": "Nie połączono jeszcze żadnych kont kalendarza.",

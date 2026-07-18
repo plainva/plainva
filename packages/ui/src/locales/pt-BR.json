@@ -1882,6 +1882,24 @@
     "newLabel": "Criar “{{name}}”",
     "inlineTag": "no texto"
   },
+  "compose": {
+    "toolbar": "Formatação",
+    "slashHint": "«/» para comandos",
+    "cmdH1": "Título 1",
+    "cmdH2": "Título 2",
+    "cmdH3": "Título 3",
+    "cmdBold": "Negrito",
+    "cmdItalic": "Itálico",
+    "cmdStrike": "Tachado",
+    "cmdCode": "Código inline",
+    "cmdBullet": "Lista com marcadores",
+    "cmdNumbered": "Lista numerada",
+    "cmdTask": "Tarefa",
+    "cmdQuote": "Citação",
+    "cmdCodeBlock": "Bloco de código",
+    "cmdDivider": "Divisor",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Disponível apenas para o vault aberto.",
     "noAccounts": "Nenhuma conta de calendário conectada ainda.",

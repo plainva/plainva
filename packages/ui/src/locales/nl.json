@@ -1876,6 +1876,24 @@
     "newLabel": "“{{name}}” aanmaken",
     "inlineTag": "in de tekst"
   },
+  "compose": {
+    "toolbar": "Opmaak",
+    "slashHint": "„/” voor opdrachten",
+    "cmdH1": "Kop 1",
+    "cmdH2": "Kop 2",
+    "cmdH3": "Kop 3",
+    "cmdBold": "Vet",
+    "cmdItalic": "Cursief",
+    "cmdStrike": "Doorhalen",
+    "cmdCode": "Inline-code",
+    "cmdBullet": "Opsomming",
+    "cmdNumbered": "Genummerde lijst",
+    "cmdTask": "Taak",
+    "cmdQuote": "Citaat",
+    "cmdCodeBlock": "Codeblok",
+    "cmdDivider": "Scheidingslijn",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Alleen beschikbaar voor de geopende vault.",
     "noAccounts": "Nog geen agenda-accounts verbonden.",

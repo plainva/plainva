@@ -1876,6 +1876,24 @@
     "newLabel": "Create “{{name}}”",
     "inlineTag": "in the text"
   },
+  "compose": {
+    "toolbar": "Formatting",
+    "slashHint": "“/” for commands",
+    "cmdH1": "Heading 1",
+    "cmdH2": "Heading 2",
+    "cmdH3": "Heading 3",
+    "cmdBold": "Bold",
+    "cmdItalic": "Italic",
+    "cmdStrike": "Strikethrough",
+    "cmdCode": "Inline code",
+    "cmdBullet": "Bulleted list",
+    "cmdNumbered": "Numbered list",
+    "cmdTask": "Task",
+    "cmdQuote": "Quote",
+    "cmdCodeBlock": "Code block",
+    "cmdDivider": "Divider",
+    "cmdLink": "Link"
+  },
   "pim": {
     "openVaultFirst": "Only available for the open vault.",
     "noAccounts": "No calendar accounts connected yet.",

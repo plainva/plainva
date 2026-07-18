@@ -1,21 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Modal, Button, toast } from "@plainva/ui";
+import { Button, toast } from "@plainva/ui";
 import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
 import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "../../services/mail/mailOut";
+import { ComposeEditor } from "./ComposeEditor";
 import "./mail.css";
 
 /**
  * Compose window (mail-client E3, real reply/forward/new-message). A proper
- * mail composer: To / Subject field rows, an editable Markdown message body,
- * attachments (from the caller — an attached note or an iCal invite — plus
- * files picked here), and two ways OUT: SEND directly via the account's SMTP
- * submission host, or append the message as a \Draft into the mailbox for the
- * mail program to send. Send is offered when the account has an SMTP host.
+ * mail composer as a FREE-FLOATING window: draggable by its header, resizable
+ * from the bottom-right grip, non-modal (does not dim/block the app — work
+ * beside it), remembers its position/size for the session, closable via X or
+ * Escape. The message body is a Markdown editor with a formatting toolbar and a
+ * `/` slash-command menu (see ComposeEditor). Two ways OUT: SEND directly via
+ * the account's SMTP submission host, or append the message as a \Draft into
+ * the mailbox for the mail program to send.
  */
 
 interface MailDraftModalProps {
@@ -29,21 +33,34 @@ interface MailDraftModalProps {
   onClose: () => void;
 }
 
+const MIN_W = 420;
+const MIN_H = 360;
+const MARGIN = 8;
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+interface Rect { x: number; y: number; w: number; h: number }
+
+// Remembered across opens within the session (not persisted to disk).
+let savedComposeRect: Rect | null = null;
+
+function defaultRect(): Rect {
+  const w = clamp(660, MIN_W, window.innerWidth - MARGIN * 2);
+  const h = clamp(600, MIN_H, window.innerHeight - MARGIN * 2);
+  return { x: Math.max(MARGIN, Math.round((window.innerWidth - w) / 2)), y: Math.max(MARGIN, Math.round((window.innerHeight - h) / 2)), w, h };
+}
+function fitRect(base: Rect): Rect {
+  const w = clamp(base.w, MIN_W, window.innerWidth - MARGIN * 2);
+  const h = clamp(base.h, MIN_H, window.innerHeight - MARGIN * 2);
+  const x = clamp(base.x, MARGIN, Math.max(MARGIN, window.innerWidth - w - MARGIN));
+  const y = clamp(base.y, MARGIN, Math.max(MARGIN, window.innerHeight - h - MARGIN));
+  return { x, y, w, h };
+}
+
 const MIME_BY_EXT: Record<string, string> = {
-  pdf: "application/pdf",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  svg: "image/svg+xml",
-  md: "text/markdown",
-  txt: "text/plain",
-  csv: "text/csv",
-  ics: "text/calendar",
-  doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  zip: "application/zip",
+  pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+  webp: "image/webp", svg: "image/svg+xml", md: "text/markdown", txt: "text/plain", csv: "text/csv",
+  ics: "text/calendar", doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip: "application/zip",
 };
 
 function guessMime(name: string): string {
@@ -65,6 +82,58 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Free-floating position + size (remembered per session).
+  const [rect, setRect] = useState<Rect>(() => fitRect(savedComposeRect ?? defaultRect()));
+  useEffect(() => { savedComposeRect = rect; }, [rect]);
+
+  // Escape closes (capture, so it wins over inner editor handlers).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [onClose]);
+
+  // --- Drag (by header) + resize (bottom-right grip) via pointer capture ---
+  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const onHeadDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y };
+  };
+  const onHeadMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    setRect((r) => ({
+      ...r,
+      x: clamp(d.ox + (e.clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),
+      y: clamp(d.oy + (e.clientY - d.py), MARGIN, Math.max(MARGIN, window.innerHeight - r.h - MARGIN)),
+    }));
+  };
+  const endDrag = (e: React.PointerEvent) => {
+    drag.current = null;
+    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
+  };
+  const resize = useRef<{ px: number; py: number; ow: number; oh: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    resize.current = { px: e.clientX, py: e.clientY, ow: rect.w, oh: rect.h };
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const s = resize.current;
+    if (!s) return;
+    setRect((r) => ({
+      ...r,
+      w: clamp(s.ow + (e.clientX - s.px), MIN_W, window.innerWidth - r.x - MARGIN),
+      h: clamp(s.oh + (e.clientY - s.py), MIN_H, window.innerHeight - r.y - MARGIN),
+    }));
+  };
+  const endResize = (e: React.PointerEvent) => {
+    resize.current = null;
+    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
+  };
+
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -74,9 +143,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       setAccounts(list);
       setAccountId(list[0]?.id ?? "");
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [vaultPath]);
 
   useEffect(() => {
@@ -94,9 +161,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [vaultPath, accounts, accountId]);
 
   const pickFile = useCallback(async () => {
@@ -152,112 +217,109 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   }, [vaultPath, accounts, accountId, busy, to, subject, body, attach, onClose, t]);
 
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
+  const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
 
-  return (
-    <Modal
-      title={t("mail.composeTitle", { defaultValue: "Nachricht verfassen" })}
-      onClose={onClose}
-      size="lg"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            {t("common.cancel", { defaultValue: "Abbrechen" })}
-          </Button>
-          <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
-            {t("mail.saveDraft", { defaultValue: "Als Entwurf" })}
-          </Button>
-          <Button
-            variant="primary"
-            data-testid="draft-send"
-            disabled={busy || accounts.length === 0 || !canSend}
-            onClick={() => void send()}
-            title={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
-          >
-            {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
-          </Button>
-        </>
-      }
+  return createPortal(
+    <div
+      className="pv-peek-card pv-peek-window pv-mail-window"
+      role="dialog"
+      aria-label={title}
+      style={{
+        ["--peek-x" as string]: `${rect.x}px`,
+        ["--peek-y" as string]: `${rect.y}px`,
+        ["--peek-w" as string]: `${rect.w}px`,
+        ["--peek-h" as string]: `${rect.h}px`,
+      } as React.CSSProperties}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }} data-testid="draft-form">
-        {accounts.length === 0 ? (
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-            {t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })}
-          </p>
-        ) : (
-          <>
-            {accounts.length > 1 && (
-              <div>
-                <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.account", { defaultValue: "Konto" })}</label>
-                <Select
-                  ariaLabel={t("mail.account", { defaultValue: "Konto" })}
-                  value={accountId}
-                  onChange={setAccountId}
-                  options={accounts.map((a) => ({ value: a.id, label: a.label }))}
-                />
-              </div>
-            )}
-            <label className="pv-mail-cmplabel">
-              <span>{t("mail.draftTo", { defaultValue: "An" })}</span>
-              <input className="pv-field" value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus placeholder="name@example.org" />
-            </label>
-            <label className="pv-mail-cmplabel">
-              <span>{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
-              <input className="pv-field" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" />
-            </label>
-            <label className="pv-mail-cmplabel">
-              <span>{t("mail.body", { defaultValue: "Nachricht" })}</span>
-              <textarea
-                className="pv-mail-cmpbody"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                data-testid="draft-body"
-                placeholder={t("mail.bodyPlaceholder", { defaultValue: "Nachricht schreiben… (Markdown, wie im Editor)" })}
-              />
-            </label>
-            <div className="pv-mail-cmpattach">
-              {attach.map((a, i) => (
-                <span key={`${a.name}-${i}`} className="pv-mail-attach-chip" data-testid="draft-attachments">
-                  <Paperclip size={12} />
-                  {a.name}
-                  <button
-                    type="button"
-                    className="pv-mail-attach-remove"
-                    onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })}
-                    data-testid="draft-attach-remove"
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
-              <Button variant="ghost" size="sm" icon={<Paperclip size={13} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
-                {t("mail.attachFile", { defaultValue: "Datei anhängen" })}
-              </Button>
-            </div>
-            {mailboxes.length > 0 && (
-              <div>
-                <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}</label>
-                <Select
-                  ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}
-                  value={mailbox}
-                  onChange={setMailbox}
-                  options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m) }))}
-                />
-              </div>
-            )}
-            <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-              {canSend
-                ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
-                : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
-            </p>
-          </>
-        )}
-        {error && (
-          <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0 }} data-testid="draft-error">
-            {error}
-          </p>
-        )}
+      <div className="pv-peek-head" onPointerDown={onHeadDown} onPointerMove={onHeadMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+        <span className="pv-peek-title">{title}</span>
+        <div className="pv-peek-actions">
+          <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} title={t("common.close", { defaultValue: "Schließen" })}>
+            <X size={16} />
+          </button>
+        </div>
       </div>
-    </Modal>
+
+      <div className="pv-mail-winbody">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", height: "100%" }} data-testid="draft-form">
+          {accounts.length === 0 ? (
+            <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+              {t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })}
+            </p>
+          ) : (
+            <>
+              {accounts.length > 1 && (
+                <div>
+                  <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.account", { defaultValue: "Konto" })}</label>
+                  <Select ariaLabel={t("mail.account", { defaultValue: "Konto" })} value={accountId} onChange={setAccountId} options={accounts.map((a) => ({ value: a.id, label: a.label }))} />
+                </div>
+              )}
+              <label className="pv-mail-cmplabel">
+                <span>{t("mail.draftTo", { defaultValue: "An" })}</span>
+                <input className="pv-field" value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus placeholder="name@example.org" />
+              </label>
+              <label className="pv-mail-cmplabel">
+                <span>{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
+                <input className="pv-field" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" />
+              </label>
+              <ComposeEditor
+                value={body}
+                onChange={setBody}
+                placeholder={t("mail.bodyPlaceholder", { defaultValue: "Nachricht schreiben… (Markdown, „/“ für Befehle)" })}
+                data-testid="draft-body"
+              />
+              <div className="pv-mail-cmpattach">
+                {attach.map((a, i) => (
+                  <span key={`${a.name}-${i}`} className="pv-mail-attach-chip" data-testid="draft-attachments">
+                    <Paperclip size={12} />
+                    {a.name}
+                    <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                <Button variant="ghost" size="sm" icon={<Paperclip size={13} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
+                  {t("mail.attachFile", { defaultValue: "Datei anhängen" })}
+                </Button>
+              </div>
+              {mailboxes.length > 0 && (
+                <div>
+                  <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}</label>
+                  <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m) }))} />
+                </div>
+              )}
+              <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                {canSend
+                  ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
+                  : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
+              </p>
+            </>
+          )}
+          {error && (
+            <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0 }} data-testid="draft-error">{error}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="pv-mail-winfoot">
+        <Button variant="ghost" onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+        <span style={{ flex: 1 }} />
+        <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
+          {t("mail.saveDraft", { defaultValue: "Als Entwurf" })}
+        </Button>
+        <Button
+          variant="primary"
+          data-testid="draft-send"
+          disabled={busy || accounts.length === 0 || !canSend}
+          onClick={() => void send()}
+          title={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
+        >
+          {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
+        </Button>
+      </div>
+
+      <div className="pv-peek-resize" aria-hidden="true" onPointerDown={onResizeDown} onPointerMove={onResizeMove} onPointerUp={endResize} onPointerCancel={endResize} />
+    </div>,
+    document.body
   );
 }
