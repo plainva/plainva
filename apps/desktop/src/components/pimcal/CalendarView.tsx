@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, FilePlus2, ListChecks, Mail, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
@@ -258,6 +258,26 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
     }
     return m;
   }, [tasks]);
+
+  // Month cell density: how many event/task lines fit a cell is derived from the
+  // MEASURED row height (the grid fills the pane), so a tall window shows more
+  // rows before collapsing the rest into "+N" instead of a hardcoded cap of 3.
+  const monthGridRef = useRef<HTMLDivElement | null>(null);
+  const [maxCellItems, setMaxCellItems] = useState(3);
+  const monthRows = Math.max(1, Math.round(cells.length / 7));
+  useLayoutEffect(() => {
+    const el = monthGridRef.current;
+    if (!el || viewMode !== "month" || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const rowH = el.clientHeight / monthRows;
+      // day number (~16px) + "+N" reserve (~14px); each line ~16px.
+      setMaxCellItems(Math.max(1, Math.min(12, Math.floor((rowH - 30) / 16))));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [viewMode, monthRows]);
 
   const byDay = useMemo(() => bucketEventsByDay(events), [events]);
   const calColor = useMemo(() => {
@@ -911,6 +931,7 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
             ))}
           </div>
           <div
+            ref={monthGridRef}
             data-testid="calendar-grid"
             style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
           >
@@ -918,9 +939,9 @@ export function CalendarView({ onOpenPath }: CalendarViewProps) {
               const key = localIsoKey(cell);
               const list = byDay.get(key) ?? [];
               const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
-              // Events fill the (max 3) slots first; remaining slots show tasks.
-              const shownEvents = list.slice(0, 3);
-              const shownTasks = dayTaskList.slice(0, Math.max(0, 3 - shownEvents.length));
+              // Events fill the available lines first; remaining lines show tasks.
+              const shownEvents = list.slice(0, maxCellItems);
+              const shownTasks = dayTaskList.slice(0, Math.max(0, maxCellItems - shownEvents.length));
               const overflow = list.length + dayTaskList.length - shownEvents.length - shownTasks.length;
               const inMonth = cell.getMonth() === viewMonth;
               const isToday = key === todayKey;

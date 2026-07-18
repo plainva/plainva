@@ -18,8 +18,11 @@ import type { DueTask } from "../../services/pim/taskOverlay";
  * @plainva/ui time-grid helpers.
  */
 
-const PX_PER_HOUR = 44;
-const DAY_HEIGHT = 24 * PX_PER_HOUR;
+/** Default hour height before the container is measured; the grid then STRETCHES
+ * the 24 hours to fill the pane (responsive) and only scrolls when the window is
+ * too short for MIN_PX_PER_HOUR. */
+const DEFAULT_PX_PER_HOUR = 44;
+const MIN_PX_PER_HOUR = 34;
 const MIN_BLOCK_PX = 16;
 const DRAG_THRESHOLD_PX = 4;
 /** A drag under one snap step (15 min) and without a column change is a click. */
@@ -93,10 +96,28 @@ export function DayTimeGrid(props: DayTimeGridProps) {
   const [blockDrag, setBlockDrag] = useState<BlockDrag | null>(null);
   /** Set on a moved event drag so the trailing click does not open the dialog. */
   const suppressClickRef = useRef(false);
+  // The 24 hours STRETCH to fill the pane: the hour height tracks the scroll
+  // container's measured height (÷24), floored at MIN_PX_PER_HOUR so a short
+  // window scrolls instead of squashing beyond legibility.
+  const [pxPerHour, setPxPerHour] = useState(DEFAULT_PX_PER_HOUR);
+  const dayHeight = 24 * pxPerHour;
   const [nowMin, setNowMin] = useState(() => {
     const n = new Date();
     return n.getHours() * 60 + n.getMinutes();
   });
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const h = el.clientHeight;
+      if (h > 0) setPxPerHour(Math.max(MIN_PX_PER_HOUR, h / 24));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Keep the "now" line current (minute granularity is plenty).
   useEffect(() => {
@@ -114,7 +135,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     const el = scrollRef.current;
     if (!el) return;
     const focusHour = dayKeys.includes(todayKey) ? Math.max(0, new Date().getHours() - 1) : 7;
-    el.scrollTop = focusHour * PX_PER_HOUR;
+    el.scrollTop = focusHour * pxPerHour;
     // Only re-run when the visible days change, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollKey]);
@@ -153,9 +174,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
   const relY = (col: number, clientY: number) => {
     const lane = laneRefs.current[col];
     if (!lane) return 0;
-    return Math.max(0, Math.min(DAY_HEIGHT, clientY - lane.getBoundingClientRect().top));
+    return Math.max(0, Math.min(dayHeight, clientY - lane.getBoundingClientRect().top));
   };
-  const minAt = (col: number, clientY: number) => pxToMinutes(relY(col, clientY), PX_PER_HOUR);
+  const minAt = (col: number, clientY: number) => pxToMinutes(relY(col, clientY), pxPerHour);
   /** Which day column the pointer's x is over (clamped to the visible range). */
   const colAt = (clientX: number, fallback: number): number => {
     let best = fallback;
@@ -192,8 +213,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     if (d && d.col === col && d.pointerId === e.pointerId) {
       const top = Math.min(d.y0, d.y1);
       const bottom = Math.max(d.y0, d.y1);
-      const startMin = snapMinutes(pxToMinutes(top, PX_PER_HOUR));
-      let endMin = d.moved ? snapMinutes(pxToMinutes(bottom, PX_PER_HOUR)) : startMin + 30;
+      const startMin = snapMinutes(pxToMinutes(top, pxPerHour));
+      let endMin = d.moved ? snapMinutes(pxToMinutes(bottom, pxPerHour)) : startMin + 30;
       if (endMin <= startMin) endMin = startMin + (d.moved ? 15 : 30);
       onCreateSlot(d.dayKey, startMin, Math.min(24 * 60, endMin), { x: e.clientX, y: e.clientY });
     }
@@ -283,7 +304,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       {/* All-day / due-tasks strip */}
       {hasAllDayRow && (
         <div data-testid="calendar-allday-strip" style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)", background: "var(--bg-secondary)", maxHeight: 84, overflow: "auto" }}>
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: 10, color: "var(--text-faint)", textAlign: "right", padding: "4px 6px 0 0", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          {/* Gutter label: clip it so a long localized "GANZTÄGIG" never spills
+              into the first day column and collides with a task's checkbox. */}
+          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: 9, color: "var(--text-faint)", textAlign: "right", padding: "4px 6px 0 0", textTransform: "uppercase", letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d) => (
@@ -319,11 +342,11 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
       {/* Scrollable hour grid */}
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
-        <div style={{ display: "flex", position: "relative", height: DAY_HEIGHT }}>
+        <div style={{ display: "flex", position: "relative", height: dayHeight }}>
           {/* Hour gutter */}
           <div style={{ width: gutterWidth, flexShrink: 0, position: "relative" }}>
             {hours.map((h) => (
-              <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 6, transform: "translateY(-50%)", fontSize: 10, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
+              <div key={h} style={{ position: "absolute", top: h * pxPerHour, right: 6, transform: "translateY(-50%)", fontSize: 10, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
                 {h > 0 ? minutesToHHMM(h * 60) : ""}
               </div>
             ))}
@@ -344,15 +367,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
               >
                 {/* Hour lines */}
                 {hours.map((h) => (
-                  <div key={h} style={{ position: "absolute", left: 0, right: 0, top: h * PX_PER_HOUR, borderTop: "1px solid var(--border-color-light)", opacity: 0.6 }} />
+                  <div key={h} style={{ position: "absolute", left: 0, right: 0, top: h * pxPerHour, borderTop: "1px solid var(--border-color-light)", opacity: 0.6 }} />
                 ))}
 
                 {/* Drag selection preview (create) */}
                 {drag && drag.col === col && (() => {
                   const top = Math.min(drag.y0, drag.y1);
                   const height = Math.max(MIN_BLOCK_PX, Math.abs(drag.y1 - drag.y0));
-                  const s = snapMinutes(pxToMinutes(top, PX_PER_HOUR));
-                  const e = drag.moved ? snapMinutes(pxToMinutes(top + height, PX_PER_HOUR)) : s + 30;
+                  const s = snapMinutes(pxToMinutes(top, pxPerHour));
+                  const e = drag.moved ? snapMinutes(pxToMinutes(top + height, pxPerHour)) : s + 30;
                   return (
                     <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 4 }}>
                       {minutesToHHMM(s)}–{minutesToHHMM(e)}
@@ -362,8 +385,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
                 {/* Event-drag ghost (move/resize) */}
                 {blockDrag && blockDrag.moved && blockDrag.curCol === col && (() => {
-                  const top = minutesToPx(blockDrag.curStartMin, PX_PER_HOUR);
-                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(blockDrag.curEndMin - blockDrag.curStartMin, PX_PER_HOUR));
+                  const top = minutesToPx(blockDrag.curStartMin, pxPerHour);
+                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(blockDrag.curEndMin - blockDrag.curStartMin, pxPerHour));
                   return (
                     <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "flex-start", padding: "2px 5px", fontSize: 11, color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
                       {minutesToHHMM(blockDrag.curStartMin)}–{minutesToHHMM(blockDrag.curEndMin)}
@@ -373,8 +396,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
                 {/* Timed event blocks */}
                 {d.blocks.map((b) => {
-                  const top = minutesToPx(b.startMin, PX_PER_HOUR);
-                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(b.endMin - b.startMin, PX_PER_HOUR));
+                  const top = minutesToPx(b.startMin, pxPerHour);
+                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(b.endMin - b.startMin, pxPerHour));
                   const widthPct = 100 / b.lanes;
                   const leftPct = b.lane * widthPct;
                   const editable = canEditEvent(b.ev);
@@ -450,7 +473,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
                 {/* Now line (today only) */}
                 {isToday && (
-                  <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), height: 0, borderTop: "2px solid var(--error-text)", zIndex: 5 }}>
+                  <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, pxPerHour), height: 0, borderTop: "2px solid var(--error-text)", zIndex: 5 }}>
                     <span style={{ position: "absolute", left: -3, top: -4, width: 7, height: 7, borderRadius: "var(--radius-pill)", background: "var(--error-text)" }} />
                   </div>
                 )}

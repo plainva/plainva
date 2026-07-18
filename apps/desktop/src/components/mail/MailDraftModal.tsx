@@ -6,7 +6,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
-import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, type MailAttachment } from "../../services/mail/mailOut";
+import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "../../services/mail/mailOut";
 import "./mail.css";
 
 /**
@@ -241,7 +241,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                   ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}
                   value={mailbox}
                   onChange={setMailbox}
-                  options={mailboxes.map((m) => ({ value: m, label: m }))}
+                  options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m) }))}
                 />
               </div>
             )}
