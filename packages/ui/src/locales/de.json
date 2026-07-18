@@ -1980,6 +1980,8 @@
     "draftHint": "Plainva sendet nie selbst — der Entwurf landet im Postfach und wird im Mail-Programm verschickt.",
     "showImages": "Bilder anzeigen",
     "loadRemoteImages": "Externe Bilder immer laden",
-    "loadRemoteImagesHint": "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden."
+    "loadRemoteImagesHint": "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",
+    "newMessage": "Neue Nachricht",
+    "forward": "Weiterleiten"
   }
 }

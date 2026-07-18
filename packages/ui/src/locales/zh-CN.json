@@ -1974,6 +1974,8 @@
     "draftHint": "Plainva 从不自行发送——草稿保存在邮箱中，由你的邮件程序发送。",
     "showImages": "显示图片",
     "loadRemoteImages": "始终加载外部图片",
-    "loadRemoteImagesHint": "加载外部图片会让发件人看到你的 IP 地址和打开邮件的时间（跟踪）。Plainva 默认阻止它们——可通过“显示图片”按邮件显示。"
+    "loadRemoteImagesHint": "加载外部图片会让发件人看到你的 IP 地址和打开邮件的时间（跟踪）。Plainva 默认阻止它们——可通过“显示图片”按邮件显示。",
+    "newMessage": "写邮件",
+    "forward": "转发"
   }
 }

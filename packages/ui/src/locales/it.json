@@ -1986,6 +1986,8 @@
     "draftHint": "Plainva non invia mai da solo — la bozza resta nella casella e parte dal tuo programma di posta.",
     "showImages": "Mostra immagini",
     "loadRemoteImages": "Carica sempre le immagini remote",
-    "loadRemoteImagesHint": "Caricando le immagini remote il mittente vede il tuo indirizzo IP e quando hai aperto la mail (tracciamento). Plainva le blocca per impostazione predefinita — usa “Mostra immagini” per mostrarle per messaggio."
+    "loadRemoteImagesHint": "Caricando le immagini remote il mittente vede il tuo indirizzo IP e quando hai aperto la mail (tracciamento). Plainva le blocca per impostazione predefinita — usa “Mostra immagini” per mostrarle per messaggio.",
+    "newMessage": "Nuovo messaggio",
+    "forward": "Inoltra"
   }
 }

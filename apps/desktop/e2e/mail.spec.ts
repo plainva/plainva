@@ -228,6 +228,34 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
 });
 
+test('mail-client E1: folder column, new-message compose and forward', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  // Folder column lists the account's mailboxes (from mail_check_login), INBOX first.
+  const folders = page.getByTestId('mail-folder');
+  await expect(folders).toHaveCount(3);
+  await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
+  await expect(page.getByTestId('mail-folders')).toContainText('Sent');
+  // Switching folders keeps the envelope list working.
+  await folders.filter({ hasText: 'Sent' }).click();
+  await expect(page.getByTestId('mail-envelope').first()).toBeVisible();
+
+  // New message opens the compose draft dialog (empty); Escape closes it.
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Forward: compose opens prefilled with a "Fwd:" subject.
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+});
+
 test('mail-out: reply-as-note quotes the original; the draft dialog appends via IMAP', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();

@@ -68,6 +68,42 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   return content;
 }
 
+/** Forwarded-message body (mail-client E1): the quoted original with a header
+ * block, ready to drop into a compose draft. Pure. */
+export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {
+  const header = ["---------- Forwarded message ----------"];
+  if (message.from) header.push(`From: ${message.from}`);
+  if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toISOString()}`);
+  if (message.subject) header.push(`Subject: ${message.subject}`);
+  return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
+}
+
+/** Display label for an IMAP mailbox name: drop a leading "[Gmail]/" special-use
+ * container and show the last hierarchy segment (separator-agnostic). Pure. */
+export function mailFolderLabel(name: string): string {
+  const stripped = name.replace(/^\[Gmail\]\//i, "");
+  const segs = stripped.split(/[/.]/).filter(Boolean);
+  return segs.length ? segs[segs.length - 1] : name;
+}
+
+const FOLDER_ORDER = ["inbox", "sent", "draft", "archive", "junk", "spam", "trash"];
+
+/** Orders mailbox names for the folder column: INBOX first, then the usual
+ * special-use folders, then the rest alphabetically (by display label). Pure. */
+export function sortMailFolders(names: string[]): string[] {
+  const rank = (n: string): number => {
+    const label = mailFolderLabel(n).toLowerCase();
+    const i = FOLDER_ORDER.findIndex((k) => label.includes(k) || n.toLowerCase().includes(k));
+    return i < 0 ? FOLDER_ORDER.length : i;
+  };
+  return [...names].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return mailFolderLabel(a).localeCompare(mailFolderLabel(b));
+  });
+}
+
 /** Appends a \Draft message into the account's mailbox (IMAP APPEND). */
 export async function appendDraft(
   vaultPath: string,

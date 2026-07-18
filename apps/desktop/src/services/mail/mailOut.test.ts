@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, guessDraftsMailbox, noteToClipboardFlavors } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, guessDraftsMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -45,5 +45,31 @@ describe("mail-out helpers (stage 6)", () => {
     expect(html).toContain("Titel");
     expect(text).toContain("Hallo Welt.");
     expect(text).not.toContain("**");
+  });
+
+  it("builds a forwarded body with a header block and the quoted original (E1)", () => {
+    const body = buildForwardBody({ subject: "Rechnung", from: "Anna <anna@example.org>", text: "Hallo,\nanbei.", dateTs: Date.UTC(2026, 6, 1) });
+    expect(body).toContain("---------- Forwarded message ----------");
+    expect(body).toContain("From: Anna <anna@example.org>");
+    expect(body).toContain("Subject: Rechnung");
+    expect(body).toContain("Hallo,\nanbei.");
+    // Empty original still produces a header, no crash.
+    expect(buildForwardBody({ subject: "", from: "", text: null, dateTs: 0 })).toContain("Forwarded message");
+  });
+
+  it("labels mailboxes by last hierarchy segment and drops the [Gmail] container (E1)", () => {
+    expect(mailFolderLabel("INBOX")).toBe("INBOX");
+    expect(mailFolderLabel("[Gmail]/Sent Mail")).toBe("Sent Mail");
+    expect(mailFolderLabel("Work/Clients/ACME")).toBe("ACME");
+    expect(mailFolderLabel("INBOX.Archive")).toBe("Archive");
+  });
+
+  it("orders folders INBOX-first then special-use then alphabetical (E1)", () => {
+    const out = sortMailFolders(["Zeta", "[Gmail]/Trash", "Drafts", "INBOX", "Sent", "Alpha"]);
+    expect(out[0]).toBe("INBOX");
+    // Sent + Drafts precede the plain alphabetical tail; Trash sits in the special block too.
+    expect(out.indexOf("Sent")).toBeLessThan(out.indexOf("Alpha"));
+    expect(out.indexOf("Drafts")).toBeLessThan(out.indexOf("Alpha"));
+    expect(out.indexOf("Alpha")).toBeLessThan(out.indexOf("Zeta"));
   });
 });

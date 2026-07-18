@@ -1980,6 +1980,8 @@
     "draftHint": "Plainva verstuurt nooit zelf — het concept komt in de mailbox en wordt vanuit je mailprogramma verzonden.",
     "showImages": "Afbeeldingen tonen",
     "loadRemoteImages": "Externe afbeeldingen altijd laden",
-    "loadRemoteImagesHint": "Bij het laden van externe afbeeldingen ziet de afzender je IP-adres en wanneer je de mail opende (tracking). Plainva blokkeert ze standaard — gebruik “Afbeeldingen tonen” om ze per bericht te tonen."
+    "loadRemoteImagesHint": "Bij het laden van externe afbeeldingen ziet de afzender je IP-adres en wanneer je de mail opende (tracking). Plainva blokkeert ze standaard — gebruik “Afbeeldingen tonen” om ze per bericht te tonen.",
+    "newMessage": "Nieuw bericht",
+    "forward": "Doorsturen"
   }
 }

@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FilePlus2, FileText, ListChecks, Mail, Paperclip, RefreshCw, Reply, ShieldOff } from "lucide-react";
+import { FilePlus2, FileText, Forward, Inbox, ListChecks, Mail, MailPlus, Paperclip, RefreshCw, Reply, ShieldOff } from "lucide-react";
 import { Button, EmptyState, IconButton, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listEnvelopes, fetchMessage, fetchRawMessage, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
+import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
-import { buildReplyNoteContent } from "../../services/mail/mailOut";
+import { buildReplyNoteContent, buildForwardBody, mailFolderLabel, sortMailFolders } from "../../services/mail/mailOut";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
 import { findColumnKey } from "../../services/taskPromotion";
+import { MailDraftModal } from "./MailDraftModal";
 
 /**
  * Mail-capture tab (PIM stage 5, virtual path plainva://mail): a read-only
@@ -37,7 +38,9 @@ export function MailView({ onOpenPath }: MailViewProps) {
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
-  const [mailbox] = useState("INBOX");
+  const [mailbox, setMailbox] = useState("INBOX");
+  const [folders, setFolders] = useState<string[]>([]);
+  const [compose, setCompose] = useState<{ subject: string; markdown: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
@@ -87,6 +90,29 @@ export function MailView({ onOpenPath }: MailViewProps) {
       alive = false;
     };
   }, [vaultPath]);
+
+  // Folder column (mail-client E1): the account's mailboxes, INBOX first. The
+  // read-only login command already returns the mailbox list, so this needs no
+  // new Rust. A failure leaves the single INBOX entry (list still works).
+  useEffect(() => {
+    let alive = true;
+    setFolders([]);
+    setMailbox("INBOX");
+    if (!vaultPath || !account) return;
+    void listMailboxesFor(vaultPath, account)
+      .then((boxes) => {
+        if (!alive) return;
+        const names = sortMailFolders(boxes.map((b) => b.name).filter(Boolean));
+        setFolders(names);
+        setMailbox((m) => (names.includes(m) ? m : names.find((n) => /inbox/i.test(n)) ?? names[0] ?? "INBOX"));
+      })
+      .catch(() => {
+        /* keep the implicit INBOX; the envelope list still loads */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, account]);
 
   const loadList = useCallback(
     async (offset: number) => {
@@ -258,9 +284,10 @@ export function MailView({ onOpenPath }: MailViewProps) {
   }
 
   return (
+    <>
     <div data-testid="mail-view" style={{ flex: 1, minHeight: 0, display: "flex", background: "var(--bg-primary)" }}>
-      {/* Envelope list */}
-      <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* Folder column: account + mailboxes (mail-client E1) */}
+      <div style={{ width: 210, flexShrink: 0, borderRight: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2)", borderBottom: "1px solid var(--border-color-light)" }}>
           {accounts.length > 1 ? (
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -273,9 +300,52 @@ export function MailView({ onOpenPath }: MailViewProps) {
             </div>
           ) : (
             <strong style={{ flex: 1, minWidth: 0, fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {account?.label} · {mailbox}
+              {account?.label}
             </strong>
           )}
+          <IconButton label={t("mail.newMessage", { defaultValue: "Neue Nachricht" })} onClick={() => setCompose({ subject: "", markdown: "" })} data-testid="mail-compose">
+            <MailPlus size={14} />
+          </IconButton>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "var(--space-1)" }} data-testid="mail-folders">
+          {(folders.length ? folders : ["INBOX"]).map((name) => {
+            const active = name === mailbox;
+            return (
+              <button
+                key={name}
+                data-testid="mail-folder"
+                onClick={() => setMailbox(name)}
+                title={name}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "5px var(--space-2)",
+                  border: "none",
+                  borderRadius: "var(--radius-sm)",
+                  background: active ? "var(--bg-hover)" : "transparent",
+                  color: active ? "var(--accent-color)" : "var(--text-main)",
+                  fontWeight: active ? 600 : 400,
+                  cursor: "pointer",
+                  fontSize: "var(--text-sm)",
+                }}
+              >
+                {/inbox/i.test(name) ? <Inbox size={13} style={{ flexShrink: 0 }} /> : <Mail size={13} style={{ flexShrink: 0, opacity: 0.6 }} />}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mailFolderLabel(name)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Envelope list */}
+      <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2)", borderBottom: "1px solid var(--border-color-light)" }}>
+          <strong style={{ flex: 1, minWidth: 0, fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {mailFolderLabel(mailbox)}
+          </strong>
           <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={() => void loadList(0)} data-testid="mail-refresh">
             <RefreshCw size={14} />
           </IconButton>
@@ -333,8 +403,8 @@ export function MailView({ onOpenPath }: MailViewProps) {
         ) : (
           <>
             <div style={{ padding: "var(--space-2) var(--space-3)", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-2)" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
                   <h3 style={{ margin: 0, fontSize: "var(--text-md)", overflowWrap: "anywhere" }} data-testid="mail-subject">
                     {message.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}
                   </h3>
@@ -343,6 +413,9 @@ export function MailView({ onOpenPath }: MailViewProps) {
                     {message.dateTs > 0 ? ` · ${dateFmt.format(new Date(message.dateTs))}` : ""}
                   </div>
                 </div>
+                {/* Action toolbar wraps as whole buttons so a narrow reader never
+                    grows the header past the message body (mail-client E1). */}
+                <div style={{ display: "flex", gap: "var(--space-1)", flexWrap: "wrap", flexShrink: 0 }}>
                 <Button variant="secondary" size="sm" onClick={() => void captureNote(false)} data-testid="mail-capture-note" icon={<FilePlus2 size={13} />}>
                   {t("mail.captureNote", { defaultValue: "Als Notiz ablegen" })}
                 </Button>
@@ -355,6 +428,16 @@ export function MailView({ onOpenPath }: MailViewProps) {
                 <Button variant="ghost" size="sm" onClick={() => void replyAsNote()} data-testid="mail-reply-note" icon={<Reply size={13} />}>
                   {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCompose({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                  data-testid="mail-forward"
+                  icon={<Forward size={13} />}
+                >
+                  {t("mail.forward", { defaultValue: "Weiterleiten" })}
+                </Button>
+                </div>
               </div>
               {message.attachments.length > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", flexWrap: "wrap" }}>
@@ -402,5 +485,9 @@ export function MailView({ onOpenPath }: MailViewProps) {
         )}
       </div>
     </div>
+    {compose && (
+      <MailDraftModal subject={compose.subject} markdown={compose.markdown} onClose={() => setCompose(null)} />
+    )}
+    </>
   );
 }

@@ -1980,6 +1980,8 @@
     "draftHint": "Plainva never sends itself — the draft lands in the mailbox and is sent from your mail program.",
     "showImages": "Show images",
     "loadRemoteImages": "Always load remote images",
-    "loadRemoteImagesHint": "Loading remote images lets the sender see your IP address and when you opened the mail (tracking). Plainva blocks them by default — use “Show images” to reveal them per message."
+    "loadRemoteImagesHint": "Loading remote images lets the sender see your IP address and when you opened the mail (tracking). Plainva blocks them by default — use “Show images” to reveal them per message.",
+    "newMessage": "New message",
+    "forward": "Forward"
   }
 }

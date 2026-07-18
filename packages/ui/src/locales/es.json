@@ -1986,6 +1986,8 @@
     "draftHint": "Plainva nunca envía por sí mismo — el borrador queda en el buzón y se envía desde tu programa de correo.",
     "showImages": "Mostrar imágenes",
     "loadRemoteImages": "Cargar siempre las imágenes remotas",
-    "loadRemoteImagesHint": "Al cargar imágenes remotas, el remitente ve tu dirección IP y cuándo abriste el correo (rastreo). Plainva las bloquea por defecto — usa “Mostrar imágenes” para mostrarlas por mensaje."
+    "loadRemoteImagesHint": "Al cargar imágenes remotas, el remitente ve tu dirección IP y cuándo abriste el correo (rastreo). Plainva las bloquea por defecto — usa “Mostrar imágenes” para mostrarlas por mensaje.",
+    "newMessage": "Nuevo mensaje",
+    "forward": "Reenviar"
   }
 }

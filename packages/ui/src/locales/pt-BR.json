@@ -1986,6 +1986,8 @@
     "draftHint": "O Plainva nunca envia sozinho — o rascunho fica na caixa e é enviado pelo seu programa de e-mail.",
     "showImages": "Mostrar imagens",
     "loadRemoteImages": "Sempre carregar imagens remotas",
-    "loadRemoteImagesHint": "Ao carregar imagens remotas, o remetente vê seu endereço IP e quando você abriu o e-mail (rastreamento). O Plainva as bloqueia por padrão — use “Mostrar imagens” para exibi-las por mensagem."
+    "loadRemoteImagesHint": "Ao carregar imagens remotas, o remetente vê seu endereço IP e quando você abriu o e-mail (rastreamento). O Plainva as bloqueia por padrão — use “Mostrar imagens” para exibi-las por mensagem.",
+    "newMessage": "Nova mensagem",
+    "forward": "Encaminhar"
   }
 }

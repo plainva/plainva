@@ -1986,6 +1986,8 @@
     "draftHint": "Plainva n’envoie jamais lui-même — le brouillon arrive dans la boîte et part depuis votre messagerie.",
     "showImages": "Afficher les images",
     "loadRemoteImages": "Toujours charger les images distantes",
-    "loadRemoteImagesHint": "Charger les images distantes révèle votre adresse IP et le moment d'ouverture à l'expéditeur (pistage). Plainva les bloque par défaut — utilisez « Afficher les images » pour les révéler par message."
+    "loadRemoteImagesHint": "Charger les images distantes révèle votre adresse IP et le moment d'ouverture à l'expéditeur (pistage). Plainva les bloque par défaut — utilisez « Afficher les images » pour les révéler par message.",
+    "newMessage": "Nouveau message",
+    "forward": "Transférer"
   }
 }

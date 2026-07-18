@@ -1992,6 +1992,8 @@
     "draftHint": "Plainva nigdy nie wysyła samodzielnie — szkic trafia do skrzynki i jest wysyłany z programu pocztowego.",
     "showImages": "Pokaż obrazy",
     "loadRemoteImages": "Zawsze wczytuj zdalne obrazy",
-    "loadRemoteImagesHint": "Wczytanie zdalnych obrazów ujawnia nadawcy Twój adres IP i moment otwarcia wiadomości (śledzenie). Plainva domyślnie je blokuje — użyj „Pokaż obrazy”, aby pokazać je dla pojedynczej wiadomości."
+    "loadRemoteImagesHint": "Wczytanie zdalnych obrazów ujawnia nadawcy Twój adres IP i moment otwarcia wiadomości (śledzenie). Plainva domyślnie je blokuje — użyj „Pokaż obrazy”, aby pokazać je dla pojedynczej wiadomości.",
+    "newMessage": "Nowa wiadomość",
+    "forward": "Przekaż dalej"
   }
 }
