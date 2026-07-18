@@ -826,9 +826,22 @@
 }
 
 /* Settings window (redesign feedback 2026-07-18): unlike the fixed-height xl
-   diff modals, the settings hug the ACTIVE page — short pages shrink the
-   window instead of leaving dead space (macOS System Settings pattern). The
-   rail defines the visual minimum; tall pages scroll inside max-height. */
+   diff modals, the settings take ONE stable height: all pages render stacked
+   in a single grid cell (.pv-setpages), so the window is sized by the tallest
+   page and never jumps when switching areas (feedback round 2). The rail
+   defines the visual minimum; on small screens pages scroll inside max-height. */
 .pv-modal--settings {
   min-height: min(620px, 86vh);
+}
+.pv-setpages {
+  display: grid;
+}
+.pv-setpages > .pv-setpage {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+/* Inactive pages keep their size (they define the shared height) but are
+   invisible, unclickable, unfocusable and hidden from assistive tech. */
+.pv-setpages > .pv-setpage[data-active="false"] {
+  visibility: hidden;
 }

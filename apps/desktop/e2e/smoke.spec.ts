@@ -1349,3 +1349,34 @@ test('Settings nav: exactly the clicked area is active; one vault shows no switc
   await expect(dialog.getByTestId('settings-vault-name')).toBeVisible();
   await expect(dialog.getByRole('button', { name: /^(Wechseln|Switch)$/ })).toHaveCount(0);
 });
+
+test('Settings window keeps one stable height across areas (sized by the tallest page)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  // Tall enough that the max-height clamp does not mask a size jump.
+  await page.setViewportSize({ width: 1280, height: 1000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  const heightOn = async (area: RegExp) => {
+    await dialog.getByRole('button', { name: area }).click();
+    const box = await dialog.boundingBox();
+    return box ? box.height : 0;
+  };
+
+  // Tallest app page, a short app page and a vault page must all render the
+  // window at the SAME height (stacked pages — feedback round 2: no jumping).
+  const tall = await heightOn(/^(Erscheinungsbild|Appearance)$/);
+  const short = await heightOn(/^Updates$/);
+  const vault = await heightOn(/^Backup/);
+  expect(tall).toBeGreaterThan(0);
+  expect(Math.abs(tall - short)).toBeLessThanOrEqual(1);
+  expect(Math.abs(tall - vault)).toBeLessThanOrEqual(1);
+
+  // The active page's content is interactive, the stacked hidden pages not:
+  // exactly one visible area heading at a time.
+  await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
+  await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
+});

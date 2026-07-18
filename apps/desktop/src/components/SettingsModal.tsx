@@ -65,6 +65,16 @@ const GENERAL = "general";
 
 const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
+/* Every settings page stays mounted in one grid cell (.pv-setpages), so the
+ * window is sized by the TALLEST page and never resizes between areas.
+ * Inactive pages are visibility-hidden: not clickable, not focusable, not in
+ * the a11y tree — their handlers can only fire while their area is active. */
+const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active, children }) => (
+  <div className="pv-setpage" data-active={active ? "true" : "false"}>
+    {children}
+  </div>
+);
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
@@ -1093,7 +1103,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     }
   };
 
-  const isActiveVault = section === vaultPath;
+  // Whether the vault the VAULT pages render for is the currently open one.
+  // Based on selectedVault (not section): while a vault page is interactive,
+  // section === selectedVault, so this equals the old section check — but the
+  // stacked (hidden) vault pages must render their full-height forms even
+  // while the APP world is visible, not the "open vault first" hints.
+  const isActiveVault = selectedVault === vaultPath;
+  const inAppWorld = section === GENERAL;
 
   const zipStatusDesc =
     zipStatus.state === "running"
@@ -1127,12 +1143,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
             onShowShortcuts={() => setShowShortcuts(true)}
           />
 
-          {/* Right content: exactly one settings page. */}
+          {/* Right content: all pages stacked in one grid cell — the tallest
+              page defines the (stable) window height, only the active one is
+              visible. See SettingsPage / .pv-setpages. */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <div ref={contentRef} className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "1.5rem 1.75rem" }}>
-              {section === GENERAL ? (
-                <>
-                  {appPage === "appearance" && (
+              <div className="pv-setpages">
+                  <SettingsPage active={inAppWorld && appPage === "appearance"}>
                     <AppearancePage
                       themeName={themeName}
                       onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
@@ -1147,16 +1164,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
                     />
-                  )}
-                  {appPage === "editor" && (
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "editor"}>
                     <EditorPage
                       defaultViewMode={defaultViewMode}
                       onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
                       contentFont={contentFont}
                       onContentFont={(next) => { setContentFont(next); void setStoredContentFont(next); }}
                     />
-                  )}
-                  {appPage === "behavior" && (
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "behavior"}>
                     <BehaviorPage
                       autoOpenLastVault={autoOpenLastVault}
                       onAutoOpenLastVault={(v) => { void setAutoOpenLastVault(v); }}
@@ -1170,8 +1187,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                         })();
                       }}
                     />
-                  )}
-                  {appPage === "updates" && (
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "updates"}>
                     <UpdatesPage
                       autoUpdateCheckEnabled={autoUpdateCheckEnabled}
                       onAutoUpdateCheck={(val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); }}
@@ -1181,8 +1198,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onCheckUpdates={() => { void checkForUpdates(); }}
                       onInstallUpdate={() => { void installUpdate(); }}
                     />
-                  )}
-                  {appPage === "about" && (
+                  </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "about"}>
                     <AboutPage
                       aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
                       keychainStatus={keychainStatus}
@@ -1192,11 +1209,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onExportDiagnostics={() => { void handleExportDiagnostics(); }}
                       onReportIssue={() => { void handleReportIssue(); }}
                     />
-                  )}
-                </>
-              ) : (
-                <>
-                  {vaultPage === "sync" && (
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
                       provider={provider}
                       activeProvider={activeProvider}
@@ -1272,9 +1286,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           .catch(() => setSyncQueueSnapshot({ total: 0, items: [] }));
                       }}
                     />
-                  )}
-                  {vaultPage === "pim" && <PimPage isActiveVault={isActiveVault} />}
-                  {vaultPage === "content" && (
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
+                    <PimPage isActiveVault={isActiveVault} />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage
                       isActiveVault={isActiveVault}
                       dailyNotesFolder={dailyNotesFolder}
@@ -1305,8 +1321,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       extendedDatabases={extendedDatabases}
                       onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
                     />
-                  )}
-                  {vaultPage === "backup" && (
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "backup"}>
                     <BackupPage
                       isActiveVault={isActiveVault}
                       zipEnabled={zipEnabled}
@@ -1355,8 +1371,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       versionMaxAgeDays={versionMaxAgeDays}
                       onVersionMaxAge={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
                     />
-                  )}
-                  {vaultPage === "maintenance" && (
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
                     <MaintenancePage
                       isActiveVault={isActiveVault}
                       reindexRunning={reindexRunning}
@@ -1369,9 +1385,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                       vaultStats={vaultStats}
                     />
-                  )}
-                </>
-              )}
+                  </SettingsPage>
+              </div>
             </div>
           </div>
         </div>
