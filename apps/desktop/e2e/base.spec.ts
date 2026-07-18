@@ -1688,8 +1688,10 @@ test('Config reiter: tabs switch areas; view-type tile grid; filter shows a chip
   const panel = page.locator('.base-config-panel');
   await expect(panel).toBeVisible();
 
-  // The area tabs are labelled chips/pills (maintainer 2026-07-18), not icon-only.
-  await expect(panel.locator('.base-cfg-tab').first()).toHaveText(/Ansicht|View/);
+  // The area tabs are an icon-only segmented control (maintainer 2026-07-18):
+  // no visible label text, but each tab keeps an accessible name.
+  await expect(panel.locator('.base-cfg-tab').first()).toHaveText('');
+  await expect(panel.getByRole('tab', { name: /^(Ansicht|View)$/ })).toBeVisible();
 
   // The panel opens on the VIEW area: the view-type tile grid (icon tiles for
   // all view types) is shown, with the current type (Table) marked active.

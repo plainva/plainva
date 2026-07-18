@@ -217,11 +217,13 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-ctx-icon { color: var(--text-muted); display: flex; flex-shrink: 0; }
   .base-cfg-ctx-name { font-weight: 600; font-size: var(--text-md); color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .base-cfg-ctx-type { font-size: var(--text-sm); color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .base-cfg-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0.9rem 8px; }
-  .base-cfg-tab { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border: 1px solid var(--border-color-light); background: var(--surface-container-low); color: var(--text-muted); cursor: pointer; border-radius: var(--radius-pill); font-size: var(--text-sm); }
-  .base-cfg-tab:hover { background: var(--state-hover); color: var(--text-main); }
-  .base-cfg-tab.active { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-on); }
-  .base-cfg-tab-label { white-space: nowrap; }
+  /* Icon-only segmented control (maintainer 2026-07-18): a filled pill track,
+     the active tab lifts onto the surface with a soft shadow — same look as the
+     shared .pv-segmented and the mobile settings segment. One row, no wrap. */
+  .base-cfg-tabs { display: flex; gap: 2px; padding: 3px; margin: 0 0.9rem 8px; background: var(--surface-container); border-radius: var(--radius-pill); }
+  .base-cfg-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; height: calc(var(--control-md) - 6px); border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-pill); }
+  .base-cfg-tab:hover:not(.active) { background: var(--state-hover); color: var(--text-main); }
+  .base-cfg-tab.active { background: var(--surface); color: var(--accent-color); box-shadow: var(--shadow-1); }
   .base-cfg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.7rem 0.95rem 1.1rem; display: flex; flex-direction: column; gap: 14px; }
   /* Per-area page head + named group cards (mockup treatment 2026-07-18, same
      quiet-card tokens as the settings menu). */

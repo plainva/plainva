@@ -718,9 +718,9 @@ export function BaseConfigPanel({
         <button onClick={onClose} aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} className="base-cfg-close"><X size={16} /></button>
       </div>
 
-      {/* Reiter: one config area at a time as labelled chips/pills (active =
-          accent fill; maintainer 2026-07-18). The active area's title also
-          lives in its own section below. */}
+      {/* Reiter: one config area at a time as an icon-only segmented control
+          (pill track, active tab lifts onto the surface; maintainer
+          2026-07-18). The active area's title lives in its own section below. */}
       <div className="base-cfg-tabs" role="tablist" aria-label={t("database.configure", "Konfigurieren")}>
         {BASE_CONFIG_AREAS.map((area) => {
           const AreaIcon = area.icon;
@@ -731,11 +731,12 @@ export function BaseConfigPanel({
               type="button"
               role="tab"
               aria-selected={activeArea === area.id}
+              aria-label={label}
+              title={label}
               className={`base-cfg-tab${activeArea === area.id ? " active" : ""}`}
               onClick={() => setActiveArea(area.id)}
             >
-              <AreaIcon size={14} />
-              <span className="base-cfg-tab-label">{label}</span>
+              <AreaIcon size={15} />
             </button>
           );
         })}
