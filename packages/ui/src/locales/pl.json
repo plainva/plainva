@@ -22,6 +22,9 @@
     "dismiss": "Ukryj"
   },
   "settings": {
+    "groupLinks": "Linki",
+    "askBeforeCreateLink": "Pytaj przed utworzeniem pustych linków",
+    "askBeforeCreateLinkDesc": "Kliknięcie linku do notatki, która jeszcze nie istnieje, zwykle tworzy ją od razu. Przy tej opcji najpierw pojawia się pytanie.",
     "title": "Ustawienia",
     "theme": "Motyw",
     "themeLight": "Jasny",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Niedziela"
   },
   "editor": {
+    "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
     "fileNotFound": "Nie znaleziono pliku",
     "loading": "Ładowanie...",
     "menu": "Menu",
@@ -530,6 +534,8 @@
     "bookmarkSaveFailed": "Nie udało się zapisać zakładek."
   },
   "database": {
+    "graphNoColumns": "Graf nie pokazuje żadnych kolumn właściwości.",
+    "noDateColumn": "Brak właściwości daty",
     "configure": "Konfiguruj",
     "iconColor": "Kolor ikony bazy danych",
     "confirmRenameProperty": "Właściwość „{{old}}” zostanie zmieniona na „{{new}}” w {{count}} plikach. Kontynuować?",
@@ -878,6 +884,9 @@
     "folderExists": "Folder o tej nazwie już istnieje."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Utworzyć notatkę?",
+    "createNoteFromLinkMsg": "„{{title}}” jeszcze nie istnieje. Utworzyć ją teraz?",
+    "createNoteFromLinkConfirm": "Utwórz",
     "discardConflictTitle": "Odrzuć konflikt",
     "discardConflictMsg": "Czy na pewno odrzucić '{{name}}'? Wszystkie zmiany w tym pliku zostaną bezpowrotnie utracone.",
     "deleteConfirmTitle": "Potwierdź usunięcie",

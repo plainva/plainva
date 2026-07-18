@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last reviewed: 2026-07-14
+Last reviewed: 2026-07-18
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -53,6 +53,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 ## Links and backlinks
 
 - **Internal links**: `[[Note name]]` (wiki link) — via the slash menu or `@` with built-in note search. Classic Markdown links `[text](path.md)` work as well.
+- **Targets that don't exist yet**: A wiki link to a note that hasn't been created yet is shown **muted with a dashed underline** (both in live preview and reading mode). **Clicking it creates the note** and opens it — placed in the current note's folder (or at the given path if the link contains one, e.g. `[[Folder/New note]]`). To be asked first, enable **Settings → App → Editor & Notes → Ask before creating empty links**.
 - **Backlinks**: The **Backlinks** section in the right sidebar shows which notes link to the active one — grouped per source file, with a counter for multiple occurrences.
 - **Rename with link care**: When you rename a file in the file tree, Plainva updates every link to it across the whole vault (anchors like `#Section` are preserved) and reports: "N link(s) in M file(s) were updated to the new name."
 

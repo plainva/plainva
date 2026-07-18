@@ -30,6 +30,7 @@ import { BasePicker } from "./BasePicker";
 import { createInlineBase, folderOf, baseEmbedText } from "../services/inlineBase";
 import { generateIndexForFolder } from "../services/indexMd";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
+import { useWikiResolver } from "../hooks/useWikiResolver";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
@@ -52,6 +53,7 @@ import { createEditorSession, type EditorSession, type EditorSessionDeps } from 
 import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
+import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
@@ -325,6 +327,16 @@ export const Editor: React.FC<{
   // this container; React re-renders never touch or reconfigure it.
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
+  // Resolver set for unresolved-link styling (maintainer 2026-07-18): pushed
+  // into the CM view via a StateEffect; the ref lets the session-creation
+  // effect seed a freshly created view without re-running on every resolver bump.
+  const wikiResolver = useWikiResolver();
+  const wikiResolverRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    wikiResolverRef.current = wikiResolver;
+    const view = sessionRef.current?.view;
+    if (view) view.dispatch({ effects: setWikiResolver.of(wikiResolver) });
+  }, [wikiResolver]);
   // Mirror of `content` for effects that must read the latest value without
   // depending on it (the mount effect below), plus the loaded-file guard that
   // prevents mounting a session with the PREVIOUS file's text during a switch.
@@ -912,7 +924,9 @@ export const Editor: React.FC<{
     if (rows && rows.length > 0) {
       onOpenPath(rows[0].path, newTab);
     } else {
-      toast.warning(t("dialogs.linkNotFoundMsg", { target: searchTarget }));
+      // Target note doesn't exist yet — create it (Obsidian parity, maintainer
+      // 2026-07-18). App owns the write/index/open (+ optional confirm).
+      window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: activePath, newTab } }));
     }
   };
 
@@ -1452,6 +1466,9 @@ export const Editor: React.FC<{
       deps: sessionDepsRef,
     });
     sessionRef.current = session;
+    // Seed the freshly created view with the current resolver set so unresolved
+    // links style immediately instead of only after the next resolver bump.
+    if (wikiResolverRef.current) session.view.dispatch({ effects: setWikiResolver.of(wikiResolverRef.current) });
     return () => {
       // Flush pending debounced work with the final text so (a) the read view
       // renders fresh content immediately and (b) the last edit window is

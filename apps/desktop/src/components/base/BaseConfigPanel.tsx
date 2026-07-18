@@ -1,11 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, BASE_VIEW_TYPES, type BaseConfigAreaId } from "@plainva/ui";
+import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, BASE_VIEW_TYPES, columnsForBaseSelector, type BaseConfigAreaId } from "@plainva/ui";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -55,6 +55,11 @@ function DateViewControls({
   onSetEndDateField: (col: string) => void;
 }) {
   const { t } = useTranslation();
+  // Only date / date&time properties can place an entry — offer just those
+  // (maintainer 2026-07-18). The active field stays selectable even if its type
+  // is incompatible, so an existing config value never silently drops.
+  const dateCols = columnsForBaseSelector("dateField", availableColumns, cells.getColumnInput, { current: dateProp });
+  const endCols = columnsForBaseSelector("dateField", availableColumns.filter((c) => c !== dateProp), cells.getColumnInput, { current: endProp });
   return (
     <>
       <label className="base-cfg-field">{isTimeline ? t("database.startDateField", "Startdatum") : t("database.dateField", "Datumsfeld")}
@@ -63,8 +68,8 @@ function DateViewControls({
           value={dateProp || ""}
           onChange={v => onSetDateField(v)}
           options={[
-            ...(!dateProp ? [{ value: "", label: t("database.selectColumn", "Spalte wählen...") }] : []),
-            ...availableColumns.map(c => ({ value: c, label: cells.columnLabel(c) })),
+            ...(!dateProp ? [{ value: "", label: dateCols.length ? t("database.selectColumn", "Spalte wählen...") : t("database.noDateColumn", "Keine Datumseigenschaft") }] : []),
+            ...dateCols.map(c => ({ value: c, label: cells.columnLabel(c) })),
           ]}
         />
       </label>
@@ -88,7 +93,7 @@ function DateViewControls({
             onChange={v => onSetEndDateField(v)}
             options={[
               { value: "", label: t("database.noEndDate", "— keines —") },
-              ...availableColumns.filter(c => c !== dateProp).map(c => ({ value: c, label: cells.columnLabel(c) })),
+              ...endCols.map(c => ({ value: c, label: cells.columnLabel(c) })),
             ]}
           />
         </label>
@@ -558,6 +563,15 @@ export function BaseConfigPanel({
   // stacked sections — the panel stays docked beside the live view but no
   // longer scrolls a 30-45-control wall. `activeArea` is pure UI state.
   const [activeArea, setActiveArea] = useState<BaseConfigAreaId>("view");
+  // The graph view renders no property columns at all (nodes + relation edges,
+  // color/size via the graph toolbar), so its "columns" tab would only show
+  // dead visible/hidden toggles — disable it and never sit on it (maintainer
+  // 2026-07-18). The filter/source areas still apply (which rows become nodes).
+  const disabledAreas: BaseConfigAreaId[] = currentViewType === "graph" ? ["columns"] : [];
+  useEffect(() => {
+    if (disabledAreas.includes(activeArea)) setActiveArea("view");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentViewType, activeArea]);
   // Property type -> localized label, for the compact type badge on each
   // property row (config redesign P3). Reuses the existing type option labels.
   const typeLabelMap: Record<string, string> = Object.fromEntries(baseInputTypeOptions(t).map((o) => [o.value, o.label]));
@@ -725,16 +739,18 @@ export function BaseConfigPanel({
         {BASE_CONFIG_AREAS.map((area) => {
           const AreaIcon = area.icon;
           const label = t(area.labelKey);
+          const isDisabled = disabledAreas.includes(area.id);
           return (
             <button
               key={area.id}
               type="button"
               role="tab"
               aria-selected={activeArea === area.id}
+              aria-disabled={isDisabled}
               aria-label={label}
-              title={label}
-              className={`base-cfg-tab${activeArea === area.id ? " active" : ""}`}
-              onClick={() => setActiveArea(area.id)}
+              title={isDisabled ? t("database.graphNoColumns", "Der Graph zeigt keine Eigenschaftsspalten.") : label}
+              className={`base-cfg-tab${activeArea === area.id ? " active" : ""}${isDisabled ? " disabled" : ""}`}
+              onClick={() => { if (!isDisabled) setActiveArea(area.id); }}
             >
               <AreaIcon size={15} />
             </button>
@@ -833,7 +849,9 @@ export function BaseConfigPanel({
         <div className="base-cfg-card">
         {currentViewType === "board" && (
           <label className="base-cfg-field">{t("database.groupBy", "Gruppieren nach")}
-            <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
+            {/* Only curated-option or relation columns make sensible board
+                columns (maintainer 2026-07-18) — the active value stays. */}
+            <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: boardGroupBy, isReverse: cells.isReverseColumn }).map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
           </label>
         )}
         {/* Whole-column tint (WP3): only meaningful for a curated option group. */}
@@ -891,7 +909,9 @@ export function BaseConfigPanel({
         )}
         {currentViewType === "gallery" && (
           <label className="base-cfg-field">{t("database.coverImage", "Titelbild")}
-            <Select ariaLabel={t("database.coverImage", "Titelbild")} value={coverImageProperty || ""} onChange={(v) => onSetCoverImage(v || null)} options={[{ value: "", label: t("database.noCover", "Kein Titelbild") }, ...availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) }))]} />
+            {/* A cover holds an image reference (path / ![[…]] / URL) — offer
+                only text/url (and untyped = text) properties (maintainer 2026-07-18). */}
+            <Select ariaLabel={t("database.coverImage", "Titelbild")} value={coverImageProperty || ""} onChange={(v) => onSetCoverImage(v || null)} options={[{ value: "", label: t("database.noCover", "Kein Titelbild") }, ...columnsForBaseSelector("galleryCover", availableColumns, cells.getColumnInput, { current: coverImageProperty }).map((c) => ({ value: c, label: cells.columnLabel(c) }))]} />
           </label>
         )}
         <label className="base-cfg-field">{t("database.dateFormat", "Datumsformat")}
@@ -916,7 +936,7 @@ export function BaseConfigPanel({
           HIDDEN (config redesign P3, clearer than one mixed checkbox list). The
           visible/hidden state IS the per-view `order`; toggling moves a column
           between the groups (onToggleColumn). */}
-      {activeArea === "columns" && (
+      {activeArea === "columns" && !disabledAreas.includes("columns") && (
       <section className="base-cfg-section">
         {(() => {
           const disabled = [

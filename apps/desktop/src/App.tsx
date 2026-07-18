@@ -47,7 +47,10 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
-import { appMessage } from "./services/appDialogs";
+import { appConfirm, appMessage } from "./services/appDialogs";
+import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
+import { wikiTargetToPath } from "@plainva/ui";
+import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { confirmDeletion } from "./services/deleteConfirm";
 import { toast } from "@plainva/ui";
 import { Button } from "@plainva/ui";
@@ -718,6 +721,44 @@ function App() {
     window.addEventListener("plainva-reveal-folder", onReveal);
     return () => window.removeEventListener("plainva-reveal-folder", onReveal);
   }, []);
+
+  // Clicking a link to a not-yet-created note (unresolved wiki link) creates it
+  // (maintainer 2026-07-18, Obsidian parity). The editor / read view resolve the
+  // target and, on a miss, dispatch here — App owns the vault write + index +
+  // open. Default: create immediately; the per-user "ask first" setting confirms.
+  useEffect(() => {
+    const onCreate = (e: Event) => {
+      const d = (e as CustomEvent).detail as { target: string; hostPath?: string; newTab?: boolean };
+      if (!d?.target || !vaultAdapter) return;
+      void (async () => {
+        const { path, title } = wikiTargetToPath(d.target, d.hostPath);
+        if (!title) return;
+        try {
+          if (await vaultAdapter.exists(path)) { openInFocusedPane(path, !!d.newTab); return; }
+          if (await getAskBeforeCreateLink()) {
+            const ok = await appConfirm({
+              title: t("dialogs.createNoteFromLinkTitle", { defaultValue: "Notiz anlegen?" }),
+              message: t("dialogs.createNoteFromLinkMsg", { title, defaultValue: "„{{title}}“ existiert noch nicht. Jetzt anlegen?" }),
+              confirmLabel: t("dialogs.createNoteFromLinkConfirm", { defaultValue: "Anlegen" }),
+            });
+            if (!ok) return;
+          }
+          const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+          if (folder && !(await vaultAdapter.exists(folder))) await vaultAdapter.createDir(folder);
+          const noteType = await getConfiguredNoteType(vaultPath ?? "");
+          await vaultAdapter.writeTextFile(path, buildNewNoteContent(noteType, title));
+          if (indexer) await applyIndexChanges(indexer, { added: [path] });
+          triggerFileTreeUpdate();
+          notifyFileOps([{ type: "create", path }]);
+          openInFocusedPane(path, !!d.newTab);
+        } catch (err: any) {
+          toast.error(t("dialogs.createErrorMsg", { error: err?.message ?? String(err) }));
+        }
+      })();
+    };
+    window.addEventListener("plainva-create-note-from-link", onCreate);
+    return () => window.removeEventListener("plainva-create-note-from-link", onCreate);
+  }, [vaultAdapter, indexer, vaultPath, openInFocusedPane, triggerFileTreeUpdate, t]);
 
   // Persist user-chosen sidebar widths.
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);

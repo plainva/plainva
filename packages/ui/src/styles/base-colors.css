@@ -32,6 +32,9 @@
   --error-text: #b42318;
 
   --wiki-link-color: var(--accent-color);
+  /* Wiki link whose target note doesn't exist yet (muted; theme-aware via
+     --text-muted, so every theme inherits a sensible value). */
+  --wiki-link-unresolved-color: var(--text-muted);
   --overlay-bg: rgba(15, 28, 27, 0.45);
 
   /* Editor-specific */

@@ -22,6 +22,9 @@
     "dismiss": "Verbergen"
   },
   "settings": {
+    "groupLinks": "Links",
+    "askBeforeCreateLink": "Vragen voordat lege links worden aangemaakt",
+    "askBeforeCreateLinkDesc": "Klikken op een link naar een notitie die nog niet bestaat, maakt deze normaal gesproken meteen aan. Met deze optie wordt eerst gevraagd.",
     "title": "Instellingen",
     "theme": "Thema",
     "themeLight": "Licht",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Zondag"
   },
   "editor": {
+    "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
     "fileNotFound": "Bestand niet gevonden",
     "loading": "Laden...",
     "menu": "Menu",
@@ -528,6 +532,8 @@
     "bookmarkSaveFailed": "Bladwijzers konden niet worden opgeslagen."
   },
   "database": {
+    "graphNoColumns": "De graaf toont geen eigenschapskolommen.",
+    "noDateColumn": "Geen datumeigenschap",
     "configure": "Configureren",
     "iconColor": "Icoonkleur van de database",
     "confirmRenameProperty": "Eigenschap \"{{old}}\" wordt in {{count}} bestanden hernoemd naar \"{{new}}\". Doorgaan?",
@@ -874,6 +880,9 @@
     "folderExists": "Er bestaat al een map met deze naam."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Notitie aanmaken?",
+    "createNoteFromLinkMsg": "\"{{title}}\" bestaat nog niet. Nu aanmaken?",
+    "createNoteFromLinkConfirm": "Aanmaken",
     "discardConflictTitle": "Conflict verwerpen",
     "discardConflictMsg": "Wil je '{{name}}' echt verwerpen? Alle wijzigingen in dit bestand gaan definitief verloren.",
     "deleteConfirmTitle": "Verwijderen bevestigen",

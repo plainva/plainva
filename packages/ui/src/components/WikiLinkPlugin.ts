@@ -1,9 +1,23 @@
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
+import { isWikiTargetResolved } from "../lib/wikiResolver";
 import i18n from "../i18n";
+
+// Resolver set of existing wiki targets (lowercased titles + paths), pushed in
+// from the shell whenever the vault index changes. A wiki link whose target is
+// NOT in the set renders "unresolved" (muted, dashed) — Obsidian parity
+// (maintainer 2026-07-18). null = index not loaded yet → nothing flagged.
+export const setWikiResolver = StateEffect.define<Set<string> | null>();
+export const wikiResolverField = StateField.define<Set<string> | null>({
+  create: () => null,
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setWikiResolver)) return e.value;
+    return value;
+  },
+});
 
 // Removed LinkWidget as we'll use Decoration.mark to allow CSS inheritance
 
@@ -119,7 +133,10 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         // keyboard caret (maintainer report 2026-07-06). Scans only the
         // visible ranges; same convention as the markdown decoration plugin.
         const editableNow = update.state.facet(EditorView.editable);
-        const needsRebuild = update.docChanged || update.viewportChanged
+        // Also rebuild when the resolver set arrives/changes so unresolved links
+        // (re)style after the index loads or a target note gets created.
+        const resolverChanged = update.startState.field(wikiResolverField, false) !== update.state.field(wikiResolverField, false);
+        const needsRebuild = update.docChanged || update.viewportChanged || resolverChanged
           || (update.selectionSet && hideSyntax && editableNow)
           || update.startState.facet(EditorView.editable) !== editableNow;
         if (needsRebuild) {
@@ -134,6 +151,9 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         // the live preview is also read mode (editable off): selecting a link
         // there keeps it rendered instead of popping [[...]] (maintainer).
         const editable = view.state.facet(EditorView.editable);
+        // Resolver set (existing targets); a wiki link missing from it renders
+        // "unresolved" (Obsidian parity). null until the index has loaded.
+        const resolver = view.state.field(wikiResolverField, false) ?? null;
 
           // Collect all link matches first
           // We need start, end, and ranges to hide
@@ -237,28 +257,35 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
               break;
             }
           }
-          
+
+          // Unresolved = a wiki link whose target note does not exist yet
+          // (only wiki links carry the "not created yet" meaning).
+          const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver);
+          const linkClass = unresolved ? "cm-wiki-link cm-wiki-link--unresolved" : "cm-wiki-link";
+          const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
+          if (unresolved) linkAttrs.title = i18n.t("editor.unresolvedLinkTip", "Note doesn't exist yet — click to create");
+
           if (hideSyntax && !(isFocused && editable) && m.hideRanges && m.hideRanges.length === 2) {
             // Live Preview: Hide markdown link syntax separately and style the rest
             const hr1 = m.hideRanges[0];
             const hr2 = m.hideRanges[1];
 
             builder.add(hr1.start, hr1.end, Decoration.replace({}));
-            
+
             // The text between the hidden parts gets the class
             if (hr1.end < hr2.start) {
               builder.add(hr1.end, hr2.start, Decoration.mark({
-                class: "cm-wiki-link",
-                attributes: { "data-link-target": m.target, "data-link-type": m.type },
+                class: linkClass,
+                attributes: linkAttrs,
               }));
             }
-            
+
             builder.add(hr2.start, hr2.end, Decoration.replace({}));
           } else {
             // When focused or in source mode, show raw text but apply styling
             const markDec = Decoration.mark({
-              class: "cm-wiki-link",
-              attributes: { "data-link-target": m.target, "data-link-type": m.type },
+              class: linkClass,
+              attributes: linkAttrs,
             });
             builder.add(m.start, m.end, markDec);
           }
@@ -269,12 +296,21 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
     }, {
       decorations: (v: any) => v.decorations
     }),
+    wikiResolverField,
     EditorView.baseTheme({
       ".cm-wiki-link": {
         color: "var(--wiki-link-color, var(--accent-color))",
         textDecoration: "underline",
         cursor: "pointer"
-      }
+      },
+      // Unresolved (note doesn't exist yet): muted + dashed underline, still
+      // clickable — clicking creates the note (Obsidian parity). Kept visually
+      // identical to the reading view's `underline dashed` (maintainer: the
+      // live-preview link must look the same as in reading mode).
+      ".cm-wiki-link--unresolved": {
+        color: "var(--wiki-link-unresolved-color, var(--text-muted))",
+        textDecorationStyle: "dashed",
+      },
     }),
     EditorView.domEventHandlers({
       mousedown: (event, view) => {

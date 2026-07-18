@@ -27,6 +27,7 @@ import {
   buildNoteEmbedCoreExtension,
   applyBlockAction,
   buildMarkdownTable,
+  buildWikiTargetSet,
   consumePendingSearchJump,
   createEditorSession,
   cycleHeading,
@@ -45,6 +46,7 @@ import {
   redo,
   serializeTable,
   setColumnAlign,
+  setWikiResolver,
   interpolateTemplateBody,
   extractTemplatePrompts,
   finalizeTemplate,
@@ -129,8 +131,13 @@ export function EditorHost({
       hostPath: path,
       onOpenPath: (p) => onOpenNote(p),
       openWikiTarget: (target) => {
-        void vaultOps.resolveWikiTarget(vault, target, path).then((resolved) => {
-          if (resolved) onOpenNote(resolved);
+        void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
+          if (resolved) { onOpenNote(resolved); return; }
+          // Target note doesn't exist yet — create it (Obsidian parity,
+          // maintainer 2026-07-18), then open. Mobile always creates
+          // immediately (the "ask first" toggle is desktop-only for now).
+          const created = await vaultOps.createNoteFromWikiTarget(vault, target, path);
+          if (created) onOpenNote(created);
         });
       },
       openExternalUrl: (url) => {
@@ -244,6 +251,15 @@ export function EditorHost({
       touchInput: true,
     });
     sessionRef.current = session;
+    // Unresolved-link styling (maintainer 2026-07-18): push the set of existing
+    // targets into the shared wiki plugin so links to not-yet-created notes read
+    // muted (dashed). Same field the desktop editor feeds.
+    void vault.queryService?.getDocumentTitles().then((map) => {
+      if (sessionRef.current?.view !== session.view) return;
+      const files: { title: string; path: string }[] = [];
+      map.forEach((v, p) => files.push({ title: v.title, path: p }));
+      session.view.dispatch({ effects: setWikiResolver.of(buildWikiTargetSet(files)) });
+    }).catch(() => {});
     // The load-time snapshot IS the persisted disk state for this path (the
     // rare draft-restore case self-corrects on the first save). Needed by the
     // external-update guard below to tell our own echo from foreign content.

@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-07-14
+Stand: 2026-07-18
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -53,6 +53,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 ## Links und Backlinks
 
 - **Interne Links**: `[[Notizname]]` (Wiki-Link) — per Slash-Menü oder `@` mit eingebauter Notiz-Suche. Klassische Markdown-Links `[Text](Pfad.md)` funktionieren ebenso.
+- **Noch nicht angelegte Ziele**: Ein Wiki-Link auf eine Notiz, die es noch nicht gibt, wird **gedämpft und gestrichelt** dargestellt (in der Live-Vorschau wie im Lesemodus). Ein **Klick legt die Notiz an** und öffnet sie — sie liegt im Ordner der aktuellen Notiz (bzw. im angegebenen Pfad, wenn der Link einen enthält, z. B. `[[Ordner/Neue Notiz]]`). Möchtest Du vorher gefragt werden, aktiviere **Einstellungen → App → Editor & Notizen → Vor dem Anlegen leerer Links fragen**.
 - **Backlinks**: Der Abschnitt **Backlinks** in der rechten Seitenleiste zeigt, welche Notizen auf die aktive verlinken — pro Quelldatei zusammengefasst, mit Zähler bei mehreren Vorkommen.
 - **Umbenennen mit Link-Pflege**: Benennst Du eine Datei im Dateibaum um, aktualisiert Plainva alle Links darauf im ganzen Vault (Anker wie `#Abschnitt` bleiben erhalten) und meldet: „N Link(s) in M Datei(en) wurden auf den neuen Namen aktualisiert."
 

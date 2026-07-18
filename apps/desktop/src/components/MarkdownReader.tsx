@@ -6,6 +6,8 @@ import remarkBreaks from 'remark-breaks';
 import { resolveVaultRelative } from '@plainva/ui';
 import { loadImageBlob } from '@plainva/ui';
 import { toast } from '@plainva/ui';
+import { isWikiTargetResolved } from '@plainva/ui';
+import { useWikiResolver } from '../hooks/useWikiResolver';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
@@ -189,6 +191,9 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
 export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask }) => {
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
+  // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
+  // set as the editor, so a link to a not-yet-created note reads as muted here too.
+  const wikiResolver = useWikiResolver();
 
   // Task checkboxes are matched back to the source by DOCUMENT ORDER; the
   // ordinal is read from the DOM at click time (taskCheckboxOrdinal) rather
@@ -273,7 +278,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     if (rows && rows.length > 0) {
       onOpenPath(rows[0].path, newTab);
     } else {
-      toast.warning(t("dialogs.linkNotFoundMsg", { target: searchTarget }));
+      // Not created yet — create the note (Obsidian parity, maintainer 2026-07-18).
+      window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: sourcePath, newTab } }));
     }
   };
 
@@ -341,11 +347,16 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           a: ({ node: _node, href, children, ...props }) => {
             if (href?.startsWith('wiki://')) {
               const target = decodeURIComponent(href.replace('wiki://', ''));
+              const unresolved = !isWikiTargetResolved(target, wikiResolver);
               return (
                 <a
                   href="#"
+                  className={unresolved ? 'is-unresolved' : undefined}
+                  title={unresolved ? t('editor.unresolvedLinkTip', "Note doesn't exist yet — click to create") : undefined}
                   onClick={(e) => { e.preventDefault(); handleWikiLinkClick(target, e.ctrlKey || e.metaKey); }}
-                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                  style={unresolved
+                    ? { color: 'var(--wiki-link-unresolved-color, var(--text-muted))', textDecoration: 'underline dashed', cursor: 'pointer' }
+                    : { color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
                 >
                   {children}
                 </a>

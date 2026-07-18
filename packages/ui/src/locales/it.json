@@ -22,6 +22,9 @@
     "dismiss": "Ignora"
   },
   "settings": {
+    "groupLinks": "Link",
+    "askBeforeCreateLink": "Chiedi prima di creare link vuoti",
+    "askBeforeCreateLinkDesc": "Cliccare su un link a una nota che non esiste ancora di norma la crea subito. Con questa opzione, viene chiesta conferma prima.",
     "title": "Impostazioni",
     "theme": "Tema",
     "themeLight": "Chiaro",
@@ -270,6 +273,7 @@
     "weekStartSunday": "Domenica"
   },
   "editor": {
+    "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",
     "fileNotFound": "File non trovato",
     "loading": "Caricamento...",
     "menu": "Menu",
@@ -529,6 +533,8 @@
     "bookmarkSaveFailed": "Impossibile salvare i segnalibri."
   },
   "database": {
+    "graphNoColumns": "Il grafo non mostra colonne di proprietà.",
+    "noDateColumn": "Nessuna proprietà data",
     "configure": "Configura",
     "iconColor": "Colore dell'icona del database",
     "confirmRenameProperty": "La proprietà \"{{old}}\" verrà rinominata in \"{{new}}\" in {{count}} file. Continuare?",
@@ -876,6 +882,9 @@
     "folderExists": "Esiste già una cartella con questo nome."
   },
   "dialogs": {
+    "createNoteFromLinkTitle": "Creare la nota?",
+    "createNoteFromLinkMsg": "\"{{title}}\" non esiste ancora. Crearla ora?",
+    "createNoteFromLinkConfirm": "Crea",
     "discardConflictTitle": "Scarta il conflitto",
     "discardConflictMsg": "Vuoi davvero scartare \"{{name}}\"? Tutte le modifiche a questo file andranno perse in modo permanente.",
     "deleteConfirmTitle": "Conferma eliminazione",
