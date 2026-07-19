@@ -101,7 +101,16 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
 
 /** Full srcdoc for the sandboxed iframe: hardened CSP + readable defaults.
  * With the remote-image opt-in the CSP widens img-src to https: — exactly
- * mirroring what the sanitizer lets through; everything else stays 'none'. */
+ * mirroring what the sanitizer lets through; everything else stays 'none'.
+ *
+ * The color/font-size literals in the embedded <style> are a documented
+ * design-token exception, not an oversight: this string becomes the iframe's
+ * OWN document via srcdoc, a separate CSS scope that never inherits the
+ * parent app's :root custom properties (var(--bg-primary) etc. would simply
+ * fail to resolve here) — so there is no app token to reference. The values
+ * are a fixed, theme-independent reading canvas (dark text on white), same
+ * as any mail client's own message pane; sanitizeEmailHtml already strips
+ * any content the mail HTML tries to paint over it. */
 export function buildMailFrameDoc(sanitizedHtml: string, options?: SanitizeEmailOptions): string {
   const imgSrc = options?.allowRemoteImages ? "data: https:" : "data:";
   return (

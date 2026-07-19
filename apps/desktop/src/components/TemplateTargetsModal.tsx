@@ -115,7 +115,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
           ))}
         </div>
         <input
-          className="pv-input"
+          className="pv-field"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

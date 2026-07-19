@@ -697,7 +697,7 @@ export default function App() {
       {onboarded && !top && (
         <button
           aria-label={t("mobile.newNote")}
-          className="m-fab-float m-fab-float--above-tabs"
+          className="pv-fab m-fab-float m-fab-float--above-tabs"
           data-testid="capture-fab"
           onClick={() => setQuickCreate(true)}
         >

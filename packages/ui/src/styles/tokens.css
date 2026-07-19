@@ -83,6 +83,12 @@
   --z-tooltip: 1400;
 
   /* Motion. */
+  /* Continuous indicator cycles (spinners, indeterminate bars): deliberately
+     NOT zeroed by reduced-motion - a 0.01ms cycle would strobe. */
+  --dur-spin: 2s;
+  --dur-progress: 1.5s;
+  /* The document-header emoji/icon glyph (ICON_DOC_HEADER in iconSizes.ts). */
+  --doc-header-icon: 44px;
   --dur-1: 120ms;
   --dur-2: 180ms;
   --dur-3: 260ms; /* larger spatial moves (sheets, container transforms) */

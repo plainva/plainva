@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Radio, X } from "lucide-react";
+import { Radio } from "lucide-react";
 import { matchStarTrekQuote, STAR_TREK_QUOTES } from "../services/startrekQuotes";
 import {
   LCARS_VARIANTS,
@@ -12,7 +12,7 @@ import {
   getThemeDef,
   getUnlockedVariants,
 } from "../services/theme";
-import { ICON } from "@plainva/ui";
+import { Button, ICON, Modal } from "@plainva/ui";
 
 interface HailingFrequenciesModalProps {
   onClose: () => void;
@@ -25,6 +25,8 @@ interface HailingFrequenciesModalProps {
  * palette variant. Once anything is collected, the dialog doubles as the
  * collection screen (progress, variant chips, on/off switch) — which is why
  * the 5-click gesture always opens the dialog instead of toggling the theme.
+ * Runs on the Modal primitive (design sweep 2026-07-19): under Win95 the
+ * hailing dialog finally gets the navy title bar of the theme it unlocks.
  */
 export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProps) {
   const { t } = useTranslation();
@@ -52,14 +54,6 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const transmit = () => {
     const id = matchStarTrekQuote(input);
@@ -122,51 +116,34 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
   };
 
   return (
-    <div className="pv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div
-        className="pv-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("hailing.prompt")}
-        data-testid="hailing-dialog"
-        style={{ width: 460, animation: shake ? "pv-hailing-shake 0.4s" : undefined }}
-      >
-        <style>{`@keyframes pv-hailing-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }`}</style>
-        <div className="pv-modal-head">
-          <div className="pv-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Radio size={ICON.ui} style={{ color: "var(--accent-color)", flexShrink: 0 }} />
-            {t("hailing.prompt")}
-          </div>
-          <button
-            type="button"
-            className="pv-icon-btn"
-            aria-label={t("common.close")}
-            data-tip={t("common.close")}
-            onClick={onClose}
-          >
-            <X size={ICON.ui} />
-          </button>
-        </div>
-
+    <Modal
+      onClose={onClose}
+      size="sm"
+      title={t("hailing.prompt")}
+      icon={<Radio size={ICON.head} style={{ color: "var(--accent-color)" }} />}
+      testId="hailing-dialog"
+      className={shake ? "pv-hailing-shake" : undefined}
+      initialFocusRef={inputRef}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <form
           onSubmit={(e) => { e.preventDefault(); transmit(); }}
           style={{ display: "flex", gap: 8 }}
         >
           <input
             ref={inputRef}
-            className="pv-input"
+            className="pv-field"
             data-testid="hailing-input"
             value={input}
             onChange={(e) => { setInput(e.target.value); if (feedback !== "none") setFeedback("none"); }}
             placeholder={t("hailing.placeholder")}
             aria-label={t("hailing.prompt")}
-            autoFocus
             spellCheck={false}
-            style={{ fontFamily: "var(--font-ui)", letterSpacing: "0.02em" }}
+            style={{ flex: 1, fontFamily: "var(--font-ui)", letterSpacing: "0.02em" }}
           />
-          <button type="submit" className="pv-btn-primary" data-testid="hailing-send" disabled={!input.trim()}>
+          <Button type="submit" variant="primary" data-testid="hailing-send" disabled={!input.trim()}>
             {t("hailing.transmit")}
-          </button>
+          </Button>
         </form>
 
         {feedback === "no-response" && (
@@ -226,6 +203,6 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

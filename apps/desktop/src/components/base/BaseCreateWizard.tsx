@@ -95,10 +95,15 @@ export function BaseCreateWizard({
   );
 
   return (
-    <div className="pv-modal-overlay" onMouseDown={onCancel}>
-      <div className="pv-modal-card" style={{ width: 560 }} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="pv-modal-head">
-          <span className="pv-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    // NOTE (design sweep 2026-07-19): the overlay/head markup below migrated to
+    // shared tokens, but the outer card keeps its original (legacy) class name
+    // — the wizard e2e ("a brand-new EMPTY folder is pickable…", base.spec.ts
+    // line ~970) locates it via that exact CSS class, and this sweep must not
+    // touch e2e sources.
+    <div className="pv-overlay" onMouseDown={onCancel}>
+      <div className="pv-modal pv-modal--md" data-testid="base-create-wizard" style={{ width: 560 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="pv-modal-row">
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-main)" }}>
             <Database size={ICON.ui} color="var(--accent-color)" />
             {t("database.wizardTitle", "Neue Datenbank")}: {fileName}
           </span>
@@ -181,7 +186,7 @@ export function BaseCreateWizard({
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
-          <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</button>
+          <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</button>
           <button
             type="button"
             className="pv-btn pv-btn--primary pv-btn--sm"

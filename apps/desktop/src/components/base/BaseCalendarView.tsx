@@ -122,7 +122,7 @@ export function BaseCalendarView({
         <DragGhost
           setEl={ghostProps.setEl}
           baseStyle={ghostProps.style}
-          style={{ maxWidth: 200, background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.3rem 0.45rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", borderLeft: "2px solid var(--accent-color)", boxShadow: "0 6px 18px rgba(0,0,0,0.28)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{ maxWidth: 200, background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.3rem 0.45rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", borderLeft: "2px solid var(--accent-color)", boxShadow: "var(--shadow-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
         >
           {draggedRow["file.name"]}
         </DragGhost>

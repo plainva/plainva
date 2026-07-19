@@ -57,7 +57,10 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
 
   return (
     <>
-      <div onPointerDown={onCancel} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
+      {/* Invisible click-catcher (dismiss on outside click) — reuses the
+          shared modal backdrop for its position:fixed + z-modal layering,
+          with the dimming turned off since this popover has no scrim. */}
+      <div onPointerDown={onCancel} className="pv-overlay" style={{ background: "transparent" }} />
       <div
         ref={cardRef}
         data-testid="calendar-quick-create"
@@ -66,12 +69,12 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
         onKeyDown={(e) => {
           if (e.key === "Escape") { e.stopPropagation(); onCancel(); }
         }}
+        className="pv-popover--fixed"
         style={{
-          position: "fixed",
           left: pos.left,
           top: pos.top,
           width: WIDTH,
-          zIndex: 61,
+          visibility: "visible",
           background: "var(--bg-primary)",
           border: "1px solid var(--border-color)",
           borderRadius: "var(--radius-md)",

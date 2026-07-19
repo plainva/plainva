@@ -132,14 +132,15 @@ export function useCardPointerDrag<T>({ onDrop }: { onDrop: (path: string, targe
   // supplies the visual card content and any extra styling. The position comes
   // exclusively from direct DOM writes (ref callback on mount + pointermove) —
   // starting offscreen keeps the first paint from flashing at a stale corner.
+  // Position-only: the fixed/pointer-events/z-index triad now lives on the
+  // shared ".pv-fixed-ghost" class DragGhost applies (design sweep 2026-07-19);
+  // only the initial off-screen offset stays here (positionGhost() overwrites
+  // left/top on the DOM node directly, before the browser's first paint).
   const ghostProps: { setEl: (el: HTMLElement | null) => void; style: React.CSSProperties } = {
     setEl: setGhostEl,
     style: {
-      position: "fixed",
       left: -9999,
       top: -9999,
-      zIndex: 1000,
-      pointerEvents: "none",
     },
   };
 

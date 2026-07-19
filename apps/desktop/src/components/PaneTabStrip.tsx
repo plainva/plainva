@@ -58,7 +58,6 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
             style={{
               display: "inline-flex", alignItems: "center", gap: 7, padding: "0 9px 0 12px", height: "100%",
               maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",
-              color: active ? "var(--text-main)" : "var(--text-muted)",
               borderRight: "1px solid var(--border-color-light)",
               // Only the transient drag indicator is inline; the active-tab
               // underline is a stylesheet rule so themes can restyle it.
@@ -66,8 +65,6 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
               opacity: dnd.isDragging(i) ? 0.5 : 1,
               touchAction: "none", userSelect: "none",
             }}
-            onMouseOver={(e) => { if (!active) e.currentTarget.style.color = "var(--text-main)"; }}
-            onMouseOut={(e) => { if (!active) e.currentTarget.style.color = "var(--text-muted)"; }}
           >
             {VirtualIcon ? (
               <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
@@ -84,9 +81,7 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
               aria-hidden="true"
               data-tip={t("titlebar.closeTab", { defaultValue: "Tab schließen" })}
               onClick={(e) => { e.stopPropagation(); onClose(i); }}
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "var(--radius-sm)", opacity: 0.55, flexShrink: 0 }}
-              onMouseOver={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "var(--bg-active)"; }}
-              onMouseOut={(e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.background = "transparent"; }}
+              className="pv-tab-close"
             >
               <X size={ICON.meta} />
             </span>

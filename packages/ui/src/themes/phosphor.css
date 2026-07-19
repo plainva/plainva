@@ -133,12 +133,12 @@
    Designsprache migration (P10). */
 [data-theme-name="phosphor-green"] .markdown-reader h1,
 [data-theme-name="phosphor-green"] .markdown-reader h2,
-[data-theme-name="phosphor-green"] .pv-btn-primary,
+[data-theme-name="phosphor-green"] .pv-btn--primary,
 [data-theme-name="phosphor-green"] .pv-btn--primary,
 [data-theme-name="phosphor-green"] .pv-modal-heading,
 [data-theme-name="phosphor-amber"] .markdown-reader h1,
 [data-theme-name="phosphor-amber"] .markdown-reader h2,
-[data-theme-name="phosphor-amber"] .pv-btn-primary,
+[data-theme-name="phosphor-amber"] .pv-btn--primary,
 [data-theme-name="phosphor-amber"] .pv-btn--primary,
 [data-theme-name="phosphor-amber"] .pv-modal-heading {
   text-shadow: 0 0 6px var(--phosphor-glow);

@@ -1772,7 +1772,7 @@ export const Editor: React.FC<{
             // No overflow here: CodeMirror's own .cm-scroller handles scrolling,
             // and the wrapper (above) is overflow:hidden in editor mode, so there
             // is exactly one scroll container per view — no nested scrollbars (#4).
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, fontSize: '16px' }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, fontSize: 'var(--content-font-size, 16px)' }}
           />
         )}
       </div>
@@ -1835,7 +1835,10 @@ export const Editor: React.FC<{
       )}
 
       {dateMention && (
-        <div style={{ position: "fixed", left: dateMention.x, top: dateMention.y, zIndex: 1000, minWidth: "180px" }}>
+        <div
+          className="pv-popover--fixed"
+          style={{ left: dateMention.x, top: dateMention.y, minWidth: "180px", visibility: "visible" }}
+        >
           <CustomDatePicker
             value=""
             autoOpen

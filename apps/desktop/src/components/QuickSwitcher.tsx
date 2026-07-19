@@ -227,7 +227,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
             </div>
           ) : (
             <div style={{ padding: '8px 0' }}>
-              {!query && <div style={{ padding: '4px 16px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t("quickSwitcher.recentFiles")}</div>}
+              {!query && <div style={{ padding: '4px 16px', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t("quickSwitcher.recentFiles")}</div>}
               {results.map((item, idx) => {
                 // Virtual views (vault map, tasks) can appear among the
                 // recents: show their localized name + dedicated icon instead
@@ -245,7 +245,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 );
                 return (
                 <React.Fragment key={item.path}>
-                {header && <div style={{ padding: '4px 16px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{header}</div>}
+                {header && <div style={{ padding: '4px 16px', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{header}</div>}
                 <div
                   style={{
                     padding: '8px 16px',
@@ -261,14 +261,14 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                     {VirtualIcon ? <VirtualIcon size={ICON.ui} color="var(--text-muted)" /> : item.isRecent ? <Clock size={ICON.ui} color="var(--text-muted)" /> : item.isContentHit ? <FileText size={ICON.ui} color="var(--text-muted)" /> : <FileIcon size={ICON.ui} color="var(--text-muted)" />}
                     <span style={{ fontWeight: 500 }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : (item.title || item.path.split('/').pop())}</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: 'var(--text-ui)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                       {item.path}
                     </span>
                   </div>
                   {item.snippetMarked && (
                     // Sentinel-marked FTS snippet rendered via searchSnippet —
                     // pure text split, <mark> nodes, never raw HTML from notes.
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 'var(--text-ui)', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {renderSnippetNodes(item.snippetMarked)}
                     </div>
                   )}
@@ -298,7 +298,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
             </div>
           )}
         </div>
-        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '16px' }}>
+        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border-color)', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'flex', gap: '16px' }}>
           <span><kbd style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: "var(--radius-xs)" }}>↑</kbd> <kbd style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: "var(--radius-xs)" }}>↓</kbd> {t("quickSwitcher.navigate")}</span>
           <span><kbd style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: "var(--radius-xs)" }}>Enter</kbd> {t("quickSwitcher.open")}</span>
           <span><kbd style={{ background: 'var(--bg-secondary)', padding: '2px 4px', borderRadius: "var(--radius-xs)" }}>{mod} + Enter</kbd> {t("quickSwitcher.openNewTab")}</span>

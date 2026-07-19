@@ -56,25 +56,25 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
 
   return (
     <>
+      {/* Invisible full-viewport click-catcher (dismiss on outside click). No
+          shared class provides a bare, non-dimmed fixed overlay without
+          touching styles/ui.css — position:fixed stays inline here. */}
       <div
-        style={{ position: "fixed", inset: 0, zIndex: 999 }}
+        className="pv-click-catch"
+        style={{ zIndex: "var(--z-menu)" }}
         onClick={onClose}
       />
       <div
         ref={ref}
         role="dialog"
         aria-label={t("colorPicker.title")}
+        className="pv-popover pv-popover--fixed"
         style={{
-          position: "fixed",
           left: pos.x,
           top: pos.y,
-          zIndex: "var(--z-menu)",
-          background: "var(--bg-primary)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-2)",
           padding: "0.6rem",
           width: "228px",
+          visibility: "visible",
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px" }}>

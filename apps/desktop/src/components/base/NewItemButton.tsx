@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ICON, useFixedPopover } from "@plainva/ui";
+import { ICON, useFixedPopover, Modal, Button } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
@@ -103,7 +103,7 @@ export function NewItemButton({
         {tpl && onToggleAssign && (
           <button
             type="button"
-            className="pv-icon-btn"
+            className="pv-iconbtn"
             aria-label={assignLabel}
             data-tip={assignLabel}
             aria-pressed={isAssigned}
@@ -120,7 +120,7 @@ export function NewItemButton({
         )}
         <button
           type="button"
-          className="pv-icon-btn"
+          className="pv-iconbtn"
           aria-label={isDefault
             ? t("database.isDefaultTemplate", { defaultValue: "Standard-Vorlage" })
             : t("database.setDefaultTemplate", { defaultValue: "Als Standard setzen" })}
@@ -165,7 +165,7 @@ export function NewItemButton({
       </button>
       {open && (
         <>
-          <div style={{ position: "fixed", inset: 0, zIndex: "var(--z-popover)" as unknown as number }} onClick={() => setOpen(false)} />
+          <div className="base-menu-backdrop" onClick={() => setOpen(false)} />
           <div ref={popRef} className="pv-popover pv-popover--fixed" style={{ padding: "0.25rem", maxWidth: 320 }}>
             <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
               {t("database.templatesSection", { defaultValue: "Vorlagen" })}
@@ -258,20 +258,23 @@ export function NewItemFolderDialog({
   const [value, setValue] = useState<string>(current ?? folderSources[0] ?? "");
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
   const clean = value.replace(/^\/+|\/+$/g, "").trim();
 
   return (
-    <div className="pv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-      <div className="pv-modal-card" style={{ width: 420 }} role="dialog" aria-label={t("database.newItemFolderTitle", { defaultValue: "Ablage-Ordner für neue Elemente" })}>
-        <div className="pv-modal-head">
-          <span className="pv-modal-title">{t("database.newItemFolderTitle", { defaultValue: "Ablage-Ordner für neue Elemente" })}</span>
-        </div>
+    <Modal
+      onClose={onCancel}
+      title={t("database.newItemFolderTitle", { defaultValue: "Ablage-Ordner für neue Elemente" })}
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+          <Button variant="primary" disabled={!clean} onClick={() => { if (clean) onConfirm(clean); }}>
+            {t("database.chooseFolder", { defaultValue: "Festlegen" })}
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
         <div className="pv-modal-hint">
           {mode === "setup"
             ? hasTagSources
@@ -280,7 +283,7 @@ export function NewItemFolderDialog({
             : t("database.newItemFolderChoiceHint", { defaultValue: "Diese Datenbank hat mehrere Ordner-Quellen. Wähle, wo neue Elemente gespeichert werden. Die Wahl wird in der Datenbank gespeichert und ist jederzeit änderbar." })}
         </div>
         {mode === "choice" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.4rem 0" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
             {folderSources.map((f) => (
               <label key={f} className="pv-modal-check" style={{ cursor: "pointer" }}>
                 <input
@@ -294,10 +297,10 @@ export function NewItemFolderDialog({
             ))}
           </div>
         ) : (
-          <div className="pv-modal-row" style={{ margin: "0.4rem 0", gap: "6px" }}>
+          <div className="pv-modal-row" style={{ gap: "6px" }}>
             <input
               autoFocus
-              className="pv-input"
+              className="pv-field"
               style={{ flex: 1, boxSizing: "border-box" }}
               placeholder={t("database.newItemFolderPlaceholder", { defaultValue: "Ordner (z. B. Projekte/Aktiv)" })}
               value={value}
@@ -308,13 +311,9 @@ export function NewItemFolderDialog({
             {/* Browsable picker over the live file system (2026-07-17): also
                 lists folders the index does not know yet (empty ones). */}
             {vaultAdapter && (
-              <button
-                type="button"
-                className="pv-btn-secondary"
-                onClick={() => setPickerOpen(true)}
-              >
+              <Button variant="secondary" onClick={() => setPickerOpen(true)}>
                 {t("settings.browseFolders", { defaultValue: "Ordner auswählen…" })}
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -327,19 +326,7 @@ export function NewItemFolderDialog({
             onCancel={() => setPickerOpen(false)}
           />
         )}
-        <div className="pv-modal-actions">
-          <button type="button" className="pv-btn-secondary" onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</button>
-          <button
-            type="button"
-            className="pv-btn-primary"
-            disabled={!clean}
-            style={clean ? undefined : { opacity: 0.5, cursor: "default" }}
-            onClick={() => { if (clean) onConfirm(clean); }}
-          >
-            {t("database.chooseFolder", { defaultValue: "Festlegen" })}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

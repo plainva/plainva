@@ -176,24 +176,24 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
 
   return (
     <>
-      <div style={{ position: "fixed", inset: 0, zIndex: 999 }} onClick={onClose} />
+      {/* Invisible full-viewport click-catcher (dismiss on outside click). No
+          shared class provides a bare, non-dimmed fixed overlay without
+          touching styles/ui.css — position:fixed stays inline here. */}
+      <div className="pv-click-catch" style={{ zIndex: "var(--z-menu)" }} onClick={onClose} />
       <div
         role="dialog"
+        className="pv-popover pv-popover--fixed"
         style={{
-          position: "fixed",
           left,
           top,
           width: WIDTH,
+          maxWidth: WIDTH,
           maxHeight: MAX_HEIGHT,
           display: "flex",
           flexDirection: "column",
-          background: "var(--bg-primary)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-2)",
           padding: "8px",
           boxSizing: "border-box",
-          zIndex: "var(--z-menu)",
+          visibility: "visible",
         }}
       >
         {/* Mode switch: Emoji vs. icon set (Notion-like). Hidden for the
@@ -218,7 +218,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                   border: "none",
                   borderRadius: "var(--radius-sm)",
                   cursor: "pointer",
-                  boxShadow: mode === m.id ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                  boxShadow: mode === m.id ? "var(--shadow-1)" : "none",
                 }}
               >
                 {m.label}

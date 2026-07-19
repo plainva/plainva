@@ -65,10 +65,11 @@ function PlainInput({ value, onChange, type, t }: { value: any; onChange: (v: an
   const commit = () => { if (v !== String(value ?? "")) onChange(v); };
   const href = type === "url" ? v : type === "email" ? `mailto:${v}` : type === "phone" ? `tel:${v}` : "";
   return (
-    <div className="pv-input-wrap">
+    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
       <input
         type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
-        className="pv-input"
+        className="pv-field pv-field--compact"
+        style={{ flex: 1, minWidth: 0 }}
         value={v}
         onChange={(e) => setV(e.target.value)}
         onBlur={commit}
@@ -76,7 +77,7 @@ function PlainInput({ value, onChange, type, t }: { value: any; onChange: (v: an
         placeholder={t("properties.value")}
       />
       {type !== "text" && v && (
-        <button type="button" className="pv-icon-btn" data-tip={t("properties.openLink")} aria-label={t("properties.openLink")} onClick={() => openExternal(href)}>
+        <button type="button" className="pv-iconbtn pv-iconbtn--sm" data-tip={t("properties.openLink")} aria-label={t("properties.openLink")} onClick={() => openExternal(href)}>
           <ExternalLink size={ICON.ui} />
         </button>
       )}
@@ -94,7 +95,7 @@ function NumberInput({ value, onChange, t }: { value: any; onChange: (v: any) =>
   };
   return (
     <input
-      type="number" className="pv-input" value={v}
+      type="number" className="pv-field pv-field--compact" style={{ flex: 1, minWidth: 0 }} value={v}
       onChange={(e) => setV(e.target.value)} onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
       placeholder={t("properties.value")}
@@ -124,7 +125,13 @@ function DateValue({ value, onChange, includeTime, t, locale }: { value: any; on
     );
   }
   return (
-    <button type="button" className="pv-date-display" onClick={() => setEditing(true)} data-tip={t("properties.value")}>
+    <button
+      type="button"
+      className="pv-field pv-field--compact"
+      style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer" }}
+      onClick={() => setEditing(true)}
+      data-tip={t("properties.value")}
+    >
       {includeTime ? <Clock size={ICON.ui} /> : <Calendar size={ICON.ui} />}
       <span>{formatDateValue(str, includeTime, locale)}</span>
     </button>
@@ -371,7 +378,12 @@ function SelectChip(props: {
 
   return (
     <div className="pv-select" ref={wrapRef}>
-      <button type="button" className="pv-select-trigger" onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className="pv-rowhover"
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", width: "100%", padding: "3px 6px", border: "1px solid transparent", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+        onClick={() => setOpen((o) => !o)}
+      >
         {current
           ? <span className={chipClass(current, currentOpt?.color)}><span className="pv-dot" />{currentOpt?.label ?? current}</span>
           : <span className="pv-placeholder">{t("properties.selectValue")}</span>}

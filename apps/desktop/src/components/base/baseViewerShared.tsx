@@ -132,7 +132,7 @@ export function SplitDropZone({
         right: 8,
         bottom: 8,
         width: 64,
-        zIndex: 40,
+        zIndex: "var(--z-popover)" as unknown as number,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -169,8 +169,11 @@ export function DragGhost({
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
+  // The fixed/pointer-events/z-index triad lives on the shared class now (the
+  // `left`/`top` offset is the only part `baseStyle` still carries — it is
+  // written straight to the DOM node per pointermove, outside React).
   return (
-    <div ref={setEl} aria-hidden="true" style={{ ...baseStyle, ...style }}>
+    <div ref={setEl} aria-hidden="true" className="pv-fixed-ghost" style={{ ...baseStyle, ...style }}>
       {children}
     </div>
   );
@@ -310,8 +313,8 @@ export const BASE_VIEWER_STYLES = `
   .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--accent-color); display: flex; padding: 2px 6px 2px 0; }
   .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-pill); }
   .base-view-add:hover { background: var(--state-hover); color: var(--text-main); }
-  .base-menu-backdrop { position: fixed; inset: 0; z-index: 59; }
-  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 60; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
+  .base-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
+  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: var(--z-menu); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
   .base-view-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 6px 8px; border-radius: var(--radius-xs); font-size: var(--text-ui); }
   .base-view-menu button:hover { background: var(--state-hover); }
   .base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }

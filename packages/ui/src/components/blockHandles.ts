@@ -50,8 +50,10 @@ function beginDrag(view: EditorView, fromPos: number, handle: HTMLElement, down:
     const pos = view.posAtCoords({ x, y: e.clientY });
     if (!indicator) {
       indicator = document.createElement("div");
-      indicator.style.cssText =
-        "position:fixed;height:2px;background:var(--accent-color);z-index:60;pointer-events:none;border-radius:2px;";
+      // Drag-drop line: fixed + pointer-events:none + top-of-stack z-index —
+      // exactly what the shared ghost-overlay class carries.
+      indicator.className = "pv-fixed-ghost";
+      indicator.style.cssText = "height:2px;background:var(--accent-color);border-radius:var(--radius-xs);";
       document.body.appendChild(indicator);
     }
     let topPx: number | null = null;
@@ -114,7 +116,7 @@ class BlockHandlesView {
   constructor(readonly view: EditorView) {
     this.layer = document.createElement("div");
     this.layer.className = "cm-block-handle-layer";
-    this.layer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;pointer-events:none;z-index:5;";
+    this.layer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;pointer-events:none;z-index:var(--z-popover);";
     if (!view.state.facet(EditorView.editable)) this.layer.style.display = "none";
     view.dom.appendChild(this.layer);
     view.scrollDOM.addEventListener("scroll", this.onScroll, { passive: true });

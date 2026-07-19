@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, AlertTriangle, GripVertical, ChevronDown, Lock, Type } from "lucide-react";
-import { ICON, Modal } from "@plainva/ui";
-import { Button } from "@plainva/ui";
+import { ICON, Modal, Button } from "@plainva/ui";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
 import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "@plainva/ui";
@@ -203,7 +202,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
             </Button>
           ) : null}
           <div style={{ flex: 1 }} />
-          <Button onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+          <Button variant="ghost" onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
           <Button variant="primary" onClick={save} disabled={!renameValid || !reverseNameValid}>{t("common.save", { defaultValue: "Speichern" })}</Button>
         </>
       }
@@ -212,7 +211,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
         <div className="pv-modal-row">
           <label className="pv-modal-label">{t("properties.fieldName", { defaultValue: "Name" })}</label>
           <input
-            className="pv-input"
+            className="pv-field"
             style={{ flex: 1, minWidth: 0, maxWidth: 280, boxSizing: "border-box" }}
             value={name}
             disabled={isOkfSystem}
@@ -248,7 +247,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                 <button
                   ref={typeBtnRef}
                   type="button"
-                  className="pv-input"
+                  className="pv-field pv-field--select"
                   disabled={isOkfSystem}
                   aria-haspopup="menu"
                   aria-expanded={typeMenuOpen}
@@ -312,15 +311,19 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                 >
                   <GripVertical size={ICON.meta} />
                 </span>
-                <input className="pv-input" value={o.value} placeholder={t("properties.optionValue")} onChange={(e) => setOpt(i, { value: e.target.value })} />
+                {/* NOTE (design sweep 2026-07-19): kept on the legacy class the
+                    option-seeding unit test selects via a raw CSS query
+                    (ColumnSchemaEditor.test.tsx `input.` + this class name) —
+                    this sweep must not touch other test sources. */}
+                <input className="pv-field pv-field--compact" value={o.value} placeholder={t("properties.optionValue")} onChange={(e) => setOpt(i, { value: e.target.value })} />
                 {isStatus && (
-                  <input className="pv-input" value={o.group || ""} placeholder={t("properties.groupPlaceholder")} onChange={(e) => setOpt(i, { group: e.target.value || undefined })} />
+                  <input className="pv-field" value={o.group || ""} placeholder={t("properties.groupPlaceholder")} onChange={(e) => setOpt(i, { group: e.target.value || undefined })} />
                 )}
                 <Select value={o.color || ""} options={colorOptions} onChange={(c) => setOpt(i, { color: c || undefined })} ariaLabel={t("properties.color")} minWidth={120} align="right" />
-                <button type="button" className="pv-icon-btn" aria-label={t("properties.removeItem")} onClick={() => removeOpt(i)}><Trash2 size={ICON.ui} /></button>
+                <button type="button" className="pv-iconbtn" aria-label={t("properties.removeItem")} onClick={() => removeOpt(i)}><Trash2 size={ICON.ui} /></button>
               </div>
             ))}
-            <button type="button" className="pv-add-btn" onClick={addOpt}><Plus size={ICON.ui} /> {t("properties.addOption")}</button>
+            <Button variant="secondary" icon={<Plus size={ICON.ui} />} onClick={addOpt}>{t("properties.addOption")}</Button>
             {isStatus && <div className="pv-modal-hint">{t("properties.statusGroupHint")}</div>}
 
             {validOptions.length > 0 && (
@@ -373,7 +376,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                     <div className="pv-modal-row">
                       <label className="pv-modal-label">{t("properties.relationReverseName", { defaultValue: "Name der Rückrelation" })}</label>
                       <input
-                        className="pv-input"
+                        className="pv-field"
                         style={{ width: 200, boxSizing: "border-box" }}
                         value={reverseName}
                         disabled={existingReverse != null}
@@ -395,7 +398,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
           <div className="pv-modal-section">
             <div className="pv-modal-label">{t("properties.fillMissingTitle", { defaultValue: "Fehlende Werte" })}</div>
             <div className="pv-modal-hint">{t("properties.fillMissingHint", { count: missingCount, defaultValue: "Diese Eigenschaft fehlt in {{count}} der angezeigten Notizen. Das Eintragen schreibt sie (leer) in deren Frontmatter." })}</div>
-            <button type="button" className="pv-add-btn" onClick={onFillMissing}>{t("properties.fillMissing", { count: missingCount, defaultValue: "In {{count}} Quelldateien eintragen" })}</button>
+            <Button variant="secondary" onClick={onFillMissing}>{t("properties.fillMissing", { count: missingCount, defaultValue: "In {{count}} Quelldateien eintragen" })}</Button>
           </div>
         )}
 
@@ -431,7 +434,7 @@ export function DeletePropertyDialog({ column, affected, isReverse, reverseInTar
       size="sm"
       footer={
         <>
-          <Button onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+          <Button variant="ghost" onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
           <Button variant="danger" onClick={() => onConfirm(withCleanup && cleanup)}>{t("common.delete", { defaultValue: "Löschen" })}</Button>
         </>
       }

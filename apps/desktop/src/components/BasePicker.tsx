@@ -57,12 +57,12 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
   }, [onClose]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh" }}>
+    <div className="pv-palette-overlay">
       <div
         ref={ref}
         role="dialog"
         aria-label={t("editor.basePickerTitle", { defaultValue: "Datenbank einbetten" })}
-        style={{ width: "min(520px, 92vw)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xl)", boxShadow: "0 10px 30px rgba(0,0,0,0.18)", overflow: "hidden" }}
+        className="pv-palette"
       >
         <input
           autoFocus

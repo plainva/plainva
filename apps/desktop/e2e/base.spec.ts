@@ -967,7 +967,7 @@ test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
 
-  const wizard = page.locator('.pv-modal-card');
+  const wizard = page.getByTestId('base-create-wizard');
   // First source: the picker's "new folder" row creates an EMPTY folder and
   // descends into it — the maintainer's F4 case (the old index-backed dropdown
   // could never offer a folder without indexed files).

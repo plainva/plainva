@@ -32,12 +32,11 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
       role="toolbar"
       aria-label={t("editor.fmtToolbar", { defaultValue: "Formatierung" })}
       onMouseDown={(e) => e.preventDefault()}
+      className="pv-popover--fixed"
       style={{
-        position: "fixed",
         left: x,
         top: y,
         transform: above ? "translateY(-100%)" : "none",
-        zIndex: 1000,
         display: "flex",
         gap: "2px",
         background: "var(--bg-primary)",
@@ -45,6 +44,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
         borderRadius: "var(--radius-md)",
         boxShadow: "var(--shadow-2)",
         padding: "4px",
+        visibility: "visible",
       }}
     >
       {items.map((it) => (

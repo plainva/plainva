@@ -99,10 +99,12 @@ export const BlockMenu: React.FC<Props> = ({ x, y, onAction, onClose }) => {
       ref={ref}
       role="menu"
       aria-label={t("block.menuTitle", { defaultValue: "Block-Aktionen" })}
+      className="pv-popover--fixed"
       style={{
-        position: "fixed", left, top, minWidth: `${WIDTH}px`, maxHeight: "70vh", overflowY: "auto",
+        left, top, minWidth: `${WIDTH}px`, maxHeight: "70vh", overflowY: "auto",
         background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
         boxShadow: "var(--shadow-2)", padding: "6px", zIndex: "var(--z-menu)", userSelect: "none",
+        visibility: "visible",
       }}
     >
       {rows.map((r, i) =>

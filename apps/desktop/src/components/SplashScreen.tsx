@@ -26,6 +26,9 @@ import {
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
 
+/** Brand mark geometry (not an icon role - the logo scales freely). */
+const SPLASH_LOGO_SIZE = 76;
+
 export const SplashScreen: React.FC = () => {
   const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault } = useVault();
   const { t, i18n } = useTranslation();
@@ -171,7 +174,7 @@ export const SplashScreen: React.FC = () => {
       <div style={{ width: "100%", maxWidth: "440px" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px" }}>
-            <PlainvaLogo size={76} glow />
+            <PlainvaLogo size={SPLASH_LOGO_SIZE} glow />
           </div>
           <h1 style={{ fontSize: "var(--text-display)", fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 8px" }}>{t("splash.title")}</h1>
           <p style={{ color: "var(--text-muted)", fontSize: "var(--text-lg)", margin: "0 0 28px" }}>{t("splash.subtitle")}</p>

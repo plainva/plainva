@@ -355,7 +355,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
             ))}
           </div>
 
-          {/* Day columns */}
+          {/* Day columns. The small z-index literals below (4/5/6) order the
+              create-preview, event-drag ghost and now-line ABOVE the plain
+              (z-auto) event blocks — a local stacking context scoped to this
+              single position:relative column, not page-level overlay/menu
+              layering, so they intentionally stay small raw integers rather
+              than the shared --z-* overlay scale. */}
           {perDay.map((d, col) => {
             const isToday = d.key === todayKey;
             return (

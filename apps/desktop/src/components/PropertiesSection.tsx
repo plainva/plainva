@@ -294,7 +294,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       )}
 
       <div style={{ position: "relative", marginTop: "0.35rem" }}>
-        <button ref={addBtnRef} type="button" className="pv-add-btn" onClick={() => setShowAdd((s) => !s)}>
+        <button ref={addBtnRef} type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={() => setShowAdd((s) => !s)}>
           <Plus size={ICON.ui} />
           {t("properties.addProperty")}
         </button>

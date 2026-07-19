@@ -809,7 +809,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           {edgeTip && (
             <div
               role="tooltip"
-              style={{ position: "absolute", left: Math.max(4, edgeTip.x + 12), top: Math.max(4, edgeTip.y + 12), maxWidth: 320, padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-2)", color: "var(--text-main)", fontSize: "var(--text-xs)", pointerEvents: "none", zIndex: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              style={{ position: "absolute", left: Math.max(4, edgeTip.x + 12), top: Math.max(4, edgeTip.y + 12), maxWidth: 320, padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-2)", color: "var(--text-main)", fontSize: "var(--text-xs)", pointerEvents: "none", zIndex: "var(--z-popover)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {edgeTip.text}
             </div>

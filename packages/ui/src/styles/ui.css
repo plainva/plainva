@@ -89,6 +89,17 @@
 .pv-iconbtn:active:not(:disabled) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
 .pv-iconbtn--sm { width: var(--control-sm); height: var(--control-sm); }
+/* Toggle state (tool palettes, mode switches): accent-container fill, ONE
+   active idiom app-wide (E2). */
+.pv-iconbtn.is-active { background: var(--accent-container); color: var(--on-accent-container); }
+
+/* Fixed drag ghosts (card/tab drag previews): position comes from CSS so
+   inline styles carry coordinates only. */
+.pv-fixed-ghost { position: fixed; pointer-events: none; z-index: var(--z-tooltip); }
+
+/* Invisible full-viewport click catcher for outside-click dismissal of
+   non-modal popovers (no dim - the pickers stay visually anchored). */
+.pv-click-catch { position: fixed; inset: 0; }
 
 /* ----------------------------------------------------------------- fields */
 /* Field metric roles (design sweep 2026-07-19, E10): the FORM standard is the
@@ -293,6 +304,70 @@
 .tabstrip [role="tab"][aria-selected="true"] {
   box-shadow: inset 0 -2px 0 0 var(--accent-color);
 }
+
+/* Tab foreground colors as an indirection: the title-bar strip runs on the
+   titlebar palette, pane strips on the document palette — same rules, one
+   hover system (CSS :hover, no JS style mutation; design sweep 2026-07-19). */
+.tabstrip { --tab-fg: var(--text-main); --tab-fg-muted: var(--text-muted); }
+.tabstrip--titlebar { --tab-fg: var(--titlebar-fg); --tab-fg-muted: var(--titlebar-fg-muted); }
+.tabstrip [role="tab"] { color: var(--tab-fg-muted); }
+.tabstrip [role="tab"]:hover,
+.tabstrip [role="tab"][aria-selected="true"] { color: var(--tab-fg); }
+.pv-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+
+/* Title-bar chrome buttons (sidebar toggles, theme toggle, window controls). */
+.pv-titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--titlebar-fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pv-titlebar-btn:hover:not(:disabled) { background: var(--titlebar-hover); color: var(--titlebar-fg); }
+.pv-titlebar-btn:disabled { opacity: 0.35; cursor: default; }
+.pv-titlebar-btn--sm { width: 28px; height: 28px; }
+.pv-winbtn--close:hover:not(:disabled) { background: var(--titlebar-close-hover); color: var(--titlebar-close-hover-fg); }
+.pv-window-chrome-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  user-select: none;
+  z-index: var(--z-popover);
+}
+
+/* Theme preview cards (settings appearance page). */
+.pv-themecard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+.pv-themecard:hover,
+.pv-themecard.is-active { border-color: var(--accent-color); }
 
 /* ------------------------------------------------------------------ menus */
 .pv-menu {

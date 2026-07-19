@@ -124,19 +124,16 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
       {isOpen && pos && (
         <div
           ref={popoverRef}
+          className="pv-popover pv-popover--fixed"
           style={{
-            position: "fixed",
             left: pos.left,
             top: pos.top,
             bottom: pos.bottom,
-            zIndex: "var(--z-menu)",
-            background: "var(--bg-primary)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "var(--shadow-2)",
+            maxHeight: 400,
             padding: "0.75rem",
             width: "250px",
-            color: "var(--text-main)"
+            color: "var(--text-main)",
+            visibility: "visible",
           }}
         >
           {/* Header */}

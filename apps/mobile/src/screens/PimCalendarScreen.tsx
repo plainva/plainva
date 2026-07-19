@@ -230,7 +230,7 @@ export function PimCalendarScreen({
           <div style={{ display: "flex", position: "relative", height: 24 * PX_PER_HOUR }}>
             <div style={{ width: 44, flexShrink: 0, position: "relative" }}>
               {hours.map((h) => (
-                <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: 9, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
                   {h > 0 ? minutesToHHMM(h * 60) : ""}
                 </div>
               ))}
@@ -263,7 +263,7 @@ export function PimCalendarScreen({
                         type="button"
                         data-testid="pim-event"
                         onClick={() => void openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, background: colorOf(e), color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: 10, fontWeight: 600, lineHeight: 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, background: colorOf(e), color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
                       >
                         {e.title}
                       </button>

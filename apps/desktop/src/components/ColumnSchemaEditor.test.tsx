@@ -33,7 +33,7 @@ const t = ((k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? k) a
 
 /** Values of every option/name text field currently on screen (the picker is a modal). */
 function inputValues(): string[] {
-  return [...document.querySelectorAll("input.pv-input")].map((el) => (el as HTMLInputElement).value);
+  return [...document.querySelectorAll("input.pv-field")].map((el) => (el as HTMLInputElement).value);
 }
 
 describe("ColumnSchemaEditor option seeding (WP2)", () => {

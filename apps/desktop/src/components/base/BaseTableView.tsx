@@ -138,7 +138,7 @@ export function BaseTableView({
     // per-cell max width). The former 100px bottom padding was a workaround for
     // the absolute-positioned date popover, which is fixed-positioned now.
     <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--text-md)' }}>
         <thead>
           <tr>
             {visibleColumns.map((col: string) => (
@@ -146,7 +146,7 @@ export function BaseTableView({
                 key={col}
                 ref={(el) => { if (el) thEls.current[col] = el; }}
                 className={colOverId === col && colDragId && colDragId !== col ? "base-col-drop" : undefined}
-                style={{ borderBottom: '2px solid var(--border-color)', padding: 'var(--pad-cell)', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', background: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: 1, opacity: colDragId === col ? 0.5 : 1, width: colWidths[col] }}
+                style={{ borderBottom: '2px solid var(--border-color)', padding: 'var(--pad-cell)', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', background: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: "var(--z-popover)" as unknown as number, opacity: colDragId === col ? 0.5 : 1, width: colWidths[col] }}
               >
                 <div
                   onClick={() => onToggleHeaderSort(col)}

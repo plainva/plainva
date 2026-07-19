@@ -66,7 +66,7 @@ export const editorTheme = EditorView.theme({
     cursor: "grab",
     borderRadius: "var(--radius-xs)",
     opacity: 0,
-    transition: "opacity 0.12s",
+    transition: "opacity var(--dur-1) var(--ease-1)",
   },
   "&:hover .cm-block-handle": { opacity: 0.5 },
   ".cm-block-handle:hover": { opacity: 1, backgroundColor: "var(--bg-hover)" },
@@ -100,7 +100,7 @@ export const editorTheme = EditorView.theme({
   ".cm-callout-title": { fontWeight: "600" },
   ".cm-md-highlight": {
     backgroundColor: "var(--highlight-bg)",
-    borderRadius: "2px",
+    borderRadius: "var(--radius-xs)",
   },
   // Revealed inline markup markers (notion style): kept subtle/dimmed (#3).
   ".cm-md-mark": {
@@ -202,7 +202,7 @@ export const editorTheme = EditorView.theme({
     border: "none",
     background: "transparent",
   },
-  ".cm-searchMatch": { backgroundColor: "var(--highlight-bg)", borderRadius: "2px" },
+  ".cm-searchMatch": { backgroundColor: "var(--highlight-bg)", borderRadius: "var(--radius-xs)" },
   ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "var(--selection-bg)", outline: "1px solid var(--accent-color)" },
   ".cm-selectionMatch": { backgroundColor: "var(--bg-active)" },
   ".cm-md-bullet": {

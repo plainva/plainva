@@ -115,7 +115,6 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
       onClose={onCancel}
       title={t("webDavPicker.title")}
       size="lg"
-      bodyClassName="pv-webdav-picker-body"
       footer={
         <>
           <Button onClick={onCancel}>{t("common.cancel")}</Button>

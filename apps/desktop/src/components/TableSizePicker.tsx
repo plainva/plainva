@@ -55,8 +55,8 @@ export const TableSizePicker: React.FC<Props> = ({ x, y, onSelect, onClose }) =>
       ref={ref}
       role="dialog"
       aria-label={t("editor.tablePickerTitle", { defaultValue: "Choose table size" })}
+      className="pv-popover--fixed"
       style={{
-        position: "fixed",
         left,
         top,
         background: "var(--bg-primary)",
@@ -66,6 +66,7 @@ export const TableSizePicker: React.FC<Props> = ({ x, y, onSelect, onClose }) =>
         padding: "10px",
         zIndex: "var(--z-menu)",
         userSelect: "none",
+        visibility: "visible",
       }}
     >
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, ${CELL}px)`, gap: `${GAP}px` }}>

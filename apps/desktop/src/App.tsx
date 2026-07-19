@@ -15,7 +15,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { ICON, isImagePath, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, Modal, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -899,20 +899,20 @@ function App() {
           >
             {loadingProgress?.message ?? ''}
           </p>
-          <div style={{ width: '100%', height: '4px', background: 'var(--bg-hover)', marginTop: '0.5rem', borderRadius: '2px', overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: '4px', background: 'var(--bg-hover)', marginTop: '0.5rem', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
             {loadingProgress ? (
               <div style={{
                 width: `${(loadingProgress.current / Math.max(1, loadingProgress.total)) * 100}%`,
                 height: '100%',
                 background: 'var(--accent-color)',
-                borderRadius: '2px',
-                transition: 'width 0.2s'
+                borderRadius: 'var(--radius-pill)',
+                transition: 'width var(--dur-2) var(--ease-1)'
               }} />
             ) : (
               <div className="indeterminate-progress" style={{
                 height: '100%',
                 background: 'var(--accent-color)',
-                borderRadius: '2px'
+                borderRadius: 'var(--radius-pill)'
               }} />
             )}
           </div>
@@ -1020,9 +1020,9 @@ function App() {
                 aria-label={t('sidebar.newMore', { defaultValue: 'Weitere Optionen' })}
                 onClick={() => setShowNewMenu((s) => !s)}
                 className="pv-btn pv-btn--primary"
-                style={{ width: 34, height: 38, padding: 0, borderLeft: '1px solid rgba(255,255,255,0.22)' }}
+                style={{ width: 34, height: 38, padding: 0, borderLeft: '1px solid color-mix(in srgb, var(--accent-on) 22%, transparent)' }}
               >
-                <ChevronDown size={ICON.ui} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
+                <ChevronDown size={ICON.ui} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform var(--dur-2) var(--ease-1)' }} />
               </button>
             </div>
             <DropdownMenu
@@ -1120,7 +1120,7 @@ function App() {
           {/* Vault Switcher */}
           <div style={{ position: "relative", width: "100%", marginTop: "auto" }}>
             {showVaultMenu && (
-              <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: 10 }}>
+              <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: "var(--z-menu)" }}>
                 <div className="pv-menu-label">{t("sidebar.recentVaults")}</div>
                 {recentVaults.filter(p => p !== vaultPath).slice(0, 5).map(path => (
                   <button
@@ -1162,7 +1162,7 @@ function App() {
                 <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {vaultPath.split(/[/\\]/).pop()}
                 </span>
-                <ChevronUp size={ICON.ui} style={{ transform: showVaultMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', flexShrink: 0 }} />
+                <ChevronUp size={ICON.ui} style={{ transform: showVaultMenu ? 'rotate(180deg)' : 'none', transition: 'transform var(--dur-2) var(--ease-1)', marginLeft: 'auto', flexShrink: 0 }} />
               </button>
             </div>
           </div>
@@ -1178,10 +1178,10 @@ function App() {
         <h1 style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: 0 }}>Plainva Desktop</h1>
         
         {showVerticalPreview && (
-          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%', background: 'var(--accent-color)', opacity: 0.15, pointerEvents: 'none', zIndex: 1000, borderLeft: '2px solid var(--accent-color)' }} />
+          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%', background: 'var(--accent-color)', opacity: 0.15, pointerEvents: 'none', zIndex: 'var(--z-popover)', borderLeft: '2px solid var(--accent-color)' }} />
         )}
         {showHorizontalPreview && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%', background: 'var(--accent-color)', opacity: 0.15, pointerEvents: 'none', zIndex: 1000, borderTop: '2px solid var(--accent-color)' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%', background: 'var(--accent-color)', opacity: 0.15, pointerEvents: 'none', zIndex: 'var(--z-popover)', borderTop: '2px solid var(--accent-color)' }} />
         )}
 
         {layout.panes.map((pane, i) => {
@@ -1611,20 +1611,19 @@ function SyncErrorDialog({
   const { t } = useTranslation();
   const { message, provider } = useDisplaySyncStatus();
   return (
-    <div style={{
-      position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-      backgroundColor: "var(--overlay-bg)", display: "flex", alignItems: "center",
-      justifyContent: "center", zIndex: 2000
-    }}>
-      <div style={{
-        background: "var(--bg-primary)", padding: "2rem", borderRadius: "var(--radius-md)",
-        width: "400px", color: "var(--text-main)", boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-        display: "flex", flexDirection: "column"
-      }}>
-        <h2 style={{ marginTop: 0, color: "var(--error-text)", display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <AlertTriangle size={ICON.touch} /> {t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
-        </h2>
-        <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
+    <Modal
+      onClose={onClose}
+      size="sm"
+      title={t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
+      icon={<AlertTriangle size={ICON.head} style={{ color: "var(--error-text)" }} />}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
+          <Button variant="primary" onClick={() => onOpenSettings(provider)}>{t("sync.openSettings")}</Button>
+        </>
+      }
+    >
+        <div style={{ padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
           {message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." })}
         </div>
         <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
@@ -1648,22 +1647,7 @@ function SyncErrorDialog({
             ))}
           </div>
         )}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1.5rem" }}>
-          <button
-            onClick={onClose}
-            style={{ padding: "0.5rem 1.5rem", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer" }}
-          >
-            {t("common.close")}
-          </button>
-          <button
-            onClick={() => onOpenSettings(provider)}
-            style={{ padding: "0.5rem 1.5rem", background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer" }}
-          >
-            {t("sync.openSettings")}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

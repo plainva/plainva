@@ -289,7 +289,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           <div
             data-testid="calendar-month-picker"
             style={{
-              position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", zIndex: 30,
+              position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", zIndex: "var(--z-menu)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
               boxShadow: "var(--shadow-2)", padding: "0.5rem",
             }}
