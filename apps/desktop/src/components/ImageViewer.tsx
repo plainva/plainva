@@ -339,7 +339,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
           onClick={() => setZoom("fit")}
           data-tip={t("imageViewer.zoomFit")}
           aria-label={t("imageViewer.zoomFit")}
-          style={{ background: zoom === "fit" ? "var(--bg-active)" : "transparent", color: zoom === "fit" ? "var(--accent-color)" : "var(--text-muted)" }}
+          style={{ background: zoom === "fit" ? "var(--accent-container)" : "transparent", color: zoom === "fit" ? "var(--on-accent-container)" : "var(--text-muted)" }}
         ><Maximize size={ICON.ui} /></button>
         <button
           type="button"
@@ -347,7 +347,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
           onClick={() => setZoom(1)}
           data-tip={t("imageViewer.zoomActual")}
           aria-label={t("imageViewer.zoomActual")}
-          style={{ background: zoom === 1 ? "var(--bg-active)" : "transparent", color: zoom === 1 ? "var(--accent-color)" : "var(--text-muted)" }}
+          style={{ background: zoom === 1 ? "var(--accent-container)" : "transparent", color: zoom === 1 ? "var(--on-accent-container)" : "var(--text-muted)" }}
         >1:1</button>
 
         {editing && (
@@ -361,7 +361,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
                 onClick={() => setTool(d.id)}
                 data-tip={d.label}
                 aria-label={d.label}
-                style={{ background: tool === d.id ? "var(--bg-active)" : "transparent", color: tool === d.id ? "var(--accent-color)" : "var(--text-muted)" }}
+                style={{ background: tool === d.id ? "var(--accent-container)" : "transparent", color: tool === d.id ? "var(--on-accent-container)" : "var(--text-muted)" }}
               >{d.icon}</button>
             ))}
             <div style={{ width: 1, alignSelf: "stretch", background: "var(--border-color)", margin: "0 4px" }} />

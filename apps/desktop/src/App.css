@@ -320,7 +320,7 @@ option {
 .pv-row-label { position: relative; width: 100px; flex-shrink: 0; padding-top: 4px; }
 .pv-key-box { display: flex; align-items: center; gap: 2px; width: 100%; border-radius: var(--radius-sm); min-width: 0; }
 .pv-type-btn { display: flex; align-items: center; justify-content: center; padding: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-.pv-type-btn:hover { color: var(--text-main); background: var(--bg-active); }
+.pv-type-btn:hover { color: var(--text-main); background: var(--state-hover); }
 .pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: var(--text-ui); padding: 2px 0; }
 .pv-key:focus { color: var(--text-main); }
 .pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; }

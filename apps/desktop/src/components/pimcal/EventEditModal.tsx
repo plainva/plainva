@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2, X } from "lucide-react";
-import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSurface, Modal, TextInput } from "@plainva/ui";
+import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -171,9 +171,12 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                     </MenuItem>
                   )}
                   {onDelete && (
-                    <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="event-delete" onSelect={onDelete}>
-                      {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
-                    </MenuItem>
+                    <>
+                      {(onEmailInvite || onBlock) && <MenuSeparator />}
+                      <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="event-delete" onSelect={onDelete}>
+                        {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
+                      </MenuItem>
+                    </>
                   )}
                 </MenuSurface>
               )}

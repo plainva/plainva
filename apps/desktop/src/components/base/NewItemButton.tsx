@@ -167,7 +167,7 @@ export function NewItemButton({
         <>
           <div className="base-menu-backdrop" onClick={() => setOpen(false)} />
           <div ref={popRef} className="pv-popover pv-popover--fixed" style={{ padding: "0.25rem", maxWidth: 320 }}>
-            <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+            <div className="pv-popover-label">
               {t("database.templatesSection", { defaultValue: "Vorlagen" })}
             </div>
             {templateRow(null, t("database.noTemplate", { defaultValue: "Ohne Vorlage" }))}
@@ -190,13 +190,13 @@ export function NewItemButton({
             )}
             {groups.others.length > 0 && showAll && (
               <>
-                <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+                <div className="pv-popover-label">
                   {t("database.allTemplatesSection", { defaultValue: "Weitere Vorlagen" })}
                 </div>
                 {groups.others.map((tpl) => templateRow(tpl, tpl.title))}
               </>
             )}
-            <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
+            <div className="pv-menu-sep" role="separator" />
             <button type="button" className="pv-menu-item" onClick={() => { setOpen(false); onCreateTemplate(); }}>
               <FilePlus2 size={ICON.ui} style={{ flexShrink: 0 }} />
               {t("database.createTemplate", { defaultValue: "Neue Vorlage erstellen" })}
@@ -210,7 +210,7 @@ export function NewItemButton({
                 {t("database.openTemplatesFolder", { defaultValue: "Vorlagen-Ordner im Dateibaum öffnen (bearbeiten, umbenennen, löschen)" })}
               </button>
             )}
-            <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
+            <div className="pv-menu-sep" role="separator" />
             <button type="button" className="pv-menu-item" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }} onClick={() => { setOpen(false); onChangeFolder(); }}>
               <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <FolderCog size={ICON.ui} style={{ flexShrink: 0 }} />

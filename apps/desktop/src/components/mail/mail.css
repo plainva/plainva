@@ -120,11 +120,11 @@
 }
 .pv-mail-folder.on {
   background: var(--accent-container);
-  color: var(--accent-color);
+  color: var(--on-accent-container);
   font-weight: 600;
 }
 .pv-mail-folder.on > svg {
-  color: var(--accent-color);
+  color: inherit;
 }
 .pv-mail-folder-label {
   overflow: hidden;
@@ -138,7 +138,8 @@
   font-variant-numeric: tabular-nums;
 }
 .pv-mail-folder.on .pv-mail-folder-ct {
-  color: var(--accent-color);
+  color: inherit;
+  opacity: 0.75;
 }
 .pv-mail-flist-label {
   margin-top: var(--space-2);
@@ -235,6 +236,19 @@
 }
 .pv-mail-env.on {
   background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+/* Multi-tone row content follows the selection foreground in EVERY theme
+   (win95 selection is solid navy - fixed grays would vanish). */
+.pv-mail-env.on .pv-mail-from,
+.pv-mail-env.on .pv-mail-subj,
+.pv-mail-env.on .pv-mail-prev,
+.pv-mail-env.on .pv-mail-when {
+  color: inherit;
+}
+.pv-mail-env.on .pv-mail-prev,
+.pv-mail-env.on .pv-mail-when {
+  opacity: 0.72;
 }
 .pv-mail-env.on::before {
   content: "";
@@ -467,7 +481,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--text-sm);
-  color: var(--accent-color);
+  color: var(--on-accent-container);
   background: var(--accent-container);
   border: none;
   border-radius: var(--radius-pill);

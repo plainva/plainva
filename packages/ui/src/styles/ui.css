@@ -832,6 +832,21 @@
   box-shadow: 0 0 0 3px var(--state-focus);
 }
 
+/* Composite fields (chip fields, search fields, palette input rows) show
+   focus on the CONTAINER via :focus-within — the inner input must not stack
+   the global :focus-visible ring on top (it read as a second field frame). */
+.pv-chipfield > input:focus,
+.pv-chipfield > input:focus-visible,
+.pv-searchfield > input:focus,
+.pv-searchfield > input:focus-visible,
+.pv-palette-input:focus,
+.pv-palette-input:focus-visible,
+.pv-selectsearch > input:focus,
+.pv-selectsearch > input:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
 /* Chip input field (recipient/attendee chips): a .pv-field that grows to wrap
    chips and lights the WHOLE field on focus-within — the caret lives in the
    inner <input>, so the wrapper's own :focus never fires and the bare border

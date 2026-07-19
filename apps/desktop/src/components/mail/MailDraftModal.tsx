@@ -330,7 +330,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                   <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m) }))} />
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+              <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                 {canSend
                   ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
                   : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
@@ -354,7 +354,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           data-testid="draft-send"
           disabled={busy || accounts.length === 0 || !canSend}
           onClick={() => void send()}
-          title={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
+          data-tip={!canSend ? t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." }) : undefined}
         >
           {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
         </Button>

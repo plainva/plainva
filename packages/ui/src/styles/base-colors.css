@@ -18,6 +18,8 @@
   --bg-primary: #ffffff;
   --bg-secondary: #eff5f4;
   --bg-hover: #e0ecea;
+  /* CONTENT highlight tint only (editor selection match / active line).
+     CHROME active states use the --accent-container pair (E4). */
   --bg-active: rgba(15, 118, 110, 0.15);
   --text-main: #1b2b29;
   --text-muted: #5c6b69;

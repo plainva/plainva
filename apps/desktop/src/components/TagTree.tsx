@@ -156,8 +156,8 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
             display: 'flex', alignItems: 'center', padding: '4px 8px',
             paddingLeft: `${level * 12 + 8}px`,
             cursor: 'pointer',
-            backgroundColor: isSelected ? 'var(--bg-active)' : undefined,
-            color: isSelected ? 'var(--text-main)' : 'var(--text-muted)'
+            backgroundColor: isSelected ? 'var(--accent-container)' : undefined,
+            color: isSelected ? 'var(--on-accent-container)' : 'var(--text-muted)'
           }}
           onClick={() => setSelectedTag(node.fullTag)}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); void handleRenameTag(node.fullTag); }}

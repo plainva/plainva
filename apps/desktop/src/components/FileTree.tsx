@@ -161,8 +161,8 @@ const TreeNodeView: React.FC<{
           alignItems: "center",
           gap: "6px",
           fontSize: "var(--tree-row-font)",
-          background: isSelected || activePath === node.path ? "var(--bg-active)" : undefined,
-          color: conflict ? "var(--error-text)" : "var(--text-main)",
+          background: isSelected || activePath === node.path ? "var(--accent-container)" : undefined,
+          color: conflict ? "var(--error-text)" : isSelected || activePath === node.path ? "var(--on-accent-container)" : "var(--text-main)",
           fontWeight: activePath === node.path ? 600 : 400,
           boxShadow: activePath === node.path ? "inset 3px 0 0 var(--accent-color)" : undefined,
         }}
@@ -232,9 +232,9 @@ const TreeNodeView: React.FC<{
           alignItems: "center",
           gap: "6px",
           fontSize: "var(--tree-row-font)",
-          color: "var(--text-main)",
           fontWeight: 500,
-          background: isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : undefined,
+          background: isSelected ? "var(--accent-container)" : dropTarget === node.path ? "var(--bg-hover)" : undefined,
+          color: isSelected ? "var(--on-accent-container)" : "var(--text-main)",
         }}
       >
         {isOpen ? <ChevronDown size={ICON.ui} style={{ opacity: 0.5, flexShrink: 0 }} /> : <ChevronRight size={ICON.ui} style={{ opacity: 0.5, flexShrink: 0 }} />}
@@ -1198,8 +1198,8 @@ export const FileTree: React.FC<{
             alignItems: "flex-start",
             gap: "8px",
             fontSize: "var(--text-md)",
-            background: selection.has(file.path) || activePath === file.path ? "var(--bg-active)" : undefined,
-            color: conflict ? "var(--error-text)" : "var(--text-main)",
+            background: selection.has(file.path) || activePath === file.path ? "var(--accent-container)" : undefined,
+            color: conflict ? "var(--error-text)" : selection.has(file.path) || activePath === file.path ? "var(--on-accent-container)" : "var(--text-main)",
             fontWeight: activePath === file.path ? 600 : 400,
             boxShadow: activePath === file.path ? "inset 3px 0 0 var(--accent-color)" : undefined,
           }}

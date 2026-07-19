@@ -28,7 +28,7 @@ const Btn: React.FC<{ row: Extract<Row, { kind: "item" }>; onAction: (a: BlockAc
       style={{
         display: "flex", alignItems: "center", width: "100%", textAlign: "left", gap: "8px",
         padding: "6px 12px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--text-ui)",
-        background: hover ? "var(--bg-active)" : "transparent",
+        background: hover ? "var(--state-hover)" : "transparent",
         color: row.danger ? "var(--error-text)" : "var(--text-main)",
       }}
     >

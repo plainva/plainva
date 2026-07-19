@@ -84,7 +84,7 @@ export const TableSizePicker: React.FC<Props> = ({ x, y, onSelect, onClose }) =>
                   borderRadius: "var(--radius-xs)",
                   cursor: "pointer",
                   border: `1px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
-                  background: active ? "var(--bg-active)" : "var(--bg-secondary)",
+                  background: active ? "var(--accent-container)" : "var(--bg-secondary)",
                 }}
               />
             );

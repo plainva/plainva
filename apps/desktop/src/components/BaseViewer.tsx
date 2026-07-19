@@ -1850,7 +1850,7 @@ export function BaseViewer({
           aria-label={t("database.configure", "Konfigurieren")}
           data-tip={t("database.configure", "Konfigurieren")}
           className="pv-btn pv-btn--secondary pv-btn--sm"
-          style={showConfigPanel ? { background: "var(--bg-active)" } : undefined}
+          style={showConfigPanel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
         >
           <SlidersHorizontal size={ICON.ui} /><span className="base-toolbar-label">{t("database.configure", "Konfigurieren")}</span>
         </button>

@@ -221,7 +221,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                 <span className="pv-side-section-glyph">{m.icon}</span>
                 <span style={{ flex: 1, textAlign: "left" }}>{m.title}</span>
                 {m.count !== undefined && m.count > 0 && (
-                  <span style={{ minWidth: 19, height: 19, padding: "0 5px", borderRadius: "var(--radius-pill)", background: "var(--bg-active)", color: "var(--accent-color)", fontSize: "var(--text-xs)", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums" }}>
+                  <span className="pv-badge pv-badge--accent">
                     {m.count}
                   </span>
                 )}

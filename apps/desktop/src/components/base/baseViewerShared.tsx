@@ -300,7 +300,7 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-addrow:disabled { opacity: 0.4; cursor: default; }
   .base-cfg-seg { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; }
   .base-cfg-seg button { background: transparent; border: none; padding: 2px 8px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; }
-  .base-cfg-seg button.active { background: var(--bg-active); color: var(--text-main); font-weight: 600; }
+  .base-cfg-seg button.active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
   .base-cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-muted); }
   .base-view-tabs { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: 0.25rem; padding: 3px; background: var(--surface-container); border-radius: var(--radius-pill); }
   .base-view-tab { position: relative; display: flex; align-items: center; border-radius: var(--radius-pill); }
@@ -319,4 +319,5 @@ export const BASE_VIEWER_STYLES = `
   .base-view-menu button:hover { background: var(--state-hover); }
   .base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
   .base-view-menu button.danger { color: var(--error-text); }
+  .base-menu-sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
 `;

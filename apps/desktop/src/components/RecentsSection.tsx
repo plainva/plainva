@@ -74,8 +74,9 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.3rem 0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",
-              background: activePath === path ? "var(--bg-active)" : "transparent",
-              color: "var(--text-main)", fontSize: "var(--tree-row-font)",
+              background: activePath === path ? "var(--accent-container)" : "transparent",
+              color: activePath === path ? "var(--on-accent-container)" : "var(--text-main)",
+              fontSize: "var(--tree-row-font)",
             }}
           >
             <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

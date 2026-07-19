@@ -91,7 +91,7 @@ export function BaseCreateWizard({
 
   const canCreate = clauses.length > 0;
   const stepBadge = (n: string) => (
-    <span style={{ background: "var(--bg-active)", color: "var(--accent-color)", fontSize: "var(--text-xs)", fontWeight: 600, padding: "1px 8px", borderRadius: "var(--radius-pill)", flexShrink: 0 }}>{n}</span>
+    <span className="pv-badge pv-badge--accent" style={{ flexShrink: 0 }}>{n}</span>
   );
 
   return (
@@ -126,7 +126,7 @@ export function BaseCreateWizard({
             onCreateFolder={createFolder}
           />
           {matchCount !== null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-active)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--text-ui)", color: "var(--text-main)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface-container)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--text-ui)", color: "var(--text-main)" }}>
               <Info size={ICON.ui} color="var(--accent-color)" />
               {t("database.wizardMatches", { count: matchCount, defaultValue: "{{count}} Notizen entsprechen dieser Quelle" })}
             </div>

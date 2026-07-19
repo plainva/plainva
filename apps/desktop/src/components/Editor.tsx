@@ -1622,6 +1622,7 @@ export const Editor: React.FC<{
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </MenuItem>
               )}
+              <MenuSeparator />
               <MenuItem
                 icon={<History size={ICON.ui} />}
                 data-testid="editor-menu-version-history"
@@ -1641,12 +1642,14 @@ export const Editor: React.FC<{
               <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={() => { void handleMenuOpenInDefaultApp(); }}>
                 {t("editor.openInDefaultApp")}
               </MenuItem>
+              <MenuSeparator />
               <MenuItem icon={<Printer size={ICON.ui} />} onSelect={handleMenuPrint}>
                 {t("editor.print")}
               </MenuItem>
               <MenuItem icon={<FileDown size={ICON.ui} />} onSelect={handleMenuExportMarkdown}>
                 {t("editor.exportMarkdown", "Als Markdown exportieren…")}
               </MenuItem>
+              <MenuSeparator />
               <MenuItem icon={<Mail size={ICON.ui} />} data-testid="editor-menu-send-mail" onSelect={handleMenuSendMail}>
                 {t("mail.sendNoteViaEmail", { defaultValue: "Per Mail verschicken" })}
               </MenuItem>

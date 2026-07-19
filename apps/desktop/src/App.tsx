@@ -1055,7 +1055,7 @@ function App() {
                   data-tip={label}
                   onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
                   className="pv-btn pv-btn--ghost"
-                  style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--bg-active)' : undefined, color: active ? 'var(--accent-color)' : undefined }}
+                  style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--accent-container)' : undefined, color: active ? 'var(--on-accent-container)' : undefined }}
                 >
                   <Icon size={ICON.ui} />
                 </button>

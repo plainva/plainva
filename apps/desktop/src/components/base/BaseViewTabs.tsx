@@ -113,6 +113,7 @@ export function BaseViewTabs({
                 <div className="base-view-menu">
                   <button onClick={() => { setViewMenuFor(null); setRenamingIdx(i); setRenameValue(viewLabel(t, views[i])); }}>{t("database.renameView", "Umbenennen")}</button>
                   <button onClick={() => { setViewMenuFor(null); onDuplicate(i); }}>{t("database.duplicateView", "Duplizieren")}</button>
+                  <div className="base-menu-sep" role="separator" />
                   <button onClick={() => { setViewMenuFor(null); onDelete(i); }} disabled={views.length <= 1} className="danger">{t("database.deleteView", "Löschen")}</button>
                 </div>
               </>
