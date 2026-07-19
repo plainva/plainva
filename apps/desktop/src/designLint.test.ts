@@ -73,50 +73,26 @@ type Counts = Partial<Record<keyof typeof RULES, number>>;
  * packages P2-P8 drive this to EMPTY). Lower or remove entries as files are
  * migrated; never raise one; new entries need a justification comment. */
 const BUDGET: Record<string, Counts> = {
-  "App.css": {radiusPx:1,rgba:4,fontSizeRaw:1,durationRaw:3,legacyClass:21},
+  // The sweep (P2-P8, 2026-07-19) drove this map from 1253 findings in 107
+  // files down to the entries below — every remaining one is a JUSTIFIED
+  // exception documented at the finding site, not debt:
+  // - propertyModel/callouts: option-swatch DATA + var() fallback literals.
+  // - EmojiPicker/HeaderColorPicker: native <input type=color> needs a
+  //   resolved hex string.
+  // - ImageViewer: pen default + JPEG flatten fill are baked PIXEL data.
+  // - mail.css: avatar fg over the theme-independent --palette-N swatches.
+  // - DayTimeGrid: local stacking order inside one day column (no overlay).
+  // - ThemePickerCards: neutral outline over each card's OWN swatch colors.
+  // - mailSanitize: sandboxed srcdoc iframe cannot inherit app tokens.
   "base/propertyModel.ts": {hex:8},
-  "components/BacklinksPanel.tsx": {fontSizeRaw:7},
-  "components/base/BaseCalendarView.tsx": {rgba:1,shadowRaw:1},
-  "components/base/BaseCreateWizard.tsx": {legacyClass:4},
-  "components/base/BaseTableView.tsx": {fontSizeRaw:1,zIndexRaw:1},
-  "components/base/baseViewerShared.tsx": {zIndexRaw:3},
-  "components/base/NewItemButton.tsx": {fixedOverlay:1,legacyClass:10},
-  "components/base/useCardPointerDrag.ts": {fixedOverlay:1,zIndexRaw:1},
-  "components/BasePicker.tsx": {rgba:1,fixedOverlay:1,zIndexRaw:1,shadowRaw:1},
-  "components/BaseViewer.tsx": {rgba:1,fixedOverlay:1,shadowRaw:1,durationRaw:2,legacyClass:6},
-  "components/blockHandles.ts": {radiusPx:1,zIndexRaw:2},
-  "components/BlockMenu.tsx": {fixedOverlay:1},
-  "components/CalendarWidget.tsx": {zIndexRaw:1},
   "components/callouts.ts": {hex:8},
-  "components/ColumnSchemaEditor.tsx": {legacyClass:8},
-  "components/DatePicker.tsx": {fixedOverlay:1},
-  "components/Editor.tsx": {fixedOverlay:1,fontSizeRaw:1,zIndexRaw:1},
-  "components/EmojiPicker.tsx": {hex:1,rgba:1,fixedOverlay:2,zIndexRaw:1,shadowRaw:1},
-  "components/graph/PinModeToggle.tsx": {zIndexRaw:1},
-  "components/graph/VaultGraphView.tsx": {zIndexRaw:1},
-  "components/HailingFrequenciesModal.tsx": {durationRaw:1,legacyClass:7},
-  "components/HeaderColorPicker.tsx": {hex:1,fixedOverlay:2,zIndexRaw:1},
-  "components/ImagePreviewPlugin.ts": {rgba:1},
-  "components/ImageViewer.tsx": {hex:3,rgba:1,shadowRaw:1,legacyClass:19},
+  "components/EmojiPicker.tsx": {hex:1},
+  "components/HeaderColorPicker.tsx": {hex:1},
+  "components/ImageViewer.tsx": {hex:2},
   "components/mail/mail.css": {hex:1},
-  "components/MarkdownTheme.ts": {radiusPx:2,durationRaw:1},
-  "components/mathMermaidLive.ts": {fontSizeRaw:2},
-  "components/PaneTabStrip.tsx": {jsHover:4},
   "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3},
-  "components/pimcal/QuickCreatePopover.tsx": {fixedOverlay:2,zIndexRaw:2},
-  "components/PropertiesSection.tsx": {legacyClass:1},
-  "components/PropertyValues.tsx": {legacyClass:6},
-  "components/QuickSwitcher.tsx": {fontSizeRaw:5},
-  "components/SelectionToolbar.tsx": {fixedOverlay:1,zIndexRaw:1},
-  "components/SplashScreen.tsx": {iconLiteral:1},
-  "components/TableSizePicker.tsx": {fixedOverlay:1},
-  "components/TagTree.tsx": {fontSizeRaw:7},
-  "components/TemplateTargetsModal.tsx": {legacyClass:1},
-  "components/ThemePickerCards.tsx": {radiusPx:5,rgba:2,jsHover:2},
-  "components/TitleBar.tsx": {jsHover:12},
-  "components/WindowControls.tsx": {hex:2,zIndexRaw:1,jsHover:6},
+  "components/ThemePickerCards.tsx": {rgba:2},
   "services/mail/mailSanitize.ts": {hex:2,fontSizeRaw:1},
-  "src/App.tsx": {radiusPx:3,rgba:2,fixedOverlay:1,zIndexRaw:4,shadowRaw:1,durationRaw:3},
 };
 
 function walk(dir: string, out: string[] = []): string[] {
