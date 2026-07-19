@@ -889,7 +889,8 @@ export function BasePinboardView({
                     setLabelQuery("");
                   }
                 }}
-                style={{ margin: "2px 6px 6px", padding: "5px 8px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", background: "var(--bg-secondary)", color: "var(--text-main)", fontSize: "var(--text-sm)", outline: "none" }}
+                className="pv-field pv-field--compact"
+                style={{ width: "auto", margin: "2px 6px 6px" }}
               />
               <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column" }}>
                 {candidates.map((v) => {

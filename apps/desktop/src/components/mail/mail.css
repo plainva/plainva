@@ -179,6 +179,11 @@
 .pv-mail-search:focus-within {
   border-color: var(--accent-color);
 }
+.pv-mail-search input:focus,
+.pv-mail-search input:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
 .pv-mail-search > svg {
   color: var(--text-faint);
   flex: 0 0 auto;

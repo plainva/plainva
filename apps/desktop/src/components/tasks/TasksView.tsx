@@ -489,7 +489,8 @@ export function TasksView({ onOpenPath }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t("tasks.filterText", { defaultValue: "Aufgaben filtern…" })}
-          style={{ flex: "1 1 12rem", minWidth: "8rem", padding: "0.3rem 0.5rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)", fontSize: "var(--text-md)" }}
+          className="pv-field pv-field--compact"
+          style={{ flex: "1 1 12rem", minWidth: "8rem", width: "auto" }}
         />
         <select value={folder} onChange={(e) => setFolder(e.target.value)} style={selectStyle} aria-label={t("tasks.allFolders", { defaultValue: "Alle Ordner" })}>
           <option value="">{t("tasks.allFolders", { defaultValue: "Alle Ordner" })}</option>

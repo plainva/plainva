@@ -643,7 +643,7 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef }: { onAdd: (n
 
   return (
     <div className={`pv-popover pv-add-popover${anchorRef ? " pv-popover--fixed" : ""}`} ref={ref}>
-      <input ref={inputRef} className="pv-add-name" value={name} placeholder={t("properties.namePlaceholder")}
+      <input ref={inputRef} className="pv-field pv-field--compact" value={name} placeholder={t("properties.namePlaceholder")}
         onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }} />
       <div className="pv-popover-search"><Search size={ICON.ui} /><input value={query} placeholder={t("properties.chooseType")} onChange={(e) => setQuery(e.target.value)} /></div>
       <div className="pv-add-types">

@@ -123,11 +123,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ onClose }) => {
           placeholder={t("shortcuts.searchPlaceholder")}
           aria-label={t("shortcuts.searchPlaceholder")}
           data-testid="shortcuts-search"
-          style={{
-            width: "100%", padding: "var(--space-2) var(--space-3)",
-            background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-md)", color: "var(--text-main)", fontSize: "var(--text-md)",
-          }}
+          className="pv-field"
         />
 
         {!q && (

@@ -358,8 +358,6 @@ option {
 
 /* add property */
 .pv-add-popover { width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
-.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: var(--text-md); }
-.pv-add-name:focus { border-color: var(--accent-color); }
 .pv-add-types { max-height: 240px; overflow-y: auto; }
 
 /* Deterministic chip palette: moved to @plainva/ui styles/ui.css. */

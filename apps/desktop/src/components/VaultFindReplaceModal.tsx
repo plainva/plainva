@@ -107,7 +107,8 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
             onChange={(e) => setFind(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runFind()}
             placeholder={t("findReplace.findPlaceholder", { defaultValue: "Suchtext…" })}
-            style={inputStyle}
+            className="pv-field"
+            style={{ flex: 1, width: "auto" }}
           />
           <Button variant="secondary" disabled={busy || !find} onClick={runFind}>
             <SearchIcon size={ICON.ui} /> {t("search.find", { defaultValue: "Suchen" })}
@@ -117,7 +118,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
           value={replace}
           onChange={(e) => setReplace(e.target.value)}
           placeholder={t("findReplace.replacePlaceholder", { defaultValue: "Ersetzen durch…" })}
-          style={inputStyle}
+          className="pv-field"
         />
         <div style={{ display: "flex", gap: 14, padding: "0.15rem 0" }}>
           {optChip("matchCase", t("search.matchCase", { defaultValue: "Groß/klein" }))}
@@ -168,15 +169,4 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
       </div>
     </Modal>
   );
-};
-
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  width: "100%",
-  padding: "0.4rem 0.55rem",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)",
-  color: "var(--text-main)",
-  fontSize: "var(--text-md)",
 };

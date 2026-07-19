@@ -15,7 +15,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { ICON, isImagePath, Modal, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, Modal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -58,7 +58,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Search, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, X, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
@@ -972,37 +972,15 @@ function App() {
       <aside aria-label="Left Sidebar" style={{ width: `${leftSidebarWidth}px`, flexShrink: 0, borderRight: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column' }}>
         {/* Search */}
         <div style={{ padding: '10px 10px 6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={ICON.ui} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
-            <input
-              ref={leftSearchRef}
-              value={leftQuery}
-              onChange={(e) => setLeftQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape' && leftQuery !== '') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  clearLeftQuery();
-                }
-              }}
-              placeholder={t('fileTree.search')}
-              aria-label={t('fileTree.search')}
-              className="pv-field pv-field--compact"
-              style={{ width: '100%', height: 34, padding: leftQuery ? '0 34px 0 32px' : '0 10px 0 32px', boxSizing: 'border-box' }}
-            />
-            {leftQuery !== '' && (
-              <button
-                type="button"
-                onClick={clearLeftQuery}
-                data-tip={t('sidebar.clearSearch')}
-                aria-label={t('sidebar.clearSearch')}
-                className="pv-iconbtn"
-                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, padding: 0 }}
-              >
-                <X size={ICON.ui} />
-              </button>
-            )}
-          </div>
+          <SearchField
+            ref={leftSearchRef}
+            form
+            value={leftQuery}
+            onValueChange={(v) => { if (v === '' && leftQuery !== '') clearLeftQuery(); else setLeftQuery(v); }}
+            placeholder={t('fileTree.search')}
+            aria-label={t('fileTree.search')}
+            clearLabel={t('sidebar.clearSearch')}
+          />
           {/* New ▾ split button */}
           <div style={{ position: 'relative' }}>
             <div className="pv-splitbtn" style={{ display: 'flex', width: '100%' }}>

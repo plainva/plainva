@@ -1875,6 +1875,7 @@ export function BaseViewer({
                   <Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </button>
+                <div className="pv-menu-sep" role="separator" />
                 <button
                   onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
                   className="pv-menu-item pv-menu-item--danger"

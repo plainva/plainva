@@ -842,7 +842,9 @@
 .pv-palette-input:focus,
 .pv-palette-input:focus-visible,
 .pv-selectsearch > input:focus,
-.pv-selectsearch > input:focus-visible {
+.pv-selectsearch > input:focus-visible,
+.pv-popover-search > input:focus,
+.pv-popover-search > input:focus-visible {
   outline: none !important;
   box-shadow: none;
 }
