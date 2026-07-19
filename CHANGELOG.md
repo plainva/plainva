@@ -70,8 +70,9 @@ no format changes; existing vaults and `.base` files are untouched.
 - **Browsable folder pickers everywhere.** Choosing a folder (data source,
   storage location, move target) browses the live file system instead of an
   index-backed dropdown — so a just-created empty folder is selectable too.
-- **Signed macOS builds.** macOS installers are now signed with a Developer ID
-  and notarized — no more Gatekeeper right-click detour on macOS.
+- **Signed macOS builds.** macOS installers are now signed with a Developer ID.
+  (Notarization will follow separately; for now, right-click → Open on the first
+  launch on macOS.)
 - **Consistent mail & calendar design.** Address chips, view segments and the
   floating compose/preview windows now share the app's central primitives.
 

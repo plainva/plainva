@@ -91,16 +91,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code-signing + notarization (Developer ID Application, team M3FGXPBLFZ).
-          # tauri-action imports the base64 .p12 from APPLE_CERTIFICATE and notarizes via
-          # Apple ID + app-specific password. Only runs on a tag push (this Build step is
-          # gated off for workflow_dispatch above).
+          # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): tauri-action
+          # imports the base64 .p12 from APPLE_CERTIFICATE and signs the app. Only runs on
+          # a tag push (this Build step is gated off for workflow_dispatch above).
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Notarization is temporarily disabled: notarytool --wait hung indefinitely on
+          # Apple's service for 0.4.0 (with both the old and freshly rotated credentials),
+          # so builds are signed but not notarized (first launch on macOS: right-click ->
+          # Open). Re-enable by restoring these two once notarization is confirmed working:
+          #   APPLE_ID: ${{ secrets.APPLE_ID }}
+          #   APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Plainva ${{ github.ref_name }}'
