@@ -476,6 +476,7 @@
         </div>
         <p><code>Checkbox</code>-Primitive ersetzt 7 nackte Inputs; <b>Radio wird neue Primitive</b> <span class="tagnew">neu</span> (heute roh). <code>Switch</code> wird überall importiert statt 2× nachgebaut; Knob-Farbe wird Token (behebt den unsichtbaren Knopf unter Hoher Kontrast dunkel).</p>
       </div>
+      <p><b>Zusammengesetzte Felder</b> (Chip-Feld, Suchfeld, Paletten-/Popover-Suchzeile): der Fokus lebt <b>ausschließlich am Container</b> (<code>:focus-within</code>-Ring); das innere <code>&lt;input&gt;</code> ist randlos und unterdrückt den globalen <code>:focus-visible</code>-Ring — sonst entsteht ein zweiter Feldrahmen im Feld (Review-Runde 2).</p>
     </div>
   </section>
 
@@ -530,6 +531,7 @@
         </table>
         </div>
       </div>
+      <p><b>Menü-Anatomie (bindend):</b> thematische Gruppen mit <code>MenuSeparator</code> (in verankerten Eigenbauten <code>.pv-menu-sep</code>/<code>.pv-popover-label</code>); das <b>Danger-Item steht immer als letzte Gruppe hinter einem Trenner</b>. Homogene Listen-Menüs (Verschieben-nach-Ordner, Kanten-Bündel) bleiben bewusst ungruppiert. Tooltips tragen nur ZUSATZ-Information: Datei-Tabs den Vault-Pfad, virtuelle Tabs (plainva://…) gar keinen — nie das sichtbare Label wiederholen, nie interne Pseudo-Pfade zeigen.</p>
     </div>
   </section>
 
@@ -650,6 +652,7 @@
         <p><b>Drei präzise Formen, zentral definiert</b> (Komponenten-Innenmaße leben NUR in ui.css, nie inline): <b>Label-Chip</b> Höhe 22, symmetrisch 0 10px — der bisherige Rechts-Abstand (4px) war der X-Chip-Wert und ließ den Text am Rand kleben; <b>entfernbarer Chip</b> 0 4px 0 10px mit 16px-X-Hit-Fläche; <b>Zähler-Badge</b> Höhe 18, min-width 18, <code>tabular-nums</code>, pill (Board-Zähler heute Karten-Radius). Farbklassen aus den <code>--chip-*</code>-Tokens; Mobile-Zoo (5 Klassen, 3 Radien) → Basis + Touch-Modifier (Höhe 28). Dots 6–8px bleiben.</p>
       </div>
     </div>
+    <p><b>Selektions-Idiom (bindend):</b> aktive Zeilen/Toggles nutzen IMMER das Paar <code>--accent-container</code> + <code>--on-accent-container</code> (600) — nie die Füllung mit <code>--accent-color</code>-Text oder geerbten Grautönen darüber (unter Win95 ist der Container voll Navy). Mehrfarbige Zeileninhalte wechseln im selektierten Zustand auf <code>color: inherit</code> + Opazitätsstufen. <code>--bg-active</code> ist nur noch CONTENT-Hervorhebung (Editor-Suchtreffer).</p>
   </section>
 
   <!-- ================= ANORDNUNG ================= -->

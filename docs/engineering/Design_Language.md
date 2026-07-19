@@ -51,8 +51,8 @@ Mnemonic: *control & floating = md, card = lg, dialog/sheet = xl, round = pill.*
 ## ONE state system
 
 - Hover: `--state-hover` (press: `--state-press`) via CSS `:hover` — never `onMouseOver`/`onMouseOut` style mutation (fails the lint), never a second hover variable family.
-- Active/selected rows and toggles: `--accent-container` fill + `--on-accent-container` text at weight 600 (`.is-active`, `.pv-popover-row-active`, `aria-selected` rules). The accent EDGE marker is exclusive to the file tree.
-- Focus: the global `:focus-visible` ring plus `--state-focus`; composite fields (`.pv-chipfield`, `.pv-searchfield`) light up via `:focus-within`. Components never set `outline: none` on focusables.
+- Active/selected rows and toggles: ALWAYS the `--accent-container` fill + `--on-accent-container` text PAIR at weight 600 (`.is-active`, `.pv-popover-row-active`, `aria-selected` rules) — never the fill with `--accent-color` or an inherited text color on top (under Win95 the container is solid navy; unpaired text vanishes). Multi-tone row content (subtitle/time lines) switches to `color: inherit` with opacity steps while selected. The accent EDGE marker is exclusive to the file tree. `--bg-active` is CONTENT-highlight tint only (editor match/active line) — never a chrome active state.
+- Focus: the global `:focus-visible` ring plus `--state-focus`; composite fields (`.pv-chipfield`, `.pv-searchfield`, palette input rows, popover search rows) light up via `:focus-within` ONLY — their inner input suppresses the global ring (see the "composite fields" block in ui.css), otherwise it reads as a second field frame. Components never set `outline: none` on standalone focusables.
 
 ## Status colors
 
@@ -75,7 +75,9 @@ Rules:
 
 - Modal footers: right-aligned, ghost Cancel left of the primary action (Modal's `footer` prop).
 - Forms: label-over-field, `--space-3` row gap, one shared control height per row.
-- Search fields: one schema app-wide (the SearchField primitive).
+- Search fields: one schema app-wide (the SearchField primitive; palette/popover search rows are the borderless in-surface variant with the same Escape contract).
+- Menus: thematic groups separated by `MenuSeparator` (or the `.pv-menu-sep`/`.pv-popover-label` classes in hand-anchored menus); the danger item is ALWAYS the last group behind a separator. Homogeneous list menus (move-to-folder, link bundles) stay ungrouped by design.
+- Tooltips carry ADDED information only: file tabs tip their vault path, virtual tabs (plainva://…) tip nothing — a tooltip must never repeat the visible label or leak internal pseudo paths.
 - Pane heads: title left, actions right as IconButtons.
 - Empty surfaces render EmptyState, not bespoke prose divs.
 
