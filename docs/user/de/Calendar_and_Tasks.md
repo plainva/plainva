@@ -4,6 +4,8 @@ Stand: 2026-07-19
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
+> **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
+
 ## Ein Konto verbinden
 
 Öffne **Einstellungen → Dein Vault → Kalender & Konten → Konto hinzufügen…** und wähle den Anbieter:

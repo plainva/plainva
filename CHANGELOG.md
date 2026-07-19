@@ -7,6 +7,79 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-19
+
+The biggest release since 0.3.0: a new view type (the **Pinboard**), a completely
+reorganized **Settings** experience, and two large new areas — **Calendar** and
+**Email** — that ship as **experimental**. Still plain Markdown, still your files,
+no format changes; existing vaults and `.base` files are untouched.
+
+### Added
+
+- **Pinboard view.** An eighth `.base` view type, in the spirit of Google Keep.
+  Cards show the rendered note (text, lists, clickable checkboxes, images) in
+  masonry columns with **Pinned** and **Others** sections, drag to arrange, a
+  **quick-capture** field (title becomes the file name and H1), **label chips**
+  (from tags or a multi-select property), and a per-card colour driven by the
+  note's header colour. Ticked properties appear on the cards. It stores as
+  `type: table` + `views[i].plainva.render: "pinboard"`, so Obsidian opens it as
+  a plain table. Desktop and mobile.
+- **Standard task database + checkbox promotion.** Point Plainva at a default
+  task database (pick an existing `.base` or create one in a click), then
+  **promote** a checkbox from any note into a task note — carrying its status,
+  due date, tags and a link back to where it came from — while the original line
+  becomes a wiki link. The Tasks view gains a two-section overview.
+- **Calendar (experimental).** A calendar tab with a proper time grid
+  (Day / 3-day / Week / Month / Agenda), click-to-create and drag-for-duration,
+  drag existing events to reschedule or resize, Outlook-style recurring events,
+  attendee chips with RSVP, per-event colours, a default calendar, "busy" blocks
+  in other calendars, and standards-compliant email invitations. Accounts:
+  **CalDAV, Google and Microsoft**, two-way. There's a mobile calendar too
+  (Day / 3-day / Agenda), and selected task lists sync into your task database.
+- **Email (experimental).** A three-pane mail client. Read over **IMAP**
+  (read-only capture) or **Microsoft via Graph** (direct sign-in), with folders,
+  flags, move, delete and search; compose with labelled **From / To / Cc / Bcc**
+  chip rows and send over SMTP or Graph; reply, reply-all and forward; turn a
+  message into a note or a task, and email a note straight from its `⋮` menu.
+  Remote content is blocked by default in a sandboxed viewer (images are opt-in).
+- **Create a note from an unresolved wiki link.** A `[[link]]` to a note that
+  doesn't exist yet shows dimmed and dashed (in both live preview and reading
+  mode); clicking it creates the note (its title becomes the H1) and opens it —
+  matching Obsidian. A new "ask before creating empty links" setting is optional.
+
+### Changed
+
+- **Redesigned settings.** On the desktop, each navigation entry now opens its
+  own page built from named "quiet cards", with a vault identity card instead of
+  a dropdown and one window sized to its tallest page. On mobile, the tab bar is
+  three freely arrangeable tabs plus a fixed **More**, **＋** is a floating
+  action button, **⋮** opens Settings directly, and Settings is a master–detail
+  layout with its own Vaults screen.
+- **Redesigned `.base` configuration menu.** The config panel is now a tabbed
+  panel beside the live view — View / Columns / Filter / Sort / Data source, one
+  area at a time — with an icon-tile view-type picker, a visible/hidden column
+  split with type badges, readable filter chip-sentences, and the same
+  quiet-card look. Mobile mirrors it as master–detail. Pure presentation; no
+  `.base` format change, Obsidian compatibility untouched.
+- **Type-appropriate `.base` selectors.** View-specific pickers now only offer
+  properties of a fitting type (a date field offers date properties, board
+  grouping offers select/status/multi-select/relation, a gallery cover offers
+  text/URL). The graph "Properties" tab is disabled where it doesn't apply.
+- **Empty folders sync in both directions.** A freshly created empty folder is
+  now pushed to and pulled from the cloud (all five providers).
+- **Browsable folder pickers everywhere.** Choosing a folder (data source,
+  storage location, move target) browses the live file system instead of an
+  index-backed dropdown — so a just-created empty folder is selectable too.
+- **Signed macOS builds.** macOS installers are now signed with a Developer ID
+  and notarized — no more Gatekeeper right-click detour on macOS.
+- **Consistent mail & calendar design.** Address chips, view segments and the
+  floating compose/preview windows now share the app's central primitives.
+
+### Fixed
+
+- Reading-mode wiki links with parentheses in the target render again.
+- Note properties show in a `.base` regardless of the key's casing.
+
 ## [0.3.1] — 2026-07-17
 
 A maintenance release: a new template-to-database workflow, a sync data-safety

@@ -4,6 +4,8 @@ Last reviewed: 2026-07-19
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
+> **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
+
 ## Connecting an account
 
 Open **Settings → your vault → Calendar & accounts → Add account…** and pick a provider:

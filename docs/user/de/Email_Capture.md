@@ -2,7 +2,9 @@
 
 Stand: 2026-07-19
 
-Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; über **IMAP** verbundene Postfächer werden dabei nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen).
+Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
+
+> **Experimentell.** Der Mail-Client spricht mit echten externen Konten (IMAP/SMTP und Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
 
 ## Ein Postfach verbinden
 
@@ -31,9 +33,18 @@ Drei Knöpfe an jeder Nachricht:
 - **+ .eml** — legt zusätzlich das rohe Original neben die Notiz und verlinkt es. Die `.eml` enthält alles, auch die Anhänge, und öffnet sich in jedem Mail-Programm.
 - **→ Aufgabe** — erstellt einen Eintrag in Deiner [Standard-Aufgabendatenbank](Tasks.md) mit dem Betreff als Titel, dem heutigen Datum als Fälligkeit und dem offenen Status vorbefüllt.
 
-## Inhalte hinausgeben — ohne zu senden
+## Verfassen und senden
 
-Plainva spricht nie SMTP. Stattdessen:
+Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto mit hinterlegtem **SMTP-Host** —, kannst Du in Plainva Mails schreiben und senden:
+
+- **Verfassen** (im Mail-Tab) öffnet ein freischwebendes Fenster mit beschrifteten Zeilen **Von / An / Cc / Bcc**. Tipp eine Adresse und drück Enter oder Komma, um sie in einen Chip zu verwandeln; **Cc/Bcc** blenden sich bei Bedarf ein. Der Textkörper ist ein Markdown-Editor mit Formatierungsleiste und „/"-Befehlsmenü.
+- **Antworten**, **Allen antworten** und **Weiterleiten** an jeder Nachricht öffnen dasselbe Fenster mit zitiertem Original und vorbelegten Empfängern; beim Weiterleiten kommen die Anhänge mit.
+- **Senden** läuft über SMTP (IMAP-Konten) oder Microsoft Graph (Microsoft-Konten).
+- **Diese Notiz per Mail** (⋮-Menü einer Notiz oder Befehlspalette) startet eine Nachricht mit der aktuellen Notiz als Anhang oder inline als Text.
+
+## Eine Notiz ohne den Mail-Client weitergeben
+
+Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz und braucht kein SMTP:
 
 - **Antwort als Notiz** (an einer Nachricht): erstellt eine Notiz an den Absender (`to:` im Frontmatter) mit dem zitierten Original — schreib Deine Antwort in Plainva.
 - **Notiz als E-Mail-Entwurf ins Postfach** (Befehlspalette, an jeder offenen Notiz): legt die Notiz per IMAP als **Entwurf in Dein eigenes Postfach** — Konto, Empfänger und Entwurfsordner wählen, dann im normalen Mail-Programm öffnen, prüfen und von dort senden. Die Formatierung bleibt erhalten.

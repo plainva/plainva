@@ -2,7 +2,9 @@
 
 Last reviewed: 2026-07-19
 
-Plainva can read your mailbox to get knowledge out of email and into your vault. The focus stays on **capturing** messages as notes; mailboxes connected over **IMAP** are only ever read (nothing in the mailbox changes, not even the unread markers).
+Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
+
+> **Experimental.** The mail client talks to live external accounts (IMAP/SMTP and Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
 
 ## Connecting a mailbox
 
@@ -31,9 +33,18 @@ Three buttons on every message:
 - **+ .eml** — additionally stores the raw original next to the note and links it. The `.eml` contains everything, including attachments, and opens in any mail program.
 - **→ Task** — creates an entry in your [standard task database](Tasks.md) with the subject as the title, today's date as the due date and the open status pre-filled.
 
-## Getting content out — without sending
+## Composing and sending
 
-Plainva never speaks SMTP. Instead:
+Once an account can send — a **Microsoft** account, or an **IMAP** account with an **SMTP host** configured — you can write and send mail from Plainva:
+
+- **Compose** (in the mail tab) opens a floating window with labelled **From / To / Cc / Bcc** rows. Type an address and press Enter or comma to turn it into a chip; **Cc/Bcc** reveal on demand. The body is a Markdown editor with a formatting toolbar and a "/" command menu.
+- **Reply**, **reply-all** and **forward** on any message open the same window with the original quoted and the recipients pre-filled; a forward carries the attachments along.
+- **Send** goes out over SMTP (IMAP accounts) or Microsoft Graph (Microsoft accounts).
+- **Email this note** (a note's `⋮` menu, or the command palette) starts a message with the current note attached, or inlined as text.
+
+## Handing a note off without the mail client
+
+You don't have to send from within Plainva. These work on any note and need no SMTP:
 
 - **Reply as note** (on a message): creates a note addressed at the sender (`to:` in the frontmatter) with the original quoted — write your reply in Plainva.
 - **Save note as email draft in the mailbox** (command palette, on any open note): stores the note as a **draft in your own mailbox** via IMAP — pick the account, recipient and drafts folder, then open your regular mail program, review and send from there. Formatting is preserved.
