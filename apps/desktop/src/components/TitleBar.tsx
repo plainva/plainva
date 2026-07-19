@@ -142,7 +142,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
               onClick={() => onSelectTab(i)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectTab(i); } }}
               onContextMenu={(e) => { if (onTabContextMenu) { e.preventDefault(); onTabContextMenu(i, e.clientX, e.clientY); } }}
-              data-tip={path}
+              data-tip={virtual ? undefined : path}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7, padding: "0 9px 0 12px", height: "100%",
                 maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",

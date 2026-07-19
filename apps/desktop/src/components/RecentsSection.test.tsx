@@ -12,6 +12,7 @@ vi.mock("../hooks/useDocumentIcons", () => ({ useDocumentIcons: () => new Map() 
 vi.mock("../hooks/useDocumentTitles", () => ({ useDocumentTitles: () => new Map() }));
 
 import { RecentsSection } from "./RecentsSection";
+import { virtualTabMeta } from "./graph/virtualPaths";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -34,7 +35,14 @@ function render(el: ReactElement) {
 }
 
 function rowFor(path: string): HTMLButtonElement | null {
-  return container.querySelector(`button[data-tip="${path}"]`);
+  // File rows carry the path tooltip; virtual rows deliberately have NO
+  // tooltip (the raw pseudo path is developer noise) - find those by label.
+  const byTip = container.querySelector(`button[data-tip="${path}"]`);
+  if (byTip) return byTip as HTMLButtonElement;
+  const meta = virtualTabMeta(path);
+  if (!meta) return null;
+  const label = i18n.t(meta.labelKey, { defaultValue: meta.defaultLabel });
+  return ([...container.querySelectorAll("button")] as HTMLButtonElement[]).find((b) => b.textContent === label) ?? null;
 }
 
 describe("RecentsSection", () => {

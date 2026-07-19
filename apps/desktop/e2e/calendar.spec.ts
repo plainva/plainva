@@ -257,8 +257,10 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   await expect(todayCell).toContainText('Feiertag');
 
   // The virtual view lands in the recents strip with its localized name + icon.
-  const recentRow = page.locator('button[data-tip="plainva://calendar"]');
-  await expect(recentRow).toHaveText(/^(Calendar|Kalender)$/);
+  const recentRow = page
+    .getByTestId('recents-section')
+    .getByRole('button', { name: /^(Calendar|Kalender)$/ });
+  await expect(recentRow).toBeVisible();
   await expect(recentRow.locator('svg.lucide-calendar-range')).toBeVisible();
 
   // Select today -> the day pane is a time grid: all-day strip + a timed block.

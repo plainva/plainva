@@ -29,7 +29,7 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
   if (shown.length === 0) return null;
 
   return (
-    <div style={{ padding: "0.25rem 0.25rem 0.4rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
+    <div data-testid="recents-section" style={{ padding: "0.25rem 0.25rem 0.4rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
       <div
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "0.25rem 0.5rem",
@@ -70,7 +70,7 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
           <button
             key={path}
             onClick={() => onOpen(path)}
-            data-tip={path}
+            data-tip={virtual ? undefined : path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.3rem 0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

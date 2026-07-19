@@ -179,8 +179,10 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
 
   // The virtual view lands in the sidebar "recently opened" strip with its
   // localized name + dedicated icon — never as a raw "tasks" pseudo note.
-  const recentRow = page.locator('button[data-tip="plainva://tasks"]');
-  await expect(recentRow).toHaveText(/^(Tasks|Aufgaben)$/);
+  const recentRow = page
+    .getByTestId('recents-section')
+    .getByRole('button', { name: /^(Tasks|Aufgaben)$/ });
+  await expect(recentRow).toBeVisible();
   await expect(recentRow.locator('svg.lucide-list-checks')).toBeVisible();
 
   // Toggle "buy milk" via its checkbox (the button just before the text button).
