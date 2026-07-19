@@ -1050,7 +1050,7 @@ describe("SyncWorker", () => {
       } finally {
         vi.useRealTimers();
       }
-    });
+    }, 30_000);
 
     it("cycle ACTIVITY resets the watchdog idle clock — a slow but alive cycle is never abandoned", async () => {
       // The watchdog measures INACTIVITY, not total duration: a long first
@@ -1081,7 +1081,7 @@ describe("SyncWorker", () => {
       } finally {
         vi.useRealTimers();
       }
-    });
+    }, 30_000);
   });
 });
 

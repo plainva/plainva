@@ -22,6 +22,9 @@ jobs:
       matrix:
         platform: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.platform }}
+    # Guard against a hung notarization: notarytool --wait can block for hours,
+    # so cap the job — a stuck macOS build fails in ~1h instead of the 6h ceiling.
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
