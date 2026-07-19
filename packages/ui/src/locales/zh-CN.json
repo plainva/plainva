@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "保存",
+    "moreActions": "更多操作",
     "cancel": "取消",
     "close": "关闭",
     "delete": "删除",

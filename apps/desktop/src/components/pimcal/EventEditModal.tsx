@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CopyPlus, FilePlus2, Trash2, X } from "lucide-react";
-import { Modal, Button, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
+import { CopyPlus, FilePlus2, MoreVertical, Trash2, X } from "lucide-react";
+import { Modal, Button, IconButton, MenuSurface, MenuItem, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -52,6 +52,9 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   // unchanged), but presented as Google-Calendar-style chips: type an address,
   // Enter/comma/blur turns it into a chip. `attendeeDraft` is the text-in-flight.
   const [attendeeDraft, setAttendeeDraft] = useState("");
+  // Overflow menu for the edit-mode actions (meeting note / block / delete) so
+  // the footer never overflows one line.
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const statusLabel = (s: PimAttendeeStatus): string =>
     s === "accepted"
@@ -136,20 +139,35 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
       size="md"
       footer={
         <>
-          {mode === "edit" && onMeetingNote && (
-            <Button variant="ghost" size="sm" data-testid="event-meeting-note" onClick={onMeetingNote} icon={<FilePlus2 size={14} />}>
-              {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
-            </Button>
-          )}
-          {mode === "edit" && onBlock && (
-            <Button variant="ghost" size="sm" data-testid="event-block" onClick={onBlock} icon={<CopyPlus size={14} />}>
-              {t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
-            </Button>
-          )}
-          {mode === "edit" && onDelete && (
-            <Button variant="ghost" size="sm" data-testid="event-delete" onClick={onDelete} icon={<Trash2 size={14} />}>
-              {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
-            </Button>
+          {mode === "edit" && (onMeetingNote || onBlock || onDelete) && (
+            <>
+              <IconButton
+                label={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}
+                data-testid="event-actions-menu"
+                onClick={(e) => setMenu({ x: e.clientX, y: e.clientY })}
+              >
+                <MoreVertical size={16} />
+              </IconButton>
+              {menu && (
+                <MenuSurface open at={menu} onClose={() => setMenu(null)} ariaLabel={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}>
+                  {onMeetingNote && (
+                    <MenuItem icon={<FilePlus2 size={15} />} data-testid="event-meeting-note" onSelect={onMeetingNote}>
+                      {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+                    </MenuItem>
+                  )}
+                  {onBlock && (
+                    <MenuItem icon={<CopyPlus size={15} />} data-testid="event-block" onSelect={onBlock}>
+                      {t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
+                    </MenuItem>
+                  )}
+                  {onDelete && (
+                    <MenuItem icon={<Trash2 size={15} />} danger data-testid="event-delete" onSelect={onDelete}>
+                      {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
+                    </MenuItem>
+                  )}
+                </MenuSurface>
+              )}
+            </>
           )}
           <span style={{ flex: 1 }} />
           <Button variant="ghost" onClick={onCancel}>

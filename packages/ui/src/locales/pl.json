@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "Zapisz",
+    "moreActions": "Więcej akcji",
     "cancel": "Anuluj",
     "close": "Zamknij",
     "delete": "Usuń",

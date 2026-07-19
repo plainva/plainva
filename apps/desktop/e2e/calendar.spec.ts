@@ -272,6 +272,7 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   // Click the event -> edit dialog carries a "Meeting-Notiz" action -> note on disk.
   await standup.click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  await page.getByTestId('event-actions-menu').click();
   await page.getByTestId('event-meeting-note').click();
   const notePath = `/test-vault/Meetings/${todayKey} Standup.md`;
   await expect.poll(() => page.evaluate((p: string) => (window as any).mockFs[p], notePath)).toBeTruthy();
@@ -286,6 +287,7 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   await page.getByTestId('ribbon-calendar').click();
   await page.getByTestId(`calendar-day-${todayKey}`).click();
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-actions-menu').click();
   await page.getByTestId('event-meeting-note').click();
   await expect
     .poll(() => page.evaluate((p: string) => Boolean((window as any).mockFs[p]), `/test-vault/Meetings/${todayKey} Standup 2.md`))
@@ -361,7 +363,8 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await page.getByTestId('rsvp-decline').click();
   await expect(page.getByTestId('event-error')).toBeVisible();
 
-  // Delete from the dialog -> danger confirm naming the event; cancel keeps it.
+  // Delete from the dialog (via the ⋮ actions menu) -> danger confirm naming the event; cancel keeps it.
+  await page.getByTestId('event-actions-menu').click();
   await page.getByTestId('event-delete').click();
   const confirm = page.getByRole('dialog').filter({ hasText: /Termin löschen|Delete event/ });
   await expect(confirm).toBeVisible();

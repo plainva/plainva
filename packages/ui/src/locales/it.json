@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "Salva",
+    "moreActions": "Altre azioni",
     "cancel": "Annulla",
     "close": "Chiudi",
     "delete": "Elimina",

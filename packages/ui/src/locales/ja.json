@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "保存",
+    "moreActions": "その他の操作",
     "cancel": "キャンセル",
     "close": "閉じる",
     "delete": "削除",

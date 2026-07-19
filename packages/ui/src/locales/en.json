@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "Save",
+    "moreActions": "More actions",
     "cancel": "Cancel",
     "close": "Close",
     "delete": "Delete",

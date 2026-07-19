@@ -75,6 +75,31 @@ const ALL_VIEW_MODES: CalViewMode[] = ["day", "3day", "week", "month", "agenda"]
 const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 const AGENDA_DAYS = 60;
 
+/** A single-occurrence cache row synthesized from a just-written draft, so a new
+ * or edited event shows INSTANTLY instead of only after the worker's provider
+ * pull. The next worker cycle re-queries the cache and replaces it with the
+ * authoritative row(s) — recurrence is not expanded here on purpose. */
+function draftToRow(accountId: string, calendarId: string, uid: string, draft: PimEventDraft): PimEventRow {
+  return {
+    uid,
+    accountId,
+    calendarId,
+    title: draft.title,
+    start: draft.start,
+    end: draft.end,
+    allDay: draft.allDay,
+    location: draft.location,
+    description: draft.description,
+    color: draft.color,
+    attendees: draft.attendees,
+  };
+}
+
+/** Match a cache row to a provider ref (account + calendar + instance uid). */
+function sameEventRef(e: PimEventRow, ref: { accountId: string; calendarId: string; uid: string }): boolean {
+  return e.accountId === ref.accountId && e.calendarId === ref.calendarId && e.uid === ref.uid;
+}
+
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
@@ -424,13 +449,34 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           }
           throw err;
         }
+        // Optimistic: reflect the edit at once (single occurrence; the worker
+        // re-query replaces it with the authoritative row). A series-master
+        // edit that has no matching instance row is a harmless no-op here.
+        setEvents((prev) =>
+          prev.map((ev) =>
+            sameEventRef(ev, e)
+              ? {
+                  ...ev,
+                  title: draft.title,
+                  start: draft.start,
+                  end: draft.end,
+                  allDay: draft.allDay,
+                  location: draft.location,
+                  description: draft.description,
+                  color: draft.color,
+                }
+              : ev
+          )
+        );
       } else {
         const [accountId, ...rest] = values.calendarKey.split(" ");
         const calId = rest.join(" ");
         if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
         const target = await targetFor(accountId);
         if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        await target.createEvent(calId, draft);
+        const res = await target.createEvent(calId, draft);
+        // Optimistic: show the new event instantly.
+        setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, draft), etag: res.etag, href: res.href }]);
       }
       setEditState(null);
       setCreateInitial(null);
@@ -479,6 +525,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(err instanceof Error ? err.message : String(err));
         return;
       }
+      // Optimistic: land the block at the new time immediately.
+      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, start: draft.start, end: draft.end, allDay: false } : ev)));
       refresh();
     },
     [targetFor, refresh, t]
@@ -564,6 +612,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
       try {
         await target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
+        // Optimistic: drop it from view at once (worker re-query confirms).
+        setEvents((prev) => prev.filter((ev) => !sameEventRef(ev, e)));
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
@@ -746,7 +796,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         const target = await targetFor(accountId);
         if (!target) continue;
         try {
-          await target.createEvent(calId, buildBlockDraft(source, mode, busyLabel, recurrence));
+          const bd = buildBlockDraft(source, mode, busyLabel, recurrence);
+          const res = await target.createEvent(calId, bd);
+          // Optimistic for a one-off block (a recurring block expands server-side,
+          // so we let the worker re-query bring its instances).
+          if (!recurrence) {
+            setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href }]);
+          }
           ok++;
         } catch {
           /* skip this calendar, keep the rest */
@@ -1102,11 +1158,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           </div>
         </div>
 
-        {/* Day pane: single-day time grid for the selected day. Kept narrower so
-            the month grid's day columns get a little more width (#5). */}
+        {/* Day pane: single-day time grid for the selected day — wide enough to
+            read event titles and times comfortably (maintainer: give it more room). */}
         <div
           data-testid="calendar-day-pane"
-          style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
+          style={{ width: 360, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)" }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dayTitle}</h3>

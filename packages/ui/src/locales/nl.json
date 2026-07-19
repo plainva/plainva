@@ -9,6 +9,7 @@
   },
   "common": {
     "save": "Opslaan",
+    "moreActions": "Meer acties",
     "cancel": "Annuleren",
     "close": "Sluiten",
     "delete": "Verwijderen",
