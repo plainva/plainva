@@ -156,7 +156,7 @@ function ListChips({ value, onChange, t }: { value: any; onChange: (v: any) => v
   return (
     <div className="pv-chips">
       {items.map((it, i) => (
-        <span key={`${it}-${i}`} className="pv-chip pv-chip-plain">
+        <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-plain">
           <span className="pv-chip-text">{it}</span>
           <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={12} /></button>
         </span>
@@ -213,7 +213,7 @@ function RelationPicker(props: {
         {items.map((it, i) => {
           const target = stripWikiLink(it);
           return (
-            <span key={`${it}-${i}`} className="pv-chip pv-chip-link">
+            <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-link">
               <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} title={t("properties.openLink")}>
                 <Link2 size={11} /> {target}
               </button>
@@ -280,7 +280,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
         {items.map((tag, i) => {
           const { parent, leaf } = tagSegments(tag);
           return (
-            <span key={`${tag}-${i}`} className="pv-chip pv-chip-tag" title={tag}>
+            <span key={`${tag}-${i}`} className="pv-chip pv-chip--removable pv-chip-tag" title={tag}>
               <span className="pv-chip-text">{parent && <span className="pv-tag-parent">{parent}</span>}{leaf}</span>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeTag")} onClick={() => remove(i)}><X size={12} /></button>
             </span>
@@ -435,7 +435,7 @@ function MultiSelectChips(props: {
         {items.map((it, i) => {
           const opt = findOption(curated, it);
           return (
-            <span key={`${it}-${i}`} className={chipClass(it, opt?.color)}>
+            <span key={`${it}-${i}`} className={`${chipClass(it, opt?.color)} pv-chip--removable`}>
               <span className="pv-dot" />{opt?.label ?? it}
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={12} /></button>
             </span>

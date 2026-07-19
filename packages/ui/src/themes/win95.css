@@ -192,8 +192,15 @@
 [data-theme-name="win95"] .pv-modal-header .pv-modal-heading {
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-modal-header .pv-icon-btn {
+/* The real close button rendered by the Modal primitive is .pv-iconbtn (no
+   hyphen) — the old .pv-icon-btn selector never matched, leaving a dark-gray X
+   on the navy bar in every modal (design sweep 2026-07-19, P0 bug fix). */
+[data-theme-name="win95"] .pv-modal-header .pv-iconbtn {
   color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled) {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* Chrome strips: the title bar is the navy window bar (colors via the

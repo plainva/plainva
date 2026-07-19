@@ -542,7 +542,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 52px;
+  /* Follows .m-row's row height (patched to 56px in feedback round 3; this
+     inner button stayed at 52 — the 4px mismatch in MoreScreen, P0 fix). */
+  min-height: 56px;
   padding: 8px 4px 8px 8px;
   background: none;
   border: 0;
@@ -639,6 +641,24 @@ textarea {
   to {
     transform: rotate(360deg);
   }
+}
+/* Generic spinning icon (PIM sync indicator). Was referenced from TSX but
+   never defined — the syncing RefreshCw silently never rotated (P0 bug fix,
+   design sweep 2026-07-19). */
+.m-spin {
+  animation: m-ptr-rotate var(--m-spin-dur) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-spin {
+    animation: none;
+  }
+}
+/* Scroll region filling the remaining screen height (PIM agenda/time grid).
+   Referenced from TSX, previously undefined (P0). */
+.m-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .m-edit-toolbar button {
   background: none;
@@ -875,6 +895,15 @@ textarea {
   color: var(--text-main);
   text-align: left;
   overflow: hidden;
+}
+/* Gallery/board cover image inside a card. Referenced from BaseScreen but
+   previously undefined — covers rendered unsized (P0, design sweep 2026-07-19). */
+.m-basecard-cover {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
 }
 .m-basecard:active {
   background: var(--m-surface-container-high);
@@ -1381,11 +1410,10 @@ textarea {
   color: var(--text-main);
 }
 
-/* Board card drag (E1): armed card dims, the drop column outlines, a fixed
-   ghost chip follows the finger. Tints/positions arrive inline as data. */
-.m-basecard.is-dragging {
-  opacity: 0.35;
-}
+/* Board card drag (E1): the drop column outlines, a fixed ghost chip follows
+   the finger; tints/positions arrive inline as data. The dragged card's own
+   look lives in the board-polish block further down (a duplicate 0.35-opacity
+   rule here silently lost to it — removed, design sweep 2026-07-19). */
 .m-board-col.is-over {
   outline: 2px solid var(--m-primary);
   outline-offset: -2px;

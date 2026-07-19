@@ -105,7 +105,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
             </span>
           )}
           {targets.map((target) => (
-            <span key={target} className="pv-chip pv-chip-link">
+            <span key={target} className="pv-chip pv-chip--removable pv-chip-link">
               <Database size={11} aria-hidden="true" /> {target}
               <button
                 type="button"

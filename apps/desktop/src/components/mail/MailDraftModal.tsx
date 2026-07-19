@@ -286,7 +286,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
     >
       {row.list.map((r) => (
-        <span key={r} className="pv-chip" data-testid={`${testid}-chip`}>
+        <span key={r} className="pv-chip pv-chip--removable" data-testid={`${testid}-chip`}>
           <span>{r}</span>
           <button
             type="button"

@@ -422,7 +422,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
               >
             {attendeeList.map((email) => (
-              <span key={email} className="pv-chip" data-testid="event-attendee-chip">
+              <span key={email} className="pv-chip pv-chip--removable" data-testid="event-attendee-chip">
                 <span>{email}</span>
                 <button
                   type="button"

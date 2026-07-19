@@ -341,34 +341,18 @@ option {
 .pv-icon-btn { display: flex; align-items: center; justify-content: center; padding: 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
 .pv-icon-btn:hover { color: var(--accent-color); }
 
-/* checkbox toggle */
-.pv-switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
-.pv-switch-on { background: var(--accent-color); }
-.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
-.pv-switch-on .pv-switch-knob { left: 18px; }
+/* checkbox toggle: .pv-switch* moved to @plainva/ui styles/ui.css (design
+   sweep 2026-07-19) — the primitive's look ships with the primitive. */
 
 /* date display button */
 .pv-date-display { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; font-size: 0.85rem; text-align: left; }
 .pv-date-display:hover { border-color: var(--border-color); background: var(--bg-active); }
 .pv-date-display svg { color: var(--accent-color); flex-shrink: 0; }
 
-/* chips (list / tags / link / select / multiselect) */
-.pv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; width: 100%; }
-.pv-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 2px 8px; font-size: 0.78rem; line-height: 1.5; max-width: 100%; overflow: hidden; }
-.pv-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pv-chip-x { display: inline-flex; align-items: center; border: none; background: transparent; color: inherit; opacity: 0.6; cursor: pointer; padding: 0; margin-left: 1px; }
-.pv-chip-x:hover { opacity: 1; }
-.pv-chip-input { flex: 1 1 60px; min-width: 56px; border: none; background: transparent; color: var(--text-main); font-size: 0.8rem; padding: 3px 2px; }
-.pv-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
-.pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
-/* Chip colors come from the theme-overridable tokens in styles/tokens.css
-   (light + dark variants live there — no [data-theme] overrides here). */
-.pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); }
-.pv-tag-parent { color: var(--chip-tag-parent-fg); }
-.pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); padding-left: 4px; }
-.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 0.78rem; }
-.pv-chip-link-open:hover { text-decoration: underline; }
+/* chips: the whole .pv-chip* family moved to @plainva/ui styles/ui.css
+   (design sweep 2026-07-19). The duplicate base definition here used to
+   override the shared one on desktop only — one definition now serves both
+   shells (and mobile finally gets the .pv-chip-0..7 label colors). */
 
 /* select / status / multiselect */
 .pv-select { position: relative; width: 100%; }
@@ -404,17 +388,7 @@ option {
 .pv-add-name:focus { border-color: var(--accent-color); }
 .pv-add-types { max-height: 240px; overflow-y: auto; }
 
-/* Deterministic chip palette — values in styles/tokens.css (theme-overridable). */
-.pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
-.pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); }
-.pv-chip-2 { background: var(--chip-2-bg); color: var(--chip-2-fg); }
-.pv-chip-3 { background: var(--chip-3-bg); color: var(--chip-3-fg); }
-.pv-chip-4 { background: var(--chip-4-bg); color: var(--chip-4-fg); }
-.pv-chip-5 { background: var(--chip-5-bg); color: var(--chip-5-fg); }
-.pv-chip-6 { background: var(--chip-6-bg); color: var(--chip-6-fg); }
-.pv-chip-7 { background: var(--chip-7-bg); color: var(--chip-7-fg); }
-/* Relation chip whose target note no longer exists: muted + inert (Base-Relationen P7). */
-.pv-chip-broken { background: transparent; border: 1px dashed var(--border-color); color: var(--text-faint); }
+/* Deterministic chip palette: moved to @plainva/ui styles/ui.css. */
 
 /* Column-schema editor modal (BaseViewer) + option rows */
 .pv-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; padding: 1rem; }

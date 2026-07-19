@@ -31,6 +31,11 @@
   --error-border: #f1c9c9;
   --error-text: #b42318;
 
+  /* Toggle-switch knob (Switch primitive). A token so themes can repaint it —
+     high-contrast dark pins it black (white knob on its white off-track was
+     invisible, design sweep 2026-07-19). */
+  --switch-knob: #ffffff;
+
   --wiki-link-color: var(--accent-color);
   /* Wiki link whose target note doesn't exist yet (muted; theme-aware via
      --text-muted, so every theme inherits a sensible value). */

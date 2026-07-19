@@ -240,6 +240,9 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-cardrow--split { justify-content: space-between; }
   .base-cfg-cardrow--field { flex-direction: column; align-items: stretch; gap: 6px; }
   .base-cfg-rowlabel { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-main); }
+  /* Label-above-control field (date-field pickers etc.). Was referenced from
+     BaseConfigPanel but never defined — rendered unstyled (P0, sweep 2026-07-19). */
+  .base-cfg-field { display: flex; flex-direction: column; align-items: stretch; gap: 5px; font-size: var(--text-sm); color: var(--text-main); }
   .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 12px 2px; min-height: 62px; border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); background: var(--surface-container-low); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
   .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
