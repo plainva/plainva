@@ -60,6 +60,12 @@ Before opening a pull request:
 3. Include what changed, why it changed and how it was checked.
 4. Link related issues or decisions when available.
 
+UI changes additionally follow the design language (`docs/engineering/Design_Language.md`, visual reference `docs/engineering/design-styleguide.html`):
+
+- Values come from tokens and the shared primitives — the `designLint`/`designGuards`/`mobileLint` test nets fail raw values, undefined classes, duplicated selectors and unthemed surfaces.
+- New `pv-*` surfaces need LCARS + Win95 selectors (or a justified exemption) — attach screenshots in light AND dark, plus LCARS/Win95 when a themed surface changed.
+- New visual patterns extend the design docs first, then get built.
+
 ## Licensing
 
 Plainva core is licensed under AGPL-3.0-only.

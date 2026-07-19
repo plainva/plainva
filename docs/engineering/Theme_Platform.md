@@ -90,3 +90,7 @@ Once the mobile surfaces began consuming the families, the seven special themes 
 | Win95 | flat silver containers | whisper states | navy selection `#000080` / white | **none** |
 
 Reading: the automatic derivation holds for the twelve regular themes; only the special palettes above needed pinned values. Remaining regular themes rely on the `color-mix()` path unchanged.
+
+## Docking matrix (design sweep 2026-07-19)
+
+`apps/desktop/src/designGuards.test.ts` enforces that every top-level `pv-*` surface defined in `packages/ui/src/styles/ui.css` is restyled by BOTH easter-egg themes (LCARS + Win95) or carries a justified `THEME_EXEMPT` entry. Newer surfaces gained their selectors in this sweep: segmented controls, settings cards (`.pv-setcard`), chip fields, floating-window heads (`.pv-peek-head`) and the FAB. Beyond class selectors, a theme's token duties now include the shared chip slots (`--chip-0..7` — LCARS maps them onto the Okuda palette; NOT `--palette-*`, whose hex values are user data written into frontmatter), the graph engine knobs (`--graph-glow-intensity`, `--graph-edge-curvature`), `--edge-scrim` and the callout palette (Win95 uses the classic VGA colors). The hailing-frequencies dialog runs on the Modal primitive, so under Win95 it wears the navy title bar of the theme it unlocks.
