@@ -310,7 +310,9 @@ export async function graphSendMail(
   to: string,
   subject: string,
   html: string,
-  attachments: MailAttachment[] = []
+  attachments: MailAttachment[] = [],
+  cc = "",
+  bcc = ""
 ): Promise<void> {
   const rt = await runtimeFor(vaultPath, account);
   const message: Record<string, unknown> = {
@@ -318,6 +320,8 @@ export async function graphSendMail(
     body: { contentType: "HTML", content: html },
     toRecipients: toRecipients(to),
   };
+  if (cc.trim()) message.ccRecipients = toRecipients(cc);
+  if (bcc.trim()) message.bccRecipients = toRecipients(bcc);
   if (attachments.length) message.attachments = graphAttachments(attachments);
   await graphJson(rt, "POST", "/me/sendMail", { message, saveToSentItems: true });
 }
@@ -329,7 +333,9 @@ export async function graphAppendDraft(
   to: string,
   subject: string,
   html: string,
-  attachments: MailAttachment[] = []
+  attachments: MailAttachment[] = [],
+  cc = "",
+  bcc = ""
 ): Promise<void> {
   const rt = await runtimeFor(vaultPath, account);
   const body: Record<string, unknown> = {
@@ -337,6 +343,8 @@ export async function graphAppendDraft(
     body: { contentType: "HTML", content: html },
     toRecipients: toRecipients(to),
   };
+  if (cc.trim()) body.ccRecipients = toRecipients(cc);
+  if (bcc.trim()) body.bccRecipients = toRecipients(bcc);
   if (attachments.length) body.attachments = graphAttachments(attachments);
   await graphJson(rt, "POST", "/me/messages", body);
 }

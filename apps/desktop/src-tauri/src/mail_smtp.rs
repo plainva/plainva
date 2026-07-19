@@ -114,13 +114,17 @@ pub fn attach_all<'a>(
     Ok(builder)
 }
 
-/// Builds the outgoing message MIME (From + To + text[/html] + attachments). Pure.
-fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[MailAttachment]) -> Result<Vec<u8>, String> {
+/// Builds the outgoing message MIME (From + To + Cc + text[/html] + attachments).
+/// Bcc is deliberately NOT a header — it only rides the SMTP envelope. Pure.
+fn build_send_mime(from: &str, to: &str, cc: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[MailAttachment]) -> Result<Vec<u8>, String> {
     let mut builder = mail_builder::MessageBuilder::new()
         .from(from.to_string())
         .to(to.to_string())
         .subject(subject.to_string())
         .text_body(text.to_string());
+    if !cc.trim().is_empty() {
+        builder = builder.cc(cc.to_string());
+    }
     if let Some(html) = html {
         builder = builder.html_body(html.to_string());
     }
@@ -135,9 +139,11 @@ fn build_send_mime(from: &str, to: &str, subject: &str, text: &str, html: Option
 /// (exactly how Google Calendar sends it), so Gmail and other clients render it
 /// as an event with an RSVP card — not merely as an attachment. A `.ics` copy is
 /// also attached for clients that prefer that. Pure.
+#[allow(clippy::too_many_arguments)]
 fn build_invite_mime(
     from: &str,
     to: &str,
+    cc: &str,
     subject: &str,
     text: &str,
     ics: &str,
@@ -167,10 +173,14 @@ fn build_invite_mime(
         parts.push(MimePart::new(a.mime.clone(), bytes).attachment(a.name.clone()));
     }
     let root = MimePart::new("multipart/mixed", parts);
-    mail_builder::MessageBuilder::new()
+    let mut builder = mail_builder::MessageBuilder::new()
         .from(from.to_string())
         .to(to.to_string())
-        .subject(subject.to_string())
+        .subject(subject.to_string());
+    if !cc.trim().is_empty() {
+        builder = builder.cc(cc.to_string());
+    }
+    builder
         .body(root)
         .write_to_vec()
         .map_err(|e| format!("mime build failed: {e}"))
@@ -245,18 +255,26 @@ pub async fn mail_send(
     // event (mail-client E6 / calendar #7).
     calendar: Option<String>,
     calendar_method: Option<String>,
+    // Cc rides both the header and the envelope; Bcc only the envelope.
+    cc: Option<String>,
+    bcc: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let recipients = split_recipients(&to);
+        let cc_str = cc.unwrap_or_default();
+        let bcc_str = bcc.unwrap_or_default();
+        // Envelope recipients = To + Cc + Bcc; the message headers carry To + Cc.
+        let mut recipients = split_recipients(&to);
+        recipients.extend(split_recipients(&cc_str));
+        recipients.extend(split_recipients(&bcc_str));
         if recipients.is_empty() {
             return Err("no recipient".into());
         }
         let atts = attachments.as_deref().unwrap_or(&[]);
         let mime = if let Some(ics) = calendar.as_deref() {
             let method = calendar_method.as_deref().unwrap_or("REQUEST");
-            build_invite_mime(&from, &to, &subject, &text, ics, method, atts)?
+            build_invite_mime(&from, &to, &cc_str, &subject, &text, ics, method, atts)?
         } else {
-            build_send_mime(&from, &to, &subject, &text, html.as_deref(), atts)?
+            build_send_mime(&from, &to, &cc_str, &subject, &text, html.as_deref(), atts)?
         };
 
         let tcp = TcpStream::connect((host.as_str(), port)).map_err(|e| format!("connect failed: {e}"))?;
@@ -364,6 +382,7 @@ mod tests {
         let mime = build_invite_mime(
             "me@x.org",
             "you@y.org",
+            "",
             "Invitation: Standup",
             "Please join.",
             ics,
@@ -390,7 +409,7 @@ mod tests {
 
     #[test]
     fn builds_a_from_to_text_html_mime() {
-        let mime = build_send_mime("me@example.org", "you@example.org", "Grüße", "Hallo", Some("<p>Hallo</p>"), &[]).expect("builds");
+        let mime = build_send_mime("me@example.org", "you@example.org", "", "Grüße", "Hallo", Some("<p>Hallo</p>"), &[]).expect("builds");
         let s = String::from_utf8_lossy(&mime);
         assert!(s.contains("me@example.org"));
         assert!(s.contains("you@example.org"));
@@ -400,10 +419,18 @@ mod tests {
     }
 
     #[test]
+    fn cc_appears_in_the_header() {
+        let mime = build_send_mime("me@example.org", "you@example.org", "team@example.org", "S", "body", None, &[]).expect("builds");
+        let s = String::from_utf8_lossy(&mime).to_lowercase();
+        assert!(s.contains("cc:"));
+        assert!(s.contains("team@example.org"));
+    }
+
+    #[test]
     fn attaches_a_decoded_file() {
         // "hello" base64 = aGVsbG8=
         let att = MailAttachment { name: "note.md".into(), mime: "text/markdown".into(), content_base64: "aGVsbG8=".into() };
-        let mime = build_send_mime("me@example.org", "you@example.org", "S", "body", None, std::slice::from_ref(&att)).expect("builds");
+        let mime = build_send_mime("me@example.org", "you@example.org", "", "S", "body", None, std::slice::from_ref(&att)).expect("builds");
         let s = String::from_utf8_lossy(&mime);
         assert!(s.contains("note.md"));
         assert!(s.to_lowercase().contains("multipart/"));

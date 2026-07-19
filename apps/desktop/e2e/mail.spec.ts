@@ -89,7 +89,7 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_send') {
-          (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
+          (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, cc: args.cc, bcc: args.bcc, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
         }
         if (cmd === 'mail_list_envelopes') {
@@ -298,6 +298,30 @@ test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
   expect(sent.subject).toMatch(/Fwd: Rechnung Q3/);
   expect(sent.text).toContain('Forwarded message');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+test('mail-client: Cc/Bcc toggle reveals chip rows that ride the SMTP send', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  // Cc/Bcc are hidden until the toggle is used.
+  await expect(page.getByTestId('draft-cc')).toHaveCount(0);
+  await page.getByTestId('draft-cc-toggle').click();
+  // Cc becomes a chip on comma; Bcc rides uncommitted (folded in on send).
+  await page.getByTestId('draft-cc').fill('bob@example.org');
+  await page.getByTestId('draft-cc').press(',');
+  await expect(page.getByTestId('draft-cc-chip').filter({ hasText: 'bob@example.org' })).toBeVisible();
+  await page.getByTestId('draft-bcc').fill('sec@example.org');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.cc).toBe('bob@example.org');
+  expect(sent.bcc).toBe('sec@example.org');
 });
 
 test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the original', async ({ page }) => {

@@ -329,11 +329,18 @@ pub async fn mail_fetch_attachment(
 /// Builds the draft MIME (multipart/alternative when HTML is present;
 /// RFC 2047 header encoding via mail-builder). Extracted for the roundtrip
 /// unit test below.
-fn build_draft_mime(to: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[crate::mail_smtp::MailAttachment]) -> Result<Vec<u8>, String> {
+fn build_draft_mime(to: &str, cc: &str, bcc: &str, subject: &str, text: &str, html: Option<&str>, attachments: &[crate::mail_smtp::MailAttachment]) -> Result<Vec<u8>, String> {
     let mut builder = mail_builder::MessageBuilder::new()
         .to(to.to_string())
         .subject(subject.to_string())
         .text_body(text.to_string());
+    // A stored draft keeps Cc and Bcc so the user's mail client shows them.
+    if !cc.trim().is_empty() {
+        builder = builder.cc(cc.to_string());
+    }
+    if !bcc.trim().is_empty() {
+        builder = builder.bcc(bcc.to_string());
+    }
     if let Some(html) = html {
         builder = builder.html_body(html.to_string());
     }
@@ -360,9 +367,11 @@ pub async fn mail_append_draft(
     text: String,
     html: Option<String>,
     attachments: Option<Vec<crate::mail_smtp::MailAttachment>>,
+    cc: Option<String>,
+    bcc: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mime = build_draft_mime(&to, &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
+        let mime = build_draft_mime(&to, &cc.unwrap_or_default(), &bcc.unwrap_or_default(), &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
         let mut session = open_session(&host, port, &user, &pass)?;
         session
             .append_with_flags(&mailbox, &mime, &[imap::types::Flag::Draft])
@@ -452,7 +461,7 @@ mod tests {
 
     #[test]
     fn draft_mime_roundtrips_through_the_parser() {
-        let mime = build_draft_mime("empfaenger@example.org", "Grüße aus Plainva", "Hallo Welt", Some("<p>Hallo <b>Welt</b></p>"), &[])
+        let mime = build_draft_mime("empfaenger@example.org", "", "", "Grüße aus Plainva", "Hallo Welt", Some("<p>Hallo <b>Welt</b></p>"), &[])
             .expect("builds");
         let parsed = parse_message(&mime).expect("parses");
         assert_eq!(header_text(&parsed, mail_parser::HeaderName::Subject), "Grüße aus Plainva");

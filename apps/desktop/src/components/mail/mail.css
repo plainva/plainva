@@ -384,6 +384,10 @@
   color: var(--text-muted);
   background: var(--bg-primary);
 }
+.pv-mail-attach-chip--ics {
+  border-color: color-mix(in srgb, var(--accent-color) 45%, var(--border-color-light));
+  color: var(--text-main);
+}
 .pv-mail-attach-chip > svg {
   color: var(--accent-color);
   flex: 0 0 auto;
@@ -488,6 +492,35 @@
 .pv-mail-cmplabel .pv-field {
   display: block;
   width: 100%;
+}
+/* Compose address rows (Gmail-style: label left, chips fill, Cc/Bcc toggle). */
+.pv-mail-addr {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pv-mail-addr > .k {
+  flex: 0 0 48px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding-top: 7px;
+}
+.pv-mail-addr .pv-field {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.pv-mail-cctoggle {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 2px 0;
+}
+.pv-mail-cctoggle:hover {
+  color: var(--accent-color);
 }
 /* Floating compose window (built on the peek-window chrome). */
 .pv-mail-window {

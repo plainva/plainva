@@ -77,6 +77,11 @@ function splitRecipients(s: string): string[] {
     .filter(Boolean);
 }
 
+/** The committed recipients plus a typed-but-not-yet-chipped one, comma-joined. */
+function foldRecips(val: string, draft: string): string {
+  return (draft.trim() ? [...splitRecipients(val), draft.trim()] : splitRecipients(val)).join(", ");
+}
+
 export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
@@ -85,9 +90,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [mailboxes, setMailboxes] = useState<string[]>([]);
   const [mailbox, setMailbox] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
-  // Recipients render as chips (like the event attendee field); `to` stays a
-  // comma-joined string for the SMTP/IMAP layer. `toDraft` is the text in flight.
+  // Recipients render as chips (like the event attendee field); each stays a
+  // comma-joined string for the SMTP/IMAP layer. `*Draft` is the text in flight.
   const [toDraft, setToDraft] = useState("");
+  const [cc, setCc] = useState("");
+  const [ccDraft, setCcDraft] = useState("");
+  const [bcc, setBcc] = useState("");
+  const [bccDraft, setBccDraft] = useState("");
+  const [showCc, setShowCc] = useState(false);
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(markdown);
   const [attach, setAttach] = useState<MailAttachment[]>(attachments ?? []);
@@ -193,8 +203,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const submit = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultPath || !account || busy) return;
-    // Fold a typed-but-not-yet-chipped recipient into the list.
-    const recips = (toDraft.trim() ? [...splitRecipients(to), toDraft.trim()] : splitRecipients(to)).join(", ");
+    // Fold a typed-but-not-yet-chipped recipient into each list.
+    const recips = foldRecips(to, toDraft);
     if (!recips || !subject.trim() || !mailbox) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
@@ -202,19 +212,19 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     setBusy(true);
     setError(null);
     try {
-      await appendDraft(vaultPath, account, mailbox, recips, subject.trim(), body, attach);
+      await appendDraft(vaultPath, account, mailbox, recips, subject.trim(), body, attach, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft));
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, toDraft, subject, mailbox, body, attach, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, mailbox, body, attach, onClose, t]);
 
   const send = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultPath || !account || busy) return;
-    const recips = (toDraft.trim() ? [...splitRecipients(to), toDraft.trim()] : splitRecipients(to)).join(", ");
+    const recips = foldRecips(to, toDraft);
     if (!recips || !subject.trim()) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
@@ -235,23 +245,80 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           files = attach.filter((_, i) => i !== calIdx);
         } catch { /* fall back to a normal attachment */ }
       }
-      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar);
+      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft));
       toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, toDraft, subject, body, attach, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, t]);
 
-  const toList = splitRecipients(to);
-  const commitTo = (raw: string) => {
-    const parsed = splitRecipients(raw);
-    if (parsed.length === 0) return;
-    setTo([...new Set([...toList, ...parsed])].join(", "));
-    setToDraft("");
+  // Chip-field wiring per recipient list (To / Cc / Bcc).
+  const chipList = (val: string, setVal: (v: string) => void, setDraft: (v: string) => void) => {
+    const list = splitRecipients(val);
+    return {
+      list,
+      commit: (raw: string) => {
+        const parsed = splitRecipients(raw);
+        if (parsed.length === 0) return;
+        setVal([...new Set([...list, ...parsed])].join(", "));
+        setDraft("");
+      },
+      remove: (r: string) => setVal(list.filter((x) => x !== r).join(", ")),
+    };
   };
-  const removeTo = (r: string) => setTo(toList.filter((x) => x !== r).join(", "));
+  const toRow = chipList(to, setTo, setToDraft);
+  const ccRow = chipList(cc, setCc, setCcDraft);
+  const bccRow = chipList(bcc, setBcc, setBccDraft);
+
+  const renderChips = (
+    row: { list: string[]; commit: (r: string) => void; remove: (r: string) => void },
+    draft: string,
+    setDraft: (v: string) => void,
+    testid: string,
+    placeholder: string,
+    autoFocus = false
+  ) => (
+    <div
+      className="pv-field"
+      data-testid={`${testid}-field`}
+      style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
+      onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
+    >
+      {row.list.map((r) => (
+        <span
+          key={r}
+          data-testid={`${testid}-chip`}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r}</span>
+          <button
+            type="button"
+            onClick={() => row.remove(r)}
+            aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
+            data-testid={`${testid}-remove`}
+            style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
+          >
+            <X size={12} />
+          </button>
+        </span>
+      ))}
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === "," || e.key === ";") { e.preventDefault(); row.commit(draft); }
+          else if (e.key === "Backspace" && draft === "" && row.list.length > 0) { row.remove(row.list[row.list.length - 1]); }
+        }}
+        onBlur={() => row.commit(draft)}
+        data-testid={testid}
+        autoFocus={autoFocus}
+        placeholder={row.list.length === 0 ? placeholder : ""}
+        style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
+      />
+    </div>
+  );
 
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
@@ -285,57 +352,41 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
             </p>
           ) : (
             <>
-              {accounts.length > 1 && (
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.account", { defaultValue: "Konto" })}</label>
-                  <Select ariaLabel={t("mail.account", { defaultValue: "Konto" })} value={accountId} onChange={setAccountId} options={accounts.map((a) => ({ value: a.id, label: a.label }))} />
-                </div>
+              <div className="pv-mail-addr">
+                <span className="k">{t("mail.from", { defaultValue: "Von" })}</span>
+                {accounts.length > 1 ? (
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Select ariaLabel={t("mail.from", { defaultValue: "Von" })} value={accountId} onChange={setAccountId} options={accounts.map((a) => ({ value: a.id, label: a.label }))} />
+                  </div>
+                ) : (
+                  <input className="pv-field" value={accounts[0]?.label ?? ""} readOnly data-testid="draft-from" />
+                )}
+              </div>
+              <div className="pv-mail-addr">
+                <span className="k">{t("mail.draftTo", { defaultValue: "An" })}</span>
+                {renderChips(toRow, toDraft, setToDraft, "draft-to", "name@example.org", true)}
+                {!showCc && (
+                  <button type="button" className="pv-mail-cctoggle" onClick={() => setShowCc(true)} data-testid="draft-cc-toggle">
+                    {t("mail.ccBcc", { defaultValue: "Cc/Bcc" })}
+                  </button>
+                )}
+              </div>
+              {showCc && (
+                <>
+                  <div className="pv-mail-addr">
+                    <span className="k">{t("mail.cc", { defaultValue: "Cc" })}</span>
+                    {renderChips(ccRow, ccDraft, setCcDraft, "draft-cc", "")}
+                  </div>
+                  <div className="pv-mail-addr">
+                    <span className="k">{t("mail.bcc", { defaultValue: "Bcc" })}</span>
+                    {renderChips(bccRow, bccDraft, setBccDraft, "draft-bcc", "")}
+                  </div>
+                </>
               )}
-              <label className="pv-mail-cmplabel">
-                <span>{t("mail.draftTo", { defaultValue: "An" })}</span>
-                <div
-                  className="pv-field"
-                  data-testid="draft-to-field"
-                  style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
-                  onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
-                >
-                  {toList.map((r) => (
-                    <span
-                      key={r}
-                      data-testid="draft-to-chip"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
-                    >
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeTo(r)}
-                        aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
-                        data-testid="draft-to-remove"
-                        style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    value={toDraft}
-                    onChange={(e) => setToDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === "," || e.key === ";") { e.preventDefault(); commitTo(toDraft); }
-                      else if (e.key === "Backspace" && toDraft === "" && toList.length > 0) { removeTo(toList[toList.length - 1]); }
-                    }}
-                    onBlur={() => commitTo(toDraft)}
-                    data-testid="draft-to"
-                    autoFocus
-                    placeholder={toList.length === 0 ? "name@example.org" : ""}
-                    style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
-                  />
-                </div>
-              </label>
-              <label className="pv-mail-cmplabel">
-                <span>{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
+              <div className="pv-mail-addr">
+                <span className="k">{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
                 <input className="pv-field" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" />
-              </label>
+              </div>
               <ComposeEditor
                 value={body}
                 onChange={setBody}
@@ -344,7 +395,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               />
               <div className="pv-mail-cmpattach">
                 {attach.map((a, i) => (
-                  <span key={`${a.name}-${i}`} className="pv-mail-attach-chip" data-testid="draft-attachments">
+                  <span key={`${a.name}-${i}`} className={/^text\/calendar/i.test(a.mime) ? "pv-mail-attach-chip pv-mail-attach-chip--ics" : "pv-mail-attach-chip"} data-testid="draft-attachments">
                     <Paperclip size={12} />
                     {a.name}
                     <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">

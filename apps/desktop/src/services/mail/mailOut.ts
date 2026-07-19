@@ -216,7 +216,10 @@ export async function sendMail(
   /** When set, the message carries this iCalendar text as an inline
    * `text/calendar; method=…` invitation (iMIP) so Gmail renders it as an
    * event. The SMTP path builds a proper multipart/alternative + .ics copy. */
-  calendar?: { ics: string; method?: string }
+  calendar?: { ics: string; method?: string },
+  /** Comma-separated Cc / Bcc recipients. */
+  cc = "",
+  bcc = ""
 ): Promise<void> {
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
@@ -224,7 +227,7 @@ export async function sendMail(
     // Microsoft Graph sends directly (no SMTP) via /me/sendMail. Outlook/Graph
     // renders the .ics attachment as an invite, so the calendar rides along as
     // an attachment there.
-    await graphSendMail(vaultPath, account, to, subject, html, attachments);
+    await graphSendMail(vaultPath, account, to, subject, html, attachments, cc, bcc);
     return;
   }
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
@@ -243,6 +246,8 @@ export async function sendMail(
     attachments: attachments.length ? attachments : null,
     calendar: calendar?.ics ?? null,
     calendarMethod: calendar?.method ?? null,
+    cc: cc.trim() || null,
+    bcc: bcc.trim() || null,
   });
 }
 
@@ -254,11 +259,13 @@ export async function appendDraft(
   to: string,
   subject: string,
   markdown: string,
-  attachments: MailAttachment[] = []
+  attachments: MailAttachment[] = [],
+  cc = "",
+  bcc = ""
 ): Promise<void> {
   const { html, text } = noteToClipboardFlavors(markdown);
   if (mailAccountKind(account) === "microsoft") {
-    await graphAppendDraft(vaultPath, account, to, subject, html, attachments);
+    await graphAppendDraft(vaultPath, account, to, subject, html, attachments, cc, bcc);
     return;
   }
   const pass = await getMailPassword(vaultPath, account.id);
@@ -274,5 +281,7 @@ export async function appendDraft(
     text,
     html,
     attachments: attachments.length ? attachments : null,
+    cc: cc.trim() || null,
+    bcc: bcc.trim() || null,
   });
 }
