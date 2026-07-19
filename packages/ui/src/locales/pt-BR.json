@@ -2053,6 +2053,7 @@
     "account": "Conta",
     "noMessages": "Nenhuma mensagem.",
     "messagesLabel": "mensagens",
+    "unreadLabel": "não lidas",
     "noSubject": "(sem assunto)",
     "loadMore": "Carregar mais",
     "pickMessage": "Selecione uma mensagem.",

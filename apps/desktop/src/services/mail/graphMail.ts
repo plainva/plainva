@@ -203,7 +203,9 @@ export async function graphListEnvelopes(
     dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
     seen: m.isRead === true,
   }));
-  return { total: data["@odata.count"] ?? messages.length + offset, messages };
+  // The folder carries its own unread count (no need to page every message).
+  const folder = await graphJson<{ unreadItemCount?: number }>(rt, "GET", `/me/mailFolders/${encodeURIComponent(folderId)}?$select=unreadItemCount`);
+  return { total: data["@odata.count"] ?? messages.length + offset, unseen: folder.unreadItemCount ?? 0, messages };
 }
 
 interface GraphMessageFull {

@@ -2047,6 +2047,7 @@
     "account": "Konto",
     "noMessages": "Keine Nachrichten.",
     "messagesLabel": "Nachrichten",
+    "unreadLabel": "ungelesen",
     "noSubject": "(kein Betreff)",
     "loadMore": "Mehr laden",
     "pickMessage": "Nachricht auswählen.",

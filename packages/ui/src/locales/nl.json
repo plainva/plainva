@@ -2047,6 +2047,7 @@
     "account": "Account",
     "noMessages": "Geen berichten.",
     "messagesLabel": "berichten",
+    "unreadLabel": "ongelezen",
     "noSubject": "(geen onderwerp)",
     "loadMore": "Meer laden",
     "pickMessage": "Selecteer een bericht.",

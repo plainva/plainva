@@ -94,7 +94,7 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'mail_list_envelopes') {
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
-          return { total: envelopes.length, messages: envelopes };
+          return { total: envelopes.length, unseen: envelopes.filter((e: any) => !e.seen).length, messages: envelopes };
         }
         if (cmd === 'mail_fetch_message') return fullMessage;
         if (cmd === 'mail_fetch_raw') return btoa('From: anna@example.org\r\nSubject: Rechnung Q3\r\n\r\nBody');
@@ -254,6 +254,8 @@ test('mail-client E1: folder column, new-message compose and forward', async ({ 
   await expect(folders).toHaveCount(4);
   await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
   await expect(page.getByTestId('mail-folders')).toContainText('Sent');
+  // The active folder's badge shows the UNREAD count (1 of 2), not the total.
+  await expect(page.locator('.pv-mail-folder.on .pv-mail-folder-ct')).toHaveText('1');
   // Switching folders keeps the envelope list working.
   await folders.filter({ hasText: 'Sent' }).click();
   await expect(page.getByTestId('mail-envelope').first()).toBeVisible();

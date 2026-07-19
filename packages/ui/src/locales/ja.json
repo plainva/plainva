@@ -2041,6 +2041,7 @@
     "account": "アカウント",
     "noMessages": "メッセージはありません。",
     "messagesLabel": "件",
+    "unreadLabel": "未読",
     "noSubject": "（件名なし）",
     "loadMore": "さらに読み込む",
     "pickMessage": "メッセージを選択してください。",

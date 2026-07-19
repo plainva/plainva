@@ -2041,6 +2041,7 @@
     "account": "账户",
     "noMessages": "没有邮件。",
     "messagesLabel": "封",
+    "unreadLabel": "未读",
     "noSubject": "（无主题）",
     "loadMore": "加载更多",
     "pickMessage": "请选择一封邮件。",

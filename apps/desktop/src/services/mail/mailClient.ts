@@ -34,6 +34,8 @@ export interface MailEnvelope {
 
 export interface MailEnvelopePage {
   total: number;
+  /** Unread (\Unseen) count for the mailbox — the folder badge/status use this. */
+  unseen: number;
   messages: MailEnvelope[];
 }
 
@@ -66,6 +68,7 @@ interface RawImapEnvelope {
 }
 interface RawImapEnvelopePage {
   total: number;
+  unseen: number;
   messages: RawImapEnvelope[];
 }
 interface RawImapMessage {
@@ -109,7 +112,7 @@ export async function listEnvelopes(
 ): Promise<MailEnvelopePage> {
   if (mailAccountKind(account) === "microsoft") return graphListEnvelopes(vaultPath, account, mailbox, offset, limit);
   const page = await invoke<RawImapEnvelopePage>("mail_list_envelopes", { ...(await creds(vaultPath, account)), mailbox, offset, limit });
-  return { total: page.total, messages: page.messages.map((m) => ({ ...m, id: String(m.uid) })) };
+  return { total: page.total, unseen: page.unseen, messages: page.messages.map((m) => ({ ...m, id: String(m.uid) })) };
 }
 
 export async function fetchMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<MailMessage> {

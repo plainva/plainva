@@ -90,6 +90,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
+  const [unseen, setUnseen] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -131,13 +132,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
 
-  // Status-bar info line (#4): the selected mailbox + its message count, instead
-  // of the last-opened file's stale word stats. Only the focused pane publishes.
+  // Status-bar info line (#4): the selected mailbox + its message count and, when
+  // present, the unread count — instead of the last-opened file's stale word
+  // stats. Only the focused pane publishes.
   useEffect(() => {
     if (!isActivePane) return;
-    const info = `${mailFolderLabel(mailbox)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
+    let info = `${mailFolderLabel(mailbox)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
+    if (unseen > 0) info += ` · ${unseen} ${t("mail.unreadLabel", { defaultValue: "ungelesen" })}`;
     activeDocument.set({ path: MAIL_TAB_PATH, content: "", kind: "virtual", meta: { info } });
-  }, [isActivePane, mailbox, total, t]);
+  }, [isActivePane, mailbox, total, unseen, t]);
 
   useEffect(() => {
     let alive = true;
@@ -184,6 +187,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       try {
         const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE);
         setTotal(page.total);
+        setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
       } catch (e) {
         setListError(e instanceof Error ? e.message : String(e));
@@ -259,6 +263,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       try {
         await setMessageSeen(vaultPath, account, mailbox, selectedId, seen);
         setEnvelopes((list) => list.map((e) => (e.id === selectedId ? { ...e, seen } : e)));
+        // Keep the unread badge in step (auto-read + the manual toggle always flip).
+        setUnseen((u) => Math.max(0, seen ? u - 1 : u + 1));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
@@ -525,7 +531,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} title={name}>
                 <FolderGlyph name={name} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
-                {on && total > 0 && <span className="pv-mail-folder-ct">{total}</span>}
+                {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
               </button>
             );
           })}

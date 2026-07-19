@@ -2047,6 +2047,7 @@
     "account": "Account",
     "noMessages": "No messages.",
     "messagesLabel": "messages",
+    "unreadLabel": "unread",
     "noSubject": "(no subject)",
     "loadMore": "Load more",
     "pickMessage": "Select a message.",

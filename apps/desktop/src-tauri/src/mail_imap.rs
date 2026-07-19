@@ -41,6 +41,9 @@ pub struct MailEnvelope {
 #[serde(rename_all = "camelCase")]
 pub struct MailEnvelopePage {
     pub total: u32,
+    /// Number of unread (\Unseen) messages in the mailbox — the folder badge
+    /// and status bar show this, not the total.
+    pub unseen: u32,
     pub messages: Vec<MailEnvelope>,
 }
 
@@ -166,11 +169,13 @@ pub async fn mail_list_envelopes(
             .examine(&mailbox)
             .map_err(|e| format!("examine failed: {e}"))?;
         let total = mb.exists;
+        // Unread count (read-only SEARCH is allowed after EXAMINE).
+        let unseen = session.search("UNSEEN").map(|s| s.len() as u32).unwrap_or(0);
         // Newest first: sequence numbers count from 1 = oldest.
         let hi = total.saturating_sub(offset);
         if total == 0 || hi == 0 {
             let _ = session.logout();
-            return Ok(MailEnvelopePage { total, messages: Vec::new() });
+            return Ok(MailEnvelopePage { total, unseen, messages: Vec::new() });
         }
         let lo = hi.saturating_sub(limit.saturating_sub(1)).max(1);
         let fetches = session
@@ -200,7 +205,7 @@ pub async fn mail_list_envelopes(
         // fetch returns ascending sequence order — newest first for the UI.
         messages.reverse();
         let _ = session.logout();
-        Ok(MailEnvelopePage { total, messages })
+        Ok(MailEnvelopePage { total, unseen, messages })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?

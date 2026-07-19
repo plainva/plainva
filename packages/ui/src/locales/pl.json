@@ -2059,6 +2059,7 @@
     "account": "Konto",
     "noMessages": "Brak wiadomości.",
     "messagesLabel": "wiadomości",
+    "unreadLabel": "nieprzeczytane",
     "noSubject": "(bez tematu)",
     "loadMore": "Wczytaj więcej",
     "pickMessage": "Wybierz wiadomość.",
