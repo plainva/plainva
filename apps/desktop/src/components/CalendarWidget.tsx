@@ -276,7 +276,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           onClick={togglePicker}
           data-testid="calendar-month-label"
           aria-expanded={pickerOpen}
-          aria-label={t("calendar.selectMonthYear")} data-tip={t("calendar.selectMonthYear")}
+          data-tip={t("calendar.selectMonthYear")}
           style={{ background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "var(--text-md)", fontWeight: 600, textTransform: "capitalize", flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
         >
           <span style={{ minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{monthLabel}</span>

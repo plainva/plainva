@@ -192,7 +192,7 @@ export function BaseCreateWizard({
             className="pv-btn pv-btn--primary pv-btn--sm"
             onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
             disabled={!canCreate}
-            aria-label={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")} data-tip={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
+            data-tip={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
           >
             {t("database.wizardCreate", "Datenbank erstellen")}
           </button>

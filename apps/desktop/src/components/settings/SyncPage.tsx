@@ -235,7 +235,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.drive.onBrowse} disabled={p.drive.saving || !p.drive.connected} aria-label={!p.drive.connected ? t("settings.pickerConnectFirst") : undefined} data-tip={!p.drive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.drive.onBrowse} disabled={p.drive.saving || !p.drive.connected} data-tip={!p.drive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.drive.onAuthorize} disabled={p.drive.saving || !p.drive.clientId || !p.drive.clientSecret} className="pv-btn pv-btn--primary">{p.drive.connected ? t("settings.reconnectGoogle") : t("settings.connectGoogle")}</button>
                   <button onClick={p.drive.onSave} disabled={p.drive.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.drive.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
@@ -276,7 +276,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.oneDrive.onBrowse} disabled={p.oneDrive.saving || !p.oneDrive.connected} aria-label={!p.oneDrive.connected ? t("settings.pickerConnectFirst") : undefined} data-tip={!p.oneDrive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.oneDrive.onBrowse} disabled={p.oneDrive.saving || !p.oneDrive.connected} data-tip={!p.oneDrive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.oneDrive.onAuthorize} disabled={p.oneDrive.saving || !(p.oneDrive.clientId || PLAINVA_ONEDRIVE_CLIENT_ID)} className="pv-btn pv-btn--primary">{p.oneDrive.connected ? t("settings.reconnectOneDrive") : t("settings.connectOneDrive")}</button>
                   <button onClick={p.oneDrive.onSave} disabled={p.oneDrive.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.oneDrive.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
@@ -317,7 +317,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.dropbox.onBrowse} disabled={p.dropbox.saving || !p.dropbox.connected} aria-label={!p.dropbox.connected ? t("settings.pickerConnectFirst") : undefined} data-tip={!p.dropbox.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.dropbox.onBrowse} disabled={p.dropbox.saving || !p.dropbox.connected} data-tip={!p.dropbox.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.dropbox.onAuthorize} disabled={p.dropbox.saving || !(p.dropbox.appKey || PLAINVA_DROPBOX_APP_KEY)} className="pv-btn pv-btn--primary">{p.dropbox.connected ? t("settings.reconnectDropbox") : t("settings.connectDropbox")}</button>
                   <button onClick={p.dropbox.onSave} disabled={p.dropbox.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.dropbox.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>

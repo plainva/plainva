@@ -35,7 +35,7 @@ export function OutlineSection() {
           key={i}
           type="button"
           onClick={() => goto(h)}
-          aria-label={h.text} data-tip={h.text}
+          data-tip={h.text}
           className="pv-rowhover"
           style={{
             display: "block", width: "100%", textAlign: "left", border: "none",

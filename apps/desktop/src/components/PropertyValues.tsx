@@ -130,7 +130,7 @@ function DateValue({ value, onChange, includeTime, t, locale }: { value: any; on
       className="pv-field pv-field--compact"
       style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer" }}
       onClick={() => setEditing(true)}
-      aria-label={t("properties.value")} data-tip={t("properties.value")}
+      data-tip={t("properties.value")}
     >
       {includeTime ? <Clock size={ICON.ui} /> : <Calendar size={ICON.ui} />}
       <span>{formatDateValue(str, includeTime, locale)}</span>

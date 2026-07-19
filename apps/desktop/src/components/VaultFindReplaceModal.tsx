@@ -146,7 +146,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
                   <button
                     type="button"
                     onClick={() => onOpenPath(r.path)}
-                    aria-label={r.path} data-tip={r.path}
+                    data-tip={r.path}
                     style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-main)", fontWeight: 500, padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                   >
                     {r.title}
