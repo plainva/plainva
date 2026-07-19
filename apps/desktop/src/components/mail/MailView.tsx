@@ -528,7 +528,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           {(folders.length ? folders : ["INBOX"]).map((name) => {
             const on = name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} data-tip={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} aria-label={name} data-tip={name}>
                 <FolderGlyph name={name} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}

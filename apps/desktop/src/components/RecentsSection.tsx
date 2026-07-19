@@ -70,7 +70,7 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
           <button
             key={path}
             onClick={() => onOpen(path)}
-            data-tip={path}
+            aria-label={path} data-tip={path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.3rem 0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

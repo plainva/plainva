@@ -228,6 +228,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   onClick={() => set("color", "")}
                   data-testid="event-color-default"
                   aria-pressed={!values.color}
+                  aria-label={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
                   data-tip={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
                   style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
                 >
@@ -242,7 +243,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                       onClick={() => set("color", hex)}
                       aria-pressed={active}
                       data-testid={`event-color-${hex}`}
-                      data-tip={hex}
+                      aria-label={hex} data-tip={hex}
                       style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
                     />
                   );

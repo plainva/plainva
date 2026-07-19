@@ -84,7 +84,7 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
               <button
                 key={b.path}
                 onClick={() => onOpen(b.path)}
-                data-tip={b.path}
+                aria-label={b.path} data-tip={b.path}
                 style={{
                   width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
                   padding: "0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

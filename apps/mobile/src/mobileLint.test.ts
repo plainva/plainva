@@ -27,6 +27,10 @@ const CODE_RULES: Record<string, RegExp> = {
   hex: /#[0-9a-fA-F]{3,8}\b/g,
   rgba: /rgba?\(/g,
   fixedOverlay: /position:\s*["']fixed["']/g,
+  // Design sweep 2026-07-19: chrome font sizes come from the shared type
+  // scale (em stays content-relative), z layers from --z-m-*.
+  fontSizeRaw: /font-?[sS]ize:\s*["'`]?\d+(?:\.\d+)?(?:px|rem)/g,
+  zIndexRaw: /z-?[iI]ndex:\s*["'`]?\d/g,
 };
 
 // CSS-only: literal durations on animation/transition shorthand or *-duration.
@@ -38,8 +42,13 @@ type Counts = Record<string, number>;
  * entries as files are migrated; never raise one. */
 const BUDGET: Record<string, Counts> = {
   // Boot-error overlay: renders BEFORE themes/tokens load by design (the iOS
-  // black-screen debug net) — hard colors are the point, not a leak.
-  "main.tsx": { hex: 2 },
+  // black-screen debug net) — hard colors AND the raw z are the point.
+  "main.tsx": { hex: 2, zIndexRaw: 1 },
+  // Remaining chrome font-size migration debt (design sweep 2026-07-19 moved
+  // the metric/radius/z system; the type-scale pass over mobile.css is the
+  // next ratchet target — lower, never raise). The one z literal is the
+  // .m-header local stack (bars above scrolling content, documented inline).
+  "mobile.css": { fontSizeRaw: 51, zIndexRaw: 1 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {

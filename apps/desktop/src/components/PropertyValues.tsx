@@ -130,7 +130,7 @@ function DateValue({ value, onChange, includeTime, t, locale }: { value: any; on
       className="pv-field pv-field--compact"
       style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer" }}
       onClick={() => setEditing(true)}
-      data-tip={t("properties.value")}
+      aria-label={t("properties.value")} data-tip={t("properties.value")}
     >
       {includeTime ? <Clock size={ICON.ui} /> : <Calendar size={ICON.ui} />}
       <span>{formatDateValue(str, includeTime, locale)}</span>
@@ -221,7 +221,7 @@ function RelationPicker(props: {
           const target = stripWikiLink(it);
           return (
             <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-link">
-              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} data-tip={t("properties.openLink")}>
+              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={t("properties.openLink")} data-tip={t("properties.openLink")}>
                 <Link2 size={ICON.meta} /> {target}
               </button>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>

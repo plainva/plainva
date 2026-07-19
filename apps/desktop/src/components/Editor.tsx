@@ -1529,7 +1529,7 @@ export const Editor: React.FC<{
             onClick={onNavigateBack}
             disabled={!canGoBack}
             className="pv-iconbtn"
-            data-tip={t("editor.back")}
+            aria-label={t("editor.back")} data-tip={t("editor.back")}
           >
             <ArrowLeft size={ICON.head} />
           </button>
@@ -1537,7 +1537,7 @@ export const Editor: React.FC<{
             onClick={onNavigateForward}
             disabled={!canGoForward}
             className="pv-iconbtn"
-            data-tip={t("editor.forward")}
+            aria-label={t("editor.forward")} data-tip={t("editor.forward")}
           >
             <ArrowRight size={ICON.head} />
           </button>
@@ -1549,7 +1549,7 @@ export const Editor: React.FC<{
           <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
             <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
-              data-tip={t("editor.readMode")}
+              aria-label={t("editor.readMode")} data-tip={t("editor.readMode")}
               className="pv-iconbtn"
               style={{ background: viewMode === 'read' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'read' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'read' ? 'var(--shadow-1)' : 'none' }}
             >
@@ -1557,7 +1557,7 @@ export const Editor: React.FC<{
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('live'); rememberSessionViewMode(activePath, 'live'); } }}
-              data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")}
+              aria-label={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")} data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")}
               className="pv-iconbtn"
               style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'live' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'live' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'live' ? 'var(--shadow-1)' : 'none' }}
             >
@@ -1565,7 +1565,7 @@ export const Editor: React.FC<{
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('source'); rememberSessionViewMode(activePath, 'source'); } }}
-              data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")}
+              aria-label={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")} data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")}
               className="pv-iconbtn"
               style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'source' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'source' ? 'var(--shadow-1)' : 'none' }}
             >

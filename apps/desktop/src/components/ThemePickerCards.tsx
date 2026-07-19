@@ -84,7 +84,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
               aria-checked={active}
               data-testid={`theme-card-${def.id}`}
               onClick={() => onChange(def.id)}
-              data-tip={label}
+              aria-label={label} data-tip={label}
               style={{ display: "flex", flexDirection: "column", gap: 6, padding: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", width: "100%" }}
             >
               {/* Miniature app mock from concrete swatch colours */}

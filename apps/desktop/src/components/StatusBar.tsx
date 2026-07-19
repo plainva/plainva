@@ -124,7 +124,7 @@ export function StatusBar() {
             syncWorker.retryFailed();
             window.dispatchEvent(new CustomEvent("plainva-show-sync-error"));
           }}
-          data-tip={t("sync.error")}
+          aria-label={t("sync.error")} data-tip={t("sync.error")}
           style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--error-text)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
         >
           <AlertTriangle size={ICON.meta} />{t("statusbar.offline", { defaultValue: "Offline" })}

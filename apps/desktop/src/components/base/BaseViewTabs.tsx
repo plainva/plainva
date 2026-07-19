@@ -96,7 +96,7 @@ export function BaseViewTabs({
               onPointerMove={onTabPointerMove}
               onPointerUp={(e) => onTabPointerUp(i, e)}
               onPointerCancel={onTabPointerCancel}
-              data-tip={viewLabel(t, view)}
+              aria-label={viewLabel(t, view)} data-tip={viewLabel(t, view)}
               style={{ touchAction: "none" }}
             >
               {viewIcon(view?.type || "table")}

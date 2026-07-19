@@ -62,7 +62,7 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen }: Props) {
           <button
             key={path}
             onClick={() => onOpen(path)}
-            data-tip={path}
+            aria-label={path} data-tip={path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

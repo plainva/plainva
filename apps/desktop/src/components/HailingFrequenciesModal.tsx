@@ -192,7 +192,7 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
                   className="pv-chip pv-chip-plain"
                   data-testid={`hailing-chip-${v.id}`}
                   onClick={() => activateVariant(v.id)}
-                  data-tip={variantLabel(v.id)}
+                  aria-label={variantLabel(v.id)} data-tip={variantLabel(v.id)}
                   style={{ cursor: "pointer", borderColor: v.accent, gap: 5 }}
                 >
                   <span className="pv-dot" style={{ color: v.accent }} />

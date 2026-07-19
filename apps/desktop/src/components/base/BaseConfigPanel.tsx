@@ -1063,12 +1063,12 @@ export function BaseConfigPanel({
         <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")} style={{ alignSelf: "flex-start" }}>
           <button
             className={filterLogic === "all" ? "active" : ""}
-            data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+            aria-label={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")} data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
             onClick={() => setFilterLogic("all")}
           >{t("database.filterMatchAll", "Alle")}</button>
           <button
             className={filterLogic === "any" ? "active" : ""}
-            data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+            aria-label={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")} data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
             onClick={() => setFilterLogic("any")}
           >{t("database.filterMatchAny", "Beliebige")}</button>
         </div>
@@ -1141,12 +1141,12 @@ export function BaseConfigPanel({
                   <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")}>
                     <button
                       className={entry.logic === "all" ? "active" : ""}
-                      data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+                      aria-label={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")} data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
                       onClick={() => mutateViewFilters((v) => setGroupLogic(v, entry.ref, "all"))}
                     >{t("database.filterMatchAll", "Alle")}</button>
                     <button
                       className={entry.logic === "any" ? "active" : ""}
-                      data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+                      aria-label={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")} data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
                       onClick={() => mutateViewFilters((v) => setGroupLogic(v, entry.ref, "any"))}
                     >{t("database.filterMatchAny", "Beliebige")}</button>
                   </div>
