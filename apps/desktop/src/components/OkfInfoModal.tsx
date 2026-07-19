@@ -18,7 +18,7 @@ export function OkfInfoModal({ violations = 0, onStartConversion, onClose }: {
   const section = (title: string, body: string) => (
     <div className="pv-modal-section">
       <div className="pv-modal-label">{title}</div>
-      <div style={{ fontSize: "0.8rem", lineHeight: 1.55, color: "var(--text-main)" }}>{body}</div>
+      <div style={{ fontSize: "var(--text-ui)", lineHeight: 1.55, color: "var(--text-main)" }}>{body}</div>
     </div>
   );
 
@@ -37,7 +37,7 @@ export function OkfInfoModal({ violations = 0, onStartConversion, onClose }: {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-        <div style={{ fontSize: "0.84rem", lineHeight: 1.55, color: "var(--text-main)" }}>{t("okfInfo.intro")}</div>
+        <div style={{ fontSize: "var(--text-ui)", lineHeight: 1.55, color: "var(--text-main)" }}>{t("okfInfo.intro")}</div>
         {section(t("okfInfo.whatTitle"), t("okfInfo.whatBody"))}
         {section(t("okfInfo.whyTitle"), t("okfInfo.whyBody"))}
         {section(t("okfInfo.indexTitle"), t("okfInfo.indexBody"))}

@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder } from "lucide-react";
-import { Button, IconButton, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { PimAccountsSection } from "../pim/PimAccountsSection";
@@ -91,7 +91,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               disabled={!p.isActiveVault}
               onClick={p.onBrowseDailyFolder}
             >
-              <Folder size={14} />
+              <Folder size={ICON.ui} />
             </IconButton>
           </div>
         </SettingRow>
@@ -122,7 +122,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               disabled={!p.isActiveVault}
               onClick={p.onBrowseTemplateFolder}
             >
-              <Folder size={14} />
+              <Folder size={ICON.ui} />
             </IconButton>
           </div>
         </SettingRow>

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import { getSettingsStore } from "../services/settingsStore";
 import { SHOW_COMPATIBILITY_WARNING_KEY } from "../contexts/VaultContext";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
 
@@ -43,7 +43,7 @@ export function CompatibilityWarningDialog({ onConfirm, onCancel, featureName }:
       }
     >
       <div className="pv-dialog-body">
-        <AlertTriangle size={20} className="pv-dialog-ic pv-dialog-ic--warning" aria-hidden />
+        <AlertTriangle size={ICON.head} className="pv-dialog-ic pv-dialog-ic--warning" aria-hidden />
         <div className="pv-dialog-text">
           <p className="pv-dialog-msg">
             {t("compat.bodyPrefix")} <strong>"{featureName}"</strong> {t("compat.bodySuffix")}

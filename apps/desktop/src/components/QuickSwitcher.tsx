@@ -3,7 +3,7 @@ import { VaultQueryService } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { Search, Clock, File as FileIcon, FilePlus, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFocusTrap } from "@plainva/ui";
+import { ICON, useFocusTrap } from "@plainva/ui";
 import { fuzzyFilter } from "@plainva/ui";
 import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
@@ -208,7 +208,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
         onClick={e => e.stopPropagation()}
       >
         <div className="pv-palette-inputrow">
-          <Search size={18} style={{ flexShrink: 0 }} />
+          <Search size={ICON.head} style={{ flexShrink: 0 }} />
           <input
             ref={inputRef}
             type="text"
@@ -259,7 +259,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                   onMouseEnter={() => setSelectedIndex(idx)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-                    {VirtualIcon ? <VirtualIcon size={14} color="var(--text-muted)" /> : item.isRecent ? <Clock size={14} color="var(--text-muted)" /> : item.isContentHit ? <FileText size={14} color="var(--text-muted)" /> : <FileIcon size={14} color="var(--text-muted)" />}
+                    {VirtualIcon ? <VirtualIcon size={ICON.ui} color="var(--text-muted)" /> : item.isRecent ? <Clock size={ICON.ui} color="var(--text-muted)" /> : item.isContentHit ? <FileText size={ICON.ui} color="var(--text-muted)" /> : <FileIcon size={ICON.ui} color="var(--text-muted)" />}
                     <span style={{ fontWeight: 500 }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : (item.title || item.path.split('/').pop())}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                       {item.path}
@@ -291,7 +291,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                   onClick={(e) => { void handleCreate(e.ctrlKey || e.metaKey); }}
                   onMouseEnter={() => setSelectedIndex(results.length)}
                 >
-                  <FilePlus size={14} color="var(--text-muted)" />
+                  <FilePlus size={ICON.ui} color="var(--text-muted)" />
                   <span>{t("quickSwitcher.createNote", { name: createName })}</span>
                 </div>
               )}

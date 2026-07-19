@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div style={{ padding: "2rem", background: "var(--bg-primary)", color: "var(--text-main)", height: "100%", overflow: "auto" }}>
           <h1>{i18n.t("errors.somethingWentWrong")}</h1>
           <pre>{this.state.error?.toString()}</pre>
-          <pre style={{ fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
+          <pre style={{ fontSize: "var(--text-ui)", whiteSpace: "pre-wrap" }}>
             {this.state.errorInfo?.componentStack}
           </pre>
           <button onClick={() => window.location.reload()}>{i18n.t("errors.reload")}</button>

@@ -4,7 +4,7 @@ import { CheckSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { groupOptions, inlineOptionsFrom, splitMultiValue, chipClass, optionSwatch, formatDateValue, toIsoDateTime, parseWikiLinkValue, resolvePropertyWriteKey, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { chipClass, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, resolvePropertyWriteKey, splitMultiValue, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
@@ -378,7 +378,7 @@ export function useBaseCells({
       key={key}
       className={broken ? "pv-chip pv-chip-broken" : neutral ? "pv-chip pv-chip-0" : chipClass(text, color)}
       style={onClick && !broken ? { cursor: "pointer" } : undefined}
-      title={broken ? t("database.brokenLinkTooltip", { defaultValue: "Verlinkte Notiz existiert nicht" }) : text}
+      data-tip={broken ? t("database.brokenLinkTooltip", { defaultValue: "Verlinkte Notiz existiert nicht" }) : text}
       onClick={onClick && !broken ? (e) => { e.stopPropagation(); onClick(e); } : undefined}
     ><span className="pv-chip-text">{text}</span></span>
   );
@@ -467,7 +467,7 @@ export function useBaseCells({
     } else if (col === "file.size") {
       displayVal = formatBytes(Number(val));
     } else if (typeof val === 'boolean') {
-      displayVal = val ? <CheckSquare size={14} color="var(--accent-color)" /> : <div style={{width: 14, height: 14, border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)"}}></div>;
+      displayVal = val ? <CheckSquare size={ICON.ui} color="var(--accent-color)" /> : <div style={{width: 14, height: 14, border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)"}}></div>;
     } else if (input === "text" && Array.isArray(val)) {
       // Explicit text columns never split into chips (P1): a list value shows
       // as plain readable text, links inside stay clickable.

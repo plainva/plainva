@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Minus, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ICON } from "@plainva/ui";
 
 export const isTauriRuntime = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -46,20 +47,20 @@ export function WindowControls({ divider = true }: { divider?: boolean }) {
     <>
       {divider && <div style={{ width: 1, height: 18, background: "var(--border-color)", margin: "0 6px" }} />}
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <button type="button" data-testid="window-minimize" aria-label={t("titlebar.minimize", { defaultValue: "Minimieren" })} title={t("titlebar.minimize", { defaultValue: "Minimieren" })} onClick={doMinimize} style={iconBtn}
+        <button type="button" data-testid="window-minimize" aria-label={t("titlebar.minimize", { defaultValue: "Minimieren" })} data-tip={t("titlebar.minimize", { defaultValue: "Minimieren" })} onClick={doMinimize} style={iconBtn}
           onMouseOver={(e) => { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}>
-          <Minus size={15} />
+          <Minus size={ICON.ui} />
         </button>
-        <button type="button" data-testid="window-maximize" aria-label={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} title={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} onClick={doToggleMax} style={iconBtn}
+        <button type="button" data-testid="window-maximize" aria-label={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} data-tip={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} onClick={doToggleMax} style={iconBtn}
           onMouseOver={(e) => { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}>
-          <Square size={13} />
+          <Square size={ICON.ui} />
         </button>
-        <button type="button" data-testid="window-close" aria-label={t("titlebar.close", { defaultValue: "Schließen" })} title={t("titlebar.close", { defaultValue: "Schließen" })} onClick={doClose} style={iconBtn}
+        <button type="button" data-testid="window-close" aria-label={t("titlebar.close", { defaultValue: "Schließen" })} data-tip={t("titlebar.close", { defaultValue: "Schließen" })} onClick={doClose} style={iconBtn}
           onMouseOver={(e) => { e.currentTarget.style.background = "#e5484d"; e.currentTarget.style.color = "#ffffff"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}>
-          <X size={15} />
+          <X size={ICON.ui} />
         </button>
       </div>
     </>

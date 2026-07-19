@@ -15,7 +15,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { isImagePath, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, parseBookmarksFile, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -887,7 +887,7 @@ function App() {
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg-primary)", color: "var(--text-main)" }}>
         {/* No regular title bar while loading — keep the window movable/closable. */}
         <WindowChromeStrip />
-        <p style={{ fontSize: "1.1rem", fontWeight: 500, margin: 0 }}>
+        <p style={{ fontSize: "var(--text-lg)", fontWeight: 500, margin: 0 }}>
           {loadingVaultName ? t("splash.loadingVault", { name: loadingVaultName }) : t("splash.initializing")}
         </p>
         {/* Fixed-width block: the (path-bearing) message is one ellipsized line
@@ -895,7 +895,7 @@ function App() {
         <div style={{ margin: '1rem 0', width: 'min(480px, 80vw)' }}>
           <p
             style={{ margin: 0, height: '1.45em', lineHeight: '1.45em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}
-            title={loadingProgress?.message}
+            data-tip={loadingProgress?.message}
           >
             {loadingProgress?.message ?? ''}
           </p>
@@ -973,7 +973,7 @@ function App() {
         {/* Search */}
         <div style={{ padding: '10px 10px 6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
+            <Search size={ICON.ui} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)', pointerEvents: 'none' }} />
             <input
               ref={leftSearchRef}
               value={leftQuery}
@@ -994,12 +994,12 @@ function App() {
               <button
                 type="button"
                 onClick={clearLeftQuery}
-                title={t('sidebar.clearSearch')}
+                data-tip={t('sidebar.clearSearch')}
                 aria-label={t('sidebar.clearSearch')}
                 className="pv-iconbtn"
                 style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, padding: 0 }}
               >
-                <X size={14} />
+                <X size={ICON.ui} />
               </button>
             )}
           </div>
@@ -1011,7 +1011,7 @@ function App() {
                 className="pv-btn pv-btn--primary"
                 style={{ flex: 1, height: 38, gap: 8 }}
               >
-                <Plus size={16} />{t('sidebar.new', { defaultValue: 'Neu' })}
+                <Plus size={ICON.ui} />{t('sidebar.new', { defaultValue: 'Neu' })}
               </button>
               <button
                 ref={newBtnRef}
@@ -1022,7 +1022,7 @@ function App() {
                 className="pv-btn pv-btn--primary"
                 style={{ width: 34, height: 38, padding: 0, borderLeft: '1px solid rgba(255,255,255,0.22)' }}
               >
-                <ChevronDown size={15} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
+                <ChevronDown size={ICON.ui} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
               </button>
             </div>
             <DropdownMenu
@@ -1031,11 +1031,11 @@ function App() {
               onClose={() => setShowNewMenu(false)}
               ariaLabel={t('sidebar.new', { defaultValue: 'Neu' })}
               items={[
-                { id: 'note', label: t('sidebar.newNote', { defaultValue: 'Neue Notiz' }), icon: <FilePlus size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'file' } })) },
-                { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
-                { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={16} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
+                { id: 'note', label: t('sidebar.newNote', { defaultValue: 'Neue Notiz' }), icon: <FilePlus size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'file' } })) },
+                { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
+                { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
                 'separator',
-                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sun size={16} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
+                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sun size={ICON.ui} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
               ]}
             />
           </div>
@@ -1052,12 +1052,12 @@ function App() {
                   role="tab"
                   aria-selected={active}
                   aria-label={label}
-                  title={label}
+                  data-tip={label}
                   onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
                   className="pv-btn pv-btn--ghost"
                   style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--bg-active)' : undefined, color: active ? 'var(--accent-color)' : undefined }}
                 >
-                  <Icon size={16} />
+                  <Icon size={ICON.ui} />
                 </button>
               );
             })}
@@ -1068,8 +1068,8 @@ function App() {
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
               <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={openInFocusedPane} />
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>
-                <FolderTree size={13} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <FolderTree size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
+                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {vaultPath ? (vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath) : ""}
                 </span>
                 <button
@@ -1078,7 +1078,7 @@ function App() {
                   data-tip={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
                   onClick={() => window.dispatchEvent(new CustomEvent('plainva-tree-toggle-all'))}
                 >
-                  {treeHasExpanded ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
+                  {treeHasExpanded ? <ChevronsDownUp size={ICON.ui} /> : <ChevronsUpDown size={ICON.ui} />}
                 </button>
               </div>
               <div data-testid="file-tree" style={{ flex: 1, minHeight: 0 }}>
@@ -1128,7 +1128,7 @@ function App() {
                     onClick={() => { setShowVaultMenu(false); openVault(path); }}
                     className="pv-menu-item"
                   >
-                    <Folder size={14} color="var(--accent-color)" />
+                    <Folder size={ICON.ui} color="var(--accent-color)" />
                     <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
                   </button>
                 ))}
@@ -1136,7 +1136,7 @@ function App() {
                   onClick={() => { setShowVaultMenu(false); closeVault(); }}
                   className="pv-menu-item"
                 >
-                  <Settings size={14} />
+                  <Settings size={ICON.ui} />
                   <span className="pv-menu-text">{t("sidebar.switchVault")}</span>
                 </button>
               </div>
@@ -1157,12 +1157,12 @@ function App() {
                 {syncWorker ? (
                   <SyncSwitcherIcon syncWorker={syncWorker} onError={() => setShowErrorModal(true)} />
                 ) : (
-                  <Folder size={16} color="var(--accent-color)" />
+                  <Folder size={ICON.ui} color="var(--accent-color)" />
                 )}
                 <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {vaultPath.split(/[/\\]/).pop()}
                 </span>
-                <ChevronUp size={16} style={{ transform: showVaultMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', flexShrink: 0 }} />
+                <ChevronUp size={ICON.ui} style={{ transform: showVaultMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', flexShrink: 0 }} />
               </button>
             </div>
           </div>
@@ -1582,11 +1582,11 @@ function SyncSwitcherIcon({ syncWorker, onError }: { syncWorker: SyncWorker; onE
         // Always also force a retry: unblocks stuck/backed-off ops and syncs now.
         syncWorker.retryFailed();
       }}
-      title={status === 'error' ? t("sync.error") : (status === 'syncing' ? t("sync.syncing") : t("sync.idle"))}
+      data-tip={status === 'error' ? t("sync.error") : (status === 'syncing' ? t("sync.syncing") : t("sync.idle"))}
     >
       {status === "error"
-        ? <AlertTriangle size={16} color="var(--error-text)" />
-        : <Cloud size={16} color="var(--accent-color)" />}
+        ? <AlertTriangle size={ICON.ui} color="var(--error-text)" />
+        : <Cloud size={ICON.ui} color="var(--accent-color)" />}
     </div>
   );
 }
@@ -1622,17 +1622,17 @@ function SyncErrorDialog({
         display: "flex", flexDirection: "column"
       }}>
         <h2 style={{ marginTop: 0, color: "var(--error-text)", display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <AlertTriangle size={24} /> {t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
+          <AlertTriangle size={ICON.touch} /> {t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
         </h2>
-        <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "0.9rem", maxHeight: "300px", overflowY: "auto" }}>
+        <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
           {message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." })}
         </div>
-        <p style={{ margin: "0.85rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+        <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
           {t("sync.errorHint")}
         </p>
         {dialogConflicts.length > 0 && (
           <div style={{ marginTop: "0.85rem" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.35rem" }}>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: "0.35rem" }}>
               {t("sync.conflictCopies", { defaultValue: "Gefundene Konfliktkopien:" })}
             </div>
             {dialogConflicts.map((p) => (
@@ -1640,7 +1640,7 @@ function SyncErrorDialog({
                 key={p}
                 type="button"
                 onClick={() => onResolveConflict(p)}
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", textAlign: "left", padding: "0.35rem 0.5rem", marginBottom: "2px", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer", fontSize: "0.85rem" }}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", textAlign: "left", padding: "0.35rem 0.5rem", marginBottom: "2px", background: "var(--bg-secondary)", color: "var(--text-main)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", cursor: "pointer", fontSize: "var(--text-md)" }}
               >
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p}</span>
                 <span style={{ color: "var(--accent-color)", flexShrink: 0 }}>{t("conflict.resolveAction")}</span>

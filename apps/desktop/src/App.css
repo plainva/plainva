@@ -153,7 +153,7 @@ button.pv-doc-header-icon:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.8rem;
+  font-size: var(--text-ui);
   color: var(--text-muted);
   background: transparent;
   border: none;
@@ -233,7 +233,7 @@ button.pv-doc-header-icon:hover {
   background: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-content);
-  font-size: 0.88rem;
+  font-size: var(--text-md);
 }
 .pv-merge-host .cm-mergeViewEditor + .cm-mergeViewEditor {
   border-left: 1px solid var(--border-color);
@@ -321,7 +321,7 @@ option {
 .pv-key-box { display: flex; align-items: center; gap: 2px; width: 100%; border-radius: var(--radius-sm); min-width: 0; }
 .pv-type-btn { display: flex; align-items: center; justify-content: center; padding: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
 .pv-type-btn:hover { color: var(--text-main); background: var(--bg-active); }
-.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: 0.8rem; padding: 2px 0; }
+.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: var(--text-ui); padding: 2px 0; }
 .pv-key:focus { color: var(--text-main); }
 .pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; }
 .pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
@@ -336,7 +336,7 @@ option {
 
 /* text / number / url / email / phone inputs */
 .pv-input-wrap { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
-.pv-input { flex: 1; min-width: 0; padding: 4px 7px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-size: 0.85rem; }
+.pv-input { flex: 1; min-width: 0; padding: 4px 7px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-size: var(--text-md); }
 .pv-input:focus { border-color: var(--accent-color); }
 .pv-icon-btn { display: flex; align-items: center; justify-content: center; padding: 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
 .pv-icon-btn:hover { color: var(--accent-color); }
@@ -345,7 +345,7 @@ option {
    sweep 2026-07-19) — the primitive's look ships with the primitive. */
 
 /* date display button */
-.pv-date-display { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; font-size: 0.85rem; text-align: left; }
+.pv-date-display { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; font-size: var(--text-md); text-align: left; }
 .pv-date-display:hover { border-color: var(--border-color); background: var(--bg-active); }
 .pv-date-display svg { color: var(--accent-color); flex-shrink: 0; }
 
@@ -360,17 +360,17 @@ option {
 .pv-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
 .pv-select-trigger:hover { border-color: var(--border-color); background: var(--bg-active); }
 .pv-select-caret { color: var(--text-muted); flex-shrink: 0; }
-.pv-placeholder { color: var(--text-faint); font-size: 0.82rem; }
+.pv-placeholder { color: var(--text-faint); font-size: var(--text-ui); }
 
 /* popover (autocomplete / type menu / value picker): the .pv-popover* family
    moved to @plainva/ui styles/ui.css with menu metrics (design sweep
    2026-07-19) — themes dock on it there. */
 
 /* add property */
-.pv-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.82rem; }
+.pv-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; font-size: var(--text-ui); }
 .pv-add-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
 .pv-add-popover { width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
-.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: 0.85rem; }
+.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: var(--text-md); }
 .pv-add-name:focus { border-color: var(--accent-color); }
 .pv-add-types { max-height: 240px; overflow-y: auto; }
 
@@ -380,19 +380,19 @@ option {
 .pv-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .pv-modal-card { width: 440px; max-width: 100%; max-height: 85vh; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.85rem; }
 .pv-modal-head { display: flex; align-items: center; justify-content: space-between; }
-.pv-modal-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
+.pv-modal-title { font-size: var(--text-lg); font-weight: 600; color: var(--text-main); }
 .pv-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .pv-modal-section { display: flex; flex-direction: column; gap: 0.4rem; }
-.pv-modal-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+.pv-modal-label { font-size: var(--text-sm); color: var(--text-muted); font-weight: 500; }
 .pv-opt-row { display: grid; grid-template-columns: 18px minmax(0, 2fr) 140px 28px; gap: 0.4rem; align-items: center; }
 .pv-opt-row.pv-opt-status { grid-template-columns: 18px minmax(0, 2fr) minmax(0, 1.4fr) 140px 28px; }
 .pv-opt-row .pv-input { width: 100%; min-width: 0; box-sizing: border-box; }
-.pv-opt-head { font-size: 0.68rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
+.pv-opt-head { font-size: var(--text-xs); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
 .pv-opt-grip { display: flex; align-items: center; justify-content: center; color: var(--text-faint); cursor: grab; touch-action: none; }
 .pv-opt-grip:active { cursor: grabbing; }
 .pv-opt-drop { box-shadow: inset 0 2px 0 var(--accent-color); border-radius: var(--radius-xs); }
-.pv-modal-hint { font-size: 0.72rem; color: var(--text-faint); line-height: 1.4; }
-.pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-main); cursor: pointer; }
+.pv-modal-hint { font-size: var(--text-sm); color: var(--text-faint); line-height: 1.4; }
+.pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: var(--text-ui); color: var(--text-main); cursor: pointer; }
 .pv-modal-check input { accent-color: var(--accent-color); }
 .pv-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
 .pv-btn-primary { padding: 7px 14px; border-radius: var(--radius-md); border: none; background: var(--accent-color); color: var(--accent-on); font-size: var(--text-ui); cursor: pointer; }
@@ -402,7 +402,7 @@ option {
    lists as a theme card grid. Applied only to marker-carrying listings. */
 .pv-index-doc h1 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.35rem; }
 .pv-index-doc ul { list-style: none; padding: 0; margin: 0.75rem 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: 0.9rem; line-height: 1.45; }
+.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
 .pv-index-doc ul li a { font-weight: 600; text-decoration: none; }
 .pv-index-doc ul li a:hover { text-decoration: underline; }
 
@@ -414,7 +414,7 @@ option {
 .pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
 .pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }
 .pv-peek-nav { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
-.pv-peek-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-peek-title { flex: 1; min-width: 0; font-size: var(--text-md); font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-peek-actions { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
 .pv-peek-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent; border: none; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .pv-peek-btn:not(:disabled):hover { background: var(--bg-hover); color: var(--text-main); }

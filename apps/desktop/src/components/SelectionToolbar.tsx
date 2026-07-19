@@ -1,6 +1,7 @@
 import React from "react";
 import { Bold, Italic, Strikethrough, Code, Highlighter, Link } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ICON } from "@plainva/ui";
 
 export type FormatAction = "bold" | "italic" | "strike" | "code" | "highlight" | "link";
 
@@ -18,12 +19,12 @@ interface Props {
 export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => {
   const { t } = useTranslation();
   const items: { a: FormatAction; icon: React.ReactNode; label: string }[] = [
-    { a: "bold", icon: <Bold size={15} />, label: t("editor.fmtBold", { defaultValue: "Fett" }) },
-    { a: "italic", icon: <Italic size={15} />, label: t("editor.fmtItalic", { defaultValue: "Kursiv" }) },
-    { a: "strike", icon: <Strikethrough size={15} />, label: t("editor.fmtStrike", { defaultValue: "Durchgestrichen" }) },
-    { a: "code", icon: <Code size={15} />, label: t("editor.fmtCode", { defaultValue: "Inline-Code" }) },
-    { a: "highlight", icon: <Highlighter size={15} />, label: t("editor.fmtHighlight", { defaultValue: "Markierung" }) },
-    { a: "link", icon: <Link size={15} />, label: t("editor.fmtLink", { defaultValue: "Link" }) },
+    { a: "bold", icon: <Bold size={ICON.ui} />, label: t("editor.fmtBold", { defaultValue: "Fett" }) },
+    { a: "italic", icon: <Italic size={ICON.ui} />, label: t("editor.fmtItalic", { defaultValue: "Kursiv" }) },
+    { a: "strike", icon: <Strikethrough size={ICON.ui} />, label: t("editor.fmtStrike", { defaultValue: "Durchgestrichen" }) },
+    { a: "code", icon: <Code size={ICON.ui} />, label: t("editor.fmtCode", { defaultValue: "Inline-Code" }) },
+    { a: "highlight", icon: <Highlighter size={ICON.ui} />, label: t("editor.fmtHighlight", { defaultValue: "Markierung" }) },
+    { a: "link", icon: <Link size={ICON.ui} />, label: t("editor.fmtLink", { defaultValue: "Link" }) },
   ];
 
   return (
@@ -50,7 +51,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, onAction }) => 
         <button
           key={it.a}
           type="button"
-          title={it.label}
+          data-tip={it.label}
           aria-label={it.label}
           onClick={() => onAction(it.a)}
           className="pv-iconbtn"

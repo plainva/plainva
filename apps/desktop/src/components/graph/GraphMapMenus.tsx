@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Copy, Eye, FilePlus2, Link2, Pencil, Pin, PinOff, SquareSplitHorizontal, Trash2 } from "lucide-react";
 import type { VaultQueryService, IVaultAdapter } from "@plainva/core";
-import { MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/ui";
+import { ICON, MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/ui";
 import { appendWikiLink } from "../../services/graphActions";
 import { findRelationOptions, loadRelationCatalog, writeRelationLink, type RelationOption } from "../../services/graphRelationTargets";
 import { appConfirm } from "../../services/appDialogs";
@@ -38,23 +38,23 @@ export function GraphNodeMenu(props: {
   const { state } = props;
   return (
     <MenuSurface open onClose={props.onClose} at={{ x: state.x, y: state.y }} minWidth={230} ariaLabel={t("graph.nodeMenu", { defaultValue: "Notiz-Aktionen" })}>
-      <MenuItem icon={<Eye size={15} />} onSelect={props.onPeek}>{t("graph.menuPeek", { defaultValue: "Peek" })}</MenuItem>
-      <MenuItem icon={<Copy size={15} />} onSelect={props.onOpen}>{t("graph.menuOpen", { defaultValue: "Öffnen" })}</MenuItem>
+      <MenuItem icon={<Eye size={ICON.ui} />} onSelect={props.onPeek}>{t("graph.menuPeek", { defaultValue: "Peek" })}</MenuItem>
+      <MenuItem icon={<Copy size={ICON.ui} />} onSelect={props.onOpen}>{t("graph.menuOpen", { defaultValue: "Öffnen" })}</MenuItem>
       {props.onOpenInSplit && (
-        <MenuItem icon={<SquareSplitHorizontal size={15} />} onSelect={props.onOpenInSplit}>{t("graph.menuOpenSplit", { defaultValue: "Im Split öffnen" })}</MenuItem>
+        <MenuItem icon={<SquareSplitHorizontal size={ICON.ui} />} onSelect={props.onOpenInSplit}>{t("graph.menuOpenSplit", { defaultValue: "Im Split öffnen" })}</MenuItem>
       )}
-      <MenuItem icon={<Copy size={15} />} onSelect={props.onNewTab}>{t("graph.menuNewTab", { defaultValue: "In neuem Tab öffnen" })}</MenuItem>
+      <MenuItem icon={<Copy size={ICON.ui} />} onSelect={props.onNewTab}>{t("graph.menuNewTab", { defaultValue: "In neuem Tab öffnen" })}</MenuItem>
       <MenuSeparator />
-      <MenuItem icon={<FilePlus2 size={15} />} onSelect={props.onNewConnectedNote}>{t("graph.menuNewConnected", { defaultValue: "Neue verbundene Notiz…" })}</MenuItem>
-      <MenuItem icon={<Pencil size={15} />} onSelect={props.onRename}>{t("graph.menuRename", { defaultValue: "Umbenennen…" })}</MenuItem>
+      <MenuItem icon={<FilePlus2 size={ICON.ui} />} onSelect={props.onNewConnectedNote}>{t("graph.menuNewConnected", { defaultValue: "Neue verbundene Notiz…" })}</MenuItem>
+      <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={props.onRename}>{t("graph.menuRename", { defaultValue: "Umbenennen…" })}</MenuItem>
       {props.onToggleBookmark && (
-        <MenuItem icon={<Bookmark size={15} />} onSelect={props.onToggleBookmark}>{t("graph.menuBookmark", { defaultValue: "Lesezeichen umschalten" })}</MenuItem>
+        <MenuItem icon={<Bookmark size={ICON.ui} />} onSelect={props.onToggleBookmark}>{t("graph.menuBookmark", { defaultValue: "Lesezeichen umschalten" })}</MenuItem>
       )}
       {state.pinned && (
-        <MenuItem icon={<PinOff size={15} />} onSelect={props.onUnpin}>{t("graph.menuUnpin", { defaultValue: "Pin lösen" })}</MenuItem>
+        <MenuItem icon={<PinOff size={ICON.ui} />} onSelect={props.onUnpin}>{t("graph.menuUnpin", { defaultValue: "Pin lösen" })}</MenuItem>
       )}
       <MenuSeparator />
-      <MenuItem danger icon={<Trash2 size={15} />} onSelect={props.onDelete}>{t("graph.menuDelete", { defaultValue: "Löschen…" })}</MenuItem>
+      <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={props.onDelete}>{t("graph.menuDelete", { defaultValue: "Löschen…" })}</MenuItem>
     </MenuSurface>
   );
 }
@@ -85,7 +85,7 @@ export function GraphFolderMenu(props: {
           : t("graph.menuExpandFolder", { defaultValue: "Ordner entfalten" })}
       </MenuItem>
       <MenuItem onSelect={props.onExpandOnlyThis}>{t("graph.menuExpandOnly", { defaultValue: "Nur diesen Ordner entfalten" })}</MenuItem>
-      <MenuItem icon={<Link2 size={15} />} onSelect={props.onFocusFolder}>{t("graph.menuFocusFolder", { defaultValue: "Fokus auf diesen Ordner" })}</MenuItem>
+      <MenuItem icon={<Link2 size={ICON.ui} />} onSelect={props.onFocusFolder}>{t("graph.menuFocusFolder", { defaultValue: "Fokus auf diesen Ordner" })}</MenuItem>
       <MenuSeparator />
       <MenuItem onSelect={props.onCollapseAll}>{t("graph.collapseAll", { defaultValue: "Alle Ordner einklappen" })}</MenuItem>
     </MenuSurface>
@@ -123,11 +123,11 @@ export function GraphEdgeMenu(props: {
           <MenuItem onSelect={() => props.onOpen(entry.source)}>{t("graph.edgeOpenSource", { defaultValue: "Quelle öffnen" })}</MenuItem>
           <MenuItem onSelect={() => props.onOpen(entry.target)}>{t("graph.edgeOpenTarget", { defaultValue: "Ziel öffnen" })}</MenuItem>
           {entry.propertyKey ? (
-            <MenuItem danger icon={<Trash2 size={15} />} onSelect={() => props.onRemoveRelation(entry.source, entry.target, entry.propertyKey!)}>
+            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => props.onRemoveRelation(entry.source, entry.target, entry.propertyKey!)}>
               {t("graph.edgeRemoveRelation", { defaultValue: "Relation entfernen" })}
             </MenuItem>
           ) : (
-            <MenuItem danger icon={<Trash2 size={15} />} onSelect={() => props.onRemoveTextLinks(entry.source, entry.target)}>
+            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => props.onRemoveTextLinks(entry.source, entry.target)}>
               {t("graph.edgeRemoveLinks", { defaultValue: "Text-Link(s) entfernen" })}
             </MenuItem>
           )}
@@ -157,8 +157,8 @@ export function GraphCanvasMenu(props: {
   const { t } = useTranslation();
   return (
     <MenuSurface open onClose={props.onClose} at={{ x: props.state.x, y: props.state.y }} minWidth={230} ariaLabel={t("graph.canvasMenu", { defaultValue: "Karten-Aktionen" })}>
-      <MenuItem icon={<FilePlus2 size={15} />} onSelect={props.onNewNote}>{t("graph.menuNewNote", { defaultValue: "Neue Notiz…" })}</MenuItem>
-      <MenuItem icon={<Pin size={15} />} onSelect={props.onResetLayout}>{t("graph.menuResetLayout", { defaultValue: "Layout zurücksetzen" })}</MenuItem>
+      <MenuItem icon={<FilePlus2 size={ICON.ui} />} onSelect={props.onNewNote}>{t("graph.menuNewNote", { defaultValue: "Neue Notiz…" })}</MenuItem>
+      <MenuItem icon={<Pin size={ICON.ui} />} onSelect={props.onResetLayout}>{t("graph.menuResetLayout", { defaultValue: "Layout zurücksetzen" })}</MenuItem>
       <MenuItem onSelect={props.onZoomFit}>{t("graph.zoomFit", { defaultValue: "Alles einpassen" })}</MenuItem>
       <MenuSeparator />
       <MenuItem onSelect={props.onExportPng}>{t("graph.exportPng", { defaultValue: "Als PNG exportieren…" })}</MenuItem>
@@ -247,13 +247,13 @@ export function GraphConnectMenu(props: {
       <MenuLabel>
         {t("graph.connectTitle", { defaultValue: "{{source}} → {{target}}", source: props.titleOf(state.source), target: props.titleOf(state.target) })}
       </MenuLabel>
-      <MenuItem icon={<Link2 size={15} />} onSelect={() => void linkAsText()} data-testid="graph-connect-text">
+      <MenuItem icon={<Link2 size={ICON.ui} />} onSelect={() => void linkAsText()} data-testid="graph-connect-text">
         {t("graph.connectAsText", { defaultValue: "Als Text-Link (ans Notizende)" })}
       </MenuItem>
       {options === null && <MenuLabel>{t("graph.connectLoading", { defaultValue: "Suche Relationen…" })}</MenuLabel>}
       {options && options.length > 0 && <MenuSeparator />}
       {options?.map((o) => (
-        <MenuItem key={`${o.baseName}-${o.propertyKey}`} icon={<Link2 size={15} />} onSelect={() => void linkAsRelation(o)}>
+        <MenuItem key={`${o.baseName}-${o.propertyKey}`} icon={<Link2 size={ICON.ui} />} onSelect={() => void linkAsRelation(o)}>
           {t("graph.connectAsRelation", { defaultValue: "Relation „{{property}}“ ({{base}})", property: o.propertyKey, base: o.baseName })}
           {o.limitOne ? " ¹" : ""}
         </MenuItem>

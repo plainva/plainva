@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Scissors, Copy, ClipboardPaste } from "lucide-react";
-import { MenuSurface, MenuItem } from "@plainva/ui";
+import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { useContextMenu, closeContextMenu } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection } from "@plainva/ui";
 import { toast } from "@plainva/ui";
@@ -47,18 +47,18 @@ export function ContextMenuHost() {
     >
       {editable ? (
         <>
-          <MenuItem icon={<Scissors size={15} />} onSelect={onCut} disabled={!hasSelection}>
+          <MenuItem icon={<Scissors size={ICON.ui} />} onSelect={onCut} disabled={!hasSelection}>
             {t("contextMenu.cut")}
           </MenuItem>
-          <MenuItem icon={<Copy size={15} />} onSelect={onCopy} disabled={!hasSelection}>
+          <MenuItem icon={<Copy size={ICON.ui} />} onSelect={onCopy} disabled={!hasSelection}>
             {t("contextMenu.copy")}
           </MenuItem>
-          <MenuItem icon={<ClipboardPaste size={15} />} onSelect={onPaste}>
+          <MenuItem icon={<ClipboardPaste size={ICON.ui} />} onSelect={onPaste}>
             {t("contextMenu.paste")}
           </MenuItem>
         </>
       ) : (
-        <MenuItem icon={<Copy size={15} />} onSelect={onCopy}>
+        <MenuItem icon={<Copy size={ICON.ui} />} onSelect={onCopy}>
           {t("contextMenu.copy")}
         </MenuItem>
       )}

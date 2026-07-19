@@ -12,6 +12,7 @@ import {
   getThemeDef,
   getUnlockedVariants,
 } from "../services/theme";
+import { ICON } from "@plainva/ui";
 
 interface HailingFrequenciesModalProps {
   onClose: () => void;
@@ -133,17 +134,17 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
         <style>{`@keyframes pv-hailing-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }`}</style>
         <div className="pv-modal-head">
           <div className="pv-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Radio size={16} style={{ color: "var(--accent-color)", flexShrink: 0 }} />
+            <Radio size={ICON.ui} style={{ color: "var(--accent-color)", flexShrink: 0 }} />
             {t("hailing.prompt")}
           </div>
           <button
             type="button"
             className="pv-icon-btn"
             aria-label={t("common.close")}
-            title={t("common.close")}
+            data-tip={t("common.close")}
             onClick={onClose}
           >
-            <X size={15} />
+            <X size={ICON.ui} />
           </button>
         </div>
 
@@ -169,7 +170,7 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
         </form>
 
         {feedback === "no-response" && (
-          <div data-testid="hailing-feedback" style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+          <div data-testid="hailing-feedback" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
             {t("hailing.noResponse")}
             {failures >= 2 && (
               <div style={{ fontStyle: "italic", color: "var(--text-faint)", marginTop: 2 }}>{t("hailing.shaka")}</div>
@@ -177,17 +178,17 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
           </div>
         )}
         {(feedback === "aye" || feedback === "known") && lastVariant && (
-          <div data-testid="hailing-feedback" style={{ fontSize: "0.9rem", color: "var(--accent-color)", fontWeight: 600 }}>
+          <div data-testid="hailing-feedback" style={{ fontSize: "var(--text-md)", color: "var(--accent-color)", fontWeight: 600 }}>
             {feedback === "aye" ? t("hailing.aye") : t("hailing.alreadyKnown")}
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 400, marginTop: 2 }}>
+            <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", fontWeight: 400, marginTop: 2 }}>
               {t("hailing.variantReceived", { variant: variantLabel(lastVariant) })}
             </div>
           </div>
         )}
         {feedback === "theme" && lastTheme && (
-          <div data-testid="hailing-feedback" style={{ fontSize: "0.9rem", color: "var(--accent-color)", fontWeight: 600 }}>
+          <div data-testid="hailing-feedback" style={{ fontSize: "var(--text-md)", color: "var(--accent-color)", fontWeight: 600 }}>
             {t("hailing.aye")}
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 400, marginTop: 2 }}>
+            <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", fontWeight: 400, marginTop: 2 }}>
               {t("hailing.themeUnlocked", {
                 name: t(`themes.names.${lastTheme}`, { defaultValue: getThemeDef(lastTheme)?.label ?? lastTheme }),
               })}
@@ -198,10 +199,10 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
         {collected.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid var(--border-color-light)", paddingTop: 10 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span data-testid="hailing-progress" style={{ fontSize: "0.78rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <span data-testid="hailing-progress" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {t("hailing.collection", { count: collected.length, total })}
               </span>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: "var(--text-main)", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-ui)", color: "var(--text-main)", cursor: "pointer" }}>
                 <input type="checkbox" data-testid="hailing-toggle" checked={lcarsActive} onChange={toggleLcars} />
                 {t("hailing.lcarsActive")}
               </label>
@@ -214,7 +215,7 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
                   className="pv-chip pv-chip-plain"
                   data-testid={`hailing-chip-${v.id}`}
                   onClick={() => activateVariant(v.id)}
-                  title={variantLabel(v.id)}
+                  data-tip={variantLabel(v.id)}
                   style={{ cursor: "pointer", borderColor: v.accent, gap: 5 }}
                 >
                   <span className="pv-dot" style={{ color: v.accent }} />

@@ -7,6 +7,7 @@ import { SourceConditionEditor } from "./SourceConditionEditor";
 import { buildWizardConfig, collectWizardColumns, type WizardColumn, type WizardNewColumn } from "./createWizardModel";
 import { listVaultFolders } from "../../services/vaultFolders";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
+import { ICON } from "@plainva/ui";
 
 // Creation wizard of a new `.base` (plan W3, P1/P2): step 1 picks the data
 // source (folders/tags, combinable; a brand-new folder starts from zero), step
@@ -90,7 +91,7 @@ export function BaseCreateWizard({
 
   const canCreate = clauses.length > 0;
   const stepBadge = (n: string) => (
-    <span style={{ background: "var(--bg-active)", color: "var(--accent-color)", fontSize: "0.7rem", fontWeight: 600, padding: "1px 8px", borderRadius: "var(--radius-pill)", flexShrink: 0 }}>{n}</span>
+    <span style={{ background: "var(--bg-active)", color: "var(--accent-color)", fontSize: "var(--text-xs)", fontWeight: 600, padding: "1px 8px", borderRadius: "var(--radius-pill)", flexShrink: 0 }}>{n}</span>
   );
 
   return (
@@ -98,18 +99,18 @@ export function BaseCreateWizard({
       <div className="pv-modal-card" style={{ width: 560 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="pv-modal-head">
           <span className="pv-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Database size={16} color="var(--accent-color)" />
+            <Database size={ICON.ui} color="var(--accent-color)" />
             {t("database.wizardTitle", "Neue Datenbank")}: {fileName}
           </span>
-          <button type="button" className="pv-iconbtn" aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} onClick={onCancel}><X size={16} /></button>
+          <button type="button" className="pv-iconbtn" aria-label={t("common.close", "Schließen")} data-tip={t("common.close", "Schließen")} onClick={onCancel}><X size={ICON.ui} /></button>
         </div>
 
         <div className="pv-modal-section">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {stepBadge("1")}
-            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-main)" }}>{t("database.sourceConfig", "Datenquelle")}</span>
+            <span style={{ fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("database.sourceConfig", "Datenquelle")}</span>
           </div>
-          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
+          <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
           <SourceConditionEditor
             conditions={clauses.map((clause, idx) => ({ clause, idx }))}
             tags={tags}
@@ -120,8 +121,8 @@ export function BaseCreateWizard({
             onCreateFolder={createFolder}
           />
           {matchCount !== null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-active)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "0.82rem", color: "var(--text-main)" }}>
-              <Info size={14} color="var(--accent-color)" />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-active)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--text-ui)", color: "var(--text-main)" }}>
+              <Info size={ICON.ui} color="var(--accent-color)" />
               {t("database.wizardMatches", { count: matchCount, defaultValue: "{{count}} Notizen entsprechen dieser Quelle" })}
             </div>
           )}
@@ -130,18 +131,18 @@ export function BaseCreateWizard({
         <div className="pv-modal-section" style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {stepBadge("2")}
-            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-main)" }}>{t("database.properties", "Eigenschaften")}</span>
+            <span style={{ fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("database.properties", "Eigenschaften")}</span>
           </div>
-          {clauses.length === 0 && <div style={{ fontSize: "0.8rem", color: "var(--text-faint)", fontStyle: "italic" }}>{t("database.wizardNoSource", "Zuerst oben eine Quelle wählen.")}</div>}
+          {clauses.length === 0 && <div style={{ fontSize: "var(--text-ui)", color: "var(--text-faint)", fontStyle: "italic" }}>{t("database.wizardNoSource", "Zuerst oben eine Quelle wählen.")}</div>}
           {clauses.length > 0 && (
             <>
-              {columns.length > 0 && <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("database.wizardColumnsHint", "In den gefundenen Notizen vorhandene Eigenschaften – als Spalten übernehmen?")}</div>}
+              {columns.length > 0 && <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>{t("database.wizardColumnsHint", "In den gefundenen Notizen vorhandene Eigenschaften – als Spalten übernehmen?")}</div>}
               <div style={{ display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" }}>
                 {columns.map((col) => (
                   <label key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
                     <input type="checkbox" className="pv-check" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
                     {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
-                    <span className="base-cfg-badge" title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
+                    <span className="base-cfg-badge" data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
                   </label>
                 ))}
                 {newColumns.map((col) => (
@@ -149,7 +150,7 @@ export function BaseCreateWizard({
                     <input type="checkbox" className="pv-check" checked readOnly disabled />
                     {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
                     <span className="base-cfg-badge">{t("database.newProperty", "Neue Eigenschaft")}</span>
-                    <button onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                    <button onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
                   </div>
                 ))}
               </div>
@@ -173,7 +174,7 @@ export function BaseCreateWizard({
                     options={baseInputTypeOptions(t)}
                   />
                 </div>
-                <button className="base-cfg-addbtn" onClick={addNewProp} disabled={newPropInvalid} style={{ opacity: newPropInvalid ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={12} />{t("database.add", "Hinzufügen")}</button>
+                <button className="base-cfg-addbtn" onClick={addNewProp} disabled={newPropInvalid} style={{ opacity: newPropInvalid ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={ICON.meta} />{t("database.add", "Hinzufügen")}</button>
               </div>
             </>
           )}
@@ -186,7 +187,7 @@ export function BaseCreateWizard({
             className="pv-btn pv-btn--primary pv-btn--sm"
             onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
             disabled={!canCreate}
-            title={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
+            data-tip={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
           >
             {t("database.wizardCreate", "Datenbank erstellen")}
           </button>

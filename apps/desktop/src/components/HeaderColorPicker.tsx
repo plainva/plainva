@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { ACCENT_PALETTE as PALETTE } from "./palette";
+import { ICON } from "@plainva/ui";
 
 export interface HeaderColorPickerProps {
   x: number;
@@ -81,7 +82,7 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
             <button
               key={color}
               onClick={() => onSelect(color)}
-              title={color}
+              data-tip={color}
               aria-label={color}
               style={{
                 width: "36px",
@@ -103,7 +104,7 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
             alignItems: "center",
             gap: "0.5rem",
             marginTop: "0.6rem",
-            fontSize: "0.8rem",
+            fontSize: "var(--text-ui)",
             color: "var(--text-muted)",
           }}
         >
@@ -128,7 +129,7 @@ export const HeaderColorPicker: React.FC<HeaderColorPickerProps> = ({
             className="pv-btn pv-btn--ghost"
             style={{ width: "100%", marginTop: "0.6rem" }}
           >
-            <Trash2 size={14} />
+            <Trash2 size={ICON.ui} />
             {t("colorPicker.remove")}
           </button>
         )}

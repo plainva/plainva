@@ -3,6 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Link as LinkIcon, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { groupBacklinks } from "./backlinksModel";
+import { ICON } from "@plainva/ui";
 
 interface BacklinksPanelProps {
   activePath: string | null;
@@ -66,7 +67,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
           className="pv-rowhover"
           style={{ padding: '0.5rem', borderRadius: "var(--radius-sm)", cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}
         >
-          <FileText size={14} color="var(--accent-color)" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <FileText size={ICON.ui} color="var(--accent-color)" style={{ marginTop: '2px', flexShrink: 0 }} />
           <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.83rem', fontWeight: 500, color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {link.source_path.split(/[/\\]/).pop()}
@@ -77,7 +78,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
           </div>
           {link.count > 1 && (
             <span
-              title={t("backlinks.occurrences", { count: link.count })}
+              data-tip={t("backlinks.occurrences", { count: link.count })}
               style={{ flexShrink: 0, marginTop: '2px', fontSize: '0.72rem', color: 'var(--text-faint)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-pill)", padding: '0 6px', lineHeight: 1.5 }}
             >×{link.count}</span>
           )}
@@ -98,7 +99,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
 
   if (!activePath) {
     return (
-      <div style={{ padding: "1rem", color: "var(--text-faint)", fontSize: "0.85rem", textAlign: "center" }}>
+      <div style={{ padding: "1rem", color: "var(--text-faint)", fontSize: "var(--text-md)", textAlign: "center" }}>
         {t("backlinks.noActiveFile")}
       </div>
     );
@@ -107,7 +108,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-secondary)' }}>
-        <LinkIcon size={16} color="var(--text-muted)" />
+        <LinkIcon size={ICON.ui} color="var(--text-muted)" />
         <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>{t("backlinks.title")}</h3>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>

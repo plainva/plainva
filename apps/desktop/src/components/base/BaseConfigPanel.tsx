@@ -5,7 +5,7 @@ import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, E
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, BASE_VIEW_TYPES, columnsForBaseSelector, type BaseConfigAreaId } from "@plainva/ui";
+import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, type BaseConfigAreaId } from "@plainva/ui";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -279,12 +279,12 @@ function FilterChip({
   const valDisplay = parseWikiLinkValue(rule.value)?.display ?? rule.value;
   return (
     <div className="base-cfg-chiprow base-cfg-filterchip">
-      <button type="button" className="base-cfg-chipsentence" onClick={onEdit} aria-label={t("database.editFilter", "Filter bearbeiten")} title={t("database.editFilter", "Filter bearbeiten")}>
+      <button type="button" className="base-cfg-chipsentence" onClick={onEdit} aria-label={t("database.editFilter", "Filter bearbeiten")} data-tip={t("database.editFilter", "Filter bearbeiten")}>
         <span className="base-cfg-chip-col">{cells.columnLabel(rule.column)}</span>
         <span className="base-cfg-chip-op">{op}</span>
         {showValue && <span className="base-cfg-chip-val">{valDisplay}</span>}
       </button>
-      <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+      <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
     </div>
   );
 }
@@ -352,7 +352,7 @@ function FilterRow({
           : <FilterValueEditor column={rule.column} op={rule.op} value={rule.value} rows={filterValueRows} cells={cells} t={t} onCommit={(value) => onChange({ ...rule, value })} />}
       </div>
       {onRemove && (
-        <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+        <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
       )}
     </div>
   );
@@ -418,13 +418,13 @@ function SortSection({
             className="base-cfg-grip"
             role="button"
             aria-label={t("database.reorderSort", "Priorität ändern (ziehen)")}
-            title={t("database.reorderSort", "Priorität ändern (ziehen)")}
+            data-tip={t("database.reorderSort", "Priorität ändern (ziehen)")}
             onPointerDown={(e) => { if (e.button === 0) { e.preventDefault(); try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* unsupported */ } dragFrom.current = i; setDragIdx(i); setOverIdx(i); } }}
             onPointerMove={(e) => { if (dragFrom.current != null) { const t2 = rowAtY(e.clientY); if (t2 != null) setOverIdx(t2); } }}
             onPointerUp={endDrag}
             onPointerCancel={() => { dragFrom.current = null; setDragIdx(null); setOverIdx(null); }}
           >
-            <GripVertical size={12} />
+            <GripVertical size={ICON.meta} />
           </span>
           <div style={{ flex: "1.4 1 0", minWidth: 0 }}>
             <Select
@@ -440,12 +440,12 @@ function SortSection({
             className="base-cfg-dirbtn"
             onClick={() => onSetSortRules(sortRules.map((r, j) => (j === i ? { ...r, direction: r.direction === "ASC" ? "DESC" : "ASC" } : r)))}
             aria-label={rule.direction === "ASC" ? t("database.sortAsc", "Aufsteigend") : t("database.sortDesc", "Absteigend")}
-            title={rule.direction === "ASC" ? t("database.sortAsc", "Aufsteigend") : t("database.sortDesc", "Absteigend")}
+            data-tip={rule.direction === "ASC" ? t("database.sortAsc", "Aufsteigend") : t("database.sortDesc", "Absteigend")}
           >
-            {rule.direction === "ASC" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+            {rule.direction === "ASC" ? <ArrowUp size={ICON.meta} /> : <ArrowDown size={ICON.meta} />}
             <span>{rule.direction === "ASC" ? t("database.sortAsc", "Aufsteigend") : t("database.sortDesc", "Absteigend")}</span>
           </button>
-          <button onClick={() => onSetSortRules(sortRules.filter((_, j) => j !== i))} aria-label={t("database.removeSort", "Sortierung entfernen")} title={t("database.removeSort", "Sortierung entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+          <button onClick={() => onSetSortRules(sortRules.filter((_, j) => j !== i))} aria-label={t("database.removeSort", "Sortierung entfernen")} data-tip={t("database.removeSort", "Sortierung entfernen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
         </div>
       ))}
       </div>
@@ -457,7 +457,7 @@ function SortSection({
         }}
         disabled={sortableColumns.every((c) => sortRules.some((r) => r.property === c))}
       >
-        <Plus size={12} /> {t("database.addSort", "Sortierung hinzufügen")}
+        <Plus size={ICON.meta} /> {t("database.addSort", "Sortierung hinzufügen")}
       </button>
     </section>
   );
@@ -725,11 +725,11 @@ export function BaseConfigPanel({
   return (
     <aside className="base-config-panel" aria-label={t("database.configure", "Konfigurieren")}>
       <div className="base-cfg-ctx">
-        <span className="base-cfg-ctx-icon"><CtxTypeIcon size={15} /></span>
+        <span className="base-cfg-ctx-icon"><CtxTypeIcon size={ICON.ui} /></span>
         <span className="base-cfg-ctx-name">{ctxViewName}</span>
         {activeView?.name && <span className="base-cfg-ctx-type">· {ctxTypeLabel}</span>}
         {!activeView?.name && <span className="base-cfg-ctx-type" />}
-        <button onClick={onClose} aria-label={t("common.close", "Schließen")} title={t("common.close", "Schließen")} className="base-cfg-close"><X size={16} /></button>
+        <button onClick={onClose} aria-label={t("common.close", "Schließen")} data-tip={t("common.close", "Schließen")} className="base-cfg-close"><X size={ICON.ui} /></button>
       </div>
 
       {/* Reiter: one config area at a time as an icon-only segmented control
@@ -748,11 +748,11 @@ export function BaseConfigPanel({
               aria-selected={activeArea === area.id}
               aria-disabled={isDisabled}
               aria-label={label}
-              title={isDisabled ? t("database.graphNoColumns", "Der Graph zeigt keine Eigenschaftsspalten.") : label}
+              data-tip={isDisabled ? t("database.graphNoColumns", "Der Graph zeigt keine Eigenschaftsspalten.") : label}
               className={`base-cfg-tab${activeArea === area.id ? " active" : ""}${isDisabled ? " disabled" : ""}`}
               onClick={() => { if (!isDisabled) setActiveArea(area.id); }}
             >
-              <AreaIcon size={15} />
+              <AreaIcon size={ICON.ui} />
             </button>
           );
         })}
@@ -832,11 +832,11 @@ export function BaseConfigPanel({
                 role="radio"
                 aria-checked={currentViewType === v.type}
                 aria-label={label}
-                title={label}
+                data-tip={label}
                 className={`base-cfg-typetile${currentViewType === v.type ? " active" : ""}`}
                 onClick={() => onSetViewType(v.type)}
               >
-                <TileIcon size={17} />
+                <TileIcon size={ICON.head} />
                 <span className="base-cfg-typetile-label">{label}</span>
               </button>
             );
@@ -973,33 +973,33 @@ export function BaseConfigPanel({
                     className="base-cfg-grip"
                     role="button"
                     aria-label={t("database.reorderProperty", "Eigenschaft verschieben (ziehen)")}
-                    title={t("database.reorderProperty", "Eigenschaft verschieben (ziehen)")}
+                    data-tip={t("database.reorderProperty", "Eigenschaft verschieben (ziehen)")}
                     {...colDrag.gripProps(dragIndex)}
                   >
-                    <GripVertical size={12} />
+                    <GripVertical size={ICON.meta} />
                   </span>
                 ) : (
                   <span style={{ width: 12, flexShrink: 0 }} aria-hidden="true" />
                 )}
                 <span className="base-cfg-colname">{cells.columnLabel(col)}</span>
-                {relBadge && <span className="base-cfg-badge" title={relBadge.tip}>{relBadge.text}</span>}
+                {relBadge && <span className="base-cfg-badge" data-tip={relBadge.tip}>{relBadge.text}</span>}
                 {typeLabel && <span className="base-cfg-typebadge">{typeLabel}</span>}
                 {availableColumns.includes(col) && (
                   <span
                     className="base-cfg-badge"
-                    title={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
+                    data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
                   >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
                 )}
                 {!col.startsWith("file.") && (
-                  <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={12} /></button>
+                  <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={ICON.meta} /></button>
                 )}
                 <button
                   onClick={() => onToggleColumn(col)}
                   aria-label={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
-                  title={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
+                  data-tip={visible ? t("database.hideColumn", "Ausblenden") : t("database.showColumn", "Einblenden")}
                   className="base-cfg-iconbtn"
                 >
-                  {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                  {visible ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
                 </button>
               </div>
             );
@@ -1023,7 +1023,7 @@ export function BaseConfigPanel({
           );
         })()}
         {!showAddProp && (
-          <button className="base-cfg-addrow" onClick={() => setShowAddProp(true)}><Plus size={12} /> {t("database.newProperty", "Neue Eigenschaft")}</button>
+          <button className="base-cfg-addrow" onClick={() => setShowAddProp(true)}><Plus size={ICON.meta} /> {t("database.newProperty", "Neue Eigenschaft")}</button>
         )}
         {showAddProp && (
           // Stacked full-width card (layout redesign): the name, the type and
@@ -1063,12 +1063,12 @@ export function BaseConfigPanel({
         <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")} style={{ alignSelf: "flex-start" }}>
           <button
             className={filterLogic === "all" ? "active" : ""}
-            title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+            data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
             onClick={() => setFilterLogic("all")}
           >{t("database.filterMatchAll", "Alle")}</button>
           <button
             className={filterLogic === "any" ? "active" : ""}
-            title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+            data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
             onClick={() => setFilterLogic("any")}
           >{t("database.filterMatchAny", "Beliebige")}</button>
         </div>
@@ -1078,9 +1078,9 @@ export function BaseConfigPanel({
           const key = `${entry.ref.list}-${entry.ref.idx}`;
           if (entry.kind === "opaque") {
             return (
-              <div key={key} className="base-cfg-chiprow" title={t("database.complexFilterTip", "Verschachtelter Filter aus Obsidian – bleibt erhalten und wird angewendet, ist hier aber nicht editierbar.")}>
+              <div key={key} className="base-cfg-chiprow" data-tip={t("database.complexFilterTip", "Verschachtelter Filter aus Obsidian – bleibt erhalten und wird angewendet, ist hier aber nicht editierbar.")}>
                 <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>{t("database.complexFilter", "Komplexer Filter (nicht editierbar)")}</span>
-                <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             );
           }
@@ -1088,7 +1088,7 @@ export function BaseConfigPanel({
             return (
               <div key={key} className="base-cfg-chiprow">
                 <span style={{ wordBreak: "break-all" }}>{entry.raw}</span>
-                <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             );
           }
@@ -1136,21 +1136,21 @@ export function BaseConfigPanel({
           return (
             <div key={key} className="base-cfg-filtergroup" style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px", display: "flex", flexDirection: "column", gap: "4px", background: "var(--bg-secondary)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-                <span style={{ fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>{t("database.filterGroup", "Gruppe")}</span>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>{t("database.filterGroup", "Gruppe")}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                   <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")}>
                     <button
                       className={entry.logic === "all" ? "active" : ""}
-                      title={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
+                      data-tip={t("database.filterMatchAllTip", "Alle Bedingungen müssen zutreffen")}
                       onClick={() => mutateViewFilters((v) => setGroupLogic(v, entry.ref, "all"))}
                     >{t("database.filterMatchAll", "Alle")}</button>
                     <button
                       className={entry.logic === "any" ? "active" : ""}
-                      title={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
+                      data-tip={t("database.filterMatchAnyTip", "Mindestens eine Bedingung muss zutreffen")}
                       onClick={() => mutateViewFilters((v) => setGroupLogic(v, entry.ref, "any"))}
                     >{t("database.filterMatchAny", "Beliebige")}</button>
                   </div>
-                  <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("database.removeGroup", "Gruppe entfernen")} title={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                  <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("database.removeGroup", "Gruppe entfernen")} data-tip={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
                 </div>
               </div>
               {entry.items.map((item) => {
@@ -1193,7 +1193,7 @@ export function BaseConfigPanel({
                 ) : (
                   <div key={item.idx} className="base-cfg-chiprow">
                     <span style={{ wordBreak: "break-all" }}>{item.raw}</span>
-                    <button onClick={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                    <button onClick={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
                   </div>
                 );
               })}
@@ -1210,26 +1210,26 @@ export function BaseConfigPanel({
               )}
               {!draft && (
                 <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setGroupDrafts((prev) => ({ ...prev, [groupKey(entry.ref)]: { column: "", op: "==", value: "" } }))}>
-                  <Plus size={12} /> {t("database.addRule", "Regel hinzufügen")}
+                  <Plus size={ICON.meta} /> {t("database.addRule", "Regel hinzufügen")}
                 </button>
               )}
             </div>
           );
         })}
         {getContextFilters(dbConfig).map((prop) => (
-          <div key={`ctx-${prop}`} className="base-cfg-chiprow" title={t("database.filterThisNoteTip", "Filtert im eingebetteten Zustand auf die aktuelle Notiz; alleine geöffnet werden alle Zeilen gezeigt.")}>
+          <div key={`ctx-${prop}`} className="base-cfg-chiprow" data-tip={t("database.filterThisNoteTip", "Filtert im eingebetteten Zustand auf die aktuelle Notiz; alleine geöffnet werden alle Zeilen gezeigt.")}>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
               {cells.columnLabel(prop)} · {t("database.opContains", "enthält")} · <strong>{t("database.filterThisNote", "Diese Notiz")}</strong>
             </span>
-            <button onClick={() => onMutateFilters((cfg) => removeContextFilter(cfg, prop))} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+            <button onClick={() => onMutateFilters((cfg) => removeContextFilter(cfg, prop))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
           </div>
         ))}
         {/* Embed scope, unified into the filter list (maintainer 2026-07-07): the
             auto-scope of an embedded, related database as a "Diese Notiz" row —
             switch the relation or choose "Alle anzeigen". Runtime-only, not saved. */}
         {embedScope && (
-          <div className="base-cfg-chiprow" title={t("database.embedScopeLabel", "Diese Datenbank auf die aktuelle Notiz filtern")}>
-            <Filter size={12} aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-muted)" }} />
+          <div className="base-cfg-chiprow" data-tip={t("database.embedScopeLabel", "Diese Datenbank auf die aktuelle Notiz filtern")}>
+            <Filter size={ICON.meta} aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-muted)" }} />
             <Select
               ariaLabel={t("database.embedScopeLabel", "Diese Datenbank auf die aktuelle Notiz filtern")}
               value={embedScope.selection}
@@ -1254,13 +1254,13 @@ export function BaseConfigPanel({
         {draftGroup && (
           <div className="base-cfg-filtergroup" style={{ border: "1px dashed var(--border-color)", borderRadius: "var(--radius-sm)", padding: "6px", display: "flex", flexDirection: "column", gap: "4px", background: "var(--bg-secondary)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-              <span style={{ fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>{t("database.filterGroup", "Gruppe")}</span>
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>{t("database.filterGroup", "Gruppe")}</span>
               <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")}>
                   <button className={draftGroup.logic === "all" ? "active" : ""} onClick={() => setDraftGroup({ ...draftGroup, logic: "all" })}>{t("database.filterMatchAll", "Alle")}</button>
                   <button className={draftGroup.logic === "any" ? "active" : ""} onClick={() => setDraftGroup({ ...draftGroup, logic: "any" })}>{t("database.filterMatchAny", "Beliebige")}</button>
                 </div>
-                <button onClick={() => setDraftGroup(null)} aria-label={t("database.removeGroup", "Gruppe entfernen")} title={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={12} /></button>
+                <button onClick={() => setDraftGroup(null)} aria-label={t("database.removeGroup", "Gruppe entfernen")} data-tip={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             </div>
             <FilterRow
@@ -1276,10 +1276,10 @@ export function BaseConfigPanel({
         </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {!draftFilter && (
-            <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftFilter({ column: "", op: "==", value: "" })}><Plus size={12} /> {t("database.addFilter", "Filter hinzufügen")}</button>
+            <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftFilter({ column: "", op: "==", value: "" })}><Plus size={ICON.meta} /> {t("database.addFilter", "Filter hinzufügen")}</button>
           )}
           {!draftGroup && (
-            <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftGroup({ logic: "all", rule: { column: "", op: "==", value: "" } })}><Plus size={12} /> {t("database.addFilterGroup", "Gruppe hinzufügen")}</button>
+            <button className="base-cfg-addrow" style={{ margin: 0 }} onClick={() => setDraftGroup({ logic: "all", rule: { column: "", op: "==", value: "" } })}><Plus size={ICON.meta} /> {t("database.addFilterGroup", "Gruppe hinzufügen")}</button>
           )}
         </div>
       </section>

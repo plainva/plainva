@@ -3,6 +3,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, en
 import { de } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ICON } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -140,13 +141,13 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
         >
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronLeft size={16} /></button>
-            <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{format(currentMonth, "MMMM yyyy", { locale: de })}</div>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronRight size={16} /></button>
+            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronLeft size={ICON.ui} /></button>
+            <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{format(currentMonth, "MMMM yyyy", { locale: de })}</div>
+            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronRight size={ICON.ui} /></button>
           </div>
 
           {/* Weekday Labels */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", fontSize: "var(--text-sm)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600 }}>
             <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
           </div>
 
@@ -167,7 +168,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
                     border: "none",
                     borderRadius: "var(--radius-xs)",
                     cursor: "pointer",
-                    fontSize: "0.85rem",
+                    fontSize: "var(--text-md)",
                     fontWeight: isSelected ? 600 : 400
                   }}
                 >
@@ -180,7 +181,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
           {/* Time Picker */}
           {includeTime && (
             <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>{t("editor.time", "Uhrzeit")}</span>
+              <span style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>{t("editor.time", "Uhrzeit")}</span>
               <input
                 type="time"
                 value={timeStr}

@@ -58,7 +58,7 @@ export function BaseGalleryView({
             >
               {coverUrl && <img src={coverUrl} alt="Cover" onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ width: "100%", height: "140px", objectFit: "cover", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }} />}
               <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <h3 onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ margin: "0", fontSize: "1.05rem", fontWeight: 600, wordBreak: "break-word", cursor: "pointer", color: "var(--text-main)" }}>{row['file.name']}</h3>
+                <h3 onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ margin: "0", fontSize: "var(--text-lg)", fontWeight: 600, wordBreak: "break-word", cursor: "pointer", color: "var(--text-main)" }}>{row['file.name']}</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
                   {visibleColumns.filter(c => c !== 'file.name' && c !== coverImageProperty).map(col => {
                     let val = row[col];
@@ -66,8 +66,8 @@ export function BaseGalleryView({
                     const { displayVal } = formatValueForDisplay(val, col);
                     return (
                       <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{columnLabel(col)}</span>
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-main)", wordBreak: "break-word" }}>{renderEditableCell(row, col, val, displayVal)}</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{columnLabel(col)}</span>
+                        <span style={{ fontSize: "var(--text-md)", color: "var(--text-main)", wordBreak: "break-word" }}>{renderEditableCell(row, col, val, displayVal)}</span>
                       </div>
                     );
                   })}
@@ -81,7 +81,7 @@ export function BaseGalleryView({
         <DragGhost
           setEl={ghostProps.setEl}
           baseStyle={ghostProps.style}
-          style={{ width: 220, background: "var(--bg-secondary)", padding: "0.6rem 0.8rem", borderRadius: "var(--radius-md)", border: "1px solid var(--accent-color)", boxShadow: "var(--shadow-2)", transform: "rotate(1.5deg)", fontSize: "0.9rem", fontWeight: 600, color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{ width: 220, background: "var(--bg-secondary)", padding: "0.6rem 0.8rem", borderRadius: "var(--radius-md)", border: "1px solid var(--accent-color)", boxShadow: "var(--shadow-2)", transform: "rotate(1.5deg)", fontSize: "var(--text-md)", fontWeight: 600, color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
         >
           {draggedRow["file.name"]}
         </DragGhost>

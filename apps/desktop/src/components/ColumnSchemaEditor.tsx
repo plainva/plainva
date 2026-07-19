@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, AlertTriangle, GripVertical, ChevronDown, Lock, Type } from "lucide-react";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
@@ -216,12 +216,12 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
             style={{ flex: 1, minWidth: 0, maxWidth: 280, boxSizing: "border-box" }}
             value={name}
             disabled={isOkfSystem}
-            title={isOkfSystem ? t("properties.okfLockedHint") : undefined}
+            data-tip={isOkfSystem ? t("properties.okfLockedHint") : undefined}
             aria-label={t("properties.fieldName", { defaultValue: "Name" })}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") save(); }}
           />
-          {isOkfSystem && <Lock size={12} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />}
+          {isOkfSystem && <Lock size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />}
         </div>
         {isOkfSystem && <div className="pv-modal-hint">{t("properties.okfLockedHint")}</div>}
         {renamed && !renameValid && <div className="pv-modal-hint" style={{ color: "var(--error-text)" }}>{t("properties.renameInvalid", { defaultValue: "Name ist leer, vergeben oder reserviert (file./note./formula.)." })}</div>}
@@ -253,15 +253,15 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                   aria-haspopup="menu"
                   aria-expanded={typeMenuOpen}
                   aria-label={t("properties.fieldType")}
-                  title={isOkfSystem ? t("properties.okfLockedHint") : t("properties.changeType")}
+                  data-tip={isOkfSystem ? t("properties.okfLockedHint") : t("properties.changeType")}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, cursor: isOkfSystem ? "default" : "pointer", opacity: isOkfSystem ? 0.6 : 1, boxSizing: "border-box" }}
                   onClick={() => { if (!isOkfSystem) setTypeMenuOpen((o) => !o); }}
                 >
-                  {(() => { const Ic = TYPE_ICONS[input as MenuPropertyType] ?? Type; return <Ic size={14} style={{ flexShrink: 0 }} />; })()}
+                  {(() => { const Ic = TYPE_ICONS[input as MenuPropertyType] ?? Type; return <Ic size={ICON.ui} style={{ flexShrink: 0 }} />; })()}
                   <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {TYPE_ICONS[input as MenuPropertyType] ? typeLabel(t, input as MenuPropertyType) : input}
                   </span>
-                  {isOkfSystem ? <Lock size={12} style={{ flexShrink: 0 }} /> : <ChevronDown size={14} style={{ flexShrink: 0 }} />}
+                  {isOkfSystem ? <Lock size={ICON.meta} style={{ flexShrink: 0 }} /> : <ChevronDown size={ICON.ui} style={{ flexShrink: 0 }} />}
                 </button>
                 {typeMenuOpen && (
                   <TypeMenu<MenuPropertyType>
@@ -307,20 +307,20 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                   className="pv-opt-grip"
                   role="button"
                   aria-label={t("properties.reorderOption")}
-                  title={t("properties.reorderOption")}
+                  data-tip={t("properties.reorderOption")}
                   {...optDrag.gripProps(i)}
                 >
-                  <GripVertical size={12} />
+                  <GripVertical size={ICON.meta} />
                 </span>
                 <input className="pv-input" value={o.value} placeholder={t("properties.optionValue")} onChange={(e) => setOpt(i, { value: e.target.value })} />
                 {isStatus && (
                   <input className="pv-input" value={o.group || ""} placeholder={t("properties.groupPlaceholder")} onChange={(e) => setOpt(i, { group: e.target.value || undefined })} />
                 )}
                 <Select value={o.color || ""} options={colorOptions} onChange={(c) => setOpt(i, { color: c || undefined })} ariaLabel={t("properties.color")} minWidth={120} align="right" />
-                <button type="button" className="pv-icon-btn" aria-label={t("properties.removeItem")} onClick={() => removeOpt(i)}><Trash2 size={14} /></button>
+                <button type="button" className="pv-icon-btn" aria-label={t("properties.removeItem")} onClick={() => removeOpt(i)}><Trash2 size={ICON.ui} /></button>
               </div>
             ))}
-            <button type="button" className="pv-add-btn" onClick={addOpt}><Plus size={14} /> {t("properties.addOption")}</button>
+            <button type="button" className="pv-add-btn" onClick={addOpt}><Plus size={ICON.ui} /> {t("properties.addOption")}</button>
             {isStatus && <div className="pv-modal-hint">{t("properties.statusGroupHint")}</div>}
 
             {validOptions.length > 0 && (
@@ -329,7 +329,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                 {isStatus ? (
                   groupOptions(validOptions).map((g, gi) => (
                     <div key={gi} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", minWidth: 90, fontStyle: g.group ? undefined : "italic" }}>
+                      <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", minWidth: 90, fontStyle: g.group ? undefined : "italic" }}>
                         {g.group || t("properties.statusNoGroup")}
                       </span>
                       <span style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -438,7 +438,7 @@ export function DeletePropertyDialog({ column, affected, isReverse, reverseInTar
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
         <div className="pv-dialog-body">
-          <AlertTriangle size={20} className="pv-dialog-ic pv-dialog-ic--danger" aria-hidden />
+          <AlertTriangle size={ICON.head} className="pv-dialog-ic pv-dialog-ic--danger" aria-hidden />
           <div className="pv-modal-hint" style={{ color: "var(--text-main)" }}>
             {t("properties.deletePropertyConfirm", { column, defaultValue: "Die Eigenschaft „{{column}}“ wird aus dieser Datenbank entfernt (Spalte, Schema, Filter und Sortierungen)." })}
           </div>

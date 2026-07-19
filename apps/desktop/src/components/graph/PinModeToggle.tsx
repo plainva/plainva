@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Pin, PinOff } from "lucide-react";
+import { ICON } from "@plainva/ui";
 
 /**
  * Discreet pin-mode toggle placed top-right over a graph canvas. ON (default):
@@ -32,7 +33,7 @@ export function PinModeToggle({ active, onToggle }: { active: boolean; onToggle:
         border: "1px solid var(--border-color-light)",
       }}
     >
-      {active ? <Pin size={14} /> : <PinOff size={14} />}
+      {active ? <Pin size={ICON.ui} /> : <PinOff size={ICON.ui} />}
     </button>
   );
 }

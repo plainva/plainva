@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { interpolateTemplateBody, extractTemplatePrompts, finalizeTemplate, useFocusTrap } from "@plainva/ui";
+import { extractTemplatePrompts, finalizeTemplate, ICON, interpolateTemplateBody, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
 import { appPrompt } from "../services/appDialogs";
@@ -111,7 +111,7 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
         onClick={e => e.stopPropagation()}
       >
         <div className="pv-palette-inputrow">
-          <Search size={18} style={{ flexShrink: 0 }} />
+          <Search size={ICON.head} style={{ flexShrink: 0 }} />
           <input
             ref={inputRef}
             type="text"
@@ -137,7 +137,7 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
                   color: i === selectedIndex ? "var(--accent-on)" : "var(--text-main)"
                 }}
               >
-                <FileText size={16} opacity={0.7} />
+                <FileText size={ICON.ui} opacity={0.7} />
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {item.title}

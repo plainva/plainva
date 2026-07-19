@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, ChevronDown } from "lucide-react";
 import { ALL_VIEW_TYPES, EXTENDED_TYPES, defaultViewName, viewIcon, viewLabel } from "./baseViewerShared";
+import { ICON } from "@plainva/ui";
 
 // Notion-style view tabs of the BaseViewer (structural split, plan C3): one tab
 // per view in views[], a "+" to add a view of a chosen type, and a per-view menu
@@ -95,15 +96,15 @@ export function BaseViewTabs({
               onPointerMove={onTabPointerMove}
               onPointerUp={(e) => onTabPointerUp(i, e)}
               onPointerCancel={onTabPointerCancel}
-              title={viewLabel(t, view)}
+              data-tip={viewLabel(t, view)}
               style={{ touchAction: "none" }}
             >
               {viewIcon(view?.type || "table")}
               <span className="base-view-tab-label">{viewLabel(t, view)}</span>
             </button>
             {active && (
-              <button className="base-view-tab-caret" aria-label={t("database.viewOptions", "Ansichts-Optionen")} title={t("database.viewOptions", "Ansichts-Optionen")} onClick={() => setViewMenuFor(viewMenuFor === i ? null : i)}>
-                <ChevronDown size={12} />
+              <button className="base-view-tab-caret" aria-label={t("database.viewOptions", "Ansichts-Optionen")} data-tip={t("database.viewOptions", "Ansichts-Optionen")} onClick={() => setViewMenuFor(viewMenuFor === i ? null : i)}>
+                <ChevronDown size={ICON.meta} />
               </button>
             )}
             {viewMenuFor === i && (
@@ -138,8 +139,8 @@ export function BaseViewTabs({
         );
       })}
       <div style={{ position: "relative" }}>
-        <button className="base-view-add" aria-label={t("database.addView", "Ansicht hinzufügen")} title={t("database.addView", "Ansicht hinzufügen")} onClick={() => setShowAddViewMenu((s) => !s)}>
-          <Plus size={14} />
+        <button className="base-view-add" aria-label={t("database.addView", "Ansicht hinzufügen")} data-tip={t("database.addView", "Ansicht hinzufügen")} onClick={() => setShowAddViewMenu((s) => !s)}>
+          <Plus size={ICON.ui} />
         </button>
         {showAddViewMenu && (
           <>

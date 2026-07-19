@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { TextInput, SelectField } from "@plainva/ui";
 
@@ -49,7 +49,7 @@ export function MissingRequirementDialog({ viewName, requiredType, availableColu
       }
     >
       <div className="pv-dialog-body">
-        <AlertCircle size={20} className="pv-dialog-ic pv-dialog-ic--warning" aria-hidden />
+        <AlertCircle size={ICON.head} className="pv-dialog-ic pv-dialog-ic--warning" aria-hidden />
         <div className="pv-dialog-text">
           <p className="pv-dialog-msg" style={{ color: "var(--text-muted)" }}>
             {isDateReq ? (

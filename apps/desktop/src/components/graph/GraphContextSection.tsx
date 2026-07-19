@@ -4,7 +4,7 @@ import { Check, Lightbulb, X } from "lucide-react";
 import type { GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { appendWikiLink, applyInlineLink, findFirstUnlinkedOccurrence } from "../../services/graphActions";
-import { buildOccurrenceSnippet, type OccurrenceSnippet } from "@plainva/ui";
+import { buildOccurrenceSnippet, ICON, type OccurrenceSnippet } from "@plainva/ui";
 import { loadGraphCached } from "../../services/graphCache";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
@@ -320,7 +320,7 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
       {data && data.suggestions.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-faint)", fontSize: "var(--text-xs)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            <Lightbulb size={12} />
+            <Lightbulb size={ICON.meta} />
             {t("graph.suggestions", { defaultValue: "Vorschläge" })}
           </div>
           {data.suggestions.map((s) => {
@@ -358,7 +358,7 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
                     data-testid="graph-suggestion-accept"
                     onClick={() => void acceptSuggestion(s)}
                   >
-                    <Check size={13} />
+                    <Check size={ICON.ui} />
                   </button>
                   <button
                     className="pv-iconbtn pv-iconbtn--sm"
@@ -366,14 +366,14 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
                     data-tip={t("graph.dismissSuggestion", { defaultValue: "Vorschlag verwerfen" })}
                     onClick={() => dismissSuggestion(s)}
                   >
-                    <X size={13} />
+                    <X size={ICON.ui} />
                   </button>
                 </div>
                 {preview &&
                   (preview.snippet ? (
                     <div
                       data-testid="graph-suggestion-preview"
-                      title={`${preview.snippet.before}${preview.snippet.match}${preview.snippet.after}`}
+                      data-tip={`${preview.snippet.before}${preview.snippet.match}${preview.snippet.after}`}
                       style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                     >
                       {!preview.editIsActive && (

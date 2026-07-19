@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Folder } from "lucide-react";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 
 const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
@@ -35,13 +35,13 @@ export const VaultPickerModal: React.FC<VaultPickerModalProps> = ({ vaults, sele
               className={isSelected ? "pv-navlink is-active" : "pv-navlink"}
               onClick={() => { onSelect(v); onClose(); }}
             >
-              <Folder size={15} aria-hidden />
+              <Folder size={ICON.ui} aria-hidden />
               <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
                 <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{basename(v)}</span>
-                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 400 }}>{v}</span>
+                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-sm)", color: "var(--text-muted)", fontWeight: 400 }}>{v}</span>
               </span>
-              {v === activeVaultPath && <span className="pv-vaultcard-dot" title={t("settings.activeVault")} />}
-              {isSelected && <Check size={14} aria-hidden style={{ flexShrink: 0 }} />}
+              {v === activeVaultPath && <span className="pv-vaultcard-dot" data-tip={t("settings.activeVault")} />}
+              {isSelected && <Check size={ICON.ui} aria-hidden style={{ flexShrink: 0 }} />}
             </button>
           );
         })}

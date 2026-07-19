@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Folder, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 
 interface WebDavFolderPickerModalProps {
@@ -121,7 +121,7 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
           <Button onClick={onCancel}>{t("common.cancel")}</Button>
           <Button
             variant="primary"
-            icon={<Check size={16} />}
+            icon={<Check size={ICON.ui} />}
             disabled={!currentNavPath}
             onClick={() => { if (currentNavPath) onSelect(currentNavPath); }}
           >
@@ -150,7 +150,7 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
                 className="pv-rowhover"
                 style={rowStyle}
               >
-                <CornerLeftUp size={16} color="var(--text-muted)" />
+                <CornerLeftUp size={ICON.ui} color="var(--text-muted)" />
                 <span style={{ color: "var(--text-muted)" }}>{t("webDavPicker.goUp")}</span>
               </div>
 
@@ -162,7 +162,7 @@ export const WebDavFolderPickerModal: React.FC<WebDavFolderPickerModalProps> = (
                     className="pv-rowhover"
                     style={rowStyle}
                   >
-                    <Folder size={16} color="var(--accent-color)" />
+                    <Folder size={ICON.ui} color="var(--accent-color)" />
                     {getBasename(f)}
                   </li>
                 ))}

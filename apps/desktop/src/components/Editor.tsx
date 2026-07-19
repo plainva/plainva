@@ -8,17 +8,7 @@ import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
-import {
-  buildMarkdownTable,
-  planTableInsertion,
-  parseMarkdownTable,
-  serializeTable,
-  insertRow,
-  deleteRow,
-  insertColumn,
-  deleteColumn,
-  setColumnAlign,
-} from "@plainva/ui";
+import { buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
@@ -1539,57 +1529,57 @@ export const Editor: React.FC<{
             onClick={onNavigateBack}
             disabled={!canGoBack}
             className="pv-iconbtn"
-            title={t("editor.back")}
+            data-tip={t("editor.back")}
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={ICON.head} />
           </button>
           <button
             onClick={onNavigateForward}
             disabled={!canGoForward}
             className="pv-iconbtn"
-            title={t("editor.forward")}
+            data-tip={t("editor.forward")}
           >
-            <ArrowRight size={18} />
+            <ArrowRight size={ICON.head} />
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontSize: "0.8rem", color: saveError ? "var(--error-text)" : "var(--text-muted)" }} title={saveError || ""}>
+          <span style={{ fontSize: "var(--text-ui)", color: saveError ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""}>
             {isSaving ? t("editor.saving") : saveError ? t("editor.saveFailed") : t("editor.saved")}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
             <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
-              title={t("editor.readMode")}
+              data-tip={t("editor.readMode")}
               className="pv-iconbtn"
               style={{ background: viewMode === 'read' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'read' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'read' ? 'var(--shadow-1)' : 'none' }}
             >
-              <BookOpen size={16} />
+              <BookOpen size={ICON.ui} />
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('live'); rememberSessionViewMode(activePath, 'live'); } }}
-              title={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")}
+              data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.livePreview")}
               className="pv-iconbtn"
               style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'live' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'live' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'live' ? 'var(--shadow-1)' : 'none' }}
             >
-              <Pencil size={16} />
+              <Pencil size={ICON.ui} />
             </button>
             <button
               onClick={() => { if (!managedIndex) { setViewMode('source'); rememberSessionViewMode(activePath, 'source'); } }}
-              title={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")}
+              data-tip={managedIndex ? t("indexMd.managedBanner") : t("editor.sourceMode")}
               className="pv-iconbtn"
               style={{ opacity: managedIndex ? 0.45 : 1, background: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent', color: viewMode === 'source' ? 'var(--accent-color)' : 'var(--text-muted)', boxShadow: viewMode === 'source' ? 'var(--shadow-1)' : 'none' }}
             >
-              <Code size={16} />
+              <Code size={ICON.ui} />
             </button>
           </div>
 
           <button
             onClick={toggleWidth}
-            title={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
+            data-tip={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
             aria-label={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
             className="pv-iconbtn"
           >
-            {editorWidth === 'narrow' ? <UnfoldHorizontal size={16} /> : <FoldHorizontal size={16} />}
+            {editorWidth === 'narrow' ? <UnfoldHorizontal size={ICON.ui} /> : <FoldHorizontal size={ICON.ui} />}
           </button>
 
           <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
@@ -1597,14 +1587,14 @@ export const Editor: React.FC<{
             <button
               ref={menuBtnRef}
               onClick={() => setShowMenu(!showMenu)}
-              title={t("editor.menu", { defaultValue: "Menu" })}
+              data-tip={t("editor.menu", { defaultValue: "Menu" })}
               aria-label={t("editor.menu", { defaultValue: "Menu" })}
               aria-haspopup="menu"
               aria-expanded={showMenu}
               data-testid="editor-menu-btn"
               className="pv-iconbtn"
             >
-              <MoreVertical size={16} />
+              <MoreVertical size={ICON.ui} />
             </button>
             {/* Grouped ⋮ menu on the shared MenuSurface (plan UI-Menüs P4). */}
             <MenuSurface
@@ -1616,57 +1606,57 @@ export const Editor: React.FC<{
               ariaLabel={t("editor.menu", { defaultValue: "Menu" })}
             >
               <MenuLabel>{t("fileTree.groupFile", "Datei")}</MenuLabel>
-              <MenuItem icon={<Pencil size={15} />} data-testid="editor-menu-rename" onSelect={() => { void handleMenuRename(); }}>
+              <MenuItem icon={<Pencil size={ICON.ui} />} data-testid="editor-menu-rename" onSelect={() => { void handleMenuRename(); }}>
                 {t("common.rename", { defaultValue: "Umbenennen" })}
               </MenuItem>
-              <MenuItem icon={<Copy size={15} />} onSelect={() => { void handleMenuDuplicate(); }}>
+              <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => { void handleMenuDuplicate(); }}>
                 {t("fileTree.duplicate")}
               </MenuItem>
               {isTemplateFile && (
-                <MenuItem icon={<Database size={15} />} data-testid="editor-menu-template-targets" onSelect={() => setShowTemplateTargets(true)}>
+                <MenuItem icon={<Database size={ICON.ui} />} data-testid="editor-menu-template-targets" onSelect={() => setShowTemplateTargets(true)}>
                   {t("editor.templateTargets", "Ziel-Datenbanken…")}
                 </MenuItem>
               )}
               {onToggleBookmark && (
-                <MenuItem icon={<Bookmark size={15} fill={isBookmarked ? "currentColor" : "none"} />} onSelect={onToggleBookmark}>
+                <MenuItem icon={<Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />} onSelect={onToggleBookmark}>
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </MenuItem>
               )}
               <MenuItem
-                icon={<History size={15} />}
+                icon={<History size={ICON.ui} />}
                 data-testid="editor-menu-version-history"
                 onSelect={() => { if (activePath) window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: activePath } })); }}
               >
                 {t("fileTree.versionHistory")}
               </MenuItem>
-              <MenuItem icon={<ClipboardCopy size={15} />} onSelect={() => { void handleMenuCopyPath(); }}>
+              <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={() => { void handleMenuCopyPath(); }}>
                 {t("fileTree.copyPath")}
               </MenuItem>
-              <MenuItem icon={<FolderTree size={15} />} data-testid="editor-menu-reveal-tree" onSelect={handleMenuRevealInTree}>
+              <MenuItem icon={<FolderTree size={ICON.ui} />} data-testid="editor-menu-reveal-tree" onSelect={handleMenuRevealInTree}>
                 {t("editor.revealInTree")}
               </MenuItem>
-              <MenuItem icon={<FolderOpen size={15} />} onSelect={() => { void handleMenuReveal(); }}>
+              <MenuItem icon={<FolderOpen size={ICON.ui} />} onSelect={() => { void handleMenuReveal(); }}>
                 {t("editor.revealInFileManager", "Im Dateimanager anzeigen")}
               </MenuItem>
-              <MenuItem icon={<ExternalLink size={15} />} onSelect={() => { void handleMenuOpenInDefaultApp(); }}>
+              <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={() => { void handleMenuOpenInDefaultApp(); }}>
                 {t("editor.openInDefaultApp")}
               </MenuItem>
-              <MenuItem icon={<Printer size={15} />} onSelect={handleMenuPrint}>
+              <MenuItem icon={<Printer size={ICON.ui} />} onSelect={handleMenuPrint}>
                 {t("editor.print")}
               </MenuItem>
-              <MenuItem icon={<FileDown size={15} />} onSelect={handleMenuExportMarkdown}>
+              <MenuItem icon={<FileDown size={ICON.ui} />} onSelect={handleMenuExportMarkdown}>
                 {t("editor.exportMarkdown", "Als Markdown exportieren…")}
               </MenuItem>
-              <MenuItem icon={<Mail size={15} />} data-testid="editor-menu-send-mail" onSelect={handleMenuSendMail}>
+              <MenuItem icon={<Mail size={ICON.ui} />} data-testid="editor-menu-send-mail" onSelect={handleMenuSendMail}>
                 {t("mail.sendNoteViaEmail", { defaultValue: "Per Mail verschicken" })}
               </MenuItem>
-              <MenuItem icon={<Paperclip size={15} />} data-testid="editor-menu-send-mail-attachment" onSelect={handleMenuSendMailAttachment}>
+              <MenuItem icon={<Paperclip size={ICON.ui} />} data-testid="editor-menu-send-mail-attachment" onSelect={handleMenuSendMailAttachment}>
                 {t("mail.sendNoteAsAttachment", { defaultValue: "Per Mail als Anhang" })}
               </MenuItem>
               {onDelete && (
                 <>
                   <MenuSeparator />
-                  <MenuItem danger icon={<Trash2 size={15} />} onSelect={onDelete}>
+                  <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={onDelete}>
                     {t("editor.delete", { defaultValue: "Löschen" })}
                   </MenuItem>
                 </>
@@ -1682,7 +1672,7 @@ export const Editor: React.FC<{
       )}
 
       {conflictInfo && (
-        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "0.8rem" }}>
+        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "var(--text-ui)" }}>
           <span style={{ flex: 1, minWidth: 180 }}>
             {conflictInfo.conflictPath
               ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
@@ -1709,7 +1699,7 @@ export const Editor: React.FC<{
       )}
 
       {draftOffer && (
-        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "0.8rem" }}>
+        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "var(--text-ui)" }}>
           <span style={{ flex: 1, minWidth: 180 }}>
             {t("editor.draftBanner", { time: new Date(draftOffer.savedAt).toLocaleString() })}
           </span>
@@ -1751,7 +1741,7 @@ export const Editor: React.FC<{
         {viewMode === 'read' ? (
           <>
             {managedIndex && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
                 <span style={{ flex: 1, minWidth: 180 }}>{t("indexMd.managedBanner")}</span>
                 <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => void refreshManagedIndex()}>{t("indexMd.refreshNow")}</button>
                 <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => void unlockManagedIndex()}>{t("indexMd.editAnyway")}</button>

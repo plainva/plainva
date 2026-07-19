@@ -1,7 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
-import { capitalizeFirst } from "@plainva/ui";
+import { capitalizeFirst, ICON } from "@plainva/ui";
 
 // Shared constants and helpers for the BaseViewer and its view components
 // (structural split of the former single-file BaseViewer, plan C3).
@@ -87,13 +87,13 @@ export const defaultViewName = (t: TFunction, type: string): string => {
 export const viewLabel = (t: TFunction, view: any): string => view?.name || defaultViewName(t, view?.type || "table");
 
 export const viewIcon = (type: string) => {
-  if (type === "list") return <ListIcon size={13} />;
-  if (type === "gallery" || type === "board") return <LayoutGrid size={13} />;
-  if (type === "calendar") return <CalendarIcon size={13} />;
-  if (type === "timeline") return <Clock size={13} />;
-  if (type === "graph") return <Waypoints size={13} />;
-  if (type === "pinboard") return <StickyNote size={13} />;
-  return <TableIcon size={13} />;
+  if (type === "list") return <ListIcon size={ICON.ui} />;
+  if (type === "gallery" || type === "board") return <LayoutGrid size={ICON.ui} />;
+  if (type === "calendar") return <CalendarIcon size={ICON.ui} />;
+  if (type === "timeline") return <Clock size={ICON.ui} />;
+  if (type === "graph") return <Waypoints size={ICON.ui} />;
+  if (type === "pinboard") return <StickyNote size={ICON.ui} />;
+  return <TableIcon size={ICON.ui} />;
 };
 
 /**
@@ -125,7 +125,7 @@ export function SplitDropZone({
     <div
       ref={registerTarget}
       role="presentation"
-      title={label}
+      data-tip={label}
       style={{
         position: "absolute",
         top: 8,
@@ -145,8 +145,8 @@ export function SplitDropZone({
         opacity: 0.95,
       }}
     >
-      <PanelRight size={18} />
-      <span style={{ writingMode: "vertical-rl", fontSize: "0.72rem", maxHeight: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <PanelRight size={ICON.head} />
+      <span style={{ writingMode: "vertical-rl", fontSize: "var(--text-sm)", maxHeight: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { TFunction } from "i18next";
 import { Trash2, FolderOpen } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
-import { buildSourceClause, parseSourceClause } from "@plainva/ui";
+import { buildSourceClause, ICON, parseSourceClause } from "@plainva/ui";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 
 // Shared editor for the folder/tag source conditions of a `.base` (plan W3):
@@ -43,7 +43,7 @@ export function SourceConditionEditor({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
       {conditions.length === 0 && (
-        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>{t("database.noConditions", "Keine Bedingungen")}</div>
+        <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", fontStyle: "italic" }}>{t("database.noConditions", "Keine Bedingungen")}</div>
       )}
       {conditions.map(({ clause, idx }) => {
         const parsed = parseSourceClause(clause);
@@ -52,13 +52,13 @@ export function SourceConditionEditor({
         if (parsed?.type === "tag" && !display.startsWith("#")) display = `#${display}`;
         if (parsed?.type === "folder" && display === "/") display = `/ (${t("database.rootFolder", "Hauptverzeichnis")})`;
         return (
-          <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "0.85rem" }}>
+          <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", padding: "4px 8px", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "var(--text-md)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, flex: 1 }}>
               <span style={{ fontWeight: 600, color: "var(--accent-color)", flexShrink: 0 }}>{label}:</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={display}>{display}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-tip={display}>{display}</span>
             </div>
-            <button onClick={() => onRemoveAt(idx)} aria-label={t("common.delete", "Löschen")} title={t("common.delete", "Löschen")} className="pv-iconbtn">
-              <Trash2 size={14} />
+            <button onClick={() => onRemoveAt(idx)} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="pv-iconbtn">
+              <Trash2 size={ICON.ui} />
             </button>
           </div>
         );
@@ -84,7 +84,7 @@ export function SourceConditionEditor({
             style={{ flex: 1, minWidth: 120, justifyContent: "flex-start" }}
             onClick={() => setPickerOpen(true)}
           >
-            <FolderOpen size={12} /> {t("settings.browseFolders", "Ordner auswählen…")}
+            <FolderOpen size={ICON.meta} /> {t("settings.browseFolders", "Ordner auswählen…")}
           </button>
         ) : (
           <div style={{ flex: 1, minWidth: 120 }}>

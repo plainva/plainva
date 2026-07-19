@@ -1,6 +1,6 @@
 import React from "react";
 import type { PlainvaDocMeta } from "@plainva/core";
-import { DocIcon } from "@plainva/ui";
+import { DocIcon, ICON_DOC_HEADER } from "@plainva/ui";
 
 /**
  * Read-mode document header: full-width color stripe + document icon above the
@@ -29,7 +29,7 @@ export const DocumentHeaderRead: React.FC<{ meta: PlainvaDocMeta; fullWidth: boo
           }}
         >
           <span className="pv-doc-header-icon" role="img" aria-hidden="true">
-            <DocIcon icon={meta.icon} color={meta.iconColor} size={44} />
+            <DocIcon icon={meta.icon} color={meta.iconColor} size={ICON_DOC_HEADER} />
           </span>
         </div>
       )}

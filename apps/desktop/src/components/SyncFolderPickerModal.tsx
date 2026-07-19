@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Folder, FolderPlus, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 
 /**
@@ -109,7 +109,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
           <Button onClick={onCancel}>{t("common.cancel")}</Button>
           <Button
             variant="primary"
-            icon={<Check size={16} />}
+            icon={<Check size={ICON.ui} />}
             disabled={!canUse}
             onClick={() => onSelect(currentPath)}
           >
@@ -140,7 +140,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
                 className="pv-rowhover"
                 style={rowStyle}
               >
-                <CornerLeftUp size={16} color="var(--text-muted)" />
+                <CornerLeftUp size={ICON.ui} color="var(--text-muted)" />
                 <span style={{ color: "var(--text-muted)" }}>{t("webDavPicker.goUp")}</span>
               </div>
             )}
@@ -153,7 +153,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
                   className="pv-rowhover"
                   style={rowStyle}
                 >
-                  <Folder size={16} color="var(--accent-color)" />
+                  <Folder size={ICON.ui} color="var(--accent-color)" />
                   {name}
                 </li>
               ))}
@@ -169,7 +169,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
         {createFolder && !loading && !error && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-              <FolderPlus size={16} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+              <FolderPlus size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
               <input
                 className="pv-field"
                 style={{ flex: 1, minWidth: 0 }}

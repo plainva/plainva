@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { toast, Button, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
+import { Button, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
@@ -210,18 +210,18 @@ export function MailAccountsSection() {
   return (
     <div data-testid="mail-accounts">
       {accounts.length === 0 && (
-        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.25rem 0 0.6rem" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)", margin: "0.25rem 0 0.6rem" }}>
           {t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })}
         </p>
       )}
       {accounts.map((account) => (
         <div key={account.id} data-testid="mail-account" style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.45rem 0.75rem", marginBottom: "0.5rem" }}>
-          <strong style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{account.label}</strong>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <strong style={{ fontSize: "var(--text-md)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{account.label}</strong>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {mailAccountKind(account) === "microsoft" ? "Microsoft" : `${account.host}:${account.port}`}
           </span>
           <IconButton label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })} onClick={() => void remove(account)}>
-            <Trash2 size={14} />
+            <Trash2 size={ICON.ui} />
           </IconButton>
         </div>
       ))}
@@ -233,7 +233,7 @@ export function MailAccountsSection() {
       {showAdd && (
         <div data-testid="mail-add-form" style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem" }}>
           <div style={{ marginBottom: "0.5rem", maxWidth: "20rem" }} data-testid="mail-backend">
-            <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 2 }}>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--text-muted)", marginBottom: 2 }}>
               {t("mail.backend", { defaultValue: "Verbindungsart" })}
             </label>
             <Select
@@ -252,7 +252,7 @@ export function MailAccountsSection() {
 
           {backend === "microsoft" ? (
             <div data-testid="mail-microsoft-form">
-              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
                 {t("mail.microsoftHint", { defaultValue: "Für Outlook.com / Microsoft 365: direkte Anmeldung im Browser — kein App-Passwort, kein IMAP." })}
               </p>
               {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
@@ -262,14 +262,14 @@ export function MailAccountsSection() {
                   {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
                 </button>
               )}
-              {error && <p style={{ color: "var(--error-text)", fontSize: "0.8rem", margin: "0.2rem 0" }}>{error}</p>}
+              {error && <p style={{ color: "var(--error-text)", fontSize: "var(--text-ui)", margin: "0.2rem 0" }}>{error}</p>}
               <Button variant="primary" data-testid="mail-connect-microsoft" disabled={busy} onClick={() => void connectMicrosoft()}>
                 {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.connectMicrosoft", { defaultValue: "Mit Microsoft anmelden" })}
               </Button>
             </div>
           ) : (
           <>
-          <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
+          <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
             {t("mail.imapHint", { defaultValue: "Nur Lesen — Plainva ändert nichts im Postfach. Gmail: imap.gmail.com, Port 993, mit App-Passwort." })}
           </p>
           <div style={{ marginBottom: "0.4rem", maxWidth: "20rem" }} data-testid="mail-provider">
@@ -293,7 +293,7 @@ export function MailAccountsSection() {
             <input autoComplete="off" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} placeholder="587" className="pv-field" aria-label={t("mail.smtpPort", { defaultValue: "SMTP-Port" })} style={{ width: "6rem" }} />
           </div>
           <input autoComplete="off" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder={t("pim.davPass", { defaultValue: "App-Passwort" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-          {error && <p style={{ color: "var(--error-text)", fontSize: "0.8rem", margin: "0.2rem 0" }}>{error}</p>}
+          {error && <p style={{ color: "var(--error-text)", fontSize: "var(--text-ui)", margin: "0.2rem 0" }}>{error}</p>}
           <Button variant="primary" data-testid="mail-connect" disabled={busy} onClick={() => void connect()}>
             {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("pim.connect", { defaultValue: "Verbinden" })}
           </Button>
@@ -303,7 +303,7 @@ export function MailAccountsSection() {
       )}
 
       <div style={{ marginTop: "0.6rem" }}>
-        <label style={{ display: "block", fontSize: "0.85rem", marginBottom: 2 }}>
+        <label style={{ display: "block", fontSize: "var(--text-md)", marginBottom: 2 }}>
           {t("mail.folder", { defaultValue: "E-Mail-Ordner" })}
         </label>
         <input
@@ -316,13 +316,13 @@ export function MailAccountsSection() {
           data-testid="mail-folder"
           style={{ width: "100%", maxWidth: "20rem" }}
         />
-        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
           {t("mail.folderHint", { defaultValue: "Ablage für abgelegte E-Mails (Notizen und .eml-Dateien)." })}
         </p>
       </div>
 
       <div style={{ marginTop: "0.6rem" }}>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.85rem", cursor: "pointer" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={remoteImages}
@@ -331,7 +331,7 @@ export function MailAccountsSection() {
           />
           {t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}
         </label>
-        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
           {t("mail.loadRemoteImagesHint", {
             defaultValue:
               "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",

@@ -4,7 +4,7 @@ import { RotateCcw, History } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { formatBytes } from "./VersionHistoryModal";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 
 /**
@@ -117,7 +117,7 @@ export const DeletedFilesModal: React.FC<{ onClose: () => void }> = ({ onClose }
             style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "var(--space-2) 0", borderBottom: "1px solid var(--border-color-light, var(--border-color))" }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-md)" }} title={group.originalPath}>{group.originalPath}</div>
+              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-md)" }} data-tip={group.originalPath}>{group.originalPath}</div>
               <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
                 {t("versions.deletedMeta", {
                   defaultValue: "{{when}} · {{versions}} versions · {{size}}",
@@ -127,13 +127,13 @@ export const DeletedFilesModal: React.FC<{ onClose: () => void }> = ({ onClose }
                 })}
               </div>
             </div>
-            <Button size="sm" icon={<History size={13} />} onClick={() => openVersions(group)} disabled={!!busyPath}>
+            <Button size="sm" icon={<History size={ICON.ui} />} onClick={() => openVersions(group)} disabled={!!busyPath}>
               {t("versions.showVersions", { defaultValue: "Versions…" })}
             </Button>
             <Button
               size="sm"
               variant="primary"
-              icon={<RotateCcw size={13} />}
+              icon={<RotateCcw size={ICON.ui} />}
               data-testid="deleted-file-restore"
               onClick={() => restore(group)}
               disabled={!!busyPath}

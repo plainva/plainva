@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2, X } from "lucide-react";
-import { Modal, Button, IconButton, MenuSurface, MenuItem, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
+import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSurface, Modal, TextInput } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -144,7 +144,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
           {mode === "edit" && onMeetingNote && (
             <Button variant="ghost" size="sm" onClick={onMeetingNote} data-testid="event-meeting-note">
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <FilePlus2 size={15} />
+                <FilePlus2 size={ICON.ui} />
                 {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
               </span>
             </Button>
@@ -156,22 +156,22 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 data-testid="event-actions-menu"
                 onClick={(e) => setMenu({ x: e.clientX, y: e.clientY })}
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={ICON.ui} />
               </IconButton>
               {menu && (
                 <MenuSurface open at={menu} onClose={() => setMenu(null)} ariaLabel={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}>
                   {onEmailInvite && (
-                    <MenuItem icon={<Mail size={15} />} data-testid="event-email-invite" onSelect={onEmailInvite}>
+                    <MenuItem icon={<Mail size={ICON.ui} />} data-testid="event-email-invite" onSelect={onEmailInvite}>
                       {t("pim.emailInvite", { defaultValue: "Per Mail versenden" })}
                     </MenuItem>
                   )}
                   {onBlock && (
-                    <MenuItem icon={<CopyPlus size={15} />} data-testid="event-block" onSelect={onBlock}>
+                    <MenuItem icon={<CopyPlus size={ICON.ui} />} data-testid="event-block" onSelect={onBlock}>
                       {t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
                     </MenuItem>
                   )}
                   {onDelete && (
-                    <MenuItem icon={<Trash2 size={15} />} danger data-testid="event-delete" onSelect={onDelete}>
+                    <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="event-delete" onSelect={onDelete}>
                       {t("pim.deleteEvent", { defaultValue: "Termin löschen" })}
                     </MenuItem>
                   )}
@@ -228,8 +228,8 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   onClick={() => set("color", "")}
                   data-testid="event-color-default"
                   aria-pressed={!values.color}
-                  title={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
+                  data-tip={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
+                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
                 >
                   ✕
                 </button>
@@ -242,7 +242,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                       onClick={() => set("color", hex)}
                       aria-pressed={active}
                       data-testid={`event-color-${hex}`}
-                      title={hex}
+                      data-tip={hex}
                       style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
                     />
                   );
@@ -431,7 +431,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   aria-label={t("pim.attendeeRemove", { defaultValue: "Teilnehmer entfernen: {{email}}", email })}
                   data-testid="event-attendee-remove"
                 >
-                  <X size={12} />
+                  <X size={ICON.meta} />
                 </button>
               </span>
             ))}

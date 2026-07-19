@@ -12,6 +12,7 @@ import {
   setStoredThemeVariant,
   visibleThemes,
 } from "../services/theme";
+import { ICON } from "@plainva/ui";
 
 interface ThemePickerCardsProps {
   value: string;
@@ -89,7 +90,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
               aria-checked={active}
               data-testid={`theme-card-${def.id}`}
               onClick={() => onChange(def.id)}
-              title={label}
+              data-tip={label}
               style={{ display: "flex", flexDirection: "column", gap: 6, padding: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", width: "100%" }}
             >
               {/* Miniature app mock from concrete swatch colours */}
@@ -105,10 +106,10 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, width: "100%" }}>
-                {active && <Check size={13} style={{ color: "var(--accent-color)", flexShrink: 0 }} />}
-                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
+                {active && <Check size={ICON.ui} style={{ color: "var(--accent-color)", flexShrink: 0 }} />}
+                <span style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
                 {def.modes.length === 1 && def.modes[0] === "dark" && (
-                  <Moon size={11} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-label={t("settings.themeDark")} />
+                  <Moon size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-label={t("settings.themeDark")} />
                 )}
               </div>
             </button>
@@ -123,7 +124,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
                       key={v.id}
                       type="button"
                       data-testid={`theme-variant-dot-${v.id}`}
-                      title={vLabel}
+                      data-tip={vLabel}
                       aria-label={vLabel}
                       aria-pressed={variantActive}
                       onClick={() => {

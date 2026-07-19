@@ -27,7 +27,7 @@ const Btn: React.FC<{ row: Extract<Row, { kind: "item" }>; onAction: (a: BlockAc
       onClick={() => onAction(row.action)}
       style={{
         display: "flex", alignItems: "center", width: "100%", textAlign: "left", gap: "8px",
-        padding: "6px 12px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "13px",
+        padding: "6px 12px", border: "none", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: "var(--text-ui)",
         background: hover ? "var(--bg-active)" : "transparent",
         color: row.danger ? "var(--error-text)" : "var(--text-main)",
       }}
@@ -109,7 +109,7 @@ export const BlockMenu: React.FC<Props> = ({ x, y, onAction, onClose }) => {
         r.kind === "sep" ? (
           <div key={`s${i}`} style={{ height: "1px", background: "var(--border-color)", margin: "5px 6px" }} />
         ) : r.kind === "label" ? (
-          <div key={`l${i}`} style={{ padding: "4px 12px 2px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-faint)" }}>{r.text}</div>
+          <div key={`l${i}`} style={{ padding: "4px 12px 2px", fontSize: "var(--text-xs)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-faint)" }}>{r.text}</div>
         ) : (
           <Btn key={`i${i}`} row={r} onAction={onAction} />
         ),

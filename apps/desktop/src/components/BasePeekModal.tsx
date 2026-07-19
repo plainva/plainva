@@ -105,7 +105,7 @@ export function BasePeekModal({
               <ArrowRight size={ICON.ui} />
             </button>
           </div>
-          <span className="pv-peek-title" title={current}>{title}</span>
+          <span className="pv-peek-title" data-tip={current}>{title}</span>
           <div className="pv-peek-actions">
             {!isBase && (
               <button

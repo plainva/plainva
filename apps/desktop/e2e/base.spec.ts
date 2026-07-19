@@ -588,7 +588,7 @@ test('Base board: pointer drag moves a card and writes the frontmatter', async (
   await openBase(page, 'Board');
 
   // Wait for the two group columns and the card.
-  const card = page.getByTitle('Alpha');
+  const card = page.locator('[data-tip="Alpha"]');
   await expect(card).toBeVisible({ timeout: 10000 });
   const pausedHeader = page.getByText('paused', { exact: true }).first();
   await expect(pausedHeader).toBeVisible();
@@ -719,7 +719,7 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
 test('Board: clicking a card opens the peek window; maximize opens a tab (P5)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
-  const card = page.getByTitle('Alpha');
+  const card = page.locator('[data-tip="Alpha"]');
   await expect(card).toBeVisible({ timeout: 10000 });
   await card.click();
 
@@ -741,7 +741,7 @@ test('Board: clicking a card opens the peek window; maximize opens a tab (P5)', 
 test('Peek: the properties toggle reveals a scoped Properties column (plan P3)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
-  const card = page.getByTitle('Alpha');
+  const card = page.locator('[data-tip="Alpha"]');
   await expect(card).toBeVisible({ timeout: 10000 });
   await card.click();
 
@@ -762,7 +762,7 @@ test('Peek: the properties toggle reveals a scoped Properties column (plan P3)',
 test('Peek: back/forward navigates the peek history and greys out at the ends (plan P2)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
-  const card = page.getByTitle('Alpha');
+  const card = page.locator('[data-tip="Alpha"]');
   await expect(card).toBeVisible({ timeout: 10000 });
   await card.click();
 
@@ -801,7 +801,7 @@ test('Peek: back/forward navigates the peek history and greys out at the ends (p
 test('Peek: a .base opened from inside the peek renders in-window and joins the history', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
-  await page.getByTitle('Alpha').click();
+  await page.locator('[data-tip="Alpha"]').click();
 
   const peek = page.locator('.pv-peek-card');
   await expect(peek).toBeVisible();
@@ -826,7 +826,7 @@ test('Peek: a .base opened from inside the peek renders in-window and joins the 
 test('Board: Ctrl+click on a card opens it in the split pane (P5)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');
-  const card = page.getByTitle('Alpha');
+  const card = page.locator('[data-tip="Alpha"]');
   await expect(card).toBeVisible({ timeout: 10000 });
   await card.click({ modifiers: ['Control'] });
 
@@ -1135,7 +1135,7 @@ test('Board grouped by relation: columns per linked note, drag moves the link', 
 
   // Columns mirror the linked notes (populated groups only); Alpha sits under
   // ACME, Gamma's dangling link provides the second column as the drop target.
-  const alphaCard = page.getByTitle('Alpha');
+  const alphaCard = page.locator('[data-tip="Alpha"]');
   await expect(alphaCard).toBeVisible({ timeout: 10000 });
   const targetHeader = page.getByText('Nirgendwo', { exact: true }).first();
   await expect(targetHeader).toBeVisible();
@@ -1202,7 +1202,7 @@ test('Base "Neu": a single folder source stores the item there and opens the pee
   await openBase(page, 'Cockpit');
   await expect(page.locator('table').getByText('Alpha')).toBeVisible();
 
-  await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
 
   // Name = "{base stem} {count+1}", straight into the peek window.
   await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
@@ -1217,7 +1217,7 @@ test('Base "Neu": several folder sources ask once and persist the choice in the 
   await openBase(page, 'MultiSrc');
   await expect(page.locator('table').getByText('Alpha')).toBeVisible();
 
-  await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
   const dialog = page.getByRole('dialog', { name: /Ablage-Ordner|Storage folder/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('radio').nth(1).check(); // Kunden
@@ -1232,7 +1232,7 @@ test('Base "Neu": several folder sources ask once and persist the choice in the 
   // Second click: the persisted folder is used without asking again, and the
   // name counts past the existing file.
   await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
-  await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
   await expect(page.getByRole('dialog', { name: /Ablage-Ordner|Storage folder/ })).not.toBeVisible();
   await expect(page.locator('.pv-peek-title')).toContainText('MultiSrc_7');
   const second = await page.evaluate(() => (window as any).mockFs['/test-vault/Kunden/MultiSrc_7.md']);
@@ -1243,7 +1243,7 @@ test('Base "Neu": without any source the setup dialog creates the folder and add
   await page.goto('/');
   await openBase(page, 'NoSrc');
 
-  await page.getByTitle(/Neues Element anlegen|Create a new item/).click();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
   const dialog = page.getByRole('dialog', { name: /Ablage-Ordner|Storage folder/ });
   await expect(dialog).toBeVisible();
   // Plain text input since the browsable picker replaced the index-backed

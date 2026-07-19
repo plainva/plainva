@@ -180,7 +180,7 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label": {
     fontFamily: "var(--font-ui)",
-    fontSize: "12px",
+    fontSize: "var(--text-sm)",
   },
   ".cm-panel.cm-search input[type=text]": {
     background: "var(--bg-primary)",
@@ -231,7 +231,7 @@ export const editorTheme = EditorView.theme({
     minWidth: "300px",
     maxWidth: "min(440px, 92vw)",
     fontFamily: "var(--font-family)",
-    fontSize: "14px",
+    fontSize: "var(--text-md)",
   },
   // Section headers (Grundlagen / Text formatieren / …). Override CM defaults
   // (silver border, list marker, reduced opacity).
@@ -239,7 +239,7 @@ export const editorTheme = EditorView.theme({
     display: "block",
     padding: "10px 10px 4px",
     margin: 0,
-    fontSize: "11px",
+    fontSize: "var(--text-xs)",
     fontWeight: "600",
     letterSpacing: "0.04em",
     textTransform: "uppercase",
@@ -291,7 +291,7 @@ export const editorTheme = EditorView.theme({
     height: "16px",
   },
   ".cm-tooltip-autocomplete .plainva-slash-badge": {
-    fontSize: "11px",
+    fontSize: "var(--text-xs)",
     fontWeight: "700",
     lineHeight: 1,
     letterSpacing: "-0.02em",
@@ -322,7 +322,7 @@ export const editorTheme = EditorView.theme({
     paddingLeft: "8px",
     fontStyle: "normal",
     fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-    fontSize: "11.5px",
+    fontSize: "var(--text-xs)",
     color: "var(--text-faint)",
   },
   // Second-line description, indented to sit under the title.
@@ -331,7 +331,7 @@ export const editorTheme = EditorView.theme({
     flexBasis: "100%",
     width: "100%",
     paddingLeft: "38px",
-    fontSize: "12px",
+    fontSize: "var(--text-sm)",
     color: "var(--text-muted)",
     whiteSpace: "nowrap",
     overflow: "hidden",

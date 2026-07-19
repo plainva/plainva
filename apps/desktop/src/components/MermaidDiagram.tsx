@@ -44,9 +44,9 @@ const MermaidDiagramImpl: React.FC<{ code: string }> = ({ code }) => {
 
   if (error) {
     return (
-      <div style={{ border: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", borderRadius: "var(--radius-sm)", padding: "0.6em 1em", margin: "0.8em 0", fontSize: "0.85rem" }}>
+      <div style={{ border: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", borderRadius: "var(--radius-sm)", padding: "0.6em 1em", margin: "0.8em 0", fontSize: "var(--text-md)" }}>
         <div style={{ fontWeight: 600, marginBottom: "0.3em" }}>{t("reader.mermaidError")}</div>
-        <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "0.8rem" }}>{error}</pre>
+        <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "var(--text-ui)" }}>{error}</pre>
       </div>
     );
   }

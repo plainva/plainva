@@ -319,7 +319,7 @@
   flex-shrink: 0;
 }
 .pv-mail-rsubj {
-  font-size: 1.0625rem;
+  font-size: var(--text-lg);
   font-weight: 660;
   letter-spacing: -0.01em;
   margin: 0 0 8px;

@@ -90,7 +90,7 @@ export const TableSizePicker: React.FC<Props> = ({ x, y, onSelect, onClose }) =>
           }),
         )}
       </div>
-      <div style={{ marginTop: "8px", textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
+      <div style={{ marginTop: "8px", textAlign: "center", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
         {t("editor.tablePickerLabel", { rows: hover.r + 1, cols: hover.c + 1, defaultValue: "{{rows}} × {{cols}}" })}
       </div>
     </div>

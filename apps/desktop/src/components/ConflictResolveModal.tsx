@@ -117,10 +117,10 @@ export const ConflictResolveModal: React.FC<{
           <div style={{ color: "var(--error-text)" }}>{error}</div>
         ) : (
           <>
-            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+            <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
               {t("conflict.explainer", { file: originalPath })}
             </div>
-            <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", gap: "0.75rem", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               <span style={{ flex: 1 }}>{t("conflict.leftLabel")}</span>
               <span style={{ flex: 1 }}>{t("conflict.rightLabel")}</span>
             </div>

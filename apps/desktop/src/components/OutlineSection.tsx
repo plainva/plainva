@@ -24,7 +24,7 @@ export function OutlineSection() {
   };
 
   if (headings.length === 0) {
-    return <div style={{ padding: "0.25rem 0.25rem 0.5rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("rightPanel.outlineEmpty", { defaultValue: "Keine Überschriften" })}</div>;
+    return <div style={{ padding: "0.25rem 0.25rem 0.5rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("rightPanel.outlineEmpty", { defaultValue: "Keine Überschriften" })}</div>;
   }
 
   const minLevel = Math.min(...headings.map((h) => h.level));
@@ -35,12 +35,12 @@ export function OutlineSection() {
           key={i}
           type="button"
           onClick={() => goto(h)}
-          title={h.text}
+          data-tip={h.text}
           className="pv-rowhover"
           style={{
             display: "block", width: "100%", textAlign: "left", border: "none",
             color: h.level === minLevel ? "var(--text-main)" : "var(--text-muted)",
-            cursor: "pointer", borderRadius: "var(--radius-xs)", fontSize: "0.85rem",
+            cursor: "pointer", borderRadius: "var(--radius-xs)", fontSize: "var(--text-md)",
             padding: "3px 6px", paddingLeft: `${6 + (h.level - minLevel) * 14}px`,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             fontWeight: h.level === minLevel ? 600 : 400,

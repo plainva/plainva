@@ -112,7 +112,7 @@ export const OkfConversionModal: React.FC<{
     onConverted?.();
   };
 
-  const rowStyle: React.CSSProperties = { fontSize: "0.88rem", margin: "0.2rem 0" };
+  const rowStyle: React.CSSProperties = { fontSize: "var(--text-md)", margin: "0.2rem 0" };
 
   const running = step === "running";
   return (
@@ -155,7 +155,7 @@ export const OkfConversionModal: React.FC<{
             {scan && (
               <>
                 <div style={rowStyle}>{t("okf.scanSummary", { scanned: scan.scanned })}</div>
-                <ul style={{ margin: "0.3rem 0 0.8rem 1.1rem", padding: 0, fontSize: "0.85rem" }}>
+                <ul style={{ margin: "0.3rem 0 0.8rem 1.1rem", padding: 0, fontSize: "var(--text-md)" }}>
                   <li>{t("okf.summaryTypeViolations", { count: typeViolations })}</li>
                   {reservedViolations > 0 && <li>{t("okf.summaryReserved", { count: reservedViolations })}</li>}
                   {unparseable > 0 && <li style={{ color: "var(--error-text)" }}>{t("okf.summaryUnparseable", { count: unparseable })}</li>}
@@ -169,7 +169,7 @@ export const OkfConversionModal: React.FC<{
 
                 {scan.typedPaths.length > 0 && (
                   <fieldset style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", margin: "0.7rem 0", padding: "0.5rem 0.7rem" }}>
-                    <legend style={{ fontSize: "0.8rem", color: "var(--text-muted)", padding: "0 0.3rem" }}>
+                    <legend style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", padding: "0 0.3rem" }}>
                       {t("okf.existingTypeLegend", { count: scan.typedPaths.length })}
                     </legend>
                     <label style={{ display: "flex", gap: "0.45rem", ...rowStyle, cursor: "pointer" }}>
@@ -202,10 +202,10 @@ export const OkfConversionModal: React.FC<{
             <div style={rowStyle}>{t("okf.previewSummary", { changed: preview.changed.length, unchanged: preview.unchanged, skipped: preview.skipped.length })}</div>
             {preview.samples.map((s) => (
               <div key={s.path} style={{ margin: "0.55rem 0" }}>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{s.path}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{s.path}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
-                  <pre style={{ margin: 0, padding: "0.4rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "0.72rem", overflowX: "auto" }}>{s.before || "—"}</pre>
-                  <pre style={{ margin: 0, padding: "0.4rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "0.72rem", overflowX: "auto" }}>{s.after || "—"}</pre>
+                  <pre style={{ margin: 0, padding: "0.4rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "var(--text-sm)", overflowX: "auto" }}>{s.before || "—"}</pre>
+                  <pre style={{ margin: 0, padding: "0.4rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", fontSize: "var(--text-sm)", overflowX: "auto" }}>{s.after || "—"}</pre>
                 </div>
               </div>
             ))}
@@ -226,13 +226,13 @@ export const OkfConversionModal: React.FC<{
             <div style={rowStyle}>
               {report.cancelled ? t("okf.reportCancelled") : t("okf.reportDone")}
             </div>
-            <ul style={{ margin: "0.3rem 0 0.6rem 1.1rem", padding: 0, fontSize: "0.85rem" }}>
+            <ul style={{ margin: "0.3rem 0 0.6rem 1.1rem", padding: 0, fontSize: "var(--text-md)" }}>
               <li>{t("okf.reportChanged", { count: report.changed.length })}</li>
               <li>{t("okf.reportUnchanged", { count: report.unchanged })}</li>
               {report.skipped.length > 0 && <li style={{ color: "var(--error-text)" }}>{t("okf.reportSkipped", { count: report.skipped.length })}</li>}
             </ul>
             {report.skipped.length > 0 && (
-              <pre style={{ maxHeight: 120, overflowY: "auto", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "0.4rem", fontSize: "0.72rem" }}>
+              <pre style={{ maxHeight: 120, overflowY: "auto", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "0.4rem", fontSize: "var(--text-sm)" }}>
                 {report.skipped.map((s) => `${s.path}: ${s.error}`).join("\n")}
               </pre>
             )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFixedPopover } from "@plainva/ui";
+import { ICON, useFixedPopover } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
@@ -95,9 +95,9 @@ export function NewItemButton({
       <div key={path ?? "__none__"} style={{ display: "flex", alignItems: "center" }}>
         <button type="button" className="pv-menu-item" style={{ flex: 1, minWidth: 0 }}
           onClick={() => { setOpen(false); onCreate(path); }}
-          title={t("database.createWithTemplate", { title, defaultValue: "Neues Element mit „{{title}}“ anlegen" })}
+          data-tip={t("database.createWithTemplate", { title, defaultValue: "Neues Element mit „{{title}}“ anlegen" })}
         >
-          <span style={{ width: 14, display: "inline-flex", flexShrink: 0 }}>{isDefault && <Check size={13} aria-hidden="true" />}</span>
+          <span style={{ width: 14, display: "inline-flex", flexShrink: 0 }}>{isDefault && <Check size={ICON.ui} aria-hidden="true" />}</span>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
         </button>
         {tpl && onToggleAssign && (
@@ -105,7 +105,7 @@ export function NewItemButton({
             type="button"
             className="pv-icon-btn"
             aria-label={assignLabel}
-            title={assignLabel}
+            data-tip={assignLabel}
             aria-pressed={isAssigned}
             style={{ flexShrink: 0, color: isAssigned ? "var(--accent-color)" : "var(--text-muted)" }}
             onClick={() => {
@@ -115,7 +115,7 @@ export function NewItemButton({
               })();
             }}
           >
-            <Database size={13} fill={isAssigned ? "currentColor" : "none"} />
+            <Database size={ICON.ui} fill={isAssigned ? "currentColor" : "none"} />
           </button>
         )}
         <button
@@ -124,13 +124,13 @@ export function NewItemButton({
           aria-label={isDefault
             ? t("database.isDefaultTemplate", { defaultValue: "Standard-Vorlage" })
             : t("database.setDefaultTemplate", { defaultValue: "Als Standard setzen" })}
-          title={isDefault
+          data-tip={isDefault
             ? t("database.isDefaultTemplate", { defaultValue: "Standard-Vorlage" })
             : t("database.setDefaultTemplate", { defaultValue: "Als Standard setzen" })}
           style={{ flexShrink: 0, color: isDefault ? "var(--accent-color)" : "var(--text-muted)" }}
           onClick={() => onSetDefaultTemplate(path)}
         >
-          <Star size={13} fill={isDefault ? "currentColor" : "none"} />
+          <Star size={ICON.ui} fill={isDefault ? "currentColor" : "none"} />
         </button>
       </div>
     );
@@ -148,9 +148,9 @@ export function NewItemButton({
         onClick={() => onCreate(defaultTemplate)}
         disabled={disabled || busy}
         aria-label={t("database.newItem", { defaultValue: "Eintrag" })}
-        title={t("database.newItemTip", { defaultValue: "Neues Element anlegen" })}
+        data-tip={t("database.newItemTip", { defaultValue: "Neues Element anlegen" })}
       >
-        <Plus size={14} /><span className="base-toolbar-label">{t("database.newItem", { defaultValue: "Eintrag" })}</span>
+        <Plus size={ICON.ui} /><span className="base-toolbar-label">{t("database.newItem", { defaultValue: "Eintrag" })}</span>
       </button>
       <button
         type="button"
@@ -158,39 +158,39 @@ export function NewItemButton({
         onClick={() => setOpen((s) => !s)}
         disabled={disabled}
         aria-label={t("database.newItemMenu", { defaultValue: "Vorlagen und Ablage-Ordner" })}
-        title={t("database.newItemMenu", { defaultValue: "Vorlagen und Ablage-Ordner" })}
+        data-tip={t("database.newItemMenu", { defaultValue: "Vorlagen und Ablage-Ordner" })}
         aria-expanded={open}
       >
-        <ChevronDown size={14} />
+        <ChevronDown size={ICON.ui} />
       </button>
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: "var(--z-popover)" as unknown as number }} onClick={() => setOpen(false)} />
           <div ref={popRef} className="pv-popover pv-popover--fixed" style={{ padding: "0.25rem", maxWidth: 320 }}>
-            <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+            <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
               {t("database.templatesSection", { defaultValue: "Vorlagen" })}
             </div>
             {templateRow(null, t("database.noTemplate", { defaultValue: "Ohne Vorlage" }))}
             {groups.forBase.map((tpl) => templateRow(tpl, tpl.title))}
             {templates.length > 0 && groups.forBase.length === 0 && (
-              <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem", color: "var(--text-faint)" }}>
+              <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-ui)", color: "var(--text-faint)" }}>
                 {t("database.noAssignedTemplates", { defaultValue: "Noch keine Vorlage dieser Datenbank zugeordnet" })}
               </div>
             )}
             {templates.length === 0 && (
-              <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.8rem", color: "var(--text-faint)" }}>
+              <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-ui)", color: "var(--text-faint)" }}>
                 {t("database.noTemplatesFound", { folder: templateFolder, defaultValue: "Keine Vorlagen in „{{folder}}“" })}
               </div>
             )}
             {groups.others.length > 0 && !showAll && (
               <button type="button" className="pv-menu-item" aria-expanded={false} onClick={() => setShowAll(true)}>
-                <ChevronRight size={14} style={{ flexShrink: 0 }} />
+                <ChevronRight size={ICON.ui} style={{ flexShrink: 0 }} />
                 {t("database.showAllTemplates", { n: groups.others.length, defaultValue: "Alle Vorlagen anzeigen ({{n}})" })}
               </button>
             )}
             {groups.others.length > 0 && showAll && (
               <>
-                <div style={{ padding: "0.3rem 0.5rem", fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+                <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-sm)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-muted)" }}>
                   {t("database.allTemplatesSection", { defaultValue: "Weitere Vorlagen" })}
                 </div>
                 {groups.others.map((tpl) => templateRow(tpl, tpl.title))}
@@ -198,25 +198,25 @@ export function NewItemButton({
             )}
             <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
             <button type="button" className="pv-menu-item" onClick={() => { setOpen(false); onCreateTemplate(); }}>
-              <FilePlus2 size={14} style={{ flexShrink: 0 }} />
+              <FilePlus2 size={ICON.ui} style={{ flexShrink: 0 }} />
               {t("database.createTemplate", { defaultValue: "Neue Vorlage erstellen" })}
             </button>
             {onOpenTemplatesFolder && (
               <button type="button" className="pv-menu-item"
                 onClick={() => { setOpen(false); onOpenTemplatesFolder(); }}
-                title={t("database.openTemplatesFolder", { defaultValue: "Vorlagen-Ordner im Dateibaum öffnen (bearbeiten, umbenennen, löschen)" })}
+                data-tip={t("database.openTemplatesFolder", { defaultValue: "Vorlagen-Ordner im Dateibaum öffnen (bearbeiten, umbenennen, löschen)" })}
               >
-                <FolderOpen size={14} style={{ flexShrink: 0 }} />
+                <FolderOpen size={ICON.ui} style={{ flexShrink: 0 }} />
                 {t("database.openTemplatesFolder", { defaultValue: "Vorlagen-Ordner im Dateibaum öffnen (bearbeiten, umbenennen, löschen)" })}
               </button>
             )}
             <div style={{ height: 1, background: "var(--border-color)", margin: "0.25rem 0" }} />
             <button type="button" className="pv-menu-item" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }} onClick={() => { setOpen(false); onChangeFolder(); }}>
               <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <FolderCog size={14} style={{ flexShrink: 0 }} />
+                <FolderCog size={ICON.ui} style={{ flexShrink: 0 }} />
                 {t("database.changeNewItemFolder", { defaultValue: "Ablage-Ordner ändern…" })}
               </span>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", paddingLeft: 22, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", paddingLeft: 22, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
                 {t("database.currentStorageFolder", {
                   folder: currentFolder ?? t("database.storageFolderUnset", { defaultValue: "nicht festgelegt" }),
                   defaultValue: "Aktuell: {{folder}}",

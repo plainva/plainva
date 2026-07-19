@@ -218,7 +218,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
             aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
             data-testid={`${testid}-remove`}
           >
-            <X size={12} />
+            <X size={ICON.meta} />
           </button>
         </span>
       ))}
@@ -313,14 +313,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               <div className="pv-mail-cmpattach">
                 {attach.map((a, i) => (
                   <span key={`${a.name}-${i}`} className={/^text\/calendar/i.test(a.mime) ? "pv-mail-attach-chip pv-mail-attach-chip--ics" : "pv-mail-attach-chip"} data-testid="draft-attachments">
-                    <Paperclip size={12} />
+                    <Paperclip size={ICON.meta} />
                     {a.name}
                     <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">
-                      <X size={11} />
+                      <X size={ICON.meta} />
                     </button>
                   </span>
                 ))}
-                <Button variant="ghost" size="sm" icon={<Paperclip size={13} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
+                <Button variant="ghost" size="sm" icon={<Paperclip size={ICON.ui} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
                   {t("mail.attachFile", { defaultValue: "Datei anhängen" })}
                 </Button>
               </div>

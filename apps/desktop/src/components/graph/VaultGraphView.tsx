@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { MenuItem, MenuSurface } from "@plainva/ui";
+import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { toast } from "@plainva/ui";
@@ -645,7 +645,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     >
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", borderBottom: "1px solid var(--border-color-light)" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-muted)", fontWeight: 700, fontSize: "var(--text-sm)" }}>
-          <Waypoints size={15} />
+          <Waypoints size={ICON.ui} />
           {t("graph.mapTitle", { defaultValue: "Vault-Karte" })}
         </span>
         <input
@@ -668,7 +668,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             aria-expanded={showFilters}
             data-testid="graph-filter-btn"
           >
-            <SlidersHorizontal size={14} />
+            <SlidersHorizontal size={ICON.ui} />
             {t("graph.filters", { defaultValue: "Filter" })}
             {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
           </button>
@@ -714,7 +714,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         <span style={{ flex: 1 }} />
         {focus ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-sm)", color: "var(--accent-color)" }}>
-            <Crosshair size={14} />
+            <Crosshair size={ICON.ui} />
             {t("graph.focusActive", { defaultValue: "Fokus (Tiefe {{depth}})", depth: focus.depth })}
             <select
               className="pv-field pv-field--compact pv-field--select"
@@ -727,7 +727,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
               ))}
             </select>
             <button className="pv-iconbtn pv-iconbtn--sm" aria-label={t("graph.focusOff", { defaultValue: "Fokus aufheben" })} data-tip={t("graph.focusOff", { defaultValue: "Fokus aufheben" })} onClick={() => setFocus(null)}>
-              <X size={13} />
+              <X size={ICON.ui} />
             </button>
           </span>
         ) : (
@@ -737,7 +737,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             data-testid="graph-focus-btn"
             onClick={() => selection[0] && setFocus({ seed: selection[0], depth: 1 })}
           >
-            <Crosshair size={14} />
+            <Crosshair size={ICON.ui} />
             {t("graph.focusOn", { defaultValue: "Fokus auf Auswahl" })}
           </button>
         )}
@@ -749,7 +749,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           }}
           data-testid="graph-heatmap-btn"
         >
-          <Flame size={14} />
+          <Flame size={ICON.ui} />
           {t("graph.heatmap", { defaultValue: "Heatmap" })}
         </button>
         <button
@@ -757,7 +757,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           onClick={() => setOverlayMode((m) => (m === "replay" ? "normal" : "replay"))}
           data-testid="graph-replay-btn"
         >
-          <History size={14} />
+          <History size={ICON.ui} />
           {t("graph.replay", { defaultValue: "Zeitreise" })}
         </button>
         <button
@@ -765,7 +765,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           onClick={() => setShowCleanup((v) => !v)}
           data-testid="graph-cleanup-btn"
         >
-          <Eraser size={14} />
+          <Eraser size={ICON.ui} />
           {t("graph.cleanupTitle", { defaultValue: "Aufräumen" })}
         </button>
         <button
@@ -774,7 +774,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           data-tip={t("graph.zoomFit", { defaultValue: "Alles einpassen" })}
           onClick={() => sceneRef.current?.zoomToFit()}
         >
-          <Maximize2 size={15} />
+          <Maximize2 size={ICON.ui} />
         </button>
       </div>
 

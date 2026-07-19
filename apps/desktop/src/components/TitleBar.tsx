@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { SunMoon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/theme";
-import { PlainvaLogo } from "@plainva/ui";
+import { ICON, PlainvaLogo } from "@plainva/ui";
 import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
@@ -108,9 +108,9 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
           onClick={handleLogoClick}
           style={{ display: "flex", alignItems: "center", background: "transparent", border: "none", padding: 0, cursor: "default", flexShrink: 0 }}
         >
-          <PlainvaLogo size={22} />
+          <PlainvaLogo size={ICON.touch} />
         </button>
-        <b style={{ fontSize: "0.85rem", fontWeight: 700, letterSpacing: "-0.01em", color: "var(--titlebar-fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Plainva</b>
+        <b style={{ fontSize: "var(--text-md)", fontWeight: 700, letterSpacing: "-0.01em", color: "var(--titlebar-fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Plainva</b>
       </div>
 
       {onToggleLeftSidebar && (
@@ -123,7 +123,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
           onMouseOver={(e) => { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
         >
-          {leftCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          {leftCollapsed ? <PanelLeftOpen size={ICON.ui} /> : <PanelLeftClose size={ICON.ui} />}
         </button>
       )}
 
@@ -151,7 +151,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
               data-tip={path}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7, padding: "0 9px 0 12px", height: "100%",
-                maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "0.83rem",
+                maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",
                 color: active ? "var(--titlebar-fg)" : "var(--titlebar-fg-muted)",
                 borderRight: "1px solid var(--border-color-light)",
                 // Only the transient drag indicator is inline; the active-tab
@@ -165,11 +165,11 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
             >
               {VirtualIcon ? (
                 <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
-                  <VirtualIcon size={15} />
+                  <VirtualIcon size={ICON.ui} />
                 </span>
               ) : docIcons.get(path) && isRenderableDocIcon(docIcons.get(path)!.icon) ? (
                 <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
-                  <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={15} />
+                  <DocIcon icon={docIcons.get(path)!.icon} color={docIcons.get(path)!.color} size={ICON.ui} />
                 </span>
               ) : null}
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{virtual ? t(virtual.labelKey, { defaultValue: virtual.defaultLabel }) : tabLabel(path)}</span>
@@ -182,7 +182,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
                 onMouseOver={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "var(--bg-active)"; }}
                 onMouseOut={(e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.background = "transparent"; }}
               >
-                <X size={12} />
+                <X size={ICON.meta} />
               </span>
             </div>
           );
@@ -199,7 +199,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
           onMouseOver={(e) => { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
         >
-          <Plus size={15} />
+          <Plus size={ICON.ui} />
         </button>
       )}
 
@@ -215,7 +215,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
           onMouseOver={(e) => { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; }}
           onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
         >
-          {rightCollapsed ? <PanelRightOpen size={15} /> : <PanelRightClose size={15} />}
+          {rightCollapsed ? <PanelRightOpen size={ICON.ui} /> : <PanelRightClose size={ICON.ui} />}
         </button>
       )}
 
@@ -231,7 +231,7 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
         onMouseOver={(e) => { if (!isModePinned(themeName)) { e.currentTarget.style.background = "var(--titlebar-hover)"; e.currentTarget.style.color = "var(--titlebar-fg)"; } }}
         onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--titlebar-fg-muted)"; }}
       >
-        <SunMoon size={16} />
+        <SunMoon size={ICON.ui} />
       </button>
 
       {/* Window controls — Windows/Linux only (right). macOS uses native traffic lights (left). */}

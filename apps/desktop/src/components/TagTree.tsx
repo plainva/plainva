@@ -5,6 +5,7 @@ import { Hash, ChevronRight, ChevronDown, FileText } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
 import { renameTagInText, isValidTagName } from "@plainva/core";
 import { appPrompt, appMessage } from "../services/appDialogs";
+import { ICON } from "@plainva/ui";
 
 interface TagTreeProps {
   onSelectPath: (path: string, newTab?: boolean) => void;
@@ -160,7 +161,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
           }}
           onClick={() => setSelectedTag(node.fullTag)}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); void handleRenameTag(node.fullTag); }}
-          title={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
+          data-tip={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
         >
           <div
             style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -172,8 +173,8 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
             }}
           >
             {hasChildren ? (
-              isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-            ) : <Hash size={12} />}
+              isExpanded ? <ChevronDown size={ICON.ui} /> : <ChevronRight size={ICON.ui} />
+            ) : <Hash size={ICON.meta} />}
           </div>
           <span style={{ marginLeft: '4px', fontSize: '0.85rem' }}>{node.name}</span>
           <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>
@@ -230,7 +231,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
                     borderRadius: "var(--radius-xs)"
                   }}
                 >
-                  <FileText size={14} color="var(--accent-color)" />
+                  <FileText size={ICON.ui} color="var(--accent-color)" />
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {file.title || file.path.split(/[/\\]/).pop()}
                   </span>

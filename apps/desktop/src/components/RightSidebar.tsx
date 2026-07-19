@@ -10,6 +10,7 @@ import { GraphContextSection } from "./graph/GraphContextSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
+import { ICON } from "@plainva/ui";
 
 /** Cheap top-level frontmatter key count (regex + small YAML parse) — avoids a full
  *  markdown AST parse per keystroke so the badge stays light even when collapsed. */
@@ -166,11 +167,11 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   }, [activePath, queryService, fileTreeVersion, setBacklinksCount]);
 
   const meta: Record<SectionId, { title: string; icon: ReactNode; count?: number; pad: boolean }> = {
-    calendar: { title: t("rightPanel.calendar", { defaultValue: "Kalender" }), icon: <CalendarDays size={15} />, pad: false },
-    outline: { title: t("rightPanel.outline", { defaultValue: "Gliederung" }), icon: <List size={15} />, count: counts.outline, pad: true },
-    graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={15} />, pad: true },
-    backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={15} />, count: counts.backlinks, pad: true },
-    properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={15} />, count: counts.properties, pad: true },
+    calendar: { title: t("rightPanel.calendar", { defaultValue: "Kalender" }), icon: <CalendarDays size={ICON.ui} />, pad: false },
+    outline: { title: t("rightPanel.outline", { defaultValue: "Gliederung" }), icon: <List size={ICON.ui} />, count: counts.outline, pad: true },
+    graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={ICON.ui} />, pad: true },
+    backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={ICON.ui} />, count: counts.backlinks, pad: true },
+    properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
   };
 
   const renderBody = (id: SectionId) => {
@@ -209,14 +210,14 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                 data-tip={t("rightPanel.reorder", { defaultValue: "Abschnitt verschieben" })}
                 style={{ display: "flex", alignItems: "center", padding: "0 2px 0 8px", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none", opacity: dragId ? 1 : undefined }}
               >
-                <GripVertical size={14} />
+                <GripVertical size={ICON.ui} />
               </span>
               <button
                 onClick={() => toggle(id)}
                 aria-expanded={isOpen}
                 className="pv-side-section-header"
               >
-                <ChevronDown size={15} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
+                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
                 <span className="pv-side-section-glyph">{m.icon}</span>
                 <span style={{ flex: 1, textAlign: "left" }}>{m.title}</span>
                 {m.count !== undefined && m.count > 0 && (

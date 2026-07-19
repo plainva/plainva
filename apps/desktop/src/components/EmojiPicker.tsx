@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { EMOJI_CATEGORIES, searchEmoji } from "@plainva/ui";
+import { EMOJI_CATEGORIES, ICON, searchEmoji } from "@plainva/ui";
 import type { EmojiCategoryId, EmojiEntry } from "@plainva/ui";
 import { searchLucideIcons, LUCIDE_ICONS } from "@plainva/ui";
 import { DocIcon } from "@plainva/ui";
@@ -83,7 +83,7 @@ function containsNonAscii(text: string): boolean {
 const gridButtonStyle: React.CSSProperties = {
   height: "34px",
   padding: 0,
-  fontSize: "20px",
+  fontSize: "var(--text-headline)",
   lineHeight: 1,
   border: "none",
   borderRadius: "var(--radius-sm)",
@@ -169,7 +169,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
     activeCat === "recent" ? labels.recent : labels.categories[activeCat as EmojiCategoryId];
 
   const emptyState = (
-    <div style={{ padding: "16px 0", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
+    <div style={{ padding: "16px 0", textAlign: "center", fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
       {labels.noResults}
     </div>
   );
@@ -211,7 +211,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                 style={{
                   flex: 1,
                   padding: "4px 0",
-                  fontSize: "12px",
+                  fontSize: "var(--text-sm)",
                   fontWeight: mode === m.id ? 600 : 400,
                   background: mode === m.id ? "var(--bg-primary)" : "transparent",
                   color: mode === m.id ? "var(--accent-color)" : "var(--text-muted)",
@@ -267,13 +267,13 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    title={tab.label}
+                    data-tip={tab.label}
                     aria-label={tab.label}
                     onClick={() => setActiveCat(tab.id)}
                     style={{
                       flex: 1,
                       padding: "5px 0 4px",
-                      fontSize: "14px",
+                      fontSize: "var(--text-md)",
                       lineHeight: 1,
                       background: active ? "var(--bg-primary)" : "transparent",
                       border: "none",
@@ -289,7 +289,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                 );
               })}
             </div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "5px 2px 3px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", padding: "5px 2px 3px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
               {activeTabLabel}
             </div>
           </>
@@ -297,10 +297,10 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
 
         {mode === "icons" && (
           <div style={{ display: "flex", alignItems: "center", gap: "4px", margin: "6px 0 4px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", marginRight: "2px" }}>{labels.tint}</span>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginRight: "2px" }}>{labels.tint}</span>
             <button
               type="button"
-              title={labels.tintDefault}
+              data-tip={labels.tintDefault}
               aria-label={labels.tintDefault}
               onClick={() => setTint(null)}
               style={{
@@ -311,7 +311,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                 background: "var(--bg-secondary)",
                 color: "var(--text-main)",
                 cursor: "pointer",
-                fontSize: "11px",
+                fontSize: "var(--text-xs)",
                 lineHeight: 1,
                 padding: 0,
               }}
@@ -322,7 +322,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
               <button
                 key={color}
                 type="button"
-                title={color}
+                data-tip={color}
                 aria-label={color}
                 onClick={() => setTint(color)}
                 style={{
@@ -367,7 +367,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                   key={cell.char}
                   type="button"
                   aria-label={cell.label}
-                  title={cell.label}
+                  data-tip={cell.label}
                   onClick={() => handleSelectEmoji(cell.char)}
                   className="pv-rowhover"
                   style={gridButtonStyle}
@@ -397,12 +397,12 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
                 key={entry.name}
                 type="button"
                 aria-label={entry.name}
-                title={entry.name}
+                data-tip={entry.name}
                 onClick={() => onSelectIcon(entry.name, tint)}
                 className="pv-rowhover"
                 style={{ ...gridButtonStyle, color: tint ?? "var(--text-main)" }}
               >
-                <DocIcon icon={`lucide:${entry.name}`} color={tint ?? undefined} size={19} />
+                <DocIcon icon={`lucide:${entry.name}`} color={tint ?? undefined} size={ICON.head} />
               </button>
             ))}
           </div>
