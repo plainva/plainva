@@ -128,6 +128,9 @@ export const taskDatabaseKey = (vaultPath: string) => `taskDatabase_${btoa(unesc
 /** Meetings folder (PIM stage 2c): vault-relative folder for notes created via
  * "Termin → Meeting-Notiz" in the calendar tab. Default "Meetings". */
 export const meetingFolderKey = (vaultPath: string) => `meetingFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Default calendar for new events ("<accountId> <calId>"): new events preselect
+ * it. Empty/invalid falls back to the first writable calendar. */
+export const defaultCalendarKey = (vaultPath: string) => `defaultCalendar_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_MEETING_FOLDER = "Meetings";
 /** Mail capture folder (PIM stage 5): captured e-mail notes + .eml files. */
 export const mailFolderKey = (vaultPath: string) => `mailFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;

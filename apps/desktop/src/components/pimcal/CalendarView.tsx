@@ -17,7 +17,7 @@ import {
   type WeekStartDay,
 } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
-import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
+import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { loadDueTasks, type DueTask } from "../../services/pim/taskOverlay";
@@ -420,6 +420,28 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       })),
     [writableCalendars, accounts.length, accountLabel]
   );
+  // Default calendar for new events (settings preference); re-read when the
+  // preference changes in settings while the calendar tab stays open.
+  const [prefDefaultCal, setPrefDefaultCal] = useState("");
+  useEffect(() => {
+    if (!vaultPath) return;
+    let alive = true;
+    const load = async () => {
+      const store = await getSettingsStore();
+      const v = ((await store.get<string>(defaultCalendarKey(vaultPath))) ?? "").trim();
+      if (alive) setPrefDefaultCal(v);
+    };
+    void load();
+    const onChanged = () => void load();
+    window.addEventListener("plainva-default-calendar-changed", onChanged);
+    return () => { alive = false; window.removeEventListener("plainva-default-calendar-changed", onChanged); };
+  }, [vaultPath]);
+  // The preferred default calendar if it is still a writable option, else the
+  // first writable calendar.
+  const defaultCalKey = useMemo(
+    () => (calendarOptions.some((c) => c.value === prefDefaultCal) ? prefDefaultCal : calendarOptions[0]?.value ?? ""),
+    [calendarOptions, prefDefaultCal]
+  );
 
   const targetFor = useCallback(
     async (accountId: string) => {
@@ -562,13 +584,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const timedForm = useCallback(
     (dayKey: string, startMin: number, endMin: number, v: QuickCreateValues): EventFormValues => ({
-      ...emptyEventForm(dayKey, v.calendarKey || calendarOptions[0]?.value || ""),
+      ...emptyEventForm(dayKey, v.calendarKey || defaultCalKey || ""),
       title: v.title,
       startTime: minutesToHHMM(startMin),
       endTime: minutesToHHMM(endMin),
       location: v.location,
     }),
-    [calendarOptions]
+    [defaultCalKey]
   );
 
   const onCreateSlot = useCallback(
@@ -1294,7 +1316,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           dateLabel={formatDayLong(quickCreate.dayKey)}
           timeLabel={`${minutesToHHMM(quickCreate.startMin)}–${minutesToHHMM(quickCreate.endMin)}`}
           calendarOptions={calendarOptions}
-          initialCalendarKey={calendarOptions[0]?.value ?? ""}
+          initialCalendarKey={defaultCalKey}
           onCancel={() => setQuickCreate(null)}
           onSave={(v) => void quickSave(v)}
           onMore={openMoreFromQuick}
@@ -1306,7 +1328,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           initial={
             editState.mode === "edit" && editState.event
               ? eventFormFromEvent(editState.event)
-              : createInitial ?? emptyEventForm(selectedDay, calendarOptions[0]?.value ?? "")
+              : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
           calendarOptions={calendarOptions}
           onCancel={() => { setEditState(null); setCreateInitial(null); }}

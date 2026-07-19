@@ -271,7 +271,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     }
   };
 
-  const gutterWidth = 52;
+  const gutterWidth = 60;
 
   return (
     <div data-testid="calendar-timegrid" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -306,9 +306,10 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       {/* All-day / due-tasks strip */}
       {hasAllDayRow && (
         <div data-testid="calendar-allday-strip" style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)", background: "var(--bg-secondary)", maxHeight: 84, overflow: "auto" }}>
-          {/* Gutter label: clip it so a long localized "GANZTÄGIG" never spills
-              into the first day column and collides with a task's checkbox. */}
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: 9, color: "var(--text-faint)", textAlign: "right", padding: "4px 6px 0 0", textTransform: "uppercase", letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip" }}>
+          {/* Gutter label: wrap it inside the gutter so a long localized label
+              ("GANZTÄGIG", "Toute la journée") shows fully without spilling into
+              the first day column or getting clipped. */}
+          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: 8, lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "normal", overflowWrap: "anywhere" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d) => (

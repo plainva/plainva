@@ -283,7 +283,11 @@ test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
   await page.getByTestId('mail-forward').click();
   await expect(page.getByTestId('draft-form')).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+  // Recipient becomes a chip on Enter; the input clears.
   await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  await expect(page.getByTestId('draft-to')).toHaveValue('');
   await page.getByTestId('draft-send').click();
   await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
@@ -304,7 +308,8 @@ test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the or
   // "Antworten" opens the compose window (NOT a vault note), prefilled to the sender.
   await page.getByTestId('mail-reply').click();
   await expect(page.getByTestId('draft-form')).toBeVisible();
-  await expect(page.getByTestId('draft-to')).toHaveValue('anna@example.org');
+  // The prefilled recipient shows as a chip (Enter/comma-committed).
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
   await expect(page.getByTestId('draft-body')).toHaveValue(/anbei die Rechnung\./);
   // The body is editable; sending goes straight through SMTP with the edited text.

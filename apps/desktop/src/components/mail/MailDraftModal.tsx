@@ -68,6 +68,15 @@ function guessMime(name: string): string {
   return MIME_BY_EXT[ext] ?? "application/octet-stream";
 }
 
+/** Split a recipient string into individual addresses on comma/semicolon/
+ * newline only — spaces are preserved so a "Name <email>" entry stays intact. */
+function splitRecipients(s: string): string[] {
+  return s
+    .split(/[,;\n]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
 export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
@@ -76,6 +85,9 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [mailboxes, setMailboxes] = useState<string[]>([]);
   const [mailbox, setMailbox] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
+  // Recipients render as chips (like the event attendee field); `to` stays a
+  // comma-joined string for the SMTP/IMAP layer. `toDraft` is the text in flight.
+  const [toDraft, setToDraft] = useState("");
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(markdown);
   const [attach, setAttach] = useState<MailAttachment[]>(attachments ?? []);
@@ -181,26 +193,29 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const submit = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultPath || !account || busy) return;
-    if (!to.trim() || !subject.trim() || !mailbox) {
+    // Fold a typed-but-not-yet-chipped recipient into the list.
+    const recips = (toDraft.trim() ? [...splitRecipients(to), toDraft.trim()] : splitRecipients(to)).join(", ");
+    if (!recips || !subject.trim() || !mailbox) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await appendDraft(vaultPath, account, mailbox, to.trim(), subject.trim(), body, attach);
+      await appendDraft(vaultPath, account, mailbox, recips, subject.trim(), body, attach);
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, subject, mailbox, body, attach, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, toDraft, subject, mailbox, body, attach, onClose, t]);
 
   const send = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultPath || !account || busy) return;
-    if (!to.trim() || !subject.trim()) {
+    const recips = (toDraft.trim() ? [...splitRecipients(to), toDraft.trim()] : splitRecipients(to)).join(", ");
+    if (!recips || !subject.trim()) {
       setError(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
       return;
     }
@@ -220,14 +235,23 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           files = attach.filter((_, i) => i !== calIdx);
         } catch { /* fall back to a normal attachment */ }
       }
-      await sendMail(vaultPath, account, to.trim(), subject.trim(), body, files, calendar);
+      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar);
       toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, subject, body, attach, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, to, toDraft, subject, body, attach, onClose, t]);
+
+  const toList = splitRecipients(to);
+  const commitTo = (raw: string) => {
+    const parsed = splitRecipients(raw);
+    if (parsed.length === 0) return;
+    setTo([...new Set([...toList, ...parsed])].join(", "));
+    setToDraft("");
+  };
+  const removeTo = (r: string) => setTo(toList.filter((x) => x !== r).join(", "));
 
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
@@ -269,7 +293,44 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               )}
               <label className="pv-mail-cmplabel">
                 <span>{t("mail.draftTo", { defaultValue: "An" })}</span>
-                <input className="pv-field" value={to} onChange={(e) => setTo(e.target.value)} data-testid="draft-to" autoFocus placeholder="name@example.org" />
+                <div
+                  className="pv-field"
+                  data-testid="draft-to-field"
+                  style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
+                  onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
+                >
+                  {toList.map((r) => (
+                    <span
+                      key={r}
+                      data-testid="draft-to-chip"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
+                    >
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeTo(r)}
+                        aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
+                        data-testid="draft-to-remove"
+                        style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={toDraft}
+                    onChange={(e) => setToDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === "," || e.key === ";") { e.preventDefault(); commitTo(toDraft); }
+                      else if (e.key === "Backspace" && toDraft === "" && toList.length > 0) { removeTo(toList[toList.length - 1]); }
+                    }}
+                    onBlur={() => commitTo(toDraft)}
+                    data-testid="draft-to"
+                    autoFocus
+                    placeholder={toList.length === 0 ? "name@example.org" : ""}
+                    style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
+                  />
+                </div>
               </label>
               <label className="pv-mail-cmplabel">
                 <span>{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>

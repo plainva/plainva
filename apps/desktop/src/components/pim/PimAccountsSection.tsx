@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { toast, Button, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
-import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER } from "../../contexts/VaultContext";
+import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { appConfirm } from "../../services/appDialogs";
 import { Select } from "../Select";
@@ -68,6 +68,40 @@ export function PimAccountsSection() {
     await store.set(meetingFolderKey(vaultPath), meetingFolder.trim());
     await store.save();
   }, [vaultPath, meetingFolder]);
+
+  // Default calendar for new events ("<accountId> <calId>"; "" = first writable).
+  const [defaultCal, setDefaultCal] = useState("");
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      const v = (await store.get<string>(defaultCalendarKey(vaultPath))) ?? "";
+      if (alive) setDefaultCal(v);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+  const persistDefaultCal = useCallback(
+    async (value: string) => {
+      setDefaultCal(value);
+      if (!vaultPath) return;
+      const store = await getSettingsStore();
+      await store.set(defaultCalendarKey(vaultPath), value);
+      await store.save();
+      // Let an open calendar tab pick it up without a remount.
+      window.dispatchEvent(new CustomEvent("plainva-default-calendar-changed"));
+    },
+    [vaultPath]
+  );
+  const defaultCalOptions = useMemo(() => {
+    const accById = new Map(accounts.map((a) => [a.id, a.label]));
+    const writable = calendars
+      .filter((c) => !c.readOnly)
+      .map((c) => ({ value: `${c.accountId} ${c.id}`, label: accounts.length > 1 ? `${c.name} · ${accById.get(c.accountId) ?? ""}` : c.name }));
+    return [{ value: "", label: t("pim.defaultCalendarFirst", { defaultValue: "Erster beschreibbarer Kalender" }) }, ...writable];
+  }, [calendars, accounts, t]);
 
   useEffect(() => {
     let alive = true;
@@ -325,6 +359,26 @@ export function PimAccountsSection() {
           {t("pim.meetingFolderHint", { defaultValue: "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender." })}
         </p>
       </div>
+
+      {defaultCalOptions.length > 1 && (
+        <div style={{ marginTop: "0.75rem" }}>
+          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: 2 }}>
+            {t("pim.defaultCalendar", { defaultValue: "Standardkalender für Termine" })}
+          </label>
+          <div style={{ maxWidth: "20rem" }}>
+            <Select
+              ariaLabel={t("pim.defaultCalendar", { defaultValue: "Standardkalender für Termine" })}
+              value={defaultCal}
+              onChange={(v) => void persistDefaultCal(v)}
+              options={defaultCalOptions}
+              data-testid="pim-default-calendar"
+            />
+          </div>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+            {t("pim.defaultCalendarHint", { defaultValue: "Neue Termine wählen diesen Kalender vor." })}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

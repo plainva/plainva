@@ -141,7 +141,15 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
       size="md"
       footer={
         <>
-          {mode === "edit" && (onMeetingNote || onEmailInvite || onBlock || onDelete) && (
+          {mode === "edit" && onMeetingNote && (
+            <Button variant="ghost" size="sm" onClick={onMeetingNote} data-testid="event-meeting-note">
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <FilePlus2 size={15} />
+                {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+              </span>
+            </Button>
+          )}
+          {mode === "edit" && (onEmailInvite || onBlock || onDelete) && (
             <>
               <IconButton
                 label={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}
@@ -152,11 +160,6 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               </IconButton>
               {menu && (
                 <MenuSurface open at={menu} onClose={() => setMenu(null)} ariaLabel={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}>
-                  {onMeetingNote && (
-                    <MenuItem icon={<FilePlus2 size={15} />} data-testid="event-meeting-note" onSelect={onMeetingNote}>
-                      {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
-                    </MenuItem>
-                  )}
                   {onEmailInvite && (
                     <MenuItem icon={<Mail size={15} />} data-testid="event-email-invite" onSelect={onEmailInvite}>
                       {t("pim.emailInvite", { defaultValue: "Per Mail versenden" })}
@@ -186,34 +189,81 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }} data-testid="event-edit-form">
-        <label style={{ fontSize: "var(--text-sm)" }}>
-          {t("pim.eventTitle", { defaultValue: "Titel" })}
-          <TextInput
-            value={values.title}
-            onChange={(e) => set("title", e.target.value)}
-            data-testid="event-title"
-            autoFocus
-            style={{ display: "block", width: "100%", marginTop: 2 }}
-          />
-        </label>
-        {mode === "create" && calendarOptions.length > 0 && (
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>
-              {t("pim.eventCalendar", { defaultValue: "Kalender" })}
-            </label>
-            <Select
-              ariaLabel={t("pim.eventCalendar", { defaultValue: "Kalender" })}
-              value={values.calendarKey}
-              onChange={(v) => set("calendarKey", v)}
-              options={calendarOptions}
-            />
+      <div style={{ display: "flex", flexDirection: "column" }} data-testid="event-edit-form">
+        {/* Group: Termin — title, calendar, colour (settings "quiet cards"). */}
+        <div className="pv-setgroup">
+          <div className="pv-setgroup-label">{t("pim.groupEvent", { defaultValue: "Termin" })}</div>
+          <div className="pv-setcard">
+            <div className="pv-setrow pv-setrow--wide">
+              <span className="pv-setrow-label">{t("pim.eventTitle", { defaultValue: "Titel" })}</span>
+              <TextInput
+                value={values.title}
+                onChange={(e) => set("title", e.target.value)}
+                data-testid="event-title"
+                autoFocus
+                style={{ display: "block", width: "100%" }}
+              />
+            </div>
+            {mode === "create" && calendarOptions.length > 0 && (
+              <div className="pv-setrow">
+                <div className="pv-setrow-main"><div className="pv-setrow-label">{t("pim.eventCalendar", { defaultValue: "Kalender" })}</div></div>
+                <div className="pv-setrow-ctrl" style={{ flexBasis: 260 }}>
+                  <Select
+                    ariaLabel={t("pim.eventCalendar", { defaultValue: "Kalender" })}
+                    value={values.calendarKey}
+                    onChange={(v) => set("calendarKey", v)}
+                    options={calendarOptions}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="pv-setrow pv-setrow--wide">
+              <div className="pv-setrow-main">
+                <span className="pv-setrow-label">{t("pim.eventColor", { defaultValue: "Farbe" })}</span>
+                <div className="pv-setrow-desc">{t("pim.eventColorDesc", { defaultValue: "Überschreibt für diesen Termin die Kalenderfarbe" })}</div>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} data-testid="event-color-picker">
+                <button
+                  type="button"
+                  onClick={() => set("color", "")}
+                  data-testid="event-color-default"
+                  aria-pressed={!values.color}
+                  title={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
+                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
+                >
+                  ✕
+                </button>
+                {EVENT_COLOR_PALETTE.map((hex) => {
+                  const active = values.color.toLowerCase() === hex;
+                  return (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => set("color", hex)}
+                      aria-pressed={active}
+                      data-testid={`event-color-${hex}`}
+                      title={hex}
+                      style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        )}
-        <Checkbox checked={values.allDay} onChange={(e) => set("allDay", e.target.checked)} data-testid="event-allday">
-          {t("pim.allDay", { defaultValue: "Ganztägig" })}
-        </Checkbox>
-        <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+        </div>
+
+        {/* Group: Zeit — all-day, date/time, recurrence. */}
+        <div className="pv-setgroup">
+          <div className="pv-setgroup-label">{t("pim.groupTime", { defaultValue: "Zeit" })}</div>
+          <div className="pv-setcard">
+            <div className="pv-setrow">
+              <Checkbox checked={values.allDay} onChange={(e) => set("allDay", e.target.checked)} data-testid="event-allday">
+                {t("pim.allDay", { defaultValue: "Ganztägig" })}
+              </Checkbox>
+            </div>
+            <div className="pv-setrow pv-setrow--wide">
+              <span className="pv-setrow-label">{t("pim.eventWhen", { defaultValue: "Datum & Uhrzeit" })}</span>
+              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
           <label style={{ fontSize: "var(--text-sm)" }}>
             {values.allDay ? t("pim.eventFrom", { defaultValue: "Von" }) : t("pim.eventDate", { defaultValue: "Datum" })}
             <input
@@ -263,14 +313,13 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               </label>
             </>
           )}
-        </div>
-        {/* Recurrence (Outlook-style) — right after date/time, in create AND
-            edit. A rule is only written when a control is actually touched. */}
-        <div data-testid="event-repeat-section">
-          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>
-            {t("pim.repeat", { defaultValue: "Wiederholung" })}
-          </label>
-          <Select
+              </div>
+            </div>
+            {/* Recurrence (Outlook-style) — right after date/time, in create AND
+                edit. A rule is only written when a control is actually touched. */}
+            <div className="pv-setrow pv-setrow--wide" data-testid="event-repeat-section">
+              <span className="pv-setrow-label">{t("pim.repeat", { defaultValue: "Wiederholung" })}</span>
+              <Select
             ariaLabel={t("pim.repeat", { defaultValue: "Wiederholung" })}
             value={values.repeatFreq}
             onChange={(v) => setRepeat("repeatFreq", v as EventFormValues["repeatFreq"])}
@@ -331,36 +380,45 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
-        <label style={{ fontSize: "var(--text-sm)" }}>
-          {t("pim.eventLocation", { defaultValue: "Ort" })}
-          <TextInput
-            value={values.location}
-            onChange={(e) => set("location", e.target.value)}
-            data-testid="event-location"
-            style={{ display: "block", width: "100%", marginTop: 2 }}
-          />
-        </label>
-        <label style={{ fontSize: "var(--text-sm)" }}>
-          {t("pim.eventDescription", { defaultValue: "Beschreibung" })}
-          <textarea
-            className="pv-field pv-field--area"
-            value={values.description}
-            onChange={(e) => set("description", e.target.value)}
-            data-testid="event-description"
-            rows={3}
-            style={{ display: "block", width: "100%", marginTop: 2 }}
-          />
-        </label>
-        {/* Invitees: Google-Calendar-style chips — type an email, Enter/comma/
-            blur adds it as a chip. The RSVP status list below shows responses. */}
-        <div>
-          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }} htmlFor="event-attendees-input">
-            {t("pim.attendees", { defaultValue: "Teilnehmer" })}
-          </label>
-          <div
-            className="pv-field"
-            data-testid="event-attendees-field"
+
+        {/* Group: Ort & Beschreibung. */}
+        <div className="pv-setgroup">
+          <div className="pv-setgroup-label">{t("pim.groupPlace", { defaultValue: "Ort & Beschreibung" })}</div>
+          <div className="pv-setcard">
+            <div className="pv-setrow pv-setrow--wide">
+              <span className="pv-setrow-label">{t("pim.eventLocation", { defaultValue: "Ort" })}</span>
+              <TextInput
+                value={values.location}
+                onChange={(e) => set("location", e.target.value)}
+                data-testid="event-location"
+                style={{ display: "block", width: "100%" }}
+              />
+            </div>
+            <div className="pv-setrow pv-setrow--wide">
+              <span className="pv-setrow-label">{t("pim.eventDescription", { defaultValue: "Beschreibung" })}</span>
+              <textarea
+                className="pv-field pv-field--area"
+                value={values.description}
+                onChange={(e) => set("description", e.target.value)}
+                data-testid="event-description"
+                rows={3}
+                style={{ display: "block", width: "100%" }}
+              />
+            </div>
+          </div>
+        </div>
+        {/* Group: Teilnehmer — invitees (chips), notify, RSVP responses. */}
+        <div className="pv-setgroup">
+          <div className="pv-setgroup-label">{t("pim.groupAttendees", { defaultValue: "Teilnehmer" })}</div>
+          <div className="pv-setcard">
+            <div className="pv-setrow pv-setrow--wide">
+              <label className="pv-setrow-label" htmlFor="event-attendees-input">{t("pim.attendees", { defaultValue: "Teilnehmer" })}</label>
+              <div
+                className="pv-field"
+                data-testid="event-attendees-field"
             style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
             onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
           >
@@ -399,89 +457,56 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               placeholder={attendeeList.length === 0 ? t("pim.attendeesChipHint", { defaultValue: "E-Mail-Adresse eingeben und Enter drücken" }) : ""}
               style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
             />
-          </div>
-          {attendeeList.length > 0 && (
-            <div style={{ marginTop: 6 }}>
-              <Checkbox
-                checked={values.notifyAttendees}
-                onChange={(e) => set("notifyAttendees", e.target.checked)}
-                data-testid="event-notify-attendees"
-              >
-                {t("pim.notifyAttendees", { defaultValue: "Teilnehmer per E-Mail benachrichtigen" })}
-              </Checkbox>
+              </div>
             </div>
-          )}
-        </div>
-        <div>
-          <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
-            {t("pim.eventColor", { defaultValue: "Farbe" })}
-          </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} data-testid="event-color-picker">
-            <button
-              type="button"
-              onClick={() => set("color", "")}
-              data-testid="event-color-default"
-              aria-pressed={!values.color}
-              title={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-              style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
-            >
-              ✕
-            </button>
-            {EVENT_COLOR_PALETTE.map((hex) => {
-              const active = values.color.toLowerCase() === hex;
-              return (
-                <button
-                  key={hex}
-                  type="button"
-                  onClick={() => set("color", hex)}
-                  aria-pressed={active}
-                  data-testid={`event-color-${hex}`}
-                  title={hex}
-                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
-                />
-              );
-            })}
-          </div>
-        </div>
-        {mode === "edit" && rsvps && rsvps.length > 0 && (
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
-              {t("pim.attendeeResponses", { defaultValue: "Antworten" })}
-            </label>
-            <div data-testid="event-attendees" style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 120, overflow: "auto" }}>
-              {rsvps.map((a) => (
-                <div key={`${a.name}-${a.email ?? ""}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)" }}>
-                  <span aria-hidden style={{ width: 8, height: 8, borderRadius: "var(--radius-pill)", background: STATUS_COLOR[a.status], flexShrink: 0 }} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {a.name}
-                    {a.organizer ? ` · ${t("pim.organizer", { defaultValue: "Organisator" })}` : ""}
-                  </span>
-                  <span style={{ marginLeft: "auto", color: "var(--text-muted)", flexShrink: 0 }}>{statusLabel(a.status)}</span>
+            {attendeeList.length > 0 && (
+              <div className="pv-setrow">
+                <Checkbox
+                  checked={values.notifyAttendees}
+                  onChange={(e) => set("notifyAttendees", e.target.checked)}
+                  data-testid="event-notify-attendees"
+                >
+                  {t("pim.notifyAttendees", { defaultValue: "Teilnehmer per E-Mail benachrichtigen" })}
+                </Checkbox>
+              </div>
+            )}
+            {mode === "edit" && rsvps && rsvps.length > 0 && (
+              <div className="pv-setrow pv-setrow--wide">
+                <span className="pv-setrow-label">{t("pim.attendeeResponses", { defaultValue: "Antworten" })}</span>
+                <div data-testid="event-attendees" style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 120, overflow: "auto" }}>
+                  {rsvps.map((a) => (
+                    <div key={`${a.name}-${a.email ?? ""}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)" }}>
+                      <span aria-hidden style={{ width: 8, height: 8, borderRadius: "var(--radius-pill)", background: STATUS_COLOR[a.status], flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {a.name}
+                        {a.organizer ? ` · ${t("pim.organizer", { defaultValue: "Organisator" })}` : ""}
+                      </span>
+                      <span style={{ marginLeft: "auto", color: "var(--text-muted)", flexShrink: 0 }}>{statusLabel(a.status)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            {mode === "edit" && selfResponse && onRespond && (
+              <div className="pv-setrow pv-setrow--wide">
+                <span className="pv-setrow-label">{t("pim.yourResponse", { defaultValue: "Deine Antwort" })}</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} data-testid="event-rsvp">
+                  <Button size="sm" variant={ownStatus === "accepted" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-accept" onClick={() => void respond("accepted")}>
+                    {t("pim.rsvpAccept", { defaultValue: "Zusagen" })}
+                  </Button>
+                  <Button size="sm" variant={ownStatus === "tentative" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-tentative" onClick={() => void respond("tentative")}>
+                    {t("pim.rsvpTentative", { defaultValue: "Vorläufig" })}
+                  </Button>
+                  <Button size="sm" variant={ownStatus === "declined" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-decline" onClick={() => void respond("declined")}>
+                    {t("pim.rsvpDecline", { defaultValue: "Absagen" })}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        {mode === "edit" && selfResponse && onRespond && (
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 4 }}>
-              {t("pim.yourResponse", { defaultValue: "Deine Antwort" })}
-            </label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} data-testid="event-rsvp">
-              <Button size="sm" variant={ownStatus === "accepted" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-accept" onClick={() => void respond("accepted")}>
-                {t("pim.rsvpAccept", { defaultValue: "Zusagen" })}
-              </Button>
-              <Button size="sm" variant={ownStatus === "tentative" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-tentative" onClick={() => void respond("tentative")}>
-                {t("pim.rsvpTentative", { defaultValue: "Vorläufig" })}
-              </Button>
-              <Button size="sm" variant={ownStatus === "declined" ? "primary" : "ghost"} disabled={responding} data-testid="rsvp-decline" onClick={() => void respond("declined")}>
-                {t("pim.rsvpDecline", { defaultValue: "Absagen" })}
-              </Button>
-            </div>
-          </div>
-        )}
+        </div>
         {error && (
-          <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0 }} data-testid="event-error">
+          <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0, marginTop: "var(--space-3)" }} data-testid="event-error">
             {error}
           </p>
         )}
