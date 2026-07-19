@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, CopyPlus, FilePlus2, ListChecks, Mail, MapPin, Pencil, Plus, RefreshCw, Repeat, Square, Trash2 } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
@@ -105,6 +105,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
 
   const todayKey = localIsoKey(new Date());
+  const tomorrowKey = ((): string => {
+    const [ty, tm, td] = todayKey.split("-").map(Number);
+    return localIsoKey(new Date(ty ?? 1970, (tm ?? 1) - 1, (td ?? 1) + 1));
+  })();
   // Per-minute "now" so past events dim live (Google-Calendar style) without a
   // re-query; the value drives only presentation.
   const [nowTs, setNowTs] = useState(() => Date.now());
@@ -824,90 +828,110 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [calendarOptions]
   );
 
-  const eventCard = (e: PimEventRow) => (
-    <div
+  const calNameOf = (e: PimEventRow) => calName.get(`${e.accountId} ${e.calendarId}`) ?? "";
+
+  // ---- agenda: a dense timeline (date rail + compact rows) -----------------
+
+  const agendaStartTime = (e: PimEventRow) =>
+    new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts));
+
+  /** One compact agenda row: time · colour bar + title (+ location/attendee
+   * meta) · calendar name. The whole row opens the edit dialog — the per-row
+   * actions live in that dialog's ⋮ menu, keeping the timeline dense. */
+  const agendaEventRow = (e: PimEventRow) => (
+    <button
       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+      type="button"
+      onClick={() => requestEdit(e)}
       data-testid="calendar-event"
+      className="pv-rowhover"
       style={{
-        display: "flex",
-        gap: "var(--space-2)",
-        border: "1px solid var(--border-color-light)",
-        borderRadius: "var(--radius-sm)",
-        padding: "var(--space-2)",
-        alignItems: "flex-start",
-        // Past events read dimmer (Google-Calendar style).
-        opacity: isPast(e) ? 0.55 : 1,
+        display: "grid",
+        gridTemplateColumns: "58px 1fr auto",
+        gap: 12,
+        alignItems: "baseline",
+        width: "100%",
+        textAlign: "left",
+        border: "none",
+        cursor: "pointer",
+        padding: "7px 8px",
+        borderRadius: "var(--radius-md)",
+        color: "var(--text-main)",
+        opacity: isPast(e) ? 0.5 : 1,
       }}
     >
-      <span aria-hidden style={{ width: 4, alignSelf: "stretch", borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+      <span style={{ fontVariantNumeric: "tabular-nums", fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "var(--font-mono, ui-monospace, monospace)" }}>
+        {agendaStartTime(e)}
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
+          <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
           {e.seriesMaster ? <Repeat size={11} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language)}
-            {calName.get(`${e.accountId} ${e.calendarId}`) ? ` · ${calName.get(`${e.accountId} ${e.calendarId}`)}` : ""}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+        </span>
+        {e.location || (e.attendees?.length ?? 0) > 0 ? (
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 12 }}>
+            {e.location ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, overflowWrap: "anywhere" }}>
+                <MapPin size={11} style={{ flexShrink: 0 }} />
+                {e.location}
+              </span>
+            ) : null}
+            {(e.attendees?.length ?? 0) > 0 ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--text-faint)" }} aria-label={t("pim.attendees", { defaultValue: "Teilnehmer" })}>
+                <Users size={11} style={{ flexShrink: 0 }} />
+                {e.attendees!.length}
+              </span>
+            ) : null}
           </span>
-        </div>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, overflowWrap: "anywhere" }}>{e.title}</div>
-        {e.location ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-            <MapPin size={11} style={{ flexShrink: 0 }} />
-            {e.location}
-          </div>
         ) : null}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-        <IconButton
-          label={t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
-          onClick={() => void openMeetingNote(e)}
-          data-testid="calendar-meeting-note"
-          size="sm"
-        >
-          <FilePlus2 size={14} />
-        </IconButton>
-        <IconButton
-          label={t("pim.emailInvite", { defaultValue: "Per Mail versenden" })}
-          onClick={() => void emailInvite(e)}
-          data-testid="calendar-email-invite"
-          size="sm"
-        >
-          <Mail size={13} />
-        </IconButton>
-        {calendarOptions.length > 1 && (
-          <IconButton
-            label={t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}
-            onClick={() => setBlockEvent(e)}
-            data-testid="calendar-block-event"
-            size="sm"
-          >
-            <CopyPlus size={13} />
-          </IconButton>
-        )}
-        {/* Series instances route through the scope dialog (stage 4). */}
-        <IconButton label={t("pim.editEvent", { defaultValue: "Termin bearbeiten" })} onClick={() => requestEdit(e)} data-testid="calendar-edit-event" size="sm">
-          <Pencil size={13} />
-        </IconButton>
-        <IconButton label={t("pim.deleteEvent", { defaultValue: "Termin löschen" })} onClick={() => requestDelete(e)} data-testid="calendar-delete-event" size="sm">
-          <Trash2 size={13} />
-        </IconButton>
-      </div>
-    </div>
-  );
-
-  const taskRow = (task: CalTask) => (
-    <button
-      key={task.path}
-      type="button"
-      onClick={() => onOpenPath(task.path, false)}
-      data-testid="calendar-task"
-      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "3px 2px", color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-sm)" }}
-    >
-      {task.done ? <CheckSquare size={14} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={14} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
+      </span>
+      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", whiteSpace: "nowrap" }}>{calNameOf(e)}</span>
     </button>
   );
 
-  const calNameOf = (e: PimEventRow) => calName.get(`${e.accountId} ${e.calendarId}`) ?? "";
+  /** One agenda task row: checkbox · title · due pill. */
+  const agendaTaskRow = (task: CalTask, dayKey: string) => {
+    const [dy, dm, dd] = dayKey.split("-").map(Number);
+    const dueLabel =
+      dayKey === todayKey
+        ? t("pim.dueToday", { defaultValue: "fällig heute" })
+        : t("pim.dueOn", {
+            defaultValue: "fällig {{date}}",
+            date: new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" }).format(new Date(dy ?? 1970, (dm ?? 1) - 1, dd ?? 1)),
+          });
+    return (
+      <button
+        key={task.path}
+        type="button"
+        onClick={() => onOpenPath(task.path, false)}
+        data-testid="calendar-task"
+        className="pv-rowhover"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "58px 1fr auto",
+          gap: 12,
+          alignItems: "center",
+          width: "100%",
+          textAlign: "left",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px 8px",
+          borderRadius: "var(--radius-md)",
+        }}
+      >
+        <span style={{ display: "grid", placeItems: "center" }}>
+          {task.done ? <CheckSquare size={15} style={{ color: "var(--accent-color)" }} /> : <Square size={15} style={{ color: "var(--text-faint)" }} />}
+        </span>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>
+          {task.title}
+        </span>
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--warning-text)", background: "var(--warning-bg)", padding: "1px 8px", borderRadius: "var(--radius-pill)", fontWeight: 600, whiteSpace: "nowrap" }}>
+          {dueLabel}
+        </span>
+      </button>
+    );
+  };
 
   /** The shared time grid for the day / 3-day / week views and the month day
    * pane (feedback round 3). */
@@ -1185,21 +1209,80 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           renderTimeGrid(gridDays, viewMode !== "day")}
 
         {viewMode === "agenda" && (
-          <div data-testid="calendar-agenda" style={{ flex: 1, minWidth: 0, overflow: "auto", padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          <div data-testid="calendar-agenda" style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
             {agendaDays.length === 0 ? (
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", padding: "var(--space-4)", textAlign: "center" }}>
                 {t("pim.agendaEmpty", { defaultValue: "Keine anstehenden Termine." })}
               </div>
             ) : (
-              agendaDays.map(({ key, events: evs, tasks: tks }) => (
-                <div key={key} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", maxWidth: 560 }}>
-                  <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: key === todayKey ? "var(--accent-color)" : "var(--text-main)" }}>
-                    {formatDayLong(key)}
-                  </h3>
-                  {evs.map(eventCard)}
-                  {tks.map(taskRow)}
-                </div>
-              ))
+              agendaDays.map(({ key, events: evs, tasks: tks }, gi) => {
+                const [yy, mm, dd] = key.split("-").map(Number);
+                const dateObj = new Date(yy ?? 1970, (mm ?? 1) - 1, dd ?? 1);
+                const isToday = key === todayKey;
+                const isTomorrow = key === tomorrowKey;
+                const kicker = isToday
+                  ? t("pim.agendaToday", { defaultValue: "Heute" })
+                  : isTomorrow
+                    ? t("pim.agendaTomorrow", { defaultValue: "Morgen" })
+                    : new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(dateObj);
+                const subline =
+                  isToday || isTomorrow
+                    ? new Intl.DateTimeFormat(i18n.language, { weekday: "long" }).format(dateObj)
+                    : new Intl.DateTimeFormat(i18n.language, { month: "long" }).format(dateObj);
+                const timed = evs.filter((e) => !e.allDay);
+                const allDay = evs.filter((e) => e.allDay);
+                const countParts = [`${evs.length} ${t("pim.eventsLabel", { defaultValue: "Termine" })}`];
+                if (tks.length > 0) countParts.push(`${tks.length} ${t("tasks.title", { defaultValue: "Aufgaben" })}`);
+                return (
+                  <div
+                    key={key}
+                    data-testid="agenda-day"
+                    style={{ display: "grid", gridTemplateColumns: "92px 1fr", borderTop: gi > 0 ? "1px solid var(--border-color-light)" : "none" }}
+                  >
+                    {/* date rail */}
+                    <div style={{ padding: "14px 6px 14px 16px" }}>
+                      <div style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700 }}>{kicker}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-.02em", color: isToday ? "var(--accent-color)" : "var(--text-main)" }}>{dd}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{subline}</div>
+                      <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-faint)" }}>{countParts.join(" · ")}</div>
+                    </div>
+                    {/* events + tasks along the spine */}
+                    <div style={{ padding: "12px 16px 14px 20px", borderLeft: "1px solid var(--border-color-light)", minWidth: 0 }}>
+                      {allDay.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                          {allDay.map((e) => (
+                            <button
+                              key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                              type="button"
+                              onClick={() => requestEdit(e)}
+                              data-testid="agenda-allday"
+                              style={{
+                                fontSize: 11.5,
+                                padding: "2px 9px",
+                                borderRadius: "var(--radius-pill)",
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: "pointer",
+                                color: colorOf(e),
+                                background: `color-mix(in srgb, ${colorOf(e)} 16%, transparent)`,
+                                opacity: isPast(e) ? 0.55 : 1,
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {e.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {timed.map(agendaEventRow)}
+                      {tks.map((tk) => agendaTaskRow(tk, key))}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}
@@ -1241,6 +1324,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           onBlock={
             editState.mode === "edit" && editState.event && calendarOptions.length > 1
               ? () => { const ev = editState.event!; setEditState(null); setBlockEvent(ev); }
+              : undefined
+          }
+          onEmailInvite={
+            editState.mode === "edit" && editState.event
+              ? () => { const ev = editState.event!; setEditState(null); void emailInvite(ev); }
               : undefined
           }
           rsvps={editState.mode === "edit" ? editState.event?.rsvps : undefined}

@@ -2023,6 +2023,10 @@
     "accountLabel": "Label (optioneel)",
     "caldavUrl": "CalDAV-URL",
     "emailInvite": "Verzenden per e-mail",
+    "agendaToday": "Vandaag",
+    "agendaTomorrow": "Morgen",
+    "dueToday": "vandaag te doen",
+    "dueOn": "te doen {{date}}",
     "inviteSubject": "Uitnodiging: {{title}}"
   },
   "mail": {

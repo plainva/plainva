@@ -2035,6 +2035,10 @@
     "accountLabel": "Etykieta (opcjonalnie)",
     "caldavUrl": "Adres URL CalDAV",
     "emailInvite": "Wyślij e-mailem",
+    "agendaToday": "Dziś",
+    "agendaTomorrow": "Jutro",
+    "dueToday": "termin dziś",
+    "dueOn": "termin {{date}}",
     "inviteSubject": "Zaproszenie: {{title}}"
   },
   "mail": {

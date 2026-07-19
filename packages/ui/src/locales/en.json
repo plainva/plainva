@@ -2023,6 +2023,10 @@
     "accountLabel": "Label (optional)",
     "caldavUrl": "CalDAV URL",
     "emailInvite": "Send by email",
+    "agendaToday": "Today",
+    "agendaTomorrow": "Tomorrow",
+    "dueToday": "due today",
+    "dueOn": "due {{date}}",
     "inviteSubject": "Invitation: {{title}}"
   },
   "mail": {

@@ -2017,6 +2017,10 @@
     "accountLabel": "ラベル（任意）",
     "caldavUrl": "CalDAV アドレス",
     "emailInvite": "メールで送信",
+    "agendaToday": "今日",
+    "agendaTomorrow": "明日",
+    "dueToday": "今日締め切り",
+    "dueOn": "{{date}} 締め切り",
     "inviteSubject": "招待: {{title}}"
   },
   "mail": {

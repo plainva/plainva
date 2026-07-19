@@ -2017,6 +2017,10 @@
     "accountLabel": "名称（可选）",
     "caldavUrl": "CalDAV 网址",
     "emailInvite": "通过邮件发送",
+    "agendaToday": "今天",
+    "agendaTomorrow": "明天",
+    "dueToday": "今天到期",
+    "dueOn": "{{date}} 到期",
     "inviteSubject": "邀请：{{title}}"
   },
   "mail": {

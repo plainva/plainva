@@ -2029,6 +2029,10 @@
     "accountLabel": "Nombre (opcional)",
     "caldavUrl": "URL CalDAV",
     "emailInvite": "Enviar por correo",
+    "agendaToday": "Hoy",
+    "agendaTomorrow": "Mañana",
+    "dueToday": "vence hoy",
+    "dueOn": "vence {{date}}",
     "inviteSubject": "Invitación: {{title}}"
   },
   "mail": {

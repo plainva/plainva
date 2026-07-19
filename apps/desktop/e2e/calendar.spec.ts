@@ -301,10 +301,14 @@ test('mail-client E6: an event can be emailed as an iCal invite', async ({ page 
     window.addEventListener('plainva-compose-mail', (e) => { (window as any).__composed = (e as CustomEvent).detail; });
   });
   await page.getByTestId('ribbon-calendar').click();
-  // The full event action card (with the invite button) lives in the agenda view.
+  // The dense agenda opens the edit dialog on click; "email as invite" lives in
+  // that dialog's ⋮ actions menu.
   await page.getByTestId('calendar-mode-agenda').click();
   await expect(page.getByTestId('calendar-agenda')).toBeVisible();
-  await page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' }).getByTestId('calendar-email-invite').click();
+  await page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' }).click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  await page.getByTestId('event-actions-menu').click();
+  await page.getByTestId('event-email-invite').click();
 
   await expect.poll(() => page.evaluate(() => (window as any).__composed ?? null)).toBeTruthy();
   const c = await page.evaluate(() => (window as any).__composed);
@@ -551,10 +555,12 @@ test('view modes: month / day / 3-day / week are time grids, agenda is a list', 
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 
-  // Agenda: no time grid; grouped list with the event's full action card.
+  // Agenda: no time grid; a dense timeline (date rail + compact rows, actions
+  // in the row's edit dialog).
   await page.getByTestId('calendar-mode-agenda').click();
   await expect(page.getByTestId('calendar-agenda')).toBeVisible();
   await expect(page.getByTestId('calendar-timegrid')).toHaveCount(0);
+  await expect(page.getByTestId('agenda-day').first()).toBeVisible();
   await expect(page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' })).toBeVisible();
 
   // The chosen view persists across a reload.

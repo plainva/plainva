@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CopyPlus, FilePlus2, MoreVertical, Trash2, X } from "lucide-react";
+import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2, X } from "lucide-react";
 import { Modal, Button, IconButton, MenuSurface, MenuItem, TextInput, Checkbox, EVENT_COLOR_PALETTE } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
@@ -33,6 +33,8 @@ interface EventEditModalProps {
   onMeetingNote?: () => void;
   onDelete?: () => void;
   onBlock?: () => void;
+  /** Edit mode: send the event as a standards-compliant iCal invite. */
+  onEmailInvite?: () => void;
   /** Edit mode: attendees with their RSVP status (the back-channel). */
   rsvps?: PimAttendee[];
   /** Edit mode: the user's own RSVP status when invited (shows accept/decline). */
@@ -41,7 +43,7 @@ interface EventEditModalProps {
   onRespond?: (response: "accepted" | "declined" | "tentative") => Promise<void>;
 }
 
-export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, onBlock, rsvps, selfResponse, onRespond }: EventEditModalProps) {
+export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, onBlock, onEmailInvite, rsvps, selfResponse, onRespond }: EventEditModalProps) {
   const { t, i18n } = useTranslation();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [busy, setBusy] = useState(false);
@@ -139,7 +141,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
       size="md"
       footer={
         <>
-          {mode === "edit" && (onMeetingNote || onBlock || onDelete) && (
+          {mode === "edit" && (onMeetingNote || onEmailInvite || onBlock || onDelete) && (
             <>
               <IconButton
                 label={t("common.moreActions", { defaultValue: "Weitere Aktionen" })}
@@ -153,6 +155,11 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   {onMeetingNote && (
                     <MenuItem icon={<FilePlus2 size={15} />} data-testid="event-meeting-note" onSelect={onMeetingNote}>
                       {t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}
+                    </MenuItem>
+                  )}
+                  {onEmailInvite && (
+                    <MenuItem icon={<Mail size={15} />} data-testid="event-email-invite" onSelect={onEmailInvite}>
+                      {t("pim.emailInvite", { defaultValue: "Per Mail versenden" })}
                     </MenuItem>
                   )}
                   {onBlock && (
