@@ -603,6 +603,64 @@
   box-shadow: 0 0 0 3px var(--state-focus);
 }
 
+/* Chip input field (recipient/attendee chips): a .pv-field that grows to wrap
+   chips and lights the WHOLE field on focus-within — the caret lives in the
+   inner <input>, so the wrapper's own :focus never fires and the bare border
+   change alone looked wrong. Central so mail compose and the event dialog share
+   one look. Use as `className="pv-field pv-chipfield"`. */
+.pv-chipfield {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  height: auto;
+  min-height: var(--control-md);
+  padding: 3px var(--space-2);
+  cursor: text;
+}
+.pv-chipfield:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--state-focus);
+}
+.pv-chipfield > input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 0;
+}
+.pv-chipfield > input::placeholder { color: var(--text-faint); }
+.pv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 4px 1px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+}
+.pv-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-chip-x {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 0;
+}
+.pv-chip-x:hover { color: var(--text-main); }
+
 /* Docked toolbar (UI 2.0 primitive, plan Mobile M3E package A4): a calm
    bottom-anchored action strip — mobile keyboard toolbar, desktop selection
    tools. One horizontally scrolling row on a raised tonal surface; children

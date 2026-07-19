@@ -8,6 +8,7 @@ import {
   Button,
   EmptyState,
   IconButton,
+  Segmented,
   buildMonthCells,
   buildWeekCells,
   buildContiguousDays,
@@ -1037,35 +1038,19 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         >
           {t("calendar.today", { defaultValue: "Heute" })}
         </Button>
-        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-secondary)", borderRadius: "var(--radius-pill)", padding: 2, marginLeft: "var(--space-2)" }}>
-          {(
-            [
-              ["day", t("pim.viewDay", { defaultValue: "Tag" })],
-              ["3day", t("pim.view3Day", { defaultValue: "3 Tage" })],
-              ["week", t("pim.viewWeek", { defaultValue: "Woche" })],
-              ["month", t("pim.viewMonth", { defaultValue: "Monat" })],
-              ["agenda", t("pim.viewAgenda", { defaultValue: "Agenda" })],
-            ] as [CalViewMode, string][]
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setViewMode(mode)}
-              aria-pressed={viewMode === mode}
-              data-testid={`calendar-mode-${mode}`}
-              style={{
-                padding: "0.2rem 0.6rem",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "var(--text-xs)",
-                borderRadius: "var(--radius-pill)",
-                background: viewMode === mode ? "var(--accent-color)" : "transparent",
-                color: viewMode === mode ? "var(--accent-on)" : "var(--text-muted)",
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <div style={{ marginLeft: "var(--space-2)" }}>
+          <Segmented<CalViewMode>
+            ariaLabel={t("pim.viewSwitch", { defaultValue: "Kalenderansicht" })}
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }), testId: "calendar-mode-day" },
+              { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }), testId: "calendar-mode-3day" },
+              { value: "week", label: t("pim.viewWeek", { defaultValue: "Woche" }), testId: "calendar-mode-week" },
+              { value: "month", label: t("pim.viewMonth", { defaultValue: "Monat" }), testId: "calendar-mode-month" },
+              { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }), testId: "calendar-mode-agenda" },
+            ]}
+          />
         </div>
         <span style={{ flex: 1 }} />
         {status.status === "syncing" ? (

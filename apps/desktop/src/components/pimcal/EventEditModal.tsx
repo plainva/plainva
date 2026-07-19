@@ -417,24 +417,19 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             <div className="pv-setrow pv-setrow--wide">
               <label className="pv-setrow-label" htmlFor="event-attendees-input">{t("pim.attendees", { defaultValue: "Teilnehmer" })}</label>
               <div
-                className="pv-field"
+                className="pv-field pv-chipfield"
                 data-testid="event-attendees-field"
-            style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
-            onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
-          >
-            {attendeeList.map((email) => (
-              <span
-                key={email}
-                data-testid="event-attendee-chip"
-                style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
+                onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
               >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</span>
+            {attendeeList.map((email) => (
+              <span key={email} className="pv-chip" data-testid="event-attendee-chip">
+                <span>{email}</span>
                 <button
                   type="button"
+                  className="pv-chip-x"
                   onClick={() => removeAttendee(email)}
                   aria-label={t("pim.attendeeRemove", { defaultValue: "Teilnehmer entfernen: {{email}}", email })}
                   data-testid="event-attendee-remove"
-                  style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
                 >
                   <X size={12} />
                 </button>
@@ -455,7 +450,6 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
               onBlur={() => commitAttendees(attendeeDraft)}
               data-testid="event-attendees-input"
               placeholder={attendeeList.length === 0 ? t("pim.attendeesChipHint", { defaultValue: "E-Mail-Adresse eingeben und Enter drücken" }) : ""}
-              style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
             />
               </div>
             </div>

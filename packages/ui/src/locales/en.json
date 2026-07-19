@@ -1992,6 +1992,7 @@
     "viewMonth": "Month",
     "viewWeek": "Week",
     "viewAgenda": "Agenda",
+    "viewSwitch": "Calendar view",
     "prevWeek": "Previous week",
     "nextWeek": "Next week",
     "agendaEmpty": "No upcoming events.",

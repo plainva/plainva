@@ -6,6 +6,8 @@ export interface SegmentedOption<T extends string> {
   label: ReactNode;
   /** Optional leading icon (lucide element). */
   icon?: ReactNode;
+  /** Optional test id set on the option's button (for E2E selection). */
+  testId?: string;
 }
 
 export interface SegmentedProps<T extends string> {
@@ -45,6 +47,7 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={on}
+            data-testid={opt.testId}
             className={cx("pv-seg-item", on && "is-active")}
             onClick={() => onChange(opt.value)}
           >

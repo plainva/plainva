@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, GripVertical, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
 import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
@@ -182,6 +182,7 @@ export function BasePeekModal({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
+        <GripVertical size={14} className="pv-peek-grip" aria-hidden />
         <div className="pv-peek-nav">
           <button
             type="button"

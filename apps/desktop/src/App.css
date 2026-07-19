@@ -451,7 +451,8 @@ option {
    dynamic position/size come in as CSS vars set inline by BasePeekModal. */
 .pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: var(--z-modal); display: flex; flex-direction: column; overflow: hidden; }
 .pv-peek-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
-.pv-peek-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem 0.4rem 0.6rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
+.pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
+.pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }
 .pv-peek-nav { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
 .pv-peek-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-peek-actions { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }

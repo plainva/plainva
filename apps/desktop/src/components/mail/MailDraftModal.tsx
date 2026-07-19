@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Button, toast } from "@plainva/ui";
-import { Paperclip, X } from "lucide-react";
+import { GripVertical, Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
@@ -281,24 +281,19 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     autoFocus = false
   ) => (
     <div
-      className="pv-field"
+      className="pv-field pv-chipfield"
       data-testid={`${testid}-field`}
-      style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minHeight: "var(--control-h-md, 34px)", height: "auto", paddingTop: 4, paddingBottom: 4, cursor: "text" }}
       onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
     >
       {row.list.map((r) => (
-        <span
-          key={r}
-          data-testid={`${testid}-chip`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-pill)", padding: "1px 4px 1px 8px", fontSize: "var(--text-xs)", maxWidth: "100%" }}
-        >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r}</span>
+        <span key={r} className="pv-chip" data-testid={`${testid}-chip`}>
+          <span>{r}</span>
           <button
             type="button"
+            className="pv-chip-x"
             onClick={() => row.remove(r)}
             aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
             data-testid={`${testid}-remove`}
-            style={{ display: "inline-flex", border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", padding: 0, lineHeight: 0 }}
           >
             <X size={12} />
           </button>
@@ -315,7 +310,6 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         data-testid={testid}
         autoFocus={autoFocus}
         placeholder={row.list.length === 0 ? placeholder : ""}
-        style={{ flex: 1, minWidth: 120, border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "2px 0" }}
       />
     </div>
   );
@@ -336,6 +330,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       } as React.CSSProperties}
     >
       <div className="pv-peek-head" onPointerDown={onHeadDown} onPointerMove={onHeadMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+        <GripVertical size={14} className="pv-peek-grip" aria-hidden />
         <span className="pv-peek-title">{title}</span>
         <div className="pv-peek-actions">
           <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} title={t("common.close", { defaultValue: "Schließen" })}>

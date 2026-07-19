@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, MapPin } from "lucide-react";
+import { Button } from "@plainva/ui";
 
 /**
  * Google-Calendar-style quick-create popover (feedback round 3): appears at the
@@ -121,22 +122,12 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderTop: "1px solid var(--border-color-light)", background: "var(--bg-secondary)" }}>
-          <button
-            type="button"
-            onClick={() => onMore(values())}
-            data-testid="calendar-quick-more"
-            style={{ border: "none", background: "transparent", color: "var(--accent-color)", cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 550, padding: 0 }}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onMore(values())} data-testid="calendar-quick-more">
             {t("pim.quickCreateMore", { defaultValue: "Weitere Optionen" })}
-          </button>
-          <button
-            type="button"
-            onClick={() => onSave(values())}
-            data-testid="calendar-quick-save"
-            style={{ background: "var(--accent-color)", color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 600, padding: "5px 14px" }}
-          >
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => onSave(values())} data-testid="calendar-quick-save">
             {t("common.save", { defaultValue: "Speichern" })}
-          </button>
+          </Button>
         </div>
       </div>
     </>

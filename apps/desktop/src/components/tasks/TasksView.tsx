@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
+import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, Segmented, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
@@ -459,26 +459,6 @@ export function TasksView({ onOpenPath }: Props) {
     [onOpenPath]
   );
 
-  const segBtn = (value: StatusFilter, label: string) => (
-    <button
-      type="button"
-      onClick={() => setStatus(value)}
-      aria-pressed={status === value}
-      data-testid={`tasks-filter-${value}`}
-      style={{
-        padding: "0.25rem 0.65rem",
-        border: "none",
-        cursor: "pointer",
-        fontSize: "0.8rem",
-        borderRadius: "var(--radius-pill)",
-        background: status === value ? "var(--accent-color)" : "transparent",
-        color: status === value ? "var(--accent-on)" : "var(--text-muted)",
-      }}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
@@ -496,11 +476,15 @@ export function TasksView({ onOpenPath }: Props) {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
-        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-secondary)", borderRadius: "var(--radius-pill)", padding: 2 }}>
-          {segBtn("open", t("tasks.open", { defaultValue: "Offen" }))}
-          {segBtn("done", t("tasks.done", { defaultValue: "Erledigt" }))}
-          {segBtn("all", t("tasks.all", { defaultValue: "Alle" }))}
-        </div>
+        <Segmented<StatusFilter>
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: "open", label: t("tasks.open", { defaultValue: "Offen" }), testId: "tasks-filter-open" },
+            { value: "done", label: t("tasks.done", { defaultValue: "Erledigt" }), testId: "tasks-filter-done" },
+            { value: "all", label: t("tasks.all", { defaultValue: "Alle" }), testId: "tasks-filter-all" },
+          ]}
+        />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
