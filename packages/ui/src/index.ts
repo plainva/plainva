@@ -17,6 +17,7 @@ export * from "./lib/renameNote";
 export * from "./lib/startrekQuotes";
 export * from "./lib/themeRegistry";
 export * from "./lib/concurrencyLimiter";
+export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";

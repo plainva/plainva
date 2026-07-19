@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, toast } from "@plainva/ui";
-import { GripVertical, Paperclip, X } from "lucide-react";
+import { Button, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
+import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
 import { listMailboxesFor } from "../../services/mail/mailClient";
 import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "../../services/mail/mailOut";
@@ -31,29 +29,6 @@ interface MailDraftModalProps {
   /** Optional recipient prefill (reply / reply-all / invite attendees). */
   initialTo?: string;
   onClose: () => void;
-}
-
-const MIN_W = 420;
-const MIN_H = 360;
-const MARGIN = 8;
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
-interface Rect { x: number; y: number; w: number; h: number }
-
-// Remembered across opens within the session (not persisted to disk).
-let savedComposeRect: Rect | null = null;
-
-function defaultRect(): Rect {
-  const w = clamp(660, MIN_W, window.innerWidth - MARGIN * 2);
-  const h = clamp(600, MIN_H, window.innerHeight - MARGIN * 2);
-  return { x: Math.max(MARGIN, Math.round((window.innerWidth - w) / 2)), y: Math.max(MARGIN, Math.round((window.innerHeight - h) / 2)), w, h };
-}
-function fitRect(base: Rect): Rect {
-  const w = clamp(base.w, MIN_W, window.innerWidth - MARGIN * 2);
-  const h = clamp(base.h, MIN_H, window.innerHeight - MARGIN * 2);
-  const x = clamp(base.x, MARGIN, Math.max(MARGIN, window.innerWidth - w - MARGIN));
-  const y = clamp(base.y, MARGIN, Math.max(MARGIN, window.innerHeight - h - MARGIN));
-  return { x, y, w, h };
 }
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -103,58 +78,6 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [attach, setAttach] = useState<MailAttachment[]>(attachments ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Free-floating position + size (remembered per session).
-  const [rect, setRect] = useState<Rect>(() => fitRect(savedComposeRect ?? defaultRect()));
-  useEffect(() => { savedComposeRect = rect; }, [rect]);
-
-  // Escape closes (capture, so it wins over inner editor handlers).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [onClose]);
-
-  // --- Drag (by header) + resize (bottom-right grip) via pointer capture ---
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
-  const onHeadDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("button")) return;
-    e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y };
-  };
-  const onHeadMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    setRect((r) => ({
-      ...r,
-      x: clamp(d.ox + (e.clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),
-      y: clamp(d.oy + (e.clientY - d.py), MARGIN, Math.max(MARGIN, window.innerHeight - r.h - MARGIN)),
-    }));
-  };
-  const endDrag = (e: React.PointerEvent) => {
-    drag.current = null;
-    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
-  };
-  const resize = useRef<{ px: number; py: number; ow: number; oh: number } | null>(null);
-  const onResizeDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    resize.current = { px: e.clientX, py: e.clientY, ow: rect.w, oh: rect.h };
-  };
-  const onResizeMove = (e: React.PointerEvent) => {
-    const s = resize.current;
-    if (!s) return;
-    setRect((r) => ({
-      ...r,
-      w: clamp(s.ow + (e.clientX - s.px), MIN_W, window.innerWidth - r.x - MARGIN),
-      h: clamp(s.oh + (e.clientY - s.py), MIN_H, window.innerHeight - r.y - MARGIN),
-    }));
-  };
-  const endResize = (e: React.PointerEvent) => {
-    resize.current = null;
-    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
-  };
 
   useEffect(() => {
     let alive = true;
@@ -317,27 +240,26 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
 
-  return createPortal(
-    <div
-      className="pv-peek-card pv-peek-window pv-mail-window"
-      role="dialog"
-      aria-label={title}
-      style={{
-        ["--peek-x" as string]: `${rect.x}px`,
-        ["--peek-y" as string]: `${rect.y}px`,
-        ["--peek-w" as string]: `${rect.w}px`,
-        ["--peek-h" as string]: `${rect.h}px`,
-      } as React.CSSProperties}
+  return (
+    <FloatingWindow
+      persistKey="compose"
+      defaultWidth={660}
+      defaultHeight={600}
+      minHeight={360}
+      ariaLabel={title}
+      onEscape={onClose}
+      className="pv-mail-window"
+      head={
+        <>
+          <span className="pv-peek-title">{title}</span>
+          <div className="pv-peek-actions">
+            <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} data-tip={t("common.close", { defaultValue: "Schließen" })}>
+              <X size={ICON.ui} />
+            </button>
+          </div>
+        </>
+      }
     >
-      <div className="pv-peek-head" onPointerDown={onHeadDown} onPointerMove={onHeadMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-        <GripVertical size={14} className="pv-peek-grip" aria-hidden />
-        <span className="pv-peek-title">{title}</span>
-        <div className="pv-peek-actions">
-          <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} title={t("common.close", { defaultValue: "Schließen" })}>
-            <X size={16} />
-          </button>
-        </div>
-      </div>
 
       <div className="pv-mail-winbody">
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", height: "100%" }} data-testid="draft-form">
@@ -437,9 +359,6 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
         </Button>
       </div>
-
-      <div className="pv-peek-resize" aria-hidden="true" onPointerDown={onResizeDown} onPointerMove={onResizeMove} onPointerUp={endResize} onPointerCancel={endResize} />
-    </div>,
-    document.body
+    </FloatingWindow>
   );
 }

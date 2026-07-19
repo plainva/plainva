@@ -191,7 +191,7 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              className="pv-field"
+              className="pv-field pv-field--compact"
               style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -248,7 +248,7 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              className="pv-field"
+              className="pv-field pv-field--compact"
               style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -312,7 +312,7 @@ const TreeNodeView: React.FC<{
                     }
                   }}
                   placeholder={newItemPlaceholder(newItemParams.type, t)}
-                  className="pv-field"
+                  className="pv-field pv-field--compact"
                   style={{ flex: 1, minWidth: 0 }}
                 />
                 {newItemError && <div className="pv-inline-error">{newItemError}</div>}
@@ -1222,7 +1222,7 @@ export const FileTree: React.FC<{
                 onChange={e => updateRenamingName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
                 onBlur={() => handleRenameSubmit()}
-                className="pv-field"
+                className="pv-field pv-field--compact"
                 style={{ flex: 1, minWidth: 0 }}
               />
               {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -1357,7 +1357,7 @@ export const FileTree: React.FC<{
                   }
                 }}
                 placeholder={newItemPlaceholder(newItemParams.type, t)}
-                className="pv-field"
+                className="pv-field pv-field--compact"
                 style={{ flex: 1, minWidth: 0 }}
               />
               {newItemError && <div className="pv-inline-error">{newItemError}</div>}

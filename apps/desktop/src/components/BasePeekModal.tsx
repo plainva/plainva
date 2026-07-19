@@ -1,18 +1,16 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, GripVertical, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
-import { peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
+import { FloatingWindow, ICON, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
 
 // Floating peek window for notes opened from a `.base` view or the graph.
-// It is a real free-floating (non-modal) window: it does NOT dim the app and
-// does NOT close on an outside click — you can work beside it. It is
-// draggable by its header, resizable from the bottom-right grip, keeps its own
-// back/forward history, and can reveal a Properties column bound to the peek
-// note (via a scoped document channel, so it never touches the main sidebar).
-// Closable via X or Escape.
+// The window chrome (drag by head, resize grip, session position memory,
+// Escape-to-close) comes from the shared FloatingWindow primitive — this file
+// only owns the peek-specific content: its own back/forward history, the
+// Properties column bound to the peek note (scoped document channel), and the
+// maximize/split handoffs.
 //
 // The content is the full Editor in its compact `peek` variant, loaded lazily:
 // the dynamic import breaks the static cycle
@@ -22,38 +20,6 @@ const LazyEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Edito
 // A `.base` shown in the peek renders the full BaseViewer (lazy — same cycle
 // break as the editor: BaseViewer -> BasePeekModal -> BaseViewer).
 const LazyBaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
-
-const MIN_W = 420;
-const MIN_H = 320;
-const MARGIN = 8;
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
-interface Rect { x: number; y: number; w: number; h: number }
-
-// Remembered across opens within the session (not persisted to disk): the peek
-// reopens where you last left it.
-let savedPeekRect: Rect | null = null;
-
-function defaultRect(): Rect {
-  const w = clamp(920, MIN_W, window.innerWidth - MARGIN * 2);
-  const h = clamp(680, MIN_H, window.innerHeight - MARGIN * 2);
-  return {
-    x: Math.max(MARGIN, Math.round((window.innerWidth - w) / 2)),
-    y: Math.max(MARGIN, Math.round((window.innerHeight - h) / 2)),
-    w,
-    h,
-  };
-}
-
-/** Clamp a candidate rect into the current viewport. */
-function fitRect(base: Rect): Rect {
-  const w = clamp(base.w, MIN_W, window.innerWidth - MARGIN * 2);
-  const h = clamp(base.h, MIN_H, window.innerHeight - MARGIN * 2);
-  const x = clamp(base.x, MARGIN, Math.max(MARGIN, window.innerWidth - w - MARGIN));
-  const y = clamp(base.y, MARGIN, Math.max(MARGIN, window.innerHeight - h - MARGIN));
-  return { x, y, w, h };
-}
 
 export function BasePeekModal({
   path,
@@ -105,154 +71,90 @@ export function BasePeekModal({
   const peekChannel = useMemo(() => createDocChannel(), []);
   const [showProps, setShowProps] = useState(false);
 
-  // Free-floating position + size (remembered per session).
-  const [rect, setRect] = useState<Rect>(() => fitRect(savedPeekRect ?? defaultRect()));
-  useEffect(() => { savedPeekRect = rect; }, [rect]);
-
-  // Escape closes the peek (capture, so it wins over inner editor handlers).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
-    };
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [onClose]);
-
-  // --- Drag (by header) and resize (bottom-right grip) via pointer capture ---
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
-  const onHeadDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("button")) return; // let header buttons click
-    e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y };
-  };
-  const onHeadMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    setRect((r) => ({
-      ...r,
-      x: clamp(d.ox + (e.clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),
-      y: clamp(d.oy + (e.clientY - d.py), MARGIN, Math.max(MARGIN, window.innerHeight - r.h - MARGIN)),
-    }));
-  };
-  const endDrag = (e: React.PointerEvent) => {
-    drag.current = null;
-    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
-  };
-
-  const resize = useRef<{ px: number; py: number; ow: number; oh: number } | null>(null);
-  const onResizeDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    resize.current = { px: e.clientX, py: e.clientY, ow: rect.w, oh: rect.h };
-  };
-  const onResizeMove = (e: React.PointerEvent) => {
-    const s = resize.current;
-    if (!s) return;
-    setRect((r) => ({
-      ...r,
-      w: clamp(s.ow + (e.clientX - s.px), MIN_W, window.innerWidth - r.x - MARGIN),
-      h: clamp(s.oh + (e.clientY - s.py), MIN_H, window.innerHeight - r.y - MARGIN),
-    }));
-  };
-  const endResize = (e: React.PointerEvent) => {
-    resize.current = null;
-    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* not captured */ }
-  };
-
   const title = current.split(/[/\\]/).pop()?.replace(/\.(md|base)$/i, "") || current;
   const propsLabel = t("rightPanel.properties", { defaultValue: "Eigenschaften" });
 
-  return createPortal(
-    <div
-      className="pv-peek-card pv-peek-window"
-      role="dialog"
-      aria-label={title}
-      style={{
-        ["--peek-x" as string]: `${rect.x}px`,
-        ["--peek-y" as string]: `${rect.y}px`,
-        ["--peek-w" as string]: `${rect.w}px`,
-        ["--peek-h" as string]: `${rect.h}px`,
-      } as React.CSSProperties}
-    >
-      <div
-        className="pv-peek-head"
-        onPointerDown={onHeadDown}
-        onPointerMove={onHeadMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
-        <GripVertical size={14} className="pv-peek-grip" aria-hidden />
-        <div className="pv-peek-nav">
-          <button
-            type="button"
-            className="pv-peek-btn"
-            onClick={goBack}
-            disabled={!canBack}
-            aria-label={t("editor.back")}
-            title={t("editor.back")}
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <button
-            type="button"
-            className="pv-peek-btn"
-            onClick={goFwd}
-            disabled={!canFwd}
-            aria-label={t("editor.forward")}
-            title={t("editor.forward")}
-          >
-            <ArrowRight size={15} />
-          </button>
-        </div>
-        <span className="pv-peek-title" title={current}>{title}</span>
-        <div className="pv-peek-actions">
-          {!isBase && (
-            <button
-              type="button"
-              className={"pv-peek-btn" + (showProps ? " pv-peek-btn--active" : "")}
-              onClick={() => setShowProps((v) => !v)}
-              aria-pressed={showProps}
-              aria-label={propsLabel}
-              title={propsLabel}
-            >
-              <SlidersHorizontal size={15} />
-            </button>
-          )}
-          {onOpenSplit && (
+  return (
+    <FloatingWindow
+      persistKey="peek"
+      defaultWidth={920}
+      defaultHeight={680}
+      ariaLabel={title}
+      onEscape={onClose}
+      head={
+        <>
+          <div className="pv-peek-nav">
             <button
               type="button"
               className="pv-peek-btn"
-              onClick={() => onOpenSplit(current)}
-              aria-label={t("database.openInSplit", "Im Split öffnen")}
-              title={t("database.openInSplit", "Im Split öffnen")}
+              onClick={goBack}
+              disabled={!canBack}
+              aria-label={t("editor.back")}
+              data-tip={t("editor.back")}
             >
-              <PanelRight size={15} />
+              <ArrowLeft size={ICON.ui} />
             </button>
-          )}
-          <button
-            type="button"
-            className="pv-peek-btn"
-            onClick={() => onMaximize(current)}
-            aria-label={t("database.maximize", "Als Tab öffnen")}
-            title={t("database.maximize", "Als Tab öffnen")}
-          >
-            <Maximize2 size={15} />
-          </button>
-          <button
-            type="button"
-            className="pv-peek-btn"
-            onClick={onClose}
-            aria-label={t("common.close", "Schließen")}
-            title={t("common.close", "Schließen")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              className="pv-peek-btn"
+              onClick={goFwd}
+              disabled={!canFwd}
+              aria-label={t("editor.forward")}
+              data-tip={t("editor.forward")}
+            >
+              <ArrowRight size={ICON.ui} />
+            </button>
+          </div>
+          <span className="pv-peek-title" title={current}>{title}</span>
+          <div className="pv-peek-actions">
+            {!isBase && (
+              <button
+                type="button"
+                className={"pv-peek-btn" + (showProps ? " pv-peek-btn--active" : "")}
+                onClick={() => setShowProps((v) => !v)}
+                aria-pressed={showProps}
+                aria-label={propsLabel}
+                data-tip={propsLabel}
+              >
+                <SlidersHorizontal size={ICON.ui} />
+              </button>
+            )}
+            {onOpenSplit && (
+              <button
+                type="button"
+                className="pv-peek-btn"
+                onClick={() => onOpenSplit(current)}
+                aria-label={t("database.openInSplit", "Im Split öffnen")}
+                data-tip={t("database.openInSplit", "Im Split öffnen")}
+              >
+                <PanelRight size={ICON.ui} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="pv-peek-btn"
+              onClick={() => onMaximize(current)}
+              aria-label={t("database.maximize", "Als Tab öffnen")}
+              data-tip={t("database.maximize", "Als Tab öffnen")}
+            >
+              <Maximize2 size={ICON.ui} />
+            </button>
+            <button
+              type="button"
+              className="pv-peek-btn"
+              onClick={onClose}
+              aria-label={t("common.close", "Schließen")}
+              data-tip={t("common.close", "Schließen")}
+            >
+              <X size={ICON.ui} />
+            </button>
+          </div>
+        </>
+      }
+    >
       <div className="pv-peek-body">
         <div className="pv-peek-main">
-          <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("common.loading", "Loading...")}</div>}>
+          <Suspense fallback={<div style={{ padding: "var(--space-8)", color: "var(--text-muted)" }}>{t("common.loading", "Loading...")}</div>}>
             {isBase ? (
               <LazyBaseViewer
                 key={current}
@@ -279,15 +181,6 @@ export function BasePeekModal({
           </div>
         )}
       </div>
-      <div
-        className="pv-peek-resize"
-        aria-hidden="true"
-        onPointerDown={onResizeDown}
-        onPointerMove={onResizeMove}
-        onPointerUp={endResize}
-        onPointerCancel={endResize}
-      />
-    </div>,
-    document.body
+    </FloatingWindow>
   );
 }

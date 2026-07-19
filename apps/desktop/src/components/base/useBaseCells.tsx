@@ -587,7 +587,7 @@ export function useBaseCells({
         <input
           autoFocus
           type={input === 'number' ? 'number' : 'text'}
-          className="pv-field"
+          className="pv-field pv-field--compact"
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={() => handleCellSave(path, col, editValue)}

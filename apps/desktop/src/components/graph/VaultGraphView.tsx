@@ -649,7 +649,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           {t("graph.mapTitle", { defaultValue: "Vault-Karte" })}
         </span>
         <input
-          className="pv-field"
+          className="pv-field pv-field--compact"
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -677,13 +677,13 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
               className="pv-popover"
               style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-2)", minWidth: 250 }}
             >
-              <select className="pv-field pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
+              <select className="pv-field pv-field--compact pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
                 <option value="">{t("graph.allTypes", { defaultValue: "Alle Typen" })}</option>
                 {okfTypes.map((ty) => (
                   <option key={ty} value={ty}>{ty}</option>
                 ))}
               </select>
-              <select className="pv-field pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
+              <select className="pv-field pv-field--compact pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
                 <option value="">{t("graph.allTags", { defaultValue: "Alle Tags" })}</option>
                 {allTags.map((tg) => (
                   <option key={tg} value={tg}>#{tg}</option>
@@ -717,7 +717,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             <Crosshair size={14} />
             {t("graph.focusActive", { defaultValue: "Fokus (Tiefe {{depth}})", depth: focus.depth })}
             <select
-              className="pv-field pv-field--select"
+              className="pv-field pv-field--compact pv-field--select"
               value={focus.depth}
               onChange={(e) => setFocus({ ...focus, depth: Number(e.target.value) })}
               aria-label={t("graph.focusDepth", { defaultValue: "Fokus-Tiefe" })}

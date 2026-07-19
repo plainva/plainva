@@ -362,23 +362,9 @@ option {
 .pv-select-caret { color: var(--text-muted); flex-shrink: 0; }
 .pv-placeholder { color: var(--text-faint); font-size: 0.82rem; }
 
-/* popover (autocomplete / type menu / value picker) */
-/* Skin only — positioning comes from useFixedPopover (fixed + viewport-clamped, P12). */
-.pv-popover { min-width: 180px; max-width: 300px; max-height: 300px; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 4px; }
-/* Anchored mode (useFixedPopover): hidden off-screen until the layout effect measures + clamps. */
-.pv-popover--fixed { position: fixed; left: -9999px; top: -9999px; visibility: hidden; z-index: var(--z-menu); }
-.pv-popover-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 6px 9px 3px; }
-.pv-popover-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 9px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; text-align: left; font-size: 0.83rem; }
-.pv-popover-row:hover:not(:disabled) { background: var(--bg-hover); }
-.pv-popover-row:disabled { opacity: 0.4; cursor: default; }
-.pv-popover-row-active { background: var(--bg-active); }
-.pv-popover-ic { color: var(--text-muted); flex-shrink: 0; }
-.pv-popover-count { margin-left: auto; color: var(--text-faint); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
-.pv-popover-create { color: var(--accent-color); }
-.pv-popover-clear { color: var(--text-muted); border-bottom: 1px solid var(--border-color-light); border-radius: 0; }
-.pv-popover-empty { padding: 8px 9px; color: var(--text-faint); font-size: 0.8rem; font-style: italic; }
-.pv-popover-search { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border-color-light); color: var(--text-muted); }
-.pv-popover-search input { flex: 1; border: none; background: transparent; color: var(--text-main); font-size: 0.83rem; }
+/* popover (autocomplete / type menu / value picker): the .pv-popover* family
+   moved to @plainva/ui styles/ui.css with menu metrics (design sweep
+   2026-07-19) — themes dock on it there. */
 
 /* add property */
 .pv-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.82rem; }

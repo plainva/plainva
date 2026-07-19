@@ -81,6 +81,10 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 999px;
+  /* Bottom sheets (mobile): kept as its own role — sheets are anchored to the
+     screen edge and read rounder than centered dialogs (sweep 2026-07-19;
+     replaces mobile's private --m-radius-sheet). */
+  --radius-sheet: 28px;
 
   /* Font split: chrome (sidebars, buttons, titlebar) vs. document content
      (editor + read view). Both default to the same stack; display-heavy themes

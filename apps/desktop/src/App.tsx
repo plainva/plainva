@@ -987,7 +987,7 @@ function App() {
               }}
               placeholder={t('fileTree.search')}
               aria-label={t('fileTree.search')}
-              className="pv-field"
+              className="pv-field pv-field--compact"
               style={{ width: '100%', height: 34, padding: leftQuery ? '0 34px 0 32px' : '0 10px 0 32px', boxSizing: 'border-box' }}
             />
             {leftQuery !== '' && (

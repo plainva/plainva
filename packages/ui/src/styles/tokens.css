@@ -26,10 +26,27 @@
   --text-md: 0.875rem;  /* 14px — inputs, dialog body text */
   --text-lg: 1rem;      /* 16px — modal titles, section headings */
 
-  /* Control heights (buttons, inputs, selects). */
+  /* Control heights (buttons, inputs, selects). Field metric roles (design
+     sweep 2026-07-19, E10): standalone FORM fields use --control-lg with a
+     --space-3 inset; the compact field role (toolbars, sidebar search, inline
+     cell editors) stays on --control-md. Buttons keep --control-md. */
   --control-sm: 24px;
   --control-md: 28px;
   --control-lg: 34px;
+
+  /* Touch heights (mobile shell; design sweep 2026-07-19). Replace the grown
+     36-56px zoo: icon buttons/fields 44, sheet buttons 48, list rows 56. */
+  --touch-sm: 44px;
+  --touch-md: 48px;
+  --touch-row: 56px;
+
+  /* Mobile stacking sub-scale (below every shared layer: --z-popover starts at
+     500; the shared ToastHost at --z-toast lives in the same document). Tokens
+     instead of the former raw 1-60 integers scattered through mobile.css. */
+  --z-m-bar: 30;
+  --z-m-sheet: 40;
+  --z-m-sheet-dialog: 50;
+  --z-m-overlay: 60;
 
   /* Density roles (consumed by tree/list/menu rows and table cells; the
      compact block below tightens them — document content is unaffected). */
@@ -97,6 +114,10 @@
   --titlebar-fg: var(--text-main);
   --titlebar-fg-muted: var(--text-muted);
   --titlebar-hover: var(--bg-hover);
+  /* Close-button hover (window controls). A token so themes can restyle what
+     was a hardcoded #e5484d/#ffffff pair in WindowControls (sweep 2026-07-19). */
+  --titlebar-close-hover: #e5484d;
+  --titlebar-close-hover-fg: #ffffff;
 
   /* Status colors (error lives in App.css as --error-*). */
   --warning-bg: #fdf3e1;

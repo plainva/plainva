@@ -248,7 +248,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
         {selectKeys.length > 0 && (
           <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-muted)" }} data-tip={t("graph.baseColorByTip", { defaultValue: "Knoten nach dem Wert einer Auswahl-Eigenschaft einfärben" })}>
             {t("graph.baseColorBy", { defaultValue: "Farbe nach" })}
-            <select className="pv-field pv-field--select" style={{ width: "auto", minWidth: 110 }} value={colorBy ?? ""} onChange={(e) => onPatchView({ graphColorBy: e.target.value || undefined })} aria-label={t("graph.baseColorBy", { defaultValue: "Farbe nach" })}>
+            <select className="pv-field pv-field--compact pv-field--select" style={{ width: "auto", minWidth: 110 }} value={colorBy ?? ""} onChange={(e) => onPatchView({ graphColorBy: e.target.value || undefined })} aria-label={t("graph.baseColorBy", { defaultValue: "Farbe nach" })}>
               <option value="">—</option>
               {selectKeys.map((k) => (
                 <option key={k} value={k}>{label(k)}</option>
@@ -259,7 +259,7 @@ export function BaseGraphView({ dbData, dbConfig, activeView, relationKeys, sele
         {numberKeys.length > 0 && (
           <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-muted)" }} data-tip={t("graph.baseSizeByTip", { defaultValue: "Knotengröße nach dem Wert einer Zahlen-Eigenschaft skalieren" })}>
             {t("graph.baseSizeBy", { defaultValue: "Größe nach" })}
-            <select className="pv-field pv-field--select" style={{ width: "auto", minWidth: 110 }} value={sizeBy ?? ""} onChange={(e) => onPatchView({ graphSizeBy: e.target.value || undefined })} aria-label={t("graph.baseSizeBy", { defaultValue: "Größe nach" })}>
+            <select className="pv-field pv-field--compact pv-field--select" style={{ width: "auto", minWidth: 110 }} value={sizeBy ?? ""} onChange={(e) => onPatchView({ graphSizeBy: e.target.value || undefined })} aria-label={t("graph.baseSizeBy", { defaultValue: "Größe nach" })}>
               <option value="">—</option>
               {numberKeys.map((k) => (
                 <option key={k} value={k}>{label(k)}</option>

@@ -6,10 +6,15 @@ export { ScrollEdge, type ScrollEdgeProps } from "./ScrollEdge";
 export { DockedToolbar, type DockedToolbarProps } from "./DockedToolbar";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { TextInput, SelectField, TextArea } from "./Field";
+export { Select, type SelectProps, type SelectOption } from "./Select";
+export { SearchField, type SearchFieldProps } from "./SearchField";
+export { Banner, type BannerProps, type BannerKind } from "./Banner";
+export { Radio, type RadioProps } from "./Radio";
 export { Checkbox, type CheckboxProps } from "./Checkbox";
 export { Switch, type SwitchProps } from "./Switch";
 export { MenuSurface, MenuItem, MenuSeparator, MenuLabel, type MenuSurfaceProps } from "./Menu";
 export { Modal, type ModalProps, type ModalSize } from "./Modal";
+export { FloatingWindow, type FloatingWindowProps, type FloatingRect } from "./FloatingWindow";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export {
   SettingsPageHead,

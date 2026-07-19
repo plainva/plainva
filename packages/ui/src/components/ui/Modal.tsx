@@ -14,6 +14,9 @@ export type ModalSize = "sm" | "md" | "lg" | "xl";
 export interface ModalProps {
   onClose: () => void;
   title: string;
+  /** Optional leading header icon (sweep 2026-07-19) — lets wizard-style and
+   * easter-egg dialogs keep their identity without hand-rolled headers. */
+  icon?: ReactNode;
   size?: ModalSize;
   children: ReactNode;
   /** Right-aligned action row; omit for plain content dialogs. */
@@ -44,6 +47,7 @@ export interface ModalProps {
 export function Modal({
   onClose,
   title,
+  icon,
   size = "sm",
   children,
   footer,
@@ -106,10 +110,11 @@ export function Modal({
         className={cx("pv-modal", `pv-modal--${size}`, className)}
       >
         <div className="pv-modal-header">
+          {icon ? <span className="pv-modal-hicon">{icon}</span> : null}
           <h2 className="pv-modal-heading">{title}</h2>
           {!hideClose && (
             <IconButton label={t("common.close", { defaultValue: "Schließen" })} onClick={onClose}>
-              <X size={16} />
+              <X size={15} />
             </IconButton>
           )}
         </div>

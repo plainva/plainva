@@ -239,7 +239,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
               handleSelectEmoji(customEntry);
             }
           }}
-          className="pv-field"
+          className="pv-field pv-field--compact"
         />
 
         {mode === "emoji" && !searching && (
