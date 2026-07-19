@@ -108,9 +108,12 @@
   --surface-container: color-mix(in srgb, var(--text-main) 6%, var(--bg-primary));
   --surface-container-high: color-mix(in srgb, var(--text-main) 9%, var(--bg-primary));
   --surface-container-highest: color-mix(in srgb, var(--text-main) 12%, var(--bg-primary));
-  /* Tonal accent container (active/selected fills: nav pill, tree selection). */
+  /* Tonal accent container (active/selected fills: nav pill, tree selection).
+     The "on" color pulls the accent toward text-main so normal-size text on the
+     16% container clears WCAG AA 4.5:1 (raw accent lands at ~4.4:1 on light);
+     the mix adapts per mode: darkens on light themes, lightens on dark. */
   --accent-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
-  --on-accent-container: var(--accent-color);
+  --on-accent-container: color-mix(in srgb, var(--accent-color) 75%, var(--text-main));
   /* State layers (translucent overlays; consumed as cheap opacity/pseudo). */
   --state-hover: color-mix(in srgb, var(--accent-color) 8%, transparent);
   --state-focus: color-mix(in srgb, var(--accent-color) 12%, transparent);

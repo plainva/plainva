@@ -441,7 +441,13 @@
   color: #FFFFFF;
   border-radius: 0;
 }
+/* The head's children carry their own colors (title/grip/close button), so a
+   color on the head alone leaves them black-on-navy — force the full set. */
+[data-theme-name="win95"] .pv-peek-head .pv-peek-title,
+[data-theme-name="win95"] .pv-peek-head .pv-peek-grip,
+[data-theme-name="win95"] .pv-peek-head .pv-peek-btn,
 [data-theme-name="win95"] .pv-peek-head .pv-iconbtn { color: #FFFFFF; }
+[data-theme-name="win95"] .pv-peek-head .pv-peek-btn:hover:not(:disabled),
 [data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.18);
   color: #FFFFFF;
