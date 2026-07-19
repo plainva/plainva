@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath } from "@plainva/core";
-import { deletePropertyFromConfig, renamePropertyInConfig } from "@plainva/ui";
+import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
   addReverseColumnToConfig,
@@ -1762,20 +1762,20 @@ export function BaseViewer({
               onClick={onNavigateBack}
               disabled={!canGoBack}
               aria-label={t("editor.back")}
-              title={t("editor.back")}
+              data-tip={t("editor.back")}
               className="pv-iconbtn"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={ICON.ui} />
             </button>
             <button
               type="button"
               onClick={onNavigateForward}
               disabled={!canGoForward}
               aria-label={t("editor.forward")}
-              title={t("editor.forward")}
+              data-tip={t("editor.forward")}
               className="pv-iconbtn"
             >
-              <ArrowRight size={16} />
+              <ArrowRight size={ICON.ui} />
             </button>
           </div>
         )}
@@ -1788,10 +1788,10 @@ export function BaseViewer({
             setIconColorPicker({ x: r.left, y: r.bottom + 4 });
           }}
           aria-label={t("database.iconColor", "Icon-Farbe der Datenbank")}
-          title={t("database.iconColor", "Icon-Farbe der Datenbank")}
+          data-tip={t("database.iconColor", "Icon-Farbe der Datenbank")}
           className="pv-iconbtn"
         >
-          <Database size={18} color={baseIconColor || "var(--accent-color)"} />
+          <Database size={ICON.head} color={baseIconColor || "var(--accent-color)"} />
         </button>
 
         {/* "Neu" sits top-left with a small gap before the view tabs;
@@ -1848,38 +1848,38 @@ export function BaseViewer({
         <button
           onClick={() => setShowConfigPanel((s) => !s)}
           aria-label={t("database.configure", "Konfigurieren")}
-          title={t("database.configure", "Konfigurieren")}
+          data-tip={t("database.configure", "Konfigurieren")}
           className="pv-btn pv-btn--secondary pv-btn--sm"
           style={showConfigPanel ? { background: "var(--bg-active)" } : undefined}
         >
-          <SlidersHorizontal size={14} /><span className="base-toolbar-label">{t("database.configure", "Konfigurieren")}</span>
+          <SlidersHorizontal size={ICON.ui} /><span className="base-toolbar-label">{t("database.configure", "Konfigurieren")}</span>
         </button>
         <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
         <div style={{ position: "relative", marginLeft: "0.5rem" }}>
           <button
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-            title={t("editor.menu", { defaultValue: "Menu" })}
+            data-tip={t("editor.menu", { defaultValue: "Menu" })}
             aria-label={t("editor.menu", { defaultValue: "Menu" })}
             className="pv-iconbtn"
           >
-            <MoreVertical size={16} />
+            <MoreVertical size={ICON.ui} />
           </button>
           {showHeaderMenu && (
             <>
-              <div style={{ position: "fixed", inset: 0, zIndex: "var(--z-popover)" as unknown as number }} onClick={() => setShowHeaderMenu(false)} />
+              <div className="base-menu-backdrop" onClick={() => setShowHeaderMenu(false)} />
               <div className="pv-menu" style={{ position: "absolute", top: "100%", right: 0, left: "auto", marginTop: 4, minWidth: 170 }}>
                 <button
                   onClick={() => { setShowHeaderMenu(false); onToggleBookmark?.(); }}
                   className="pv-menu-item"
                 >
-                  <Bookmark size={14} fill={isBookmarked ? "currentColor" : "none"} />
+                  <Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />
                   {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
                 </button>
                 <button
                   onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
                   className="pv-menu-item pv-menu-item--danger"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={ICON.ui} />
                   {t("editor.delete", { defaultValue: "Löschen" })}
                 </button>
               </div>
@@ -1895,7 +1895,7 @@ export function BaseViewer({
           ) : error ? (
             <div style={{ color: 'var(--error-text)' }}>{error}</div>
           ) : (
-            <div style={{ background: 'var(--bg-primary)', borderRadius: "var(--radius-sm)", border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--bg-primary)', borderRadius: "var(--radius-sm)", border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-1)', overflow: 'hidden' }}>
               {content ? renderViewContent() : <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>{t("database.emptyConfig", "Empty database configuration.")}</div>}
             </div>
           )}
@@ -1946,20 +1946,23 @@ export function BaseViewer({
 
       <style>{BASE_VIEWER_STYLES}</style>
       {renameProgress && (
-        <div className="pv-modal-overlay" role="alert" aria-busy="true">
-          <div className="pv-modal-card" style={{ width: 380 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <RefreshCw size={18} color="var(--accent-color)" className="spin-animation" style={{ flexShrink: 0 }} />
-              <span className="pv-modal-title">{t("database.renamingProperty", "Eigenschaft wird umbenannt…")}</span>
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+        <Modal
+          onClose={() => {}}
+          closeOnOverlay={false}
+          hideClose
+          title={t("database.renamingProperty", "Eigenschaft wird umbenannt…")}
+          icon={<RefreshCw size={ICON.head} color="var(--accent-color)" className="spin-animation" />}
+          size="sm"
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <div style={{ fontSize: "var(--text-md)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
               {t("database.renamingProgress", "\"{{old}}\" → \"{{new}}\" · {{done}} von {{total}} Dateien", { old: renameProgress.oldName, new: renameProgress.newName, done: renameProgress.done, total: renameProgress.total })}
             </div>
             <div style={{ height: 6, borderRadius: "var(--radius-xs)", background: "var(--bg-secondary)", overflow: "hidden" }}>
-              <div style={{ height: "100%", background: "var(--accent-color)", transition: "width 0.15s", width: `${renameProgress.total > 0 ? Math.round((renameProgress.done / renameProgress.total) * 100) : 100}%` }} />
+              <div style={{ height: "100%", background: "var(--accent-color)", transition: "width var(--dur-1) var(--ease-1)", width: `${renameProgress.total > 0 ? Math.round((renameProgress.done / renameProgress.total) * 100) : 100}%` }} />
             </div>
           </div>
-        </div>
+        </Modal>
       )}
       {peekPath && (
         <BasePeekModal
@@ -2048,20 +2051,23 @@ export function BaseViewer({
         />
       )}
       {deleteProgress && (
-        <div className="pv-modal-overlay" role="alert" aria-busy="true">
-          <div className="pv-modal-card" style={{ width: 380 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-              <RefreshCw size={18} color="var(--accent-color)" className="spin-animation" style={{ flexShrink: 0 }} />
-              <span className="pv-modal-title">{t("database.deletingProperty", "Eigenschaft wird entfernt…")}</span>
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+        <Modal
+          onClose={() => {}}
+          closeOnOverlay={false}
+          hideClose
+          title={t("database.deletingProperty", "Eigenschaft wird entfernt…")}
+          icon={<RefreshCw size={ICON.head} color="var(--accent-color)" className="spin-animation" />}
+          size="sm"
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <div style={{ fontSize: "var(--text-md)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
               {t("database.deletingProgress", "\"{{column}}\" · {{done}} von {{total}} Dateien", { column: deleteProgress.column, done: deleteProgress.done, total: deleteProgress.total })}
             </div>
             <div style={{ height: 6, borderRadius: "var(--radius-xs)", background: "var(--bg-secondary)", overflow: "hidden" }}>
-              <div style={{ height: "100%", background: "var(--accent-color)", transition: "width 0.15s", width: `${deleteProgress.total > 0 ? Math.round((deleteProgress.done / deleteProgress.total) * 100) : 100}%` }} />
+              <div style={{ height: "100%", background: "var(--accent-color)", transition: "width var(--dur-1) var(--ease-1)", width: `${deleteProgress.total > 0 ? Math.round((deleteProgress.done / deleteProgress.total) * 100) : 100}%` }} />
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

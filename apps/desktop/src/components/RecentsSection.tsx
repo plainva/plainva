@@ -1,6 +1,6 @@
 import { FileText, Paperclip, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
+import { DocIcon, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useDocumentTitles } from "../hooks/useDocumentTitles";
 import { virtualTabMeta } from "./graph/virtualPaths";
@@ -33,10 +33,10 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
       <div
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "0.25rem 0.5rem",
-          color: "var(--text-muted)", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.5px",
+          color: "var(--text-muted)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px",
         }}
       >
-        <Clock size={12} />
+        <Clock size={ICON.meta} />
         {t("sidebar.recent")}
       </div>
       {shown.map((path) => {
@@ -55,22 +55,22 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
         const iconEntry = docIcons.get(path);
 
         const iconNode = VirtualIcon ? (
-          <VirtualIcon size={14} style={{ opacity: 0.7 }} />
+          <VirtualIcon size={ICON.ui} style={{ opacity: 0.7 }} />
         ) : isBase ? (
-          <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={14} />
+          <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={ICON.ui} />
         ) : attachment ? (
-          <Paperclip size={14} style={{ opacity: 0.7 }} />
+          <Paperclip size={ICON.ui} style={{ opacity: 0.7 }} />
         ) : iconEntry && isRenderableDocIcon(iconEntry.icon) ? (
-          <DocIcon icon={iconEntry.icon} color={iconEntry.color} size={14} />
+          <DocIcon icon={iconEntry.icon} color={iconEntry.color} size={ICON.ui} />
         ) : (
-          <FileText size={14} style={{ opacity: 0.7 }} />
+          <FileText size={ICON.ui} style={{ opacity: 0.7 }} />
         );
 
         return (
           <button
             key={path}
             onClick={() => onOpen(path)}
-            title={path}
+            data-tip={path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.3rem 0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

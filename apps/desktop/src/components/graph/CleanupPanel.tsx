@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
-import { toast } from "@plainva/ui";
+import { ICON, toast } from "@plainva/ui";
 import { applyMentionLink, createConnectedNote } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";
@@ -177,7 +177,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", padding: "var(--space-2)" }}>
         <strong style={{ flex: 1, fontSize: "var(--text-sm)" }}>{t("graph.cleanupTitle", { defaultValue: "Aufräumen" })}</strong>
         <button className="pv-iconbtn pv-iconbtn--sm" aria-label={t("common.close", { defaultValue: "Schließen" })} onClick={onClose}>
-          <X size={13} />
+          <X size={ICON.ui} />
         </button>
       </div>
       <div role="tablist" style={{ display: "flex", gap: "var(--space-1)", padding: "0 var(--space-2) var(--space-2)" }}>

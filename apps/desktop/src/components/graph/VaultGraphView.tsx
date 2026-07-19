@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { MenuItem, MenuSurface } from "@plainva/ui";
+import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { toast } from "@plainva/ui";
@@ -645,11 +645,11 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     >
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", borderBottom: "1px solid var(--border-color-light)" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", color: "var(--text-muted)", fontWeight: 700, fontSize: "var(--text-sm)" }}>
-          <Waypoints size={15} />
+          <Waypoints size={ICON.ui} />
           {t("graph.mapTitle", { defaultValue: "Vault-Karte" })}
         </span>
         <input
-          className="pv-field"
+          className="pv-field pv-field--compact"
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -668,7 +668,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             aria-expanded={showFilters}
             data-testid="graph-filter-btn"
           >
-            <SlidersHorizontal size={14} />
+            <SlidersHorizontal size={ICON.ui} />
             {t("graph.filters", { defaultValue: "Filter" })}
             {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
           </button>
@@ -677,13 +677,13 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
               className="pv-popover"
               style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-2)", minWidth: 250 }}
             >
-              <select className="pv-field pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
+              <select className="pv-field pv-field--compact pv-field--select" value={okfType ?? ""} onChange={(e) => setOkfType(e.target.value || null)} aria-label={t("graph.filterType", { defaultValue: "Nach Typ filtern" })}>
                 <option value="">{t("graph.allTypes", { defaultValue: "Alle Typen" })}</option>
                 {okfTypes.map((ty) => (
                   <option key={ty} value={ty}>{ty}</option>
                 ))}
               </select>
-              <select className="pv-field pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
+              <select className="pv-field pv-field--compact pv-field--select" value={tag ?? ""} onChange={(e) => setTag(e.target.value || null)} aria-label={t("graph.filterTag", { defaultValue: "Nach Tag filtern" })}>
                 <option value="">{t("graph.allTags", { defaultValue: "Alle Tags" })}</option>
                 {allTags.map((tg) => (
                   <option key={tg} value={tg}>#{tg}</option>
@@ -714,10 +714,10 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         <span style={{ flex: 1 }} />
         {focus ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--text-sm)", color: "var(--accent-color)" }}>
-            <Crosshair size={14} />
+            <Crosshair size={ICON.ui} />
             {t("graph.focusActive", { defaultValue: "Fokus (Tiefe {{depth}})", depth: focus.depth })}
             <select
-              className="pv-field pv-field--select"
+              className="pv-field pv-field--compact pv-field--select"
               value={focus.depth}
               onChange={(e) => setFocus({ ...focus, depth: Number(e.target.value) })}
               aria-label={t("graph.focusDepth", { defaultValue: "Fokus-Tiefe" })}
@@ -727,7 +727,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
               ))}
             </select>
             <button className="pv-iconbtn pv-iconbtn--sm" aria-label={t("graph.focusOff", { defaultValue: "Fokus aufheben" })} data-tip={t("graph.focusOff", { defaultValue: "Fokus aufheben" })} onClick={() => setFocus(null)}>
-              <X size={13} />
+              <X size={ICON.ui} />
             </button>
           </span>
         ) : (
@@ -737,7 +737,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             data-testid="graph-focus-btn"
             onClick={() => selection[0] && setFocus({ seed: selection[0], depth: 1 })}
           >
-            <Crosshair size={14} />
+            <Crosshair size={ICON.ui} />
             {t("graph.focusOn", { defaultValue: "Fokus auf Auswahl" })}
           </button>
         )}
@@ -749,7 +749,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           }}
           data-testid="graph-heatmap-btn"
         >
-          <Flame size={14} />
+          <Flame size={ICON.ui} />
           {t("graph.heatmap", { defaultValue: "Heatmap" })}
         </button>
         <button
@@ -757,7 +757,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           onClick={() => setOverlayMode((m) => (m === "replay" ? "normal" : "replay"))}
           data-testid="graph-replay-btn"
         >
-          <History size={14} />
+          <History size={ICON.ui} />
           {t("graph.replay", { defaultValue: "Zeitreise" })}
         </button>
         <button
@@ -765,7 +765,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           onClick={() => setShowCleanup((v) => !v)}
           data-testid="graph-cleanup-btn"
         >
-          <Eraser size={14} />
+          <Eraser size={ICON.ui} />
           {t("graph.cleanupTitle", { defaultValue: "Aufräumen" })}
         </button>
         <button
@@ -774,7 +774,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           data-tip={t("graph.zoomFit", { defaultValue: "Alles einpassen" })}
           onClick={() => sceneRef.current?.zoomToFit()}
         >
-          <Maximize2 size={15} />
+          <Maximize2 size={ICON.ui} />
         </button>
       </div>
 
@@ -809,7 +809,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
           {edgeTip && (
             <div
               role="tooltip"
-              style={{ position: "absolute", left: Math.max(4, edgeTip.x + 12), top: Math.max(4, edgeTip.y + 12), maxWidth: 320, padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-2)", color: "var(--text-main)", fontSize: "var(--text-xs)", pointerEvents: "none", zIndex: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              style={{ position: "absolute", left: Math.max(4, edgeTip.x + 12), top: Math.max(4, edgeTip.y + 12), maxWidth: 320, padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-2)", color: "var(--text-main)", fontSize: "var(--text-xs)", pointerEvents: "none", zIndex: "var(--z-popover)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {edgeTip.text}
             </div>

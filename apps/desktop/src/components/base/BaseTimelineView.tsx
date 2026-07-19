@@ -1,4 +1,4 @@
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, ICON } from "@plainva/ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -71,9 +71,9 @@ export function BaseTimelineView({
       ) : (
         <>
           <div className="base-period-toolbar">
-            <button onClick={() => shift(-7)} className="base-nav-btn" aria-label={t("database.prevPeriod", "Zurück")} title={t("database.prevPeriod", "Zurück")}><ChevronLeft size={16} /></button>
+            <button onClick={() => shift(-7)} className="base-nav-btn" aria-label={t("database.prevPeriod", "Zurück")} data-tip={t("database.prevPeriod", "Zurück")}><ChevronLeft size={ICON.ui} /></button>
             <span style={{ fontWeight: 600, minWidth: 150, textAlign: "center" }}>{rangeLabel}</span>
-            <button onClick={() => shift(7)} className="base-nav-btn" aria-label={t("database.nextPeriod", "Weiter")} title={t("database.nextPeriod", "Weiter")}><ChevronRight size={16} /></button>
+            <button onClick={() => shift(7)} className="base-nav-btn" aria-label={t("database.nextPeriod", "Weiter")} data-tip={t("database.nextPeriod", "Weiter")}><ChevronRight size={ICON.ui} /></button>
             <button onClick={goToday} className="base-today-btn">{t("database.today", "Heute")}</button>
           </div>
           <div className="custom-scrollbar" style={{ display: "flex", overflowX: "auto", flex: 1, background: "var(--border-color)", gap: "1px" }}>
@@ -91,33 +91,33 @@ export function BaseTimelineView({
               return (
                 <div key={i} ref={registerTarget(dateStr)}
                   style={{ width: 150, flexShrink: 0, background: weekend ? "var(--bg-secondary)" : "var(--bg-primary)", display: "flex", flexDirection: "column", outline: overTarget === dateStr && draggingPath ? "2px solid var(--accent-color)" : "none", outlineOffset: -2 }}>
-                  <div style={{ padding: "0.4rem", borderBottom: "1px solid var(--border-color)", textAlign: "center", fontSize: "0.76rem", color: isToday ? "var(--accent-color)" : "var(--text-main)", fontWeight: isToday ? 700 : 500 }}>
-                    <div style={{ textTransform: "uppercase", opacity: 0.7, fontSize: "0.68rem" }}>{d.toLocaleDateString(locale, { weekday: "short" })}</div>
+                  <div style={{ padding: "0.4rem", borderBottom: "1px solid var(--border-color)", textAlign: "center", fontSize: "var(--text-sm)", color: isToday ? "var(--accent-color)" : "var(--text-main)", fontWeight: isToday ? 700 : 500 }}>
+                    <div style={{ textTransform: "uppercase", opacity: 0.7, fontSize: "var(--text-xs)" }}>{d.toLocaleDateString(locale, { weekday: "short" })}</div>
                     <div>{d.toLocaleDateString(locale, { day: "numeric", month: "short" })}</div>
                   </div>
                   <div className="custom-scrollbar" style={{ padding: "0.4rem", display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1, overflowY: "auto", minHeight: 120 }}>
                     {dayItems.map(({ row, isStart, isSpan }, idx) => (
                       isStart ? (
                         <div key={(row["file.path"] || idx) + "-s"} {...cardHandlers(row["file.path"])}
-                          onClick={(e) => onOpenNote?.(row["file.path"], e)} title={row["file.name"]}
-                          style={{ background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", borderLeft: "3px solid var(--accent-color)", fontSize: "0.78rem", cursor: "pointer", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}>
+                          onClick={(e) => onOpenNote?.(row["file.path"], e)} data-tip={row["file.name"]}
+                          style={{ background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", borderLeft: "3px solid var(--accent-color)", fontSize: "var(--text-sm)", cursor: "pointer", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}>
                           <div style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row["file.name"]}</div>
-                          {isSpan && endProp && <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>→ {dpart(row[endProp])}</div>}
+                          {isSpan && endProp && <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: "0.15rem" }}>→ {dpart(row[endProp])}</div>}
                           {entryColumns.map((col) => {
                             let v = row[col];
                             if (v === undefined && col.startsWith("note.")) v = row[col.substring(5)];
                             const { displayVal, isMissing } = formatValueForDisplay(v, col);
                             if (isMissing) return null;
                             return (
-                              <div key={col} style={{ fontSize: "0.68rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                              <div key={col} style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
                                 {displayVal}
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <div key={(row["file.path"] || idx) + "-c"} title={row["file.name"]}
-                          style={{ background: "var(--bg-secondary)", color: "var(--text-muted)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-xs)", borderLeft: "3px solid var(--accent-color)", fontSize: "0.7rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.6 }}>
+                        <div key={(row["file.path"] || idx) + "-c"} data-tip={row["file.name"]}
+                          style={{ background: "var(--bg-secondary)", color: "var(--text-muted)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-xs)", borderLeft: "3px solid var(--accent-color)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.6 }}>
                           {row["file.name"]}
                         </div>
                       )
@@ -133,7 +133,7 @@ export function BaseTimelineView({
         <DragGhost
           setEl={ghostProps.setEl}
           baseStyle={ghostProps.style}
-          style={{ maxWidth: 200, background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.78rem", fontWeight: 500, borderLeft: "3px solid var(--accent-color)", boxShadow: "var(--shadow-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{ maxWidth: 200, background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", fontWeight: 500, borderLeft: "3px solid var(--accent-color)", boxShadow: "var(--shadow-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
         >
           {draggedRow["file.name"]}
         </DragGhost>

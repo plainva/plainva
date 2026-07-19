@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, MapPin } from "lucide-react";
-import { Button } from "@plainva/ui";
+import { Button, ICON } from "@plainva/ui";
 
 /**
  * Google-Calendar-style quick-create popover (feedback round 3): appears at the
@@ -57,7 +57,10 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
 
   return (
     <>
-      <div onPointerDown={onCancel} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
+      {/* Invisible click-catcher (dismiss on outside click) — reuses the
+          shared modal backdrop for its position:fixed + z-modal layering,
+          with the dimming turned off since this popover has no scrim. */}
+      <div onPointerDown={onCancel} className="pv-overlay" style={{ background: "transparent" }} />
       <div
         ref={cardRef}
         data-testid="calendar-quick-create"
@@ -66,12 +69,12 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
         onKeyDown={(e) => {
           if (e.key === "Escape") { e.stopPropagation(); onCancel(); }
         }}
+        className="pv-popover--fixed"
         style={{
-          position: "fixed",
           left: pos.left,
           top: pos.top,
           width: WIDTH,
-          zIndex: 61,
+          visibility: "visible",
           background: "var(--bg-primary)",
           border: "1px solid var(--border-color)",
           borderRadius: "var(--radius-md)",
@@ -93,7 +96,7 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 8px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Clock size={14} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
+            <Clock size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
             <span>{dateLabel} · {timeLabel}</span>
           </div>
           {calendarOptions.length > 1 && (
@@ -111,7 +114,7 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
             </select>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <MapPin size={14} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
+            <MapPin size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-faint)" }} />
             <input
               className="pv-field"
               value={location}

@@ -6,7 +6,7 @@ import { useDisplaySyncStatus } from "../services/syncStatusStore";
 import { activeDocument, type ActiveDoc, type SelectionStats } from "../services/activeDocument";
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { computeEmbedInfo } from "../services/embedStats";
-import { countWords } from "@plainva/ui";
+import { countWords, ICON } from "@plainva/ui";
 import { parseMarkdownAst } from "@plainva/core";
 
 interface Stats { words: number; chars: number; blocks: number; }
@@ -127,15 +127,15 @@ export function StatusBar() {
           data-tip={t("sync.error")}
           style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--error-text)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
         >
-          <AlertTriangle size={12} />{t("statusbar.offline", { defaultValue: "Offline" })}
+          <AlertTriangle size={ICON.meta} />{t("statusbar.offline", { defaultValue: "Offline" })}
         </button>
       );
     }
     // Connected: the word stays "Online"; only the icon switches (spinning while syncing, cloud when idle)
     // so it no longer flickers between two different labels every poll cycle.
     const icon = syncStatus === "syncing"
-      ? <RefreshCw size={12} className="spin-animation" />
-      : <Cloud size={12} />;
+      ? <RefreshCw size={ICON.meta} className="spin-animation" />
+      : <Cloud size={ICON.meta} />;
     // On a long/initial sync, surface the running count (WP6) so the user can see
     // it is working through the vault rather than just a spinning icon. The phase
     // (downloading vs uploading) goes into the tooltip.
@@ -161,14 +161,14 @@ export function StatusBar() {
       <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
         {doc.kind === "virtual" && vmeta ? (
           <>
-            <vmeta.icon size={13} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
+            <vmeta.icon size={ICON.ui} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               <b style={{ color: "var(--text-main)", fontWeight: 600 }}>{virtualLabel}</b>
             </span>
           </>
         ) : doc.path ? (
           <>
-            <Folder size={13} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
+            <Folder size={ICON.ui} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {dir && <span>{dir}&nbsp;/&nbsp;</span>}
               <b style={{ color: "var(--text-main)", fontWeight: 600 }}>{base}</b>
@@ -207,12 +207,12 @@ export function StatusBar() {
         )}
         {backupState.state === "running" && (
           <span data-testid="statusbar-backup-running" style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Archive size={12} className="spin-animation" />{t("statusbar.backupRunning", { defaultValue: "Backup läuft…" })}
+            <Archive size={ICON.meta} className="spin-animation" />{t("statusbar.backupRunning", { defaultValue: "Backup läuft…" })}
           </span>
         )}
         {backupState.state === "done" && (
           <span data-testid="statusbar-backup-done" style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--accent-color)" }}>
-            <Archive size={12} />{t("statusbar.backupDone", { defaultValue: "Backup erstellt" })}
+            <Archive size={ICON.meta} />{t("statusbar.backupDone", { defaultValue: "Backup erstellt" })}
           </span>
         )}
         {backupState.state === "error" && (
@@ -223,7 +223,7 @@ export function StatusBar() {
             data-tip={backupState.message || t("statusbar.backupError", { defaultValue: "Backup fehlgeschlagen" })}
             style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--error-text)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
           >
-            <AlertTriangle size={12} />{t("statusbar.backupError", { defaultValue: "Backup fehlgeschlagen" })}
+            <AlertTriangle size={ICON.meta} />{t("statusbar.backupError", { defaultValue: "Backup fehlgeschlagen" })}
           </button>
         )}
         {syncView()}

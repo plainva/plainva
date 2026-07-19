@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { chipClass, optionSwatch, parseWikiLinkValue, type CuratedOption } from "@plainva/ui";
+import { chipClass, ICON, optionSwatch, parseWikiLinkValue, type CuratedOption } from "@plainva/ui";
 import { Select } from "./Select";
 
 type TFn = (key: string, opts?: any) => string;
@@ -45,13 +45,13 @@ export function InlineMultiSelect({ value, options, onCommit, onClose, t }: {
   return (
     <div ref={ref} className="base-inline-editor" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="base-inline-chips">
-        {selected.length === 0 && <span style={{ color: "var(--text-faint)", fontSize: "0.8rem" }}>—</span>}
+        {selected.length === 0 && <span style={{ color: "var(--text-faint)", fontSize: "var(--text-ui)" }}>—</span>}
         {selected.map((v) => {
           const o = options.find((x) => x.value === v);
           return (
             <span key={v} className={chipClass(v, o?.color)} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               {o?.label ?? v}
-              <button type="button" onClick={() => remove(v)} aria-label={t("properties.removeItem", { defaultValue: "Entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, display: "flex" }}><X size={11} /></button>
+              <button type="button" onClick={() => remove(v)} aria-label={t("properties.removeItem", { defaultValue: "Entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, display: "flex" }}><X size={ICON.meta} /></button>
             </span>
           );
         })}
@@ -166,7 +166,7 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
   return (
     <div ref={ref} className="base-inline-editor" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="base-inline-chips">
-        {selected.length === 0 && <span style={{ color: "var(--text-faint)", fontSize: "0.8rem" }}>—</span>}
+        {selected.length === 0 && <span style={{ color: "var(--text-faint)", fontSize: "var(--text-ui)" }}>—</span>}
         {selected.map((v) => {
           const broken = isBroken(v);
           return (
@@ -174,10 +174,10 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
               key={v}
               className={broken ? "pv-chip pv-chip-broken" : "pv-chip pv-chip-1"}
               style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-              title={broken ? t("database.brokenLinkTooltip", { defaultValue: "Verlinkte Notiz existiert nicht" }) : undefined}
+              data-tip={broken ? t("database.brokenLinkTooltip", { defaultValue: "Verlinkte Notiz existiert nicht" }) : undefined}
             >
               {displayOf(v)}
-              <button type="button" onClick={() => remove(v)} aria-label={t("properties.removeItem", { defaultValue: "Entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, display: "flex" }}><X size={11} /></button>
+              <button type="button" onClick={() => remove(v)} aria-label={t("properties.removeItem", { defaultValue: "Entfernen" })} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, display: "flex" }}><X size={ICON.meta} /></button>
             </span>
           );
         })}
@@ -189,11 +189,11 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
         ))}
         {canCreate && (
           <button type="button" className="base-inline-result base-inline-create" disabled={creating} onClick={createNew}>
-            <Plus size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+            <Plus size={ICON.meta} style={{ verticalAlign: "-2px", marginRight: 4 }} />
             {t("database.createNoteOption", { title: q.trim(), defaultValue: `Neue Notiz „${q.trim()}" anlegen` })}
           </button>
         )}
-        {visible.length === 0 && !canCreate && <div style={{ padding: "4px 6px", color: "var(--text-faint)", fontSize: "0.8rem" }}>{t("database.noNotesFound", { defaultValue: "Keine Treffer" })}</div>}
+        {visible.length === 0 && !canCreate && <div style={{ padding: "4px 6px", color: "var(--text-faint)", fontSize: "var(--text-ui)" }}>{t("database.noNotesFound", { defaultValue: "Keine Treffer" })}</div>}
       </div>
     </div>
   );

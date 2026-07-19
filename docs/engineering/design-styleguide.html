@@ -1,0 +1,765 @@
+<title>Plainva Designsprache — Entwurf zum Review</title>
+<style>
+  /* ============ Plainva-Token (Original-Werte aus base-colors.css / tokens.css) ============ */
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #eff5f4;
+    --bg-hover: #e0ecea;
+    --text-main: #1b2b29;
+    --text-muted: #5c6b69;
+    --text-faint: #5f6e6b;
+    --accent-color: #0f766e;
+    --accent-color-hover: #115e59;
+    --accent-on: #ffffff;
+    --border-color: #d7e5e3;
+    --border-color-light: #e4eeed;
+    --error-bg: #fbeaea; --error-border: #f1c9c9; --error-text: #b42318;
+    --warning-bg: #fdf3e1; --warning-border: #f0d9a8; --warning-text: #92610e;
+    --success-bg: #e6f6ec; --success-border: #bfe3cd; --success-text: #1b7d43;
+    --info-bg: #e8f2fb; --info-border: #c4ddf2; --info-text: #1a629e;
+    --surface: var(--bg-primary);
+    --surface-container-low: color-mix(in srgb, var(--text-main) 3%, var(--bg-primary));
+    --surface-container: color-mix(in srgb, var(--text-main) 6%, var(--bg-primary));
+    --accent-container: color-mix(in srgb, var(--accent-color) 16%, var(--bg-primary));
+    --on-accent-container: var(--accent-color);
+    --state-hover: color-mix(in srgb, var(--accent-color) 8%, transparent);
+    --state-focus: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    --state-press: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    --shadow-1: 0 1px 3px rgba(0,0,0,.07);
+    --shadow-2: 0 8px 24px rgba(0,0,0,.16);
+    --shadow-3: 0 16px 48px rgba(0,0,0,.28);
+    --radius-xs: 4px; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px; --radius-pill: 999px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
+    --text-xs: 11px; --text-sm: 12px; --text-ui: 13px; --text-md: 14px; --text-lg: 16px;
+    --control-sm: 24px; --control-md: 28px; --control-lg: 34px;
+    --chip-0-bg:#eceae3; --chip-0-fg:#44443f; --chip-1-bg:#e1f5ee; --chip-1-fg:#0f6e56;
+    --chip-2-bg:#e6f1fb; --chip-2-fg:#185fa5; --chip-3-bg:#eaf3de; --chip-3-fg:#3b6d11;
+    --chip-4-bg:#faeeda; --chip-4-fg:#854f0b; --chip-5-bg:#faece7; --chip-5-fg:#993c1d;
+    --chip-6-bg:#eeedfe; --chip-6-fg:#534ab7; --chip-7-bg:#fbeaf0; --chip-7-fg:#993556;
+    --font-ui: Inter, Avenir, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #0f1c1b; --bg-secondary: #152625; --bg-hover: #213533;
+      --text-main: #d7e4e2; --text-muted: #93a5a3; --text-faint: #809390;
+      --accent-color: #2dd4bf; --accent-color-hover: #5eead4; --accent-on: #06302b;
+      --border-color: #2a3c3a; --border-color-light: #233331;
+      --error-bg:#3a1715; --error-border:#5e2420; --error-text:#f3a39b;
+      --warning-bg:#3a2c10; --warning-border:#5e4a1c; --warning-text:#f0c063;
+      --success-bg:#12321f; --success-border:#1f5233; --success-text:#6fce96;
+      --info-bg:#102a40; --info-border:#1d4b70; --info-text:#7db8e8;
+      --shadow-1: 0 1px 3px rgba(0,0,0,.45); --shadow-2: 0 8px 24px rgba(0,0,0,.5); --shadow-3: 0 16px 48px rgba(0,0,0,.6);
+      --chip-0-bg:rgba(255,255,255,.09); --chip-0-fg:#cfcdc4; --chip-1-bg:rgba(45,212,191,.16); --chip-1-fg:#5dcaa5;
+      --chip-2-bg:rgba(55,138,221,.18); --chip-2-fg:#85b7eb; --chip-3-bg:rgba(99,153,34,.2); --chip-3-fg:#97c459;
+      --chip-4-bg:rgba(186,117,23,.22); --chip-4-fg:#ef9f27; --chip-5-bg:rgba(216,90,48,.2); --chip-5-fg:#f0997b;
+      --chip-6-bg:rgba(127,119,221,.22); --chip-6-fg:#afa9ec; --chip-7-bg:rgba(212,83,126,.2); --chip-7-fg:#ed93b1;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg-primary: #0f1c1b; --bg-secondary: #152625; --bg-hover: #213533;
+    --text-main: #d7e4e2; --text-muted: #93a5a3; --text-faint: #809390;
+    --accent-color: #2dd4bf; --accent-color-hover: #5eead4; --accent-on: #06302b;
+    --border-color: #2a3c3a; --border-color-light: #233331;
+    --error-bg:#3a1715; --error-border:#5e2420; --error-text:#f3a39b;
+    --warning-bg:#3a2c10; --warning-border:#5e4a1c; --warning-text:#f0c063;
+    --success-bg:#12321f; --success-border:#1f5233; --success-text:#6fce96;
+    --info-bg:#102a40; --info-border:#1d4b70; --info-text:#7db8e8;
+    --shadow-1: 0 1px 3px rgba(0,0,0,.45); --shadow-2: 0 8px 24px rgba(0,0,0,.5); --shadow-3: 0 16px 48px rgba(0,0,0,.6);
+    --chip-0-bg:rgba(255,255,255,.09); --chip-0-fg:#cfcdc4; --chip-1-bg:rgba(45,212,191,.16); --chip-1-fg:#5dcaa5;
+    --chip-2-bg:rgba(55,138,221,.18); --chip-2-fg:#85b7eb; --chip-3-bg:rgba(99,153,34,.2); --chip-3-fg:#97c459;
+    --chip-4-bg:rgba(186,117,23,.22); --chip-4-fg:#ef9f27; --chip-5-bg:rgba(216,90,48,.2); --chip-5-fg:#f0997b;
+    --chip-6-bg:rgba(127,119,221,.22); --chip-6-fg:#afa9ec; --chip-7-bg:rgba(212,83,126,.2); --chip-7-fg:#ed93b1;
+  }
+  :root[data-theme="light"] {
+    --bg-primary: #ffffff; --bg-secondary: #eff5f4; --bg-hover: #e0ecea;
+    --text-main: #1b2b29; --text-muted: #5c6b69; --text-faint: #5f6e6b;
+    --accent-color: #0f766e; --accent-color-hover: #115e59; --accent-on: #ffffff;
+    --border-color: #d7e5e3; --border-color-light: #e4eeed;
+    --error-bg:#fbeaea; --error-border:#f1c9c9; --error-text:#b42318;
+    --warning-bg:#fdf3e1; --warning-border:#f0d9a8; --warning-text:#92610e;
+    --success-bg:#e6f6ec; --success-border:#bfe3cd; --success-text:#1b7d43;
+    --info-bg:#e8f2fb; --info-border:#c4ddf2; --info-text:#1a629e;
+    --shadow-1: 0 1px 3px rgba(0,0,0,.07); --shadow-2: 0 8px 24px rgba(0,0,0,.16); --shadow-3: 0 16px 48px rgba(0,0,0,.28);
+    --chip-0-bg:#eceae3; --chip-0-fg:#44443f; --chip-1-bg:#e1f5ee; --chip-1-fg:#0f6e56;
+    --chip-2-bg:#e6f1fb; --chip-2-fg:#185fa5; --chip-3-bg:#eaf3de; --chip-3-fg:#3b6d11;
+    --chip-4-bg:#faeeda; --chip-4-fg:#854f0b; --chip-5-bg:#faece7; --chip-5-fg:#993c1d;
+    --chip-6-bg:#eeedfe; --chip-6-fg:#534ab7; --chip-7-bg:#fbeaf0; --chip-7-fg:#993556;
+  }
+
+  /* ============ Guide-Gerüst ============ */
+  body { background: var(--bg-secondary); color: var(--text-main); font-family: var(--font-ui); margin: 0; line-height: 1.55; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 var(--space-5) 80px; }
+  header.masthead { padding: 44px 0 8px; }
+  .eyebrow { font-size: var(--text-xs); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent-color); }
+  h1 { font-size: 30px; letter-spacing: -0.015em; margin: 6px 0 8px; text-wrap: balance; }
+  .lede { color: var(--text-muted); font-size: 15px; max-width: 62ch; margin: 0; }
+  nav.toc { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg-secondary) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-color-light); margin: 20px calc(-1 * var(--space-5)) 28px; padding: 8px var(--space-5); display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+  nav.toc::-webkit-scrollbar { display: none; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; font-size: var(--text-sm); font-weight: 600; padding: 5px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+  nav.toc a:hover { background: var(--state-hover); color: var(--text-main); }
+
+  section { margin: 0 0 40px; }
+  h2 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 4px; scroll-margin-top: 56px; }
+  h2 .no { color: var(--text-faint); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  .sec-sub { color: var(--text-muted); font-size: var(--text-md); margin: 0 0 16px; max-width: 72ch; }
+  h3 { font-size: var(--text-md); margin: 22px 0 10px; }
+
+  .card { background: var(--bg-primary); border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-1); }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+  .spec { display: flex; flex-direction: column; gap: 10px; }
+  .spec .demo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 16px 14px; background: var(--bg-secondary); border: 1px dashed var(--border-color); border-radius: var(--radius-md); min-height: 44px; }
+  .spec .demo.on-surface { background: var(--bg-primary); border-style: solid; }
+  .spec h4 { margin: 0; font-size: var(--text-md); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .spec p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+  .spec p b { color: var(--text-main); }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-xs); }
+  .tagnew, .tagfix, .tagrepl { font-size: 10px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: var(--radius-pill); text-transform: uppercase; }
+  .tagnew { background: var(--accent-container); color: var(--on-accent-container); }
+  .tagfix { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); }
+  .tagrepl { background: var(--surface-container); color: var(--text-muted); }
+
+  /* ============ Nachgebaute Primitives (Original-Metriken) ============ */
+  .pvbtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--control-md); padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-main); font: 600 var(--text-ui)/1 var(--font-ui); cursor: pointer; white-space: nowrap; }
+  .pvbtn.primary { background: var(--accent-color); color: var(--accent-on); }
+  .pvbtn.primary:hover { background: var(--accent-color-hover); }
+  .pvbtn.tonal { background: var(--accent-container); color: var(--on-accent-container); }
+  .pvbtn.secondary { border-color: var(--border-color); font-weight: 400; }
+  .pvbtn.secondary:hover { background: var(--state-hover); }
+  .pvbtn.ghost { color: var(--text-muted); font-weight: 400; }
+  .pvbtn.ghost:hover { background: var(--state-hover); color: var(--text-main); }
+  .pvbtn.danger { background: var(--error-text); color: var(--error-bg); }
+  .pvbtn.dangersoft { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+  .pvbtn.lg { height: var(--control-lg); padding: 0 var(--space-4); }
+  .pvbtn.sm { height: var(--control-sm); padding: 0 var(--space-2); }
+  .pvbtn:focus-visible, .iconbtn:focus-visible, .field:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent-color) 60%, transparent); outline-offset: 1px; }
+  .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: var(--control-md); height: var(--control-md); border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+  .iconbtn:hover { background: var(--state-hover); color: var(--text-main); }
+  .splitbtn { display: inline-flex; }
+  .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
+  .fab { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border: none; border-radius: var(--radius-lg); background: var(--accent-color); color: var(--accent-on); box-shadow: var(--shadow-1); cursor: pointer; }
+
+  /* Feld-Metrik (Runde 2): Formular-Standard lg 34px/12px, kompakt md 28px/8px. */
+  .field { display: block; width: 100%; height: var(--control-lg); padding: 0 var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: transparent; color: var(--text-main); font: var(--text-md)/1 var(--font-ui); box-sizing: border-box; }
+  .field:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
+  .field.compact { height: var(--control-md); padding: 0 var(--space-2); }
+  .chipfield { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: var(--control-lg); height: auto; padding: 5px var(--space-3); cursor: text; }
+  .chipfield:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
+  .chipfield input { flex: 1; min-width: 90px; border: none; outline: none; background: transparent; color: inherit; font: inherit; padding: 2px 0; }
+  /* Chip-Anatomie (Runde 2): Label symmetrisch 0 10px, entfernbar 0 4px 0 10px, Höhe 22. */
+  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; background: var(--bg-secondary); border: 1px solid var(--border-color-light); border-radius: var(--radius-pill); font-size: var(--text-sm); line-height: 1; }
+  .chip.removable { padding: 0 4px 0 10px; gap: 4px; }
+  .chip .x { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: none; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; padding: 0; line-height: 0; }
+  .chip .x:hover { color: var(--text-main); background: var(--state-hover); }
+  .badge { display: inline-flex; align-items: center; justify-content: center; height: 18px; min-width: 18px; padding: 0 7px; border-radius: var(--radius-pill); background: var(--accent-container); color: var(--on-accent-container); font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; box-sizing: border-box; }
+  .chip.c1 { background: var(--chip-1-bg); color: var(--chip-1-fg); border-color: transparent; }
+  .chip.c2 { background: var(--chip-2-bg); color: var(--chip-2-fg); border-color: transparent; }
+  .chip.c4 { background: var(--chip-4-bg); color: var(--chip-4-fg); border-color: transparent; }
+  .chip.c6 { background: var(--chip-6-bg); color: var(--chip-6-fg); border-color: transparent; }
+  .searchfield { display: flex; align-items: center; gap: 8px; height: var(--control-md); padding: 0 var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-muted); max-width: 300px; }
+  .searchfield input { flex: 1; border: none; outline: none; background: transparent; color: var(--text-main); font: var(--text-md) var(--font-ui); min-width: 0; }
+
+  /* Dropdown/Select (Runde 2): Trigger = Feld-Optik + Chevron; Panel = Popover-Vertrag. */
+  .ddtrigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; }
+  .ddtrigger .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ddtrigger svg { color: var(--text-muted); flex-shrink: 0; }
+  .ddpanel { margin-top: 6px; max-width: 320px; padding: var(--space-1); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); display: flex; flex-direction: column; gap: 2px; }
+  .ddsearch { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border-color-light); color: var(--text-muted); margin-bottom: 2px; }
+  .ddsearch input { flex: 1; border: none; outline: none; background: transparent; color: var(--text-main); font: var(--text-ui) var(--font-ui); min-width: 0; }
+  .ddopt { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-main); font: var(--text-ui) var(--font-ui); text-align: left; cursor: pointer; }
+  .ddopt:hover:not(.on) { background: var(--state-hover); }
+  .ddopt.on { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+  .ddopt .ic { display: inline-flex; width: 15px; flex-shrink: 0; justify-content: center; }
+  .ddopt .sub { display: block; font-size: var(--text-sm); color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+  .ddopt.on .sub { color: color-mix(in srgb, var(--on-accent-container) 70%, transparent); }
+
+  .seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-container); border-radius: var(--radius-pill); }
+  .seg button { display: inline-flex; align-items: center; gap: 6px; height: calc(var(--control-md) - 6px); padding: 0 var(--space-3); border: none; border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font: var(--text-ui) var(--font-ui); cursor: pointer; }
+  .seg button:hover:not(.on) { background: var(--state-hover); color: var(--text-main); }
+  .seg button.on { background: var(--surface); color: var(--accent-color); font-weight: 600; box-shadow: var(--shadow-1); }
+
+  .menu { min-width: 210px; padding: var(--space-1); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); display: flex; flex-direction: column; gap: 2px; }
+  .menu .label { padding: 6px 10px 3px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); }
+  .menu .item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-main); font: var(--text-ui) var(--font-ui); text-align: left; cursor: pointer; }
+  .menu .item:hover { background: var(--state-hover); }
+  .menu .item svg { color: var(--text-muted); }
+  .menu .item.danger, .menu .item.danger svg { color: var(--error-text); }
+  .menu .sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
+  .menu .hint { margin-left: auto; color: var(--text-faint); font-size: var(--text-sm); }
+
+  .modal { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); overflow: hidden; max-width: 460px; }
+  .modal .mh { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color-light); }
+  .modal .mh h5 { flex: 1; margin: 0; font-size: var(--text-lg); }
+  .modal .mb { padding: var(--space-4); font-size: var(--text-md); color: var(--text-main); }
+  .modal .mf { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border-color-light); }
+  .modal .mf .spacer { flex: 1; }
+  .peekhead { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface-container-low); border: 1px solid var(--border-color); border-bottom: none; border-radius: var(--radius-xl) var(--radius-xl) 0 0; font-size: var(--text-md); font-weight: 600; }
+  .peekbody { border: 1px solid var(--border-color); border-top: 1px solid var(--border-color-light); border-radius: 0 0 var(--radius-xl) var(--radius-xl); padding: 14px; background: var(--bg-primary); font-size: var(--text-sm); color: var(--text-muted); box-shadow: var(--shadow-3); }
+
+  .setcard { background: var(--surface-container-low); border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); overflow: hidden; }
+  .setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color-light); }
+  .setrow:last-child { border-bottom: none; }
+  .setrow .lab { font-size: var(--text-md); font-weight: 600; }
+  .setrow .desc { margin-top: 2px; font-size: var(--text-sm); color: var(--text-muted); max-width: 46ch; }
+  .grouplabel { padding: 0 var(--space-1); font-size: var(--text-xs); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--text-faint); margin-bottom: var(--space-2); }
+
+  .switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; }
+  .switch.on { background: var(--accent-color); }
+  .switch i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg-primary); transition: left .15s; }
+  .switch.on i { left: 18px; }
+  .checkrow { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-ui); cursor: pointer; }
+  .checkrow input { width: 16px; height: 16px; accent-color: var(--accent-color); margin: 0; }
+
+  .banner { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid; border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .banner.warn { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+  .banner.err { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+  .banner.info { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+  .banner .act { margin-left: auto; font-weight: 700; font-size: var(--text-sm); background: none; border: none; color: inherit; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+
+  .toast { display: flex; align-items: flex-start; gap: 8px; padding: var(--space-2) var(--space-3); background: var(--bg-primary); border: 1px solid var(--border-color); border-left: 3px solid var(--success-text); border-radius: var(--radius-md); box-shadow: var(--shadow-2); font-size: var(--text-ui); max-width: 340px; }
+
+  .listrow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-md); font-size: var(--text-ui); cursor: pointer; }
+  .listrow:hover { background: var(--state-hover); }
+  .listrow.active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+  .listrow .meta { margin-left: auto; font-size: var(--text-sm); color: var(--text-faint); font-weight: 400; }
+  .listrow svg { color: var(--text-muted); flex-shrink: 0; }
+  .listrow.active svg { color: var(--on-accent-container); }
+
+  .empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-6); color: var(--text-muted); font-size: var(--text-ui); text-align: center; }
+  .empty svg { color: var(--text-faint); }
+  .empty b { font-size: var(--text-lg); color: var(--text-main); letter-spacing: -0.01em; }
+
+  /* Schema-Diagramme */
+  .schema { display: flex; align-items: center; gap: 6px; padding: 10px; background: var(--bg-secondary); border: 1px dashed var(--border-color); border-radius: var(--radius-md); flex-wrap: wrap; font-size: var(--text-xs); }
+  .schema .blk { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-muted); white-space: nowrap; }
+  .schema .blk.hi { border-color: var(--accent-color); color: var(--accent-color); font-weight: 700; }
+  .schema .gap { flex: 1; min-width: 24px; text-align: center; color: var(--text-faint); }
+
+  /* Token-Displays */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .sw { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); }
+  .sw i { width: 34px; height: 34px; border-radius: var(--radius-md); border: 1px solid var(--border-color-light); flex-shrink: 0; }
+  .sw code { background: none; padding: 0; color: var(--text-muted); }
+  .radii { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .radii .r { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); }
+  .radii .r i { width: 64px; height: 46px; background: var(--accent-container); border: 1.5px solid var(--accent-color); display: block; }
+  .typerow { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid var(--border-color-light); }
+  .typerow:last-child { border-bottom: none; }
+  .typerow code { min-width: 118px; }
+  .typerow .use { margin-left: auto; font-size: var(--text-sm); color: var(--text-faint); text-align: right; }
+  .icons-demo { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-end; }
+  .icons-demo .i { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); }
+  .icons-demo svg { color: var(--text-main); }
+  table.plain { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+  table.plain th { text-align: left; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); padding: 6px 10px; border-bottom: 1px solid var(--border-color); }
+  table.plain td { padding: 7px 10px; border-bottom: 1px solid var(--border-color-light); vertical-align: top; }
+  table.plain tr:last-child td { border-bottom: none; }
+  .scrollbox { overflow-x: auto; }
+  ul.tight { margin: 6px 0 0; padding-left: 18px; font-size: var(--text-sm); color: var(--text-muted); }
+  ul.tight li { margin: 3px 0; }
+  ul.tight b { color: var(--text-main); }
+  .decision { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border-color-light); border-radius: var(--radius-md); background: var(--bg-primary); font-size: var(--text-sm); }
+  .decision .eno { font-weight: 800; color: var(--accent-color); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Plainva · Entwurf, Runde 2 · 2026-07-19 · E1–E9 entschieden</div>
+    <h1>Die Designsprache — ein System, alle Elemente</h1>
+    <p class="lede">Der kanonische Element-Katalog nach dem Sechs-Flächen-Audit — Runde 2 ergänzt: luftigere Eingabefelder, das vollständige Dropdown-Design, die fixierte Chip-Anatomie und das Durchsetzungs-Konzept für alle künftigen Sessions. Alle Werte sind die echten Petrol-Tokens — dieser Guide rendert hell und dunkel. Details: <code>docs/planning/Gesamtplan_Designsprache_Vollmigration_2026-07-19.md</code></p>
+  </header>
+
+  <nav class="toc">
+    <a href="#fundament">Fundament</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#eingaben">Eingaben</a>
+    <a href="#auswahl">Auswahl</a>
+    <a href="#menus">Menüs</a>
+    <a href="#overlays">Überlagerungen</a>
+    <a href="#flaechen">Flächen</a>
+    <a href="#listen">Listen &amp; Chips</a>
+    <a href="#anordnung">Anordnung</a>
+    <a href="#themes">Themes</a>
+    <a href="#durchsetzung">Durchsetzung</a>
+    <a href="#aenderungen">Sichtbare Änderungen</a>
+    <a href="#fragen">Entscheidungen</a>
+  </nav>
+
+  <!-- ================= FUNDAMENT ================= -->
+  <section id="fundament">
+    <h2><span class="no">1</span>Token-Fundament</h2>
+    <p class="sec-sub">Jeder sichtbare Wert kommt aus einer dieser Skalen. Rohe Pixel, Hex-Farben, eigene Schatten, freie z-Indizes und freie Übergangszeiten sind nach der Migration in Komponenten verboten (Ausnahme: dokumentierte Daten wie Paletten und Canvas-Werkzeuge).</p>
+
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Farben &amp; Flächen</h4>
+        <div class="swatches">
+          <div class="sw"><i style="background:var(--bg-primary)"></i><span>Fläche<br><code>--bg-primary</code></span></div>
+          <div class="sw"><i style="background:var(--bg-secondary)"></i><span>Leinwand<br><code>--bg-secondary</code></span></div>
+          <div class="sw"><i style="background:var(--accent-color)"></i><span>Akzent<br><code>--accent-color</code></span></div>
+          <div class="sw"><i style="background:var(--accent-container)"></i><span>Auswahl-Fill<br><code>--accent-container</code></span></div>
+          <div class="sw"><i style="background:var(--surface-container)"></i><span>Ton-Fläche<br><code>--surface-container</code></span></div>
+          <div class="sw"><i style="background:var(--state-hover)"></i><span>Hover-Layer<br><code>--state-hover</code></span></div>
+        </div>
+        <p><b>Ein Zustands-System:</b> Hover <code>--state-hover</code> · Druck <code>--state-press</code> · ausgewählt/aktiv <code>--accent-container</code> + Gewicht 600. <code>--bg-hover</code>/<code>--bg-active</code> werden migriert (deprecated). JS-Hover (Style-Mutation in <code>onMouseOver</code>) entfällt komplett.</p>
+      </div>
+      <div class="card spec">
+        <h4>Statusfarben</h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:8px;">
+          <div class="banner err">Fehler — <code>--error-*</code></div>
+          <div class="banner warn">Warnung — <code>--warning-*</code></div>
+          <div class="banner info">Hinweis — <code>--info-*</code></div>
+          <div class="banner" style="background:var(--success-bg); border-color:var(--success-border); color:var(--success-text)">Erfolg — <code>--success-*</code></div>
+        </div>
+        <p>Nur diese vier Familien für Zustände; kein frei gewähltes Rot/Gelb. Das Close-Hover-Rot der Fensterknöpfe wird Token (<code>--titlebar-close-hover</code>) statt Hex.</p>
+      </div>
+    </div>
+
+    <h3>Radius-Rollen (bindend)</h3>
+    <div class="card">
+      <div class="radii">
+        <div class="r"><i style="border-radius:var(--radius-md)"></i>Controls, Menüs, Popover<br><code>--radius-md</code> 12</div>
+        <div class="r"><i style="border-radius:var(--radius-lg)"></i>Karten, Panes, FAB<br><code>--radius-lg</code> 16</div>
+        <div class="r"><i style="border-radius:var(--radius-xl)"></i>Modale, Sheets, Peek<br><code>--radius-xl</code> 20</div>
+        <div class="r"><i style="border-radius:var(--radius-pill); width:76px;"></i>Chips, Segmente, Switch<br><code>--radius-pill</code></div>
+        <div class="r"><i style="border-radius:var(--radius-xs)"></i>Mikro-Details<br><code>--radius-xs</code> 4</div>
+      </div>
+      <p style="margin:12px 0 0; font-size:var(--text-sm); color:var(--text-muted);">Merksatz: <b>Control &amp; schwebend = md · Karte = lg · Dialog/Sheet = xl · rund = pill.</b> Behebt u.&nbsp;a.: Datenkarten (Board/Galerie/Liste/Pinboard) heute md statt lg; Editor-Modus-Umschalter xs statt pill; Select-Popover lg statt md; Mobile-Privatwerte 14/10px entfallen (Karten→16, Felder→12).</p>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px;">
+      <div class="card spec">
+        <h4>Chrome-Typo-Skala <span class="tagfix">heute ~30 Rohwerte</span></h4>
+        <div>
+          <div class="typerow"><code>--text-xs</code> <span style="font-size:var(--text-xs)">Mikro-Label, Badges, Sektions-Header</span><span class="use">11px</span></div>
+          <div class="typerow"><code>--text-sm</code> <span style="font-size:var(--text-sm)">Sekundärtext, Hinweise, Statusleiste</span><span class="use">12px</span></div>
+          <div class="typerow"><code>--text-ui</code> <span style="font-size:var(--text-ui)"><b>Standard:</b> Menüs, Buttons, Baum, Tabs</span><span class="use">13px</span></div>
+          <div class="typerow"><code>--text-md</code> <span style="font-size:var(--text-md)">Eingaben, Dialog-Fließtext</span><span class="use">14px</span></div>
+          <div class="typerow"><code>--text-lg</code> <span style="font-size:var(--text-lg)">Modal-Titel, Sektions-Überschriften</span><span class="use">16px</span></div>
+        </div>
+        <p>Migrations-Mapping: ≤0.72rem→xs · 0.75–0.8→sm · 0.82–0.85→ui · 0.88–0.95→md · 1–1.1→lg. Dokument-<i>Inhalt</i> (Editor/Reader) bleibt eigene Welt. Erst dadurch wirkt der Kompaktheitsgrad auch in Slash-Menü, Suchpanel &amp; Co.</p>
+      </div>
+      <div class="card spec">
+        <h4>Icon-Rollen <span class="tagnew">neu</span> <span class="tagfix">heute 15 Größen</span></h4>
+        <div class="demo on-surface">
+          <div class="icons-demo">
+            <div class="i"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><code>ICON.meta</code> 12</div>
+            <div class="i"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><code>ICON.ui</code> 15</div>
+            <div class="i"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><code>ICON.head</code> 18</div>
+            <div class="i"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><code>ICON.empty</code> 28</div>
+            <div class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><code>ICON.touch</code> 22 (mobil)</div>
+          </div>
+        </div>
+        <p>Als exportierte Konstanten in <code>@plainva/ui</code>: Meta-Indikatoren 12 · Standard (Menüs, Zeilen, Toolbars) 15 · Pane-Köpfe/prominent 18 (zugleich Mobile-Standard) · Empty-States 28. Sonderfälle (Logo, Doc-Icon 44) bleiben benannte Konstanten.</p>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-top:14px;">
+      <div class="card spec">
+        <h4>Spacing &amp; Höhen</h4>
+        <p><code>--space-1..8</code> (4er-Raster) für Chrome-Abstände; 1–2px-Mikrodetails literal. Control-Höhen <code>--control-sm/md/lg</code> = 24/28/34 — Elemente einer Zeile teilen die Höhe. Geistergrößen (26, 30, 32, 38px) entfallen.<br><b>Neu mobil:</b> <code>--touch-sm/md/row</code> = 44/48/56 — <code>.m-btn</code> steigt von 40 auf ≥44.</p>
+      </div>
+      <div class="card spec">
+        <h4>Schatten &amp; Z-Ebenen</h4>
+        <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala.</p>
+      </div>
+      <div class="card spec">
+        <h4>Motion &amp; Fokus</h4>
+        <p>Nur <code>--dur-1/2/3</code> + <code>--ease-*</code> — auch in CodeMirror-Themes und Keyframes (Hailing-Shake). Sonst greifen <i>reduced motion</i>, <code>data-motion="off"</code> und Theme-Pins (Win95) nicht.<br>Fokus: globaler Akzent-Ring; Felder mit <code>--state-focus</code>-Glow. Handgerollte inset-Ringe (mobil) wechseln auf den Mechanismus.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BUTTONS ================= -->
+  <section id="buttons">
+    <h2><span class="no">2</span>Buttons</h2>
+    <p class="sec-sub">Eine Familie, sechs Rollen — immer über die <code>Button</code>-/<code>IconButton</code>-Primitives (nie rohe <code>&lt;button&gt;</code> mit Klassen-Strings oder Inline-Styles; heute 179 rohe Buttons).</p>
+    <div class="card spec">
+      <div class="demo on-surface">
+        <button class="pvbtn primary">Speichern</button>
+        <button class="pvbtn tonal">Weitere Optionen</button>
+        <button class="pvbtn secondary">Durchsuchen…</button>
+        <button class="pvbtn ghost">Abbrechen</button>
+        <button class="pvbtn danger">Löschen</button>
+        <button class="pvbtn dangersoft">Trennen</button>
+      </div>
+      <p>
+        <b>primary</b> — die EINE Hauptaktion einer Fläche · <b>tonal</b> — hervorgehobene Zweitaktion · <b>secondary</b> — normale Aktion mit Rahmen · <b>ghost</b> — leise Aktion, Standard für <i>Abbrechen</i> (E1) · <b>danger</b> — destruktive Bestätigung · <b>danger-soft</b> — „Trennen/Entfernen" mit Bestand <span class="tagnew">wird offizielle Variante</span> (heute nur raw-className in den Sync-Einstellungen).
+      </p>
+      <div class="demo on-surface">
+        <button class="pvbtn primary lg">Groß (lg · 34px)</button>
+        <button class="pvbtn secondary">Standard (md · 28px)</button>
+        <button class="pvbtn secondary sm">Klein (sm · 24px)</button>
+        <span style="flex:1"></span>
+        <button class="iconbtn" aria-label="Suchen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg></button>
+        <button class="iconbtn" aria-label="Mehr"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
+        <div class="splitbtn">
+          <button class="pvbtn primary">+ Eintrag</button><button class="pvbtn primary" aria-label="Vorlagen"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <button class="fab" aria-label="Neue Notiz"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+      <p>
+        <b>IconButton</b> (28/24px, <code>--radius-md</code>) — jede reine Icon-Aktion, mit <code>aria-label</code> + <code>data-tip</code>. Die drei Chrome-Eigenbauten (Fensterknöpfe 32×30, TitleBar-Duplikat, AppRibbon-Override 30×30) wandern auf die Primitive.
+        <b>SplitButton</b> — Hauptaktion + Chevron-Menü (eine Basis für beide heutigen Implementierungen).
+        <b>FAB</b> — schwebende Hauptaktion, nur mobil (E7): <code>.m-fab-float</code> → geteilte <code>.pv-fab</code>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= EINGABEN ================= -->
+  <section id="eingaben">
+    <h2><span class="no">3</span>Eingabefelder</h2>
+    <p class="sec-sub">Alles Tippbare ist ein <code>.pv-field</code> — gleicher Radius, gleicher Fokus-Glow, <b>zwei Höhen-Rollen</b> (Runde 2): Formular-Standard 34px mit 12px Innenabstand, Kompakt 28px nur für Toolbars/Sidebar-Suche/Inline-Zellen. Legacy <code>.pv-input</code> wird ersetzt.</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Textfeld · Textarea <span class="tagnew">Runde 2: luftiger</span></h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch;">
+          <input class="field" placeholder="Titel">
+          <textarea class="field" style="height:auto; min-height:64px; padding:12px; resize:vertical; line-height:1.45;" placeholder="Beschreibung"></textarea>
+          <input class="field compact" placeholder="Kompakt-Rolle (nur Toolbar / Sidebar-Suche / Inline-Zelle)" style="max-width:420px;">
+        </div>
+        <p><b>Formular-Standard:</b> Höhe <code>--control-lg</code> 34px, Innenabstand <code>--space-3</code> 12px (E10 — behebt „zu eng"). <b>Kompakt</b> (<code>--compact</code>): 28px/8px, nur in dichten Kontexten. Der Kompaktheitsgrad senkt lg global mit — Dichte bleibt wirksam. Mobile: Höhe über <code>--touch-sm</code> 44.</p>
+      </div>
+      <div class="card spec">
+        <h4>Dropdown (Select) <span class="tagnew">Runde 2: jetzt designt</span></h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch;">
+          <button class="field ddtrigger" aria-expanded="true" style="max-width:320px;">
+            <span class="val">Arbeit</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="ddpanel" role="listbox">
+            <div class="ddsearch">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+              <input placeholder="Kalender suchen…">
+            </div>
+            <button class="ddopt on"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></span><span>Arbeit</span></button>
+            <button class="ddopt"><span class="ic"></span><span>Privat<span class="sub">CalDAV · Nextcloud</span></span></button>
+            <button class="ddopt"><span class="ic"></span><span>Familie</span></button>
+          </div>
+        </div>
+        <p><b>Trigger</b> = Feld-Optik + Chevron (dreht bei offen). <b>Panel</b> = Popover-Vertrag (md · Schatten 2 · z-menu); gewählte Option = Akzent-Container + Häkchen im Icon-Slot; Beschreibungen als zweite Zeile; Such-Zeile ab ~8 Optionen. Getragen von der neu gebauten <code>Select</code>-Primitive — native <code>&lt;select&gt;</code> nur noch für sehr lange OS-Listen (Schriften, Sprachen), sonst folgt das Panel dem Theme (E11).</p>
+      </div>
+      <div class="card spec">
+        <h4>Chip-Feld <span class="tagfix">Doppeldefinition wird aufgelöst</span></h4>
+        <div class="demo on-surface" style="align-items:stretch; flex-direction:column;">
+          <div class="field chipfield">
+            <span class="chip removable">anna@beispiel.de <button class="x" aria-label="Entfernen"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span>
+            <span class="chip removable">ben@beispiel.de <button class="x" aria-label="Entfernen"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span>
+            <input placeholder="Empfänger hinzufügen…">
+          </div>
+        </div>
+        <p>Für Empfänger/Teilnehmer (Enter/Komma → Chip); min-Höhe folgt der Feld-Rolle. <b>Fix:</b> die zweite <code>.pv-chip</code>-Definition in App.css überschreibt heute nur auf dem Desktop die geteilte — dasselbe Element sieht je Shell anders aus. Es bleibt EINE Definition in <code>ui.css</code>, inkl. der Farbklassen (behebt zugleich die farblosen Mobile-Chips).</p>
+      </div>
+      <div class="card spec">
+        <h4>Suchfeld <span class="tagnew">neue Primitive</span></h4>
+        <div class="demo on-surface">
+          <div class="searchfield">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            <input value="Projektplan">
+            <button class="iconbtn" style="width:20px;height:20px;" aria-label="Leeren"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </div>
+        </div>
+        <p>Das EINE Suchfeld-Muster: Lupe links, X sobald Text da ist, Escape leert erst und schließt dann. Ersetzt die drei heutigen Schemata (Sidebar / Paletten ohne X / Mail-Hybrid).</p>
+      </div>
+      <div class="card spec">
+        <h4>Checkbox · Radio · Switch</h4>
+        <div class="demo on-surface">
+          <label class="checkrow"><input type="checkbox" checked> Teilnehmer benachrichtigen</label>
+          <label class="checkrow"><input type="radio" name="r" checked> Nur diesen</label>
+          <label class="checkrow"><input type="radio" name="r"> Alle</label>
+          <button class="switch on" role="switch" aria-checked="true" aria-label="Aktiv"><i></i></button>
+        </div>
+        <p><code>Checkbox</code>-Primitive ersetzt 7 nackte Inputs; <b>Radio wird neue Primitive</b> <span class="tagnew">neu</span> (heute roh). <code>Switch</code> wird überall importiert statt 2× nachgebaut; Knob-Farbe wird Token (behebt den unsichtbaren Knopf unter Hoher Kontrast dunkel).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AUSWAHL ================= -->
+  <section id="auswahl">
+    <h2><span class="no">4</span>Auswahl / Umschalter</h2>
+    <p class="sec-sub">Jede „wähle 1 aus N"-Pillenwahl ist die <code>Segmented</code>-Primitive — eine Wanne, aktives Segment hebt auf die Fläche.</p>
+    <div class="card spec">
+      <div class="demo on-surface">
+        <div class="seg" role="tablist">
+          <button>Tag</button><button>3 Tage</button><button class="on">Woche</button><button>Monat</button><button>Agenda</button>
+        </div>
+        <div class="seg" role="tablist">
+          <button class="on">Lesen</button><button>Live</button><button>Quelltext</button>
+        </div>
+      </div>
+      <p><b>Wird zusätzlich migriert:</b> Editor-Modus-Umschalter (heute handgerollt mit eckigem Radius), <code>.base</code>-Ansichts-Wechsler + Konfig-Reiter (heute zwei pixelgleiche Nachbauten in <code>BASE_VIEWER_STYLES</code>), EmojiPicker-Modus-Schalter. <b>Bewusst KEINE Segmente bleiben:</b> Dokument-Tab-Leiste, Einstellungs-Nav, Mail-Ordner-Schiene (eigene Muster laut Runde 2026-07-19).</p>
+    </div>
+  </section>
+
+  <!-- ================= MENÜS ================= -->
+  <section id="menus">
+    <h2><span class="no">5</span>Menüs &amp; Popover</h2>
+    <p class="sec-sub"><code>MenuSurface</code>/<code>MenuItem</code> ist die einzige Menü-Implementierung. Für alle schwebenden Picker gilt EIN Popover-Vertrag: Container <code>--radius-md</code> + <code>--shadow-2</code> + <code>--z-menu</code>, Zeilen <code>--state-hover</code>, Schrift <code>--text-ui</code>.</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Menü-Anatomie</h4>
+        <div class="demo" style="justify-content:center;">
+          <div class="menu" role="menu">
+            <div class="label">Öffnen</div>
+            <button class="item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg> Im neuen Tab öffnen</button>
+            <button class="item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg> Im Split öffnen <span class="hint">Strg+Klick</span></button>
+            <div class="sep"></div>
+            <div class="label">Datei</div>
+            <button class="item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Umbenennen… <span class="hint">F2</span></button>
+            <div class="sep"></div>
+            <button class="item danger"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg> Löschen</button>
+          </div>
+        </div>
+        <p>Gruppen via <code>MenuLabel</code>, Kürzel als Hint rechts, <b>Danger zuletzt nach Separator</b>. Das handgerollte ⋮-Menü im Base-Kopf zieht auf die Primitive um.</p>
+      </div>
+      <div class="card spec">
+        <h4>Popover-Vertrag — Ist-Abweichungen</h4>
+        <div class="scrollbox">
+        <table class="plain">
+          <tr><th>Fläche</th><th>weicht heute ab</th></tr>
+          <tr><td>Select (Eigenschafts-Dropdown)</td><td>z 4000 (über Tooltips!), eigener Scrim-Schatten, Karten-Radius → wird neu aufgebaut</td></tr>
+          <tr><td>Suchen/Ersetzen-Panel (CM)</td><td>kein Schatten, xs-Radius, 12px roh, z 300 → Vertrag</td></tr>
+          <tr><td>Autocomplete (/, @, [[, #, :)</td><td>Liste 14px, Zeilen sm + <code>--bg-active</code>, 5 Sub-Schriften → Token</td></tr>
+          <tr><td>BlockMenu · EmojiPicker · DatePicker · HeaderColorPicker · TableSizePicker</td><td>Item-Radien sm/xs gemischt, Backdrop-z 999, Fonts roh → Rollen</td></tr>
+          <tr><td><code>.pv-popover</code>-Familie (Properties)</td><td>bleibt als „reiches Popover", übernimmt Menü-Metriken (md · text-ui · state-hover)</td></tr>
+        </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= OVERLAYS ================= -->
+  <section id="overlays">
+    <h2><span class="no">6</span>Überlagerungen</h2>
+    <p class="sec-sub">Vier Ebenen, klar getrennt: Modal (zentriert) · appDialogs (Bestätigungen, über allem) · FloatingWindow (frei schwebend, nicht-modal) · mobile Sheets. Toasts und Tooltips obendrüber.</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Modal-Anatomie + Footer-Vertrag</h4>
+        <div class="demo" style="justify-content:center;">
+          <div class="modal" role="dialog" style="width:100%;">
+            <div class="mh">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning-text)" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4m0 3h.01"/></svg>
+              <h5>Termin löschen?</h5>
+              <button class="iconbtn" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="mb">„Standup" wird aus dem Kalender <b>Arbeit</b> entfernt. Teilnehmer werden benachrichtigt.</div>
+            <div class="mf">
+              <button class="iconbtn" aria-label="Weitere Aktionen"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
+              <span class="spacer"></span>
+              <button class="pvbtn ghost">Abbrechen</button>
+              <button class="pvbtn danger">Löschen</button>
+            </div>
+          </div>
+        </div>
+        <p>Header: Titel + <b>optionaler Icon-Slot</b> <span class="tagnew">neu</span> + X (immer). Footer über das <code>footer</code>-Prop: <b>[Tertiär/⋮] → Spacer → Abbrechen (ghost) → Primär/Danger.</b> Radius xl, Schatten 3. Die 6 Legacy-<code>.pv-modal-card</code>-Dialoge + der handgerollte Sync-Fehler-Screen ziehen um.</p>
+      </div>
+      <div class="card spec">
+        <h4>FloatingWindow <span class="tagnew">neue Primitive</span> · Toast</h4>
+        <div class="demo" style="flex-direction:column; align-items:stretch;">
+          <div>
+            <div class="peekhead">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text-faint)"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
+              Nachricht verfassen
+              <span style="flex:1"></span>
+              <button class="iconbtn" aria-label="Schließen" style="width:24px;height:24px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="peekbody">Frei schwebend, verschieb- und skalierbar, nicht-modal. Getönter Kopf + 6-Punkte-Grip. Eine Primitive für Vorschau-Peek UND Compose (heute Copy-Paste-Zwilling).</div>
+          </div>
+          <div class="toast">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--success-text)" stroke-width="2.2" style="margin-top:1px;"><path d="M20 6 9 17l-5-5"/></svg>
+            Gespeichert
+            <button class="iconbtn" style="width:20px;height:20px;margin-left:auto;" aria-label="Schließen"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </div>
+        </div>
+        <p>Mobile Sheets bleiben das Modal-Pendant — bekommen aber die <b>Severity-Icons</b> der Dialoge (heute nur Buttonfarbe) und denselben Footer-Vertrag. Tooltips ausschließlich über <code>data-tip</code> — die ~170 <code>title=</code> werden migriert.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FLÄCHEN ================= -->
+  <section id="flaechen">
+    <h2><span class="no">7</span>Flächen &amp; Formulare</h2>
+    <p class="sec-sub">Die „ruhigen Karten" sind die EINE Grammatik für benannte Gruppen mit Label/Beschreibung/Control — Einstellungen, Termin-Dialog, Konten-Karten, Base-Konfiguration.</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>SettingCard / SettingRow</h4>
+        <div class="demo" style="display:block;">
+          <div class="grouplabel">Zeit</div>
+          <div class="setcard">
+            <div class="setrow">
+              <div><div class="lab">Ganztägig</div><div class="desc">Blendet die Uhrzeiten aus.</div></div>
+              <button class="switch" role="switch" aria-checked="false" aria-label="Ganztägig"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div><div class="lab">Standardkalender</div><div class="desc">Vorauswahl für neue Termine.</div></div>
+              <select class="field" style="width:190px;"><option>Arbeit</option></select>
+            </div>
+          </div>
+        </div>
+        <p>Ersetzt: die Hand-Kopie im Termin-Dialog (importiert künftig die Komponenten), die handgerollten Mail-/PIM-Konten-Karten, die <code>base-cfg-card</code>-Parallelfamilie (E8) und den vierfach nachgebauten Formularzeilen-Aufbau. Fehler stehen als <code>.pv-inline-error</code> direkt unterm Feld.</p>
+      </div>
+      <div class="card spec">
+        <h4>Empty State · Banner <span class="tagnew">neu</span></h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch;">
+          <div class="empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4m8-4v4M3 9h18"/></svg>
+            <b>Kein Kalender verbunden</b>
+            <span>Verbinde ein Konto unter Einstellungen → Kalender &amp; Konten.</span>
+            <button class="pvbtn primary" style="margin-top:4px;">Konto verbinden</button>
+          </div>
+          <div class="banner warn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4m0 3h.01"/></svg>
+            Nicht gespeicherter Entwurf gefunden.
+            <button class="act">Wiederherstellen</button>
+          </div>
+        </div>
+        <p><b>EmptyState</b> für jeden Leerzustand (heute nur 7 Dateien; 16+ handgerollte Textdivs werden migriert). <b>Banner</b> wird Primitive für Inline-Hinweise (Editor-Konflikt/Entwurf/Managed-Index — heute 3× copy-paste).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= LISTEN ================= -->
+  <section id="listen">
+    <h2><span class="no">8</span>Listen, Zeilen &amp; Chips</h2>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Zeilen-Rezept + EIN Aktiv-Zustand</h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:2px;">
+          <div class="listrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg> Wochenplan <span class="meta">Projekte</span></div>
+          <div class="listrow active"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg> Projektplan <span class="meta">Projekte</span></div>
+          <div class="listrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg> Notizen Kickoff <span class="meta">Inbox</span></div>
+        </div>
+        <p>Hover aus CSS (<code>.pv-rowhover</code>), Icon links 15, Meta rechts gedämpft. <b>Aktiv einheitlich:</b> Akzent-Container-Fill + Gewicht 600 (E2) — heute drei verschiedene Markierungen in Dateibaum/Zuletzt/Lesezeichen. Paletten-Ergebniszeilen teilen dieselbe Klasse.</p>
+      </div>
+      <div class="card spec">
+        <h4>Chips &amp; Badges <span class="tagnew">Runde 2: Anatomie fixiert</span></h4>
+        <div class="demo on-surface">
+          <span class="chip c1">projekt</span>
+          <span class="chip c2">In Arbeit</span>
+          <span class="chip c4">wichtig</span>
+          <span class="chip c6">#idee</span>
+          <span class="chip removable">entfernbar <button class="x" aria-label="Entfernen"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span>
+          <span class="badge">12</span><span class="badge">3</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-muted);"><i style="width:8px;height:8px;border-radius:999px;background:var(--accent-color);display:inline-block"></i> ungelesen-Dot</span>
+        </div>
+        <p><b>Drei präzise Formen, zentral definiert</b> (Komponenten-Innenmaße leben NUR in ui.css, nie inline): <b>Label-Chip</b> Höhe 22, symmetrisch 0 10px — der bisherige Rechts-Abstand (4px) war der X-Chip-Wert und ließ den Text am Rand kleben; <b>entfernbarer Chip</b> 0 4px 0 10px mit 16px-X-Hit-Fläche; <b>Zähler-Badge</b> Höhe 18, min-width 18, <code>tabular-nums</code>, pill (Board-Zähler heute Karten-Radius). Farbklassen aus den <code>--chip-*</code>-Tokens; Mobile-Zoo (5 Klassen, 3 Radien) → Basis + Touch-Modifier (Höhe 28). Dots 6–8px bleiben.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ANORDNUNG ================= -->
+  <section id="anordnung">
+    <h2><span class="no">9</span>Anordnungs-Schemata</h2>
+    <p class="sec-sub">Gleiche Elemente folgen überall demselben Aufbau — verbindlich für alle Panes, Dialoge und Formulare, auf beiden Shells.</p>
+    <div class="card spec">
+      <h4>Pane-Kopf</h4>
+      <div class="schema">
+        <span class="blk">◀ ▶ / Titel</span><span class="blk hi">Segmented (Ansicht)</span><span class="gap">→ Spacer →</span><span class="blk">Aktionen mit Label</span><span class="blk">Icon-Aktionen</span><span class="blk">⋮</span>
+      </div>
+      <p>Titel/Navigation links · Ansichts-Wahl mittig-links · Aktionen rechts, ⋮ ganz außen. Label-Collapse bei schmalen Panes via Container-Query (wie der Base-Kopf — Mail zieht nach).</p>
+      <h4 style="margin-top:14px;">Modal-Footer</h4>
+      <div class="schema">
+        <span class="blk">Tertiär / ⋮</span><span class="gap">→ Spacer →</span><span class="blk">Abbrechen (ghost)</span><span class="blk hi">Primär / Danger</span>
+      </div>
+      <p>Immer über das <code>footer</code>-Prop — nie Buttons im Body (heute 3 Bauarten). „Schließen als Primär" nach abgeschlossenen Läufen bleibt erlaubt.</p>
+      <h4 style="margin-top:14px;">Formularzeile · Kontextmenü · Suchfeld</h4>
+      <ul class="tight">
+        <li><b>Formularzeile:</b> Label (+Beschreibung) links, Control rechts — oder <i>wide</i>: Label über Control. Fehler direkt unter dem Feld.</li>
+        <li><b>Kontextmenü:</b> Öffnen-Gruppe → Objekt-Aktionen → <b>Danger zuletzt</b> nach Separator; Gruppen mit MenuLabel — auch mobil.</li>
+        <li><b>Suchfeld:</b> Lupe · Eingabe · X — Escape leert erst, schließt dann. Überall identisch (SearchField).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= THEMES ================= -->
+  <section id="themes">
+    <h2><span class="no">10</span>Theme-Vertrag (inkl. Eastereggs)</h2>
+    <p class="sec-sub">Weil alle Elemente nur noch Tokens + <code>pv-*</code>-Klassen konsumieren, können Themes alles umgestalten. Struktur-Themes müssen dafür die vollständige Docking-Punkte-Liste bedienen — heute fehlen die neuen Flächen.</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>Neue Pflicht-Docking-Punkte</h4>
+        <ul class="tight">
+          <li><b>Win95:</b> Segmented (Bevel statt flacher Pille), Settings-Karten, Peek-Kopf (Navy-Titel wie Modal-Header), <code>--edge-scrim</code> (heute Petrol-Teal-Schatten!), <code>--callout-*</code>, Bevel für die Base-Kopf-Buttons, X-Selektor-Fix (matcht heute nie → Modal-X unlesbar).</li>
+          <li><b>LCARS:</b> Chipfield-Chips (heute gefüllt neben hohlen Status-Chips), Settings-Karten in Konsolen-Optik, Segmented, Chip-/Akzentpaletten in Okuda-Tönen, Graph-Deko-Pins.</li>
+          <li><b>Hoher Kontrast:</b> Switch-Knob-Token, verstärkter <code>--edge-scrim</code>.</li>
+          <li><b>Alle:</b> Mail-Flächen, PIM-Kalender, Pinboard, mobile Pendants der neuen Screens.</li>
+        </ul>
+      </div>
+      <div class="card spec">
+        <h4>Easter-Egg-Regeln</h4>
+        <ul class="tight">
+          <li>Der <b>Grußfrequenzen-Dialog</b> zieht auf Modal + Primitives um — und bekommt damit unter Win95 endlich die Navy-Titelzeile des Themes, das er selbst freischaltet; unter LCARS das Konsolen-Feld. Schließen-Knopf wie mobil.</li>
+          <li>Shake-Animation aus <code>--dur-*</code> (respektiert reduzierte Bewegung + Win95-Motion-Pin).</li>
+          <li>Doc-Kommentare, die Theme-Abdeckung behaupten („Win95 bevel", „LCARS pill"), werden erst nach echter Theme-Regel wieder eingesetzt.</li>
+          <li>Mail-iframe (eigenes Dokument): bekommt Theme-Grundfarben beim Bau des <code>srcdoc</code> — Mails strahlen im Dunkel-/OLED-Modus nicht mehr zwingend weiß.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DURCHSETZUNG ================= -->
+  <section id="durchsetzung">
+    <h2><span class="no">11</span>Durchsetzung — so halten sich alle künftigen Sessions daran</h2>
+    <p class="sec-sub">Doku allein hält keine Session auf Kurs — nur Checks, die den Commit brechen, tun das zuverlässig. Vier Schichten, von hart nach weich (Details: Teil D im Gesamtplan):</p>
+    <div class="grid g2">
+      <div class="card spec">
+        <h4>1 · Maschinelle Zäune <span class="tagnew">das eigentliche Gate</span></h4>
+        <ul class="tight">
+          <li><b>designLint 2.0 mit LEERER Budget-Map:</b> heute friert die Map Altlasten ein — nach der Migration gibt es keine mehr, und <b>jeder Rohwert in jeder (auch neuen) Datei macht pre-commit, pre-push und CI sofort rot.</b> Hooks sind nie umgehbar.</li>
+          <li><b>Neue Regelklassen</b> exakt entlang der Audit-Funde: rohe Schriftgrößen/z-Index/Schatten/Transitions, <code>title=</code>, Legacy-Klassennamen, JS-Hover, Icon-Größen außerhalb <code>ICON.*</code>; Scan inkl. App.tsx.</li>
+          <li><b>classExistence-Guard:</b> jede referenzierte Klasse muss definiert sein — hätte 3 der 8 Bugs (m-spin, m-btn--primary, base-cfg-field) als Commit-Blocker gefangen.</li>
+          <li><b>cssDuplicate-Guard:</b> kein Selektor doppelt (fängt die .pv-chip-Kollision und „unten angefügt statt editiert").</li>
+          <li><b>themeCoverage-Guard:</b> neue pv-Fläche ⇒ Pflicht-Selektor in LCARS + Win95 oder sichtbarer Ausnahme-Eintrag — genau die Lücke, durch die Settings-Karten/Segmented/Chipfield gerutscht sind.</li>
+        </ul>
+      </div>
+      <div class="card spec">
+        <h4>2–4 · Kontext, Referenz, Prozess</h4>
+        <ul class="tight">
+          <li><b>Immer geladener Session-Kontext:</b> harter ~12-Zeilen-„UI rules"-Block in CLAUDE/AGENTS/GEMINI.md des App-Repos (wird von jeder KI-Session automatisch geladen) + Grundsatz in AI_WORKFLOW (intern).</li>
+          <li><b>Referenz:</b> Design_Language.md v2 = dieser Katalog (englisch, mit „Which element when"-Tabelle); dieser Styleguide zusätzlich als statische HTML-Datei versioniert im App-Repo (E12).</li>
+          <li><b>Prozessregel für Neues:</b> braucht eine Aufgabe ein Muster, das der Katalog nicht kennt → ERST Katalog + Theme-Docking + Guards erweitern, DANN bauen. Kein „schnell inline lösen".</li>
+          <li><b>Review:</b> PR-/CONTRIBUTING-Checkliste (Primitives? hell+dunkel+LCARS/Win95-Screenshots? Guards grün?).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ÄNDERUNGEN ================= -->
+  <section id="aenderungen">
+    <h2><span class="no">12</span>Was sich sichtbar ändert</h2>
+    <p class="sec-sub">Der Sweep ist Vereinheitlichung, kein Redesign — das meiste ist pixelgleiche Token-Substitution. Diese Punkte ändern sich bewusst sichtbar (Teil der Freigabe):</p>
+    <div class="card">
+      <ul class="tight" style="columns: 2; column-gap: 28px;">
+        <li><b>Formularfelder deutlich luftiger: 28→34px Höhe, 8→12px Innenabstand (Runde 2)</b></li>
+        <li><b>Dropdowns mit eigenem Theme-treuem Panel statt OS-Popup (Runde 2)</b></li>
+        <li><b>Chips mit korrigierten Text-Abständen + präzisen Badge-Maßen (Runde 2)</b></li>
+        <li>±1px-Schriftrundungen im Chrome (Rohwerte → 5er-Skala); Kompaktheitsgrad wirkt danach überall</li>
+        <li>Selektierte Zeilen einheitlich Akzent-Container-Fill (statt 3 Varianten)</li>
+        <li>Editor-Modus-Umschalter wird Pillen-Segment</li>
+        <li>Callout im Live-Modus = gleiche Karten-Silhouette wie im Lesemodus</li>
+        <li>Abbrechen-Buttons einheitlich leise (ghost)</li>
+        <li>Datenkarten (Board/Galerie/Pinnwand/Liste) minimal runder (Radius 12→16)</li>
+        <li>Mobile: Karten 14→16, Felder 10→12, Sheet-Buttons ≥44px hoch</li>
+        <li>Mobile-Label-Chips wieder farbig; Sync-Spinner dreht; „Konto verbinden" gefüllt</li>
+        <li>Win95: lesbares Modal-X, Bevel-Segmente, korrekte Scroll-Kante; LCARS: konsistente Chips</li>
+        <li>Mails im Dunkelmodus nicht mehr zwingend weiß</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= FRAGEN ================= -->
+  <section id="fragen">
+    <h2><span class="no">13</span>Entscheidungen</h2>
+    <p class="sec-sub"><b>E1–E9 sind entschieden</b> (Runde 1: „Ich folge allen Deinen Empfehlungen"): Abbrechen ghost ✓ · Aktiv = Akzent-Container ✓ · Typo-Rundung ✓ · bg-active → accent-container ✓ · Icon-Skala ✓ · Mobile-Radien ✓ · FAB → pv-fab ✓ · base-cfg → setcard ✓ · Feature-Branch ✓. Neu aus Runde 2 — ein „passt" genügt:</p>
+    <div class="grid g2">
+      <div class="decision"><span class="eno">E10</span><span><b>Feld-Metrik:</b> Formular-Standard 34px Höhe + 12px Innenabstand, Kompakt-Rolle 28px nur für Toolbars/Sidebar-Suche/Inline-Zellen (Sektion 3 zeigt beide). <i>Empfehlung: ja.</i></span></div>
+      <div class="decision"><span class="eno">E11</span><span><b>Dropdowns:</b> die neue <code>Select</code>-Primitive (Theme-treues Panel, Häkchen + Akzent-Container, Such-Zeile ab ~8 Optionen) als Standard für die ganze App-UI; native <code>&lt;select&gt;</code> nur für sehr lange OS-Listen (Schriften, Sprachen). <i>Empfehlung: ja.</i></span></div>
+      <div class="decision"><span class="eno">E12</span><span><b>Styleguide-Ablage:</b> zusätzlich als statische <code>docs/engineering/design-styleguide.html</code> versioniert ins App-Repo (offline, für Contributor); Artifact bleibt Review-Fläche. <i>Empfehlung: ja.</i></span></div>
+    </div>
+  </section>
+</div>

@@ -3,7 +3,7 @@ import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { SourceConditionEditor } from "./base/SourceConditionEditor";
-import { isSourceCondition } from "@plainva/ui";
+import { ICON, isSourceCondition } from "@plainva/ui";
 import { listVaultFolders } from "../services/vaultFolders";
 
 interface DatabaseSourceConfigProps {
@@ -89,11 +89,11 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
         onClick={alwaysExpanded ? undefined : () => setIsExpanded(!isExpanded)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-secondary)", cursor: alwaysExpanded ? "default" : "pointer", borderBottom: isExpanded ? "1px solid var(--border-color)" : "none" }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500, fontSize: "0.9rem", color: "var(--text-main)" }}>
-          <Settings size={16} color="var(--accent-color)" />
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500, fontSize: "var(--text-md)", color: "var(--text-main)" }}>
+          <Settings size={ICON.ui} color="var(--accent-color)" />
           {t("database.sourceConfig", "Datenquelle")}
         </div>
-        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", gap: "8px" }}>
+        <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", display: "flex", gap: "8px" }}>
           {totalConditions === 0 && <span style={{ color: "var(--error-text)" }}>{t("database.noSources", "Keine Quelle – zeigt alle Dateien")}</span>}
           {totalConditions > 0 && <span>{totalConditions} {t("database.activeConditions", "aktive Bedingungen")}</span>}
         </div>
@@ -102,7 +102,7 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
       {isExpanded && (
         <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ padding: "12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
-            <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "8px", color: "var(--text-main)" }}>
+            <div style={{ fontWeight: 600, fontSize: "var(--text-md)", marginBottom: "8px", color: "var(--text-main)" }}>
               {t("database.matchAll", "Alle folgenden Bedingungen müssen erfüllt sein (AND):")}
             </div>
             <SourceConditionEditor
@@ -117,7 +117,7 @@ export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbCo
           </div>
 
           <div style={{ padding: "12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)" }}>
-            <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "8px", color: "var(--text-main)" }}>
+            <div style={{ fontWeight: 600, fontSize: "var(--text-md)", marginBottom: "8px", color: "var(--text-main)" }}>
               {t("database.matchAny", "Mindestens eine der folgenden Bedingungen muss erfüllt sein (OR):")}
             </div>
             <SourceConditionEditor

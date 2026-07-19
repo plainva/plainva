@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFixedPopover } from "@plainva/ui";
+import { ICON, useFixedPopover } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock,
@@ -65,10 +65,11 @@ function PlainInput({ value, onChange, type, t }: { value: any; onChange: (v: an
   const commit = () => { if (v !== String(value ?? "")) onChange(v); };
   const href = type === "url" ? v : type === "email" ? `mailto:${v}` : type === "phone" ? `tel:${v}` : "";
   return (
-    <div className="pv-input-wrap">
+    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
       <input
         type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
-        className="pv-input"
+        className="pv-field pv-field--compact"
+        style={{ flex: 1, minWidth: 0 }}
         value={v}
         onChange={(e) => setV(e.target.value)}
         onBlur={commit}
@@ -76,8 +77,8 @@ function PlainInput({ value, onChange, type, t }: { value: any; onChange: (v: an
         placeholder={t("properties.value")}
       />
       {type !== "text" && v && (
-        <button type="button" className="pv-icon-btn" title={t("properties.openLink")} aria-label={t("properties.openLink")} onClick={() => openExternal(href)}>
-          <ExternalLink size={13} />
+        <button type="button" className="pv-iconbtn pv-iconbtn--sm" data-tip={t("properties.openLink")} aria-label={t("properties.openLink")} onClick={() => openExternal(href)}>
+          <ExternalLink size={ICON.ui} />
         </button>
       )}
     </div>
@@ -94,7 +95,7 @@ function NumberInput({ value, onChange, t }: { value: any; onChange: (v: any) =>
   };
   return (
     <input
-      type="number" className="pv-input" value={v}
+      type="number" className="pv-field pv-field--compact" style={{ flex: 1, minWidth: 0 }} value={v}
       onChange={(e) => setV(e.target.value)} onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
       placeholder={t("properties.value")}
@@ -124,8 +125,14 @@ function DateValue({ value, onChange, includeTime, t, locale }: { value: any; on
     );
   }
   return (
-    <button type="button" className="pv-date-display" onClick={() => setEditing(true)} title={t("properties.value")}>
-      {includeTime ? <Clock size={14} /> : <Calendar size={14} />}
+    <button
+      type="button"
+      className="pv-field pv-field--compact"
+      style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer" }}
+      onClick={() => setEditing(true)}
+      data-tip={t("properties.value")}
+    >
+      {includeTime ? <Clock size={ICON.ui} /> : <Calendar size={ICON.ui} />}
       <span>{formatDateValue(str, includeTime, locale)}</span>
     </button>
   );
@@ -156,9 +163,9 @@ function ListChips({ value, onChange, t }: { value: any; onChange: (v: any) => v
   return (
     <div className="pv-chips">
       {items.map((it, i) => (
-        <span key={`${it}-${i}`} className="pv-chip pv-chip-plain">
+        <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-plain">
           <span className="pv-chip-text">{it}</span>
-          <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={12} /></button>
+          <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
         </span>
       ))}
       <ChipAdder onAdd={add} placeholder={t("properties.addItem")} />
@@ -213,11 +220,11 @@ function RelationPicker(props: {
         {items.map((it, i) => {
           const target = stripWikiLink(it);
           return (
-            <span key={`${it}-${i}`} className="pv-chip pv-chip-link">
-              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} title={t("properties.openLink")}>
-                <Link2 size={11} /> {target}
+            <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-link">
+              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={t("properties.openLink")} data-tip={t("properties.openLink")}>
+                <Link2 size={ICON.meta} /> {target}
               </button>
-              <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={12} /></button>
+              <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
             </span>
           );
         })}
@@ -237,12 +244,12 @@ function RelationPicker(props: {
           {matches.length > 0 && <div className="pv-popover-label">{t("properties.linkNotes")}</div>}
           {matches.slice(0, 12).map((c) => (
             <button key={c.path} type="button" className="pv-popover-row" onMouseDown={(e) => { e.preventDefault(); add(c.title); }}>
-              <Link2 size={13} className="pv-popover-ic" /> <span className="pv-chip-text">{c.title}</span>
+              <Link2 size={ICON.ui} className="pv-popover-ic" /> <span className="pv-chip-text">{c.title}</span>
             </button>
           ))}
           {canCreate && (
             <button type="button" className="pv-popover-row pv-popover-create" onMouseDown={(e) => { e.preventDefault(); add(query.trim()); }}>
-              <Plus size={13} className="pv-popover-ic" /> {t("properties.createLink", { title: query.trim() })}
+              <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createLink", { title: query.trim() })}
             </button>
           )}
         </div>
@@ -280,9 +287,9 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
         {items.map((tag, i) => {
           const { parent, leaf } = tagSegments(tag);
           return (
-            <span key={`${tag}-${i}`} className="pv-chip pv-chip-tag" title={tag}>
+            <span key={`${tag}-${i}`} className="pv-chip pv-chip--removable pv-chip-tag" data-tip={tag}>
               <span className="pv-chip-text">{parent && <span className="pv-tag-parent">{parent}</span>}{leaf}</span>
-              <button type="button" className="pv-chip-x" aria-label={t("properties.removeTag")} onClick={() => remove(i)}><X size={12} /></button>
+              <button type="button" className="pv-chip-x" aria-label={t("properties.removeTag")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
             </span>
           );
         })}
@@ -305,7 +312,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
             const { parent, leaf } = tagSegments(m.tag);
             return (
               <button key={m.tag} type="button" className="pv-popover-row" onMouseDown={(e) => { e.preventDefault(); addTag(m.tag); }}>
-                <Tag size={13} className="pv-popover-ic" />
+                <Tag size={ICON.ui} className="pv-popover-ic" />
                 <span className="pv-chip-text">{parent && <span className="pv-tag-parent">{parent}</span>}{leaf}</span>
                 <span className="pv-popover-count">{m.count}</span>
               </button>
@@ -313,7 +320,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
           })}
           {canCreate && (
             <button type="button" className="pv-popover-row pv-popover-create" onMouseDown={(e) => { e.preventDefault(); addTag(query); }}>
-              <Plus size={13} className="pv-popover-ic" /> {t("properties.createTag", { tag: query.trim() })}
+              <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createTag", { tag: query.trim() })}
             </button>
           )}
         </div>
@@ -371,15 +378,20 @@ function SelectChip(props: {
 
   return (
     <div className="pv-select" ref={wrapRef}>
-      <button type="button" className="pv-select-trigger" onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className="pv-rowhover"
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", width: "100%", padding: "3px 6px", border: "1px solid transparent", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+        onClick={() => setOpen((o) => !o)}
+      >
         {current
           ? <span className={chipClass(current, currentOpt?.color)}><span className="pv-dot" />{currentOpt?.label ?? current}</span>
           : <span className="pv-placeholder">{t("properties.selectValue")}</span>}
-        <ChevronDown size={14} className="pv-select-caret" />
+        <ChevronDown size={ICON.ui} className="pv-select-caret" />
       </button>
       {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
-          <div className="pv-popover-search"><Search size={13} /><input autoFocus value={query} placeholder={t("properties.selectValue")} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (matches[0] || canCreate)) pick(matches[0]?.value ?? query.trim()); if (e.key === "Escape") setOpen(false); }} /></div>
+          <div className="pv-popover-search"><Search size={ICON.ui} /><input autoFocus value={query} placeholder={t("properties.selectValue")} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (matches[0] || canCreate)) pick(matches[0]?.value ?? query.trim()); if (e.key === "Escape") setOpen(false); }} /></div>
           {current && <button type="button" className="pv-popover-row pv-popover-clear" onClick={() => pick("")}>{t("properties.clearValue")}</button>}
           {grouped && usingCurated
             ? groupOptions(matches).map((g) => (
@@ -391,7 +403,7 @@ function SelectChip(props: {
             : matches.map(renderRow)}
           {canCreate && (
             <button type="button" className="pv-popover-row pv-popover-create" onClick={() => pick(query.trim())}>
-              <Plus size={13} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
+              <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
             </button>
           )}
           {matches.length === 0 && !canCreate && !current && <div className="pv-popover-empty">{t("properties.noValues")}</div>}
@@ -435,9 +447,9 @@ function MultiSelectChips(props: {
         {items.map((it, i) => {
           const opt = findOption(curated, it);
           return (
-            <span key={`${it}-${i}`} className={chipClass(it, opt?.color)}>
+            <span key={`${it}-${i}`} className={`${chipClass(it, opt?.color)} pv-chip--removable`}>
               <span className="pv-dot" />{opt?.label ?? it}
-              <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={12} /></button>
+              <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={ICON.meta} /></button>
             </span>
           );
         })}
@@ -458,7 +470,7 @@ function MultiSelectChips(props: {
           ))}
           {canCreate && (
             <button type="button" className="pv-popover-row pv-popover-create" onMouseDown={(e) => { e.preventDefault(); add(query); }}>
-              <Plus size={13} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
+              <Plus size={ICON.ui} className="pv-popover-ic" /> {t("properties.createValue", { value: query.trim() })}
             </button>
           )}
         </div>
@@ -525,7 +537,7 @@ export function TypeMenu<T extends MenuPropertyType = PropertyType>({ current, o
               const Ic: React.ElementType = TYPE_ICONS[ty];
               return (
                 <button key={ty} type="button" className={`pv-popover-row${ty === current ? " pv-popover-row-active" : ""}`} onClick={() => onPick(ty)}>
-                  <Ic size={14} className="pv-popover-ic" /> <span>{typeLabel(t, ty)}</span>
+                  <Ic size={ICON.ui} className="pv-popover-ic" /> <span>{typeLabel(t, ty)}</span>
                 </button>
               );
             })}
@@ -572,24 +584,24 @@ export function PropertyRow(props: PropertyRowProps) {
     <div className="pv-row">
       <div className="pv-row-label">
         <div className="pv-key-box">
-          <button ref={typeBtnRef} type="button" className="pv-type-btn" title={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} aria-label={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} style={lockMeta ? { cursor: "default", opacity: 0.6 } : undefined} onClick={() => { if (!lockMeta) setMenuOpen((o) => !o); }}>
-            <Icon size={14} />
+          <button ref={typeBtnRef} type="button" className="pv-type-btn" data-tip={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} aria-label={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} style={lockMeta ? { cursor: "default", opacity: 0.6 } : undefined} onClick={() => { if (!lockMeta) setMenuOpen((o) => !o); }}>
+            <Icon size={ICON.ui} />
           </button>
           <input
             className="pv-key" value={editKey} aria-label={t("properties.name")}
             disabled={lockMeta}
-            title={lockMeta ? t("properties.okfLockedHint") : undefined}
+            data-tip={lockMeta ? t("properties.okfLockedHint") : undefined}
             onChange={(e) => setEditKey(e.target.value)}
             onBlur={() => { if (editKey.trim() && editKey !== propKey) onRename(propKey, editKey.trim()); else setEditKey(propKey); }}
             onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
           />
-          {lockMeta && <Lock size={10} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />}
+          {lockMeta && <Lock size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />}
         </div>
         {menuOpen && <TypeMenu current={type} anchorRef={typeBtnRef} onPick={(ty) => { onChangeType(propKey, ty); setMenuOpen(false); }} onClose={() => setMenuOpen(false)} t={t} />}
       </div>
       <div className="pv-row-value">
         {lockValue ? (
-          <span title={t("properties.okfLockedHint")} style={{ fontSize: "0.85rem", color: "var(--text-muted)", padding: "4px 7px" }}>{String(value ?? "")}</span>
+          <span data-tip={t("properties.okfLockedHint")} style={{ fontSize: "var(--text-md)", color: "var(--text-muted)", padding: "4px 7px" }}>{String(value ?? "")}</span>
         ) : (
           <PropertyValue
             type={type} value={value} propKey={propKey}
@@ -602,8 +614,8 @@ export function PropertyRow(props: PropertyRowProps) {
         )}
       </div>
       {!lockMeta && (
-        <button type="button" className="pv-del" title={t("properties.deleteProperty")} aria-label={t("properties.deleteProperty")} onClick={() => onDelete(propKey)}>
-          <Trash2 size={13} />
+        <button type="button" className="pv-del" data-tip={t("properties.deleteProperty")} aria-label={t("properties.deleteProperty")} onClick={() => onDelete(propKey)}>
+          <Trash2 size={ICON.ui} />
         </button>
       )}
     </div>
@@ -633,7 +645,7 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef }: { onAdd: (n
     <div className={`pv-popover pv-add-popover${anchorRef ? " pv-popover--fixed" : ""}`} ref={ref}>
       <input ref={inputRef} className="pv-add-name" value={name} placeholder={t("properties.namePlaceholder")}
         onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }} />
-      <div className="pv-popover-search"><Search size={13} /><input value={query} placeholder={t("properties.chooseType")} onChange={(e) => setQuery(e.target.value)} /></div>
+      <div className="pv-popover-search"><Search size={ICON.ui} /><input value={query} placeholder={t("properties.chooseType")} onChange={(e) => setQuery(e.target.value)} /></div>
       <div className="pv-add-types">
         {TYPE_GROUPS.map((g) => {
           const types = g.types.filter((ty) => q === "" || typeLabel(t, ty).toLowerCase().includes(q));
@@ -645,7 +657,7 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef }: { onAdd: (n
                 const Ic = TYPE_ICONS[ty];
                 return (
                   <button key={ty} type="button" className="pv-popover-row" onClick={() => pick(ty)}>
-                    <Ic size={14} className="pv-popover-ic" /> <span>{typeLabel(t, ty)}</span>
+                    <Ic size={ICON.ui} className="pv-popover-ic" /> <span>{typeLabel(t, ty)}</span>
                   </button>
                 );
               })}

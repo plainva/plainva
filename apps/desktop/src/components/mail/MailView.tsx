@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, IconButton, MenuSurface, MenuItem, toast, parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -63,14 +63,14 @@ function avatarInitial(name: string): string {
 /** Icon per mailbox role — matches the mockup's folder rail. */
 function FolderGlyph({ name }: { name: string }): ReactElement {
   const l = name.toLowerCase();
-  if (/inbox|posteingang|entrada|boîte|posta in arrivo|skrzynka|受信/.test(l)) return <Inbox size={15} />;
-  if (/sent|gesend|gesendet|envoy|enviad|inviat|verzonden|wys[łl]|送信/.test(l)) return <Send size={15} />;
-  if (/draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/.test(l)) return <FileText size={15} />;
-  if (/archive|archiv|archiwum|アーカイブ/.test(l)) return <Archive size={15} />;
-  if (/trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted|bin/.test(l)) return <Trash2 size={15} />;
-  if (/junk|spam|pourriel|correo no|posta indes/.test(l)) return <ShieldOff size={15} />;
-  if (/star|markiert|flagged|wichtig|suivi|destacad|speciali|oznaczone|スター/.test(l)) return <Star size={15} />;
-  return <Folder size={15} />;
+  if (/inbox|posteingang|entrada|boîte|posta in arrivo|skrzynka|受信/.test(l)) return <Inbox size={ICON.ui} />;
+  if (/sent|gesend|gesendet|envoy|enviad|inviat|verzonden|wys[łl]|送信/.test(l)) return <Send size={ICON.ui} />;
+  if (/draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/.test(l)) return <FileText size={ICON.ui} />;
+  if (/archive|archiv|archiwum|アーカイブ/.test(l)) return <Archive size={ICON.ui} />;
+  if (/trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted|bin/.test(l)) return <Trash2 size={ICON.ui} />;
+  if (/junk|spam|pourriel|correo no|posta indes/.test(l)) return <ShieldOff size={ICON.ui} />;
+  if (/star|markiert|flagged|wichtig|suivi|destacad|speciali|oznaczone|スター/.test(l)) return <Star size={ICON.ui} />;
+  return <Folder size={ICON.ui} />;
 }
 
 interface MailViewProps {
@@ -481,8 +481,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     return (
       <div data-testid="mail-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
         <EmptyState
-          icon={<Mail size={28} />}
-          title={t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" })}
+          icon={<Mail size={ICON.empty} />}
+          data-tip={t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" })}
           action={
             <Button
               variant="primary"
@@ -522,13 +522,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           )}
         </div>
         <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => setCompose({ subject: "", markdown: "" })}>
-          <Pencil size={14} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
+          <Pencil size={ICON.ui} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
         </button>
         <div className="pv-mail-flist" data-testid="mail-folders">
           {(folders.length ? folders : ["INBOX"]).map((name) => {
             const on = name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} title={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} data-tip={name}>
                 <FolderGlyph name={name} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
@@ -542,7 +542,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       <div className="pv-mail-list">
         <div className="pv-mail-listhead">
           <span className="pv-mail-search">
-            <Search size={14} />
+            <Search size={ICON.ui} />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -553,12 +553,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             />
             {(searchIds || searchQuery) && (
               <button type="button" className="pv-mail-search-clear" onClick={clearSearch} aria-label={t("mail.clearSearch", { defaultValue: "Suche leeren" })} data-testid="mail-search-clear">
-                <X size={13} />
+                <X size={ICON.ui} />
               </button>
             )}
           </span>
           <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={() => void loadList(0)} data-testid="mail-refresh">
-            <RefreshCw size={14} />
+            <RefreshCw size={ICON.ui} />
           </IconButton>
         </div>
         <div className="pv-mail-scroll" data-testid="mail-list">
@@ -632,10 +632,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
             {/* Mail-action toolbar: real reply / reply-all / forward + mailbox actions */}
             <div className="pv-mail-toolbar">
-              <Button variant="primary" size="sm" onClick={handleReply} data-testid="mail-reply" icon={<Reply size={13} />}>
+              <Button variant="primary" size="sm" onClick={handleReply} data-testid="mail-reply" icon={<Reply size={ICON.ui} />}>
                 {t("mail.reply", { defaultValue: "Antworten" })}
               </Button>
-              <Button variant="secondary" size="sm" onClick={handleReplyAll} data-testid="mail-reply-all" icon={<ReplyAll size={13} />}>
+              <Button variant="secondary" size="sm" onClick={handleReplyAll} data-testid="mail-reply-all" icon={<ReplyAll size={ICON.ui} />}>
                 {t("mail.replyAll", { defaultValue: "Allen antworten" })}
               </Button>
               <Button
@@ -643,7 +643,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 size="sm"
                 onClick={() => setCompose({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
                 data-testid="mail-forward"
-                icon={<Forward size={13} />}
+                icon={<Forward size={ICON.ui} />}
               >
                 {t("mail.forward", { defaultValue: "Weiterleiten" })}
               </Button>
@@ -654,7 +654,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 disabled={actionBusy}
                 data-testid="mail-mark-seen"
               >
-                {currentSeen ? <Mail size={14} /> : <MailOpen size={14} />}
+                {currentSeen ? <Mail size={ICON.ui} /> : <MailOpen size={ICON.ui} />}
               </IconButton>
               <IconButton
                 label={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
@@ -662,10 +662,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 disabled={actionBusy}
                 data-testid="mail-move"
               >
-                <FolderInput size={14} />
+                <FolderInput size={ICON.ui} />
               </IconButton>
               <IconButton label={t("mail.delete", { defaultValue: "Löschen" })} onClick={() => void deleteMessage()} disabled={actionBusy} data-testid="mail-delete">
-                <Trash2 size={14} />
+                <Trash2 size={ICON.ui} />
               </IconButton>
             </div>
 
@@ -673,7 +673,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <div className="pv-mail-attach">
                 {message.attachments.map((a) => (
                   <span key={a.index} className="pv-mail-attach-chip">
-                    <Paperclip size={13} />
+                    <Paperclip size={ICON.ui} />
                     {a.name} ({Math.max(1, Math.round(a.size / 1024))} KB)
                   </span>
                 ))}
@@ -681,7 +681,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             )}
             {sanitized && sanitized.blockedRemote > 0 && (
               <div className="pv-mail-blocked" data-testid="mail-blocked-hint">
-                <ShieldOff size={12} />
+                <ShieldOff size={ICON.meta} />
                 {t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
                 {!allowRemote && (
                   <button type="button" onClick={() => setShowRemoteOnce(true)} data-testid="mail-show-images">
@@ -716,16 +716,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <div className="pv-mail-capbar">
               <span className="pv-mail-capbar-label">{t("mail.intoVault", { defaultValue: "In den Vault" })}</span>
               <button type="button" className="pv-mail-capchip" onClick={() => void captureNote(false)} data-testid="mail-capture-note">
-                <FilePlus2 size={13} /> {t("mail.captureNote", { defaultValue: "Als Notiz ablegen" })}
+                <FilePlus2 size={ICON.ui} /> {t("mail.captureNote", { defaultValue: "Als Notiz ablegen" })}
               </button>
               <button type="button" className="pv-mail-capchip" onClick={() => void captureTask()} data-testid="mail-capture-task">
-                <ListChecks size={13} /> {t("mail.captureTask", { defaultValue: "→ Aufgabe" })}
+                <ListChecks size={ICON.ui} /> {t("mail.captureTask", { defaultValue: "→ Aufgabe" })}
               </button>
               <button type="button" className="pv-mail-capchip" onClick={() => void captureNote(true)} data-testid="mail-capture-eml">
-                <FileText size={13} /> {t("mail.captureWithEml", { defaultValue: "+ .eml" })}
+                <FileText size={ICON.ui} /> {t("mail.captureWithEml", { defaultValue: "+ .eml" })}
               </button>
               <button type="button" className="pv-mail-capchip" onClick={() => void replyAsNote()} data-testid="mail-reply-note">
-                <Reply size={13} /> {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
+                <Reply size={ICON.ui} /> {t("mail.replyNote", { defaultValue: "Antwort als Notiz" })}
               </button>
             </div>
           </>

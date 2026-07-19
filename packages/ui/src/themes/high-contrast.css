@@ -18,6 +18,8 @@
   /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
   --graph-glow-intensity: 0;
   --graph-edge-curvature: 0;
+  /* A whisper-quiet fade contradicts a contrast theme - make the edge read. */
+  --edge-scrim: linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent 72%);
   --border-color: #000000;
   --border-color-light: #4D4D4D;
   --error-bg: #FFE8E8;
@@ -53,6 +55,9 @@
   --bg-secondary: #0D0D0D;
   --bg-hover: #262626;
   --bg-active: rgba(255, 213, 0, 0.25);
+  /* The off-track is --border-color (#FFFFFF here) — a white knob would be
+     invisible on it, so the knob goes black (design sweep 2026-07-19). */
+  --switch-knob: #000000;
   --text-main: #FFFFFF;
   --text-muted: #E6E6E6;
   --text-faint: #CCCCCC;
@@ -63,6 +68,8 @@
   /* Graph: flat — glow/curves would soften the contrast this theme exists for. */
   --graph-glow-intensity: 0;
   --graph-edge-curvature: 0;
+  /* A whisper-quiet fade contradicts a contrast theme - make the edge read. */
+  --edge-scrim: linear-gradient(to top, rgba(0, 0, 0, 0.78), transparent 72%);
   --border-color: #FFFFFF;
   --border-color-light: #B3B3B3;
   --error-bg: #330000;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DocIcon, noteDisplayName } from "@plainva/ui";
+import { DocIcon, ICON, noteDisplayName } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 
@@ -47,7 +47,7 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
 
   if (filtered.length === 0) {
     return (
-      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "0.9rem" }}>
+      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)" }}>
         {t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}
       </div>
     );
@@ -70,11 +70,11 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
         <div key={folder || "__root__"}>
           <div
             style={{
-              fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.5px",
+              fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px",
               color: "var(--text-muted)", padding: "0.5rem 0.5rem 0.15rem",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}
-            title={folder}
+            data-tip={folder}
           >
             {folder || t("mobile.vaultRoot", { defaultValue: "Vault" })}
           </div>
@@ -84,7 +84,7 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
               <button
                 key={b.path}
                 onClick={() => onOpen(b.path)}
-                title={b.path}
+                data-tip={b.path}
                 style={{
                   width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
                   padding: "0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",
@@ -93,7 +93,7 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
                 }}
               >
                 <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={14} />
+                  <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={ICON.ui} />
                 </span>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{noteDisplayName(b.title)}</span>
               </button>

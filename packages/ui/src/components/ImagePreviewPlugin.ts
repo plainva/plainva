@@ -54,7 +54,7 @@ class ImageWidget extends WidgetType {
     img.style.maxWidth = "100%";
     img.style.maxHeight = "400px";
     img.style.borderRadius = "4px";
-    img.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+    img.style.boxShadow = "var(--shadow-1)";
 
     if (this.source.kind === "direct") {
       img.src = this.source.url;

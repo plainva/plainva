@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { parseBaseConfig } from "@plainva/ui";
+import { ICON, parseBaseConfig } from "@plainva/ui";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, ReadableFrontmatter, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { activeDocument, type ActiveDoc, type DocChannel } from "../services/activeDocument";
 import { useVault } from "../contexts/VaultContext";
@@ -256,7 +256,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   if (doc.kind !== "markdown" || !doc.path) {
     return (
-      <div style={{ padding: "0.75rem 0.25rem", color: "var(--text-faint)", fontSize: "0.82rem", fontStyle: "italic" }}>
+      <div style={{ padding: "0.75rem 0.25rem", color: "var(--text-faint)", fontSize: "var(--text-ui)", fontStyle: "italic" }}>
         {t("rightPanel.propertiesUnavailable")}
       </div>
     );
@@ -265,7 +265,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   return (
     <div className="pv-props" style={{ position: "relative", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
       {rows.length === 0 ? (
-        <div style={{ fontSize: "0.82rem", color: "var(--text-faint)", fontStyle: "italic", padding: "0.25rem 0.1rem" }}>
+        <div style={{ fontSize: "var(--text-ui)", color: "var(--text-faint)", fontStyle: "italic", padding: "0.25rem 0.1rem" }}>
           {t("properties.noProperties")}
         </div>
       ) : (
@@ -294,8 +294,8 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       )}
 
       <div style={{ position: "relative", marginTop: "0.35rem" }}>
-        <button ref={addBtnRef} type="button" className="pv-add-btn" onClick={() => setShowAdd((s) => !s)}>
-          <Plus size={14} />
+        <button ref={addBtnRef} type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={() => setShowAdd((s) => !s)}>
+          <Plus size={ICON.ui} />
           {t("properties.addProperty")}
         </button>
         {showAdd && <AddPropertyPopover onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}

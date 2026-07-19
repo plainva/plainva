@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Settings2, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import type { BaseCells } from "./useBaseCells";
 import { buildSubItemsTree, type SubItemNode } from "./subItemsTree";
+import { ICON } from "@plainva/ui";
 
 // Table view of the BaseViewer (structural split, plan C3), including the
 // pointer-driven column reorder and column resize. Persistence stays in the
@@ -137,7 +138,7 @@ export function BaseTableView({
     // per-cell max width). The former 100px bottom padding was a workaround for
     // the absolute-positioned date popover, which is fixed-positioned now.
     <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--text-md)' }}>
         <thead>
           <tr>
             {visibleColumns.map((col: string) => (
@@ -145,11 +146,11 @@ export function BaseTableView({
                 key={col}
                 ref={(el) => { if (el) thEls.current[col] = el; }}
                 className={colOverId === col && colDragId && colDragId !== col ? "base-col-drop" : undefined}
-                style={{ borderBottom: '2px solid var(--border-color)', padding: 'var(--pad-cell)', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', background: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: 1, opacity: colDragId === col ? 0.5 : 1, width: colWidths[col] }}
+                style={{ borderBottom: '2px solid var(--border-color)', padding: 'var(--pad-cell)', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', background: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: "var(--z-popover)" as unknown as number, opacity: colDragId === col ? 0.5 : 1, width: colWidths[col] }}
               >
                 <div
                   onClick={() => onToggleHeaderSort(col)}
-                  title={t("database.sortByColumn", "Nach dieser Spalte sortieren")}
+                  data-tip={t("database.sortByColumn", "Nach dieser Spalte sortieren")}
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", cursor: "pointer" }}
                 >
                   <span style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
@@ -162,22 +163,22 @@ export function BaseTableView({
                       onClick={(e) => e.stopPropagation()}
                       role="button"
                       aria-label={t("database.reorderColumn", { defaultValue: "Spalte verschieben" })}
-                      title={t("database.reorderColumn", { defaultValue: "Spalte verschieben" })}
+                      data-tip={t("database.reorderColumn", { defaultValue: "Spalte verschieben" })}
                       style={{ display: "flex", cursor: "grab", touchAction: "none", color: "var(--text-muted)", flexShrink: 0 }}
                     >
-                      <GripVertical size={12} />
+                      <GripVertical size={ICON.meta} />
                     </span>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{columnLabel(col)}</span>
-                    {getSortState(col) === "ASC" && <ChevronUp size={12} style={{ flexShrink: 0 }} />}
-                    {getSortState(col) === "DESC" && <ChevronDown size={12} style={{ flexShrink: 0 }} />}
+                    {getSortState(col) === "ASC" && <ChevronUp size={ICON.meta} style={{ flexShrink: 0 }} />}
+                    {getSortState(col) === "DESC" && <ChevronDown size={ICON.meta} style={{ flexShrink: 0 }} />}
                   </span>
                   {!col.startsWith('file.') && (
                     <span className="base-th-actions" style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-                      <button onClick={(e) => { e.stopPropagation(); onOpenColumnEditor(col); }} aria-label={t("properties.editColumn", { column: col })} title={t("properties.editColumn", { column: col })} className="pv-iconbtn pv-iconbtn--sm">
-                        <Settings2 size={12} />
+                      <button onClick={(e) => { e.stopPropagation(); onOpenColumnEditor(col); }} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="pv-iconbtn pv-iconbtn--sm">
+                        <Settings2 size={ICON.meta} />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); onToggleColumn(col); }} aria-label={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} title={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} className="pv-iconbtn pv-iconbtn--sm">
-                        <Trash2 size={12} />
+                      <button onClick={(e) => { e.stopPropagation(); onToggleColumn(col); }} aria-label={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} data-tip={t("database.removeColumn", { defaultValue: "Spalte entfernen" })} className="pv-iconbtn pv-iconbtn--sm">
+                        <Trash2 size={ICON.meta} />
                       </button>
                     </span>
                   )}
@@ -225,10 +226,10 @@ export function BaseTableView({
                             type="button"
                             className="base-subitem-toggle"
                             aria-label={t(isExpanded ? "database.collapseRow" : "database.expandRow", { defaultValue: isExpanded ? "Zuklappen" : "Aufklappen" })}
-                            title={t(isExpanded ? "database.collapseRow" : "database.expandRow", { defaultValue: isExpanded ? "Zuklappen" : "Aufklappen" })}
+                            data-tip={t(isExpanded ? "database.collapseRow" : "database.expandRow", { defaultValue: isExpanded ? "Zuklappen" : "Aufklappen" })}
                             onClick={(e) => { e.stopPropagation(); subItems!.onToggleExpand(String(row["file.path"])); }}
                           >
-                            {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                            {isExpanded ? <ChevronDown size={ICON.ui} /> : <ChevronRight size={ICON.ui} />}
                           </button>
                         ) : (
                           <span style={{ width: 19, flexShrink: 0 }} aria-hidden="true" />
@@ -237,7 +238,7 @@ export function BaseTableView({
                         {hasChildren && (
                           <span
                             className="base-subitem-badge"
-                            title={t("database.subItemsCountTooltip", { count: childCount, defaultValue: "{{count}} Unterelemente" })}
+                            data-tip={t("database.subItemsCountTooltip", { count: childCount, defaultValue: "{{count}} Unterelemente" })}
                           >{childCount}</span>
                         )}
                       </div>

@@ -1,6 +1,6 @@
 import { FileText, Paperclip } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
+import { DocIcon, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useDocumentTitles } from "../hooks/useDocumentTitles";
 
@@ -30,7 +30,7 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen }: Props) {
 
   if (filtered.length === 0) {
     return (
-      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "0.9rem" }}>
+      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)" }}>
         {t("sidebar.noBookmarks", { defaultValue: "Keine Lesezeichen" })}
       </div>
     );
@@ -49,20 +49,20 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen }: Props) {
         const iconEntry = docIcons.get(path);
 
         const iconNode = isBase ? (
-          <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={14} />
+          <DocIcon icon={iconEntry?.icon ?? "lucide:database"} color={iconEntry?.color} size={ICON.ui} />
         ) : attachment ? (
-          <Paperclip size={14} style={{ opacity: 0.7 }} />
+          <Paperclip size={ICON.ui} style={{ opacity: 0.7 }} />
         ) : iconEntry && isRenderableDocIcon(iconEntry.icon) ? (
-          <DocIcon icon={iconEntry.icon} color={iconEntry.color} size={14} />
+          <DocIcon icon={iconEntry.icon} color={iconEntry.color} size={ICON.ui} />
         ) : (
-          <FileText size={14} style={{ opacity: 0.7 }} />
+          <FileText size={ICON.ui} style={{ opacity: 0.7 }} />
         );
 
         return (
           <button
             key={path}
             onClick={() => onOpen(path)}
-            title={path}
+            data-tip={path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
               padding: "0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",

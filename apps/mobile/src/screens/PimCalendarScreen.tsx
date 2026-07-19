@@ -8,6 +8,7 @@ import {
   minutesToHHMM,
   buildContiguousDays,
   toast,
+  EmptyState,
 } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
@@ -188,17 +189,20 @@ export function PimCalendarScreen({
       </div>
 
       {hasAccounts === false ? (
-        <div className="m-empty" style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-          <CalendarPlus size={32} style={{ opacity: 0.5, marginBottom: 8 }} />
-          <p>{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
-          {onOpenSettings && (
-            <button type="button" className="m-btn m-btn--primary" onClick={onOpenSettings}>
-              {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={<CalendarPlus size={28} />}
+          action={
+            onOpenSettings ? (
+              <button type="button" className="m-btn m-btn--filled" onClick={onOpenSettings}>
+                {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
+              </button>
+            ) : undefined
+          }
+        >
+          {t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}
+        </EmptyState>
       ) : view === "agenda" ? (
-        <div ref={ptrRef} className="m-scroll" style={{ flex: 1, overflow: "auto" }}>
+        <div ref={ptrRef} className="m-scroll">
           {ptrIndicator}
           {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0).map((d) => {
             const key = isoOf(d);
@@ -222,11 +226,11 @@ export function PimCalendarScreen({
           })}
         </div>
       ) : (
-        <div ref={scrollRef} className="m-scroll" style={{ flex: 1, overflow: "auto", position: "relative" }} data-testid="pim-timegrid">
+        <div ref={scrollRef} className="m-scroll" style={{ position: "relative" }} data-testid="pim-timegrid">
           <div style={{ display: "flex", position: "relative", height: 24 * PX_PER_HOUR }}>
             <div style={{ width: 44, flexShrink: 0, position: "relative" }}>
               {hours.map((h) => (
-                <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: 9, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
                   {h > 0 ? minutesToHHMM(h * 60) : ""}
                 </div>
               ))}
@@ -259,14 +263,14 @@ export function PimCalendarScreen({
                         type="button"
                         data-testid="pim-event"
                         onClick={() => void openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, background: colorOf(e), color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: 10, fontWeight: 600, lineHeight: 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, background: colorOf(e), color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
                       >
                         {e.title}
                       </button>
                     );
                   })}
                   {isToday && (
-                    <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: 3 }} />
+                    <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: "var(--z-m-bar)" }} />
                   )}
                 </div>
               );

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, MapPin, Repeat, Square } from "lucide-react";
-import { layoutDayEvents, minutesInDay, snapMinutes, pxToMinutes, minutesToPx, minutesToHHMM, moveEventMinutes, resizeEventEndMinutes } from "@plainva/ui";
+import { ICON, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../../services/dailyNotePath";
 import { formatTimeRange } from "../../services/pim/calendarModel";
@@ -309,7 +309,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
           {/* Gutter label: wrap it inside the gutter so a long localized label
               ("GANZTÄGIG", "Toute la journée") shows fully without spilling into
               the first day column or getting clipped. */}
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: 8, lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "normal", overflowWrap: "anywhere" }}>
+          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "normal", overflowWrap: "anywhere" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d) => (
@@ -320,8 +320,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   type="button"
                   onClick={() => onEventClick(e)}
                   data-testid="calendar-allday-event"
-                  title={`${e.title}${calName(e) ? ` · ${calName(e)}` : ""}`}
-                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
+                  data-tip={`${e.title}${calName(e) ? ` · ${calName(e)}` : ""}`}
+                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
                   {e.title}
                 </button>
@@ -332,9 +332,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   type="button"
                   onClick={() => onOpenTask?.(task.path)}
                   data-testid="calendar-task"
-                  style={{ display: "flex", alignItems: "center", gap: 4, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "1px 2px", fontSize: 11, color: task.done ? "var(--text-muted)" : "var(--text-main)", minWidth: 0 }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "1px 2px", fontSize: "var(--text-xs)", color: task.done ? "var(--text-muted)" : "var(--text-main)", minWidth: 0 }}
                 >
-                  {task.done ? <CheckSquare size={11} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={11} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                  {task.done ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
                 </button>
               ))}
@@ -349,13 +349,18 @@ export function DayTimeGrid(props: DayTimeGridProps) {
           {/* Hour gutter */}
           <div style={{ width: gutterWidth, flexShrink: 0, position: "relative" }}>
             {hours.map((h) => (
-              <div key={h} style={{ position: "absolute", top: h * pxPerHour, right: 6, transform: "translateY(-50%)", fontSize: 10, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
+              <div key={h} style={{ position: "absolute", top: h * pxPerHour, right: 6, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
                 {h > 0 ? minutesToHHMM(h * 60) : ""}
               </div>
             ))}
           </div>
 
-          {/* Day columns */}
+          {/* Day columns. The small z-index literals below (4/5/6) order the
+              create-preview, event-drag ghost and now-line ABOVE the plain
+              (z-auto) event blocks — a local stacking context scoped to this
+              single position:relative column, not page-level overlay/menu
+              layering, so they intentionally stay small raw integers rather
+              than the shared --z-* overlay scale. */}
           {perDay.map((d, col) => {
             const isToday = d.key === todayKey;
             return (
@@ -380,7 +385,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const s = snapMinutes(pxToMinutes(top, pxPerHour));
                   const e = drag.moved ? snapMinutes(pxToMinutes(top + height, pxPerHour)) : s + 30;
                   return (
-                    <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 4 }}>
+                    <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)", color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 4 }}>
                       {minutesToHHMM(s)}–{minutesToHHMM(e)}
                     </div>
                   );
@@ -391,7 +396,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const top = minutesToPx(blockDrag.curStartMin, pxPerHour);
                   const height = Math.max(MIN_BLOCK_PX, minutesToPx(blockDrag.curEndMin - blockDrag.curStartMin, pxPerHour));
                   return (
-                    <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "flex-start", padding: "2px 5px", fontSize: 11, color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "flex-start", padding: "2px 5px", fontSize: "var(--text-xs)", color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
                       {minutesToHHMM(blockDrag.curStartMin)}–{minutesToHHMM(blockDrag.curEndMin)}
                     </div>
                   );
@@ -424,7 +429,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         if (suppressClickRef.current) { suppressClickRef.current = false; return; }
                         onEventClick(b.ev);
                       }}
-                      title={`${b.ev.title}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
+                      data-tip={`${b.ev.title}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
                       style={{
                         position: "absolute",
                         top,
@@ -447,14 +452,14 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         gap: 1,
                       }}
                     >
-                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {b.ev.seriesMaster ? <Repeat size={9} style={{ flexShrink: 0 }} /> : null}
+                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
                         {b.ev.title}
                       </span>
-                      {height > 30 && <span style={{ fontSize: 10, opacity: 0.9 }}>{formatTimeRange(b.ev, locale)}</span>}
+                      {height > 30 && <span style={{ fontSize: "var(--text-xs)", opacity: 0.9 }}>{formatTimeRange(b.ev, locale)}</span>}
                       {height > 48 && b.ev.location ? (
-                        <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, opacity: 0.85, overflow: "hidden" }}>
-                          <MapPin size={9} style={{ flexShrink: 0 }} />
+                        <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: "var(--text-xs)", opacity: 0.85, overflow: "hidden" }}>
+                          <MapPin size={ICON.meta} style={{ flexShrink: 0 }} />
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.ev.location}</span>
                         </span>
                       ) : null}

@@ -24,13 +24,13 @@ const ByoBadgeRow: React.FC<{ guidePage: string }> = ({ guidePage }) => {
   const { t } = useTranslation();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-      <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", border: "1px solid var(--warning-border)", whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", border: "1px solid var(--warning-border)", whiteSpace: "nowrap" }}>
         {t("splash.providerByoBadge")}
       </span>
       <a
         href="#"
         onClick={(e) => { e.preventDefault(); void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(userGuideUrl(guidePage))); }}
-        style={{ color: "var(--accent-color)", fontSize: "0.8rem", textDecoration: "underline" }}
+        style={{ color: "var(--accent-color)", fontSize: "var(--text-ui)", textDecoration: "underline" }}
       >
         {t("settings.byoGuideLink", { defaultValue: "Registrierungs-Anleitung öffnen" })}
       </a>
@@ -50,7 +50,7 @@ const FormFooter: React.FC<{ buttons: React.ReactNode; status?: React.ReactNode;
   <SettingCardNote>
     <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}>{buttons}</div>
     {status != null && (
-      <span style={{ fontSize: "0.8rem", color: statusColor ?? "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>{status}</span>
+      <span style={{ fontSize: "var(--text-ui)", color: statusColor ?? "var(--text-muted)", marginTop: "0.5rem", display: "block" }}>{status}</span>
     )}
   </SettingCardNote>
 );
@@ -235,7 +235,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.drive.onBrowse} disabled={p.drive.saving || !p.drive.connected} title={!p.drive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.drive.onBrowse} disabled={p.drive.saving || !p.drive.connected} data-tip={!p.drive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.drive.onAuthorize} disabled={p.drive.saving || !p.drive.clientId || !p.drive.clientSecret} className="pv-btn pv-btn--primary">{p.drive.connected ? t("settings.reconnectGoogle") : t("settings.connectGoogle")}</button>
                   <button onClick={p.drive.onSave} disabled={p.drive.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.drive.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
@@ -276,7 +276,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.oneDrive.onBrowse} disabled={p.oneDrive.saving || !p.oneDrive.connected} title={!p.oneDrive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.oneDrive.onBrowse} disabled={p.oneDrive.saving || !p.oneDrive.connected} data-tip={!p.oneDrive.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.oneDrive.onAuthorize} disabled={p.oneDrive.saving || !(p.oneDrive.clientId || PLAINVA_ONEDRIVE_CLIENT_ID)} className="pv-btn pv-btn--primary">{p.oneDrive.connected ? t("settings.reconnectOneDrive") : t("settings.connectOneDrive")}</button>
                   <button onClick={p.oneDrive.onSave} disabled={p.oneDrive.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.oneDrive.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
@@ -317,7 +317,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <FormFooter
               buttons={
                 <>
-                  <button onClick={p.dropbox.onBrowse} disabled={p.dropbox.saving || !p.dropbox.connected} title={!p.dropbox.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
+                  <button onClick={p.dropbox.onBrowse} disabled={p.dropbox.saving || !p.dropbox.connected} data-tip={!p.dropbox.connected ? t("settings.pickerConnectFirst") : undefined} className="pv-btn pv-btn--secondary">{t("settings.browseFolders")}</button>
                   <button onClick={p.dropbox.onAuthorize} disabled={p.dropbox.saving || !(p.dropbox.appKey || PLAINVA_DROPBOX_APP_KEY)} className="pv-btn pv-btn--primary">{p.dropbox.connected ? t("settings.reconnectDropbox") : t("settings.connectDropbox")}</button>
                   <button onClick={p.dropbox.onSave} disabled={p.dropbox.saving} className="pv-btn pv-btn--secondary">{t("settings.save")}</button>
                   <button onClick={p.dropbox.onDisconnect} className="pv-btn pv-btn--danger-soft">{t("settings.disconnect")}</button>
@@ -415,10 +415,10 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           )}
           {p.isActiveVault && syncStatusStore.getErrorHistory().length > 0 && (
             <SettingCardNote>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
+              <div style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
                 {[...syncStatusStore.getErrorHistory()].reverse().map((e, i) => (
-                  <div key={`${e.ts}-${i}`} style={{ fontSize: "0.76rem", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+                  <div key={`${e.ts}-${i}`} style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
                     <span style={{ color: "var(--text-faint)" }}>{new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "medium" }).format(new Date(e.ts))}</span>{" — "}{e.message}
                   </div>
                 ))}

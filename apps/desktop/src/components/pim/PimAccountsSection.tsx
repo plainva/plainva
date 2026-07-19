@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw, Trash2 } from "lucide-react";
-import { toast, Button, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
+import { Button, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -182,7 +182,7 @@ export function PimAccountsSection() {
   );
 
   if (!pimRuntime) {
-    return <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</p>;
+    return <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</p>;
   }
 
   const providerLabel = (p: string) =>
@@ -191,7 +191,7 @@ export function PimAccountsSection() {
   return (
     <div data-testid="pim-accounts">
       {accounts.length === 0 && (
-        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.25rem 0 0.75rem" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)", margin: "0.25rem 0 0.75rem" }}>
           {t("pim.noAccounts", { defaultValue: "Noch keine Kalender-Konten verbunden." })}
         </p>
       )}
@@ -202,12 +202,12 @@ export function PimAccountsSection() {
         return (
           <div key={account.id} data-testid={`pim-account-${account.provider}`} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem", marginBottom: "0.6rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <strong style={{ fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{account.label}</strong>
-              <span style={{ fontSize: "0.72rem", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", color: "var(--text-muted)", flexShrink: 0 }}>
+              <strong style={{ fontSize: "var(--text-md)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{account.label}</strong>
+              <span style={{ fontSize: "var(--text-sm)", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", color: "var(--text-muted)", flexShrink: 0 }}>
                 {providerLabel(account.provider)}
               </span>
               <div style={{ flex: 1 }} />
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer" }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={account.enabled}
@@ -218,17 +218,17 @@ export function PimAccountsSection() {
                 {t("pim.accountEnabled", { defaultValue: "Aktiv" })}
               </label>
               <IconButton label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })} onClick={() => void remove(account)}>
-                <Trash2 size={14} />
+                <Trash2 size={ICON.ui} />
               </IconButton>
             </div>
 
             {accCals.length > 0 && (
               <div style={{ marginTop: "0.5rem" }}>
-                <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
+                <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
                   {t("pim.calendars", { defaultValue: "Kalender" })}
                 </div>
                 {accCals.map((cal) => (
-                  <label key={cal.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", padding: "0.1rem 0", cursor: "pointer" }}>
+                  <label key={cal.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", padding: "0.1rem 0", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={cal.selected}
@@ -248,11 +248,11 @@ export function PimAccountsSection() {
 
             {accLists.length > 0 && (
               <div style={{ marginTop: "0.5rem" }}>
-                <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
+                <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
                   {t("pim.taskLists", { defaultValue: "Aufgabenlisten" })}
                 </div>
                 {accLists.map((list) => (
-                  <label key={list.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", padding: "0.1rem 0", cursor: "pointer" }}>
+                  <label key={list.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", padding: "0.1rem 0", cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={list.selected}
@@ -278,7 +278,7 @@ export function PimAccountsSection() {
         </Button>
         {accounts.length > 0 && (
           <Button variant="ghost" onClick={() => void pimRuntime.worker.triggerImmediate()}>
-            <RefreshCw size={13} style={{ marginRight: 4, verticalAlign: "-2px" }} />
+            <RefreshCw size={ICON.ui} style={{ marginRight: 4, verticalAlign: "-2px" }} />
             {t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })}
           </Button>
         )}
@@ -311,7 +311,7 @@ export function PimAccountsSection() {
           )}
           {provider === "google" && (
             <>
-              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
                 {t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}
               </p>
               <input autoComplete="off" value={gClientId} onChange={(e) => setGClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
@@ -320,7 +320,7 @@ export function PimAccountsSection() {
           )}
           {provider === "microsoft" && (
             <>
-              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
                 {t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}
               </p>
               {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
@@ -333,7 +333,7 @@ export function PimAccountsSection() {
             </>
           )}
 
-          {error && <p style={{ color: "var(--error-text)", fontSize: "0.8rem", margin: "0.2rem 0" }}>{error}</p>}
+          {error && <p style={{ color: "var(--error-text)", fontSize: "var(--text-ui)", margin: "0.2rem 0" }}>{error}</p>}
 
           <Button variant="primary" data-testid="pim-connect" disabled={busy} onClick={() => void connect()}>
             {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("pim.connect", { defaultValue: "Verbinden" })}
@@ -342,7 +342,7 @@ export function PimAccountsSection() {
       )}
 
       <div style={{ marginTop: "0.75rem" }}>
-        <label style={{ display: "block", fontSize: "0.85rem", marginBottom: 2 }}>
+        <label style={{ display: "block", fontSize: "var(--text-md)", marginBottom: 2 }}>
           {t("pim.meetingFolder", { defaultValue: "Meeting-Ordner" })}
         </label>
         <input
@@ -355,14 +355,14 @@ export function PimAccountsSection() {
           data-testid="pim-meeting-folder"
           style={{ width: "100%", maxWidth: "20rem" }}
         />
-        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
           {t("pim.meetingFolderHint", { defaultValue: "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender." })}
         </p>
       </div>
 
       {defaultCalOptions.length > 1 && (
         <div style={{ marginTop: "0.75rem" }}>
-          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: 2 }}>
+          <label style={{ display: "block", fontSize: "var(--text-md)", marginBottom: 2 }}>
             {t("pim.defaultCalendar", { defaultValue: "Standardkalender für Termine" })}
           </label>
           <div style={{ maxWidth: "20rem" }}>
@@ -374,7 +374,7 @@ export function PimAccountsSection() {
               data-testid="pim-default-calendar"
             />
           </div>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
+          <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
             {t("pim.defaultCalendarHint", { defaultValue: "Neue Termine wählen diesen Kalender vor." })}
           </p>
         </div>

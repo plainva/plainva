@@ -99,9 +99,7 @@
 [data-theme-name="win95"] .pv-btn,
 [data-theme-name="win95"] .pv-btn--primary,
 [data-theme-name="win95"] .pv-btn--secondary,
-[data-theme-name="win95"] .pv-btn-primary,
-[data-theme-name="win95"] .pv-btn-secondary,
-[data-theme-name="win95"] .pv-add-btn {
+[data-theme-name="win95"] .pv-btn {
   border: none;
   box-shadow:
     inset -1px -1px 0 #0A0A0A,
@@ -112,9 +110,7 @@
 [data-theme-name="win95"] .pv-btn:active,
 [data-theme-name="win95"] .pv-btn--primary:active,
 [data-theme-name="win95"] .pv-btn--secondary:active,
-[data-theme-name="win95"] .pv-btn-primary:active,
-[data-theme-name="win95"] .pv-btn-secondary:active,
-[data-theme-name="win95"] .pv-add-btn:active {
+[data-theme-name="win95"] .pv-btn:active {
   box-shadow:
     inset -1px -1px 0 #FFFFFF,
     inset 1px 1px 0 #0A0A0A,
@@ -123,15 +119,14 @@
 }
 [data-theme-name="win95"] .pv-btn,
 [data-theme-name="win95"] .pv-btn--secondary,
-[data-theme-name="win95"] .pv-btn-secondary,
-[data-theme-name="win95"] .pv-add-btn {
+[data-theme-name="win95"] .pv-btn--secondary {
   background: #C0C0C0;
   color: #000000;
 }
 
 /* Inputs sit in sunken white wells. */
 [data-theme-name="win95"] .pv-field,
-[data-theme-name="win95"] .pv-input {
+[data-theme-name="win95"] .pv-field {
   background: #FFFFFF;
   border: none;
   box-shadow:
@@ -174,7 +169,6 @@
 
 /* Modals/peek windows/palettes: silver window with a navy title bar. */
 [data-theme-name="win95"] .pv-modal,
-[data-theme-name="win95"] .pv-modal-card,
 [data-theme-name="win95"] .pv-peek-card,
 [data-theme-name="win95"] .pv-palette {
   background: #C0C0C0;
@@ -192,8 +186,15 @@
 [data-theme-name="win95"] .pv-modal-header .pv-modal-heading {
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-modal-header .pv-icon-btn {
+/* The real close button rendered by the Modal primitive is .pv-iconbtn (no
+   hyphen) — the old .pv-icon-btn selector never matched, leaving a dark-gray X
+   on the navy bar in every modal (design sweep 2026-07-19, P0 bug fix). */
+[data-theme-name="win95"] .pv-modal-header .pv-iconbtn {
   color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled) {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* Chrome strips: the title bar is the navy window bar (colors via the
@@ -353,4 +354,120 @@
 /* The drag grip is not part of the Win95 language. */
 [data-theme-name="win95"] .m-sheet-grip {
   display: none;
+}
+
+/* ==================================================================== */
+/* Design sweep 2026-07-19: shared surfaces that postdate the last pass */
+/* (settings cards, segmented controls, chip fields, floating windows,  */
+/* FAB) plus the token gaps the theme audit found (edge scrim, callout  */
+/* palette). Same bevel grammar as the buttons above.                   */
+/* ==================================================================== */
+
+[data-theme-name="win95"] {
+  /* The inherited petrol scrim reads visibly foreign on silver - the flat
+     OS aesthetic has no edge fades at all. */
+  --edge-scrim: none;
+  /* Callout accents on the classic 16-color system palette. */
+  --callout-blue: #000080;
+  --callout-green: #008000;
+  --callout-amber: #808000;
+  --callout-orange: #800000;
+  --callout-red: #FF0000;
+  --callout-purple: #800080;
+  --callout-gray: #808080;
+  --callout-cyan: #008080;
+  --callout-blue-tint: #00008014;
+  --callout-green-tint: #00800014;
+  --callout-amber-tint: #80800014;
+  --callout-orange-tint: #80000014;
+  --callout-red-tint: #FF000014;
+  --callout-purple-tint: #80008014;
+  --callout-gray-tint: #80808014;
+  --callout-cyan-tint: #00808014;
+}
+
+/* Segmented controls: sunken silver tray, the active segment is a raised
+   tile - "toolbar button" grammar. */
+[data-theme-name="win95"] .pv-segmented {
+  background: #C0C0C0;
+  border-radius: 0;
+  padding: 2px;
+  gap: 0;
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #808080;
+}
+[data-theme-name="win95"] .pv-seg-item { border-radius: 0; }
+[data-theme-name="win95"] .pv-seg-item.is-active {
+  background: #C0C0C0;
+  color: #000000;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+
+/* Settings cards (and their base-config clones): raised square panels. */
+[data-theme-name="win95"] .pv-setcard {
+  background: #C0C0C0;
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+
+/* Chip fields (mail To/Cc/Bcc, attendees): sunken white wells like every
+   text input; chips inside go square. */
+[data-theme-name="win95"] .pv-chipfield {
+  background: #FFFFFF;
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -1px -1px 0 #DFDFDF,
+    inset 1px 1px 0 #808080,
+    inset -2px -2px 0 #FFFFFF,
+    inset 2px 2px 0 #0A0A0A;
+}
+[data-theme-name="win95"] .pv-chip { border-radius: 0; }
+
+/* Floating-window heads (peek preview, mail compose): the same navy title
+   bar the modals carry. */
+[data-theme-name="win95"] .pv-peek-head {
+  background: #000080;
+  color: #FFFFFF;
+  border-radius: 0;
+}
+[data-theme-name="win95"] .pv-peek-head .pv-iconbtn { color: #FFFFFF; }
+[data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+}
+
+/* FAB: a raised silver tile, never a floating pill. */
+[data-theme-name="win95"] .pv-fab {
+  border-radius: 0;
+  background: #C0C0C0;
+  color: #000000;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .pv-fab:hover:not(:disabled) { background: #C0C0C0; box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF; }
+[data-theme-name="win95"] .pv-fab:active:not(:disabled) {
+  transform: none;
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #0A0A0A,
+    inset -2px -2px 0 #DFDFDF,
+    inset 2px 2px 0 #808080;
 }

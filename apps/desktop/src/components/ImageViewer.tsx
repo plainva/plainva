@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { toast } from "@plainva/ui";
+import { ICON, Modal, toast } from "@plainva/ui";
 import {
   ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
@@ -46,6 +46,8 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   const [editing, setEditing] = useState(false);
   const [state, setState] = useState<EditorState>(emptyEditorState);
   const [tool, setTool] = useState<Tool>("select");
+  // Default pen color: this is DATA — it gets painted into the saved bitmap
+  // via renderOps(), not app chrome — so it is exempt from the token rule.
   const [color, setColor] = useState("#e5484d");
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [busy, setBusy] = useState(false);
@@ -54,6 +56,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   const [textDraft, setTextDraft] = useState<{ at: Point; value: string } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ start: Point; points: Point[] } | null>(null);
+  const saveAsInputRef = useRef<HTMLInputElement>(null);
 
   const fileName = path.split(/[/\\]/).pop() ?? path;
   const editable = isEditableImage(path);
@@ -143,8 +146,12 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const r = rectFrom(a, b);
+    // Marquee color follows the theme (canvas chrome, not saved pixel data) —
+    // read the accent custom property the way the graph canvas does, instead
+    // of hard-coding a color literal.
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent-color").trim() || "white";
     ctx.save();
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
     ctx.strokeRect(r.x, r.y, r.width, r.height);
@@ -219,6 +226,9 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
         flat.height = target.height;
         const ctx = flat.getContext("2d");
         if (ctx) {
+          // Alpha-flatten background: this is DATA baked into the saved JPEG
+          // pixels (JPEG has no alpha channel), a format necessity — not a UI
+          // color choice — so it stays a literal.
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, flat.width, flat.height);
           ctx.drawImage(target, 0, 0);
@@ -304,12 +314,12 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   };
 
   const drawTools: { id: Tool; icon: React.ReactNode; label: string }[] = [
-    { id: "select", icon: <MousePointer2 size={15} />, label: t("imageViewer.toolSelect") },
-    { id: "crop", icon: <Crop size={15} />, label: t("imageViewer.toolCrop") },
-    { id: "pen", icon: <PenLine size={15} />, label: t("imageViewer.toolPen") },
-    { id: "arrow", icon: <ArrowUpRight size={15} />, label: t("imageViewer.toolArrow") },
-    { id: "rect", icon: <Square size={15} />, label: t("imageViewer.toolRect") },
-    { id: "text", icon: <Type size={15} />, label: t("imageViewer.toolText") },
+    { id: "select", icon: <MousePointer2 size={ICON.ui} />, label: t("imageViewer.toolSelect") },
+    { id: "crop", icon: <Crop size={ICON.ui} />, label: t("imageViewer.toolCrop") },
+    { id: "pen", icon: <PenLine size={ICON.ui} />, label: t("imageViewer.toolPen") },
+    { id: "arrow", icon: <ArrowUpRight size={ICON.ui} />, label: t("imageViewer.toolArrow") },
+    { id: "rect", icon: <Square size={ICON.ui} />, label: t("imageViewer.toolRect") },
+    { id: "text", icon: <Type size={ICON.ui} />, label: t("imageViewer.toolText") },
   ];
 
   const cssZoom = zoom === "fit" ? null : zoom;
@@ -318,24 +328,24 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-primary)" }}>
       {/* Toolbar */}
       <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
-        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(-1)} title={t("imageViewer.zoomOut")} aria-label={t("imageViewer.zoomOut")}><ZoomOut size={15} /></button>
-        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", minWidth: 40, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(-1)} data-tip={t("imageViewer.zoomOut")} aria-label={t("imageViewer.zoomOut")}><ZoomOut size={ICON.ui} /></button>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", minWidth: 40, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
           {zoom === "fit" ? t("imageViewer.zoomFit") : `${Math.round(zoom * 100)}%`}
         </span>
-        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(1)} title={t("imageViewer.zoomIn")} aria-label={t("imageViewer.zoomIn")}><ZoomIn size={15} /></button>
+        <button type="button" className="pv-iconbtn" onClick={() => zoomBy(1)} data-tip={t("imageViewer.zoomIn")} aria-label={t("imageViewer.zoomIn")}><ZoomIn size={ICON.ui} /></button>
         <button
           type="button"
           className="pv-iconbtn"
           onClick={() => setZoom("fit")}
-          title={t("imageViewer.zoomFit")}
+          data-tip={t("imageViewer.zoomFit")}
           aria-label={t("imageViewer.zoomFit")}
           style={{ background: zoom === "fit" ? "var(--bg-active)" : "transparent", color: zoom === "fit" ? "var(--accent-color)" : "var(--text-muted)" }}
-        ><Maximize size={15} /></button>
+        ><Maximize size={ICON.ui} /></button>
         <button
           type="button"
           className="pv-btn pv-btn--ghost"
           onClick={() => setZoom(1)}
-          title={t("imageViewer.zoomActual")}
+          data-tip={t("imageViewer.zoomActual")}
           aria-label={t("imageViewer.zoomActual")}
           style={{ background: zoom === 1 ? "var(--bg-active)" : "transparent", color: zoom === 1 ? "var(--accent-color)" : "var(--text-muted)" }}
         >1:1</button>
@@ -349,59 +359,59 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
                 type="button"
                 className="pv-iconbtn"
                 onClick={() => setTool(d.id)}
-                title={d.label}
+                data-tip={d.label}
                 aria-label={d.label}
                 style={{ background: tool === d.id ? "var(--bg-active)" : "transparent", color: tool === d.id ? "var(--accent-color)" : "var(--text-muted)" }}
               >{d.icon}</button>
             ))}
             <div style={{ width: 1, alignSelf: "stretch", background: "var(--border-color)", margin: "0 4px" }} />
-            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: -1 })} title={t("imageViewer.rotateLeft")} aria-label={t("imageViewer.rotateLeft")}><RotateCcw size={15} /></button>
-            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: 1 })} title={t("imageViewer.rotateRight")} aria-label={t("imageViewer.rotateRight")}><RotateCw size={15} /></button>
-            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "h" })} title={t("imageViewer.flipH")} aria-label={t("imageViewer.flipH")}><FlipHorizontal2 size={15} /></button>
-            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "v" })} title={t("imageViewer.flipV")} aria-label={t("imageViewer.flipV")}><FlipVertical2 size={15} /></button>
-            <button type="button" className="pv-iconbtn" onClick={startResize} title={t("imageViewer.resize")} aria-label={t("imageViewer.resize")}><Scaling size={15} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: -1 })} data-tip={t("imageViewer.rotateLeft")} aria-label={t("imageViewer.rotateLeft")}><RotateCcw size={ICON.ui} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "rotate90", dir: 1 })} data-tip={t("imageViewer.rotateRight")} aria-label={t("imageViewer.rotateRight")}><RotateCw size={ICON.ui} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "h" })} data-tip={t("imageViewer.flipH")} aria-label={t("imageViewer.flipH")}><FlipHorizontal2 size={ICON.ui} /></button>
+            <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "v" })} data-tip={t("imageViewer.flipV")} aria-label={t("imageViewer.flipV")}><FlipVertical2 size={ICON.ui} /></button>
+            <button type="button" className="pv-iconbtn" onClick={startResize} data-tip={t("imageViewer.resize")} aria-label={t("imageViewer.resize")}><Scaling size={ICON.ui} /></button>
             <input
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              title={t("imageViewer.color")}
+              data-tip={t("imageViewer.color")}
               aria-label={t("imageViewer.color")}
               style={{ width: 26, height: 26, padding: 0, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer" }}
             />
             <select
               value={strokeWidth}
               onChange={(e) => setStrokeWidth(Number(e.target.value))}
-              title={t("imageViewer.strokeWidth")}
+              data-tip={t("imageViewer.strokeWidth")}
               aria-label={t("imageViewer.strokeWidth")}
               className="pv-field pv-field--select"
               style={{ height: 26 }}
             >
               {[2, 4, 6, 10].map((w) => <option key={w} value={w}>{w} px</option>)}
             </select>
-            <button type="button" className="pv-iconbtn" style={{ opacity: state.ops.length ? 1 : 0.4 }} onClick={() => setState((s) => undoOp(s))} title={t("imageViewer.undo")} aria-label={t("imageViewer.undo")}><Undo2 size={15} /></button>
-            <button type="button" className="pv-iconbtn" style={{ opacity: state.redo.length ? 1 : 0.4 }} onClick={() => setState((s) => redoOp(s))} title={t("imageViewer.redo")} aria-label={t("imageViewer.redo")}><Redo2 size={15} /></button>
+            <button type="button" className="pv-iconbtn" style={{ opacity: state.ops.length ? 1 : 0.4 }} onClick={() => setState((s) => undoOp(s))} data-tip={t("imageViewer.undo")} aria-label={t("imageViewer.undo")}><Undo2 size={ICON.ui} /></button>
+            <button type="button" className="pv-iconbtn" style={{ opacity: state.redo.length ? 1 : 0.4 }} onClick={() => setState((s) => redoOp(s))} data-tip={t("imageViewer.redo")} aria-label={t("imageViewer.redo")}><Redo2 size={ICON.ui} /></button>
           </>
         )}
 
         <div style={{ marginLeft: "auto" }} />
         {editing ? (
           <>
-            <button type="button" className="pv-btn-secondary" onClick={() => void cancelEditing()} disabled={busy}>{t("common.cancel")}</button>
-            <button type="button" className="pv-btn-secondary" onClick={() => setSaveAsName(copyCandidate(fileName, t("fileTree.copySuffix"), 1))} disabled={busy}>{t("imageViewer.saveAs")}</button>
-            <button type="button" className="pv-btn-primary" onClick={() => void doSave(path, false)} disabled={busy || state.ops.length === 0} style={busy || state.ops.length === 0 ? { opacity: 0.5 } : undefined}>{t("imageViewer.save")}</button>
+            <button type="button" className="pv-btn pv-btn--ghost" onClick={() => void cancelEditing()} disabled={busy}>{t("common.cancel")}</button>
+            <button type="button" className="pv-btn pv-btn--secondary" onClick={() => setSaveAsName(copyCandidate(fileName, t("fileTree.copySuffix"), 1))} disabled={busy}>{t("imageViewer.saveAs")}</button>
+            <button type="button" className="pv-btn pv-btn--primary" onClick={() => void doSave(path, false)} disabled={busy || state.ops.length === 0} style={busy || state.ops.length === 0 ? { opacity: 0.5 } : undefined}>{t("imageViewer.save")}</button>
           </>
         ) : (
           <>
             {editable && bitmap && (
-              <button type="button" className="pv-btn-secondary" onClick={() => { setEditing(true); setTool("pen"); }}>{t("imageViewer.edit")}</button>
+              <button type="button" className="pv-btn pv-btn--secondary" onClick={() => { setEditing(true); setTool("pen"); }}>{t("imageViewer.edit")}</button>
             )}
             {onToggleBookmark && (
-              <button type="button" className="pv-iconbtn" onClick={onToggleBookmark} title={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")} aria-label={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")}>
-                <Bookmark size={15} fill={isBookmarked ? "currentColor" : "none"} />
+              <button type="button" className="pv-iconbtn" onClick={onToggleBookmark} data-tip={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")} aria-label={isBookmarked ? t("editor.removeBookmark") : t("editor.addBookmark")}>
+                <Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />
               </button>
             )}
             {onDelete && (
-              <button type="button" className="pv-iconbtn" onClick={onDelete} title={t("common.delete")} aria-label={t("common.delete")}><Trash2 size={15} /></button>
+              <button type="button" className="pv-iconbtn" onClick={onDelete} data-tip={t("common.delete")} aria-label={t("common.delete")}><Trash2 size={ICON.ui} /></button>
             )}
             <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
           </>
@@ -410,7 +420,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
 
       {/* Content */}
       <div className="custom-scrollbar" data-testid="image-viewer" style={{ flex: 1, overflow: "auto", display: "flex", padding: "1rem" }}>
-        {error && <div style={{ margin: "auto", color: "var(--error-text)", fontSize: "0.9rem" }}>{error}</div>}
+        {error && <div style={{ margin: "auto", color: "var(--error-text)", fontSize: "var(--text-md)" }}>{error}</div>}
         {!error && !editing && objectUrl && (
           <img
             src={objectUrl}
@@ -425,7 +435,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
           <div style={{ position: "relative", maxWidth: "100%", margin: "auto" }}>
             <canvas
               ref={canvasRef}
-              style={{ maxWidth: "100%", display: "block", cursor: tool === "select" ? "default" : "crosshair", touchAction: "none", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
+              style={{ maxWidth: "100%", display: "block", cursor: tool === "select" ? "default" : "crosshair", touchAction: "none", boxShadow: "var(--shadow-2)" }}
               onPointerDown={onCanvasPointerDown}
               onPointerMove={onCanvasPointerMove}
               onPointerUp={onCanvasPointerUp}
@@ -457,7 +467,7 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
       </div>
 
       {/* Info bar */}
-      <div style={{ padding: "4px 0.75rem", borderTop: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.75rem", color: "var(--text-faint)" }}>
+      <div style={{ padding: "4px 0.75rem", borderTop: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "var(--text-sm)", color: "var(--text-faint)" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
         {currentSize && <span style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{currentSize.width}×{currentSize.height} px</span>}
         {byteSize > 0 && <span style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{(byteSize / 1024).toFixed(byteSize >= 102400 ? 0 : 1)} KB</span>}
@@ -466,52 +476,59 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
 
       {/* Resize dialog */}
       {resizeDraft && (
-        <div className="pv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setResizeDraft(null); }}>
-          <div className="pv-modal-card" style={{ width: 320 }} role="dialog" aria-label={t("imageViewer.resize")}>
-            <div className="pv-modal-head"><span className="pv-modal-title">{t("imageViewer.resize")}</span></div>
-            <div className="pv-modal-row">
-              <label className="pv-modal-label">{t("imageViewer.widthLabel")}</label>
-              <input className="pv-input" style={{ width: 110, boxSizing: "border-box" }} inputMode="numeric" value={resizeDraft.width} aria-label={t("imageViewer.widthLabel")} onChange={(e) => onResizeField("width", e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyResize(); }} />
-            </div>
-            <div className="pv-modal-row">
-              <label className="pv-modal-label">{t("imageViewer.heightLabel")}</label>
-              <input className="pv-input" style={{ width: 110, boxSizing: "border-box" }} inputMode="numeric" value={resizeDraft.height} aria-label={t("imageViewer.heightLabel")} onChange={(e) => onResizeField("height", e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyResize(); }} />
-            </div>
-            <label className="pv-modal-check">
-              <input type="checkbox" checked={resizeDraft.keepRatio} onChange={(e) => setResizeDraft((prev) => (prev ? { ...prev, keepRatio: e.target.checked } : prev))} />
-              <span>{t("imageViewer.keepRatio")}</span>
-            </label>
-            <div className="pv-modal-actions">
-              <button type="button" className="pv-btn-secondary" onClick={() => setResizeDraft(null)}>{t("common.cancel")}</button>
-              <button type="button" className="pv-btn-primary" onClick={applyResize}>{t("common.save")}</button>
-            </div>
+        <Modal
+          onClose={() => setResizeDraft(null)}
+          title={t("imageViewer.resize")}
+          size="sm"
+          footer={
+            <>
+              <button type="button" className="pv-btn pv-btn--ghost" onClick={() => setResizeDraft(null)}>{t("common.cancel")}</button>
+              <button type="button" className="pv-btn pv-btn--primary" onClick={applyResize}>{t("common.save")}</button>
+            </>
+          }
+        >
+          <div className="pv-modal-row">
+            <label className="pv-modal-label">{t("imageViewer.widthLabel")}</label>
+            <input className="pv-field" style={{ width: 110, boxSizing: "border-box" }} inputMode="numeric" value={resizeDraft.width} aria-label={t("imageViewer.widthLabel")} onChange={(e) => onResizeField("width", e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyResize(); }} />
           </div>
-        </div>
+          <div className="pv-modal-row">
+            <label className="pv-modal-label">{t("imageViewer.heightLabel")}</label>
+            <input className="pv-field" style={{ width: 110, boxSizing: "border-box" }} inputMode="numeric" value={resizeDraft.height} aria-label={t("imageViewer.heightLabel")} onChange={(e) => onResizeField("height", e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyResize(); }} />
+          </div>
+          <label className="pv-modal-check">
+            <input type="checkbox" checked={resizeDraft.keepRatio} onChange={(e) => setResizeDraft((prev) => (prev ? { ...prev, keepRatio: e.target.checked } : prev))} />
+            <span>{t("imageViewer.keepRatio")}</span>
+          </label>
+        </Modal>
       )}
 
       {/* Save-as dialog */}
       {saveAsName != null && (
-        <div className="pv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setSaveAsName(null); }}>
-          <div className="pv-modal-card" style={{ width: 360 }} role="dialog" aria-label={t("imageViewer.saveAsTitle")}>
-            <div className="pv-modal-head"><span className="pv-modal-title">{t("imageViewer.saveAsTitle")}</span></div>
-            <div className="pv-modal-row">
-              <label className="pv-modal-label">{t("imageViewer.fileNameLabel")}</label>
-              <input
-                autoFocus
-                className="pv-input"
-                style={{ flex: 1, minWidth: 0, boxSizing: "border-box" }}
-                value={saveAsName}
-                aria-label={t("imageViewer.fileNameLabel")}
-                onChange={(e) => setSaveAsName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void confirmSaveAs(); if (e.key === "Escape") setSaveAsName(null); }}
-              />
-            </div>
-            <div className="pv-modal-actions">
-              <button type="button" className="pv-btn-secondary" onClick={() => setSaveAsName(null)}>{t("common.cancel")}</button>
-              <button type="button" className="pv-btn-primary" onClick={() => void confirmSaveAs()} disabled={busy}>{t("common.save")}</button>
-            </div>
+        <Modal
+          onClose={() => setSaveAsName(null)}
+          title={t("imageViewer.saveAsTitle")}
+          size="sm"
+          initialFocusRef={saveAsInputRef}
+          footer={
+            <>
+              <button type="button" className="pv-btn pv-btn--ghost" onClick={() => setSaveAsName(null)}>{t("common.cancel")}</button>
+              <button type="button" className="pv-btn pv-btn--primary" onClick={() => void confirmSaveAs()} disabled={busy}>{t("common.save")}</button>
+            </>
+          }
+        >
+          <div className="pv-modal-row">
+            <label className="pv-modal-label">{t("imageViewer.fileNameLabel")}</label>
+            <input
+              ref={saveAsInputRef}
+              className="pv-field"
+              style={{ flex: 1, minWidth: 0, boxSizing: "border-box" }}
+              value={saveAsName}
+              aria-label={t("imageViewer.fileNameLabel")}
+              onChange={(e) => setSaveAsName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void confirmSaveAs(); if (e.key === "Escape") setSaveAsName(null); }}
+            />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

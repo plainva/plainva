@@ -12,6 +12,7 @@ import {
   setStoredThemeVariant,
   visibleThemes,
 } from "../services/theme";
+import { ICON } from "@plainva/ui";
 
 interface ThemePickerCardsProps {
   value: string;
@@ -73,13 +74,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
         return (
           <div
             key={def.id}
-            style={{
-              display: "flex", flexDirection: "column", gap: 6, padding: 7,
-              border: `2px solid ${active ? "var(--accent-color)" : "var(--border-color)"}`,
-              borderRadius: "var(--radius-lg)",
-            }}
-            onMouseOver={(e) => { if (!active) e.currentTarget.style.borderColor = "var(--accent-color)"; }}
-            onMouseOut={(e) => { if (!active) e.currentTarget.style.borderColor = "var(--border-color)"; }}
+            className={active ? "pv-themecard is-active" : "pv-themecard"}
           >
             {/* The card itself is the radio; variant dots live OUTSIDE the button
                 (interactive controls must not nest). */}
@@ -89,26 +84,26 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
               aria-checked={active}
               data-testid={`theme-card-${def.id}`}
               onClick={() => onChange(def.id)}
-              title={label}
+              data-tip={label}
               style={{ display: "flex", flexDirection: "column", gap: 6, padding: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer", width: "100%" }}
             >
               {/* Miniature app mock from concrete swatch colours */}
-              <div aria-hidden="true" style={{ background: sw.bg, borderRadius: "var(--radius-sm)", height: 64, padding: 5, display: "flex", flexDirection: "column", gap: 4, border: "1px solid rgba(128,128,128,0.25)", width: "100%" }}>
-                <div style={{ height: 7, borderRadius: 3, background: sw.surface }} />
+              <div aria-hidden="true" style={{ background: sw.bg, borderRadius: "var(--radius-sm)", height: 64, padding: 5, display: "flex", flexDirection: "column", gap: 4, border: "1px solid rgba(128,128,128,0.25)" /* neutral on any swatch - not the active theme */, width: "100%" }}>
+                <div style={{ height: 7, borderRadius: "var(--radius-pill)", background: sw.surface }} />
                 <div style={{ display: "flex", gap: 4, flex: 1, minHeight: 0 }}>
-                  <div style={{ width: "28%", background: sw.surface, borderRadius: 3 }} />
+                  <div style={{ width: "28%", background: sw.surface, borderRadius: "var(--radius-xs)" }} />
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3, justifyContent: "center" }}>
-                    <div style={{ height: 4, width: "82%", background: sw.text, opacity: 0.75, borderRadius: 2 }} />
-                    <div style={{ height: 4, width: "58%", background: sw.text, opacity: 0.45, borderRadius: 2 }} />
-                    <div style={{ height: 9, width: 36, background: sw.accent, borderRadius: 999, marginTop: 2 }} />
+                    <div style={{ height: 4, width: "82%", background: sw.text, opacity: 0.75, borderRadius: "var(--radius-pill)" }} />
+                    <div style={{ height: 4, width: "58%", background: sw.text, opacity: 0.45, borderRadius: "var(--radius-pill)" }} />
+                    <div style={{ height: 9, width: 36, background: sw.accent, borderRadius: "var(--radius-pill)", marginTop: 2 }} />
                   </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, width: "100%" }}>
-                {active && <Check size={13} style={{ color: "var(--accent-color)", flexShrink: 0 }} />}
-                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
+                {active && <Check size={ICON.ui} style={{ color: "var(--accent-color)", flexShrink: 0 }} />}
+                <span style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
                 {def.modes.length === 1 && def.modes[0] === "dark" && (
-                  <Moon size={11} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-label={t("settings.themeDark")} />
+                  <Moon size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-label={t("settings.themeDark")} />
                 )}
               </div>
             </button>
@@ -123,7 +118,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
                       key={v.id}
                       type="button"
                       data-testid={`theme-variant-dot-${v.id}`}
-                      title={vLabel}
+                      data-tip={vLabel}
                       aria-label={vLabel}
                       aria-pressed={variantActive}
                       onClick={() => {

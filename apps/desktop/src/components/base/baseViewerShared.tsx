@@ -1,7 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
-import { capitalizeFirst } from "@plainva/ui";
+import { capitalizeFirst, ICON } from "@plainva/ui";
 
 // Shared constants and helpers for the BaseViewer and its view components
 // (structural split of the former single-file BaseViewer, plan C3).
@@ -87,13 +87,13 @@ export const defaultViewName = (t: TFunction, type: string): string => {
 export const viewLabel = (t: TFunction, view: any): string => view?.name || defaultViewName(t, view?.type || "table");
 
 export const viewIcon = (type: string) => {
-  if (type === "list") return <ListIcon size={13} />;
-  if (type === "gallery" || type === "board") return <LayoutGrid size={13} />;
-  if (type === "calendar") return <CalendarIcon size={13} />;
-  if (type === "timeline") return <Clock size={13} />;
-  if (type === "graph") return <Waypoints size={13} />;
-  if (type === "pinboard") return <StickyNote size={13} />;
-  return <TableIcon size={13} />;
+  if (type === "list") return <ListIcon size={ICON.ui} />;
+  if (type === "gallery" || type === "board") return <LayoutGrid size={ICON.ui} />;
+  if (type === "calendar") return <CalendarIcon size={ICON.ui} />;
+  if (type === "timeline") return <Clock size={ICON.ui} />;
+  if (type === "graph") return <Waypoints size={ICON.ui} />;
+  if (type === "pinboard") return <StickyNote size={ICON.ui} />;
+  return <TableIcon size={ICON.ui} />;
 };
 
 /**
@@ -125,14 +125,14 @@ export function SplitDropZone({
     <div
       ref={registerTarget}
       role="presentation"
-      title={label}
+      data-tip={label}
       style={{
         position: "absolute",
         top: 8,
         right: 8,
         bottom: 8,
         width: 64,
-        zIndex: 40,
+        zIndex: "var(--z-popover)" as unknown as number,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -145,8 +145,8 @@ export function SplitDropZone({
         opacity: 0.95,
       }}
     >
-      <PanelRight size={18} />
-      <span style={{ writingMode: "vertical-rl", fontSize: "0.72rem", maxHeight: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <PanelRight size={ICON.head} />
+      <span style={{ writingMode: "vertical-rl", fontSize: "var(--text-sm)", maxHeight: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </div>
   );
 }
@@ -169,8 +169,11 @@ export function DragGhost({
   style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
+  // The fixed/pointer-events/z-index triad lives on the shared class now (the
+  // `left`/`top` offset is the only part `baseStyle` still carries — it is
+  // written straight to the DOM node per pointermove, outside React).
   return (
-    <div ref={setEl} aria-hidden="true" style={{ ...baseStyle, ...style }}>
+    <div ref={setEl} aria-hidden="true" className="pv-fixed-ghost" style={{ ...baseStyle, ...style }}>
       {children}
     </div>
   );
@@ -240,6 +243,9 @@ export const BASE_VIEWER_STYLES = `
   .base-cfg-cardrow--split { justify-content: space-between; }
   .base-cfg-cardrow--field { flex-direction: column; align-items: stretch; gap: 6px; }
   .base-cfg-rowlabel { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-main); }
+  /* Label-above-control field (date-field pickers etc.). Was referenced from
+     BaseConfigPanel but never defined — rendered unstyled (P0, sweep 2026-07-19). */
+  .base-cfg-field { display: flex; flex-direction: column; align-items: stretch; gap: 5px; font-size: var(--text-sm); color: var(--text-main); }
   .base-cfg-typegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .base-cfg-typetile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 12px 2px; min-height: 62px; border: 1px solid var(--border-color-light); border-radius: var(--radius-lg); background: var(--surface-container-low); color: var(--text-muted); cursor: pointer; font-size: var(--text-xs); }
   .base-cfg-typetile:hover { border-color: var(--text-muted); color: var(--text-main); }
@@ -307,8 +313,8 @@ export const BASE_VIEWER_STYLES = `
   .base-view-tab-caret { background: transparent; border: none; cursor: pointer; color: var(--accent-color); display: flex; padding: 2px 6px 2px 0; }
   .base-view-add { display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-pill); }
   .base-view-add:hover { background: var(--state-hover); color: var(--text-main); }
-  .base-menu-backdrop { position: fixed; inset: 0; z-index: 59; }
-  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 60; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
+  .base-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
+  .base-view-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: var(--z-menu); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 0.25rem; min-width: 160px; display: flex; flex-direction: column; }
   .base-view-menu button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-main); padding: 6px 8px; border-radius: var(--radius-xs); font-size: var(--text-ui); }
   .base-view-menu button:hover { background: var(--state-hover); }
   .base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { highlightCodeToTokens, type HighlightedToken } from "@plainva/ui";
+import { highlightCodeToTokens, ICON, type HighlightedToken } from "@plainva/ui";
 
 // Read-view fenced code block (#10/#13): a themed container with a language
 // label and a copy button. Syntax highlighting mirrors the live editor — the
@@ -41,12 +41,12 @@ export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lan
         <span style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>{lang || t("editor.codeBlock", { defaultValue: "Code" })}</span>
         <button
           onClick={copy}
-          title={t("editor.copy", { defaultValue: "Kopieren" })}
+          data-tip={t("editor.copy", { defaultValue: "Kopieren" })}
           aria-label={t("editor.copy", { defaultValue: "Kopieren" })}
           className="pv-btn pv-btn--ghost pv-btn--sm"
           style={copied ? { color: "var(--accent-color)" } : undefined}
         >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? <Check size={ICON.ui} /> : <Copy size={ICON.ui} />}
           {copied ? t("editor.copied", { defaultValue: "Kopiert" }) : t("editor.copy", { defaultValue: "Kopieren" })}
         </button>
       </div>

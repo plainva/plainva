@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Columns2, Rows2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DropdownMenu } from "./DropdownMenu";
+import { ICON } from "@plainva/ui";
 
 export type SplitDirection = "vertical" | "horizontal";
 
@@ -21,11 +22,11 @@ export function SplitButton({ onSplit, activeDirection }: { onSplit?: (direction
     <div className="pv-splitbtn">
       <button
         onClick={() => onSplit("vertical")}
-        title={t("editor.splitVertical", { defaultValue: "Vertikal teilen (nebeneinander)" })}
+        data-tip={t("editor.splitVertical", { defaultValue: "Vertikal teilen (nebeneinander)" })}
         aria-label={t("editor.split", { defaultValue: "Editor teilen" })}
         className="pv-btn pv-btn--ghost pv-btn--sm"
       >
-        <Columns2 size={16} />
+        <Columns2 size={ICON.ui} />
       </button>
       <button
         ref={caretRef}
@@ -33,10 +34,10 @@ export function SplitButton({ onSplit, activeDirection }: { onSplit?: (direction
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("editor.splitOptions", { defaultValue: "Teilungsrichtung wählen" })}
-        title={t("editor.splitOptions", { defaultValue: "Teilungsrichtung wählen" })}
+        data-tip={t("editor.splitOptions", { defaultValue: "Teilungsrichtung wählen" })}
         className="pv-btn pv-btn--ghost pv-btn--sm"
       >
-        <ChevronDown size={12} />
+        <ChevronDown size={ICON.meta} />
       </button>
       <DropdownMenu
         open={open}
@@ -46,8 +47,8 @@ export function SplitButton({ onSplit, activeDirection }: { onSplit?: (direction
         minWidth={250}
         ariaLabel={t("editor.split", { defaultValue: "Editor teilen" })}
         items={[
-          ...(activeDirection !== "vertical" ? [{ id: "v", label: t("editor.splitVertical", { defaultValue: "Vertikal teilen (nebeneinander)" }), icon: <Columns2 size={16} />, onSelect: () => onSplit("vertical") }] : []),
-          ...(activeDirection !== "horizontal" ? [{ id: "h", label: t("editor.splitHorizontal", { defaultValue: "Horizontal teilen (übereinander)" }), icon: <Rows2 size={16} />, onSelect: () => onSplit("horizontal") }] : []),
+          ...(activeDirection !== "vertical" ? [{ id: "v", label: t("editor.splitVertical", { defaultValue: "Vertikal teilen (nebeneinander)" }), icon: <Columns2 size={ICON.ui} />, onSelect: () => onSplit("vertical") }] : []),
+          ...(activeDirection !== "horizontal" ? [{ id: "h", label: t("editor.splitHorizontal", { defaultValue: "Horizontal teilen (übereinander)" }), icon: <Rows2 size={ICON.ui} />, onSelect: () => onSplit("horizontal") }] : []),
         ]}
       />
     </div>

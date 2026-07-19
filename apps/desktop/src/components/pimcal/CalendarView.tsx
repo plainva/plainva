@@ -4,19 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, ListChecks, MapP
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
-import {
-  Button,
-  EmptyState,
-  IconButton,
-  Segmented,
-  buildMonthCells,
-  buildWeekCells,
-  buildContiguousDays,
-  minutesToHHMM,
-  startOfMonth,
-  toast,
-  type WeekStartDay,
-} from "@plainva/ui";
+import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -889,20 +877,20 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       <span style={{ minWidth: 0 }}>
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
           <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
-          {e.seriesMaster ? <Repeat size={11} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
+          {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
         </span>
         {e.location || (e.attendees?.length ?? 0) > 0 ? (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 12 }}>
             {e.location ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, overflowWrap: "anywhere" }}>
-                <MapPin size={11} style={{ flexShrink: 0 }} />
+                <MapPin size={ICON.meta} style={{ flexShrink: 0 }} />
                 {e.location}
               </span>
             ) : null}
             {(e.attendees?.length ?? 0) > 0 ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--text-faint)" }} aria-label={t("pim.attendees", { defaultValue: "Teilnehmer" })}>
-                <Users size={11} style={{ flexShrink: 0 }} />
+                <Users size={ICON.meta} style={{ flexShrink: 0 }} />
                 {e.attendees!.length}
               </span>
             ) : null}
@@ -944,7 +932,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         }}
       >
         <span style={{ display: "grid", placeItems: "center" }}>
-          {task.done ? <CheckSquare size={15} style={{ color: "var(--accent-color)" }} /> : <Square size={15} style={{ color: "var(--text-faint)" }} />}
+          {task.done ? <CheckSquare size={ICON.ui} style={{ color: "var(--accent-color)" }} /> : <Square size={ICON.ui} style={{ color: "var(--text-faint)" }} />}
         </span>
         <span style={{ fontSize: "var(--text-sm)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>
           {task.title}
@@ -983,8 +971,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return (
       <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
         <EmptyState
-          icon={<CalendarRange size={28} />}
-          title={t("pim.calendarEmpty", { defaultValue: "Kein Kalenderkonto verbunden" })}
+          icon={<CalendarRange size={ICON.empty} />}
+          data-tip={t("pim.calendarEmpty", { defaultValue: "Kein Kalenderkonto verbunden" })}
           action={
             <Button
               variant="primary"
@@ -1018,7 +1006,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       >
         {viewMode !== "agenda" && (
           <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)} data-testid="calendar-prev">
-            <ChevronLeft size={16} />
+            <ChevronLeft size={ICON.ui} />
           </IconButton>
         )}
         <h2 data-testid="calendar-month-title" style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, minWidth: 170 }}>
@@ -1026,7 +1014,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         </h2>
         {viewMode !== "agenda" && (
           <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)} data-testid="calendar-next">
-            <ChevronRight size={16} />
+            <ChevronRight size={ICON.ui} />
           </IconButton>
         )}
         <Button
@@ -1067,16 +1055,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             aria-pressed={showTasks}
             data-testid="calendar-toggle-tasks"
           >
-            <ListChecks size={15} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
+            <ListChecks size={ICON.ui} style={{ color: showTasks ? "var(--accent-color)" : undefined }} />
           </IconButton>
         )}
         {viewMode !== "month" && viewMode !== "agenda" && calendarOptions.length > 0 && (
           <IconButton label={t("pim.newEvent", { defaultValue: "Neuer Termin" })} onClick={() => setEditState({ mode: "create" })} data-testid="calendar-new-event-top">
-            <Plus size={15} />
+            <Plus size={ICON.ui} />
           </IconButton>
         )}
         <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={refresh} data-testid="calendar-refresh">
-          <RefreshCw size={15} />
+          <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
 
@@ -1144,7 +1132,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         display: "flex",
                         alignItems: "center",
                         gap: 3,
-                        fontSize: 11,
+                        fontSize: "var(--text-xs)",
                         color: "var(--text-main)",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
@@ -1167,7 +1155,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         display: "flex",
                         alignItems: "center",
                         gap: 3,
-                        fontSize: 11,
+                        fontSize: "var(--text-xs)",
                         color: task.done ? "var(--text-muted)" : "var(--text-main)",
                         textDecoration: task.done ? "line-through" : "none",
                         whiteSpace: "nowrap",
@@ -1176,12 +1164,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         minWidth: 0,
                       }}
                     >
-                      {task.done ? <CheckSquare size={9} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={9} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                      {task.done ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
                     </span>
                   ))}
                   {overflow > 0 ? (
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{overflow}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>+{overflow}</span>
                   ) : null}
                 </button>
               );
@@ -1203,7 +1191,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                 onClick={() => setEditState({ mode: "create" })}
                 data-testid="calendar-new-event"
               >
-                <Plus size={15} />
+                <Plus size={ICON.ui} />
               </IconButton>
             )}
           </div>
@@ -1248,10 +1236,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   >
                     {/* date rail */}
                     <div style={{ padding: "14px 6px 14px 16px" }}>
-                      <div style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700 }}>{kicker}</div>
-                      <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-.02em", color: isToday ? "var(--accent-color)" : "var(--text-main)" }}>{dd}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{subline}</div>
-                      <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-faint)" }}>{countParts.join(" · ")}</div>
+                      <div style={{ fontSize: "var(--text-xs)", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700 }}>{kicker}</div>
+                      <div style={{ fontSize: "var(--text-headline)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-.02em", color: isToday ? "var(--accent-color)" : "var(--text-main)" }}>{dd}</div>
+                      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{subline}</div>
+                      <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{countParts.join(" · ")}</div>
                     </div>
                     {/* events + tasks along the spine */}
                     <div style={{ padding: "12px 16px 14px 20px", borderLeft: "1px solid var(--border-color-light)", minWidth: 0 }}>
@@ -1264,7 +1252,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                               onClick={() => requestEdit(e)}
                               data-testid="agenda-allday"
                               style={{
-                                fontSize: 11.5,
+                                fontSize: "var(--text-xs)",
                                 padding: "2px 9px",
                                 borderRadius: "var(--radius-pill)",
                                 fontWeight: 600,

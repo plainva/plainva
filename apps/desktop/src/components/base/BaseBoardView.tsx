@@ -1,4 +1,4 @@
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, ICON } from "@plainva/ui";
 import { useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
@@ -212,10 +212,10 @@ export function BaseBoardView({
               data-testid={`board-col-header-${groupKey}`}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                {onReorderColumns && <GripHorizontal size={13} style={{ flexShrink: 0, color: tinted ? `var(--chip-${tintIdx}-fg)` : "var(--text-faint)" }} aria-hidden="true" />}
+                {onReorderColumns && <GripHorizontal size={ICON.ui} style={{ flexShrink: 0, color: tinted ? `var(--chip-${tintIdx}-fg)` : "var(--text-faint)" }} aria-hidden="true" />}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{groupKey === "__UNGROUPED__" ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span> : tinted ? <span style={{ color: `var(--chip-${tintIdx}-fg)`, fontWeight: 600 }}>{groupKey}</span> : (renderTypedDisplay(boardGroupBy, groupKey) ?? groupKey)}</span>
               </span>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0 }}>{groups[groupKey].length}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0 }}>{groups[groupKey].length}</span>
             </div>
             <div className="custom-scrollbar" style={{ padding: "0.5rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
               {groups[groupKey].map((row, idx) => (
@@ -226,8 +226,8 @@ export function BaseBoardView({
                   style={{ background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey) ? 0.45 : 1 }}
                 >
                   <div
-                    title={row['file.name']}
-                    style={{ fontWeight: 500, fontSize: "0.9rem", marginBottom: "0.5rem", cursor: "pointer", color: "var(--text-main)", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                    data-tip={row['file.name']}
+                    style={{ fontWeight: 500, fontSize: "var(--text-md)", marginBottom: "0.5rem", cursor: "pointer", color: "var(--text-main)", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                   >{row['file.name']}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     {visibleColumns.filter(c => c !== 'file.name' && c !== boardGroupBy).map(col => {
@@ -235,7 +235,7 @@ export function BaseBoardView({
                       if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
                       const { displayVal } = formatValueForDisplay(val, col);
                       return (
-                        <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "0.85rem" }}>
+                        <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "var(--text-md)" }}>
                           <span style={{ color: "var(--text-muted)" }}>{columnLabel(col)}</span>
                           <div style={{ color: "var(--text-main)" }}>{renderEditableCell(row, col, val, displayVal)}</div>
                         </div>
@@ -252,7 +252,7 @@ export function BaseBoardView({
             note, which the relation editors already offer; hide the button. */}
         {isRelationGroup ? null : !addingGroup ? (
           <button onClick={() => setAddingGroup(true)} className="pv-btn pv-btn--secondary" style={{ flexShrink: 0, width: "200px" }}>
-            <Plus size={14} /> {t("database.newGroup", "Neue Gruppe")}
+            <Plus size={ICON.ui} /> {t("database.newGroup", "Neue Gruppe")}
           </button>
         ) : (
           <div style={{ flexShrink: 0, width: "200px", background: "var(--bg-secondary)", border: "1px dashed var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.5rem", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -274,7 +274,7 @@ export function BaseBoardView({
         <DragGhost
           setEl={ghostProps.setEl}
           baseStyle={ghostProps.style}
-          style={{ width: 256, background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--accent-color)", boxShadow: "var(--shadow-2)", transform: "rotate(1.5deg)", fontSize: "0.9rem", fontWeight: 500, color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{ width: 256, background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--accent-color)", boxShadow: "var(--shadow-2)", transform: "rotate(1.5deg)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
         >
           {draggedRow["file.name"]}
         </DragGhost>

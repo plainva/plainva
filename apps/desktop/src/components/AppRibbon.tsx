@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Sun, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints } from "lucide-react";
+import { ICON } from "@plainva/ui";
 
 /**
  * App ribbon (maintainer report #3): the slim vertical action rail left of
@@ -35,18 +36,18 @@ interface RibbonAction {
 export function AppRibbon(props: AppRibbonProps) {
   const { t } = useTranslation();
   const top: RibbonAction[] = [
-    { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={17} />, run: props.onNewNote },
-    { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={17} />, run: props.onQuickSwitcher },
-    { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={17} />, run: props.onDailyNote },
-    { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={17} />, run: props.onOpenGraph, testId: "ribbon-graph" },
-    { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={17} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
-    { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={17} />, run: props.onOpenCalendar, testId: "ribbon-calendar" },
-    { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={17} />, run: props.onOpenMail, testId: "ribbon-mail" },
-    { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={17} />, run: props.onCommandPalette },
+    { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={ICON.head} />, run: props.onNewNote },
+    { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
+    { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
+    { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },
+    { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
+    { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" },
+    { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" },
+    { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
   ];
   const bottom: RibbonAction[] = [
-    { key: "help", label: t("shortcuts.showShortcuts", { defaultValue: "Tastaturkürzel anzeigen" }), icon: <HelpCircle size={17} />, run: props.onShortcuts },
-    { key: "settings", label: t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" }), icon: <Settings size={17} />, run: props.onSettings },
+    { key: "help", label: t("shortcuts.showShortcuts", { defaultValue: "Tastaturkürzel anzeigen" }), icon: <HelpCircle size={ICON.head} />, run: props.onShortcuts },
+    { key: "settings", label: t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" }), icon: <Settings size={ICON.head} />, run: props.onSettings },
   ];
 
   const renderAction = (a: RibbonAction) => (

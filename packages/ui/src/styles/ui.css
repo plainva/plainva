@@ -89,13 +89,29 @@
 .pv-iconbtn:active:not(:disabled) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
 .pv-iconbtn--sm { width: var(--control-sm); height: var(--control-sm); }
+/* Toggle state (tool palettes, mode switches): accent-container fill, ONE
+   active idiom app-wide (E2). */
+.pv-iconbtn.is-active { background: var(--accent-container); color: var(--on-accent-container); }
+
+/* Fixed drag ghosts (card/tab drag previews): position comes from CSS so
+   inline styles carry coordinates only. */
+.pv-fixed-ghost { position: fixed; pointer-events: none; z-index: var(--z-tooltip); }
+
+/* Invisible full-viewport click catcher for outside-click dismissal of
+   non-modal popovers (no dim - the pickers stay visually anchored). */
+.pv-click-catch { position: fixed; inset: 0; }
 
 /* ----------------------------------------------------------------- fields */
+/* Field metric roles (design sweep 2026-07-19, E10): the FORM standard is the
+   airier --control-lg with a 12px inset; the --compact role (toolbars, sidebar
+   search, inline cell editors, dense status rows) keeps the old 28px metric.
+   The density mode compresses --control-lg globally, so compact density still
+   reaches every form. */
 .pv-field {
   display: block;
   width: 100%;
-  height: var(--control-md);
-  padding: 0 var(--space-2);
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: transparent;
@@ -105,8 +121,133 @@
 }
 .pv-field:focus { border-color: var(--accent-color); }
 .pv-field::placeholder { color: var(--text-faint); }
+.pv-field--compact { height: var(--control-md); padding: 0 var(--space-2); }
 .pv-field--select { cursor: pointer; }
-.pv-field--area { height: auto; min-height: calc(var(--control-md) * 2); padding: var(--space-2); resize: vertical; line-height: 1.45; }
+.pv-field--area { height: auto; min-height: calc(var(--control-md) * 2); padding: var(--space-3); resize: vertical; line-height: 1.45; }
+.pv-field--compact.pv-field--area { padding: var(--space-2); }
+
+/* Search field (new primitive, sweep 2026-07-19): THE one search pattern —
+   magnifier as a flex sibling, clear-X once there is text, Escape clears
+   first / closes second (behavior in components/ui/SearchField.tsx). Search
+   fields live in dense chrome, so the compact metric is their default. */
+.pv-searchfield {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-md);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+.pv-searchfield:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
+.pv-searchfield > svg { flex-shrink: 0; }
+.pv-searchfield > input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  padding: 0;
+}
+.pv-searchfield > input::placeholder { color: var(--text-faint); }
+.pv-searchfield--form { height: var(--control-lg); padding: 0 var(--space-3); }
+
+/* Inline banner (new primitive, sweep 2026-07-19): the one notice strip for
+   editor conflict/draft/managed-index rows, sync hints and form-level errors —
+   replaces three copy-pasted style objects in Editor.tsx. */
+.pv-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid;
+  border-radius: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+.pv-banner--rounded { border-radius: var(--radius-md); }
+.pv-banner--info { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+.pv-banner--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+.pv-banner--error { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+.pv-banner--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.pv-banner-ic { display: inline-flex; flex-shrink: 0; }
+.pv-banner-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pv-banner-actions { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+
+/* Select (new primitive, sweep 2026-07-19, E11): trigger in exact field look
+   + chevron; the open panel follows the popover contract (radius-md, shadow-2,
+   z-menu) with menu-metric options — the chosen one gets the accent container
+   + a check in the icon slot. The panel is ours, so LCARS/Win95/dark reach it
+   (a native <select> popup never follows the theme). */
+.pv-selecttrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  cursor: pointer;
+  text-align: left;
+}
+.pv-selecttrigger-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-selecttrigger-val.is-placeholder { color: var(--text-faint); }
+.pv-selecttrigger-ic { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
+.pv-selecttrigger > svg { flex-shrink: 0; color: var(--text-muted); transition: transform var(--dur-1) var(--ease-1); }
+.pv-selecttrigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.pv-selectpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: var(--z-menu);
+  min-width: 200px;
+  max-width: 360px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+.pv-selectsearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-color-light);
+  color: var(--text-muted);
+}
+.pv-selectsearch > input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-ui); }
+.pv-selectopt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: var(--pad-row-y) 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.pv-selectopt:hover:not(:disabled), .pv-selectopt.is-hilite { background: var(--state-hover); }
+.pv-selectopt:disabled { opacity: 0.45; cursor: default; }
+.pv-selectopt.is-selected { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+.pv-selectopt-ic { display: inline-flex; width: 15px; flex-shrink: 0; justify-content: center; margin-top: 1px; }
+.pv-selectopt-body { flex: 1; min-width: 0; }
+.pv-selectopt-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-selectopt-desc { display: block; margin-top: 1px; font-size: var(--text-sm); color: var(--text-muted); font-weight: 400; }
+.pv-selectopt.is-selected .pv-selectopt-desc { color: color-mix(in srgb, var(--on-accent-container) 70%, transparent); }
+.pv-selectopt-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; border: 1px solid var(--border-color-light); }
+.pv-selectopt-hint { flex-shrink: 0; margin-left: auto; padding-left: var(--space-2); color: var(--text-faint); font-size: var(--text-sm); }
 
 .pv-checkrow {
   display: inline-flex;
@@ -164,6 +305,70 @@
   box-shadow: inset 0 -2px 0 0 var(--accent-color);
 }
 
+/* Tab foreground colors as an indirection: the title-bar strip runs on the
+   titlebar palette, pane strips on the document palette — same rules, one
+   hover system (CSS :hover, no JS style mutation; design sweep 2026-07-19). */
+.tabstrip { --tab-fg: var(--text-main); --tab-fg-muted: var(--text-muted); }
+.tabstrip--titlebar { --tab-fg: var(--titlebar-fg); --tab-fg-muted: var(--titlebar-fg-muted); }
+.tabstrip [role="tab"] { color: var(--tab-fg-muted); }
+.tabstrip [role="tab"]:hover,
+.tabstrip [role="tab"][aria-selected="true"] { color: var(--tab-fg); }
+.pv-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+
+/* Title-bar chrome buttons (sidebar toggles, theme toggle, window controls). */
+.pv-titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--titlebar-fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pv-titlebar-btn:hover:not(:disabled) { background: var(--titlebar-hover); color: var(--titlebar-fg); }
+.pv-titlebar-btn:disabled { opacity: 0.35; cursor: default; }
+.pv-titlebar-btn--sm { width: 28px; height: 28px; }
+.pv-winbtn--close:hover:not(:disabled) { background: var(--titlebar-close-hover); color: var(--titlebar-close-hover-fg); }
+.pv-window-chrome-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  user-select: none;
+  z-index: var(--z-popover);
+}
+
+/* Theme preview cards (settings appearance page). */
+.pv-themecard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+.pv-themecard:hover,
+.pv-themecard.is-active { border-color: var(--accent-color); }
+
 /* ------------------------------------------------------------------ menus */
 .pv-menu {
   position: fixed;
@@ -213,6 +418,28 @@
   color: var(--text-faint);
 }
 
+/* --------------------------------------------------------------- popovers */
+/* Rich anchored popover (property value pickers, type menus, autocomplete
+   surfaces with search/labels/counts). Moved from App.css and aligned to the
+   MENU metric (sweep 2026-07-19): row radius --radius-md, --text-ui, hover on
+   --state-hover, selection on the accent container. Positioning comes from
+   useFixedPopover (fixed + viewport-clamped). */
+.pv-popover { min-width: 180px; max-width: 300px; max-height: 300px; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: var(--space-1); }
+/* Anchored mode: hidden off-screen until the layout effect measures + clamps. */
+.pv-popover--fixed { position: fixed; left: -9999px; top: -9999px; visibility: hidden; z-index: var(--z-menu); }
+.pv-popover-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 6px 9px 3px; }
+.pv-popover-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: var(--pad-row-y) 9px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-main); cursor: pointer; text-align: left; font-family: var(--font-ui); font-size: var(--text-ui); }
+.pv-popover-row:hover:not(:disabled) { background: var(--state-hover); }
+.pv-popover-row:disabled { opacity: 0.4; cursor: default; }
+.pv-popover-row-active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+.pv-popover-ic { color: var(--text-muted); flex-shrink: 0; }
+.pv-popover-count { margin-left: auto; color: var(--text-faint); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.pv-popover-create { color: var(--accent-color); }
+.pv-popover-clear { color: var(--text-muted); border-bottom: 1px solid var(--border-color-light); border-radius: 0; }
+.pv-popover-empty { padding: 8px 9px; color: var(--text-faint); font-size: var(--text-sm); font-style: italic; }
+.pv-popover-search { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border-color-light); color: var(--text-muted); }
+.pv-popover-search input { flex: 1; border: none; background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-ui); }
+
 /* ----------------------------------------------------------------- modals */
 .pv-overlay {
   position: fixed;
@@ -255,6 +482,8 @@
   border-bottom: 1px solid var(--border-color-light);
   flex-shrink: 0;
 }
+/* Optional leading header icon (sweep 2026-07-19) — severity/identity marker. */
+.pv-modal-hicon { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
 .pv-modal-heading {
   flex: 1;
   min-width: 0;
@@ -614,10 +843,11 @@
   align-items: center;
   gap: 4px;
   height: auto;
-  min-height: var(--control-md);
-  padding: 3px var(--space-2);
+  min-height: var(--control-lg);
+  padding: 5px var(--space-3);
   cursor: text;
 }
+.pv-field--compact.pv-chipfield { min-height: var(--control-md); padding: 3px var(--space-2); }
 .pv-chipfield:focus-within {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px var(--state-focus);
@@ -633,18 +863,27 @@
   padding: 2px 0;
 }
 .pv-chipfield > input::placeholder { color: var(--text-faint); }
+/* Chip anatomy (design sweep 2026-07-19, round 2). ONE chip family for both
+   shells — component inner metrics live ONLY here, never inline. Three forms:
+   label chip (symmetric 0 10px), removable chip (X slot, 0 4px 0 10px) and the
+   counter badge (18px, tabular digits). The former App.css duplicate (which
+   silently overrode this file on desktop only) is gone. */
 .pv-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  height: 22px;
   max-width: 100%;
-  padding: 1px 4px 1px 8px;
+  padding: 0 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color-light);
   border-radius: var(--radius-pill);
   font-size: var(--text-sm);
+  line-height: 1;
+  overflow: hidden;
 }
-.pv-chip > span {
+.pv-chip--removable { padding: 0 4px 0 10px; gap: 4px; }
+.pv-chip > span,
+.pv-chip-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -652,14 +891,68 @@
 .pv-chip-x {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   border: none;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   line-height: 0;
 }
-.pv-chip-x:hover { color: var(--text-main); }
+.pv-chip-x:hover { color: var(--text-main); background: var(--state-hover); }
+
+/* Counter badge (folder/board/unread counts): pill digits, stays round at one
+   digit via min-width, never wraps. */
+.pv-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+.pv-badge--accent { background: var(--accent-container); color: var(--on-accent-container); }
+
+/* Chip color variants + property-chip helpers (moved from apps/desktop/App.css
+   so BOTH shells get them — mobile pinboard label chips were colorless before).
+   Color chips drop the hairline border; values come from the --chip-* tokens. */
+.pv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; width: 100%; }
+.pv-chip-input { flex: 1 1 60px; min-width: 56px; border: none; background: transparent; color: var(--text-main); font-size: var(--text-sm); padding: 3px 2px; }
+.pv-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+.pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
+.pv-tag-parent { color: var(--chip-tag-parent-fg); }
+.pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); border-color: transparent; padding-left: 4px; }
+.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--text-sm); }
+.pv-chip-link-open:hover { text-decoration: underline; }
+.pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); border-color: transparent; }
+.pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); border-color: transparent; }
+.pv-chip-2 { background: var(--chip-2-bg); color: var(--chip-2-fg); border-color: transparent; }
+.pv-chip-3 { background: var(--chip-3-bg); color: var(--chip-3-fg); border-color: transparent; }
+.pv-chip-4 { background: var(--chip-4-bg); color: var(--chip-4-fg); border-color: transparent; }
+.pv-chip-5 { background: var(--chip-5-bg); color: var(--chip-5-fg); border-color: transparent; }
+.pv-chip-6 { background: var(--chip-6-bg); color: var(--chip-6-fg); border-color: transparent; }
+.pv-chip-7 { background: var(--chip-7-bg); color: var(--chip-7-fg); border-color: transparent; }
+.pv-chip-broken { background: transparent; border: 1px dashed var(--border-color); color: var(--text-faint); }
+
+/* Toggle switch (Switch primitive) — moved from App.css so the primitive's
+   look ships with the primitive. Knob color is a token: high-contrast dark
+   pins it black (a #fff knob on the #fff off-track was invisible there). */
+.pv-switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background var(--dur-1) var(--ease-1); }
+.pv-switch-on { background: var(--accent-color); }
+.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--switch-knob, #fff); transition: left var(--dur-1) var(--ease-1); }
+.pv-switch-on .pv-switch-knob { left: 18px; }
 
 /* Docked toolbar (UI 2.0 primitive, plan Mobile M3E package A4): a calm
    bottom-anchored action strip — mobile keyboard toolbar, desktop selection

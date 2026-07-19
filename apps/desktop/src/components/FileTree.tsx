@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
-import { toast } from "@plainva/ui";
+import { ICON, toast } from "@plainva/ui";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
@@ -62,10 +62,10 @@ type NewItemType = "file" | "folder" | "base";
 // shows the folder icon and "Ordnername…" while it is actually a database (#3).
 const newItemIcon = (type: NewItemType) =>
   type === "base"
-    ? <Database size={14} style={{ opacity: 0.7 }} />
+    ? <Database size={ICON.ui} style={{ opacity: 0.7 }} />
     : type === "folder"
-      ? <Folder size={14} style={{ opacity: 0.7 }} />
-      : <FileText size={14} style={{ opacity: 0.7 }} />;
+      ? <Folder size={ICON.ui} style={{ opacity: 0.7 }} />
+      : <FileText size={ICON.ui} style={{ opacity: 0.7 }} />;
 
 const newItemPlaceholder = (type: NewItemType, t: (k: string, o?: any) => string) =>
   type === "base"
@@ -170,18 +170,18 @@ const TreeNodeView: React.FC<{
       >
         <div style={{ width: 14, minWidth: 14, height: 14, flexShrink: 0 }} />
         {conflict
-          ? <AlertTriangle size={14} color="var(--error-text)" style={{ flexShrink: 0 }} />
+          ? <AlertTriangle size={ICON.ui} color="var(--error-text)" style={{ flexShrink: 0 }} />
           : isBase
             ? <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <DocIcon icon={docIcons.get(node.path!)?.icon ?? "lucide:database"} color={docIcons.get(node.path!)?.color} size={14} />
+                <DocIcon icon={docIcons.get(node.path!)?.icon ?? "lucide:database"} color={docIcons.get(node.path!)?.color} size={ICON.ui} />
               </span>
             : attachment
-              ? <Paperclip size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
+              ? <Paperclip size={ICON.ui} style={{ opacity: 0.7, flexShrink: 0 }} />
               : docIcons.get(node.path!) && isRenderableDocIcon(docIcons.get(node.path!)!.icon)
                 ? <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <DocIcon icon={docIcons.get(node.path!)!.icon} color={docIcons.get(node.path!)!.color} size={14} />
+                    <DocIcon icon={docIcons.get(node.path!)!.icon} color={docIcons.get(node.path!)!.color} size={ICON.ui} />
                   </span>
-                : <FileText size={14} style={{ opacity: 0.7, flexShrink: 0 }} />}
+                : <FileText size={ICON.ui} style={{ opacity: 0.7, flexShrink: 0 }} />}
         {isRenaming ? (
           <form onSubmit={handleRenameSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }} onClick={e => e.stopPropagation()}>
             <input
@@ -191,7 +191,7 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              className="pv-field"
+              className="pv-field pv-field--compact"
               style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -237,8 +237,8 @@ const TreeNodeView: React.FC<{
           background: isSelected ? "var(--bg-active)" : dropTarget === node.path ? "var(--bg-hover)" : undefined,
         }}
       >
-        {isOpen ? <ChevronDown size={14} style={{ opacity: 0.5, flexShrink: 0 }} /> : <ChevronRight size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-        <Folder size={14} style={{ opacity: 0.7, color: "var(--text-muted)", flexShrink: 0 }} />
+        {isOpen ? <ChevronDown size={ICON.ui} style={{ opacity: 0.5, flexShrink: 0 }} /> : <ChevronRight size={ICON.ui} style={{ opacity: 0.5, flexShrink: 0 }} />}
+        <Folder size={ICON.ui} style={{ opacity: 0.7, color: "var(--text-muted)", flexShrink: 0 }} />
         {isRenaming ? (
           <form onSubmit={handleRenameSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }} onClick={e => e.stopPropagation()}>
             <input
@@ -248,7 +248,7 @@ const TreeNodeView: React.FC<{
               onChange={e => setRenamingName(e.target.value)}
               onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
               onBlur={() => handleRenameSubmit()}
-              className="pv-field"
+              className="pv-field pv-field--compact"
               style={{ flex: 1, minWidth: 0 }}
             />
             {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -312,7 +312,7 @@ const TreeNodeView: React.FC<{
                     }
                   }}
                   placeholder={newItemPlaceholder(newItemParams.type, t)}
-                  className="pv-field"
+                  className="pv-field pv-field--compact"
                   style={{ flex: 1, minWidth: 0 }}
                 />
                 {newItemError && <div className="pv-inline-error">{newItemError}</div>}
@@ -1150,7 +1150,7 @@ export const FileTree: React.FC<{
 
   if (files.length === 0) {
     content = (
-      <div style={{ padding: "1rem", color: "var(--text-faint)", textAlign: "center", fontSize: "0.9rem" }}>
+      <div style={{ padding: "1rem", color: "var(--text-faint)", textAlign: "center", fontSize: "var(--text-md)" }}>
         {isSearching ? t("sidebar.noResults") : t("fileTree.noNotes")}
       </div>
     );
@@ -1197,7 +1197,7 @@ export const FileTree: React.FC<{
             display: "flex",
             alignItems: "flex-start",
             gap: "8px",
-            fontSize: "0.9rem",
+            fontSize: "var(--text-md)",
             background: selection.has(file.path) || activePath === file.path ? "var(--bg-active)" : undefined,
             color: conflict ? "var(--error-text)" : "var(--text-main)",
             fontWeight: activePath === file.path ? 600 : 400,
@@ -1206,12 +1206,12 @@ export const FileTree: React.FC<{
         >
           <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 3 }}>
             {conflict
-              ? <AlertTriangle size={14} color="var(--error-text)" />
+              ? <AlertTriangle size={ICON.ui} color="var(--error-text)" />
               : isBase
-                ? <DocIcon icon={docIcon?.icon ?? "lucide:database"} color={docIcon?.color} size={14} />
+                ? <DocIcon icon={docIcon?.icon ?? "lucide:database"} color={docIcon?.color} size={ICON.ui} />
                 : docIcon && isRenderableDocIcon(docIcon.icon)
-                  ? <DocIcon icon={docIcon.icon} color={docIcon.color} size={14} />
-                  : <FileText size={14} style={{ opacity: 0.7 }} />}
+                  ? <DocIcon icon={docIcon.icon} color={docIcon.color} size={ICON.ui} />
+                  : <FileText size={ICON.ui} style={{ opacity: 0.7 }} />}
           </span>
           {isRenaming ? (
             <form onSubmit={handleRenameSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }} onClick={e => e.stopPropagation()}>
@@ -1222,7 +1222,7 @@ export const FileTree: React.FC<{
                 onChange={e => updateRenamingName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Escape") cancelRenaming(); }}
                 onBlur={() => handleRenameSubmit()}
-                className="pv-field"
+                className="pv-field pv-field--compact"
                 style={{ flex: 1, minWidth: 0 }}
               />
               {renamingError && <div className="pv-inline-error">{renamingError}</div>}
@@ -1236,12 +1236,12 @@ export const FileTree: React.FC<{
                 {pending && <PendingDot />}
               </div>
               {folder && (
-                <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {folder}
                 </div>
               )}
               {file.snippet && hasSnippetMark(file.snippet) && (
-                <div className="pv-search-snippet" style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                <div className="pv-search-snippet" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                   {renderSnippetNodes(file.snippet)}
                 </div>
               )}
@@ -1252,7 +1252,7 @@ export const FileTree: React.FC<{
     };
 
     const groupHeader = (key: string, label: string, count: number) => (
-      <div key={key} style={{ padding: "8px 8px 2px", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-faint)" }}>
+      <div key={key} style={{ padding: "8px 8px 2px", fontSize: "var(--text-xs)", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-faint)" }}>
         {label} ({count})
       </div>
     );
@@ -1260,7 +1260,7 @@ export const FileTree: React.FC<{
 
     content = (
       <>
-        <div style={{ padding: "2px 8px 4px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        <div style={{ padding: "2px 8px 4px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           {t("sidebar.resultCount", { count: files.length })}
         </div>
         {showGroupHeaders && groupHeader("gh-name", t("sidebar.matchesName"), searchGroups.name.length)}
@@ -1357,7 +1357,7 @@ export const FileTree: React.FC<{
                   }
                 }}
                 placeholder={newItemPlaceholder(newItemParams.type, t)}
-                className="pv-field"
+                className="pv-field pv-field--compact"
                 style={{ flex: 1, minWidth: 0 }}
               />
               {newItemError && <div className="pv-inline-error">{newItemError}</div>}
@@ -1378,10 +1378,10 @@ export const FileTree: React.FC<{
             // Bulk menu (P9): the actions target the whole (pruned) selection.
             <>
               <MenuLabel>{t("fileTree.selectedCount", { count: selection.size })}</MenuLabel>
-              <MenuItem icon={<Copy size={15} />} onSelect={() => handleDuplicate([...selection])}>{t("fileTree.duplicate")}</MenuItem>
-              <MenuItem icon={<XCircle size={15} />} onSelect={() => { setSelection(new Set()); setSelectionAnchor(null); }}>{t("fileTree.clearSelection")}</MenuItem>
+              <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => handleDuplicate([...selection])}>{t("fileTree.duplicate")}</MenuItem>
+              <MenuItem icon={<XCircle size={ICON.ui} />} onSelect={() => { setSelection(new Set()); setSelectionAnchor(null); }}>{t("fileTree.clearSelection")}</MenuItem>
               <MenuSeparator />
-              <MenuItem danger icon={<Trash2 size={15} />} onSelect={() => handleBulkDelete([...selection])}>{t("common.delete")}</MenuItem>
+              <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => handleBulkDelete([...selection])}>{t("common.delete")}</MenuItem>
             </>
           ) : (
             // Grouped single-target menu (plan UI-Menüs 2026-07-05, P3):
@@ -1389,61 +1389,61 @@ export const FileTree: React.FC<{
             <>
               {isConflictPath(contextMenu.path) && (
                 <>
-                  <MenuItem icon={<Check size={15} />} onSelect={() => resolveConflictKeep(contextMenu.path)}>{t("fileTree.keepVersion")}</MenuItem>
-                  <MenuItem danger icon={<Trash2 size={15} />} onSelect={() => resolveConflictDiscard(contextMenu.path)}>{t("fileTree.discardConflict")}</MenuItem>
+                  <MenuItem icon={<Check size={ICON.ui} />} onSelect={() => resolveConflictKeep(contextMenu.path)}>{t("fileTree.keepVersion")}</MenuItem>
+                  <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => resolveConflictDiscard(contextMenu.path)}>{t("fileTree.discardConflict")}</MenuItem>
                   <MenuSeparator />
                 </>
               )}
               {contextMenu.isFolder ? (
                 <>
                   <MenuLabel>{t("fileTree.groupNew", "Neu")}</MenuLabel>
-                  <MenuItem icon={<FilePlus size={15} />} onSelect={() => createNewItem("file", contextMenu.path)}>{t("fileTree.newNoteHere")}</MenuItem>
-                  <MenuItem icon={<FolderPlus size={15} />} onSelect={() => createNewItem("folder", contextMenu.path)}>{t("fileTree.newFolderHere")}</MenuItem>
-                  <MenuItem icon={<Database size={15} />} onSelect={() => createNewItem("base", contextMenu.path)}>{t("fileTree.newBaseHere", "Neue Datenbank (.base)")}</MenuItem>
+                  <MenuItem icon={<FilePlus size={ICON.ui} />} onSelect={() => createNewItem("file", contextMenu.path)}>{t("fileTree.newNoteHere")}</MenuItem>
+                  <MenuItem icon={<FolderPlus size={ICON.ui} />} onSelect={() => createNewItem("folder", contextMenu.path)}>{t("fileTree.newFolderHere")}</MenuItem>
+                  <MenuItem icon={<Database size={ICON.ui} />} onSelect={() => createNewItem("base", contextMenu.path)}>{t("fileTree.newBaseHere", "Neue Datenbank (.base)")}</MenuItem>
                   <MenuSeparator />
                   <MenuLabel>{contextMenu.path === "" ? t("fileTree.groupVault", "Vault") : t("fileTree.groupFolder", "Ordner")}</MenuLabel>
-                  <MenuItem icon={<ListTree size={15} />} onSelect={() => handleGenerateIndex(contextMenu.path)}>{t("indexMd.contextAction")}</MenuItem>
+                  <MenuItem icon={<ListTree size={ICON.ui} />} onSelect={() => handleGenerateIndex(contextMenu.path)}>{t("indexMd.contextAction")}</MenuItem>
                   {contextMenu.path === "" && (
-                    <MenuItem icon={<RefreshCw size={15} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}>
+                    <MenuItem icon={<RefreshCw size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}>
                       {t("indexMd.updateAllAction")}
                     </MenuItem>
                   )}
                   {contextMenu.path === "" && (
-                    <MenuItem icon={<ArchiveRestore size={15} />} data-testid="tree-deleted-files" onSelect={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}>
+                    <MenuItem icon={<ArchiveRestore size={ICON.ui} />} data-testid="tree-deleted-files" onSelect={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}>
                       {t("fileTree.restoreDeleted")}
                     </MenuItem>
                   )}
                   {contextMenu.path && (
                     <>
-                      <MenuItem icon={<Pencil size={15} />} onSelect={() => startRenaming(contextMenu.path, true)}>{t("common.rename")}</MenuItem>
-                      <MenuItem icon={<ClipboardCopy size={15} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
+                      <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => startRenaming(contextMenu.path, true)}>{t("common.rename")}</MenuItem>
+                      <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
                     </>
                   )}
                 </>
               ) : (
                 <>
                   <MenuLabel>{t("fileTree.groupOpen", "Öffnen")}</MenuLabel>
-                  <MenuItem icon={<ExternalLink size={15} />} onSelect={openContextPathInNewTab}>{t("fileTree.openNewTab")}</MenuItem>
+                  <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={openContextPathInNewTab}>{t("fileTree.openNewTab")}</MenuItem>
                   {onOpenInSplit && (
                     <>
-                      <MenuItem icon={<Columns2 size={15} />} onSelect={() => onOpenInSplit(contextMenu.path, "vertical")}>{t("fileTree.openSplitRight")}</MenuItem>
-                      <MenuItem icon={<Rows2 size={15} />} onSelect={() => onOpenInSplit(contextMenu.path, "horizontal")}>{t("fileTree.openSplitDown")}</MenuItem>
+                      <MenuItem icon={<Columns2 size={ICON.ui} />} onSelect={() => onOpenInSplit(contextMenu.path, "vertical")}>{t("fileTree.openSplitRight")}</MenuItem>
+                      <MenuItem icon={<Rows2 size={ICON.ui} />} onSelect={() => onOpenInSplit(contextMenu.path, "horizontal")}>{t("fileTree.openSplitDown")}</MenuItem>
                     </>
                   )}
                   <MenuSeparator />
                   <MenuLabel>{t("fileTree.groupFile", "Datei")}</MenuLabel>
-                  <MenuItem icon={<Pencil size={15} />} onSelect={() => startRenaming(contextMenu.path, false)}>{t("common.rename")}</MenuItem>
+                  <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => startRenaming(contextMenu.path, false)}>{t("common.rename")}</MenuItem>
                   {!isConflictPath(contextMenu.path) && (
-                    <MenuItem icon={<Copy size={15} />} onSelect={() => handleDuplicate([contextMenu.path])}>{t("fileTree.duplicate")}</MenuItem>
+                    <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => handleDuplicate([contextMenu.path])}>{t("fileTree.duplicate")}</MenuItem>
                   )}
                   {onToggleBookmarkPath && (
-                    <MenuItem icon={<Bookmark size={15} fill={isBookmarked?.(contextMenu.path) ? "currentColor" : "none"} />} onSelect={() => onToggleBookmarkPath(contextMenu.path)}>
+                    <MenuItem icon={<Bookmark size={ICON.ui} fill={isBookmarked?.(contextMenu.path) ? "currentColor" : "none"} />} onSelect={() => onToggleBookmarkPath(contextMenu.path)}>
                       {isBookmarked?.(contextMenu.path) ? t("editor.removeBookmark") : t("editor.addBookmark")}
                     </MenuItem>
                   )}
                   {!isConflictPath(contextMenu.path) && (
                     <MenuItem
-                      icon={<History size={15} />}
+                      icon={<History size={ICON.ui} />}
                       data-testid="tree-version-history"
                       onSelect={() => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: contextMenu.path } }))}
                     >
@@ -1452,20 +1452,20 @@ export const FileTree: React.FC<{
                   )}
                   {isConflictPath(contextMenu.path) && (
                     <MenuItem
-                      icon={<History size={15} />}
+                      icon={<History size={ICON.ui} />}
                       data-testid="tree-resolve-conflict"
                       onSelect={() => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: contextMenu.path } }))}
                     >
                       {t("conflict.resolveAction")}
                     </MenuItem>
                   )}
-                  <MenuItem icon={<ClipboardCopy size={15} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
+                  <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
                 </>
               )}
               {contextMenu.path && (
                 <>
                   <MenuSeparator />
-                  <MenuItem danger icon={<Trash2 size={15} />} onSelect={() => handleDelete(contextMenu.path, contextMenu.isFolder)}>{t("common.delete")}</MenuItem>
+                  <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => handleDelete(contextMenu.path, contextMenu.isFolder)}>{t("common.delete")}</MenuItem>
                 </>
               )}
             </>

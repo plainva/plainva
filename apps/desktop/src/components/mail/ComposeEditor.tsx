@@ -10,6 +10,7 @@ import {
   type ComposeCommandId,
   type TextEdit,
 } from "./composeMarkdown";
+import { ICON } from "@plainva/ui";
 
 /**
  * Compose message editor: a Markdown <textarea> with a formatting toolbar and a
@@ -31,17 +32,17 @@ interface ComposeEditorProps {
 /** Icon for a toolbar/menu command. */
 function CmdIcon({ id }: { id: ComposeCommandId }) {
   switch (id) {
-    case "h1": case "h2": case "h3": return <Heading size={14} />;
-    case "bold": return <Bold size={14} />;
-    case "italic": return <Italic size={14} />;
-    case "strike": return <Strikethrough size={14} />;
-    case "code": case "codeblock": return <Code size={14} />;
-    case "bullet": return <List size={14} />;
-    case "numbered": return <ListOrdered size={14} />;
-    case "task": return <CheckSquare size={14} />;
-    case "quote": return <Quote size={14} />;
-    case "link": return <Link2 size={14} />;
-    default: return <Slash size={14} />;
+    case "h1": case "h2": case "h3": return <Heading size={ICON.ui} />;
+    case "bold": return <Bold size={ICON.ui} />;
+    case "italic": return <Italic size={ICON.ui} />;
+    case "strike": return <Strikethrough size={ICON.ui} />;
+    case "code": case "codeblock": return <Code size={ICON.ui} />;
+    case "bullet": return <List size={ICON.ui} />;
+    case "numbered": return <ListOrdered size={ICON.ui} />;
+    case "task": return <CheckSquare size={ICON.ui} />;
+    case "quote": return <Quote size={ICON.ui} />;
+    case "link": return <Link2 size={ICON.ui} />;
+    default: return <Slash size={ICON.ui} />;
   }
 }
 
@@ -144,7 +145,7 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
               type="button"
               className="pv-mail-cmptool"
               data-testid={`compose-tool-${id}`}
-              title={t(cmd.labelKey, { defaultValue: cmd.defaultLabel })}
+              data-tip={t(cmd.labelKey, { defaultValue: cmd.defaultLabel })}
               aria-label={t(cmd.labelKey, { defaultValue: cmd.defaultLabel })}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => runCommand(id)}
@@ -154,7 +155,7 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
           );
         })}
         <span className="pv-mail-cmptool-hint">
-          <Slash size={11} /> {t("compose.slashHint", { defaultValue: "„/“ für Befehle" })}
+          <Slash size={ICON.meta} /> {t("compose.slashHint", { defaultValue: "„/“ für Befehle" })}
         </span>
       </div>
       <div className="pv-mail-cmpbodywrap">

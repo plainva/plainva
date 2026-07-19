@@ -28,7 +28,7 @@
  * --highlight-bg, --selection-bg, --active-line-bg), the callout palette
  * (--callout-<key> / --callout-<key>-tint), the radius scale (--radius-*) and
  * the font split (--font-ui / --font-content). Structural rules are allowed
- * when scoped to the theme (e.g. [data-theme-name="lcars"] .pv-btn-primary),
+ * when scoped to the theme (e.g. [data-theme-name="lcars"] .pv-btn--primary),
  * but must never change display/visibility/pointer-events or hide focus.
  * Details: docs/engineering/Theme_Platform.md
  */
@@ -118,7 +118,7 @@ html[data-modality="keyboard"] .cm-editor.cm-focused {
   cursor: pointer;
 }
 .pv-doc-header-icon {
-  font-size: 44px;
+  font-size: var(--doc-header-icon);
   line-height: 1;
 }
 button.pv-doc-header-icon {
@@ -143,7 +143,7 @@ button.pv-doc-header-icon:hover {
   display: flex;
   gap: 0.4rem;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--dur-1) var(--ease-1);
   padding: 2px 0 4px;
 }
 .pv-doc-header:hover .pv-doc-header-actions {
@@ -153,7 +153,7 @@ button.pv-doc-header-icon:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.8rem;
+  font-size: var(--text-ui);
   color: var(--text-muted);
   background: transparent;
   border: none;
@@ -233,24 +233,24 @@ button.pv-doc-header-icon:hover {
   background: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-content);
-  font-size: 0.88rem;
+  font-size: var(--text-md);
 }
 .pv-merge-host .cm-mergeViewEditor + .cm-mergeViewEditor {
   border-left: 1px solid var(--border-color);
 }
 .pv-merge-host .cm-changedLine,
 .pv-merge-host .cm-deletedChunk {
-  background: rgba(224, 108, 117, 0.14);
+  background: color-mix(in srgb, var(--error-text) 14%, transparent);
 }
 .pv-merge-host .cm-changedText,
 .pv-merge-host .cm-deletedText {
-  background: rgba(224, 108, 117, 0.32);
+  background: color-mix(in srgb, var(--error-text) 30%, transparent);
 }
 .pv-merge-host .cm-merge-b .cm-changedLine {
-  background: rgba(112, 190, 130, 0.14);
+  background: color-mix(in srgb, var(--success-text) 14%, transparent);
 }
 .pv-merge-host .cm-merge-b .cm-changedText {
-  background: rgba(112, 190, 130, 0.32);
+  background: color-mix(in srgb, var(--success-text) 30%, transparent);
 }
 .pv-merge-host .cm-changeGutter {
   background: var(--bg-secondary);
@@ -263,7 +263,7 @@ button.pv-doc-header-icon:hover {
 }
 
 .spin-animation {
-  animation: spin 2s linear infinite;
+  animation: spin var(--dur-spin) linear infinite;
 }
 @keyframes indeterminate {
   0% { transform: translateX(-100%); width: 20%; }
@@ -271,7 +271,7 @@ button.pv-doc-header-icon:hover {
   100% { transform: translateX(300%); width: 20%; }
 }
 .indeterminate-progress {
-  animation: indeterminate 1.5s infinite linear;
+  animation: indeterminate var(--dur-progress) infinite linear;
   transform-origin: left;
 }
 
@@ -321,7 +321,7 @@ option {
 .pv-key-box { display: flex; align-items: center; gap: 2px; width: 100%; border-radius: var(--radius-sm); min-width: 0; }
 .pv-type-btn { display: flex; align-items: center; justify-content: center; padding: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
 .pv-type-btn:hover { color: var(--text-main); background: var(--bg-active); }
-.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: 0.8rem; padding: 2px 0; }
+.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: var(--text-ui); padding: 2px 0; }
 .pv-key:focus { color: var(--text-main); }
 .pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; }
 .pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
@@ -335,114 +335,56 @@ option {
 }
 
 /* text / number / url / email / phone inputs */
-.pv-input-wrap { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
-.pv-input { flex: 1; min-width: 0; padding: 4px 7px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-size: 0.85rem; }
-.pv-input:focus { border-color: var(--accent-color); }
-.pv-icon-btn { display: flex; align-items: center; justify-content: center; padding: 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-.pv-icon-btn:hover { color: var(--accent-color); }
 
-/* checkbox toggle */
-.pv-switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
-.pv-switch-on { background: var(--accent-color); }
-.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
-.pv-switch-on .pv-switch-knob { left: 18px; }
+/* checkbox toggle: .pv-switch* moved to @plainva/ui styles/ui.css (design
+   sweep 2026-07-19) — the primitive's look ships with the primitive. */
 
 /* date display button */
-.pv-date-display { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; font-size: 0.85rem; text-align: left; }
-.pv-date-display:hover { border-color: var(--border-color); background: var(--bg-active); }
-.pv-date-display svg { color: var(--accent-color); flex-shrink: 0; }
 
-/* chips (list / tags / link / select / multiselect) */
-.pv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; width: 100%; }
-.pv-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 2px 8px; font-size: 0.78rem; line-height: 1.5; max-width: 100%; overflow: hidden; }
-.pv-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pv-chip-x { display: inline-flex; align-items: center; border: none; background: transparent; color: inherit; opacity: 0.6; cursor: pointer; padding: 0; margin-left: 1px; }
-.pv-chip-x:hover { opacity: 1; }
-.pv-chip-input { flex: 1 1 60px; min-width: 56px; border: none; background: transparent; color: var(--text-main); font-size: 0.8rem; padding: 3px 2px; }
-.pv-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
-.pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
-/* Chip colors come from the theme-overridable tokens in styles/tokens.css
-   (light + dark variants live there — no [data-theme] overrides here). */
-.pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); }
-.pv-tag-parent { color: var(--chip-tag-parent-fg); }
-.pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); padding-left: 4px; }
-.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 0.78rem; }
-.pv-chip-link-open:hover { text-decoration: underline; }
+/* chips: the whole .pv-chip* family moved to @plainva/ui styles/ui.css
+   (design sweep 2026-07-19). The duplicate base definition here used to
+   override the shared one on desktop only — one definition now serves both
+   shells (and mobile finally gets the .pv-chip-0..7 label colors). */
 
 /* select / status / multiselect */
 .pv-select { position: relative; width: 100%; }
 .pv-tags { position: relative; width: 100%; }
-.pv-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
-.pv-select-trigger:hover { border-color: var(--border-color); background: var(--bg-active); }
 .pv-select-caret { color: var(--text-muted); flex-shrink: 0; }
-.pv-placeholder { color: var(--text-faint); font-size: 0.82rem; }
+.pv-placeholder { color: var(--text-faint); font-size: var(--text-ui); }
 
-/* popover (autocomplete / type menu / value picker) */
-/* Skin only — positioning comes from useFixedPopover (fixed + viewport-clamped, P12). */
-.pv-popover { min-width: 180px; max-width: 300px; max-height: 300px; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 4px; }
-/* Anchored mode (useFixedPopover): hidden off-screen until the layout effect measures + clamps. */
-.pv-popover--fixed { position: fixed; left: -9999px; top: -9999px; visibility: hidden; z-index: var(--z-menu); }
-.pv-popover-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 6px 9px 3px; }
-.pv-popover-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 9px; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); cursor: pointer; text-align: left; font-size: 0.83rem; }
-.pv-popover-row:hover:not(:disabled) { background: var(--bg-hover); }
-.pv-popover-row:disabled { opacity: 0.4; cursor: default; }
-.pv-popover-row-active { background: var(--bg-active); }
-.pv-popover-ic { color: var(--text-muted); flex-shrink: 0; }
-.pv-popover-count { margin-left: auto; color: var(--text-faint); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
-.pv-popover-create { color: var(--accent-color); }
-.pv-popover-clear { color: var(--text-muted); border-bottom: 1px solid var(--border-color-light); border-radius: 0; }
-.pv-popover-empty { padding: 8px 9px; color: var(--text-faint); font-size: 0.8rem; font-style: italic; }
-.pv-popover-search { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border-color-light); color: var(--text-muted); }
-.pv-popover-search input { flex: 1; border: none; background: transparent; color: var(--text-main); font-size: 0.83rem; }
+/* popover (autocomplete / type menu / value picker): the .pv-popover* family
+   moved to @plainva/ui styles/ui.css with menu metrics (design sweep
+   2026-07-19) — themes dock on it there. */
 
 /* add property */
-.pv-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: var(--radius-md); border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.82rem; }
-.pv-add-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
 .pv-add-popover { width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
-.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: 0.85rem; }
+.pv-add-name { width: 100%; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-main); font-size: var(--text-md); }
 .pv-add-name:focus { border-color: var(--accent-color); }
 .pv-add-types { max-height: 240px; overflow-y: auto; }
 
-/* Deterministic chip palette — values in styles/tokens.css (theme-overridable). */
-.pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
-.pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); }
-.pv-chip-2 { background: var(--chip-2-bg); color: var(--chip-2-fg); }
-.pv-chip-3 { background: var(--chip-3-bg); color: var(--chip-3-fg); }
-.pv-chip-4 { background: var(--chip-4-bg); color: var(--chip-4-fg); }
-.pv-chip-5 { background: var(--chip-5-bg); color: var(--chip-5-fg); }
-.pv-chip-6 { background: var(--chip-6-bg); color: var(--chip-6-fg); }
-.pv-chip-7 { background: var(--chip-7-bg); color: var(--chip-7-fg); }
-/* Relation chip whose target note no longer exists: muted + inert (Base-Relationen P7). */
-.pv-chip-broken { background: transparent; border: 1px dashed var(--border-color); color: var(--text-faint); }
+/* Deterministic chip palette: moved to @plainva/ui styles/ui.css. */
 
 /* Column-schema editor modal (BaseViewer) + option rows */
-.pv-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: var(--overlay-bg); display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.pv-modal-card { width: 440px; max-width: 100%; max-height: 85vh; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.85rem; }
-.pv-modal-head { display: flex; align-items: center; justify-content: space-between; }
-.pv-modal-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
 .pv-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .pv-modal-section { display: flex; flex-direction: column; gap: 0.4rem; }
-.pv-modal-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+.pv-modal-label { font-size: var(--text-sm); color: var(--text-muted); font-weight: 500; }
 .pv-opt-row { display: grid; grid-template-columns: 18px minmax(0, 2fr) 140px 28px; gap: 0.4rem; align-items: center; }
 .pv-opt-row.pv-opt-status { grid-template-columns: 18px minmax(0, 2fr) minmax(0, 1.4fr) 140px 28px; }
-.pv-opt-row .pv-input { width: 100%; min-width: 0; box-sizing: border-box; }
-.pv-opt-head { font-size: 0.68rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
+.pv-opt-row .pv-field { width: 100%; min-width: 0; box-sizing: border-box; }
+.pv-opt-head { font-size: var(--text-xs); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 2px; }
 .pv-opt-grip { display: flex; align-items: center; justify-content: center; color: var(--text-faint); cursor: grab; touch-action: none; }
 .pv-opt-grip:active { cursor: grabbing; }
 .pv-opt-drop { box-shadow: inset 0 2px 0 var(--accent-color); border-radius: var(--radius-xs); }
-.pv-modal-hint { font-size: 0.72rem; color: var(--text-faint); line-height: 1.4; }
-.pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: var(--text-main); cursor: pointer; }
+.pv-modal-hint { font-size: var(--text-sm); color: var(--text-faint); line-height: 1.4; }
+.pv-modal-check { display: flex; align-items: center; gap: 0.5rem; font-size: var(--text-ui); color: var(--text-main); cursor: pointer; }
 .pv-modal-check input { accent-color: var(--accent-color); }
 .pv-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
-.pv-btn-primary { padding: 7px 14px; border-radius: var(--radius-md); border: none; background: var(--accent-color); color: var(--accent-on); font-size: var(--text-ui); cursor: pointer; }
-.pv-btn-secondary { padding: 7px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: transparent; color: var(--text-main); font-size: var(--text-ui); cursor: pointer; }
 
 /* Managed index.md read view (plan UI-UX P11): title with accent rule, link
    lists as a theme card grid. Applied only to marker-carrying listings. */
 .pv-index-doc h1 { border-bottom: 2px solid var(--accent-color); padding-bottom: 0.35rem; }
 .pv-index-doc ul { list-style: none; padding: 0; margin: 0.75rem 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: 0.9rem; line-height: 1.45; }
+.pv-index-doc ul li { border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 9px 12px; font-size: var(--text-md); line-height: 1.45; }
 .pv-index-doc ul li a { font-weight: 600; text-decoration: none; }
 .pv-index-doc ul li a:hover { text-decoration: underline; }
 
@@ -454,7 +396,7 @@ option {
 .pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
 .pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }
 .pv-peek-nav { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
-.pv-peek-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-peek-title { flex: 1; min-width: 0; font-size: var(--text-md); font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-peek-actions { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
 .pv-peek-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent; border: none; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .pv-peek-btn:not(:disabled):hover { background: var(--bg-hover); color: var(--text-main); }
@@ -465,11 +407,10 @@ option {
 .pv-peek-side { flex: 0 0 260px; min-width: 0; overflow: auto; border-left: 1px solid var(--border-color); background: var(--bg-primary); padding: 0.5rem 0.7rem; }
 .pv-peek-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
 .pv-peek-resize::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-right: 2px solid var(--border-color); border-bottom: 2px solid var(--border-color); }
-.pv-btn-secondary:hover { background: var(--bg-hover); }
 
 /* Sidebar search results (plan Suche P4): match highlight in snippets and
    titles. Theme-correct via the accent token; text color stays inherited. */
-.pv-search-mark { background: color-mix(in srgb, var(--accent-color) 24%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.pv-search-mark { background: color-mix(in srgb, var(--accent-color) 24%, transparent); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
 .pv-search-snippet { overflow-wrap: anywhere; }
 
 /* GFM footnotes in read mode (P3.6): remark-gfm renders them natively; this
@@ -506,3 +447,11 @@ option {
    (content-visibility is ignored on table-row boxes) - real windowing for
    .base tables stays a follow-up gated on native profiling. */
 [data-tree-path] { content-visibility: auto; contain-intrinsic-height: auto 26px; }
+
+/* Hailing-frequencies easter egg: failed transmission shakes the dialog. */
+.pv-hailing-shake { animation: pv-hailing-shake var(--dur-3) var(--ease-1); }
+@keyframes pv-hailing-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-7px); }
+  75% { transform: translateX(7px); }
+}

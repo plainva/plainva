@@ -245,16 +245,14 @@
 
 /* Buttons become pills with condensed uppercase lettering. */
 [data-theme-name="lcars"] .pv-btn,
-[data-theme-name="lcars"] .pv-btn-primary,
-[data-theme-name="lcars"] .pv-btn-secondary,
-[data-theme-name="lcars"] .pv-add-btn {
+[data-theme-name="lcars"] .pv-btn {
   border-radius: var(--radius-pill);
   font-family: var(--font-ui);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 [data-theme-name="lcars"] .pv-btn--secondary,
-[data-theme-name="lcars"] .pv-btn-secondary {
+[data-theme-name="lcars"] .pv-btn--secondary {
   border-color: var(--lcars-4);
 }
 /* Icon buttons ride the same pill language — the UI 2.0 control sweep routed
@@ -348,7 +346,6 @@
 
 /* Modals/peek windows/palettes: black panel, colour frame, one big LCARS corner. */
 [data-theme-name="lcars"] .pv-modal,
-[data-theme-name="lcars"] .pv-modal-card,
 [data-theme-name="lcars"] .pv-peek-card,
 [data-theme-name="lcars"] .pv-palette {
   border: 2px solid var(--lcars-1);
@@ -356,7 +353,6 @@
   background: #000000;
 }
 [data-theme-name="lcars"] .pv-modal-heading,
-[data-theme-name="lcars"] .pv-modal-title,
 [data-theme-name="lcars"] .pv-peek-title {
   font-family: var(--font-ui);
   text-transform: uppercase;
@@ -586,4 +582,76 @@
 [data-theme-name="lcars"] .m-bigcard,
 [data-theme-name="lcars"] .m-suggest {
   border: 2px solid var(--lcars-4);
+}
+
+/* ==================================================================== */
+/* Design sweep 2026-07-19: shared surfaces that postdate the last pass */
+/* (segmented controls, settings cards, chip fields, floating windows,  */
+/* FAB) plus the shared chip palette and the graph engine knobs.        */
+/* ==================================================================== */
+
+[data-theme-name="lcars"] {
+  /* Shared chip slots on the Okuda palette (label chips, board columns).
+     NOT --palette-*: those hex values are USER DATA written into
+     frontmatter and must stay stable across themes. */
+  --chip-0-bg: color-mix(in srgb, var(--lcars-1) 24%, transparent); --chip-0-fg: var(--lcars-1);
+  --chip-1-bg: color-mix(in srgb, var(--lcars-3) 24%, transparent); --chip-1-fg: var(--lcars-3);
+  --chip-2-bg: color-mix(in srgb, var(--lcars-2) 24%, transparent); --chip-2-fg: var(--lcars-2);
+  --chip-3-bg: color-mix(in srgb, var(--lcars-4) 24%, transparent); --chip-3-fg: var(--lcars-4);
+  --chip-4-bg: color-mix(in srgb, var(--lcars-1) 40%, transparent); --chip-4-fg: var(--lcars-1);
+  --chip-5-bg: color-mix(in srgb, var(--lcars-3) 40%, transparent); --chip-5-fg: var(--lcars-3);
+  --chip-6-bg: color-mix(in srgb, var(--lcars-2) 40%, transparent); --chip-6-fg: var(--lcars-2);
+  --chip-7-bg: color-mix(in srgb, var(--lcars-4) 40%, transparent); --chip-7-fg: var(--lcars-4);
+  /* Graph engine: a touch more glow and rounder Okuda sweeps. */
+  --graph-glow-intensity: 1.25;
+  --graph-edge-curvature: 0.22;
+}
+
+/* Segmented controls: hollow Okuda pills, the active one fills solid. */
+[data-theme-name="lcars"] .pv-segmented {
+  background: transparent;
+  padding: 0;
+  gap: 4px;
+}
+[data-theme-name="lcars"] .pv-seg-item {
+  border: 1px solid var(--lcars-4);
+  color: var(--lcars-4);
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+[data-theme-name="lcars"] .pv-seg-item.is-active {
+  background: var(--lcars-1);
+  border-color: var(--lcars-1);
+  color: #000000;
+  box-shadow: none;
+}
+
+/* Settings cards (and their base-config clones): console blocks - black
+   panel behind a thick color bar. */
+[data-theme-name="lcars"] .pv-setcard {
+  background: #000000;
+  border: 1px solid var(--lcars-4);
+  border-left: 10px solid var(--lcars-1);
+}
+
+/* Chip fields: hollow console wells. */
+[data-theme-name="lcars"] .pv-chipfield {
+  background: transparent;
+  border-color: var(--lcars-4);
+}
+
+/* Floating-window heads (peek preview, mail compose): black console head
+   under a color edge. */
+[data-theme-name="lcars"] .pv-peek-head {
+  background: #000000;
+  border-bottom: 3px solid var(--lcars-1);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* FAB: a proper Okuda pill. */
+[data-theme-name="lcars"] .pv-fab {
+  border-radius: var(--radius-pill);
+  color: #000000;
 }

@@ -18,7 +18,7 @@ import {
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY } from "@plainva/ui";
+import { ICON, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
 import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
@@ -248,11 +248,11 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
 
   return (
     <>
-      <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.connectToProvider", { provider: providerName })}</h2>
-      <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem", fontSize: "0.9rem" }}>{t("splash.connectProviderSteps")}</p>
+      <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>{t("splash.connectToProvider", { provider: providerName })}</h2>
+      <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem", fontSize: "var(--text-md)" }}>{t("splash.connectProviderSteps")}</p>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)", borderRadius: "var(--radius-md)", marginBottom: "1rem", wordBreak: "break-word", fontSize: "0.85rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)", borderRadius: "var(--radius-md)", marginBottom: "1rem", wordBreak: "break-word", fontSize: "var(--text-md)" }}>
           {error}
         </div>
       )}
@@ -311,7 +311,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
                 <Field label={t("settings.s3SecretAccessKey")}>
                   <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="pv-field" />
                 </Field>
-                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "var(--text-md)" }}>
                   <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} className="pv-check" />
                   {t("settings.s3PathStyle")}
                 </label>
@@ -323,39 +323,39 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
               </button>
               <button onClick={handleConnect} disabled={busy || !canConnect}
                 className="pv-btn pv-btn--primary pv-btn--lg" style={{ flex: 1 }}>
-                {busy ? t("splash.connecting") : provider === "s3" ? t("splash.continue") : t("splash.connect")} <ArrowRight size={16} />
+                {busy ? t("splash.connecting") : provider === "s3" ? t("splash.continue") : t("splash.connect")} <ArrowRight size={ICON.ui} />
               </button>
             </div>
           </>
         ) : (
           <>
             {/* Steps 2 + 3 — pick the cloud folder, then the local folder */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--success-text, var(--accent-color))", fontSize: "0.9rem", fontWeight: 600 }}>
-              <Check size={16} /> {t("splash.connectedTo", { provider: providerName })}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--success-text, var(--accent-color))", fontSize: "var(--text-md)", fontWeight: 600 }}>
+              <Check size={ICON.ui} /> {t("splash.connectedTo", { provider: providerName })}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", padding: "0.75rem", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)" }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("splash.cloudFolderLabel")}</div>
-                <div style={{ fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.cloudFolderLabel")}</div>
+                <div style={{ fontSize: "var(--text-md)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {cloudFolder ? `${rootLabel} / ${cloudFolder}` : t("splash.cloudFolderRoot", { root: rootLabel })}
                 </div>
               </div>
               <button onClick={() => setPickerOpen(true)} disabled={busy}
                 className="pv-btn pv-btn--secondary pv-btn--sm" style={{ flexShrink: 0 }}>
-                <Cloud size={15} /> {t("settings.browseFolders")}
+                <Cloud size={ICON.ui} /> {t("settings.browseFolders")}
               </button>
             </div>
 
             {mode === "create" && (
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
                 {t("splash.createTemplateHint", { name: template?.name ?? t("splash.emptyVault") })}
               </div>
             )}
 
             <button onClick={handlePickLocalAndOpen} disabled={busy}
               className="pv-btn pv-btn--primary pv-btn--lg">
-              <FolderOpen size={16} /> {t("splash.pickLocalAndOpen")}
+              <FolderOpen size={ICON.ui} /> {t("splash.pickLocalAndOpen")}
             </button>
             <button onClick={onBack} disabled={busy} className="pv-btn pv-btn--ghost">
               {t("common.cancel")}
@@ -380,7 +380,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-    <label style={{ fontSize: "0.85rem", fontWeight: 500 }}>{label}</label>
+    <label style={{ fontSize: "var(--text-md)", fontWeight: 500 }}>{label}</label>
     {children}
   </div>
 );

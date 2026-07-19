@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfirm } from "../services/appDialogs";
-import { Checkbox } from "@plainva/ui";
+import { Checkbox, ICON } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
@@ -25,6 +25,9 @@ import {
   isVaultFolderEmpty,
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
+
+/** Brand mark geometry (not an icon role - the logo scales freely). */
+const SPLASH_LOGO_SIZE = 76;
 
 export const SplashScreen: React.FC = () => {
   const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault } = useVault();
@@ -171,10 +174,10 @@ export const SplashScreen: React.FC = () => {
       <div style={{ width: "100%", maxWidth: "440px" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px" }}>
-            <PlainvaLogo size={76} glow />
+            <PlainvaLogo size={SPLASH_LOGO_SIZE} glow />
           </div>
-          <h1 style={{ fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 8px" }}>{t("splash.title")}</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "1rem", margin: "0 0 28px" }}>{t("splash.subtitle")}</p>
+          <h1 style={{ fontSize: "var(--text-display)", fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 8px" }}>{t("splash.title")}</h1>
+          <p style={{ color: "var(--text-muted)", fontSize: "var(--text-lg)", margin: "0 0 28px" }}>{t("splash.subtitle")}</p>
         </div>
 
         {(error || createError) && (
@@ -193,8 +196,8 @@ export const SplashScreen: React.FC = () => {
         ) : showCreateWhere ? (
           <>
             {/* Step 1 of "new vault": WHERE should it live? (place -> template -> destination) */}
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.newVault")}</h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.newVaultWhere")}</p>
+            <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>{t("splash.newVault")}</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "var(--text-md)" }}>{t("splash.newVaultWhere")}</p>
 
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <button
@@ -202,10 +205,10 @@ export const SplashScreen: React.FC = () => {
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
               >
-                <Laptop size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <Laptop size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.locationLocal")}</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.locationLocalDesc")}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{t("splash.locationLocal")}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.locationLocalDesc")}</div>
                 </div>
               </button>
               <button
@@ -213,10 +216,10 @@ export const SplashScreen: React.FC = () => {
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
               >
-                <Cloud size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <Cloud size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.locationOnline")}</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.locationOnlineDesc")}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{t("splash.locationOnline")}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.locationOnlineDesc")}</div>
                 </div>
               </button>
             </div>
@@ -228,8 +231,8 @@ export const SplashScreen: React.FC = () => {
         ) : showOpenWhere ? (
           <>
             {/* Step 1 of "open vault": local folder goes straight to the OS dialog. */}
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.openVault")}</h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.openVaultWhere")}</p>
+            <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>{t("splash.openVault")}</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "var(--text-md)" }}>{t("splash.openVaultWhere")}</p>
 
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <button
@@ -237,10 +240,10 @@ export const SplashScreen: React.FC = () => {
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
               >
-                <Laptop size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <Laptop size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.openLocalFolder")}</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.openLocalFolderDesc")}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{t("splash.openLocalFolder")}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.openLocalFolderDesc")}</div>
                 </div>
               </button>
               <button
@@ -248,10 +251,10 @@ export const SplashScreen: React.FC = () => {
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
               >
-                <Cloud size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <Cloud size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{t("splash.openOnlineExisting")}</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.openOnlineExistingDesc")}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{t("splash.openOnlineExisting")}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.openOnlineExistingDesc")}</div>
                 </div>
               </button>
             </div>
@@ -262,8 +265,8 @@ export const SplashScreen: React.FC = () => {
           </>
         ) : showCreateChooser ? (
           <>
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{t("splash.createVault")}</h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.createVaultDesc")}</p>
+            <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>{t("splash.createVault")}</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "var(--text-md)" }}>{t("splash.createVaultDesc")}</p>
 
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
             <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
@@ -273,15 +276,15 @@ export const SplashScreen: React.FC = () => {
                 className="pv-cardhover"
                 style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px", opacity: creating ? 0.6 : 1 }}
               >
-                <FilePlus2 size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                <FilePlus2 size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                     {t("splash.emptyVault")}
-                    <span style={{ fontSize: "0.68rem", fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-pill)", background: "var(--accent-color)", color: "var(--accent-on)" }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-pill)", background: "var(--accent-color)", color: "var(--accent-on)" }}>
                       {t("splash.recommended", { defaultValue: "Empfohlen für den Einstieg" })}
                     </span>
                   </div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t("splash.emptyVaultDesc")}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.emptyVaultDesc")}</div>
                 </div>
               </button>
 
@@ -293,17 +296,17 @@ export const SplashScreen: React.FC = () => {
                   className="pv-cardhover"
                   style={{ ...templateCardStyle, opacity: creating ? 0.6 : 1 }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{def.name}</div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{def.description}</div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{def.name}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{def.description}</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
                     {templatePreviewFolders(def).map((folder) => (
-                      <span key={folder} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.72rem", color: "var(--text-faint)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
-                        <Folder size={10} />{folder}
+                      <span key={folder} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--text-faint)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                        <Folder size={ICON.meta} />{folder}
                       </span>
                     ))}
                     {templatePreviewBases(def).map((db) => (
-                      <span key={db} title={t("splash.includesDatabases")} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.72rem", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
-                        <Database size={10} />{db}
+                      <span key={db} data-tip={t("splash.includesDatabases")} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                        <Database size={ICON.meta} />{db}
                       </span>
                     ))}
                   </div>
@@ -323,10 +326,10 @@ export const SplashScreen: React.FC = () => {
           </>
         ) : showOnlineChooser ? (
           <>
-            <h2 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>
+            <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>
               {onlineMode === "create" ? t("splash.newVaultOnlineTitle") : t("splash.openOnlineVault")}
             </h2>
-            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "0.9rem" }}>{t("splash.onlineVaultDesc")}</p>
+            <p style={{ color: "var(--text-muted)", marginBottom: "1rem", fontSize: "var(--text-md)" }}>{t("splash.onlineVaultDesc")}</p>
 
             <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "8px 8px 4px", marginBottom: "14px" }}>
             <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", paddingRight: "10px" }}>
@@ -337,17 +340,17 @@ export const SplashScreen: React.FC = () => {
                   className="pv-cardhover"
                   style={{ ...templateCardStyle, flexDirection: "row", alignItems: "center", gap: "11px" }}
                 >
-                  <Icon size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                  <Icon size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--text-md)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                       {name}
                       {byo && (
-                        <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--warning-text)", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--radius-pill)", padding: "0 7px", lineHeight: 1.6 }}>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--warning-text)", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--radius-pill)", padding: "0 7px", lineHeight: 1.6 }}>
                           {t("splash.providerByoBadge")}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{byo ? t("splash.providerByoDesc") : desc}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{byo ? t("splash.providerByoDesc") : desc}</div>
                   </div>
                 </button>
               ))}
@@ -355,7 +358,7 @@ export const SplashScreen: React.FC = () => {
             </div>
 
             {onlineProviders.some((p) => p.byo) && (
-              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "2px 2px 14px" }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "2px 2px 14px" }}>
                 {t("splash.byoGuideHint", { defaultValue: "Anleitungen für eigene App-IDs:" })}{" "}
                 {/* Links (not buttons): they leave the app for the handbook,
                     and the provider CARDS already own the button role here. */}
@@ -393,7 +396,7 @@ export const SplashScreen: React.FC = () => {
           <>
             {recentVaults.length > 0 && (
               <div style={{ border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-lg)", padding: "10px 10px 6px", marginBottom: "20px" }}>
-                <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
+                <div style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", margin: "2px 4px 8px" }}>{t("splash.recentVaults")}</div>
                 <ScrollEdge className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "190px", paddingRight: "10px" }}>
                   {recentVaults.map((path) => (
                     // One card per vault; the remove X sits INSIDE the card as the
@@ -408,20 +411,20 @@ export const SplashScreen: React.FC = () => {
                         onClick={() => openVault(path)}
                         style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "11px", padding: "12px 14px", textAlign: "left", border: "none", borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)", background: "transparent", color: "var(--text-main)", cursor: "pointer" }}
                       >
-                        <Folder size={18} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+                        <Folder size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{getBasename(path)}</div>
-                          <div style={{ fontSize: "0.78rem", color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{path}</div>
+                          <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{getBasename(path)}</div>
+                          <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{path}</div>
                         </div>
                       </button>
                       <button
                         className="pv-iconbtn pv-iconbtn--sm"
                         aria-label={t("splash.removeFromList")}
-                        title={t("splash.removeFromListHint")}
+                        data-tip={t("splash.removeFromListHint")}
                         onClick={() => { setForgetZips(false); setRemoveTarget(path); }}
                         style={{ marginRight: "8px" }}
                       >
-                        <X size={14} />
+                        <X size={ICON.ui} />
                       </button>
                     </div>
                   ))}
@@ -438,7 +441,7 @@ export const SplashScreen: React.FC = () => {
                 className="pv-btn pv-btn--primary"
                 style={{ width: "100%", height: 46, gap: 9 }}
               >
-                <FolderOpen size={17} />{t("splash.openVault")}
+                <FolderOpen size={ICON.head} />{t("splash.openVault")}
               </button>
 
               <button
@@ -446,7 +449,7 @@ export const SplashScreen: React.FC = () => {
                 className="pv-btn pv-btn--tonal"
                 style={{ width: "100%", height: 46, gap: 9 }}
               >
-                <Plus size={16} />{t("splash.newVault")}
+                <Plus size={ICON.ui} />{t("splash.newVault")}
               </button>
             </div>
 

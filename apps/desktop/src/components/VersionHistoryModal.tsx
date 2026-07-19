@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RotateCcw, Copy } from "lucide-react";
 import { appConfirm } from "../services/appDialogs";
-import { Modal } from "@plainva/ui";
+import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
 import { MergeView } from "@codemirror/merge";
@@ -254,7 +254,7 @@ export const VersionHistoryModal: React.FC<{
       closeOnOverlay={!busy}
       bodyClassName="pv-modal-body--flush"
     >
-        <div style={{ padding: "0.45rem 1rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path}>
+        <div style={{ padding: "0.45rem 1rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-tip={path}>
           {path}
           {orphan && <> — {t("versions.orphanHint", { defaultValue: "This file no longer exists in the vault. Restoring recreates it at its original location." })}</>}
         </div>
@@ -262,13 +262,13 @@ export const VersionHistoryModal: React.FC<{
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           {/* Version list */}
           <div className="custom-scrollbar" style={{ width: "250px", flexShrink: 0, overflowY: "auto", borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)", padding: "0.5rem" }}>
-            {versions === null && <div style={{ padding: "0.6rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("versions.loading", { defaultValue: "Loading versions…" })}</div>}
+            {versions === null && <div style={{ padding: "0.6rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("versions.loading", { defaultValue: "Loading versions…" })}</div>}
             {versions !== null && versions.length === 0 && (
-              <div style={{ padding: "0.6rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>{t("versions.empty", { defaultValue: "No saved versions yet. Snapshots are created automatically as you edit." })}</div>
+              <div style={{ padding: "0.6rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("versions.empty", { defaultValue: "No saved versions yet. Snapshots are created automatically as you edit." })}</div>
             )}
             {grouped.map((group) => (
               <div key={group.day} style={{ marginBottom: "0.4rem" }}>
-                <div style={{ padding: "0.35rem 0.4rem 0.2rem", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.4px", color: "var(--text-faint)" }}>{group.day}</div>
+                <div style={{ padding: "0.35rem 0.4rem 0.2rem", fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.4px", color: "var(--text-faint)" }}>{group.day}</div>
                 {group.items.map((v) => {
                   const isSel = selected?.backupPath === v.backupPath;
                   return (
@@ -284,7 +284,7 @@ export const VersionHistoryModal: React.FC<{
                       }}
                     >
                       <span style={{ fontVariantNumeric: "tabular-nums" }}>{timeLabel.format(new Date(v.timestamp))}</span>
-                      <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--text-muted)" }}>{formatBytes(v.size)}</span>
+                      <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{formatBytes(v.size)}</span>
                     </button>
                   );
                 })}
@@ -303,7 +303,7 @@ export const VersionHistoryModal: React.FC<{
               <div style={{ flex: 1 }} />
               <Button
                 size="sm"
-                icon={<Copy size={14} />}
+                icon={<Copy size={ICON.ui} />}
                 data-testid="version-restore-copy"
                 onClick={doRestoreAsCopy}
                 disabled={busy || !selected}
@@ -313,7 +313,7 @@ export const VersionHistoryModal: React.FC<{
               <Button
                 size="sm"
                 variant="primary"
-                icon={<RotateCcw size={14} />}
+                icon={<RotateCcw size={ICON.ui} />}
                 data-testid="version-restore"
                 onClick={doRestore}
                 disabled={busy || !selected}
@@ -331,20 +331,20 @@ export const VersionHistoryModal: React.FC<{
             <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
               {selected && canDiff && showDiff ? (
                 <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                  <div style={{ display: "flex", fontSize: "0.72rem", color: "var(--text-faint)", padding: "0.3rem 0.9rem 0", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", fontSize: "var(--text-sm)", color: "var(--text-faint)", padding: "0.3rem 0.9rem 0", gap: "0.5rem" }}>
                     <span style={{ flex: 1 }}>{t("versions.sideVersion", { defaultValue: "Selected version" })}</span>
                     <span style={{ flex: 1 }}>{t("versions.sideCurrent", { defaultValue: "Current content" })}</span>
                   </div>
                   <div ref={diffHostRef} data-testid="version-diff-host" className="pv-merge-host" style={{ flex: 1, minHeight: 0 }} />
                 </div>
               ) : selected && isText && versionText !== null ? (
-                <pre data-testid="version-preview" style={{ margin: 0, padding: "0.8rem 1rem", whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "var(--font-content)", fontSize: "0.9rem", lineHeight: 1.5 }}>{versionText}</pre>
+                <pre data-testid="version-preview" style={{ margin: 0, padding: "0.8rem 1rem", whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "var(--font-content)", fontSize: "var(--text-md)", lineHeight: 1.5 }}>{versionText}</pre>
               ) : selected && isImage && imageUrl ? (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", height: "100%" }}>
                   <img src={imageUrl} alt={basename} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                 </div>
               ) : selected ? (
-                <div style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                <div style={{ padding: "1rem", color: "var(--text-muted)", fontSize: "var(--text-md)" }}>
                   {t("versions.binaryNoPreview", { defaultValue: "No preview for this file type." })}{" "}
                   ({formatBytes(selected.size)})
                 </div>

@@ -2,35 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import {
-  DocIcon,
-  EmptyState,
-  MenuItem,
-  MenuSeparator,
-  MenuSurface,
-  NoteCardBody,
-  PALETTE_SWATCH,
-  applyPin,
-  applyUnpin,
-  chipClass,
-  distributeCards,
-  dropSlotAt,
-  filterCardPaths,
-  isRenderableDocIcon,
-  loadImageBlob,
-  noteDisplayName,
-  orderCards,
-  parseNoteCard,
-  parseSourceClause,
-  pinboardColumnCount,
-  resolveVaultRelative,
-  spliceIntoSequence,
-  splitMultiValue,
-  toast,
-  toggleTaskAtIndex,
-  type ParsedNoteCard,
-  type PinboardDropSlot,
-} from "@plainva/ui";
+import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
@@ -587,7 +559,7 @@ export function BasePinboardView({
       >
         {(vm.title || (vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon))) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, paddingRight: 22 }}>
-            {vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon) && <DocIcon icon={vm.parsed.icon} size={14} />}
+            {vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon) && <DocIcon icon={vm.parsed.icon} size={ICON.ui} />}
             {vm.title && <div style={{ fontWeight: 600, fontSize: "var(--text-ui)", color: "var(--text-main)", overflowWrap: "anywhere" }}>{vm.title}</div>}
           </div>
         )}
@@ -643,7 +615,7 @@ export function BasePinboardView({
           type="button"
           className="pv-pinboard-pin"
           aria-label={isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" })}
-          title={isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" })}
+          data-tip={isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" })}
           onClick={(e) => {
             e.stopPropagation();
             handlePinToggle(path, !isPinned);
@@ -663,7 +635,7 @@ export function BasePinboardView({
             opacity: isPinned ? 1 : undefined,
           }}
         >
-          {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+          {isPinned ? <PinOff size={ICON.ui} /> : <Pin size={ICON.ui} />}
         </button>
       </div>
     );
@@ -688,7 +660,7 @@ export function BasePinboardView({
   const boardWidth = Math.min(containerWidth, columnCount * (CARD_WIDTH + GAP) - GAP);
 
   return (
-    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} title={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
+    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} data-tip={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
       {/* Quick capture (P4) — Keep's "take a note" popup (2026-07-17): the
           collapsed field expands to a title + body card. A typed title becomes
           the file name and the H1; without one the note gets a timestamp name
@@ -836,21 +808,21 @@ export function BasePinboardView({
       <MenuSurface open={!!menu} onClose={() => setMenu(null)} at={menu ? { x: menu.x, y: menu.y } : undefined} ariaLabel={t("pinboard.cardMenu", { defaultValue: "Karten-Menü" })}>
         {menu && (
           <>
-            <MenuItem icon={<ExternalLink size={14} />} onSelect={() => onOpenNote(menu.path)}>
+            <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={() => onOpenNote(menu.path)}>
               {t("pinboard.open", { defaultValue: "Öffnen" })}
             </MenuItem>
             {onOpenInSplit && (
-              <MenuItem icon={<Columns2 size={14} />} onSelect={() => onOpenInSplit(menu.path)}>
+              <MenuItem icon={<Columns2 size={ICON.ui} />} onSelect={() => onOpenInSplit(menu.path)}>
                 {t("pinboard.openSplit", { defaultValue: "Im Split öffnen" })}
               </MenuItem>
             )}
             <MenuItem
-              icon={menuPinned ? <PinOff size={14} /> : <Pin size={14} />}
+              icon={menuPinned ? <PinOff size={ICON.ui} /> : <Pin size={ICON.ui} />}
               onSelect={() => handlePinToggle(menu.path, !menuPinned)}
             >
               {menuPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" })}
             </MenuItem>
-            <MenuItem icon={<Tags size={14} />} onSelect={() => void openLabelEditor(menu.path, { x: menu.x, y: menu.y })}>
+            <MenuItem icon={<Tags size={ICON.ui} />} onSelect={() => void openLabelEditor(menu.path, { x: menu.x, y: menu.y })}>
               {t("pinboard.labels", { defaultValue: "Labels" })}
             </MenuItem>
             <MenuSeparator />
@@ -858,7 +830,7 @@ export function BasePinboardView({
               <button
                 type="button"
                 aria-label={t("pinboard.noColor", { defaultValue: "Keine Farbe" })}
-                title={t("pinboard.noColor", { defaultValue: "Keine Farbe" })}
+                data-tip={t("pinboard.noColor", { defaultValue: "Keine Farbe" })}
                 onClick={() => { setMenu(null); void handleSetColor(menu.path, null); }}
                 style={{ width: 16, height: 16, borderRadius: "var(--radius-pill)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", cursor: "pointer", padding: 0 }}
               />
@@ -867,7 +839,7 @@ export function BasePinboardView({
                   key={name}
                   type="button"
                   aria-label={`${t("pinboard.color", { defaultValue: "Farbe" })}: ${name}`}
-                  title={`${t("pinboard.color", { defaultValue: "Farbe" })}: ${name}`}
+                  data-tip={`${t("pinboard.color", { defaultValue: "Farbe" })}: ${name}`}
                   onClick={() => { setMenu(null); void handleSetColor(menu.path, hex); }}
                   style={{
                     width: 16,
@@ -882,7 +854,7 @@ export function BasePinboardView({
               ))}
             </div>
             <MenuSeparator />
-            <MenuItem danger icon={<Trash2 size={14} />} onSelect={() => void handleDelete(menu.path)}>
+            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => void handleDelete(menu.path)}>
               {t("pinboard.delete", { defaultValue: "Löschen" })}
             </MenuItem>
           </>
@@ -929,7 +901,7 @@ export function BasePinboardView({
                       key={v}
                       keepOpen
                       disabled={inlineOnly}
-                      icon={has ? <Check size={13} /> : <span style={{ width: 13, display: "inline-block" }} />}
+                      icon={has ? <Check size={ICON.ui} /> : <span style={{ width: 13, display: "inline-block" }} />}
                       onSelect={() => { if (!inlineOnly) void toggleLabel(labelEdit.path, v, !has); }}
                     >
                       {labelProp ? v : `#${v}`}
@@ -937,7 +909,7 @@ export function BasePinboardView({
                   );
                 })}
                 {canCreate && (
-                  <MenuItem keepOpen icon={<Tags size={13} />} onSelect={() => { void toggleLabel(labelEdit.path, q.replace(/^#/, ""), true); setLabelQuery(""); }}>
+                  <MenuItem keepOpen icon={<Tags size={ICON.ui} />} onSelect={() => { void toggleLabel(labelEdit.path, q.replace(/^#/, ""), true); setLabelQuery(""); }}>
                     {t("pinboard.newLabel", { defaultValue: "„{{name}}“ anlegen", name: q })}
                   </MenuItem>
                 )}

@@ -20,6 +20,7 @@ import { formatRelativeDate, DATE_TOKEN_RE } from '@plainva/ui';
 import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, encodeWikiTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
+import { ICON } from "@plainva/ui";
 
 interface MarkdownReaderProps {
   content: string;
@@ -247,16 +248,16 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
 
   const linkIconFor = (target: RelativeTarget): React.ReactNode => {
     if (!showLinkIcons) return null;
-    if (target.kind === "folder") return <Folder size={14} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
+    if (target.kind === "folder") return <Folder size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
     const entry = docIcons?.get(target.path);
     if (entry && isRenderableDocIcon(entry.icon)) {
       return (
         <span aria-hidden="true" style={{ display: "inline-flex", width: 16, justifyContent: "center", flexShrink: 0 }}>
-          <DocIcon icon={entry.icon} color={entry.color} size={14} />
+          <DocIcon icon={entry.icon} color={entry.color} size={ICON.ui} />
         </span>
       );
     }
-    return <FileText size={14} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
+    return <FileText size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
   };
 
 

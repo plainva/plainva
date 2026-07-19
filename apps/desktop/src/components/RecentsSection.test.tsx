@@ -34,7 +34,7 @@ function render(el: ReactElement) {
 }
 
 function rowFor(path: string): HTMLButtonElement | null {
-  return container.querySelector(`button[title="${path}"]`);
+  return container.querySelector(`button[data-tip="${path}"]`);
 }
 
 describe("RecentsSection", () => {

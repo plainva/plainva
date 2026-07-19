@@ -215,7 +215,7 @@ export function NoteScreen({
         <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
       {!editing && (
-        <button aria-label={t("mobile.editNote")} className="m-fab-float" onClick={() => setEditing(true)}>
+        <button aria-label={t("mobile.editNote")} className="pv-fab m-fab-float" onClick={() => setEditing(true)}>
           <Pencil size={22} />
         </button>
       )}

@@ -1,7 +1,7 @@
 import { Columns2, History, Rows2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SplitDirection } from "./SplitButton";
-import { MenuSurface, MenuItem, MenuSeparator } from "@plainva/ui";
+import { ICON, MenuItem, MenuSeparator, MenuSurface } from "@plainva/ui";
 
 interface Props {
   // Right-click point in viewport coordinates.
@@ -27,22 +27,22 @@ export function TabContextMenu({ x, y, onSplitVertical, onSplitHorizontal, onClo
   return (
     <MenuSurface open onClose={onClose} at={{ x, y }} minWidth={210} ariaLabel={t("tabMenu.title", { defaultValue: "Tab-Aktionen" })}>
       {activeDirection !== "vertical" && (
-        <MenuItem icon={<Columns2 size={15} />} onSelect={onSplitVertical}>
+        <MenuItem icon={<Columns2 size={ICON.ui} />} onSelect={onSplitVertical}>
           {t("tabMenu.splitRight", { defaultValue: "Rechts teilen" })}
         </MenuItem>
       )}
       {activeDirection !== "horizontal" && (
-        <MenuItem icon={<Rows2 size={15} />} onSelect={onSplitHorizontal}>
+        <MenuItem icon={<Rows2 size={ICON.ui} />} onSelect={onSplitHorizontal}>
           {t("tabMenu.splitDown", { defaultValue: "Unten teilen" })}
         </MenuItem>
       )}
       {onShowVersionHistory && (
-        <MenuItem icon={<History size={15} />} onSelect={onShowVersionHistory}>
+        <MenuItem icon={<History size={ICON.ui} />} onSelect={onShowVersionHistory}>
           {t("tabMenu.versionHistory", { defaultValue: "Versionsverlauf…" })}
         </MenuItem>
       )}
       <MenuSeparator />
-      <MenuItem danger icon={<X size={15} />} onSelect={onCloseTab}>
+      <MenuItem danger icon={<X size={ICON.ui} />} onSelect={onCloseTab}>
         {t("tabMenu.close", { defaultValue: "Tab schließen" })}
       </MenuItem>
     </MenuSurface>

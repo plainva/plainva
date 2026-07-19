@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
+import { ICON } from "@plainva/ui";
 
 interface BaseRow {
   path: string;
@@ -56,12 +57,12 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
   }, [onClose]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "var(--overlay-bg)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh" }}>
+    <div className="pv-palette-overlay">
       <div
         ref={ref}
         role="dialog"
         aria-label={t("editor.basePickerTitle", { defaultValue: "Datenbank einbetten" })}
-        style={{ width: "min(520px, 92vw)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xl)", boxShadow: "0 10px 30px rgba(0,0,0,0.18)", overflow: "hidden" }}
+        className="pv-palette"
       >
         <input
           autoFocus
@@ -78,7 +79,7 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
             className="pv-btn pv-btn--ghost"
             style={{ display: "flex", width: "100%", justifyContent: "flex-start", gap: "10px" }}
           >
-            <Plus size={16} />
+            <Plus size={ICON.ui} />
             {t("editor.basePickerCreate", { defaultValue: "Neue Datenbank erstellen & einbetten" })}
           </button>
           {rows.map((r) => (
@@ -89,15 +90,15 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
               className="pv-btn pv-btn--ghost"
               style={{ display: "flex", width: "100%", justifyContent: "flex-start", gap: "10px" }}
             >
-              <Database size={16} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <Database size={ICON.ui} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {(r.title || r.path).replace(/\.base$/i, "")}
               </span>
-              <span style={{ flexShrink: 0, color: "var(--text-faint)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }}>{r.path}</span>
+              <span style={{ flexShrink: 0, color: "var(--text-faint)", fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }}>{r.path}</span>
             </button>
           ))}
           {rows.length === 0 && (
-            <div style={{ padding: "12px", color: "var(--text-muted)", fontSize: "13px" }}>
+            <div style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--text-ui)" }}>
               {t("editor.basePickerEmpty", { defaultValue: "Keine .base-Dateien gefunden." })}
             </div>
           )}

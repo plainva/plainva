@@ -207,7 +207,7 @@ test('Note Lifecycle: Edit note and persist via mock fs', async ({ page }) => {
   // The sidebar has a "New note in root" button (FilePlus2 or similar).
   // In `FileTree.tsx`, there is `Plus` for new note root.
   // We can just click the parent folder /test-vault and trigger a context menu, but easier:
-  const newNoteBtn = page.locator('div[title="New Note in Root"], div[title="Neue Notiz im Hauptverzeichnis"]');
+  const newNoteBtn = page.locator('div[data-tip="New Note in Root"], div[data-tip="Neue Notiz im Hauptverzeichnis"]');
   if (await newNoteBtn.isVisible()) {
       await newNoteBtn.click();
   }
@@ -406,7 +406,7 @@ test('Code block: the read view highlights fenced code too (issue #13)', async (
   await expect(page.locator('.cm-line', { hasText: 'color: red' }).first()).toBeVisible();
 
   // …switch to the read view (BookOpen toggle)…
-  await page.getByTitle(/Lesemodus|Read Mode/).first().click();
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
   const reader = page.locator('.markdown-reader').first();
   await expect(reader).toBeVisible();
   // The code block renders (raw text is present)…
@@ -1180,7 +1180,7 @@ test('Default view mode: files open in the configured mode, manual switches stic
   await expect(page.locator('.markdown-reader').first()).toBeVisible();
 
   // Manual switch to live for THIS file…
-  await page.getByTitle(/Live-Vorschau|Live Preview/).first().click();
+  await page.locator('[data-tip="Live-Vorschau"], [data-tip="Live Preview"]').first().click();
   await expect(page.locator('.cm-editor').first()).toBeVisible();
   await expect(page.locator('.markdown-reader')).toHaveCount(0);
 
@@ -1280,7 +1280,7 @@ test('Read view: a wiki link with an unbalanced paren in the target renders as a
   await page.goto('/');
   await expect(page.getByText('ParenLink', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByText('ParenLink', { exact: true }).click();
-  await page.getByTitle(/Lesemodus|Read Mode/).first().click();
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
 
   const reader = page.locator('.markdown-reader').first();
   await expect(reader).toBeVisible();

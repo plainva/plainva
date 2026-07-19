@@ -38,10 +38,12 @@ body,
      keeps M3's slightly larger radii than the desktop control scale. */
   --m-danger: var(--error-text);
   --m-on-danger: #fff;
-  --m-radius-xs: 2px;
-  --m-radius-chip: 10px;
-  --m-radius-card: 14px;
-  --m-radius-sheet: 28px;
+  /* Aliases of the shared radius scale (E6): mobile keeps its readable
+     names, the VALUES are governed globally. */
+  --m-radius-xs: var(--radius-xs);
+  --m-radius-chip: var(--radius-md);
+  --m-radius-card: var(--radius-lg);
+  --m-radius-sheet: var(--radius-sheet);
   /* Spinner period (not a motion-scheme duration — a full rotation must stay
      slow even where transitions are fast; reduced-motion disables it fully). */
   --m-spin-dur: 800ms;
@@ -129,10 +131,8 @@ textarea {
      elevation); pushed-screen headers keep a static lift below. */
   position: relative;
   z-index: 1;
-}
-
-.m-header {
   box-shadow: var(--shadow-1);
+  margin: 0 -16px;
 }
 
 .m-topbar {
@@ -172,9 +172,6 @@ textarea {
   flex-shrink: 0;
 }
 
-.m-header {
-  margin: 0 -16px;
-}
 
 .m-page--note .m-header {
   margin: 0;
@@ -252,9 +249,10 @@ textarea {
 .m-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 15px;
   width: 100%;
-  min-height: 52px;
+  min-height: var(--touch-row);
+  font-size: var(--text-lg);
   padding: 8px 8px;
   border: none;
   border-radius: var(--radius-md);
@@ -354,30 +352,6 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* ---- FAB (M3 primary FAB, fixed center slot of the bar) ---- */
-
-.m-fab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  margin-top: -26px;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--m-primary);
-  color: var(--m-on-primary);
-  box-shadow: var(--shadow-2);
-  touch-action: none;
-  transition:
-    transform var(--dur-1) var(--ease-spatial),
-    filter var(--dur-1) var(--ease-effects);
-}
-.m-fab:active {
-  filter: brightness(1.08);
-  transform: scale(0.94);
 }
 
 /* ---- Search ---- */
@@ -542,7 +516,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 52px;
+  /* Follows .m-row's row height (patched to 56px in feedback round 3; this
+     inner button stayed at 52 — the 4px mismatch in MoreScreen, P0 fix). */
+  min-height: 56px;
   padding: 8px 4px 8px 8px;
   background: none;
   border: 0;
@@ -592,10 +568,15 @@ textarea {
   right: 0;
   bottom: 0;
   justify-content: space-between;
-  z-index: 30;
+  z-index: var(--z-m-bar);
 }
 .m-edit-toolbar button {
   flex: 0 0 auto;
+  background: none;
+  border: 0;
+  padding: 10px;
+  color: var(--text-main);
+  border-radius: var(--radius-pill);
 }
 .m-stepper {
   display: inline-flex;
@@ -640,12 +621,23 @@ textarea {
     transform: rotate(360deg);
   }
 }
-.m-edit-toolbar button {
-  background: none;
-  border: 0;
-  padding: 10px;
-  color: var(--text-main);
-  border-radius: var(--radius-pill);
+/* Generic spinning icon (PIM sync indicator). Was referenced from TSX but
+   never defined — the syncing RefreshCw silently never rotated (P0 bug fix,
+   design sweep 2026-07-19). */
+.m-spin {
+  animation: m-ptr-rotate var(--m-spin-dur) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-spin {
+    animation: none;
+  }
+}
+/* Scroll region filling the remaining screen height (PIM agenda/time grid).
+   Referenced from TSX, previously undefined (P0). */
+.m-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .m-edit-toolbar button:active {
   background: var(--m-state-pressed);
@@ -703,7 +695,7 @@ textarea {
   position: fixed;
   inset: 0;
   background: var(--overlay-bg);
-  z-index: 40;
+  z-index: var(--z-m-sheet);
   display: flex;
   align-items: flex-end;
   animation: m-sheet-fade var(--dur-2) var(--ease-effects);
@@ -714,7 +706,7 @@ textarea {
 }
 /* Dialog sheets (mobileDialogs) stack above content sheets. */
 .m-sheet-backdrop--dialog {
-  z-index: 50;
+  z-index: var(--z-m-sheet-dialog);
 }
 
 /* ---- M3 buttons (text / filled / danger) for forms and dialog sheets ---- */
@@ -726,7 +718,7 @@ textarea {
   padding: 10px 8px 4px;
 }
 .m-btn {
-  min-height: 40px;
+  min-height: var(--touch-sm);
   padding: 8px 18px;
   border: none;
   border-radius: var(--radius-pill);
@@ -770,6 +762,7 @@ textarea {
   max-height: 78vh;
   overflow-y: auto;
   animation: m-sheet-up var(--dur-3) var(--ease-spatial);
+  transition: transform var(--dur-2) var(--ease-spatial);
 }
 @keyframes m-sheet-up {
   from { transform: translateY(100%); }
@@ -842,6 +835,9 @@ textarea {
   border-radius: var(--radius-pill);
 }
 .m-viewpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   border: none;
   border-radius: var(--radius-pill);
@@ -876,15 +872,34 @@ textarea {
   text-align: left;
   overflow: hidden;
 }
+/* Gallery/board cover image inside a card. Referenced from BaseScreen but
+   previously undefined — covers rendered unsized (P0, design sweep 2026-07-19). */
+.m-basecard-cover {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
 .m-basecard:active {
   background: var(--m-surface-container-high);
 }
 .m-basecard-title {
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  padding: 0;
+  font: inherit;
+  text-align: left;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .m-basecard-prop {
-  font-size: 0.8rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -925,7 +940,13 @@ textarea {
 }
 .m-cal-month {
   flex: 1;
-  font-size: 1.05rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -994,7 +1015,7 @@ textarea {
 .m-onboarding {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-m-overlay);
   background: var(--m-surface);
   display: flex;
   flex-direction: column;
@@ -1100,22 +1121,6 @@ textarea {
   border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-size: 0.7rem;
-}
-.m-basecard-title {
-  border: none;
-  background: transparent;
-  color: var(--text-main);
-  padding: 0;
-  font: inherit;
-  font-weight: 600;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.m-basecard-prop {
-  border: none;
-  background: transparent;
-  padding: 0;
-  text-align: left;
 }
 .m-cellchip {
   border: 1px solid var(--m-outline);
@@ -1323,8 +1328,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px;
+  height: 38px;
+  padding: 0 15px;
+  font-size: var(--text-md);
   border: 1px solid var(--m-outline);
   border-radius: var(--radius-pill);
   background: transparent;
@@ -1381,18 +1387,17 @@ textarea {
   color: var(--text-main);
 }
 
-/* Board card drag (E1): armed card dims, the drop column outlines, a fixed
-   ghost chip follows the finger. Tints/positions arrive inline as data. */
-.m-basecard.is-dragging {
-  opacity: 0.35;
-}
+/* Board card drag (E1): the drop column outlines, a fixed ghost chip follows
+   the finger; tints/positions arrive inline as data. The dragged card's own
+   look lives in the board-polish block further down (a duplicate 0.35-opacity
+   rule here silently lost to it — removed, design sweep 2026-07-19). */
 .m-board-col.is-over {
   outline: 2px solid var(--m-primary);
   outline-offset: -2px;
 }
 .m-board-ghost {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-m-overlay);
   transform: translate(-50%, -120%);
   max-width: 60vw;
   overflow: hidden;
@@ -1537,15 +1542,6 @@ textarea {
   font-size: 0.65rem;
   color: var(--text-faint);
 }
-.m-cal-month {
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-}
 .m-cal-month:active {
   background: var(--m-state-pressed);
 }
@@ -1658,7 +1654,7 @@ textarea {
   left: 12px;
   right: 12px;
   bottom: calc(92px + env(safe-area-inset-bottom));
-  z-index: 30;
+  z-index: var(--z-m-bar);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1768,26 +1764,16 @@ textarea {
 
 /* Floating pencil FAB (mockups 1/2): 52px, above the tab bar on roots and
  * near the bottom edge on the note screen (no tab bar there). */
+/* Position-only modifier over the SHARED .pv-fab (E7): look, size and press
+   feedback come from the primitive. */
 .m-fab-float {
-  border: none;
   position: fixed;
   right: 16px;
   bottom: calc(26px + env(safe-area-inset-bottom));
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius-lg);
-  background: var(--m-primary);
-  color: var(--m-on-primary);
-  display: grid;
-  place-items: center;
-  box-shadow: var(--shadow-2);
-  z-index: 30;
+  z-index: var(--z-m-bar);
 }
 .m-fab-float--above-tabs {
   bottom: calc(96px + env(safe-area-inset-bottom));
-}
-.m-fab-float:active {
-  transform: scale(0.96);
 }
 
 /* Tonal icon button (mockup .ibtn.tonal — the editing check). */
@@ -1916,7 +1902,7 @@ textarea {
   text-align: left;
 }
 .m-row-txt b {
-  font-size: var(--text-sm);
+  font-size: var(--text-lg);
   font-weight: 600;
   max-width: 100%;
   white-space: nowrap;
@@ -1924,7 +1910,7 @@ textarea {
   text-overflow: ellipsis;
 }
 .m-row-txt > span {
-  font-size: var(--text-xs);
+  font-size: var(--text-ui);
   color: var(--text-faint);
 }
 
@@ -2083,20 +2069,8 @@ textarea {
 
 /* Pill CTA variant of the floating button (mockup 5 "+ Eintrag"). */
 .m-fab-float--pill {
-  width: auto;
-  padding: 0 18px;
-  height: 44px;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: var(--text-sm);
   font-weight: 700;
-}
-.m-viewpill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 /* Shared document-header widget (stripe + icon): mobile styles — the classes
@@ -2137,21 +2111,10 @@ textarea {
 
 /* ===== Feedback round 3 ===== */
 
-/* List rows: touch-sized (56px, 1rem titles) — they read desktop-dense before. */
-.m-row {
-  min-height: 56px;
-  font-size: 1rem;
-  gap: 15px;
-}
+/* List rows: touch metrics live on the ONE .m-row definition above. */
 .m-row > svg:first-child {
   width: 20px;
   height: 20px;
-}
-.m-row-txt b {
-  font-size: 1rem;
-}
-.m-row-txt > span {
-  font-size: 0.8125rem;
 }
 
 /* Custom doc icons in rows: fixed slot — the first-span flex rule must never
@@ -2161,13 +2124,6 @@ textarea {
   width: 22px;
   display: grid;
   place-items: center;
-}
-
-/* Bookmark chips on Home: touch-sized. */
-.m-chippill {
-  height: 38px;
-  padding: 0 15px;
-  font-size: 0.875rem;
 }
 
 /* Sheet search fields span the sheet. */
@@ -2193,9 +2149,6 @@ textarea {
   background-clip: content-box;
   touch-action: none;
   cursor: grab;
-}
-.m-sheet {
-  transition: transform var(--dur-2) var(--ease-spatial);
 }
 
 /* ===== CodeMirror search panel — touch optics (C2 follow-up) =====

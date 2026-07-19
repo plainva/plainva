@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus, X } from "lucide-react";
-import {
-  Modal,
-  addTemplateForAssignment,
-  parseTemplateForTargets,
-  removeTemplateForAssignment,
-  templateMatchesBase,
-} from "@plainva/ui";
+import { addTemplateForAssignment, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { applyIndexChanges } from "../services/fileActions";
 
@@ -105,8 +99,8 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
             </span>
           )}
           {targets.map((target) => (
-            <span key={target} className="pv-chip pv-chip-link">
-              <Database size={11} aria-hidden="true" /> {target}
+            <span key={target} className="pv-chip pv-chip--removable pv-chip-link">
+              <Database size={ICON.meta} aria-hidden="true" /> {target}
               <button
                 type="button"
                 className="pv-chip-x"
@@ -115,13 +109,13 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
                   void remove(target);
                 }}
               >
-                <X size={12} />
+                <X size={ICON.meta} />
               </button>
             </span>
           ))}
         </div>
         <input
-          className="pv-input"
+          className="pv-field"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -139,9 +133,9 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
                 void add(b.path);
               }}
             >
-              <Plus size={13} style={{ flexShrink: 0 }} aria-hidden="true" />
+              <Plus size={ICON.ui} style={{ flexShrink: 0 }} aria-hidden="true" />
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.title}</span>
-              <span style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {b.path}
               </span>
             </button>

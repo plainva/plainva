@@ -250,12 +250,16 @@ class MermaidLiveWidget extends WidgetType {
       } else {
         el.textContent = "";
         const box = document.createElement("div");
-        box.style.cssText = "border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning-text);border-radius:var(--radius-sm);padding:0.5em 0.8em;font-size:0.85rem;";
+        box.style.cssText = "border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning-text);border-radius:var(--radius-sm);padding:0.5em 0.8em;font-size:0.85em;";
         const title = document.createElement("div");
         title.style.fontWeight = "600";
         title.textContent = this.texts.error;
         const pre = document.createElement("pre");
-        pre.style.cssText = "margin:0.3em 0 0;white-space:pre-wrap;font-size:0.8rem;";
+        // pre nests inside box, whose own font-size is already 0.85em — dividing
+        // by 0.85 cancels that scale so the traceback still renders at 0.8em of
+        // the WIDGET's base size (matching the two formerly-independent 0.85rem/
+        // 0.8rem literals) instead of compounding to 0.8 × 0.85 of it.
+        pre.style.cssText = "margin:0.3em 0 0;white-space:pre-wrap;font-size:calc(0.8em / 0.85);";
         pre.textContent = result.error;
         box.append(title, pre);
         el.appendChild(box);

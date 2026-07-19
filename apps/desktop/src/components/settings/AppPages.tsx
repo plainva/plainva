@@ -205,7 +205,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               onChange={(e) => p.onContentFont({ ...p.contentFont, size: Number(e.target.value) })}
               style={{ flex: 1 }}
             />
-            <span style={{ minWidth: "44px", textAlign: "right", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <span style={{ minWidth: "44px", textAlign: "right", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
               {p.contentFont.size} px
             </span>
           </div>
@@ -346,7 +346,7 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
           </Button>
         </SettingRow>
         <SettingRow label={t("settings.osKeychain")}>
-          <strong style={{ color: p.keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "0.9rem" }}>
+          <strong style={{ color: p.keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "var(--text-md)" }}>
             {p.keychainStatus === "checking" ? t("settings.keychainChecking") : p.keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}
           </strong>
         </SettingRow>

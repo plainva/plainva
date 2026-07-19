@@ -31,6 +31,11 @@
   --error-border: #f1c9c9;
   --error-text: #b42318;
 
+  /* Toggle-switch knob (Switch primitive). A token so themes can repaint it —
+     high-contrast dark pins it black (white knob on its white off-track was
+     invisible, design sweep 2026-07-19). */
+  --switch-knob: #ffffff;
+
   --wiki-link-color: var(--accent-color);
   /* Wiki link whose target note doesn't exist yet (muted; theme-aware via
      --text-muted, so every theme inherits a sensible value). */
@@ -76,6 +81,10 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 999px;
+  /* Bottom sheets (mobile): kept as its own role — sheets are anchored to the
+     screen edge and read rounder than centered dialogs (sweep 2026-07-19;
+     replaces mobile's private --m-radius-sheet). */
+  --radius-sheet: 28px;
 
   /* Font split: chrome (sidebars, buttons, titlebar) vs. document content
      (editor + read view). Both default to the same stack; display-heavy themes

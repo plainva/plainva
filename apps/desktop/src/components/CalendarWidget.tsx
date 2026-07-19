@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarCheck, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { MenuSurface, MenuItem, MenuLabel, buildMonthCells, isoWeeksForCells, startOfMonth, type WeekStartDay } from "@plainva/ui";
+import { buildMonthCells, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, type WeekStartDay } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../services/dailyNotePath";
 import { useVault } from "../contexts/VaultContext";
@@ -228,12 +228,12 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           setMenu({ dayKey, at: { x: e.clientX, y: e.clientY } });
         }}
         aria-current={isActive ? "date" : undefined}
-        title={new Intl.DateTimeFormat(lang, { dateStyle: "full" }).format(d)}
+        data-tip={new Intl.DateTimeFormat(lang, { dateStyle: "full" }).format(d)}
         data-testid={`sidecal-day-${dayKey}`}
         className="pv-rowhover"
         style={{
           position: "relative", aspectRatio: "1 / 1", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
-          fontSize: "0.8rem", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "var(--text-ui)", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
           background: isActive ? "var(--accent-color)" : undefined,
           color: isActive ? "var(--accent-on)" : outlined ? "var(--accent-color)" : inMonth ? "var(--text-main)" : "var(--text-faint)",
           fontWeight: isActive ? 700 : outlined ? 600 : 400,
@@ -249,7 +249,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
             }}
           >
-            {hasDaily && <Sun size={7} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
+            {hasDaily && <Sun size={ICON.meta} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
             {dotColors.map((c, i) => (
               <span key={i} style={{ width: "4px", height: "4px", borderRadius: "var(--radius-pill)", background: isActive ? "var(--accent-on)" : c }} />
             ))}
@@ -261,7 +261,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
 
   const weekCellStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: "0.6rem", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums",
+    fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums",
     paddingRight: "2px", borderRight: "1px solid var(--border-color-light)", marginRight: "2px",
   };
 
@@ -271,33 +271,33 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   return (
     <div style={{ position: "relative", padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
       <div ref={navRef} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
-        <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} title={t("calendar.prevMonth")}><ChevronLeft size={16} /></button>
+        <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} data-tip={t("calendar.prevMonth")}><ChevronLeft size={ICON.ui} /></button>
         <button
           onClick={togglePicker}
           data-testid="calendar-month-label"
           aria-expanded={pickerOpen}
-          title={t("calendar.selectMonthYear")}
-          style={{ background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, textTransform: "capitalize", flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
+          data-tip={t("calendar.selectMonthYear")}
+          style={{ background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "var(--text-md)", fontWeight: 600, textTransform: "capitalize", flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
         >
           <span style={{ minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{monthLabel}</span>
-          <ChevronDown size={12} style={{ flexShrink: 0, opacity: 0.6 }} aria-hidden="true" />
+          <ChevronDown size={ICON.meta} style={{ flexShrink: 0, opacity: 0.6 }} aria-hidden="true" />
         </button>
-        <button onClick={nextMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextMonth")} title={t("calendar.nextMonth")}><ChevronRight size={16} /></button>
-        <button onClick={goToday} data-testid="calendar-today" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.today")} title={t("calendar.today")}><CalendarCheck size={15} /></button>
+        <button onClick={nextMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextMonth")} data-tip={t("calendar.nextMonth")}><ChevronRight size={ICON.ui} /></button>
+        <button onClick={goToday} data-testid="calendar-today" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.today")} data-tip={t("calendar.today")}><CalendarCheck size={ICON.ui} /></button>
 
         {pickerOpen && (
           <div
             data-testid="calendar-month-picker"
             style={{
-              position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", zIndex: 30,
+              position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", zIndex: "var(--z-menu)",
               background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
               boxShadow: "var(--shadow-2)", padding: "0.5rem",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-              <button onClick={() => setPickerYear((y) => y - 1)} data-testid="calendar-picker-prev-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevYear")} title={t("calendar.prevYear")}><ChevronLeft size={14} /></button>
-              <span data-testid="calendar-picker-year" style={{ fontSize: "0.85rem", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pickerYear}</span>
-              <button onClick={() => setPickerYear((y) => y + 1)} data-testid="calendar-picker-next-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextYear")} title={t("calendar.nextYear")}><ChevronRight size={14} /></button>
+              <button onClick={() => setPickerYear((y) => y - 1)} data-testid="calendar-picker-prev-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevYear")} data-tip={t("calendar.prevYear")}><ChevronLeft size={ICON.ui} /></button>
+              <span data-testid="calendar-picker-year" style={{ fontSize: "var(--text-md)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pickerYear}</span>
+              <button onClick={() => setPickerYear((y) => y + 1)} data-testid="calendar-picker-next-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextYear")} data-tip={t("calendar.nextYear")}><ChevronRight size={ICON.ui} /></button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "2px" }}>
               {monthNames.map((m, i) => {
@@ -309,7 +309,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
                     onClick={() => { setViewDate(new Date(pickerYear, i, 1)); setPickerOpen(false); }}
                     className="pv-rowhover"
                     style={{
-                      padding: "0.35rem 0.2rem", fontSize: "0.75rem", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
+                      padding: "0.35rem 0.2rem", fontSize: "var(--text-sm)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
                       textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       background: isCurrent ? "var(--accent-color)" : undefined,
                       color: isCurrent ? "var(--accent-on)" : "var(--text-main)",
@@ -321,7 +321,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               })}
             </div>
             {weekStartDay === 1 && (
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", cursor: "pointer" }}>
                 <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
                 {t("calendar.showWeeks")}
               </label>
@@ -331,17 +331,17 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       </div>
       <div style={{ display: "grid", gridTemplateColumns: weekNumbers ? "auto repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))", gap: "1px" }}>
         {weekNumbers && (
-          <div style={{ ...weekCellStyle, fontSize: "0.65rem", textTransform: "uppercase", padding: "0.2rem 2px 0.2rem 0" }}>{t("calendar.weekShort")}</div>
+          <div style={{ ...weekCellStyle, fontSize: "var(--text-xs)", textTransform: "uppercase", padding: "0.2rem 2px 0.2rem 0" }}>{t("calendar.weekShort")}</div>
         )}
         {weekdays.map((w, i) => (
-          <div key={`wd-${i}`} style={{ textAlign: "center", fontSize: "0.65rem", color: "var(--text-faint)", padding: "0.2rem 0", textTransform: "uppercase", overflow: "hidden", whiteSpace: "nowrap" }}>{w}</div>
+          <div key={`wd-${i}`} style={{ textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "0.2rem 0", textTransform: "uppercase", overflow: "hidden", whiteSpace: "nowrap" }}>{w}</div>
         ))}
         {Array.from({ length: 6 }, (_, row) => {
           const rowCells = cells.slice(row * 7, row * 7 + 7);
           return (
             <React.Fragment key={`row-${row}`}>
               {weekNumbers && (
-                <div data-testid="calendar-week-number" title={`${t("calendar.weekShort")} ${weekNumbers[row]}`} style={weekCellStyle}>
+                <div data-testid="calendar-week-number" data-tip={`${t("calendar.weekShort")} ${weekNumbers[row]}`} style={weekCellStyle}>
                   {weekNumbers[row]}
                 </div>
               )}
@@ -358,7 +358,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
             {new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" }).format(dateOfKey(menu.dayKey))}
           </MenuLabel>
           <MenuItem
-            icon={<CalendarRange size={14} />}
+            icon={<CalendarRange size={ICON.ui} />}
             data-testid="sidecal-menu-open"
             onSelect={() => {
               const key = menu.dayKey;
@@ -369,7 +369,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
             {t("pim.openCalendar", { defaultValue: "Kalender öffnen" })}
           </MenuItem>
           <MenuItem
-            icon={<Sun size={14} />}
+            icon={<Sun size={ICON.ui} />}
             onSelect={() => {
               const d = dateOfKey(menu.dayKey);
               setMenu(null);

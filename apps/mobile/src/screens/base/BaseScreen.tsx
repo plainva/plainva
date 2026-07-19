@@ -797,7 +797,7 @@ export function BaseScreen({
   return (
     <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>
       {ptrIndicator}
-      <button className="m-fab-float m-fab-float--above-tabs m-fab-float--pill" onClick={newItem}>
+      <button className="pv-fab pv-fab--extended m-fab-float m-fab-float--above-tabs m-fab-float--pill" onClick={newItem}>
         <Plus size={18} /> {t("database.newItem", { defaultValue: "+" })}
       </button>
       <header className="m-header">

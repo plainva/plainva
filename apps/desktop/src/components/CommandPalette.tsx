@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFocusTrap } from "@plainva/ui";
+import { ICON, useFocusTrap } from "@plainva/ui";
 import { filterCommands, type AppCommand } from "../services/commandRegistry";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -46,7 +46,7 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
     <div ref={trapRef} className="pv-palette-overlay" onClick={onClose} data-testid="command-palette">
       <div className="pv-palette" role="dialog" aria-label={t("palette.title", { defaultValue: "Befehle" })} onClick={(e) => e.stopPropagation()}>
         <div className="pv-palette-inputrow">
-          <Search size={18} style={{ flexShrink: 0 }} />
+          <Search size={ICON.head} style={{ flexShrink: 0 }} />
           <input
             ref={inputRef}
             autoFocus

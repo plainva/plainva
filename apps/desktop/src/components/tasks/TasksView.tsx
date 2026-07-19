@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { toggleTaskAtIndex, setPendingSearchJump, noteDisplayName, IconButton, Button, Segmented, parseInlineMarkdown, type InlineNode, toast, MenuSurface, MenuItem, MenuLabel, parseBaseConfig } from "@plainva/ui";
+import { Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
@@ -462,8 +462,8 @@ export function TasksView({ onOpenPath }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
-        <strong style={{ fontSize: "1rem" }}>{t("tasks.title", { defaultValue: "Aufgaben" })}</strong>
-        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{filtered.length}</span>
+        <strong style={{ fontSize: "var(--text-lg)" }}>{t("tasks.title", { defaultValue: "Aufgaben" })}</strong>
+        <span style={{ color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{filtered.length}</span>
         <div style={{ flex: 1 }} />
         {templateNotePaths.length > 0 && (
           <Button variant="ghost" onClick={() => void hideAllTemplates()}>
@@ -471,7 +471,7 @@ export function TasksView({ onOpenPath }: Props) {
           </Button>
         )}
         <IconButton label={t("tasks.refresh", { defaultValue: "Aktualisieren" })} onClick={refreshAll}>
-          <RefreshCw size={15} />
+          <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
 
@@ -489,7 +489,7 @@ export function TasksView({ onOpenPath }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t("tasks.filterText", { defaultValue: "Aufgaben filtern…" })}
-          style={{ flex: "1 1 12rem", minWidth: "8rem", padding: "0.3rem 0.5rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)", fontSize: "0.85rem" }}
+          style={{ flex: "1 1 12rem", minWidth: "8rem", padding: "0.3rem 0.5rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-main)", fontSize: "var(--text-md)" }}
         />
         <select value={folder} onChange={(e) => setFolder(e.target.value)} style={selectStyle} aria-label={t("tasks.allFolders", { defaultValue: "Alle Ordner" })}>
           <option value="">{t("tasks.allFolders", { defaultValue: "Alle Ordner" })}</option>
@@ -503,11 +503,11 @@ export function TasksView({ onOpenPath }: Props) {
             <option key={g} value={g}>#{g}</option>
           ))}
         </select>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
           <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
           {t("tasks.dueOnly", { defaultValue: "Nur mit Fälligkeit" })}
         </label>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
           <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
           {t("tasks.showHidden", { defaultValue: "Ausgeblendete anzeigen" })}
         </label>
@@ -517,24 +517,24 @@ export function TasksView({ onOpenPath }: Props) {
         {taskDb && (
           <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.6rem", background: "var(--bg-secondary)", borderLeft: "3px solid var(--accent-color)" }}>
-              <Database size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-              <span style={{ fontWeight: 500, fontSize: "0.85rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <Database size={ICON.ui} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, fontSize: "var(--text-md)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {t("tasks.dbSection", { defaultValue: "Aufgaben-Datenbank" })}
               </span>
-              <span style={{ flexShrink: 0, fontSize: "0.72rem", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
+              <span style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
                 {filteredDbRows.length}
               </span>
               <button
                 type="button"
                 onClick={() => onOpenPath(taskDb, false)}
-                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "0.78rem", flexShrink: 0 }}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "var(--text-sm)", flexShrink: 0 }}
               >
-                <Table size={13} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
+                <Table size={ICON.ui} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
               </button>
             </div>
             <div style={{ padding: "0.25rem 0 0.35rem" }}>
               {filteredDbRows.length === 0 ? (
-                <div style={{ color: "var(--text-muted)", padding: "0.35rem 0.65rem", fontSize: "0.85rem" }}>
+                <div style={{ color: "var(--text-muted)", padding: "0.35rem 0.65rem", fontSize: "var(--text-md)" }}>
                   {t("tasks.dbEmpty", { defaultValue: "Noch keine Einträge" })}
                 </div>
               ) : (
@@ -548,17 +548,17 @@ export function TasksView({ onOpenPath }: Props) {
                       data-testid="task-db-toggle"
                       style={{ border: "none", background: "transparent", cursor: dbCompletion ? "pointer" : "default", padding: 0, marginTop: 2, color: r.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0, display: "inline-flex" }}
                     >
-                      {r.done ? <CheckSquare size={16} /> : <Square size={16} />}
+                      {r.done ? <CheckSquare size={ICON.ui} /> : <Square size={ICON.ui} />}
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenPath(r.path, false)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
                       {noteDisplayName(r.title)}
                       {r.due ? (
-                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={11} /> {r.due}
+                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          <CalendarClock size={ICON.meta} /> {r.due}
                         </span>
                       ) : null}
                     </button>
@@ -571,9 +571,9 @@ export function TasksView({ onOpenPath }: Props) {
                           if (dbStatusOptions) setDbStatusMenu({ path: r.path, at: { x: e.clientX, y: e.clientY } });
                         }}
                         aria-label={t("tasks.setStatus", { defaultValue: "Status ändern" })}
-                        title={t("tasks.setStatus", { defaultValue: "Status ändern" })}
+                        data-tip={t("tasks.setStatus", { defaultValue: "Status ändern" })}
                         data-testid="task-db-status-chip"
-                        style={{ border: "none", cursor: dbCompletion ? "pointer" : "default", flexShrink: 0, marginTop: 2, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
+                        style={{ border: "none", cursor: dbCompletion ? "pointer" : "default", flexShrink: 0, marginTop: 2, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
                       >
                         {r.status}
                       </button>
@@ -585,12 +585,12 @@ export function TasksView({ onOpenPath }: Props) {
           </div>
         )}
         {taskDb && (
-          <div style={{ margin: "0.2rem 0.9rem 0.4rem", fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
+          <div style={{ margin: "0.2rem 0.9rem 0.4rem", fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
             {t("tasks.notesSection", { defaultValue: "Aus Notizen" })}
           </div>
         )}
         {loading ? null : groups.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "0.9rem" }}>
+          <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "var(--text-md)" }}>
             {t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
           </div>
         ) : (
@@ -607,7 +607,7 @@ export function TasksView({ onOpenPath }: Props) {
             >
               <div
                 onClick={() => onOpenPath(path, false)}
-                title={path}
+                data-tip={path}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -618,15 +618,15 @@ export function TasksView({ onOpenPath }: Props) {
                   cursor: "pointer",
                 }}
               >
-                <FileText size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-                <span style={{ fontWeight: 500, fontSize: "0.85rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <FileText size={ICON.ui} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                <span style={{ fontWeight: 500, fontSize: "var(--text-md)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {noteDisplayName(group.title)}
                 </span>
                 <span
                   style={{
                     marginLeft: "auto",
                     flexShrink: 0,
-                    fontSize: "0.72rem",
+                    fontSize: "var(--text-sm)",
                     padding: "0.05rem 0.45rem",
                     borderRadius: "var(--radius-pill)",
                     background: "color-mix(in srgb, var(--accent-color) 16%, transparent)",
@@ -642,10 +642,10 @@ export function TasksView({ onOpenPath }: Props) {
                     void setNoteExcluded(path, !group.excluded);
                   }}
                   aria-label={group.excluded ? t("tasks.showInView", { defaultValue: "Wieder in Aufgaben einblenden" }) : t("tasks.hideFromView", { defaultValue: "Aus Aufgaben ausblenden" })}
-                  title={group.excluded ? t("tasks.showInView", { defaultValue: "Wieder in Aufgaben einblenden" }) : t("tasks.hideFromView", { defaultValue: "Aus Aufgaben ausblenden" })}
+                  data-tip={group.excluded ? t("tasks.showInView", { defaultValue: "Wieder in Aufgaben einblenden" }) : t("tasks.hideFromView", { defaultValue: "Aus Aufgaben ausblenden" })}
                   style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
                 >
-                  {group.excluded ? <Eye size={14} /> : <EyeOff size={14} />}
+                  {group.excluded ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
                 </button>
               </div>
               <div style={{ padding: "0.25rem 0 0.35rem" }}>
@@ -657,21 +657,21 @@ export function TasksView({ onOpenPath }: Props) {
                       aria-label={task.done ? t("tasks.done", { defaultValue: "Erledigt" }) : t("tasks.open", { defaultValue: "Offen" })}
                       style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: task.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0 }}
                     >
-                      {task.done ? <CheckSquare size={16} /> : <Square size={16} />}
+                      {task.done ? <CheckSquare size={ICON.ui} /> : <Square size={ICON.ui} />}
                     </button>
                     <button
                       type="button"
                       onClick={() => open(task)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "0.9rem", lineHeight: 1.4 }}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: task.done ? "line-through" : "none", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
                       {renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}
                       {task.due ? (
-                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={11} /> {task.due}
+                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                          <CalendarClock size={ICON.meta} /> {task.due}
                         </span>
                       ) : null}
                       {task.tags.map((g) => (
-                        <span key={g} style={{ marginLeft: 6, display: "inline-block", fontSize: "0.72rem", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                        <span key={g} style={{ marginLeft: 6, display: "inline-block", fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
                           #{g}
                         </span>
                       ))}
@@ -689,11 +689,11 @@ export function TasksView({ onOpenPath }: Props) {
                         void openPromoteMenu(task, { x: e.clientX, y: e.clientY });
                       }}
                       aria-label={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
-                      title={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
+                      data-tip={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
                       data-testid="task-promote"
                       style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
                     >
-                      <Database size={14} />
+                      <Database size={ICON.ui} />
                     </button>
                   </div>
                 ))}
@@ -749,6 +749,6 @@ const selectStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
   color: "var(--text-main)",
-  fontSize: "0.85rem",
+  fontSize: "var(--text-md)",
   maxWidth: "10rem",
 };

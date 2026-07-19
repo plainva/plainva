@@ -5,6 +5,7 @@ import { Hash, ChevronRight, ChevronDown, FileText } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
 import { renameTagInText, isValidTagName } from "@plainva/core";
 import { appPrompt, appMessage } from "../services/appDialogs";
+import { ICON } from "@plainva/ui";
 
 interface TagTreeProps {
   onSelectPath: (path: string, newTab?: boolean) => void;
@@ -160,7 +161,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
           }}
           onClick={() => setSelectedTag(node.fullTag)}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); void handleRenameTag(node.fullTag); }}
-          title={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
+          data-tip={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
         >
           <div
             style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -172,11 +173,11 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
             }}
           >
             {hasChildren ? (
-              isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-            ) : <Hash size={12} />}
+              isExpanded ? <ChevronDown size={ICON.ui} /> : <ChevronRight size={ICON.ui} />
+            ) : <Hash size={ICON.meta} />}
           </div>
-          <span style={{ marginLeft: '4px', fontSize: '0.85rem' }}>{node.name}</span>
-          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>
+          <span style={{ marginLeft: '4px', fontSize: 'var(--text-ui)' }}>{node.name}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', opacity: 0.7 }}>
             {node.count}
           </span>
         </div>
@@ -193,11 +194,11 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflowY: 'auto', borderBottom: selectedTag ? '1px solid var(--border-color)' : 'none' }}>
         {Object.keys(tagTree).length === 0 ? (
-          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center' }}>
             {t("sidebar.noTags", "No tags found.")}
           </div>
         ) : Object.keys(visibleTree).length === 0 ? (
-          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center' }}>
             {t("sidebar.noResults")}
           </div>
         ) : (
@@ -209,12 +210,12 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
       
       {selectedTag && (
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '8px 12px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color-light)' }}>
+          <div style={{ padding: '8px 12px', fontSize: 'var(--text-ui)', fontWeight: 600, color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color-light)' }}>
             {t("sidebar.filesWithTag", "Files with #{{tag}}", { tag: selectedTag })}
           </div>
           <div style={{ padding: '0.5rem' }}>
             {filesForTag.length === 0 ? (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t("sidebar.noFiles", "No files.")}</div>
+              <div style={{ fontSize: 'var(--text-ui)', color: 'var(--text-muted)' }}>{t("sidebar.noFiles", "No files.")}</div>
             ) : (
               filesForTag.map(file => (
                 <div
@@ -230,8 +231,8 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
                     borderRadius: "var(--radius-xs)"
                   }}
                 >
-                  <FileText size={14} color="var(--accent-color)" />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <FileText size={ICON.ui} color="var(--accent-color)" />
+                  <span style={{ fontSize: 'var(--text-ui)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {file.title || file.path.split(/[/\\]/).pop()}
                   </span>
                 </div>

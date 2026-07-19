@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Cloud, Folder, Keyboard, Settings2 } from "lucide-react";
-import { settingsAreas, type SettingsWorld } from "@plainva/ui";
+import { ICON, settingsAreas, type SettingsWorld } from "@plainva/ui";
 
 /**
  * Left settings rail (redesign 2026-07-18, P2 — variant "quiet cards").
@@ -46,7 +46,7 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
 
   const groupLabel: React.CSSProperties = {
     padding: "0 0.4rem 0.25rem",
-    fontSize: "0.75rem",
+    fontSize: "var(--text-sm)",
     color: "var(--text-muted)",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
@@ -65,7 +65,7 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
           onClick={() => onOpenArea(areaWorld, a.id)}
           className={active ? "pv-navlink is-active" : "pv-navlink"}
         >
-          <Icon size={15} aria-hidden />
+          <Icon size={ICON.ui} aria-hidden />
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t(a.labelKey)}
           </span>
@@ -89,7 +89,7 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
       }}
     >
       <div style={groupLabel}>
-        <Settings2 size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+        <Settings2 size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
         {t("settings.sectionApp", { defaultValue: "App" })}
       </div>
       {renderArea("app")}
@@ -97,19 +97,19 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
       {vaultName && (
         <>
           <div style={{ ...groupLabel, marginTop: "1rem" }}>
-            <Folder size={13} color="var(--accent-color)" style={{ flexShrink: 0 }} />
+            <Folder size={ICON.ui} color="var(--accent-color)" style={{ flexShrink: 0 }} />
             {t("settings.sectionVault", { defaultValue: "Vault" })}
           </div>
-          <div className="pv-vaultcard" title={vaultPath ?? undefined}>
+          <div className="pv-vaultcard" data-tip={vaultPath ?? undefined}>
             <div className="pv-vaultcard-top">
-              <Folder size={15} className="pv-vaultcard-icon" aria-hidden />
+              <Folder size={ICON.ui} className="pv-vaultcard-icon" aria-hidden />
               <span className="pv-vaultcard-name" data-testid="settings-vault-name">{vaultName}</span>
-              {vaultHasSync && <Cloud size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden />}
-              {vaultIsActive && <span className="pv-vaultcard-dot" title={t("settings.activeVault")} />}
+              {vaultHasSync && <Cloud size={ICON.ui} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden />}
+              {vaultIsActive && <span className="pv-vaultcard-dot" data-tip={t("settings.activeVault")} />}
             </div>
             {canSwitchVault && (
               <button type="button" className="pv-vaultcard-switch" onClick={onSwitchVault}>
-                <ArrowLeftRight size={13} aria-hidden />
+                <ArrowLeftRight size={ICON.ui} aria-hidden />
                 {t("settings.switchVault", { defaultValue: "Wechseln" })}
               </button>
             )}
@@ -122,11 +122,11 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
         <button
           onClick={onShowShortcuts}
           className="pv-navlink"
-          style={{ color: "var(--text-muted)", fontSize: "0.8rem", padding: "0.4rem" }}
+          style={{ color: "var(--text-muted)", fontSize: "var(--text-ui)", padding: "0.4rem" }}
         >
-          <Keyboard size={15} style={{ flexShrink: 0 }} />
+          <Keyboard size={ICON.ui} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1, textAlign: "left" }}>{t("settings.showShortcuts")}</span>
-          <kbd style={{ fontSize: "0.7rem", fontFamily: "monospace", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", padding: "0 4px", color: "var(--text-faint)", flexShrink: 0 }}>F1</kbd>
+          <kbd style={{ fontSize: "var(--text-xs)", fontFamily: "monospace", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs)", padding: "0 4px", color: "var(--text-faint)", flexShrink: 0 }}>F1</kbd>
         </button>
       </div>
     </div>

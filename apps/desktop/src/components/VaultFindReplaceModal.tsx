@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search as SearchIcon } from "lucide-react";
 import { replaceAllInText, type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
-import { Modal, Button } from "@plainva/ui";
+import { Button, ICON, Modal } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 
 /**
@@ -76,7 +76,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
   const toggleOpt = (key: keyof FindReplaceOptions) => setOpts((o) => ({ ...o, [key]: !o[key] }));
 
   const optChip = (key: keyof FindReplaceOptions, label: string) => (
-    <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer" }}>
+    <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
       <input type="checkbox" checked={!!opts[key]} onChange={() => toggleOpt(key)} />
       {label}
     </label>
@@ -89,7 +89,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
       title={t("findReplace.title", { defaultValue: "Im Vault suchen & ersetzen" })}
       footer={
         <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", flex: 1 }}>{status}</span>
+          <span style={{ color: "var(--text-muted)", fontSize: "var(--text-md)", flex: 1 }}>{status}</span>
           <Button variant="ghost" onClick={onClose}>
             {t("common.close", { defaultValue: "Schließen" })}
           </Button>
@@ -110,7 +110,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
             style={inputStyle}
           />
           <Button variant="secondary" disabled={busy || !find} onClick={runFind}>
-            <SearchIcon size={14} /> {t("search.find", { defaultValue: "Suchen" })}
+            <SearchIcon size={ICON.ui} /> {t("search.find", { defaultValue: "Suchen" })}
           </Button>
         </div>
         <input
@@ -135,7 +135,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
           }}
         >
           {results === null ? null : results.length === 0 ? (
-            <div style={{ color: "var(--text-muted)", padding: "1.2rem", textAlign: "center", fontSize: "0.9rem" }}>
+            <div style={{ color: "var(--text-muted)", padding: "1.2rem", textAlign: "center", fontSize: "var(--text-md)" }}>
               {t("findReplace.noMatches", { defaultValue: "Keine Treffer" })}
             </div>
           ) : (
@@ -146,16 +146,16 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
                   <button
                     type="button"
                     onClick={() => onOpenPath(r.path)}
-                    title={r.path}
+                    data-tip={r.path}
                     style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-main)", fontWeight: 500, padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                   >
                     {r.title}
                   </button>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>×{r.matchCount}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "var(--text-ui)" }}>×{r.matchCount}</span>
                 </div>
                 <div style={{ paddingLeft: 22 }}>
                   {r.matches.slice(0, 3).map((mt, i) => (
-                    <div key={i} style={{ fontSize: "0.78rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-content)" }}>
+                    <div key={i} style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-content)" }}>
                       <span style={{ opacity: 0.6 }}>{r.matches[i].line}: </span>
                       {mt.lineText.trim()}
                     </div>
@@ -178,5 +178,5 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid var(--border-color)",
   background: "var(--bg-primary)",
   color: "var(--text-main)",
-  fontSize: "0.9rem",
+  fontSize: "var(--text-md)",
 };
