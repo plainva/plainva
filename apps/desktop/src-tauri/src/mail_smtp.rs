@@ -146,6 +146,7 @@ fn build_invite_mime(
     cc: &str,
     subject: &str,
     text: &str,
+    html: Option<&str>,
     ics: &str,
     method: &str,
     attachments: &[MailAttachment],
@@ -155,13 +156,15 @@ fn build_invite_mime(
             .attribute("method", method.to_string())
             .attribute("charset", "utf-8")
     };
-    let alternative = MimePart::new(
-        "multipart/alternative",
-        vec![
-            MimePart::new("text/plain", text.to_string()),
-            MimePart::new(cal_ct(), ics.to_string()),
-        ],
-    );
+    // Order: text/plain, text/html (when present), then the text/calendar invite
+    // LAST (as Google Calendar sends it) so clients render the RSVP card while
+    // still offering a formatted message body.
+    let mut alt_parts = vec![MimePart::new("text/plain", text.to_string())];
+    if let Some(h) = html {
+        alt_parts.push(MimePart::new("text/html", h.to_string()));
+    }
+    alt_parts.push(MimePart::new(cal_ct(), ics.to_string()));
+    let alternative = MimePart::new("multipart/alternative", alt_parts);
     let mut parts = vec![
         alternative,
         MimePart::new(cal_ct(), ics.to_string()).attachment("invite.ics"),
@@ -272,7 +275,7 @@ pub async fn mail_send(
         let atts = attachments.as_deref().unwrap_or(&[]);
         let mime = if let Some(ics) = calendar.as_deref() {
             let method = calendar_method.as_deref().unwrap_or("REQUEST");
-            build_invite_mime(&from, &to, &cc_str, &subject, &text, ics, method, atts)?
+            build_invite_mime(&from, &to, &cc_str, &subject, &text, html.as_deref(), ics, method, atts)?
         } else {
             build_send_mime(&from, &to, &cc_str, &subject, &text, html.as_deref(), atts)?
         };
@@ -385,6 +388,7 @@ mod tests {
             "",
             "Invitation: Standup",
             "Please join.",
+            Some("<p>Please join.</p>"),
             ics,
             "REQUEST",
             &[],
@@ -395,6 +399,7 @@ mod tests {
         // Inline calendar alternative (how Gmail recognises an event invite).
         assert!(s.contains("multipart/alternative"));
         assert!(s.contains("text/calendar"));
+        assert!(s.contains("text/html")); // formatted body alternative rides along
         assert!(s.contains("method=request"));
         assert!(s.contains("multipart/mixed")); // + the .ics attachment copy
         assert!(s.contains("begin:vcalendar"));

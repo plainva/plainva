@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, ListChecks, MapP
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
-import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -773,7 +773,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
           return;
         }
-        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
+        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now(), descriptionHtml: e.description ? markdownToHtml(e.description) : undefined });
         const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
         const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
         // Recipients = the event's invitees (the plain attendee list); the

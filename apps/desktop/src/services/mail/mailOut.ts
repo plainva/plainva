@@ -267,10 +267,14 @@ export async function sendMail(
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
   if (mailAccountKind(account) === "microsoft") {
-    // Microsoft Graph sends directly (no SMTP) via /me/sendMail. Outlook/Graph
-    // renders the .ics attachment as an invite, so the calendar rides along as
-    // an attachment there.
-    await graphSendMail(vaultPath, account, to, subject, html, attachments, cc, bcc);
+    // Microsoft Graph sends directly (no SMTP) via /me/sendMail. The compose flow
+    // lifts the invite OUT of `attachments` into `calendar`; re-attach it as a
+    // text/calendar file attachment so Outlook renders it as an invite (Graph has
+    // no inline-iMIP concept). Without this the invitation was silently dropped.
+    const msAttachments = calendar
+      ? [...attachments, { name: "invite.ics", mime: `text/calendar; method=${calendar.method ?? "REQUEST"}`, contentBase64: utf8ToBase64(calendar.ics) }]
+      : attachments;
+    await graphSendMail(vaultPath, account, to, subject, html, msAttachments, cc, bcc);
     return;
   }
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
