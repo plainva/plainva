@@ -45,9 +45,9 @@ Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto
 
 ## Eine Notiz ohne den Mail-Client weitergeben
 
-Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz und braucht kein SMTP:
+Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz und braucht kein SMTP; das YAML-Frontmatter der Notiz wird dabei nie mitgeschickt — nur ihr Text:
 
-- **Antwort als Notiz** (an einer Nachricht): erstellt eine Notiz an den Absender (`to:` im Frontmatter) mit dem zitierten Original — schreib Deine Antwort in Plainva.
+- **Antwort als Notiz** (an einer Nachricht): erstellt eine Notiz an den Absender (`to:` im Frontmatter) mit dem zitierten Original — schreib Deine Antwort in Plainva. Versendest Du diese Notiz später (oder legst sie als Entwurf ab), wird die `to:`-Adresse automatisch ins **An**-Feld übernommen.
 - **Notiz als E-Mail-Entwurf ins Postfach** (Befehlspalette, an jeder offenen Notiz): legt die Notiz per IMAP als **Entwurf in Dein eigenes Postfach** — Konto, Empfänger und Entwurfsordner wählen, dann im normalen Mail-Programm öffnen, prüfen und von dort senden. Die Formatierung bleibt erhalten.
 - **Notiz per E-Mail senden (mailto)** (Befehlspalette): öffnet Dein Standard-Mail-Programm mit der Notiz als reinem Text (lange Notizen werden gekürzt).
 - **Notiz als E-Mail-Text kopieren** (Befehlspalette): legt die Notiz mit Formatierung in die Zwischenablage — in jeden Editor einfügbar.
