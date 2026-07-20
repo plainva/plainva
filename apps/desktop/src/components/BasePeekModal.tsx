@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Maximize2, PanelRight, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Columns2, Maximize2, PanelRight, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
 import { FloatingWindow, ICON, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
@@ -107,6 +107,17 @@ export function BasePeekModal({
           </div>
           <span className="pv-peek-title" data-tip={current}>{title}</span>
           <div className="pv-peek-actions">
+            {onOpenSplit && (
+              <button
+                type="button"
+                className="pv-peek-btn"
+                onClick={() => onOpenSplit(current)}
+                aria-label={t("database.openInSplit", "Im Split öffnen")}
+                data-tip={t("database.openInSplit", "Im Split öffnen")}
+              >
+                <Columns2 size={ICON.ui} />
+              </button>
+            )}
             {!isBase && (
               <button
                 type="button"
@@ -115,17 +126,6 @@ export function BasePeekModal({
                 aria-pressed={showProps}
                 aria-label={propsLabel}
                 data-tip={propsLabel}
-              >
-                <SlidersHorizontal size={ICON.ui} />
-              </button>
-            )}
-            {onOpenSplit && (
-              <button
-                type="button"
-                className="pv-peek-btn"
-                onClick={() => onOpenSplit(current)}
-                aria-label={t("database.openInSplit", "Im Split öffnen")}
-                data-tip={t("database.openInSplit", "Im Split öffnen")}
               >
                 <PanelRight size={ICON.ui} />
               </button>

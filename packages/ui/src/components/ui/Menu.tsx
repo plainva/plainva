@@ -88,6 +88,14 @@ export function MenuSurface({
   useEffect(() => {
     if (!open) return;
     const close = () => onClose();
+    // The menu's own scroll (max-height + overflow-y:auto) must NOT close it —
+    // only page/anchor scroll dismisses. scroll doesn't bubble, but a capturing
+    // window listener also receives the menu's own descendant scroll, which used
+    // to close it on the first wheel delta (making a scrollable menu unusable).
+    const onScroll = (e: Event) => {
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
+      onClose();
+    };
     const onDown = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) return;
       if (anchorRef?.current?.contains(e.target as Node)) return;
@@ -103,13 +111,13 @@ export function MenuSurface({
     const onCtx = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) e.preventDefault();
     };
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", close);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     document.addEventListener("contextmenu", onCtx);
     return () => {
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);

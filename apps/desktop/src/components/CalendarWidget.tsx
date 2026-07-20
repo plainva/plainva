@@ -244,6 +244,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
         {(hasDaily || dotColors.length > 0) && (
           <span
             aria-hidden="true"
+            className="pv-cal-dots"
             style={{
               position: "absolute", bottom: "1px", left: "50%", transform: "translateX(-50%)",
               display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
@@ -329,7 +330,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           </div>
         )}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: weekNumbers ? "auto repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))", gap: "1px" }}>
+      {/* container-type scopes the day-dot container query to the grid only —
+          never the widget root, whose fixed context menu must not be clipped. */}
+      <div style={{ display: "grid", gridTemplateColumns: weekNumbers ? "auto repeat(7, minmax(0, 1fr))" : "repeat(7, minmax(0, 1fr))", gap: "1px", containerType: "inline-size", containerName: "cal-grid" }}>
         {weekNumbers && (
           <div style={{ ...weekCellStyle, fontSize: "var(--text-xs)", textTransform: "uppercase", padding: "0.2rem 2px 0.2rem 0" }}>{t("calendar.weekShort")}</div>
         )}
