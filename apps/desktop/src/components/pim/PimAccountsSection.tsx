@@ -1,51 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RefreshCw, Trash2 } from "lucide-react";
-import { Button, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
+import { RefreshCw } from "lucide-react";
+import { Button, ICON } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { appConfirm } from "../../services/appDialogs";
 import { Select } from "../Select";
-import {
-  connectCalDavAccount,
-  connectGoogleAccount,
-  connectMicrosoftAccount,
-  removePimAccount,
-  setPimAccountEnabled,
-} from "../../services/pim/pimAccounts";
+import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
 
 /**
- * Settings section "Kalender & Konten" (PIM stage 2b): manage the vault's
- * calendar/task accounts. Connect validates by actually listing calendars —
- * nothing persists on failure. Only rendered for the OPEN vault (the runtime
- * is bound to its index DB).
+ * Settings section "Kalender" (cloud-accounts split): per-account calendar and
+ * task-list SELECTION plus the calendar behavior settings. Connecting and
+ * removing accounts lives in the Cloud-Konten area (the connect wizard).
+ * Only rendered for the OPEN vault (the runtime is bound to its index DB).
  */
 
-type AddProvider = "caldav" | "google" | "microsoft";
-
-export function PimAccountsSection() {
+export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: () => void }) {
   const { t } = useTranslation();
   const { pimRuntime, vaultPath } = useVault();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<Array<PimCalendar & { accountId: string; selected: boolean }>>([]);
   const [taskLists, setTaskLists] = useState<Array<PimTaskList & { accountId: string; selected: boolean }>>([]);
   const [tick, setTick] = useState(0);
-
-  const [showAdd, setShowAdd] = useState(false);
-  const [provider, setProvider] = useState<AddProvider>("google");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [davUrl, setDavUrl] = useState("");
-  const [davUser, setDavUser] = useState("");
-  const [davPass, setDavPass] = useState("");
-  const [gClientId, setGClientId] = useState("");
-  const [gClientSecret, setGClientSecret] = useState("");
-  // Microsoft uses the shipped central client id; the field stays EMPTY and
-  // hidden (never expose our app id), with an opt-in to bring your own — same
-  // as the OneDrive sync BYO flow.
-  const [msClientId, setMsClientId] = useState("");
-  const [msShowId, setMsShowId] = useState(false);
   const [meetingFolder, setMeetingFolder] = useState("");
 
   // Meetings folder ("Termin → Meeting-Notiz" target, stage 2c). Loaded once,
@@ -138,49 +114,6 @@ export function PimAccountsSection() {
     return () => window.removeEventListener("plainva-pim-changed", onChanged);
   }, []);
 
-  const connect = useCallback(async () => {
-    if (!pimRuntime || !vaultPath || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      if (provider === "caldav") {
-        if (!davUrl.trim() || !davUser.trim() || !davPass) throw new Error(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
-        await connectCalDavAccount(pimRuntime, vaultPath, { url: davUrl.trim(), user: davUser.trim(), pass: davPass });
-      } else if (provider === "google") {
-        if (!gClientId.trim()) throw new Error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
-        await connectGoogleAccount(pimRuntime, vaultPath, { clientId: gClientId.trim(), clientSecret: gClientSecret.trim() });
-      } else {
-        const clientId = (msClientId || PLAINVA_ONEDRIVE_CLIENT_ID).trim();
-        if (!clientId) throw new Error(t("pim.fillAllFields", { defaultValue: "Bitte alle Felder ausfüllen." }));
-        await connectMicrosoftAccount(pimRuntime, vaultPath, { clientId });
-      }
-      pimRuntime.worker.start();
-      setShowAdd(false);
-      setDavPass("");
-      setTick((x) => x + 1);
-      toast.info(t("pim.connected", { defaultValue: "Konto verbunden." }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [pimRuntime, vaultPath, busy, provider, davUrl, davUser, davPass, gClientId, gClientSecret, msClientId, t]);
-
-  const remove = useCallback(
-    async (account: PimAccountRow) => {
-      if (!pimRuntime || !vaultPath) return;
-      const ok = await appConfirm({
-        title: t("pim.removeAccount", { defaultValue: "Konto entfernen" }),
-        message: t("pim.removeAccountMsg", { defaultValue: "„{{label}}“ wird aus diesem Vault entfernt. Beim Anbieter wird nichts gelöscht.", label: account.label }),
-        kind: "danger",
-      });
-      if (!ok) return;
-      await removePimAccount(pimRuntime, vaultPath, account.id);
-      setTick((x) => x + 1);
-    },
-    [pimRuntime, vaultPath, t]
-  );
-
   if (!pimRuntime) {
     return <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</p>;
   }
@@ -191,9 +124,16 @@ export function PimAccountsSection() {
   return (
     <div data-testid="pim-accounts">
       {accounts.length === 0 && (
-        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)", margin: "0.25rem 0 0.75rem" }}>
-          {t("pim.noAccounts", { defaultValue: "Noch keine Kalender-Konten verbunden." })}
-        </p>
+        <div style={{ margin: "0.25rem 0 0.75rem" }}>
+          <p style={{ color: "var(--text-muted)", fontSize: "var(--text-md)", margin: "0 0 0.5rem" }}>
+            {t("pim.noAccounts", { defaultValue: "Noch keine Kalender-Konten verbunden." })}
+          </p>
+          {onOpenCloudAccounts && (
+            <Button variant="primary" onClick={onOpenCloudAccounts} data-testid="pim-open-cloudaccounts">
+              {t("cloudAccounts.openArea")}
+            </Button>
+          )}
+        </div>
       )}
 
       {accounts.map((account) => {
@@ -217,9 +157,11 @@ export function PimAccountsSection() {
                 />
                 {t("pim.accountEnabled", { defaultValue: "Aktiv" })}
               </label>
-              <IconButton label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })} onClick={() => void remove(account)}>
-                <Trash2 size={ICON.ui} />
-              </IconButton>
+              {onOpenCloudAccounts && (
+                <Button variant="ghost" size="sm" onClick={onOpenCloudAccounts}>
+                  {t("cloudAccounts.manageAccount")}
+                </Button>
+              )}
             </div>
 
             {accCals.length > 0 && (
@@ -272,71 +214,11 @@ export function PimAccountsSection() {
         );
       })}
 
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
-        <Button variant="secondary" data-testid="pim-add-account" onClick={() => setShowAdd((v) => !v)}>
-          {t("pim.addAccount", { defaultValue: "Konto hinzufügen…" })}
-        </Button>
-        {accounts.length > 0 && (
+      {accounts.length > 0 && (
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
           <Button variant="ghost" onClick={() => void pimRuntime.worker.triggerImmediate()}>
             <RefreshCw size={ICON.ui} style={{ marginRight: 4, verticalAlign: "-2px" }} />
             {t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })}
-          </Button>
-        )}
-      </div>
-
-      {showAdd && (
-        <div data-testid="pim-add-form" style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem" }}>
-          <div style={{ marginBottom: "0.5rem", maxWidth: "16rem" }}>
-            <Select
-              ariaLabel={t("pim.provider", { defaultValue: "Anbieter" })}
-              value={provider}
-              onChange={(v) => {
-                setProvider(v as AddProvider);
-                setError(null);
-              }}
-              options={[
-                { value: "google", label: "Google" },
-                { value: "microsoft", label: "Microsoft" },
-                { value: "caldav", label: "CalDAV (Nextcloud, Fastmail …)" },
-              ]}
-            />
-          </div>
-
-          {provider === "caldav" && (
-            <>
-              <input autoComplete="off" value={davUrl} onChange={(e) => setDavUrl(e.target.value)} placeholder="https://cloud.example.org/remote.php/dav" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-              <input autoComplete="off" value={davUser} onChange={(e) => setDavUser(e.target.value)} placeholder={t("pim.davUser", { defaultValue: "Benutzername" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-              <input autoComplete="off" type="password" value={davPass} onChange={(e) => setDavPass(e.target.value)} placeholder={t("pim.davPass", { defaultValue: "App-Passwort" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-            </>
-          )}
-          {provider === "google" && (
-            <>
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
-                {t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}
-              </p>
-              <input autoComplete="off" value={gClientId} onChange={(e) => setGClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-              <input autoComplete="off" type="password" value={gClientSecret} onChange={(e) => setGClientSecret(e.target.value)} placeholder={t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })} className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-            </>
-          )}
-          {provider === "microsoft" && (
-            <>
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0 0 0.4rem" }}>
-                {t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}
-              </p>
-              {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
-                <input autoComplete="off" value={msClientId} onChange={(e) => setMsClientId(e.target.value)} placeholder="Client-ID" className="pv-field" style={{ width: "100%", marginBottom: "0.4rem" }} />
-              ) : (
-                <button type="button" onClick={() => setMsShowId(true)} className="pv-linkbtn" style={{ padding: 0, marginBottom: "0.4rem" }}>
-                  {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
-                </button>
-              )}
-            </>
-          )}
-
-          {error && <p style={{ color: "var(--error-text)", fontSize: "var(--text-ui)", margin: "0.2rem 0" }}>{error}</p>}
-
-          <Button variant="primary" data-testid="pim-connect" disabled={busy} onClick={() => void connect()}>
-            {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("pim.connect", { defaultValue: "Verbinden" })}
           </Button>
         </div>
       )}

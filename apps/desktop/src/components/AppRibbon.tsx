@@ -18,8 +18,9 @@ export interface AppRibbonProps {
   onDailyNote: () => void;
   onOpenGraph: () => void;
   onOpenTasks: () => void;
-  onOpenCalendar: () => void;
-  onOpenMail: () => void;
+  /** Absent while no cloud account carries the service (gating, mockup 6). */
+  onOpenCalendar?: () => void;
+  onOpenMail?: () => void;
   onCommandPalette: () => void;
   onShortcuts: () => void;
   onSettings: () => void;
@@ -41,8 +42,12 @@ export function AppRibbon(props: AppRibbonProps) {
     { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
     { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },
     { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
-    { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" },
-    { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" },
+    ...(props.onOpenCalendar
+      ? [{ key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" }]
+      : []),
+    ...(props.onOpenMail
+      ? [{ key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" }]
+      : []),
     { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
   ];
   const bottom: RibbonAction[] = [

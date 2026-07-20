@@ -481,19 +481,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     return (
       <div data-testid="mail-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
         <EmptyState
+          title={t("cloudAccounts.noServiceMailTitle")}
           icon={<Mail size={ICON.empty} />}
-          data-tip={t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" })}
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "pim" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
               data-testid="mail-open-settings"
             >
-              {t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" })}
+              {t("cloudAccounts.openArea")}
             </Button>
           }
         >
-          {t("mail.emptyHint", { defaultValue: "Verbinde in den Einstellungen unter „Kalender & Konten“ ein IMAP-Konto (nur Lesen)." })}
+          {t("cloudAccounts.noServiceMailBody")}
         </EmptyState>
       </div>
     );

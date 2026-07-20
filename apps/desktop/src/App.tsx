@@ -69,7 +69,38 @@ import "./App.css";
 function App() {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService } = useVault();
+  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime } = useVault();
+
+  // Ribbon gating (cloud-accounts split, mockup screen 6): the calendar/mail
+  // actions exist only while an account carries the service. The registry is
+  // reconciled here on vault boot, so migrated setups gate correctly without
+  // ever opening the new settings area.
+  const [cloudServices, setCloudServices] = useState<{ calendar: boolean; mail: boolean }>({ calendar: false, mail: false });
+  useEffect(() => {
+    if (!vaultPath) {
+      setCloudServices({ calendar: false, mail: false });
+      return;
+    }
+    let alive = true;
+    const refresh = () => {
+      void import("./services/cloudAccounts")
+        .then((m) => m.refreshCloudAccounts(vaultPath, pimRuntime ?? null))
+        .then(async (records) => {
+          if (!alive) return;
+          const { hasCloudService } = await import("@plainva/ui");
+          setCloudServices({ calendar: hasCloudService(records, "calendar"), mail: hasCloudService(records, "mail") });
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    window.addEventListener("plainva-cloud-accounts-changed", refresh);
+    window.addEventListener("plainva-credentials-saved", refresh);
+    return () => {
+      alive = false;
+      window.removeEventListener("plainva-cloud-accounts-changed", refresh);
+      window.removeEventListener("plainva-credentials-saved", refresh);
+    };
+  }, [vaultPath, pimRuntime]);
   // Sync status is NOT read here (2026-07-06 fix): the worker flips
   // idle→syncing→idle every 15 s poll, and a real network cycle (Dropbox/…)
   // outlasts the anti-flicker delay, so the display value genuinely changes
@@ -962,8 +993,8 @@ function App() {
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
         onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}
         onOpenTasks={() => focusOrOpenVirtual(TASKS_TAB_PATH)}
-        onOpenCalendar={() => focusOrOpenVirtual(CALENDAR_TAB_PATH)}
-        onOpenMail={() => focusOrOpenVirtual(MAIL_TAB_PATH)}
+        onOpenCalendar={cloudServices.calendar ? () => focusOrOpenVirtual(CALENDAR_TAB_PATH) : undefined}
+        onOpenMail={cloudServices.mail ? () => focusOrOpenVirtual(MAIL_TAB_PATH) : undefined}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}

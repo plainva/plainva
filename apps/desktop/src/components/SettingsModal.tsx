@@ -19,13 +19,10 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { runDriveAuthorization } from "../services/driveAuth";
-import { runOneDriveAuthorization } from "../services/oneDriveAuth";
-import { runDropboxAuthorization } from "../services/dropboxAuth";
-import { PLAINVA_ONEDRIVE_CLIENT_ID, PLAINVA_DROPBOX_APP_KEY, firstSettingsArea, settingsArea, type SettingsWorld } from "@plainva/ui";
-import { WebDavFolderPickerModal } from "./WebDavFolderPickerModal";
+import { firstSettingsArea, settingsArea, hasCloudService, type SettingsWorld, type CloudAccountRecord } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
-import { buildDriveTarget, buildOneDriveTarget, buildDropboxTarget, buildS3Target } from "../services/syncTargets";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
+import { listMailAccounts } from "../services/mail/mailAccounts";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
@@ -51,14 +48,16 @@ import { SettingsNav } from "./settings/SettingsNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
-import { PimPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
+import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
+import { CloudAccountsPage } from "./settings/CloudAccountsPage";
 
 interface SettingsModalProps {
   onClose: () => void;
-  /** Preselects a sync-provider form once (splash online-vault deep link). */
+  /** Legacy splash deep link: any provider wish now lands on Cloud-Konten
+   * (the connect wizard replaced the per-provider settings forms). */
   initialProvider?: string;
   /** Opens a specific VAULT settings page (e.g. "backup" from the status-bar
-   * backup-error chip, "pim" from the mail/calendar empty states). */
+   * backup-error chip, "cloudAccounts" from the mail/calendar empty states). */
   initialArea?: string;
 }
 
@@ -80,7 +79,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
-  const initialProviderRef = useRef<string | null>(initialProvider ?? null);
   const { t, i18n } = useTranslation();
 
   const vaults = Array.from(new Set([vaultPath, ...recentVaults].filter(Boolean) as string[]));
@@ -93,7 +91,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // exactly that area — the scroll-spy over one long document is gone.
   const [appPage, setAppPage] = useState<string>(firstSettingsArea("app").id);
   const [vaultPage, setVaultPage] = useState<string>(() =>
-    initialArea && settingsArea(initialArea)?.world === "vault" ? initialArea : firstSettingsArea("vault").id
+    initialArea && settingsArea(initialArea)?.world === "vault"
+      ? initialArea
+      : initialProvider
+        ? "cloudAccounts"
+        : firstSettingsArea("vault").id
   );
   const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
@@ -113,14 +115,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [themeName, setThemeName] = useState<string>(() => document.documentElement.getAttribute("data-theme-name") || "petrol");
   const [intervalSec, setIntervalSec] = useState(String(DEFAULT_SYNC_INTERVAL_SECONDS));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
-  const [url, setUrl] = useState("");
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  // Remote-folder picker for the cloud providers (2026-07-06) — which provider
-  // form requested it; null = closed. WebDAV keeps its own modal above.
-  const [syncPicker, setSyncPicker] = useState<"drive" | "onedrive" | "dropbox" | "s3" | null>(null);
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
   // reuses the sync picker UI with a listing that walks the OPEN vault, so the
   // browse buttons are gated to the active vault like the other vault actions.
@@ -128,50 +122,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [configuredVaults, setConfiguredVaults] = useState<Set<string>>(new Set());
 
-  // Google Drive BYO (ADR 0006). Authorization (refreshToken) is filled by the native
-  // loopback OAuth flow (A1, maintainer-verified); the UI here is the BYO client entry.
-  const [driveClientId, setDriveClientId] = useState("");
-  const [driveClientSecret, setDriveClientSecret] = useState("");
-  const [driveFolderName, setDriveFolderName] = useState("");
-  const [driveConnected, setDriveConnected] = useState(false);
-  const [driveSaving, setDriveSaving] = useState(false);
-  const [driveError, setDriveError] = useState<string | null>(null);
-
-  // OneDrive (public client, no secret; sync-provider plan 2026-07-04). This state holds
-  // ONLY a user's own BYO client id; empty means "use the shipped PLAINVA_ONEDRIVE_CLIENT_ID".
-  const [oneDriveClientId, setOneDriveClientId] = useState("");
-  const [oneDriveFolderName, setOneDriveFolderName] = useState("");
-  const [oneDriveConnected, setOneDriveConnected] = useState(false);
-  const [oneDriveSaving, setOneDriveSaving] = useState(false);
-  const [oneDriveError, setOneDriveError] = useState<string | null>(null);
-  // Once an official client id ships (providerDefaults), the id field is hidden behind
-  // an optional "use your own app id" toggle; only BYO users ever need to see it.
-  const [oneDriveShowId, setOneDriveShowId] = useState(false);
-
-  // Dropbox (public client, fixed loopback port; sync-provider plan 2026-07-04).
-  const [dropboxAppKey, setDropboxAppKey] = useState("");
-  const [dropboxRootPath, setDropboxRootPath] = useState("");
-  const [dropboxConnected, setDropboxConnected] = useState(false);
-  const [dropboxSaving, setDropboxSaving] = useState(false);
-  const [dropboxError, setDropboxError] = useState<string | null>(null);
-  const [dropboxShowKey, setDropboxShowKey] = useState(false);
-
-  // S3-compatible object storage (key-based, no OAuth).
-  const [s3Endpoint, setS3Endpoint] = useState("");
-  const [s3Region, setS3Region] = useState("");
-  const [s3Bucket, setS3Bucket] = useState("");
-  const [s3AccessKeyId, setS3AccessKeyId] = useState("");
-  const [s3SecretKey, setS3SecretKey] = useState("");
-  const [s3Prefix, setS3Prefix] = useState("");
-  const [s3PathStyle, setS3PathStyle] = useState(true);
-  const [s3Saving, setS3Saving] = useState(false);
-
-  // One sync provider per vault (XOR). `provider` is the form selection (which
-  // config panel is shown); `activeProvider` reflects what is actually saved, so
-  // the UI can show the real state even after the user picks a different option
-  // in the dropdown without saving/disconnecting yet.
-  const [provider, setProvider] = useState<SyncProvider>("none");
+  // The vault's ACTIVE sync provider, derived from the populated credential
+  // slots (connect/disconnect itself moved to the Cloud-Konten area; this
+  // modal only reflects the state for the slim sync page + nav gating).
   const [activeProvider, setActiveProvider] = useState<SyncProvider>("none");
+  // Cloud-account registry + mailbox count of the SHOWN vault (nav gating:
+  // service areas disappear while no account carries the service).
+  const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
+  const [mailCount, setMailCount] = useState(0);
 
   // Backup & versioning (Gesamtplan Backups & Versionierung 2026-07-05, P7).
   const [zipEnabled, setZipEnabled] = useState(true);
@@ -362,54 +320,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load credentials for the selected vault and derive the active provider.
+  // Derive the shown vault's active provider from the populated slots and
+  // load its cloud-account registry + mailbox count (nav gating, slim pages).
+  const reloadAccountState = React.useCallback(async (target: string) => {
+    const sync = await observeSyncSlot(target).catch(() => undefined);
+    setActiveProvider(sync?.provider ?? "none");
+    setCloudRecords(await loadCloudAccounts(target).catch(() => []));
+    setMailCount((await listMailAccounts(target).catch(() => [])).length);
+  }, []);
+
   useEffect(() => {
     if (section === GENERAL) return;
-    setDriveError(null);
-    setOneDriveError(null);
-    setDropboxError(null);
+    const onChanged = () => void reloadAccountState(section);
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
+    window.addEventListener("plainva-credentials-saved", onChanged);
+    return () => {
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
+      window.removeEventListener("plainva-credentials-saved", onChanged);
+    };
+  }, [section, reloadAccountState]);
+
+  useEffect(() => {
+    if (section === GENERAL) return;
     (async () => {
-      const c = await credentialManager.getWebDavCredentials(section).catch(() => null);
-      const d = await credentialManager.getDriveCredentials(section).catch(() => null);
-      const od = await credentialManager.getOneDriveCredentials(section).catch(() => null);
-      const db = await credentialManager.getDropboxCredentials(section).catch(() => null);
-      const s3 = await credentialManager.getS3Credentials(section).catch(() => null);
-      setUrl(c?.url || ""); setUser(c?.user || ""); setPass(c?.pass || "");
-      setDriveClientId(d?.clientId || ""); setDriveClientSecret(d?.clientSecret || "");
-      setDriveFolderName(d?.rootFolderName || "");
-      setDriveConnected(!!d?.refreshToken);
-      setOneDriveClientId(od?.clientId && od.clientId !== PLAINVA_ONEDRIVE_CLIENT_ID ? od.clientId : "");
-      setOneDriveFolderName(od?.rootFolderName || "");
-      setOneDriveConnected(!!od?.refreshToken);
-      setOneDriveShowId(!!od?.clientId && od.clientId !== PLAINVA_ONEDRIVE_CLIENT_ID);
-      setDropboxAppKey(db?.appKey && db.appKey !== PLAINVA_DROPBOX_APP_KEY ? db.appKey : "");
-      setDropboxRootPath(db?.rootPath || "");
-      setDropboxConnected(!!db?.refreshToken);
-      setDropboxShowKey(!!db?.appKey && db.appKey !== PLAINVA_DROPBOX_APP_KEY);
-      setS3Endpoint(s3?.endpoint || ""); setS3Region(s3?.region || ""); setS3Bucket(s3?.bucket || "");
-      setS3AccessKeyId(s3?.accessKeyId || ""); setS3SecretKey(s3?.secretAccessKey || "");
-      setS3Prefix(s3?.prefix || ""); setS3PathStyle(s3?.forcePathStyle !== false);
-      const active: SyncProvider = d?.clientId
-        ? "drive"
-        : od?.clientId
-          ? "onedrive"
-          : db?.appKey
-            ? "dropbox"
-            : s3?.endpoint
-              ? "s3"
-              : c?.url
-                ? "webdav"
-                : "none";
-      setProvider(active);
-      setActiveProvider(active);
-      // Splash deep link: show the wanted provider's form — the saved state
-      // still decides activeProvider. The ref is NOT consumed here (the effect
-      // runs twice under StrictMode and the second pass would undo the pick);
-      // it clears when the user changes the provider dropdown themselves.
-      const wanted = initialProviderRef.current;
-      if (wanted && section === vaultPath) {
-        setProvider(wanted as SyncProvider);
-      }
+      await reloadAccountState(section);
 
       // Per-vault sync interval (falls back to the legacy global value, then default).
       const store = await getSettingsStore().catch(() => null);
@@ -441,9 +375,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         defaultZipDestination(section).then(setZipDefaultDest).catch(() => setZipDefaultDest(""));
       }
     })();
-    // vaultPath gates the splash deep link above; reloading on a vault switch
-    // is an idempotent re-read (P5.10 — last standing lint warning).
-  }, [section, vaultPath]);
+  }, [section, reloadAccountState]);
 
   // Declared before its first hook use below (react-hooks/immutability).
   const vaultPathRef = useRef(vaultPath);
@@ -651,418 +583,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     }
   }, []);
 
-  /**
-   * XOR: exactly one sync provider per vault. Clears every provider's stored
-   * credentials except `keep`, and resets the corresponding form state (OAuth id
-   * fields fall back to the central defaults).
-   */
-  const clearOtherProviders = async (keep: SyncProvider) => {
-    if (keep !== "webdav") {
-      await credentialManager.clearWebDavCredentials(section);
-      setUrl(""); setUser(""); setPass("");
-    }
-    if (keep !== "drive") {
-      await credentialManager.clearDriveCredentials(section);
-      setDriveClientId(""); setDriveClientSecret(""); setDriveFolderName(""); setDriveConnected(false);
-    }
-    if (keep !== "onedrive") {
-      await credentialManager.clearOneDriveCredentials(section);
-      setOneDriveClientId(""); setOneDriveShowId(false); setOneDriveFolderName(""); setOneDriveConnected(false);
-    }
-    if (keep !== "dropbox") {
-      await credentialManager.clearDropboxCredentials(section);
-      setDropboxAppKey(""); setDropboxShowKey(false); setDropboxRootPath(""); setDropboxConnected(false);
-    }
-    if (keep !== "s3") {
-      await credentialManager.clearS3Credentials(section);
-      setS3Endpoint(""); setS3Region(""); setS3Bucket(""); setS3AccessKeyId(""); setS3SecretKey(""); setS3Prefix(""); setS3PathStyle(true);
-    }
-  };
-
-  const handleSaveVault = async () => {
-    if (section === GENERAL) return;
-    setSaving(true);
-    try {
-      let isNew = false;
-      if (!url || !user || !pass) {
-        await credentialManager.clearWebDavCredentials(section);
-        setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-        setActiveProvider("none");
-      } else {
-        const existing = await credentialManager.getWebDavCredentials(section);
-        isNew = !existing;
-        await credentialManager.saveWebDavCredentials(section, { url, user, pass });
-        await clearOtherProviders("webdav");
-        setConfiguredVaults((prev) => new Set(prev).add(section));
-        setActiveProvider("webdav");
-      }
-      // Only the currently open vault needs a live reload to apply changes.
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: isNew } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (section === GENERAL) return;
-    await credentialManager.clearWebDavCredentials(section);
-    setUrl(""); setUser(""); setPass("");
-    setProvider("none");
-    setActiveProvider("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  const handleSaveDrive = async () => {
-    if (section === GENERAL) return;
-    setDriveSaving(true);
-    try {
-      if (!driveClientId || !driveClientSecret) {
-        await credentialManager.clearDriveCredentials(section);
-        setDriveConnected(false);
-        setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-        setActiveProvider("none");
-      } else {
-        const existing = await credentialManager.getDriveCredentials(section);
-        // A changed client identity invalidates the old refresh token -> drop it and
-        // require a fresh login. An unchanged client keeps its token (e.g. folder rename).
-        const clientChanged = !!existing && (existing.clientId !== driveClientId || existing.clientSecret !== driveClientSecret);
-        const refreshToken = clientChanged ? undefined : existing?.refreshToken;
-        await credentialManager.saveDriveCredentials(section, {
-          clientId: driveClientId,
-          clientSecret: driveClientSecret,
-          refreshToken,
-          rootFolderName: driveFolderName || undefined,
-        });
-        await clearOtherProviders("drive");
-        setDriveConnected(!!refreshToken);
-        setConfiguredVaults((prev) => new Set(prev).add(section));
-        setActiveProvider("drive");
-      }
-      // Apply live: reload the active vault so the worker picks up the new target/folder
-      // (or stops if the token was dropped), just like WebDAV save does.
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: false } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDriveSaving(false);
-    }
-  };
-
-  const handleDisconnectDrive = async () => {
-    if (section === GENERAL) return;
-    await credentialManager.clearDriveCredentials(section);
-    setDriveClientId(""); setDriveClientSecret(""); setDriveFolderName(""); setDriveConnected(false);
-    setProvider("none");
-    setActiveProvider("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    // Apply live: reload so the active Drive worker actually stops.
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  // Runs the loopback OAuth flow (ADR 0006): native listener + PKCE token exchange (G3).
-  const handleAuthorizeDrive = async () => {
-    if (section === GENERAL || !driveClientId || !driveClientSecret) return;
-    setDriveSaving(true);
-    setDriveError(null);
-    try {
-      // Persist the client up front so it survives an aborted/failed login.
-      const existing = await credentialManager.getDriveCredentials(section);
-      await credentialManager.saveDriveCredentials(section, {
-        clientId: driveClientId,
-        clientSecret: driveClientSecret,
-        refreshToken: existing?.refreshToken,
-        rootFolderName: driveFolderName || undefined,
-      });
-      await clearOtherProviders("drive");
-      setConfiguredVaults((prev) => new Set(prev).add(section));
-      setActiveProvider("drive");
-
-      await runDriveAuthorization({ clientId: driveClientId, clientSecret: driveClientSecret, vaultPath: section });
-      setDriveConnected(true);
-      // Reload the active vault so the sync worker picks up the Drive target.
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
-      }
-    } catch (e) {
-      setDriveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDriveSaving(false);
-    }
-  };
-
-  // --- OneDrive (public client, loopback OAuth; sync-provider plan 2026-07-04) ---
-
-  const handleAuthorizeOneDrive = async () => {
-    const clientId = oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID;
-    if (section === GENERAL || !clientId) return;
-    setOneDriveSaving(true);
-    setOneDriveError(null);
-    try {
-      // Persist the client up front so it survives an aborted/failed login.
-      const existing = await credentialManager.getOneDriveCredentials(section);
-      const clientChanged = !!existing && existing.clientId !== clientId;
-      await credentialManager.saveOneDriveCredentials(section, {
-        clientId,
-        refreshToken: clientChanged ? undefined : existing?.refreshToken,
-        rootFolderName: oneDriveFolderName || undefined,
-      });
-      await clearOtherProviders("onedrive");
-      setConfiguredVaults((prev) => new Set(prev).add(section));
-      setActiveProvider("onedrive");
-
-      await runOneDriveAuthorization({ clientId, vaultPath: section });
-      setOneDriveConnected(true);
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
-      }
-    } catch (e) {
-      setOneDriveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setOneDriveSaving(false);
-    }
-  };
-
-  const handleSaveOneDrive = async () => {
-    if (section === GENERAL) return;
-    const clientId = oneDriveClientId || PLAINVA_ONEDRIVE_CLIENT_ID;
-    setOneDriveSaving(true);
-    try {
-      if (!clientId) {
-        await credentialManager.clearOneDriveCredentials(section);
-        setOneDriveConnected(false);
-        setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-        setActiveProvider("none");
-      } else {
-        const existing = await credentialManager.getOneDriveCredentials(section);
-        // A changed client invalidates the old refresh token -> require a fresh login.
-        const clientChanged = !!existing && existing.clientId !== clientId;
-        const refreshToken = clientChanged ? undefined : existing?.refreshToken;
-        await credentialManager.saveOneDriveCredentials(section, {
-          clientId,
-          refreshToken,
-          rootFolderName: oneDriveFolderName || undefined,
-        });
-        await clearOtherProviders("onedrive");
-        setOneDriveConnected(!!refreshToken);
-        setConfiguredVaults((prev) => new Set(prev).add(section));
-        setActiveProvider("onedrive");
-      }
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: false } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setOneDriveSaving(false);
-    }
-  };
-
-  const handleDisconnectOneDrive = async () => {
-    if (section === GENERAL) return;
-    await credentialManager.clearOneDriveCredentials(section);
-    setOneDriveClientId(""); setOneDriveShowId(false); setOneDriveFolderName(""); setOneDriveConnected(false);
-    setProvider("none");
-    setActiveProvider("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  // --- Dropbox (public client, fixed loopback port) ---
-
-  const handleAuthorizeDropbox = async () => {
-    const appKey = dropboxAppKey || PLAINVA_DROPBOX_APP_KEY;
-    if (section === GENERAL || !appKey) return;
-    setDropboxSaving(true);
-    setDropboxError(null);
-    try {
-      const existing = await credentialManager.getDropboxCredentials(section);
-      const keyChanged = !!existing && existing.appKey !== appKey;
-      await credentialManager.saveDropboxCredentials(section, {
-        appKey,
-        refreshToken: keyChanged ? undefined : existing?.refreshToken,
-        rootPath: dropboxRootPath || undefined,
-      });
-      await clearOtherProviders("dropbox");
-      setConfiguredVaults((prev) => new Set(prev).add(section));
-      setActiveProvider("dropbox");
-
-      await runDropboxAuthorization({ appKey, vaultPath: section });
-      setDropboxConnected(true);
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
-      }
-    } catch (e) {
-      setDropboxError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDropboxSaving(false);
-    }
-  };
-
-  const handleSaveDropbox = async () => {
-    if (section === GENERAL) return;
-    const appKey = dropboxAppKey || PLAINVA_DROPBOX_APP_KEY;
-    setDropboxSaving(true);
-    try {
-      if (!appKey) {
-        await credentialManager.clearDropboxCredentials(section);
-        setDropboxConnected(false);
-        setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-        setActiveProvider("none");
-      } else {
-        const existing = await credentialManager.getDropboxCredentials(section);
-        const keyChanged = !!existing && existing.appKey !== appKey;
-        const refreshToken = keyChanged ? undefined : existing?.refreshToken;
-        await credentialManager.saveDropboxCredentials(section, {
-          appKey,
-          refreshToken,
-          rootPath: dropboxRootPath || undefined,
-        });
-        await clearOtherProviders("dropbox");
-        setDropboxConnected(!!refreshToken);
-        setConfiguredVaults((prev) => new Set(prev).add(section));
-        setActiveProvider("dropbox");
-      }
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: false } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDropboxSaving(false);
-    }
-  };
-
-  const handleDisconnectDropbox = async () => {
-    if (section === GENERAL) return;
-    await credentialManager.clearDropboxCredentials(section);
-    setDropboxAppKey(""); setDropboxShowKey(false); setDropboxRootPath(""); setDropboxConnected(false);
-    setProvider("none");
-    setActiveProvider("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  // --- S3-compatible object storage (key-based, no OAuth) ---
-
-  const handleSaveS3 = async () => {
-    if (section === GENERAL) return;
-    setS3Saving(true);
-    try {
-      let isNew = false;
-      const complete = s3Endpoint && s3Bucket && s3AccessKeyId && s3SecretKey;
-      if (!complete) {
-        await credentialManager.clearS3Credentials(section);
-        setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-        setActiveProvider("none");
-      } else {
-        const existing = await credentialManager.getS3Credentials(section);
-        isNew = !existing;
-        await credentialManager.saveS3Credentials(section, {
-          endpoint: s3Endpoint.trim(),
-          region: s3Region.trim() || "us-east-1",
-          bucket: s3Bucket.trim(),
-          accessKeyId: s3AccessKeyId.trim(),
-          secretAccessKey: s3SecretKey,
-          prefix: s3Prefix.trim() || undefined,
-          forcePathStyle: s3PathStyle,
-        });
-        await clearOtherProviders("s3");
-        setConfiguredVaults((prev) => new Set(prev).add(section));
-        setActiveProvider("s3");
-      }
-      if (section === vaultPath) {
-        window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: isNew } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setS3Saving(false);
-    }
-  };
-
-  const handleDisconnectS3 = async () => {
-    if (section === GENERAL) return;
-    await credentialManager.clearS3Credentials(section);
-    setS3Endpoint(""); setS3Region(""); setS3Bucket(""); setS3AccessKeyId(""); setS3SecretKey(""); setS3Prefix(""); setS3PathStyle(true);
-    setProvider("none");
-    setActiveProvider("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  const handleDisableSync = async () => {
-    if (section === GENERAL) return;
-    await clearOtherProviders("none");
-    setConfiguredVaults((prev) => { const n = new Set(prev); n.delete(section); return n; });
-    setActiveProvider("none");
-    if (section === vaultPath) window.dispatchEvent(new CustomEvent("plainva-credentials-saved"));
-  };
-
-  /**
-   * Folder listing for the cloud-provider picker (2026-07-06). Builds a
-   * throwaway sync target per call: S3 from the CURRENT form values (browse
-   * before saving, like WebDAV), the OAuth providers from the stored keychain
-   * credentials (their Browse buttons are disabled until connected). OneDrive/
-   * Dropbox may ROTATE the refresh token during the call — persist it, exactly
-   * like the sync worker does (a dropped rotation kills the stored token).
-   */
-  const listSyncFolders = async (prov: "drive" | "onedrive" | "dropbox" | "s3", path: string): Promise<string[]> => {
-    if (prov === "s3") {
-      return buildS3Target({
-        endpoint: s3Endpoint.trim(),
-        region: s3Region.trim() || "us-east-1",
-        bucket: s3Bucket.trim(),
-        accessKeyId: s3AccessKeyId.trim(),
-        secretAccessKey: s3SecretKey,
-        forcePathStyle: s3PathStyle,
-      }).listFolders(path);
-    }
-    if (prov === "drive") {
-      const creds = await credentialManager.getDriveCredentials(section);
-      if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-      return buildDriveTarget({
-        clientId: creds.clientId,
-        clientSecret: creds.clientSecret,
-        refreshToken: creds.refreshToken,
-      }).listFolders(path);
-    }
-    if (prov === "onedrive") {
-      const creds = await credentialManager.getOneDriveCredentials(section);
-      if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-      return buildOneDriveTarget(
-        { clientId: creds.clientId || PLAINVA_ONEDRIVE_CLIENT_ID, refreshToken: creds.refreshToken },
-        (refreshToken) =>
-          credentialManager
-            .saveOneDriveCredentials(section, { ...creds, refreshToken })
-            .catch((e) => console.error("[Settings] persisting rotated OneDrive token failed", e))
-      ).listFolders(path);
-    }
-    const creds = await credentialManager.getDropboxCredentials(section);
-    if (!creds?.refreshToken) throw new Error(t("settings.pickerConnectFirst"));
-    return buildDropboxTarget(
-      { appKey: creds.appKey || PLAINVA_DROPBOX_APP_KEY, refreshToken: creds.refreshToken },
-      (refreshToken) =>
-        credentialManager
-          .saveDropboxCredentials(section, { ...creds, refreshToken })
-          .catch((e) => console.error("[Settings] persisting rotated Dropbox token failed", e))
-    ).listFolders(path);
-  };
-
-  /** Applies a picker result to the matching provider's folder field. */
-  const applySyncPickerResult = (prov: "drive" | "onedrive" | "dropbox" | "s3", picked: string) => {
-    if (prov === "drive") setDriveFolderName(picked);
-    else if (prov === "onedrive") setOneDriveFolderName(picked);
-    else if (prov === "dropbox") setDropboxRootPath(`/${picked.replace(/^\/+/, "")}`);
-    else setS3Prefix(picked);
-  };
-
   // Updater-plugin access lives in services/appUpdate (P3.8); this component
   // only maps the result states onto its status line.
   const checkForUpdates = async () => {
@@ -1114,6 +634,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const isActiveVault = selectedVault === vaultPath;
   const inAppWorld = section === GENERAL;
 
+  // Nav gating (mockup screen 6): a service area exists only while an account
+  // carries the service. Sync additionally trusts the credential slots and
+  // mail the stored account list, so vaults that never opened the new area
+  // (empty registry) still show what is demonstrably configured.
+  const hiddenVaultAreas = React.useMemo(() => {
+    const hidden: string[] = [];
+    if (activeProvider === "none" && !hasCloudService(cloudRecords, "files")) hidden.push("sync");
+    if (!hasCloudService(cloudRecords, "calendar")) hidden.push("pim");
+    if (mailCount === 0 && !hasCloudService(cloudRecords, "mail")) hidden.push("mail");
+    return hidden;
+  }, [activeProvider, cloudRecords, mailCount]);
+
+  // Never strand the user on a hidden page (e.g. its last account was removed).
+  useEffect(() => {
+    if (!inAppWorld && hiddenVaultAreas.includes(vaultPage)) setVaultPage("cloudAccounts");
+  }, [inAppWorld, hiddenVaultAreas, vaultPage]);
+
   const zipStatusDesc =
     zipStatus.state === "running"
       ? t("settings.backupRunning")
@@ -1144,6 +681,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
             canSwitchVault={vaults.length > 1}
             onSwitchVault={() => setShowVaultPicker(true)}
             onShowShortcuts={() => setShowShortcuts(true)}
+            hiddenAreaIds={hiddenVaultAreas}
           />
 
           {/* Right content: all pages stacked in one grid cell — the tallest
@@ -1215,72 +753,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onReportIssue={() => { void handleReportIssue(); }}
                     />
                   </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
+                    <CloudAccountsPage selectedVault={selectedVault} />
+                  </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
-                      provider={provider}
+                      selectedVault={selectedVault}
+                      isActiveVault={isActiveVault}
                       activeProvider={activeProvider}
-                      onProviderChange={(v) => { initialProviderRef.current = null; setProvider(v); setDriveError(null); setOneDriveError(null); setDropboxError(null); }}
-                      onDisableSync={() => { void handleDisableSync(); }}
-                      webdav={{
-                        url, setUrl, user, setUser, pass, setPass,
-                        saving,
-                        onBrowse: () => setShowPicker(true),
-                        onSave: () => { void handleSaveVault(); },
-                        onDisconnect: () => { void handleDisconnect(); },
-                      }}
-                      drive={{
-                        clientId: driveClientId, setClientId: setDriveClientId,
-                        clientSecret: driveClientSecret, setClientSecret: setDriveClientSecret,
-                        folderName: driveFolderName,
-                        connected: driveConnected,
-                        saving: driveSaving,
-                        error: driveError,
-                        onBrowse: () => setSyncPicker("drive"),
-                        onAuthorize: () => { void handleAuthorizeDrive(); },
-                        onSave: () => { void handleSaveDrive(); },
-                        onDisconnect: () => { void handleDisconnectDrive(); },
-                      }}
-                      oneDrive={{
-                        clientId: oneDriveClientId, setClientId: setOneDriveClientId,
-                        showId: oneDriveShowId, setShowId: setOneDriveShowId,
-                        folderName: oneDriveFolderName,
-                        connected: oneDriveConnected,
-                        saving: oneDriveSaving,
-                        error: oneDriveError,
-                        onBrowse: () => setSyncPicker("onedrive"),
-                        onAuthorize: () => { void handleAuthorizeOneDrive(); },
-                        onSave: () => { void handleSaveOneDrive(); },
-                        onDisconnect: () => { void handleDisconnectOneDrive(); },
-                      }}
-                      dropbox={{
-                        appKey: dropboxAppKey, setAppKey: setDropboxAppKey,
-                        showKey: dropboxShowKey, setShowKey: setDropboxShowKey,
-                        rootPath: dropboxRootPath,
-                        connected: dropboxConnected,
-                        saving: dropboxSaving,
-                        error: dropboxError,
-                        onBrowse: () => setSyncPicker("dropbox"),
-                        onAuthorize: () => { void handleAuthorizeDropbox(); },
-                        onSave: () => { void handleSaveDropbox(); },
-                        onDisconnect: () => { void handleDisconnectDropbox(); },
-                      }}
-                      s3={{
-                        endpoint: s3Endpoint, setEndpoint: setS3Endpoint,
-                        region: s3Region, setRegion: setS3Region,
-                        bucket: s3Bucket, setBucket: setS3Bucket,
-                        accessKeyId: s3AccessKeyId, setAccessKeyId: setS3AccessKeyId,
-                        secretKey: s3SecretKey, setSecretKey: setS3SecretKey,
-                        prefix: s3Prefix, setPrefix: setS3Prefix,
-                        pathStyle: s3PathStyle, setPathStyle: setS3PathStyle,
-                        saving: s3Saving,
-                        onBrowse: () => setSyncPicker("s3"),
-                        onSave: () => { void handleSaveS3(); },
-                        onDisconnect: () => { void handleDisconnectS3(); },
-                      }}
+                      onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")}
                       intervalSec={intervalSec}
                       onIntervalChange={handleIntervalChange}
                       onIntervalBlur={normalizeIntervalDisplay}
-                      isActiveVault={isActiveVault}
                       hasSyncWorker={!!syncWorker}
                       syncQueueSnapshot={syncQueueSnapshot}
                       onLoadQueue={() => {
@@ -1293,7 +777,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
-                    <PimPage isActiveVault={isActiveVault} />
+                    <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")} />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "mail"}>
+                    <MailPage isActiveVault={isActiveVault} onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage
@@ -1407,30 +894,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
             setSection(v);
           }}
           onClose={() => setShowVaultPicker(false)}
-        />
-      )}
-      {showPicker && (
-        <WebDavFolderPickerModal
-          initialUrl={url}
-          user={user}
-          pass={pass}
-          onSelect={(selectedUrl) => { setUrl(selectedUrl); setShowPicker(false); }}
-          onCancel={() => setShowPicker(false)}
-        />
-      )}
-      {syncPicker && (
-        <SyncFolderPickerModal
-          // An empty S3 prefix (bucket root) is a valid configuration.
-          allowRoot={syncPicker === "s3"}
-          rootLabel={
-            syncPicker === "s3" ? (s3Bucket.trim() || "S3")
-              : syncPicker === "drive" ? "Google Drive"
-                : syncPicker === "onedrive" ? "OneDrive"
-                  : "Dropbox"
-          }
-          listFolders={(p) => listSyncFolders(syncPicker, p)}
-          onSelect={(picked) => { applySyncPickerResult(syncPicker, picked); setSyncPicker(null); }}
-          onCancel={() => setSyncPicker(null)}
         />
       )}
       {vaultFolderPicker && (
