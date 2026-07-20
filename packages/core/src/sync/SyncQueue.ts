@@ -311,11 +311,18 @@ export class SyncQueue {
    * later same-file operation as if it were the head.
    */
   async getPendingOperations(now: number = Date.now()): Promise<SyncOperation[]> {
-    const rows = await this.db.query<SyncOperation & { requires_manual_intervention?: number | null }>(
-      `SELECT * FROM offline_queue ORDER BY queued_at ASC, id ASC`
+    // Prefer the most-recently-modified files first (newest mtime → oldest) so
+    // recent edits sync first; the per-file FIFO gate below is preserved because
+    // all ops of one file share the same files.mtime_local, so the queued_at/id
+    // tiebreak keeps that file's ops in enqueue order (its head stays first).
+    const rows = await this.db.query<SyncOperation & { requires_manual_intervention?: number | null; _mtime?: number | null }>(
+      `SELECT offline_queue.*, files.mtime_local AS _mtime
+         FROM offline_queue
+         LEFT JOIN files ON files.path = offline_queue.file_path
+        ORDER BY files.mtime_local DESC, offline_queue.queued_at ASC, offline_queue.id ASC`
     );
     // Defensive ordering so head detection holds regardless of row source order.
-    const ordered = [...rows].sort((a, b) => (a.queued_at - b.queued_at) || (a.id - b.id));
+    const ordered = [...rows].sort((a, b) => ((b._mtime ?? 0) - (a._mtime ?? 0)) || (a.queued_at - b.queued_at) || (a.id - b.id));
 
     const eligible: SyncOperation[] = [];
     const seenFiles = new Set<string>();

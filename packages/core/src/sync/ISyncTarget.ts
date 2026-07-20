@@ -59,6 +59,13 @@ export interface PullResult {
    * Purely additive: the worker never derives folder deletions from it.
    */
   folders?: string[];
+  /**
+   * Optional: path -> remote modified time (epoch ms) for a FULL listing. Lets
+   * the worker reconcile (and prefetch) the most-recently-modified files first.
+   * Only providers that surface a modified time set this (Drive); others leave
+   * it undefined and the worker keeps the remote listing order.
+   */
+  mtimeMap?: Map<string, number>;
 }
 
 export interface ISyncTarget {
