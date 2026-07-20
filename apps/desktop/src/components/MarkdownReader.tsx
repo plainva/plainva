@@ -285,8 +285,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   };
 
   // Preprocess content: convert [[link]] to [link](wiki://link) and ![[img]] to
-  // ![img](wiki-image://img). (==highlight== markers are stripped AST-side by
-  // remarkStripHighlightMarks so they never render — or get copied — literally.)
+  // ![img](wiki-image://img). (==highlight== spans become real <mark> elements
+  // AST-side via remarkStripHighlightMarks; the markers never render literally.)
   const processedContent = useMemo(() => {
     if (embedDepth > 2) return content;
     let result = content;

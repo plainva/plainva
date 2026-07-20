@@ -831,8 +831,6 @@ export function BaseConfigPanel({
                 type="button"
                 role="radio"
                 aria-checked={currentViewType === v.type}
-                aria-label={label}
-                data-tip={label}
                 className={`base-cfg-typetile${currentViewType === v.type ? " active" : ""}`}
                 onClick={() => onSetViewType(v.type)}
               >

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
 import { Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { Select } from "../Select";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
@@ -492,18 +493,30 @@ export function TasksView({ onOpenPath }: Props) {
           className="pv-field pv-field--compact"
           style={{ flex: "1 1 12rem", minWidth: "8rem", width: "auto" }}
         />
-        <select value={folder} onChange={(e) => setFolder(e.target.value)} style={selectStyle} aria-label={t("tasks.allFolders", { defaultValue: "Alle Ordner" })}>
-          <option value="">{t("tasks.allFolders", { defaultValue: "Alle Ordner" })}</option>
-          {allFolders.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
-        </select>
-        <select value={tag} onChange={(e) => setTag(e.target.value)} style={selectStyle} aria-label={t("tasks.allTags", { defaultValue: "Alle Tags" })}>
-          <option value="">{t("tasks.allTags", { defaultValue: "Alle Tags" })}</option>
-          {allTags.map((g) => (
-            <option key={g} value={g}>#{g}</option>
-          ))}
-        </select>
+        <div style={{ width: "10.5rem", flexShrink: 0 }}>
+        <Select
+          size="sm"
+          value={folder}
+          onChange={setFolder}
+          ariaLabel={t("tasks.allFolders", { defaultValue: "Alle Ordner" })}
+          options={[
+            { value: "", label: t("tasks.allFolders", { defaultValue: "Alle Ordner" }) },
+            ...allFolders.map((f) => ({ value: f, label: f })),
+          ]}
+        />
+        </div>
+        <div style={{ width: "10.5rem", flexShrink: 0 }}>
+        <Select
+          size="sm"
+          value={tag}
+          onChange={setTag}
+          ariaLabel={t("tasks.allTags", { defaultValue: "Alle Tags" })}
+          options={[
+            { value: "", label: t("tasks.allTags", { defaultValue: "Alle Tags" }) },
+            ...allTags.map((g) => ({ value: g, label: `#${g}` })),
+          ]}
+        />
+        </div>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-ui)", color: "var(--text-muted)", cursor: "pointer" }}>
           <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
           {t("tasks.dueOnly", { defaultValue: "Nur mit Fälligkeit" })}
@@ -744,12 +757,3 @@ export function TasksView({ onOpenPath }: Props) {
   );
 }
 
-const selectStyle: React.CSSProperties = {
-  padding: "0.3rem 0.5rem",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-color)",
-  background: "var(--bg-primary)",
-  color: "var(--text-main)",
-  fontSize: "var(--text-md)",
-  maxWidth: "10rem",
-};

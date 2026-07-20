@@ -442,7 +442,7 @@
             <button class="ddopt"><span class="ic"></span><span>Familie</span></button>
           </div>
         </div>
-        <p><b>Trigger</b> = Feld-Optik + Chevron (dreht bei offen). <b>Panel</b> = Popover-Vertrag (md · Schatten 2 · z-menu); gewählte Option = Akzent-Container + Häkchen im Icon-Slot; Beschreibungen als zweite Zeile; Such-Zeile ab ~8 Optionen. Getragen von der neu gebauten <code>Select</code>-Primitive — native <code>&lt;select&gt;</code> nur noch für sehr lange OS-Listen (Schriften, Sprachen), sonst folgt das Panel dem Theme (E11).</p>
+        <p><b>Trigger</b> = Feld-Optik + Chevron (dreht bei offen). <b>Panel</b> = Popover-Vertrag (md · Schatten 2 · z-menu); gewählte Option = Akzent-Container + Häkchen im Icon-Slot; Beschreibungen als zweite Zeile; Such-Zeile ab ~8 Optionen. Getragen von der neu gebauten <code>Select</code>-Primitive — Formulare, Dialoge und Toolbar-Filter nutzen sie. Ein natives <code>&lt;select&gt;</code> ist NUR mit Feld-Optik erlaubt (<code>pv-field pv-field--select</code>; dokumentiertes Idiom für dichte Werkzeugleisten, deren Popup OS-gerendert bleiben darf — wie die nativen Datums-/Zeit-/Farb-Inputs); ein nacktes <code>&lt;select&gt;</code> reißt die <code>nakedSelect</code>-Lint-Regel (Kontroll-Runde 3).</p>
       </div>
       <div class="card spec">
         <h4>Chip-Feld <span class="tagfix">Doppeldefinition wird aufgelöst</span></h4>

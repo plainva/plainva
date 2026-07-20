@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, MapPin } from "lucide-react";
 import { Button, ICON } from "@plainva/ui";
+import { Select } from "../Select";
 
 /**
  * Google-Calendar-style quick-create popover (feedback round 3): appears at the
@@ -100,18 +101,13 @@ export function QuickCreatePopover(props: QuickCreatePopoverProps) {
             <span>{dateLabel} · {timeLabel}</span>
           </div>
           {calendarOptions.length > 1 && (
-            <select
-              className="pv-field pv-field--select"
+            <Select
               value={calendarKey}
-              onChange={(e) => setCalendarKey(e.target.value)}
-              aria-label={t("pim.eventCalendar", { defaultValue: "Kalender" })}
+              onChange={setCalendarKey}
+              ariaLabel={t("pim.eventCalendar", { defaultValue: "Kalender" })}
               data-testid="calendar-quick-calendar"
-              style={{ width: "100%" }}
-            >
-              {calendarOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              options={calendarOptions.map((o) => ({ value: o.value, label: o.label }))}
+            />
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <MapPin size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-faint)" }} />

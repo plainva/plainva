@@ -65,6 +65,9 @@ const RULES: Record<string, RegExp> = {
   legacyClass: /pv-btn-primary|pv-btn-secondary|pv-icon-btn\b|pv-modal-card|pv-modal-overlay|pv-modal-head\b|pv-modal-title\b|pv-input\b|pv-date-display|pv-select-trigger\b|pv-add-btn/g,
   jsHover: /onMouseOver=\{|onMouseOut=\{/g,
   iconLiteral: /\bsize=\{\d+\}/g,
+  // A raw <select> must at least wear the field skin (`pv-field pv-field--select`,
+  // the documented dense-toolbar idiom); forms/dialogs use the Select primitive.
+  nakedSelect: /<select(?!(?:=>|[^>])*pv-field--select)/g,
 };
 
 type Counts = Partial<Record<keyof typeof RULES, number>>;

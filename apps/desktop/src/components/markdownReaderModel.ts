@@ -82,6 +82,7 @@ interface MdastNodeLike {
   type?: string;
   value?: unknown;
   children?: MdastNodeLike[];
+  data?: { hName?: string };
 }
 
 /**
@@ -104,19 +105,35 @@ export function remarkStripHtmlComments() {
 const HIGHLIGHT_RE = /==([^=\n]+?)==/g;
 
 /**
- * remark plugin: removes the `==` markers of `==highlight==` from text nodes so
- * they no longer show — nor get copied — as literal `==` in the reading view.
- * Read mode has no raw-HTML support to render an actual <mark>, so this drops
- * the markers to plain text (the editor's live preview still highlights).
+ * remark plugin: renders `==highlight==` as a real <mark> in the reading view,
+ * matching the live preview. mdast has no highlight node, so the marked span
+ * becomes an `emphasis` node whose `data.hName` overrides the hast tag to
+ * `mark` (mdast-util-to-hast honors hName — no raw HTML involved); the `==`
+ * markers themselves disappear, so they are never shown or copied literally.
  * Only `text` nodes are touched; `inlineCode`/`code` nodes stay verbatim.
  */
 export function remarkStripHighlightMarks() {
   return (tree: MdastNodeLike) => {
     const walk = (node: MdastNodeLike) => {
       if (!Array.isArray(node.children)) return;
-      for (const child of node.children) {
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
         if (child.type === "text" && typeof child.value === "string" && child.value.includes("==")) {
-          child.value = child.value.replace(HIGHLIGHT_RE, "$1");
+          const value = child.value;
+          const parts: MdastNodeLike[] = [];
+          let last = 0;
+          HIGHLIGHT_RE.lastIndex = 0;
+          for (let m = HIGHLIGHT_RE.exec(value); m; m = HIGHLIGHT_RE.exec(value)) {
+            if (m.index > last) parts.push({ type: "text", value: value.slice(last, m.index) });
+            parts.push({ type: "emphasis", data: { hName: "mark" }, children: [{ type: "text", value: m[1] }] });
+            last = m.index + m[0].length;
+          }
+          if (parts.length > 0) {
+            if (last < value.length) parts.push({ type: "text", value: value.slice(last) });
+            node.children.splice(i, 1, ...parts);
+            i += parts.length - 1;
+            continue;
+          }
         }
         walk(child);
       }

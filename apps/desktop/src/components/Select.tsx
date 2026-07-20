@@ -39,6 +39,7 @@ interface SelectProps {
   onClose?: () => void;
   /** Compact sizing for inline use (e.g. a `.base` table cell). */
   size?: "sm" | "md";
+  "data-testid"?: string;
 }
 
 export function Select({ size, ...rest }: SelectProps) {

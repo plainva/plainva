@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
+import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
 
 describe("encodeWikiTarget", () => {
   it("leaves no character that can break a markdown link destination", () => {
@@ -111,5 +111,35 @@ describe("isHtmlCommentOnly", () => {
     const start = performance.now();
     expect(isHtmlCommentOnly(evil)).toBe(false);
     expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
+describe("remarkStripHighlightMarks", () => {
+  const run = (value: string) => {
+    const tree: any = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value }] }] };
+    remarkStripHighlightMarks()(tree);
+    return tree.children[0].children;
+  };
+
+  it("turns ==x== into a mark-tagged node between plain text", () => {
+    const out = run("a ==b== c");
+    expect(out).toHaveLength(3);
+    expect(out[0]).toEqual({ type: "text", value: "a " });
+    expect(out[1].type).toBe("emphasis");
+    expect(out[1].data).toEqual({ hName: "mark" });
+    expect(out[1].children).toEqual([{ type: "text", value: "b" }]);
+    expect(out[2]).toEqual({ type: "text", value: " c" });
+  });
+
+  it("handles multiple highlights and leaves lone == alone", () => {
+    const out = run("==x== und ==y==");
+    expect(out.map((n: any) => n.type)).toEqual(["emphasis", "text", "emphasis"]);
+    expect(run("a == b")).toEqual([{ type: "text", value: "a == b" }]);
+  });
+
+  it("leaves inlineCode nodes verbatim", () => {
+    const tree: any = { type: "root", children: [{ type: "paragraph", children: [{ type: "inlineCode", value: "==raw==" }] }] };
+    remarkStripHighlightMarks()(tree);
+    expect(tree.children[0].children).toEqual([{ type: "inlineCode", value: "==raw==" }]);
   });
 });

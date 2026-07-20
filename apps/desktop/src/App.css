@@ -275,7 +275,7 @@ button.pv-doc-header-icon:hover {
   transform-origin: left;
 }
 
-/* Native <select> dropdown list items follow the theme. The popup is partly
+/* Native select dropdown list items follow the theme. The popup is partly
    OS-rendered (color-scheme above does the heavy lifting), this styles the
    options where the engine honours it. */
 select,
@@ -413,6 +413,10 @@ option {
 
 /* GFM footnotes in read mode (P3.6): remark-gfm renders them natively; this
    only gives the section its quiet reference-apparatus look. */
+/* ==highlight== renders as a real <mark> (remarkStripHighlightMarks hName),
+   on the same token the live preview uses — modes must match. */
+.markdown-reader mark { background: var(--highlight-bg); color: inherit; padding: 0 1px; }
+
 .markdown-reader section[data-footnotes] { margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.85em; color: var(--text-muted); }
 .markdown-reader section[data-footnotes] h2 { display: none; } /* implicit "Footnotes" heading */
 .markdown-reader section[data-footnotes] ol { padding-left: 1.4em; margin: 0.4em 0; }

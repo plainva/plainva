@@ -519,7 +519,7 @@ export function useBaseCells({
         let options = getInlineOptions(col);
         // Keep the current value selectable even if it is not (yet) a curated option.
         if (curVal && !options.some((o) => o.value === curVal)) options = [{ value: curVal }, ...options];
-        // Theme-aware custom Select instead of the native <select> (plan D2): colored
+        // Theme-aware custom Select instead of a native select element (plan D2): colored
         // swatches match the chips, status options keep their groups, and the editor
         // opens on entry and leaves edit mode on dismiss (focus/blur-commit model).
         const selOptions: SelectOption[] = [{ value: "", label: "—" }];
