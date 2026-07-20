@@ -2186,7 +2186,7 @@
     "servicesGroup": "Serviços",
     "appRegGroup": "Registro do aplicativo",
     "byoAccountHint": "Por padrão, o Plainva usa seu registro de aplicativo central. Um ID de aplicativo próprio vale para a conta inteira.",
-    "byoAccountHintGoogle": "O Google exige seu próprio ID de cliente OAuth — aqui não existe um aplicativo central do Plainva. O ID vale para a conta inteira.",
+    "byoAccountHintGoogle": "O Google exige seu próprio ID de cliente OAuth (como na sincronização com o Drive). Ele vale para a conta inteira.",
     "serviceOffMsg": "“{{service}}” será desativado para esta conta e os dados locais do serviço serão removidos. Nada é excluído no provedor.",
     "svcConfigureSync": "Configure a pasta e o comportamento na área “Sincronização”.",
     "svcConfigureMail": "Configure a captura e a privacidade na área “E-mail”.",

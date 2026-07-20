@@ -2179,7 +2179,7 @@
     "servicesGroup": "Diensten",
     "appRegGroup": "App-registratie",
     "byoAccountHint": "Standaard gebruikt Plainva zijn centrale app-registratie. Een eigen app-ID geldt voor het hele account.",
-    "byoAccountHintGoogle": "Google vereist een eigen OAuth-client-ID — een centrale Plainva-app bestaat hier niet. De ID geldt voor het hele account.",
+    "byoAccountHintGoogle": "Google vereist een eigen OAuth-client-ID (zoals bij de Drive-sync). Deze geldt voor het hele account.",
     "serviceOffMsg": "“{{service}}” wordt voor dit account uitgeschakeld en de lokale gegevens van deze dienst worden verwijderd. Bij de provider wordt niets gewist.",
     "svcConfigureSync": "Configureer map en gedrag in het gedeelte “Synchronisatie”.",
     "svcConfigureMail": "Configureer vastleggen en privacy in het gedeelte “E-mail”.",
