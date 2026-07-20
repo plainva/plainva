@@ -19,9 +19,8 @@ import { ICON, isImagePath, Modal, parseBookmarksFile, SearchField, serializeBoo
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
-import { BookmarksList } from "./components/BookmarksList";
 import { DatabasesList } from "./components/DatabasesList";
-import { RecentsSection } from "./components/RecentsSection";
+import { LeftPinnedSections } from "./components/LeftPinnedSections";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
@@ -58,8 +57,9 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
+import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
@@ -251,7 +251,7 @@ function App() {
     return () => window.removeEventListener("plainva-show-sync-error", onShowSyncError);
   }, []);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
-  const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "bookmarks" | "databases">("files");
+  const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
   // toggle in the sidebar tab row (E3 2026-07-09; reported by the FileTree).
   const [treeHasExpanded, setTreeHasExpanded] = useState(false);
@@ -1049,11 +1049,13 @@ function App() {
             />
           </div>
         </div>
-        {/* View switch (Files / Tags / Bookmarks). The tree collapse/expand-all
-            toggle lives in the file-tree heading below (next to the vault name). */}
+        {/* View switch (Files / Tags / Databases). Bookmarks and "Recently
+            opened" are collapsible, reorderable sections above the tree
+            (LeftPinnedSections), so there is no separate Bookmarks tab. The tree
+            collapse/expand-all toggle lives in the file-tree heading below. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px 8px' }}>
           <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, flex: 1 }}>
-            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['bookmarks', Bookmark, t('sidebar.bookmarks', { defaultValue: 'Lesezeichen' })], ['databases', Database, t('sidebar.databases', { defaultValue: 'Datenbanken' })]] as const).map(([key, Icon, label]) => {
+            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['databases', Database, t('sidebar.databases', { defaultValue: 'Datenbanken' })]] as const).map(([key, Icon, label]) => {
               const active = leftSidebarTab === key;
               return (
                 <button
@@ -1062,7 +1064,7 @@ function App() {
                   aria-selected={active}
                   aria-label={label}
                   data-tip={label}
-                  onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'bookmarks')}
+                  onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'databases')}
                   className="pv-btn pv-btn--ghost"
                   style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--accent-container)' : undefined, color: active ? 'var(--on-accent-container)' : undefined }}
                 >
@@ -1075,7 +1077,16 @@ function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-              <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={openInFocusedPane} />
+              {vaultPath && (
+                <LeftPinnedSections
+                  vaultPath={vaultPath}
+                  recentPaths={recentPaths}
+                  bookmarks={bookmarks}
+                  activePath={activePath}
+                  onOpen={openInFocusedPane}
+                  query={leftQueryDebounced}
+                />
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>
                 <FolderTree size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1106,15 +1117,6 @@ function App() {
             </div>
           ) : leftSidebarTab === "tags" ? (
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
-          ) : leftSidebarTab === "bookmarks" ? (
-            <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
-              <BookmarksList
-                bookmarks={bookmarks}
-                query={leftQueryDebounced}
-                activePath={activePath}
-                onOpen={openInFocusedPane}
-              />
-            </div>
           ) : (
             <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
               <DatabasesList
@@ -1477,7 +1479,7 @@ function App() {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const { noteToClipboardFlavors } = await import("./services/mail/mailOut");
-                  const flavors = noteToClipboardFlavors(content);
+                  const flavors = noteToClipboardFlavors(stripFrontmatter(content));
                   await navigator.clipboard.write([
                     new ClipboardItem({
                       "text/html": new Blob([flavors.html], { type: "text/html" }),
@@ -1502,7 +1504,7 @@ function App() {
                     import("@tauri-apps/plugin-opener"),
                   ]);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  const res = buildMailtoUrl(title, markdownToPlainText(content));
+                  const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");
                   if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
                   await openUrl(res.url);
                 } catch (e) {
@@ -1517,7 +1519,7 @@ function App() {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  setMailDraft({ subject: title, markdown: content });
+                  setMailDraft({ subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined });
                 } catch (e) {
                   console.error("[App] draft prefill failed", e);
                 }

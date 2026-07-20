@@ -4,7 +4,7 @@ import { CheckSquare, MapPin, Repeat, Square } from "lucide-react";
 import { ICON, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "../../services/dailyNotePath";
-import { formatTimeRange } from "../../services/pim/calendarModel";
+import { eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
 import type { DueTask } from "../../services/pim/taskOverlay";
 
 /**
@@ -271,7 +271,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     }
   };
 
-  const gutterWidth = 60;
+  const untitledLabel = t("pim.untitledEvent", { defaultValue: "(ohne Titel)" });
+  const gutterWidth = 76;
 
   return (
     <div data-testid="calendar-timegrid" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -306,10 +307,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       {/* All-day / due-tasks strip */}
       {hasAllDayRow && (
         <div data-testid="calendar-allday-strip" style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)", background: "var(--bg-secondary)", maxHeight: 84, overflow: "auto" }}>
-          {/* Gutter label: wrap it inside the gutter so a long localized label
-              ("GANZTÄGIG", "Toute la journée") shows fully without spilling into
-              the first day column or getting clipped. */}
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "normal", overflowWrap: "anywhere" }}>
+          {/* Gutter label: the gutter (76) is wide enough for the widest
+              single-word label ("GANZTÄGIG" ~65px at --text-xs, measured in the
+              app font) to sit on one line. overflowWrap:normal never breaks a
+              word mid-character — multi-word labels ("Toute la journée") still
+              wrap between words. */}
+          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", whiteSpace: "normal", overflowWrap: "normal" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d) => (
@@ -320,10 +323,10 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   type="button"
                   onClick={() => onEventClick(e)}
                   data-testid="calendar-allday-event"
-                  data-tip={`${e.title}${calName(e) ? ` · ${calName(e)}` : ""}`}
+                  data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
                   style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
-                  {e.title}
+                  {eventDisplayTitle(e.title, untitledLabel)}
                 </button>
               ))}
               {d.tasks.map((task) => (
@@ -429,7 +432,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         if (suppressClickRef.current) { suppressClickRef.current = false; return; }
                         onEventClick(b.ev);
                       }}
-                      data-tip={`${b.ev.title}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
+                      data-tip={`${eventDisplayTitle(b.ev.title, untitledLabel)}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
                       style={{
                         position: "absolute",
                         top,
@@ -454,7 +457,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
-                        {b.ev.title}
+                        {eventDisplayTitle(b.ev.title, untitledLabel)}
                       </span>
                       {height > 30 && <span style={{ fontSize: "var(--text-xs)", opacity: 0.9 }}>{formatTimeRange(b.ev, locale)}</span>}
                       {height > 48 && b.ev.location ? (

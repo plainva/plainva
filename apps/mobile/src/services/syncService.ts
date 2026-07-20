@@ -245,6 +245,21 @@ export function syncNow(): void {
   void worker?.fullResync();
 }
 
+let lastForegroundSyncAt = 0;
+
+/**
+ * Sync on app start / return-to-foreground, throttled to once per minute so
+ * frequent app switching can't loop. A full resync also revives stuck pushes,
+ * so the user no longer has to trigger a sync by hand after opening the app.
+ */
+export function foregroundSync(): void {
+  if (!worker) return;
+  const now = Date.now();
+  if (now - lastForegroundSyncAt < 60_000) return;
+  lastForegroundSyncAt = now;
+  void worker.fullResync();
+}
+
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Debounced push kick after local edits — no waiting for the 30 s tick. */
@@ -421,4 +436,7 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   setState({ status: "idle", message: null });
   w.start();
   w.triggerImmediate();
+  // The startup cycle counts as the foreground sync so a resume within a minute
+  // of a cold start doesn't fire a second one.
+  lastForegroundSyncAt = Date.now();
 }

@@ -5,7 +5,10 @@
     "paste": "Colar",
     "label": "Menu de contexto",
     "copyFailed": "Não foi possível copiar para a área de transferência.",
-    "pasteFailed": "Não foi possível colar da área de transferência."
+    "pasteFailed": "Não foi possível colar da área de transferência.",
+    "copyImage": "Copiar imagem",
+    "saveImageAs": "Salvar imagem como…",
+    "copyImageFailed": "Não foi possível copiar a imagem."
   },
   "common": {
     "save": "Salvar",
@@ -496,7 +499,7 @@
     "disconnect": "Desconectar sincronização",
     "errorTitle": "Erro de sincronização",
     "unknownError": "Ocorreu um erro desconhecido.",
-    "errorHint": "Causa comum: o login expirou ou as credenciais mudaram (p. ex. no Google Drive). Você pode reconectar nas configurações de sincronização.",
+    "errorHint": "Causas comuns: um problema temporário de rede ou um tempo limite excedido — geralmente se resolvem sozinhos, e o Plainva tenta novamente de forma automática. Ou o login expirou, ou as credenciais mudaram (p. ex. no Google Drive) — nesse caso, você pode reconectar nas configurações de sincronização.",
     "conflictCopies": "Cópias de conflito encontradas:",
     "openSettings": "Abrir configurações de sincronização"
   },

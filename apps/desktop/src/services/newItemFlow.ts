@@ -109,13 +109,16 @@ export function buildCaptureContent(opts: {
   title?: string | null;
   noteType: string;
   inheritTags: string[];
+  /** Extra frontmatter to pre-fill (e.g. the active pinboard label filter as a
+   *  multiselect property value); only written where the key is not already set. */
+  prefills?: Record<string, any>;
 }): string {
   const body = opts.text.replace(/\s+$/, "");
   const title = (opts.title ?? "").trim();
   const base = title
     ? `# ${title}\n` + (body ? `\n${body}\n` : "")
     : body ? body + "\n" : "";
-  return finalizeItemContent(base, opts.noteType, opts.inheritTags, {});
+  return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills ?? {});
 }
 
 function finalizeItemContent(base: string, noteType: string, inheritTags: string[], prefills: Record<string, any>): string {

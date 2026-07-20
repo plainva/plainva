@@ -45,9 +45,9 @@ Once an account can send — a **Microsoft** account, or an **IMAP** account wit
 
 ## Handing a note off without the mail client
 
-You don't have to send from within Plainva. These work on any note and need no SMTP:
+You don't have to send from within Plainva. These work on any note and need no SMTP; the note's YAML frontmatter is never included in the message — only its text:
 
-- **Reply as note** (on a message): creates a note addressed at the sender (`to:` in the frontmatter) with the original quoted — write your reply in Plainva.
+- **Reply as note** (on a message): creates a note addressed at the sender (`to:` in the frontmatter) with the original quoted — write your reply in Plainva. When you later send that note (or save it as a draft), the `to:` address is filled into the **To** field automatically.
 - **Save note as email draft in the mailbox** (command palette, on any open note): stores the note as a **draft in your own mailbox** via IMAP — pick the account, recipient and drafts folder, then open your regular mail program, review and send from there. Formatting is preserved.
 - **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened).
 - **Copy note as email text** (command palette): puts the note on the clipboard with formatting — paste it into any composer.

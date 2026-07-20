@@ -18,6 +18,7 @@ import type {
   PullTasksResult,
 } from "./types.js";
 import { PimConflictError } from "./types.js";
+import { htmlToMarkdown } from "./htmlToMarkdown.js";
 
 /**
  * Microsoft read adapter (stage 2): Graph calendars + To Do. `calendarView`
@@ -36,6 +37,7 @@ interface GraphEventItem {
   id: string;
   subject?: string;
   bodyPreview?: string;
+  body?: { content?: string; contentType?: string };
   isAllDay?: boolean;
   isCancelled?: boolean;
   showAs?: string;
@@ -285,7 +287,7 @@ function graphEventBody(draft: PimEventDraft): Record<string, unknown> {
     start: time(draft.start),
     end: time(draft.end),
     location: { displayName: draft.location ?? "" },
-    ...(draft.description !== undefined ? { body: { contentType: "text", content: draft.description } } : {}),
+    ...(draft.description !== undefined ? { body: { contentType: "html", content: draft.descriptionHtml ?? draft.description } } : {}),
     // A provided list replaces the invitees; undefined leaves them (drag).
     ...(draft.attendees !== undefined
       ? { attendees: draft.attendees.filter((e) => e.trim()).map((email) => ({ emailAddress: { address: email.trim() }, type: "required" })) }
@@ -343,6 +345,19 @@ function withAuth(init: RequestInit | undefined, token: string): RequestInit {
   return { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), Authorization: `Bearer ${token}` } };
 }
 
+/** Event description as Markdown: Graph returns the full HTML `body` by default
+ * (contentType "html"); fall back to the truncated `bodyPreview` only when the
+ * full body is absent. Reading the full body fixes the drag/edit truncation. */
+function graphDescription(item: GraphEventItem): string | undefined {
+  const body = item.body;
+  if (body && typeof body.content === "string") {
+    const content = body.content;
+    if (!content.trim()) return undefined;
+    return (body.contentType ?? "").toLowerCase() === "html" ? htmlToMarkdown(content) || undefined : content.trim() || undefined;
+  }
+  return item.bodyPreview?.trim() || undefined;
+}
+
 function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | null {
   // With Prefer: outlook.timezone="UTC" the dateTime strings are UTC wall
   // clock without offset suffix — append Z for parsing.
@@ -357,7 +372,7 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
     end,
     allDay: item.isAllDay === true,
     location: item.location?.displayName || undefined,
-    description: item.bodyPreview?.trim() || undefined,
+    description: graphDescription(item),
     attendees: (item.attendees ?? [])
       .map((a) => a.emailAddress?.name || a.emailAddress?.address || "")
       .filter(Boolean),

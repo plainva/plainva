@@ -142,12 +142,15 @@ export class DriveSyncTarget implements ISyncTarget {
     } catch (err) {
       const reason =
         (err as any)?.name === "AbortError"
-          ? `timeout after ${this.timeoutMs}ms`
+          ? `request timed out after ${Math.round(this.timeoutMs / 1000)}s`
           : err instanceof Error
-            ? err.message
+            ? (err.message || String(err))
             : String(err);
       console.error(`[Drive] ${method} ${url} failed: ${reason}`);
-      throw err instanceof Error ? err : new Error(reason);
+      // Always surface the computed reason: an AbortError's own .message is
+      // typically empty on the WebView runtime, which showed as a meaningless
+      // "Unbekannter Fehler" in the sync error dialog. Keep the original as cause.
+      throw new Error(`Google Drive ${reason}`, { cause: err });
     } finally {
       clearTimeout(timer);
     }
@@ -524,15 +527,16 @@ export class DriveSyncTarget implements ISyncTarget {
     const rootId = await this.getRootFolderId();
     this.cacheFolder("", rootId);
     const etagMap = new Map<string, string>();
-    await this.listFolder(rootId, "", etagMap);
+    const mtimeMap = new Map<string, number>();
+    await this.listFolder(rootId, "", etagMap, mtimeMap);
     // Empty-folder sync (2026-07-17): the walk above cached every remote
     // folder path — report them (minus the vault root "") so the worker can
     // create locally missing EMPTY folders.
     const folders = [...this.folderToId.keys()].filter((p) => p !== "");
-    return { etagMap, folders };
+    return { etagMap, folders, mtimeMap };
   }
 
-  private async listFolder(folderId: string, prefix: string, etagMap: Map<string, string>): Promise<void> {
+  private async listFolder(folderId: string, prefix: string, etagMap: Map<string, string>, mtimeMap?: Map<string, number>): Promise<void> {
     let pageToken: string | undefined;
     do {
       const params = new URLSearchParams({
@@ -554,7 +558,7 @@ export class DriveSyncTarget implements ISyncTarget {
             continue;
           }
           this.cacheFolder(path, f.id);
-          await this.listFolder(f.id, path, etagMap);
+          await this.listFolder(f.id, path, etagMap, mtimeMap);
         } else if (isGoogleNative(f.mimeType)) {
           // Google-native files (Docs/Sheets/Slides/...) have no binary content and
           // cannot be downloaded with alt=media (they return 403). They are not vault
@@ -563,6 +567,10 @@ export class DriveSyncTarget implements ISyncTarget {
         } else if (!path.includes(".CONFLICT")) {
           this.cachePath(path, f.id);
           etagMap.set(path, f.md5Checksum || f.modifiedTime || f.id);
+          if (mtimeMap && f.modifiedTime) {
+            const t = Date.parse(f.modifiedTime);
+            if (!Number.isNaN(t)) mtimeMap.set(path, t);
+          }
         }
       }
       pageToken = json.nextPageToken;

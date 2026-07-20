@@ -56,6 +56,9 @@ export interface InviteOptions {
   organizer: string;
   /** DTSTAMP source (pass Date.now() at the call site — keeps this pure). */
   stampMs: number;
+  /** Optional pre-rendered HTML of the description, added as X-ALT-DESC so
+   * HTML-aware clients (Outlook) show a formatted description. */
+  descriptionHtml?: string;
 }
 
 /** Builds the full VCALENDAR text for a single-event invitation. */
@@ -85,6 +88,7 @@ export function buildInviteIcs(
   lines.push(`SUMMARY:${escapeText(event.title || "")}`);
   if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
   if (event.description) lines.push(`DESCRIPTION:${escapeText(event.description)}`);
+  if (opts.descriptionHtml) lines.push(`X-ALT-DESC;FMTTYPE=text/html:${escapeText(opts.descriptionHtml)}`);
   lines.push(`ORGANIZER:mailto:${opts.organizer}`);
   for (const a of event.attendees ?? []) {
     const email = a.trim();

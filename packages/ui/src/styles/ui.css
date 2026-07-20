@@ -262,10 +262,13 @@
 /* Inline validation line under an input (tree rename/create, prompts). */
 .pv-inline-error { font-size: var(--text-sm); line-height: 1.3; color: var(--error-text); }
 
-/* Right-sidebar section grips appear on hover/focus only (P6/L6). */
-.pv-side-grip { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
+/* Right-sidebar section grips are an absolute hover/focus overlay (feedback
+   2026-07-20): they no longer consume layout width, so the section header lines
+   up with the body content below it. pointer-events stay off while hidden so the
+   collapse toggle underneath keeps working; on hover/focus the grip is draggable. */
+.pv-side-grip { opacity: 0; pointer-events: none; transition: opacity var(--dur-1) var(--ease-1); }
 .pv-side-section:hover .pv-side-grip,
-.pv-side-grip:focus-visible { opacity: 1; }
+.pv-side-grip:focus-visible { opacity: 1; pointer-events: auto; }
 
 /* Right-sidebar section header (collapse toggle). Lives in a class — not
    inline styles — so themes can restyle it (LCARS paints the header as a
@@ -275,7 +278,7 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.7rem 0.75rem 0.7rem 0.35rem;
+  padding: 0.7rem 0.75rem;
   background: transparent;
   border: none;
   color: var(--text-main);

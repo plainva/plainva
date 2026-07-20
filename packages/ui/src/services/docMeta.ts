@@ -9,6 +9,31 @@ export function frontmatterBlockOf(content: string): string | null {
   return match ? match[1] : null;
 }
 
+/** The document body with a leading frontmatter block removed (and the blank
+ * line that followed it), or the content unchanged when there is none. Used
+ * when a note becomes an email body so the YAML never leaks into the message. */
+export function stripFrontmatter(content: string): string {
+  const stripped = content.replace(FM_RE, "");
+  return stripped === content ? content : stripped.replace(/^\r?\n/, "");
+}
+
+/** The `to:` recipient from a note's frontmatter (a reply-as-note stores the
+ * original sender there), trimmed, or null. Never throws. */
+export function frontmatterToAddress(content: string): string | null {
+  const block = frontmatterBlockOf(content);
+  if (!block) return null;
+  try {
+    const parsed = parseYaml(block);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const to = (parsed as Record<string, unknown>).to;
+      if (typeof to === "string" && to.trim()) return to.trim();
+    }
+  } catch {
+    /* malformed frontmatter — no recipient */
+  }
+  return null;
+}
+
 /**
  * Plainva presentation metadata (icon, header color) parsed from a frontmatter
  * block. Never throws — presentation metadata must not break rendering.

@@ -198,7 +198,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
             ref={(el) => { if (el) sectionEls.current[id] = el; else delete sectionEls.current[id]; }}
             style={{ borderBottom: "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent" }}
           >
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
               <span
                 className="pv-side-grip"
                 onPointerDown={(e) => { if (e.button === 0) beginDrag(id, e); }}
@@ -208,7 +208,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                 role="button"
                 aria-label={t("rightPanel.reorder", { defaultValue: "Abschnitt verschieben" })}
                 data-tip={t("rightPanel.reorder", { defaultValue: "Abschnitt verschieben" })}
-                style={{ display: "flex", alignItems: "center", padding: "0 2px 0 8px", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none", opacity: dragId ? 1 : undefined }}
+                style={{ position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", padding: "0 2px", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none", opacity: dragId ? 1 : undefined }}
               >
                 <GripVertical size={ICON.ui} />
               </span>

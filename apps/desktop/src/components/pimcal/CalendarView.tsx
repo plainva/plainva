@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, ListChecks, MapP
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
-import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -20,6 +20,7 @@ import { CALENDAR_TAB_PATH } from "../graph/virtualPaths";
 import {
   bucketEventsByDay,
   emptyEventForm,
+  eventDisplayTitle,
   eventFormFromEvent,
   eventFormToDraft,
   eventStartDayKey,
@@ -450,6 +451,37 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const draft = eventFormToDraft(values);
       if (editState?.mode === "edit" && editState.event) {
         const e = editState.event;
+        // Calendar changed (the picker is only offered for single events): MOVE =
+        // create a faithful copy in the target calendar, then delete the source.
+        // The moved event gets a new provider id and loses server-side RSVP state.
+        const currentKey = `${e.accountId} ${e.calendarId}`;
+        const newKey = values.calendarKey.trim();
+        if (newKey && newKey !== currentKey) {
+          const [newAcc, ...rest] = newKey.split(" ");
+          const newCal = rest.join(" ");
+          const newTarget = newAcc ? await targetFor(newAcc) : null;
+          const oldTarget = await targetFor(e.accountId);
+          if (!newAcc || !newCal || !newTarget || !oldTarget) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          const moveDraft: PimEventDraft = {
+            ...draft,
+            description: draft.description ?? e.description ?? undefined,
+            descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
+            attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
+          };
+          const res = await newTarget.createEvent(newCal, moveDraft);
+          try {
+            await oldTarget.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
+          } catch (err) {
+            // The copy exists; a failed source delete leaves a duplicate after
+            // refresh (no data lost). Surface it and re-pull.
+            toast.error(err instanceof Error ? err.message : String(err));
+          }
+          setEvents((prev) => [...prev.filter((ev) => !sameEventRef(ev, e)), { ...draftToRow(newAcc, newCal, res.uid, moveDraft), etag: res.etag, href: res.href }]);
+          setEditState(null);
+          setCreateInitial(null);
+          refresh();
+          return;
+        }
         const target = await targetFor(e.accountId);
         if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         try {
@@ -526,7 +558,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         start: { ts: newStartMs },
         end: { ts: Math.max(newStartMs + 60000, newEndMs) },
         location: e.location ?? undefined,
-        description: e.description ?? undefined,
+        // Description is left untouched on a pure time move (undefined): the
+        // adapter GET-modify-PUT / PATCH preserves the remote body, so rich HTML
+        // is never overwritten with the cached Markdown.
         color: e.color,
       };
       try {
@@ -564,6 +598,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
       }
       await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
+      // Optimistic: reflect the new self-response at once (worker re-query confirms).
+      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
       refresh();
     },
     [targetFor, refresh, t]
@@ -770,7 +806,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
           return;
         }
-        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now() });
+        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now(), descriptionHtml: e.description ? markdownToHtml(e.description) : undefined });
         const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
         const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
         // Recipients = the event's invitees (the plain attendee list); the
@@ -878,7 +914,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
           <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
           {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
         </span>
         {e.location || (e.attendees?.length ?? 0) > 0 ? (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 12 }}>
@@ -1143,7 +1179,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         aria-hidden
                         style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }}
                       />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </span>
                   ))}
                   {shownTasks.map((task) => (
@@ -1265,7 +1301,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {e.title}
+                              {eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
                             </button>
                           ))}
                         </div>
@@ -1301,7 +1337,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               ? eventFormFromEvent(editState.event)
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
-          calendarOptions={calendarOptions}
+          calendarOptions={editState.mode === "edit" && (editState.event?.seriesMaster || editState.event?.recurrence) ? [] : calendarOptions}
           onCancel={() => { setEditState(null); setCreateInitial(null); }}
           onSubmit={submitEventForm}
           onMeetingNote={

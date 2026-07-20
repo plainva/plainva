@@ -5,7 +5,10 @@
     "paste": "Wklej",
     "label": "Menu kontekstowe",
     "copyFailed": "Nie udało się skopiować do schowka.",
-    "pasteFailed": "Nie udało się wkleić ze schowka."
+    "pasteFailed": "Nie udało się wkleić ze schowka.",
+    "copyImage": "Kopiuj obraz",
+    "saveImageAs": "Zapisz obraz jako…",
+    "copyImageFailed": "Nie udało się skopiować obrazu."
   },
   "common": {
     "save": "Zapisz",
@@ -496,7 +499,7 @@
     "disconnect": "Rozłącz synchronizację",
     "errorTitle": "Błąd synchronizacji",
     "unknownError": "Wystąpił nieznany błąd.",
-    "errorHint": "Częsta przyczyna: logowanie wygasło albo zmieniły się dane dostępowe (np. w Google Drive). Połączenie można odnowić w ustawieniach synchronizacji.",
+    "errorHint": "Częste przyczyny: chwilowy problem z siecią lub przekroczony czas oczekiwania — takie błędy zwykle ustępują same, a Plainva automatycznie ponawia próbę. Albo logowanie wygasło, albo zmieniły się dane dostępowe (np. w Google Drive) — wtedy można ponownie połączyć się w ustawieniach synchronizacji.",
     "conflictCopies": "Znalezione kopie konfliktów:",
     "openSettings": "Otwórz ustawienia synchronizacji"
   },

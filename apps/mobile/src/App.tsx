@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
-import { createProviderFolder, listProviderFolders, startSyncIfConfigured, syncNow } from "./services/syncService";
+import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
@@ -231,13 +231,14 @@ export default function App() {
     void CapApp.getLaunchUrl().then((r) => {
       if (r?.url) void routeAppUrl(r.url);
     });
-    // Returning to the app pulls a fresh full listing: WebView timers pause
-    // in the background, so without this a user could wait forever for new
-    // remote files (they only arrive through listings).
+    // Returning to the app pulls a fresh full listing (throttled to once a
+    // minute in foregroundSync): WebView timers pause in the background, so
+    // without this a user could wait for new remote files (they only arrive
+    // through listings).
     let stateHandle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("appStateChange", ({ isActive }) => {
       if (isActive) {
-        syncNow();
+        foregroundSync();
         // Share target (package J): a warm share foregrounds the app.
         window.dispatchEvent(new CustomEvent("m-poll-share"));
       }

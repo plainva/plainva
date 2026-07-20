@@ -52,14 +52,19 @@ describe("collectPerVaultLocalStorageKeys", () => {
       `plainva-base-active-view-${VAULT}:Projekte.base`,
       `plainva-base-subitems-${VAULT}`,
       `plainva-prop-types::${VAULT}`,
+      `plainva-left-sections-${VAULT}-order`,
+      `plainva-left-sections-${VAULT}-open-recents`,
+      `plainva-left-sections-${VAULT}-open-bookmarks`,
       // Must survive: other vaults + global keys.
       "plainva-layout-C:/Vaults/Anderer",
+      "plainva-left-sections-C:/Vaults/Anderer-order",
       "plainva-calendar-show-weeks",
       "plainva-recent-emoji",
     ];
     const hit = collectPerVaultLocalStorageKeys(VAULT, all);
-    expect(hit).toHaveLength(6);
+    expect(hit).toHaveLength(9);
     expect(hit).not.toContain("plainva-layout-C:/Vaults/Anderer");
+    expect(hit).not.toContain("plainva-left-sections-C:/Vaults/Anderer-order");
     expect(hit).not.toContain("plainva-calendar-show-weeks");
   });
 });

@@ -3,7 +3,7 @@ import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath } from "@plainva/core";
+import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
@@ -160,14 +160,17 @@ export function BaseViewer({
   // view's order.
   const availableColumns = useMemo(() => {
     const keys = new Set<string>();
-    dbData.forEach((row) => Object.keys(row).forEach((k) => { if (!k.startsWith("file.")) keys.add(k); }));
+    // The `plainva` frontmatter namespace (doc icon, header color, pim anchor…)
+    // is an object managed via its own editor UI — never a base property; hide
+    // it from the config list, mirroring PropertiesSection's markdown panel.
+    dbData.forEach((row) => Object.keys(row).forEach((k) => { if (!k.startsWith("file.") && k !== PLAINVA_NAMESPACE_KEY) keys.add(k); }));
     if (dbConfig?.columns && !Array.isArray(dbConfig.columns)) {
-      Object.keys(dbConfig.columns).forEach((k) => { if (!k.startsWith("file.")) keys.add(k); });
+      Object.keys(dbConfig.columns).forEach((k) => { if (!k.startsWith("file.") && k !== PLAINVA_NAMESPACE_KEY) keys.add(k); });
     }
     (Array.isArray(dbConfig?.views) ? dbConfig.views : []).forEach((v: any) => {
       (Array.isArray(v?.order) ? v.order : []).forEach((c: any) => {
         const bare = String(c).replace(/^note\./, "");
-        if (!bare.startsWith("file.")) keys.add(bare);
+        if (!bare.startsWith("file.") && bare !== PLAINVA_NAMESPACE_KEY) keys.add(bare);
       });
     });
     return Array.from(keys);
@@ -182,7 +185,7 @@ export function BaseViewer({
     return { counts, total: dbData.length };
   }, [dbData]);
   const commonColumns = useMemo(
-    () => Object.keys(columnCoverage.counts).filter((k) => columnCoverage.counts[k] === columnCoverage.total && !k.startsWith("file.")),
+    () => Object.keys(columnCoverage.counts).filter((k) => columnCoverage.counts[k] === columnCoverage.total && !k.startsWith("file.") && k !== PLAINVA_NAMESPACE_KEY),
     [columnCoverage]
   );
   // Single docked, view-adaptive config panel (points 2-4) replaces the
@@ -682,7 +685,7 @@ export function BaseViewer({
   // timestamp name and the note has no H1 — the text is the body either way
   // (no template). The new card floats on top via ctime (§3); no peek opens —
   // capture stays in the flow.
-  const quickCapture = async (input: { title: string; text: string }): Promise<boolean> => {
+  const quickCapture = async (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }): Promise<boolean> => {
     if (!dbConfig || !vaultAdapter || !vaultPath || newItemBusy) return false;
     const title = input.title.trim();
     const text = input.text;
@@ -702,11 +705,18 @@ export function BaseViewer({
         name = `${stem} ${n}`;
       }
       const path = withDir(name);
+      // Inherit the pinboard's active label filter into the new note: in tags
+      // mode the labels merge into `tags:`, in property mode they pre-fill the
+      // multiselect property the board filters on.
+      const labels = input.labels ?? [];
+      const inheritTags = input.labelProp ? target.inheritTags : [...target.inheritTags, ...labels];
+      const prefills = input.labelProp && labels.length > 0 ? { [input.labelProp]: labels } : {};
       const content = buildCaptureContent({
         text,
         title,
         noteType: await getConfiguredNoteType(vaultPath),
-        inheritTags: target.inheritTags,
+        inheritTags,
+        prefills,
       });
       await vaultAdapter.writeTextFile(path, content);
       if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});

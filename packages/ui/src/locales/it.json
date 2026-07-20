@@ -5,7 +5,10 @@
     "paste": "Incolla",
     "label": "Menu contestuale",
     "copyFailed": "Impossibile copiare negli appunti.",
-    "pasteFailed": "Impossibile incollare dagli appunti."
+    "pasteFailed": "Impossibile incollare dagli appunti.",
+    "copyImage": "Copia immagine",
+    "saveImageAs": "Salva immagine con nome…",
+    "copyImageFailed": "Impossibile copiare l'immagine."
   },
   "common": {
     "save": "Salva",
@@ -496,7 +499,7 @@
     "disconnect": "Disconnetti la sincronizzazione",
     "errorTitle": "Errore di sincronizzazione",
     "unknownError": "Si è verificato un errore sconosciuto.",
-    "errorHint": "Causa frequente: l'accesso è scaduto o le credenziali sono cambiate (ad es. con Google Drive). Puoi riconnetterti nelle impostazioni di sincronizzazione.",
+    "errorHint": "Cause frequenti: un problema di rete temporaneo o un timeout — di solito si risolvono da soli, e Plainva riprova automaticamente. Oppure l'accesso è scaduto o le credenziali sono cambiate (ad es. con Google Drive) — in tal caso puoi riconnetterti nelle impostazioni di sincronizzazione.",
     "conflictCopies": "Copie di conflitto trovate:",
     "openSettings": "Apri le impostazioni di sincronizzazione"
   },

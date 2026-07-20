@@ -49,4 +49,14 @@ describe("iCal invitation builder (mail-client E6)", () => {
     expect(ics).toContain("DTSTART;VALUE=DATE:20260701");
     expect(ics).toContain("DTEND;VALUE=DATE:20260702");
   });
+
+  it("adds an HTML alternative description (X-ALT-DESC) when provided", () => {
+    const ics = buildInviteIcs(
+      { uid: "h1", title: "Review", start: { ts: Date.UTC(2026, 6, 1, 9, 0) }, end: { ts: Date.UTC(2026, 6, 1, 10, 0) }, allDay: false, description: "**bold** note" },
+      { organizer: "me@example.org", stampMs: 0, descriptionHtml: "<p><strong>bold</strong> note</p>" }
+    );
+    const unfolded = ics.replace(/\r\n /g, "");
+    expect(unfolded).toContain("DESCRIPTION:**bold** note");
+    expect(unfolded).toContain("X-ALT-DESC;FMTTYPE=text/html:<p><strong>bold</strong> note</p>");
+  });
 });

@@ -580,10 +580,11 @@ test('Editor menu: reveal in file tree re-expands the folder and selects the not
   await tree.getByText('Tief', { exact: true }).click();
   await expect(tree.getByText('Drin', { exact: true })).not.toBeVisible();
 
-  // Switch to the bookmarks tab: the tree unmounts. The reveal must switch
-  // back to the files tab (App listener) AND apply on the remounted tree
-  // (parked hand-off in lib/treeReveal).
-  await aside.getByRole('tab', { name: /Lesezeichen|Bookmarks/ }).click();
+  // Switch to the tags tab: the tree unmounts. The reveal must switch back to
+  // the files tab (App listener) AND apply on the remounted tree (parked
+  // hand-off in lib/treeReveal). (Bookmarks is no longer a tab — it is a
+  // collapsible section above the tree in the files tab.)
+  await aside.getByRole('tab', { name: /Tags/ }).click();
 
   await page.getByTestId('editor-menu-btn').click();
   await page.getByTestId('editor-menu-reveal-tree').click();
@@ -611,11 +612,12 @@ test('Bookmarks: entries drop the .md extension and show an icon, like the file 
   await expect(treeRow).toContainText('MeineNotiz');
   await expect(treeRow.locator('svg')).toBeVisible();
 
-  // Bookmarks tab: same shape now (previously the raw "MeineNotiz.md" and no icon).
-  await aside.getByRole('tab', { name: /Lesezeichen|Bookmarks/ }).click();
-  const bmRow = aside.getByRole('button', { name: 'MeineNotiz' });
+  // Bookmarks section (now a collapsible section above the tree, not a tab):
+  // same shape (previously the raw "MeineNotiz.md" and no icon).
+  const bmSection = aside.getByTestId('bookmarks-section');
+  const bmRow = bmSection.getByRole('button', { name: 'MeineNotiz' });
   await expect(bmRow).toBeVisible();
-  await expect(aside.getByText('MeineNotiz.md')).toHaveCount(0);
+  await expect(bmSection.getByText('MeineNotiz.md')).toHaveCount(0);
   await expect(bmRow.locator('svg')).toBeVisible();
 });
 

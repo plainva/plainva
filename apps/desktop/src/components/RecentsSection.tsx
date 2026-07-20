@@ -12,6 +12,9 @@ interface Props {
   onOpen: (path: string) => void;
   /** Max entries shown (default 5). */
   limit?: number;
+  /** When true, render only the row buttons (no header/border) — used inside the
+   *  collapsible LeftPinnedSections shell, which provides its own header. */
+  headless?: boolean;
 }
 
 /**
@@ -21,25 +24,14 @@ interface Props {
  * the tree keeps its expand state instead of resetting. Renders nothing when
  * empty, so the tree keeps the full height.
  */
-export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: Props) {
+export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5, headless = false }: Props) {
   const { t } = useTranslation();
   const docIcons = useDocumentIcons();
   const docTitles = useDocumentTitles();
   const shown = recentPaths.slice(0, limit);
   if (shown.length === 0) return null;
 
-  return (
-    <div data-testid="recents-section" style={{ padding: "0.25rem 0.25rem 0.4rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
-      <div
-        style={{
-          display: "flex", alignItems: "center", gap: 6, padding: "0.25rem 0.5rem",
-          color: "var(--text-muted)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px",
-        }}
-      >
-        <Clock size={ICON.meta} />
-        {t("sidebar.recent")}
-      </div>
-      {shown.map((path) => {
+  const rows = shown.map((path) => {
         // Virtual views (vault map, tasks) are legitimate recents entries but
         // are not vault files: show their localized name + dedicated icon
         // instead of the raw pseudo-path basename ("graph"/"tasks").
@@ -87,7 +79,22 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5 }: P
             </span>
           </button>
         );
-      })}
+  });
+
+  if (headless) return <>{rows}</>;
+
+  return (
+    <div data-testid="recents-section" style={{ padding: "0.25rem 0.25rem 0.4rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "0.25rem 0.5rem",
+          color: "var(--text-muted)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px",
+        }}
+      >
+        <Clock size={ICON.meta} />
+        {t("sidebar.recent")}
+      </div>
+      {rows}
     </div>
   );
 }

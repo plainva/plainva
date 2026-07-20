@@ -978,15 +978,27 @@ export class SyncWorker {
         if (s && s.remote_etag === remoteEtag) continue;
         reconcileOrder.push(path);
       }
+      // Prefer the most-recently-modified remote files first (Drive reports
+      // mtimes) so recent edits reconcile — and appear — first.
+      if (pullResult.mtimeMap) {
+        const m = pullResult.mtimeMap;
+        reconcileOrder.sort((a, b) => (m.get(b) ?? 0) - (m.get(a) ?? 0));
+      }
       const prefetcher = new DownloadPrefetcher(
         (p) => this.target.download(p),
         reconcileOrder,
         Math.max(1, this.options.downloadConcurrency ?? DEFAULT_DOWNLOAD_CONCURRENCY),
         Math.max(1024 * 1024, this.options.downloadBufferBytes ?? DEFAULT_DOWNLOAD_BUFFER_BYTES)
       );
+      // Reconcile in the same newest-first order as the prefetch above.
+      const pullMtime = pullResult.mtimeMap;
+      const pullPaths = pullMtime
+        ? [...pullResult.etagMap.keys()].sort((a, b) => (pullMtime.get(b) ?? 0) - (pullMtime.get(a) ?? 0))
+        : [...pullResult.etagMap.keys()];
       let pullIdx = 0;
-      for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
+      for (const path of pullPaths) {
         if (!alive()) break;
+        const remoteEtag = pullResult.etagMap.get(path)!;
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.

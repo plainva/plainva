@@ -5,7 +5,10 @@
     "paste": "Pegar",
     "label": "Menú contextual",
     "copyFailed": "No se pudo copiar al portapapeles.",
-    "pasteFailed": "No se pudo pegar desde el portapapeles."
+    "pasteFailed": "No se pudo pegar desde el portapapeles.",
+    "copyImage": "Copiar imagen",
+    "saveImageAs": "Guardar imagen como…",
+    "copyImageFailed": "No se pudo copiar la imagen."
   },
   "common": {
     "save": "Guardar",
@@ -496,7 +499,7 @@
     "disconnect": "Desconectar sincronización",
     "errorTitle": "Error de sincronización",
     "unknownError": "Se produjo un error desconocido.",
-    "errorHint": "Causa habitual: la sesión caducó o las credenciales cambiaron (p. ej. con Google Drive). Puedes volver a conectar en la configuración de sincronización.",
+    "errorHint": "Causas habituales: un problema de red temporal o un tiempo de espera agotado — suelen resolverse solos, y Plainva vuelve a intentarlo automáticamente. O la sesión ha caducado o las credenciales han cambiado (p. ej. con Google Drive) — entonces puedes volver a conectar en la configuración de sincronización.",
     "conflictCopies": "Copias de conflicto encontradas:",
     "openSettings": "Abrir configuración de sincronización"
   },

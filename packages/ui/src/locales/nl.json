@@ -5,7 +5,10 @@
     "paste": "Plakken",
     "label": "Contextmenu",
     "copyFailed": "Kon niet naar het klembord kopiëren.",
-    "pasteFailed": "Kon niet vanaf het klembord plakken."
+    "pasteFailed": "Kon niet vanaf het klembord plakken.",
+    "copyImage": "Afbeelding kopiëren",
+    "saveImageAs": "Afbeelding opslaan als…",
+    "copyImageFailed": "Kon de afbeelding niet kopiëren."
   },
   "common": {
     "save": "Opslaan",
@@ -496,7 +499,7 @@
     "disconnect": "Synchronisatie ontkoppelen",
     "errorTitle": "Synchronisatiefout",
     "unknownError": "Er is een onbekende fout opgetreden.",
-    "errorHint": "Vaak is de aanmelding verlopen of zijn de toegangsgegevens gewijzigd (bijv. bij Google Drive). In de sync-instellingen kun je opnieuw verbinden.",
+    "errorHint": "Veelvoorkomende oorzaken: een tijdelijk netwerkprobleem of een time-out — dit lost zich meestal vanzelf op, en Plainva probeert het automatisch opnieuw. Of de aanmelding is verlopen of de toegangsgegevens zijn gewijzigd (bijv. bij Google Drive) — dan kun je in de sync-instellingen opnieuw verbinden.",
     "conflictCopies": "Gevonden conflictkopieën:",
     "openSettings": "Sync-instellingen openen"
   },

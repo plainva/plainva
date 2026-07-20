@@ -334,6 +334,13 @@ option {
   .pv-del { position: absolute; top: 2px; right: 2px; }
 }
 
+/* Calendar day dots: hide once the month grid gets too narrow to fit them
+   without overlapping (right sidebar dragged very small). Scoped to the named
+   "cal-grid" container so it never clips the widget's fixed context menu. */
+@container cal-grid (max-width: 232px) {
+  .pv-cal-dots { display: none; }
+}
+
 /* text / number / url / email / phone inputs */
 
 /* checkbox toggle: .pv-switch* moved to @plainva/ui styles/ui.css (design

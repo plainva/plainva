@@ -9,6 +9,16 @@ import type { EditableTarget } from "@plainva/ui";
  * the target field are captured at right-click time so a later focus change
  * (the menu itself takes focus) cannot lose them before the user acts.
  */
+/** A vault image the right-click landed on (copy / save-as). */
+export interface ImageContextTarget {
+  /** Loads the raw image bytes (vault adapter / the editor's injected readBinary). */
+  loadBytes: () => Promise<Uint8Array>;
+  /** Suggested file name (basename with extension). */
+  filename: string;
+  /** Image MIME type. */
+  mime: string;
+}
+
 export interface ContextMenuState {
   x: number;
   y: number;
@@ -16,6 +26,8 @@ export interface ContextMenuState {
   selection: string;
   /** The editable field under the click, or null for plain text. */
   editable: EditableTarget | null;
+  /** Set when the click landed on a vault image — shows Copy / Save image as… */
+  image?: ImageContextTarget | null;
 }
 
 let state: ContextMenuState | null = null;

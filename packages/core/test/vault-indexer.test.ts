@@ -81,7 +81,7 @@ describe("VaultIndexer", () => {
     expect(anchored![5]).toBe("refs");
   });
 
-  it("stores ctime with adapter birthtime > stored value > mtime fallback", async () => {
+  it("stores ctime: a stored value pins it (stable across re-index) > adapter birthtime > mtime", async () => {
     await vaultAdapter.writeTextFile("timed.md", "# timed");
     const base = {
       path: "timed.md",
@@ -91,21 +91,23 @@ describe("VaultIndexer", () => {
       size: 7,
     };
 
-    // 1) Adapter provides a birthtime -> it wins.
+    // 1) A stored ctime PINS the value: a re-index with a different (jumping)
+    //    adapter birthtime must NOT change it — else a mere save would reorder
+    //    the pinboard (ctime sort) like mtime, esp. on cloud/network folders.
     db.mockedOneResults.push({ sync_state: "synced", ctime: 111 }); // existing files row
     db.mockedOneResults.push(null); // no queue op
     await indexer.indexFile({ ...base, ctime: 222 });
     let insert = db.queries.filter((q) => q.query.includes("INSERT INTO files")).at(-1)!;
     expect(insert.query).toContain("ctime");
-    expect((insert.params as any[])[5]).toBe(222); // (id,path,title,sha,mtime,ctime,...)
+    expect((insert.params as any[])[5]).toBe(111); // stored wins (id,path,title,sha,mtime,ctime,...)
 
-    // 2) No adapter birthtime -> the stored ctime survives the re-index.
+    // 2) First index (existing row has no ctime) -> the adapter birthtime seeds it.
     db.clear();
-    db.mockedOneResults.push({ sync_state: "synced", ctime: 111 });
+    db.mockedOneResults.push({ sync_state: "synced" });
     db.mockedOneResults.push(null);
-    await indexer.indexFile({ ...base });
+    await indexer.indexFile({ ...base, ctime: 222 });
     insert = db.queries.filter((q) => q.query.includes("INSERT INTO files")).at(-1)!;
-    expect((insert.params as any[])[5]).toBe(111);
+    expect((insert.params as any[])[5]).toBe(222);
 
     // 3) Neither -> first-seen lower bound = the file's mtime.
     db.clear();

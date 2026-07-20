@@ -4,7 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { resolveVaultRelative } from '@plainva/ui';
-import { loadImageBlob } from '@plainva/ui';
+import { loadImageBlob, imageMimeType } from '@plainva/ui';
+import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
 import { isWikiTargetResolved } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
@@ -75,7 +76,25 @@ const VaultImage: React.FC<{ path: string; alt: string }> = ({ path, alt }) => {
 
   if (failed) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || path}</span>;
   if (!url) return <span aria-hidden="true" />;
-  return <img src={url} alt={alt} style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)' }} />;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      onContextMenu={(e) => {
+        if (!vaultAdapter) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          selection: "",
+          editable: null,
+          image: { loadBytes: () => vaultAdapter.readBinaryFile(path), filename: path.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(path) },
+        });
+      }}
+      style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)' }}
+    />
+  );
 };
 
 const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?: (path: string, newTab: boolean) => void; hostPath?: string }> = ({ target, depth, onOpenPath, hostPath }) => {

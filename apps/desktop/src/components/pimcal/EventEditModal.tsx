@@ -5,6 +5,7 @@ import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, Menu
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
+import { ComposeEditor } from "../mail/ComposeEditor";
 
 const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
   accepted: "var(--success-text)",
@@ -24,7 +25,9 @@ const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
 interface EventEditModalProps {
   mode: "create" | "edit";
   initial: EventFormValues;
-  /** Writable calendars for the create picker (empty in edit mode). */
+  /** Writable calendars for the calendar picker. A non-empty list enables it; the
+   * caller passes an empty list to hide it (e.g. a series edit, where moving
+   * across calendars is not offered). */
   calendarOptions: Array<{ value: string; label: string }>;
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => Promise<void>;
@@ -86,6 +89,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   // never REPLACES the remote value (attendee RSVP status, an unreadable Graph
   // rule) — the draft leaves untouched fields undefined.
   const setAttendees = (v: string) => setValues((prev) => ({ ...prev, attendees: v, attendeesTouched: true }));
+  const setDescription = (v: string) => setValues((prev) => ({ ...prev, description: v, descriptionTouched: true }));
   const attendeeList = parseEmails(values.attendees);
   const commitAttendees = (raw: string) => {
     if (!raw.trim()) return;
@@ -207,7 +211,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 style={{ display: "block", width: "100%" }}
               />
             </div>
-            {mode === "create" && calendarOptions.length > 0 && (
+            {calendarOptions.length > 0 && (
               <div className="pv-setrow">
                 <div className="pv-setrow-main"><div className="pv-setrow-label">{t("pim.eventCalendar", { defaultValue: "Kalender" })}</div></div>
                 <div className="pv-setrow-ctrl" style={{ flexBasis: 260 }}>
@@ -403,13 +407,10 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             </div>
             <div className="pv-setrow pv-setrow--wide">
               <span className="pv-setrow-label">{t("pim.eventDescription", { defaultValue: "Beschreibung" })}</span>
-              <textarea
-                className="pv-field pv-field--area"
+              <ComposeEditor
                 value={values.description}
-                onChange={(e) => set("description", e.target.value)}
+                onChange={setDescription}
                 data-testid="event-description"
-                rows={3}
-                style={{ display: "block", width: "100%" }}
               />
             </div>
           </div>
