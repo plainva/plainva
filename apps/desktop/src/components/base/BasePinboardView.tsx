@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Columns2, ExternalLink, Pin, PinOff, Tags, Trash2 } from "lucide-react";
+import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, noteDisplayName, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
+import { HeaderColorPicker } from "../HeaderColorPicker";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -27,10 +28,6 @@ import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 const CARD_WIDTH = 256;
 const GAP = 12;
 const DRAG_THRESHOLD_PX = 5;
-
-/** Palette offered in the card context menu; writes plainva.color (E7 — the
- * note's global header tint, deliberately shared with the editor header). */
-const CARD_COLORS = Object.entries(PALETTE_SWATCH).filter(([name]) => name !== "gray");
 
 interface CardVM {
   path: string;
@@ -104,7 +101,7 @@ export function BasePinboardView({
   onOpenNote: (path: string, ev?: { ctrlKey?: boolean; metaKey?: boolean }) => void;
   onOpenInSplit?: (path: string) => void;
   /** Quick capture (P4/title popup): resolves true when the note was created. */
-  onQuickCapture?: (input: { title: string; text: string }) => Promise<boolean>;
+  onQuickCapture?: (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }) => Promise<boolean>;
   /** Embedded boards are read-mostly (D5): no drag reorder, no capture. */
   embedded?: boolean;
 }) {
@@ -182,6 +179,9 @@ export function BasePinboardView({
     return m;
   }, [cards, labelProp, sourceTags]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  // Card color uses the SAME picker as the note header (both write
+  // plainva.header_color) so the two offer an identical palette.
+  const [colorPicker, setColorPicker] = useState<{ path: string; x: number; y: number; value?: string } | null>(null);
   const labelOptions: { value: string; color?: string }[] = useMemo(
     () => (labelProp && Array.isArray(dbConfig?.columns?.[labelProp]?.options) ? dbConfig.columns[labelProp].options : []),
     [dbConfig, labelProp],
@@ -486,7 +486,7 @@ export function BasePinboardView({
       return;
     }
     setCaptureBusy(true);
-    void onQuickCapture({ title, text })
+    void onQuickCapture({ title, text, labels: selectedLabels, labelProp })
       .then((ok) => {
         if (ok) {
           setCaptureTitle("");
@@ -825,34 +825,12 @@ export function BasePinboardView({
             <MenuItem icon={<Tags size={ICON.ui} />} onSelect={() => void openLabelEditor(menu.path, { x: menu.x, y: menu.y })}>
               {t("pinboard.labels", { defaultValue: "Labels" })}
             </MenuItem>
-            <MenuSeparator />
-            <div role="presentation" style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px" }}>
-              <button
-                type="button"
-                aria-label={t("pinboard.noColor", { defaultValue: "Keine Farbe" })}
-                data-tip={t("pinboard.noColor", { defaultValue: "Keine Farbe" })}
-                onClick={() => { setMenu(null); void handleSetColor(menu.path, null); }}
-                style={{ width: 16, height: 16, borderRadius: "var(--radius-pill)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", cursor: "pointer", padding: 0 }}
-              />
-              {CARD_COLORS.map(([name, hex]) => (
-                <button
-                  key={name}
-                  type="button"
-                  aria-label={`${t("pinboard.color", { defaultValue: "Farbe" })}: ${name}`}
-                  data-tip={`${t("pinboard.color", { defaultValue: "Farbe" })}: ${name}`}
-                  onClick={() => { setMenu(null); void handleSetColor(menu.path, hex); }}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "var(--radius-pill)",
-                    border: menuVm?.parsed.color === hex ? "2px solid var(--text-main)" : "1px solid var(--border-color)",
-                    background: hex,
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
-                />
-              ))}
-            </div>
+            <MenuItem
+              icon={<Palette size={ICON.ui} />}
+              onSelect={() => { const p = menu.path; const at = { x: menu.x, y: menu.y }; const v = menuVm?.parsed.color ?? undefined; setMenu(null); setColorPicker({ path: p, x: at.x, y: at.y, value: v }); }}
+            >
+              {t("pinboard.color", { defaultValue: "Farbe" })}
+            </MenuItem>
             <MenuSeparator />
             <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => void handleDelete(menu.path)}>
               {t("pinboard.delete", { defaultValue: "Löschen" })}
@@ -919,6 +897,17 @@ export function BasePinboardView({
           );
         })()}
       </MenuSurface>
+
+      {colorPicker && (
+        <HeaderColorPicker
+          x={colorPicker.x}
+          y={colorPicker.y}
+          value={colorPicker.value}
+          onSelect={(c) => { setColorPicker(null); void handleSetColor(colorPicker.path, c); }}
+          onRemove={() => { setColorPicker(null); void handleSetColor(colorPicker.path, null); }}
+          onClose={() => setColorPicker(null)}
+        />
+      )}
       <style>{`
         .pv-pinboard-pin { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
         .pv-pinboard-card:hover .pv-pinboard-pin, .pv-pinboard-pin:focus-visible { opacity: 1; }

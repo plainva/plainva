@@ -685,7 +685,7 @@ export function BaseViewer({
   // timestamp name and the note has no H1 — the text is the body either way
   // (no template). The new card floats on top via ctime (§3); no peek opens —
   // capture stays in the flow.
-  const quickCapture = async (input: { title: string; text: string }): Promise<boolean> => {
+  const quickCapture = async (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }): Promise<boolean> => {
     if (!dbConfig || !vaultAdapter || !vaultPath || newItemBusy) return false;
     const title = input.title.trim();
     const text = input.text;
@@ -705,11 +705,18 @@ export function BaseViewer({
         name = `${stem} ${n}`;
       }
       const path = withDir(name);
+      // Inherit the pinboard's active label filter into the new note: in tags
+      // mode the labels merge into `tags:`, in property mode they pre-fill the
+      // multiselect property the board filters on.
+      const labels = input.labels ?? [];
+      const inheritTags = input.labelProp ? target.inheritTags : [...target.inheritTags, ...labels];
+      const prefills = input.labelProp && labels.length > 0 ? { [input.labelProp]: labels } : {};
       const content = buildCaptureContent({
         text,
         title,
         noteType: await getConfiguredNoteType(vaultPath),
-        inheritTags: target.inheritTags,
+        inheritTags,
+        prefills,
       });
       await vaultAdapter.writeTextFile(path, content);
       if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
