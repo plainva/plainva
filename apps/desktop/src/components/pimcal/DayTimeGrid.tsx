@@ -272,7 +272,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
   };
 
   const untitledLabel = t("pim.untitledEvent", { defaultValue: "(ohne Titel)" });
-  const gutterWidth = 68;
+  const gutterWidth = 76;
 
   return (
     <div data-testid="calendar-timegrid" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -307,11 +307,12 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       {/* All-day / due-tasks strip */}
       {hasAllDayRow && (
         <div data-testid="calendar-allday-strip" style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)", background: "var(--bg-secondary)", maxHeight: 84, overflow: "auto" }}>
-          {/* Gutter label: a slightly wider gutter (68) plus break-word (not
-              "anywhere") lets a long localized label ("GANZTÄGIG", "Toute la
-              journée") sit on one line and, when it must wrap, break between
-              words instead of mid-word. */}
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", whiteSpace: "normal", overflowWrap: "break-word" }}>
+          {/* Gutter label: the gutter (76) is wide enough for the widest
+              single-word label ("GANZTÄGIG" ~65px at --text-xs, measured in the
+              app font) to sit on one line. overflowWrap:normal never breaks a
+              word mid-character — multi-word labels ("Toute la journée") still
+              wrap between words. */}
+          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", whiteSpace: "normal", overflowWrap: "normal" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d) => (

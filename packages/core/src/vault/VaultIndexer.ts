@@ -203,10 +203,13 @@ export class VaultIndexer {
     const indexedSyncState = hasPendingQueueOp
       ? "local_ahead"
       : existingFileState?.sync_state || "synced";
-    // Creation time survives re-indexing: the adapter's real birthtime wins
-    // where the platform provides one, else the stored value, else the file's
-    // mtime as first-seen lower bound (graph time axis, format v3).
-    const ctime = fileInfo.ctime ?? existingFileState?.ctime ?? fileInfo.mtime;
+    // Creation time must stay STABLE across re-indexing: the stored value wins
+    // so a mere save never changes the ctime sort key (the pinboard orders
+    // un-arranged cards by ctime — a jumping ctime made it behave like mtime,
+    // esp. on cloud-synced/network folders where FS birthtime is unreliable).
+    // The adapter's birthtime seeds it on FIRST index, else the file's mtime as
+    // a first-seen lower bound (graph time axis, format v3).
+    const ctime = existingFileState?.ctime ?? fileInfo.ctime ?? fileInfo.mtime;
 
     // Detect external modifications before updating state. Buffered and fired AFTER the
     // transaction (the host handler enqueues, which must not nest inside our transaction).
@@ -437,10 +440,13 @@ export class VaultIndexer {
     const indexedSyncState = hasPendingQueueOp
       ? "local_ahead"
       : existingFileState?.sync_state || "synced";
-    // Creation time survives re-indexing: the adapter's real birthtime wins
-    // where the platform provides one, else the stored value, else the file's
-    // mtime as first-seen lower bound (graph time axis, format v3).
-    const ctime = fileInfo.ctime ?? existingFileState?.ctime ?? fileInfo.mtime;
+    // Creation time must stay STABLE across re-indexing: the stored value wins
+    // so a mere save never changes the ctime sort key (the pinboard orders
+    // un-arranged cards by ctime — a jumping ctime made it behave like mtime,
+    // esp. on cloud-synced/network folders where FS birthtime is unreliable).
+    // The adapter's birthtime seeds it on FIRST index, else the file's mtime as
+    // a first-seen lower bound (graph time axis, format v3).
+    const ctime = existingFileState?.ctime ?? fileInfo.ctime ?? fileInfo.mtime;
 
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
