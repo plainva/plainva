@@ -7,7 +7,7 @@ import {
   exchangeOneDriveCode,
 } from "@plainva/core";
 import { credentialManager } from "./CredentialManager";
-import { oneDriveFetch } from "./authFetch";
+import { microsoftAuthFetch } from "./authFetch";
 
 /**
  * Desktop OAuth glue for OneDrive (sync-provider plan 2026-07-04, P9). Same shape as
@@ -44,7 +44,7 @@ export async function authorizeOneDrive(opts: {
 
   const tokens = await exchangeOneDriveCode(
     { clientId, code: redirect.code, codeVerifier, redirectUri },
-    oneDriveFetch
+    microsoftAuthFetch
   );
   if (!tokens.refreshToken) {
     throw new Error(

@@ -10,6 +10,7 @@ import {
 } from "@plainva/core";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
+import { microsoftAuthFetch } from "../authFetch";
 import type { MailboxInfo, MailEnvelopePage, MailMessage, MailAttachmentInfo } from "./mailClient";
 import type { MailAttachment } from "./mailOut";
 
@@ -38,9 +39,11 @@ export async function authorizeMicrosoftMail(opts: { clientId: string }): Promis
   await openUrl(authUrl);
   const redirect = await invoke<{ code: string; state: string | null }>("oauth_loopback_wait", { timeoutSecs: 180 });
   if (redirect.state !== state) throw new Error("OAuth state mismatch — aborted.");
+  // microsoftAuthFetch, NOT the raw webview fetch: the token POST must carry no
+  // Origin header (AADSTS90023 — maintainer finding 2026-07-20).
   const tokens = await exchangeOneDriveCode(
     { clientId: opts.clientId, code: redirect.code, codeVerifier, redirectUri, scope: GRAPH_MAIL_SCOPES },
-    httpFetch
+    microsoftAuthFetch
   );
   if (!tokens.refreshToken) throw new Error("Microsoft returned no refresh_token — connect again.");
   return { refreshToken: tokens.refreshToken };
@@ -66,7 +69,7 @@ function buildRuntime(vaultPath: string, account: MailAccountConfig, initialRefr
   let inFlight: Promise<string> | null = null;
 
   const refresh = async (): Promise<string> => {
-    const res = await refreshOneDriveAccessToken({ clientId, refreshToken: currentRefreshToken, scope: GRAPH_MAIL_SCOPES }, httpFetch);
+    const res = await refreshOneDriveAccessToken({ clientId, refreshToken: currentRefreshToken, scope: GRAPH_MAIL_SCOPES }, microsoftAuthFetch);
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
     if (res.refreshToken && res.refreshToken !== currentRefreshToken) {

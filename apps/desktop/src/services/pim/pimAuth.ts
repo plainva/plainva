@@ -15,6 +15,7 @@ import {
   type PimAuthProvider,
 } from "@plainva/core";
 import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { microsoftAuthFetch } from "../authFetch";
 
 /**
  * Desktop OAuth glue for the PIM accounts. Reuses the file sync's building
@@ -55,9 +56,11 @@ export async function authorizeMicrosoftPim(opts: { clientId: string }): Promise
   await openUrl(authUrl);
   const redirect = await invoke<{ code: string; state: string | null }>("oauth_loopback_wait", { timeoutSecs: 180 });
   if (redirect.state !== state) throw new Error("OAuth state mismatch — aborted.");
+  // microsoftAuthFetch, NOT the raw webview fetch: the token POST must carry no
+  // Origin header (AADSTS90023 — maintainer finding 2026-07-20).
   const tokens = await exchangeOneDriveCode(
     { clientId: opts.clientId, code: redirect.code, codeVerifier, redirectUri, scope: GRAPH_CALENDAR_SCOPES },
-    httpFetch
+    microsoftAuthFetch
   );
   if (!tokens.refreshToken) throw new Error("Microsoft returned no refresh_token — connect again.");
   return { refreshToken: tokens.refreshToken };
@@ -91,7 +94,7 @@ export function buildPimAuthProvider(
     }
     const res = await refreshOneDriveAccessToken(
       { clientId: creds.clientId, refreshToken: currentRefreshToken, scope: GRAPH_CALENDAR_SCOPES },
-      httpFetch
+      microsoftAuthFetch
     );
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;

@@ -6,7 +6,7 @@ import {
   S3SyncTarget,
 } from "@plainva/core";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { oneDriveFetch } from "./authFetch";
+import { microsoftAuthFetch } from "./authFetch";
 
 /**
  * Builds throwaway sync targets from in-memory credentials. Shared by the
@@ -38,7 +38,7 @@ export function buildOneDriveTarget(
 ): OneDriveSyncTarget {
   const target = new OneDriveSyncTarget(
     { clientId: creds.clientId, refreshToken: creds.refreshToken },
-    oneDriveFetch
+    microsoftAuthFetch
   );
   if (onRotate) {
     target.onTokensRefreshed = (_accessToken, refreshToken) => {
