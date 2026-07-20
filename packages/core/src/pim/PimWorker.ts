@@ -1,5 +1,5 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
-import type { IPimTarget } from "./types.js";
+import type { IPimTarget, PimEvent } from "./types.js";
 
 /**
  * Periodic PIM pull loop (stage 2, read-only): refreshes calendars, the
@@ -28,7 +28,7 @@ export interface PimWorkerOptions {
   now?: () => number;
 }
 
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_INTERVAL_MS = 2 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export class PimWorker {
@@ -38,6 +38,9 @@ export class PimWorker {
   /** Only an explicit stop() parks the worker — a manual triggerImmediate()
    * must work without (before) start(), e.g. on opening the calendar tab. */
   private stopped = false;
+  /** A manual trigger that arrived while a cycle was running: re-runs at the end
+   * so "Jetzt aktualisieren" during a cycle is never a silent no-op. */
+  private pendingTrigger = false;
 
   constructor(private opts: PimWorkerOptions) {}
 
@@ -57,8 +60,13 @@ export class PimWorker {
     }
   }
 
-  /** Manual refresh ("Jetzt aktualisieren" / opening the calendar tab). */
+  /** Manual refresh ("Jetzt aktualisieren" / opening the calendar tab). A trigger
+   * during a running cycle is queued and drained when that cycle ends. */
   async triggerImmediate(): Promise<void> {
+    if (this.running) {
+      this.pendingTrigger = true;
+      return;
+    }
     await this.runCycle();
   }
 
@@ -99,6 +107,11 @@ export class PimWorker {
     if (gen !== this.generation) return;
     if (wroteData) this.opts.onDataChanged?.();
     this.opts.onStatusChange?.(hadError ? "error" : "idle", firstError);
+    // Drain a manual trigger that arrived mid-cycle (never a silent no-op).
+    if (this.pendingTrigger && !this.stopped) {
+      this.pendingTrigger = false;
+      void this.runCycle();
+    }
   }
 
   private async refreshAccount(account: PimAccountRow, target: IPimTarget, gen: number): Promise<boolean> {
@@ -111,21 +124,39 @@ export class PimWorker {
     await cache.replaceCalendars(account.id, calendars);
     wrote = true;
 
-    let calendarError: string | undefined;
-    for (const cal of await cache.listCalendars(account.id)) {
+    // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,
+    // then apply the writes serially (SQLite is a single writer). A windowed full
+    // refresh has no reconcile state to corrupt, so parallel pulls are safe; this
+    // is the main per-cycle cost, so it drives the "faster sync" win.
+    const selected = (await cache.listCalendars(account.id)).filter((c) => c.selected);
+    const PULL_CONCURRENCY = 4;
+    const pulled: Array<{ calId: string; events?: PimEvent[]; error?: string }> = [];
+    for (let i = 0; i < selected.length; i += PULL_CONCURRENCY) {
       if (gen !== this.generation) return wrote;
-      if (!cal.selected) continue;
-      try {
-        const { events } = await target.pullEvents(cal.id, startTs, endTs);
-        if (gen !== this.generation) return wrote;
-        await cache.replaceEventWindow(account.id, cal.id, startTs, endTs, events);
-        await cache.setScopeState(account.id, `events:${cal.id}`, { lastError: null });
-      } catch (e) {
-        // One calendar failing (permissions, transient 5xx) must not lose the
-        // account's other calendars — record, continue, surface at the end.
-        const msg = e instanceof Error ? e.message : String(e);
-        calendarError = calendarError ?? msg;
-        await cache.setScopeState(account.id, `events:${cal.id}`, { lastError: msg }).catch(() => {});
+      const batch = selected.slice(i, i + PULL_CONCURRENCY);
+      const settled = await Promise.all(
+        batch.map(async (cal) => {
+          try {
+            const { events } = await target.pullEvents(cal.id, startTs, endTs);
+            return { calId: cal.id, events };
+          } catch (e) {
+            // One calendar failing (permissions, transient 5xx) must not lose the
+            // account's other calendars — record, continue, surface at the end.
+            return { calId: cal.id, error: e instanceof Error ? e.message : String(e) };
+          }
+        })
+      );
+      pulled.push(...settled);
+    }
+    let calendarError: string | undefined;
+    for (const r of pulled) {
+      if (gen !== this.generation) return wrote;
+      if (r.error) {
+        calendarError = calendarError ?? r.error;
+        await cache.setScopeState(account.id, `events:${r.calId}`, { lastError: r.error }).catch(() => {});
+      } else {
+        await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!);
+        await cache.setScopeState(account.id, `events:${r.calId}`, { lastError: null });
       }
     }
 

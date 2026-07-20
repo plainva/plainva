@@ -598,6 +598,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
       }
       await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
+      // Optimistic: reflect the new self-response at once (worker re-query confirms).
+      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
       refresh();
     },
     [targetFor, refresh, t]
