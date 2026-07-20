@@ -87,6 +87,30 @@ export function looksLikeNextcloud(url: string): boolean {
   return /\/remote\.php\//i.test(url);
 }
 
+/**
+ * Derives the two Nextcloud endpoints from ONE base URL + user (the wizard's
+ * one-form promise): files = WebDAV file root, caldav = the DAV discovery
+ * endpoint. A pasted URL that already contains /remote.php is trimmed back to
+ * the instance base first. Returns null for an unparseable URL.
+ */
+export function nextcloudEndpoints(baseUrl: string, user: string): { files: string; caldav: string } | null {
+  const trimmed = baseUrl.trim();
+  if (!trimmed) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  const basePath = parsed.pathname.replace(/\/remote\.php\/.*$/i, "").replace(/\/+$/, "");
+  const base = `${parsed.origin}${basePath}`;
+  return {
+    files: `${base}/remote.php/dav/files/${encodeURIComponent(user.trim())}/`,
+    caldav: `${base}/remote.php/dav`,
+  };
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Normalized identity used for the conservative auto-merge (exact match only). */

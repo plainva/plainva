@@ -5,10 +5,12 @@ import {
   Cloud,
   FolderTree,
   Info,
+  Mail,
   Palette,
   Pencil,
   RefreshCw,
   Rocket,
+  Users,
   Wrench,
 } from "lucide-react";
 
@@ -45,8 +47,10 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
   { id: "updates", world: "app", labelKey: "settings.updates", descKey: "settings.pageDescUpdates", icon: RefreshCw },
   { id: "about", world: "app", labelKey: "settings.about", descKey: "settings.pageDescAbout", icon: Info },
+  { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
+  { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },
   { id: "backup", world: "vault", labelKey: "settings.backupSection", descKey: "settings.pageDescBackup", icon: Archive },
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },

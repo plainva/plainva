@@ -34,9 +34,9 @@ function render(el: ReactElement) {
 }
 
 describe("settingsCatalog (shared area catalog, redesign P1)", () => {
-  it("carries five app areas and five vault areas with unique ids", () => {
+  it("carries five app areas and seven vault areas with unique ids", () => {
     expect(settingsAreas("app").map((a) => a.id)).toEqual(["appearance", "editor", "behavior", "updates", "about"]);
-    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["sync", "pim", "content", "backup", "maintenance"]);
+    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["cloudAccounts", "sync", "pim", "mail", "content", "backup", "maintenance"]);
     const ids = SETTINGS_AREAS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -53,7 +53,7 @@ describe("settingsCatalog (shared area catalog, redesign P1)", () => {
     expect(settingsArea("backup")?.world).toBe("vault");
     expect(settingsArea("nope")).toBeUndefined();
     expect(firstSettingsArea("app").id).toBe("appearance");
-    expect(firstSettingsArea("vault").id).toBe("sync");
+    expect(firstSettingsArea("vault").id).toBe("cloudAccounts");
   });
 });
 

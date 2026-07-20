@@ -64,6 +64,8 @@ Button (primary/tonal/secondary/ghost/danger/danger-soft — **Cancel is always 
 
 Chips: `.pv-chip` is 22px with symmetric `0 10px` padding; removable chips (`.pv-chip--removable`) use `0 4px 0 10px` with a 16px X hit target; count badges (`.pv-badge`) are 18px, min-width 18, `tabular-nums`. **Component inner metrics live ONLY in ui.css** — call sites never re-specify paddings.
 
+Cloud-account patterns (settings): an account row (`.pv-acct`) = provider monogram + identity + service chips inside a `SettingCard`. The monogram (`.pv-acct-mark` + `--<family>` modifier) paints exclusively from the themed `--chip-*` slots; service chips (`.pv-svcchip`) are 22px pills on the accent-container PAIR. The connect wizard is built from provider tiles (`.pv-provtile` — card-radius surfaces; selected = accent-container pair, themed for LCARS/Win95), a numbered step header (`.pv-wizsteps`/`.pv-wizstep`; the active step number is a primary-accent disc, done steps use the accent-container pair) and per-service check/status rows (`.pv-svcline`, `.pv-svcstat` — the setrow grammar with a leading icon; status rows report success, waiting AND error states).
+
 Rules:
 
 - New UI builds on the primitives; no new `position: fixed` overlay outside `Modal`/`Menu`/`Toast`/`Tooltip`/`FloatingWindow` — popover panels use `pv-popover pv-popover--fixed`, invisible click catchers `.pv-click-catch`, drag ghosts `.pv-fixed-ghost`.
@@ -80,6 +82,7 @@ Rules:
 - Tooltips carry ADDED information only: file tabs tip their vault path, virtual tabs (plainva://…) tip nothing — a tooltip must never repeat the visible label or leak internal pseudo paths.
 - Pane heads: title left, actions right as IconButtons.
 - Empty surfaces render EmptyState, not bespoke prose divs.
+- Connect wizards: numbered steps left to right (provider → services → sign-in); the service selection drives which permissions are requested; every service gets a status line covering success, waiting and error; the account-destroying action is always last and danger-styled.
 
 ## Theming duties (docking matrix)
 

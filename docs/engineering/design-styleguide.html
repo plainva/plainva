@@ -653,6 +653,18 @@
       </div>
     </div>
     <p><b>Selektions-Idiom (bindend):</b> aktive Zeilen/Toggles nutzen IMMER das Paar <code>--accent-container</code> + <code>--on-accent-container</code> (600) — nie die Füllung mit <code>--accent-color</code>-Text oder geerbten Grautönen darüber (unter Win95 ist der Container voll Navy). Mehrfarbige Zeileninhalte wechseln im selektierten Zustand auf <code>color: inherit</code> + Opazitätsstufen. <code>--bg-active</code> ist nur noch CONTENT-Hervorhebung (Editor-Suchtreffer).</p>
+    <div class="card spec">
+      <h4>Cloud-Konten-Muster <span class="tagnew">Neu 2026-07-20</span></h4>
+      <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:2px;">
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 12px;">
+          <span style="width:34px;height:34px;border-radius:var(--radius-md);display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:var(--chip-1-bg);color:var(--chip-1-fg);">N</span>
+          <span style="flex:1;min-width:0;"><b style="font-size:var(--text-md);">Nextcloud</b><br><span style="font-size:var(--text-sm);color:var(--text-muted);">marco @ cloud.beispiel.de</span></span>
+          <span style="display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:var(--radius-pill);background:var(--accent-container);color:var(--on-accent-container);font-size:var(--text-sm);font-weight:600;">Dateien</span>
+          <span style="display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:var(--radius-pill);background:var(--accent-container);color:var(--on-accent-container);font-size:var(--text-sm);font-weight:600;">Kalender</span>
+        </div>
+      </div>
+      <p><b>Konto-Zeile</b> (<code>.pv-acct</code>) in einer <code>SettingCard</code>: Anbieter-<b>Monogramm</b> (<code>.pv-acct-mark--&lt;family&gt;</code>, malt AUSSCHLIESSLICH aus den <code>--chip-*</code>-Slots — damit themen LCARS/Win95 automatisch mit) + Identität + <b>Dienst-Chips</b> (<code>.pv-svcchip</code>, 22px-Pille auf dem Akzent-Container-PAAR). Der Verbinden-Wizard nutzt <b>Anbieter-Kacheln</b> (<code>.pv-provtile</code>, Karten-Radius; selektiert = Akzent-Container-Paar; eigene LCARS/Win95-Selektoren), den <b>Schritt-Kopf</b> (<code>.pv-wizsteps</code>: aktive Nummer = Primär-Akzent-Scheibe, erledigt = Paar) und <b>Dienst-/Status-Zeilen</b> (<code>.pv-svcline</code>/<code>.pv-svcstat</code> — Setrow-Grammatik mit führendem Icon; Status deckt Erfolg, Warten UND Fehler).</p>
+    </div>
   </section>
 
   <!-- ================= ANORDNUNG ================= -->
