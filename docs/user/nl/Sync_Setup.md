@@ -28,7 +28,7 @@ De eenvoudigste weg voor eigen servers en de meeste cloudopslag:
 
 1. Kies in **Cloudaccounts** → **Account verbinden…** de tegel **Nextcloud** (of **WebDAV / CalDAV**).
 2. Voer het **Serveradres**, de **Gebruikersnaam** en het **Wachtwoord of app-token** in — gebruik indien mogelijk een app-wachtwoord in plaats van je hoofdwachtwoord (in Nextcloud: Instellingen → Beveiliging → App-wachtwoorden).
-3. **Aanmelden** controleert de toegangsgegevens; kies daarna de **Cloudmap** via **Map kiezen…**.
+3. **Verbinden** controleert de toegangsgegevens; kies daarna de **Cloudmap** via **Map kiezen…**.
 
 Bijzonderheid **Nextcloud**: ÉÉN formulier dekt bestanden **en** agenda — Plainva leidt de WebDAV- en CalDAV-endpoints zelf af uit het serveradres (de afgeleide adressen worden in de assistent getoond; **Geavanceerd: endpoints afzonderlijk instellen** maakt aparte URL's mogelijk). Vink beide diensten aan en één keer verbinden koppelt ze allebei.
 
@@ -75,7 +75,7 @@ Voor AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner en andere — s
 
 Je kunt de **Key-prefix** (de cloudmap) via **Map kiezen…** rechtstreeks uit de bucket kiezen zodra je verbonden bent.
 
-Na **Aanmelden** start de sync direct.
+Na **Verbinden** start de sync direct.
 
 ## Zie ook
 

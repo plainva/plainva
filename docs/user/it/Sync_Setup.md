@@ -28,7 +28,7 @@ La via più semplice per server autogestiti e la maggior parte degli storage clo
 
 1. In **Account cloud** → **Collega account…** scegli la scheda **Nextcloud** (o **WebDAV / CalDAV**).
 2. Inserisci l'**Indirizzo del server**, il **Nome utente** e la **Password o token dell'app** — usa una password dell'app invece della tua password principale quando possibile (in Nextcloud: Impostazioni → Sicurezza → Password delle app).
-3. **Accesso** verifica le credenziali; scegli poi la **Cartella cloud** tramite **Scegli cartella…**.
+3. **Collega** verifica le credenziali; scegli poi la **Cartella cloud** tramite **Scegli cartella…**.
 
 Particolarità **Nextcloud**: UN solo modulo copre file **e** calendario — Plainva deriva gli endpoint WebDAV e CalDAV direttamente dall'indirizzo del server (gli indirizzi derivati vengono mostrati nell'assistente; **Avanzate: imposta gli endpoint singolarmente** consente URL separati). Spunta entrambi i servizi e un solo passaggio li collega entrambi.
 
@@ -75,7 +75,7 @@ Per AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner e altri — basa
 
 Puoi scegliere il **Prefisso chiave** (la cartella cloud) tramite **Scegli cartella…** direttamente dal bucket una volta connesso.
 
-Dopo **Accesso**, la sincronizzazione parte subito.
+Dopo **Collega**, la sincronizzazione parte subito.
 
 ## Vedi anche
 

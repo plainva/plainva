@@ -28,7 +28,7 @@ La ruta más sencilla para servidores autoalojados y la mayoría de los almacena
 
 1. En **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Nextcloud** (o **WebDAV / CalDAV**).
 2. Introduce la **Dirección del servidor**, el **Nombre de usuario** y la **Contraseña o token de aplicación** — usa una contraseña de aplicación en lugar de tu contraseña principal siempre que sea posible (en Nextcloud: Configuración → Seguridad → Contraseñas de aplicación).
-3. **Iniciar sesión** valida las credenciales; después elige la **Carpeta en la nube** mediante **Elegir carpeta…**.
+3. **Conectar** valida las credenciales; después elige la **Carpeta en la nube** mediante **Elegir carpeta…**.
 
 Particularidad de **Nextcloud**: UN solo formulario cubre archivos **y** calendario — Plainva deriva los endpoints de WebDAV y CalDAV de la propia dirección del servidor (las direcciones derivadas se muestran en el asistente; **Avanzado: definir los endpoints individualmente** permite URLs separadas). Marca ambos servicios y una sola conexión los conecta a los dos.
 
@@ -75,7 +75,7 @@ Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner y otros — bas
 
 Puedes elegir el **Prefijo de clave** (la carpeta en la nube) mediante **Elegir carpeta…** directamente desde el bucket una vez conectado.
 
-Después de **Iniciar sesión**, la sincronización empieza de inmediato.
+Después de **Conectar**, la sincronización empieza de inmediato.
 
 ## Ver también
 

@@ -28,7 +28,7 @@ Der einfachste Weg für eigene Server und die meisten Cloud-Speicher:
 
 1. In **Cloud-Konten** → **Konto verbinden…** die Kachel **Nextcloud** (oder **WebDAV / CalDAV**) wählen.
 2. **Server-Adresse**, **Benutzername** und **Passwort oder App-Token** eintragen — nutze wenn möglich ein App-Passwort statt Deines Hauptpassworts (in Nextcloud: Einstellungen → Sicherheit → App-Passwörter).
-3. **Anmelden** prüft die Zugangsdaten; danach wählst Du über **Ordner auswählen…** den **Cloud-Ordner**.
+3. **Verbinden** prüft die Zugangsdaten; danach wählst Du über **Ordner auswählen…** den **Cloud-Ordner**.
 
 Besonderheit **Nextcloud**: EIN Formular reicht für Dateien **und** Kalender — aus der Server-Adresse leitet Plainva die WebDAV- und CalDAV-Endpunkte selbst ab (die abgeleiteten Adressen werden im Assistenten angezeigt; **Erweitert: Endpunkte einzeln festlegen** erlaubt getrennte URLs). Hakst Du beide Dienste an, verbindet ein Durchgang beides.
 
@@ -75,7 +75,7 @@ Für AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner u. a. — schl�
 
 Den **Key-Präfix** (den Cloud-Ordner) kannst Du nach dem Verbinden über **Ordner auswählen…** direkt aus dem Bucket wählen.
 
-Nach **Anmelden** startet der Sync direkt.
+Nach **Verbinden** startet der Sync direkt.
 
 ## Siehe auch
 

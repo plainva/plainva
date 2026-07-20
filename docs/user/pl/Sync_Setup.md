@@ -28,7 +28,7 @@ Najprostsza droga dla własnych serwerów i większości magazynów w chmurze:
 
 1. W **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Nextcloud** (lub **WebDAV / CalDAV**).
 2. Wpisz **Adres serwera**, **nazwę użytkownika** i **hasło lub token aplikacji** — używaj w miarę możliwości hasła aplikacji zamiast głównego hasła (w Nextcloud: Ustawienia → Bezpieczeństwo → Hasła aplikacji).
-3. **Logowanie** sprawdza dane dostępowe; następnie przez **Wybierz folder…** wybierz **Folder w chmurze**.
+3. **Połącz** sprawdza dane dostępowe; następnie przez **Wybierz folder…** wybierz **Folder w chmurze**.
 
 Szczególny przypadek **Nextcloud**: JEDEN formularz obsługuje pliki **i** kalendarz — Plainva samodzielnie wyprowadza punkty końcowe WebDAV i CalDAV z adresu serwera (wyprowadzone adresy są pokazywane w asystencie; **Zaawansowane: ustaw punkty końcowe osobno** pozwala na osobne adresy URL). Jeśli zaznaczysz obie usługi, jeden przebieg połączy obie.
 
@@ -75,7 +75,7 @@ Dla AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner i innych — w o
 
 **Prefiks kluczy** (folder w chmurze) możesz wybrać przez **Wybierz folder…** bezpośrednio z bucketa po połączeniu.
 
-Po **Logowanie** synchronizacja startuje od razu.
+Po **Połącz** synchronizacja startuje od razu.
 
 ## Zobacz też
 

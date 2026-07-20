@@ -28,7 +28,7 @@ The simplest route for self-hosted servers and most cloud storages:
 
 1. In **Cloud accounts** → **Connect account…** pick the **Nextcloud** tile (or **WebDAV / CalDAV**).
 2. Enter the **Server address**, **Username** and **Password or App Token** — use an app password instead of your main password whenever possible (in Nextcloud: Settings → Security → App passwords).
-3. **Sign in** validates the credentials; afterwards pick the **Cloud folder** via **Choose folder…**.
+3. **Connect** validates the credentials; afterwards pick the **Cloud folder** via **Choose folder…**.
 
 **Nextcloud** special: ONE form covers files **and** calendar — Plainva derives the WebDAV and CalDAV endpoints from the server address itself (the derived addresses are shown in the assistant; **Advanced: set endpoints individually** allows separate URLs). Tick both services and a single pass connects both.
 
@@ -75,7 +75,7 @@ For AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner and others — k
 
 You can pick the **Key Prefix** (the cloud folder) via **Choose folder…** straight from the bucket once connected.
 
-After **Sign in**, sync starts right away.
+After **Connect**, sync starts right away.
 
 ## See also
 

@@ -9,6 +9,7 @@ import {
   SettingRow,
   TextInput,
   ICON,
+  familyOfSyncProvider,
   hasCloudService,
   type CloudAccountRecord,
 } from "@plainva/ui";
@@ -69,9 +70,12 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
 
   const filesAccount = records.find((r) => r.services.files);
   const connected = provider !== "none";
+  // Registry label when known, family name otherwise — never the raw provider id.
   const accountName = filesAccount
     ? filesAccount.label.trim() || familyLabel(filesAccount.family, filesAccount.flavor)
-    : "";
+    : connected
+      ? familyLabel(familyOfSyncProvider(provider))
+      : "";
 
   return (
     <div>

@@ -28,7 +28,7 @@ La voie la plus simple pour les serveurs auto-hébergés et la plupart des stock
 
 1. Dans **Comptes cloud** → **Connecter un compte…**, choisissez la tuile **Nextcloud** (ou **WebDAV / CalDAV**).
 2. Saisissez l'**Adresse du serveur**, le **Nom d'utilisateur** et le **Mot de passe ou jeton d'application** — utilisez un mot de passe d'application au lieu de votre mot de passe principal dès que possible (dans Nextcloud : Paramètres → Sécurité → Mots de passe d'application).
-3. **Connexion** valide les identifiants ; choisissez ensuite le **Dossier cloud** via **Choisir un dossier…**.
+3. **Connecter** valide les identifiants ; choisissez ensuite le **Dossier cloud** via **Choisir un dossier…**.
 
 Particularité **Nextcloud** : UN seul formulaire couvre les fichiers **et** le calendrier — Plainva déduit les endpoints WebDAV et CalDAV directement de l'adresse du serveur (les adresses déduites s'affichent dans l'assistant ; **Avancé : définir les endpoints individuellement** permet des URL séparées). Cochez les deux services et une seule connexion suffit pour les deux.
 
@@ -75,7 +75,7 @@ Pour AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner et d'autres —
 
 Vous pouvez choisir le **Préfixe de clé** (le dossier cloud) via **Choisir un dossier…** directement depuis le bucket une fois connecté.
 
-Après **Connexion**, la synchronisation démarre immédiatement.
+Après **Connecter**, la synchronisation démarre immédiatement.
 
 ## Voir aussi
 
