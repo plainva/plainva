@@ -420,6 +420,25 @@
     inset 2px 2px 0 #DFDFDF;
 }
 
+/* Cloud-account wizard tiles: raised bevel buttons; selected = pressed. */
+[data-theme-name="win95"] .pv-provtile {
+  background: #C0C0C0;
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .pv-provtile.is-active {
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #0A0A0A,
+    inset -2px -2px 0 #DFDFDF,
+    inset 2px 2px 0 #808080;
+}
+
 /* Chip fields (mail To/Cc/Bcc, attendees): sunken white wells like every
    text input; chips inside go square. */
 [data-theme-name="win95"] .pv-chipfield {

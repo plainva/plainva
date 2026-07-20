@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-07-19
+Stand: 2026-07-20
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -8,13 +8,14 @@ Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **Cal
 
 ## Ein Konto verbinden
 
-Öffne **Einstellungen → Dein Vault → Kalender & Konten → Konto hinzufügen…** und wähle den Anbieter:
+Öffne **Einstellungen → Dein Vault → Cloud-Konten → Konto verbinden…**, wähle den Anbieter und hake im Dienste-Schritt **Kalender & Aufgaben** an:
 
-- **CalDAV**: Server-URL, Benutzername und ein **App-Passwort** (in Nextcloud: Einstellungen → Sicherheit → Geräte & Sitzungen). Keine Registrierung, keine Keys.
+- **Nextcloud / CalDAV**: Server-Adresse, Benutzername und ein **App-Passwort** (in Nextcloud: Einstellungen → Sicherheit → Geräte & Sitzungen). Keine Registrierung, keine Keys — bei Nextcloud leitet Plainva die CalDAV-Adresse aus der Server-Adresse selbst ab (für andere CalDAV-Server nimmst Du die Kachel **WebDAV / CalDAV** bzw. **Erweitert: Endpunkte einzeln festlegen**).
+- **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: eigene Kacheln mit hinterlegten Kalender-Adressen — E-Mail-Adresse plus **App-Passwort** genügen, ohne Server-Feld (bei Apple ist das App-Passwort Pflicht; der Assistent verlinkt die Anleitung des Anbieters). Hinweis: Yahoos CalDAV-Dienst gilt laut Yahoo selbst als wackelig — wenn er zickt, liegt es nicht an Plainva.
 - **Google**: braucht Deine eigene OAuth-Client-ID (dasselbe BYO-Modell wie beim Google-Drive-Sync — siehe die [Drive-Anleitung](Google_Drive_BYO_Guide.md)). Aktiviere in Deinem Google-Cloud-Projekt zusätzlich die *Google Calendar API* und die *Google Tasks API* und ergänze ihre Scopes im Consent-Screen. Der Browser öffnet sich zur Zustimmung; beim Verbinden wird das Konto geprüft, bevor irgendetwas gespeichert wird.
-- **Microsoft**: einfach auf **Verbinden** klicken und im Browser bestätigen — keine Einrichtung nötig.
+- **Microsoft**: einfach **Bei Microsoft anmelden…** klicken und im Browser bestätigen — keine Einrichtung nötig. Ein Microsoft-Konto kann im selben Durchgang auch **Dateien** (OneDrive) und **E-Mail** tragen.
 
-Jedes Konto zeigt seine **Kalender** (angehakte erscheinen im Kalender-Tab) und seine **Aufgabenlisten** (bewusst standardmäßig abgewählt — ein Häkchen startet den unten beschriebenen Aufgaben-Sync). Passwörter und Tokens liegen im Schlüsselbund Deines Betriebssystems. Die Einstellung **Meeting-Ordner** unter den Konten bestimmt, wo Meeting-Notizen entstehen.
+Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden"). Die **Kalender**-Auswahl (angehakte erscheinen im Kalender-Tab) und die **Aufgabenlisten** (bewusst standardmäßig abgewählt — ein Häkchen startet den unten beschriebenen Aufgaben-Sync) verwaltest Du danach im Bereich **Kalender**; dort sitzen auch der **Meeting-Ordner** (wo Meeting-Notizen entstehen) und der **Standardkalender**. Passwörter und Tokens liegen im Schlüsselbund Deines Betriebssystems.
 
 ## Der Kalender-Tab
 

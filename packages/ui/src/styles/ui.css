@@ -1213,3 +1213,204 @@
 .pv-setpages > .pv-setpage[data-active="false"] {
   visibility: hidden;
 }
+
+/* ---------- cloud accounts (settings area; Design_Language "Cloud-account
+   patterns") -------------------------------------------------------------
+   Account row + provider monogram + service chips, and the connect wizard's
+   tiles / step header / service rows. Monograms paint ONLY from the themed
+   --chip-* slots; selected states use the accent-container pair. */
+
+.pv-acct {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  width: 100%;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-main);
+}
+.pv-setcard .pv-acct:last-child { border-bottom: none; }
+button.pv-acct { cursor: pointer; }
+button.pv-acct:hover { background: var(--state-hover); }
+.pv-acct-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.pv-acct-mark--sm { width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.pv-acct-mark--microsoft { background: var(--chip-2-bg); color: var(--chip-2-fg); }
+.pv-acct-mark--google { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+.pv-acct-mark--webdav { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+.pv-acct-mark--dropbox { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+.pv-acct-mark--s3 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+.pv-acct-mark--imap { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+/* Catalog suite families (stage A+, 2026-07-20); 16 families share the 8 chip
+ * slots — the monogram disambiguates repeats. */
+.pv-acct-mark--apple { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+.pv-acct-mark--yahoo { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.pv-acct-mark--aol { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.pv-acct-mark--yandex { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+.pv-acct-mark--mailru { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+.pv-acct-mark--zoho { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+.pv-acct-mark--fastmail { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+.pv-acct-mark--mailboxorg { background: var(--chip-2-bg); color: var(--chip-2-fg); }
+.pv-acct-mark--koofr { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+.pv-acct-mark--pcloud { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+.pv-acct-who { flex: 1; min-width: 0; }
+.pv-acct-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-main);
+}
+.pv-acct-id {
+  margin-top: 1px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-acct-chevron { color: var(--text-faint); flex-shrink: 0; }
+
+.pv-svcchip-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.pv-svcchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+.pv-svcchip svg { flex-shrink: 0; }
+.pv-svcchip--off { background: var(--surface-container); color: var(--text-faint); font-weight: 500; }
+
+.pv-provtile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+.pv-provtile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-container-low);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-1), border-color var(--dur-1) var(--ease-1);
+}
+.pv-provtile:hover { background: var(--state-hover); }
+.pv-provtile.is-active {
+  border-color: var(--accent-color);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+.pv-provtile-name { font-size: var(--text-ui); font-weight: 600; }
+/* Preset hit surfaced by the tile search ("Orange" → mail tile subtitle). */
+.pv-provtile-hint { font-size: var(--text-sm); color: var(--text-muted); margin-top: -4px; }
+.pv-provtile-caps { display: flex; gap: 4px; color: var(--text-faint); }
+.pv-provtile.is-active .pv-provtile-name { color: inherit; }
+.pv-provtile.is-active .pv-provtile-hint { color: inherit; opacity: 0.75; }
+.pv-provtile.is-active .pv-provtile-caps { color: inherit; opacity: 0.75; }
+.pv-provtile-search { margin-bottom: var(--space-3); max-width: 340px; }
+
+.pv-wizsteps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pv-wizstep {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.pv-wizstep-num {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  background: var(--surface-container);
+  color: var(--text-muted);
+}
+.pv-wizstep.is-active { color: var(--accent-color); }
+.pv-wizstep.is-active .pv-wizstep-num { background: var(--accent-color); color: var(--accent-on); }
+.pv-wizstep.is-done { color: var(--text-muted); }
+.pv-wizstep.is-done .pv-wizstep-num { background: var(--accent-container); color: var(--on-accent-container); }
+.pv-wizstep-arrow { color: var(--text-faint); font-size: var(--text-xs); }
+
+.pv-svcline {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+}
+.pv-setcard .pv-svcline:last-child { border-bottom: none; }
+.pv-svcline-icon { color: var(--text-muted); margin-top: 2px; flex-shrink: 0; display: inline-flex; }
+.pv-svcline-main { flex: 1; min-width: 0; }
+.pv-svcline-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-main);
+}
+.pv-svcline-desc {
+  margin-top: 2px;
+  max-width: 56ch;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.pv-svcline.is-off .pv-svcline-icon,
+.pv-svcline.is-off .pv-svcline-title { color: var(--text-faint); }
+.pv-svcline-ctrl { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-2); }
+
+.pv-svcstat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-ui);
+  color: var(--text-main);
+}
+.pv-setcard .pv-svcstat:last-child { border-bottom: none; }
+.pv-svcstat-icon { display: inline-flex; flex-shrink: 0; }
+.pv-svcstat--ok .pv-svcstat-icon { color: var(--success-text); }
+.pv-svcstat--wait .pv-svcstat-icon { color: var(--text-faint); }
+.pv-svcstat--err .pv-svcstat-icon { color: var(--error-text); }
+.pv-svcstat-label { flex: 1; min-width: 0; }
+.pv-svcstat-sub { font-size: var(--text-sm); color: var(--text-muted); }
+.pv-svcstat--err .pv-svcstat-sub { color: var(--error-text); }

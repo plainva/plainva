@@ -227,6 +227,11 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
         await credentialManager.saveS3Credentials(localDir, { ...c.s3, prefix: folder });
       }
       window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
+      // Register the connection as a cloud account (files service) so the new
+      // vault gates/greets correctly without visiting the settings first.
+      await import("../services/cloudAccounts")
+        .then((m) => m.refreshCloudAccounts(localDir, null))
+        .catch(() => undefined);
       await openVault(localDir);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

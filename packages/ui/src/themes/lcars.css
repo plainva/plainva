@@ -635,6 +635,16 @@
   border-left: 10px solid var(--lcars-1);
 }
 
+/* Cloud-account wizard tiles: black console panels with an Okuda edge. */
+[data-theme-name="lcars"] .pv-provtile {
+  background: #000000;
+  border: 1px solid var(--lcars-4);
+  border-left: 6px solid var(--lcars-2);
+}
+[data-theme-name="lcars"] .pv-provtile.is-active {
+  border-left-color: var(--lcars-1);
+}
+
 /* Chip fields: hollow console wells. */
 [data-theme-name="lcars"] .pv-chipfield {
   background: transparent;

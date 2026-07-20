@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // test; fake the targets so we can inspect the credentials passed in and drive
 // the onTokensRefreshed hook by hand.
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
-vi.mock("./authFetch", () => ({ oneDriveFetch: vi.fn() }));
+vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn() }));
 vi.mock("@plainva/core", () => {
   class FakeTarget {
     onTokensRefreshed?: (accessToken: string, refreshToken: string | undefined) => void;

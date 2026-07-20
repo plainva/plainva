@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-07-11
+Última revisão: 2026-07-20
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -63,6 +63,10 @@ Elas são salvas localmente como de costume e reunidas em uma fila; assim que a 
 ### A barra de status mostra Offline mesmo eu tendo internet
 
 Nesse caso, a própria conexão de sincronização está com problema — geralmente porque o login expirou ou as credenciais mudaram (por exemplo, no Google Drive). Clique em **Offline** na barra de status ou no triângulo de aviso ao lado do nome do vault: o diálogo mostra a mensagem de erro exata, e **Abrir configurações de sincronização** leva você direto ao formulário do provedor correspondente, onde você reconecta (por exemplo, **Reconectar**). Cada clique também dispara imediatamente uma nova tentativa de sincronização.
+
+### Por que o provedor X está faltando (Proton, Tuta, iCloud Drive …)?
+
+O Plainva conecta qualquer provedor que ofereça uma interface aberta (IMAP, CalDAV, WebDAV, S3 ou uma API documentada). Alguns serviços simplesmente não oferecem acesso para outros apps — isso não é uma escolha do Plainva: o **Proton Mail** é criptografado de ponta a ponta e só fala IMAP através do Proton Mail Bridge local pago (existe uma predefinição para isso); o Proton Calendar e o Proton Drive não têm interface utilizável. O **Tuta** deliberadamente não oferece nem IMAP nem CalDAV. O **iCloud Drive** não tem interface para apps de terceiros (o **Mail** e o **Calendário** do iCloud, por outro lado, funcionam através do bloco da Apple). O **Baidu Netdisk/TeraBox** e o **NAVER MYBOX** fecharam ou desativaram suas interfaces para desenvolvedores independentes. Se estiver faltando um provedor com interface aberta, conte para a gente no GitHub.
 
 ## App
 

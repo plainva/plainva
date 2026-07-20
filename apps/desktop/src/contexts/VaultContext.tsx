@@ -10,7 +10,7 @@ import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
-import { oneDriveFetch } from "../services/authFetch";
+import { microsoftAuthFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getSettingsStore } from "../services/settingsStore";
 import { appDataDir } from "@tauri-apps/api/path";
@@ -521,7 +521,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               refreshToken: oneDriveCreds.refreshToken,
               rootFolderName: oneDriveCreds.rootFolderName,
             },
-            oneDriveFetch
+            microsoftAuthFetch
           );
           // Microsoft ROTATES refresh tokens: persist every rotation immediately or the
           // stored token goes stale and the user is forced through the consent flow again.

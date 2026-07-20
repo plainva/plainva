@@ -1,18 +1,19 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-07-19
+Stan na: 2026-07-20
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
 ## Łączenie konta
 
-Otwórz **Ustawienia → Vault → Kalendarz i konta → Dodaj konto…** i wybierz dostawcę:
+Otwórz **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…**, wybierz dostawcę i w kroku wyboru usług zaznacz **Kalendarz i zadania**:
 
-- **CalDAV**: adres URL serwera, nazwa użytkownika i **hasło aplikacji** (w Nextcloud: Ustawienia → Bezpieczeństwo → Urządzenia i sesje). Bez rejestracji, bez kluczy.
+- **Nextcloud / CalDAV**: adres serwera, nazwa użytkownika i **hasło aplikacji** (w Nextcloud: Ustawienia → Bezpieczeństwo → Urządzenia i sesje). Bez rejestracji, bez kluczy — w przypadku Nextcloud Plainva samodzielnie wyprowadza adres CalDAV z adresu serwera (dla innych serwerów CalDAV wybierz kafelek **WebDAV / CalDAV** lub **Zaawansowane: ustaw punkty końcowe osobno**).
+- **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: dedykowane kafelki z już wypełnionymi adresami kalendarza — wystarczy adres e-mail plus **hasło aplikacji**, bez pola serwera (w przypadku Apple hasło aplikacji jest obowiązkowe; asystent linkuje instrukcję dostawcy). Uwaga: sam Yahoo zaznacza, że jego usługa CalDAV jest niestabilna — jeśli grymasi, nie jest to wina Plainva.
 - **Google**: wymaga własnego identyfikatora klienta OAuth (ten sam model BYO co przy synchronizacji Google Drive — patrz [przewodnik Google Drive](Google_Drive_BYO_Guide.md)). W swoim projekcie Google Cloud dodatkowo włącz *Google Calendar API* i *Google Tasks API* oraz dodaj ich zakresy do ekranu zgody. Przeglądarka otwiera się w celu wyrażenia zgody; łączenie weryfikuje konto, zanim cokolwiek zostanie zapisane.
-- **Microsoft**: wystarczy kliknąć **Połącz** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna.
+- **Microsoft**: wystarczy kliknąć **Zaloguj się przez Microsoft…** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna. Jedno konto Microsoft może w tym samym przebiegu obsługiwać też **Pliki** (OneDrive) i **E-mail**.
 
-Każde konto wyświetla swoje **kalendarze** (zaznaczone pojawiają się w karcie kalendarza) i swoje **listy zadań** (celowo domyślnie odznaczone — zaznaczenie jednej uruchamia opisaną niżej synchronizację zadań). Hasła i tokeny są przechowywane w pęku kluczy Twojego systemu operacyjnego. Ustawienie **Folder spotkań** poniżej kont określa, gdzie tworzone są notatki ze spotkań.
+Asystent pokazuje status dla każdej usługi („Połączono — znaleziono n kalendarzy”). Wybór **kalendarzy** (zaznaczone pojawiają się w karcie kalendarza) i **list zadań** (celowo domyślnie odznaczone — zaznaczenie jednej uruchamia opisaną niżej synchronizację zadań) zarządzasz później w obszarze **Kalendarz**; tam znajduje się też **Folder spotkań** (gdzie powstają notatki ze spotkań) i **Domyślny kalendarz**. Hasła i tokeny są przechowywane w pęku kluczy Twojego systemu operacyjnego.
 
 ## Karta kalendarza
 

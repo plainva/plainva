@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
@@ -11,10 +11,10 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchMessages, type MailEnvelope, type MailMessage } from "../../services/mail/mailClient";
+import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchMessages, type MailEnvelope, type MailMessage, type MailboxInfo } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, guessTrashMailbox } from "../../services/mail/mailOut";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "../../services/mail/mailOut";
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
@@ -85,8 +85,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
-  const [mailbox, setMailbox] = useState("INBOX");
-  const [folders, setFolders] = useState<string[]>([]);
+  /**
+   * The selected mailbox is BOUND TO THE ACCOUNT it was chosen for. Without
+   * that binding, switching accounts loaded the previous provider's folder
+   * name against the new one — Graph's "Posteingang" against Gmail's IMAP
+   * threw "Unknown Mailbox: Posteingang" (maintainer finding 2026-07-20).
+   * A foreign selection reads as "" = nothing to load yet.
+   */
+  const [mailboxSel, setMailboxSel] = useState<{ accountId: string; name: string }>({ accountId: "", name: "" });
+  const mailbox = mailboxSel.accountId === accountId ? mailboxSel.name : "";
+  const selectMailbox = useCallback((name: string) => setMailboxSel({ accountId, name }), [accountId]);
+  /** The account's mailboxes in display order (with their backend role). */
+  const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
+  const folders = useMemo(() => boxes.map((b) => b.name), [boxes]);
+  /** Stale-response guards: only the newest request per channel writes state. */
+  const listSeq = useRef(0);
+  const msgSeq = useRef(0);
   const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
@@ -156,23 +170,32 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     };
   }, [vaultPath]);
 
-  // Folder column (mail-client E1): the account's mailboxes, INBOX first. The
+  // Folder column (mail-client E1): the account's mailboxes, inbox first. The
   // read-only login command already returns the mailbox list, so this needs no
-  // new Rust. A failure leaves the single INBOX entry (list still works).
+  // new Rust. The mailbox stays EMPTY until the list arrives — assuming the
+  // IMAP name "INBOX" made Graph fail on localized mailboxes ("Posteingang").
   useEffect(() => {
     let alive = true;
-    setFolders([]);
-    setMailbox("INBOX");
+    setBoxes([]);
+    setListError(null);
     if (!vaultPath || !account) return;
+    const forAccount = account.id;
     void listMailboxesFor(vaultPath, account)
-      .then((boxes) => {
+      .then((list) => {
         if (!alive) return;
-        const names = sortMailFolders(boxes.map((b) => b.name).filter(Boolean));
-        setFolders(names);
-        setMailbox((m) => (names.includes(m) ? m : names.find((n) => /inbox/i.test(n)) ?? names[0] ?? "INBOX"));
+        const valid = list.filter((b) => b.name);
+        const order = sortMailFolders(valid.map((b) => b.name));
+        const sorted = order.map((n) => valid.find((b) => b.name === n)).filter((b): b is MailboxInfo => !!b);
+        setBoxes(sorted);
+        setMailboxSel((prev) =>
+          prev.accountId === forAccount && order.includes(prev.name)
+            ? prev
+            : { accountId: forAccount, name: pickInboxFolder(sorted) ?? "INBOX" }
+        );
       })
       .catch(() => {
-        /* keep the implicit INBOX; the envelope list still loads */
+        // Fall back to the IMAP default so the envelope list still loads.
+        if (alive) setMailboxSel({ accountId: forAccount, name: "INBOX" });
       });
     return () => {
       alive = false;
@@ -181,18 +204,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const loadList = useCallback(
     async (offset: number) => {
-      if (!vaultPath || !account) return;
+      // No mailbox yet = the folder list is still loading; opening a guessed
+      // name would fail on backends that localize their folders (Graph).
+      if (!vaultPath || !account || !mailbox) return;
+      const seq = ++listSeq.current;
+      const current = (): boolean => seq === listSeq.current;
       setLoadingList(true);
       setListError(null);
       try {
         const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE);
+        if (!current()) return; // a newer account/mailbox took over
         setTotal(page.total);
         setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
       } catch (e) {
-        setListError(e instanceof Error ? e.message : String(e));
+        // A late failure of a superseded request must not surface as the
+        // current mailbox's error.
+        if (current()) setListError(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoadingList(false);
+        if (current()) setLoadingList(false);
       }
     },
     [vaultPath, account, mailbox]
@@ -202,22 +232,30 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setEnvelopes([]);
     setSelectedId(null);
     setMessage(null);
+    // Drop the search when the account/mailbox changes: IMAP UIDs are
+    // folder-local, so a stale id set would highlight unrelated mails in the
+    // new folder (and a Graph id set would just come up empty).
+    setSearchIds(null);
+    setSearchQuery("");
     if (account) void loadList(0);
   }, [account, loadList]);
 
   const openMessage = useCallback(
     async (uid: string) => {
       if (!vaultPath || !account) return;
+      const seq = ++msgSeq.current;
+      const current = (): boolean => seq === msgSeq.current;
       setSelectedId(uid);
       setLoadingMessage(true);
       setMessage(null);
       setShowRemoteOnce(false);
       try {
-        setMessage(await fetchMessage(vaultPath, account, mailbox, uid));
+        const msg = await fetchMessage(vaultPath, account, mailbox, uid);
+        if (current()) setMessage(msg);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        if (current()) toast.error(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoadingMessage(false);
+        if (current()) setLoadingMessage(false);
       }
     },
     [vaultPath, account, mailbox]
@@ -233,21 +271,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const displayedEnvelopes = searchIds ? envelopes.filter((e) => searchIds.has(e.id)) : envelopes;
   const currentSeen = envelopes.find((e) => e.id === selectedId)?.seen ?? false;
 
+  const searchSeq = useRef(0);
   const runSearch = useCallback(async () => {
-    if (!vaultPath || !account) return;
+    if (!vaultPath || !account || !mailbox) return;
     const q = searchQuery.trim();
     if (!q) {
       setSearchIds(null);
       return;
     }
+    const seq = ++searchSeq.current;
+    const current = (): boolean => seq === searchSeq.current;
     setSearchBusy(true);
     try {
       const uids = await searchMessages(vaultPath, account, mailbox, q);
-      setSearchIds(new Set(uids));
+      if (current()) setSearchIds(new Set(uids));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      if (current()) toast.error(e instanceof Error ? e.message : String(e));
     } finally {
-      setSearchBusy(false);
+      if (current()) setSearchBusy(false);
     }
   }, [vaultPath, account, mailbox, searchQuery]);
 
@@ -337,7 +378,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const deleteMessage = useCallback(async () => {
     if (!vaultPath || !account || selectedId == null || actionBusy) return;
-    const trash = guessTrashMailbox(folders);
+    const trash = pickTrashFolder(boxes);
     if (!trash || trash === mailbox) {
       toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
       return;
@@ -347,7 +388,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       message: t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
     });
     if (ok) await moveTo(trash);
-  }, [vaultPath, account, mailbox, selectedId, actionBusy, folders, moveTo, t]);
+  }, [vaultPath, account, mailbox, selectedId, actionBusy, boxes, moveTo, t]);
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -481,19 +522,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     return (
       <div data-testid="mail-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
         <EmptyState
+          title={t("cloudAccounts.noServiceMailTitle")}
           icon={<Mail size={ICON.empty} />}
-          data-tip={t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" })}
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "pim" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
               data-testid="mail-open-settings"
             >
-              {t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" })}
+              {t("cloudAccounts.openArea")}
             </Button>
           }
         >
-          {t("mail.emptyHint", { defaultValue: "Verbinde in den Einstellungen unter „Kalender & Konten“ ein IMAP-Konto (nur Lesen)." })}
+          {t("cloudAccounts.noServiceMailBody")}
         </EmptyState>
       </div>
     );
@@ -528,7 +569,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           {(folders.length ? folders : ["INBOX"]).map((name) => {
             const on = name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} data-tip={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => selectMailbox(name)} data-tip={name}>
                 <FolderGlyph name={name} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}

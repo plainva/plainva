@@ -8,7 +8,9 @@ describe("mail provider presets (E2)", () => {
       expect(p.smtpHost).toMatch(/\./);
       expect(p.port).toBeGreaterThan(0);
       expect(p.smtpPort).toBeGreaterThan(0);
-      expect(p.domains.length).toBeGreaterThan(0);
+      // Hosting providers (Strato/IONOS) serve CUSTOM domains — their presets
+      // are manual picks by design, so an empty domain list is legitimate.
+      if (!["strato", "ionos"].includes(p.id)) expect(p.domains.length, p.id).toBeGreaterThan(0);
     }
   });
 

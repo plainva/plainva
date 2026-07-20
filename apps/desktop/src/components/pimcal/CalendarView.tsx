@@ -971,21 +971,19 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return (
       <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-primary)" }}>
         <EmptyState
+          title={t("cloudAccounts.noServiceCalTitle")}
           icon={<CalendarRange size={ICON.empty} />}
-          data-tip={t("pim.calendarEmpty", { defaultValue: "Kein Kalenderkonto verbunden" })}
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "pim" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
               data-testid="calendar-open-settings"
             >
-              {t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" })}
+              {t("cloudAccounts.openArea")}
             </Button>
           }
         >
-          {t("pim.calendarEmptyHint", {
-            defaultValue: "Verbinde in den Einstellungen unter „Kalender & Konten“ ein CalDAV-, Google- oder Microsoft-Konto.",
-          })}
+          {t("cloudAccounts.noServiceCalBody")}
         </EmptyState>
       </div>
     );

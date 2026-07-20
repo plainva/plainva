@@ -23,8 +23,33 @@ function json(obj: unknown, status = 200): Response {
 vi.mock("@tauri-apps/plugin-http", () => ({
   fetch: vi.fn(async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string }) => {
     calls.push({ url, method: init?.method ?? "GET", headers: init?.headers ?? {}, body: init?.body });
+    // Well-known folder lookup (single folder, id only) — Graph answers these
+    // regardless of the mailbox language.
+    const wellKnown = url.match(/\/me\/mailFolders\/([a-z]+)\?\$select=id$/);
+    if (wellKnown) {
+      const id = { inbox: "AAAinbox", drafts: "BBBdrafts", deleteditems: "CCCtrash" }[wellKnown[1]];
+      return id ? json({ id }) : json({ error: "not found" }, 404);
+    }
+    // Child folders of "Projekte" (id PPP) — nested reachability.
+    if (url.includes("/mailFolders/PPP/childFolders")) {
+      return json({ value: [{ id: "KKK", displayName: "Kunde A", childFolderCount: 0 }] });
+    }
+    if (url.includes("/childFolders")) return json({ value: [] });
     if (url.includes("/me/mailFolders") && !url.includes("/messages")) {
-      return json({ value: [{ id: "AAAinbox", displayName: "Inbox" }, { id: "BBBdrafts", displayName: "Drafts" }, { id: "CCCtrash", displayName: "Deleted Items" }] });
+      // A GERMAN mailbox — the real-world case that broke the IMAP-flavored
+      // "INBOX" lookup (maintainer report 2026-07-20). Paginated across two
+      // pages to pin the @odata.nextLink follow.
+      if (url.includes("$skiptoken=page2")) {
+        return json({ value: [{ id: "CCCtrash", displayName: "Gelöschte Elemente", childFolderCount: 0 }] });
+      }
+      return json({
+        value: [
+          { id: "AAAinbox", displayName: "Posteingang", childFolderCount: 0 },
+          { id: "BBBdrafts", displayName: "Entwürfe", childFolderCount: 0 },
+          { id: "PPP", displayName: "Projekte", childFolderCount: 1 },
+        ],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/mailFolders?$select=id,displayName,childFolderCount&$top=100&$skiptoken=page2",
+      });
     }
     if (url.includes("/messages")) {
       return json({
@@ -87,19 +112,41 @@ describe("graphMail pure transforms", () => {
 });
 
 describe("graphMail request shaping", () => {
-  it("lists folders by displayName and sends the bearer token", async () => {
+  it("lists folders across pages + child folders, with the backend-stated role", async () => {
     const boxes = await graphListFolders("/vault", account);
-    expect(boxes.map((b) => b.name)).toEqual(["Inbox", "Drafts", "Deleted Items"]);
+    // Page 1 + page 2 (nextLink) + the nested child of "Projekte".
+    expect(boxes).toEqual([
+      { name: "Posteingang", role: "inbox" },
+      { name: "Entwürfe", role: "drafts" },
+      { name: "Projekte", role: undefined },
+      { name: "Gelöschte Elemente", role: "trash" },
+      { name: "Projekte/Kunde A", role: undefined },
+    ]);
     const folderCall = calls.find((c) => c.url.includes("/me/mailFolders"));
     expect(folderCall?.headers.Authorization).toBe("Bearer ACCESS");
+    // The nested folder resolves by its full path for a subsequent list.
+    await graphListEnvelopes("/vault", account, "Projekte/Kunde A", 0, 10);
+    const nested = calls.find((c) => c.url.includes("/mailFolders/KKK/messages"));
+    expect(nested).toBeTruthy();
   });
 
-  it("lists envelopes newest-first, resolving the folder id + $count header", async () => {
-    const page = await graphListEnvelopes("/vault", account, "Inbox", 0, 50);
+  it("resolves the IMAP role name INBOX to Graph's well-known folder WITHOUT a lookup", async () => {
+    // The reported failure: a German mailbox has no folder called "INBOX", so
+    // the displayName lookup threw "Graph mail folder not found: INBOX".
+    const page = await graphListEnvelopes("/vault", account, "INBOX", 0, 50);
+    expect(page.total).toBe(1);
+    const msgCall = calls.find((c) => c.url.includes("/messages") && c.url.includes("$orderby"));
+    expect(msgCall?.url).toContain("/me/mailFolders/inbox/messages");
+    // No folder listing was needed to get there.
+    expect(calls.some((c) => c.url.includes("$select=id,displayName"))).toBe(false);
+  });
+
+  it("lists envelopes newest-first, resolving a real folder name to its id", async () => {
+    const page = await graphListEnvelopes("/vault", account, "Posteingang", 0, 50);
     expect(page.total).toBe(1);
     expect(page.messages[0]).toMatchObject({ id: "AAMkmsg1==", subject: "Rechnung", from: "Anna <anna@example.org>", seen: false });
     const msgCall = calls.find((c) => c.url.includes("/messages") && c.url.includes("$orderby"));
-    expect(msgCall?.url).toContain("/me/mailFolders/AAAinbox/messages"); // "Inbox" resolved to its Graph id
+    expect(msgCall?.url).toContain("/me/mailFolders/AAAinbox/messages"); // resolved to its Graph id
     expect(msgCall?.url).toContain("$orderby=receivedDateTime desc");
     expect(msgCall?.headers.ConsistencyLevel).toBe("eventual"); // $count=true
   });
@@ -115,9 +162,15 @@ describe("graphMail request shaping", () => {
   });
 
   it("moves a message to a folder resolved by displayName", async () => {
-    await graphMove("/vault", account, "Inbox", "AAMkmsg1==", "Deleted Items");
+    await graphMove("/vault", account, "Posteingang", "AAMkmsg1==", "Gelöschte Elemente");
     const move = calls.find((c) => c.url.includes("/move"));
     expect(move?.method).toBe("POST");
     expect(JSON.parse(move?.body ?? "{}")).toEqual({ destinationId: "CCCtrash" });
+  });
+
+  it("moves via the well-known name when the caller passes a role name", async () => {
+    await graphMove("/vault", account, "INBOX", "AAMkmsg1==", "Trash");
+    const move = calls.find((c) => c.url.includes("/move"));
+    expect(JSON.parse(move?.body ?? "{}")).toEqual({ destinationId: "deleteditems" });
   });
 });

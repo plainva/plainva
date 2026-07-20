@@ -85,6 +85,14 @@ describe("nav state (overlay + tab stacks)", () => {
     expect(navTop(s)?.kind).toBe("settings");
   });
 
+  it("routes the cloud-accounts screen to the overlay (settings area)", () => {
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "cloudaccounts", path: "" });
+    expect(s.overlay).toHaveLength(1);
+    expect(s.stacks.notes).toHaveLength(0);
+    expect(navTop(s)?.kind).toBe("cloudaccounts");
+  });
+
   it("keeps content opened from an overlay inside the overlay (back returns there)", () => {
     let s = initialNavState("notes");
     s = pushEntry(s, { kind: "search", path: "" });

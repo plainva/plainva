@@ -65,23 +65,44 @@ export function decodeImapUtf7(name: string): string {
 }
 
 /** Best-guess Trash mailbox for "delete" (a reversible move), or null when the
- * account has no recognizable Trash folder (delete then falls back to a flag).
- * Matches on the DECODED name but returns the raw (IMAP) name. */
-export function guessTrashMailbox(names: string[]): string | null {
-  const byName = names.find((n) => /trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted/i.test(decodeImapUtf7(n)));
-  if (byName) return byName;
-  const gmail = names.find((n) => n.toLowerCase() === "[gmail]/trash" || n.toLowerCase() === "[gmail]/bin");
-  return gmail ?? null;
+/** Special-use folder role an IMAP name looks like (name-based guess for
+ * servers that state none). */
+export type GuessedFolderRole = "inbox" | "sent" | "drafts" | "trash" | "junk" | "archive" | null;
+
+/**
+ * Classifies an IMAP mailbox NAME into a special-use role, across the languages
+ * of the provider catalog (de/en/fr/es/pt/it/nl/pl/cz/ru/kr/jp/cn). Matches on
+ * the DECODED last hierarchy segment — so "INBOX.Kunden" is NOT an inbox and a
+ * "Sentinel"/"Junker" folder is not mistaken for sent/junk. Pure.
+ */
+export function classifyFolderRole(name: string): GuessedFolderRole {
+  const seg = mailFolderLabel(name).toLowerCase();
+  // Whole decoded name too, so "[Gmail]/Bin" style special-use survives.
+  const full = decodeImapUtf7(name).toLowerCase();
+  const hit = (re: RegExp): boolean => re.test(seg) || re.test(full);
+  // ASCII short words carry a word boundary so a user folder like "Sentinel",
+  // "Junker", "Koszty" or "Archivierte Projekte" is not miscategorized;
+  // non-ASCII tokens (CJK/Cyrillic) are distinctive enough as-is (JS `\b` is
+  // ASCII-only and would never match them).
+  if (hit(/^(inbox|posteingang|boîte de réception|bandeja de entrada|caixa de entrada|posta in arrivo|postvak in|odebrane|doručená|входящие|받은편지함|受信トレイ|收件箱)$/)) return "inbox";
+  if (hit(/\bsent\b|gesendet|envoyé|enviad|inviat|verzonden|wys[łl]ane|odeslan|отправленн|보낸편지함|送信済み|已发送/)) return "sent";
+  if (hit(/\bdrafts?\b|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|\brobocze\b|\bkoncepty?\b|черновик|임시보관함|下書き|草稿/)) return "drafts";
+  if (hit(/\btrash\b|papierkorb|corbeille|papelera|lixeira|cestino|prullenbak|\bkosz\b|koš|корзина|удал[её]нн|휴지통|ゴミ箱|已删除|deleted|\bbin\b/)) return "trash";
+  if (hit(/\bjunk\b|\bspam\b|pourriel|correo no deseado|posta indesiderata|ongewenst|niechcian|nevyžádan|спам|스팸|迷惑メール|垃圾/)) return "junk";
+  if (hit(/\barchives?\b|\barchiv\b|archiwum|archivio|arquivo|архив|보관|アーカイブ|归档/)) return "archive";
+  return null;
 }
 
-/** Best-guess drafts mailbox: localized "draft"/"entwurf" names first, then
- * the Gmail special-use folder, then a literal fallback. Matches on the DECODED
- * name but returns the raw (IMAP) name. */
+/** Best-guess Trash mailbox for delete (localized), or null so the caller can
+ * fall back to a flag. Matches names, returns the raw (IMAP) name. */
+export function guessTrashMailbox(names: string[]): string | null {
+  return names.find((n) => classifyFolderRole(n) === "trash") ?? null;
+}
+
+/** Best-guess drafts mailbox (localized), else a literal fallback. Matches
+ * names, returns the raw (IMAP) name. */
 export function guessDraftsMailbox(names: string[]): string {
-  const byName = names.find((n) => /draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/i.test(decodeImapUtf7(n)));
-  if (byName) return byName;
-  const gmail = names.find((n) => n.toLowerCase() === "[gmail]/drafts");
-  return gmail ?? "Drafts";
+  return names.find((n) => classifyFolderRole(n) === "drafts") ?? "Drafts";
 }
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
@@ -168,15 +189,37 @@ export function mailFolderLabel(name: string): string {
   return segs.length ? segs[segs.length - 1] : decoded;
 }
 
-const FOLDER_ORDER = ["inbox", "sent", "draft", "archive", "junk", "spam", "trash"];
+/**
+ * Picks the folder to open first: the backend-stated inbox role wins (Graph
+ * says so authoritatively and language independently — a German mailbox calls
+ * it "Posteingang"), then the English name heuristic, then the first folder.
+ * Pure.
+ */
+export function pickInboxFolder(boxes: readonly { name: string; role?: string }[]): string | null {
+  const byRole = boxes.find((b) => b.role === "inbox");
+  if (byRole) return byRole.name;
+  const byName = boxes.find((b) => /inbox/i.test(b.name));
+  if (byName) return byName.name;
+  return boxes[0]?.name ?? null;
+}
 
-/** Orders mailbox names for the folder column: INBOX first, then the usual
- * special-use folders, then the rest alphabetically (by display label). Pure. */
+/** Trash folder for delete: backend role first, then the name heuristic. Pure. */
+export function pickTrashFolder(boxes: readonly { name: string; role?: string }[]): string | null {
+  const byRole = boxes.find((b) => b.role === "trash");
+  if (byRole) return byRole.name;
+  return guessTrashMailbox(boxes.map((b) => b.name));
+}
+
+const ROLE_ORDER: GuessedFolderRole[] = ["inbox", "sent", "drafts", "archive", "junk", "trash"];
+
+/** Orders mailbox names for the folder column: inbox first, then the usual
+ * special-use folders (by their classified role, so it works across languages
+ * and does not rank every "INBOX.x" child as an inbox), then the rest
+ * alphabetically by display label. Pure. */
 export function sortMailFolders(names: string[]): string[] {
   const rank = (n: string): number => {
-    const label = mailFolderLabel(n).toLowerCase();
-    const i = FOLDER_ORDER.findIndex((k) => label.includes(k) || n.toLowerCase().includes(k));
-    return i < 0 ? FOLDER_ORDER.length : i;
+    const i = ROLE_ORDER.indexOf(classifyFolderRole(n));
+    return i < 0 ? ROLE_ORDER.length : i;
   };
   return [...names].sort((a, b) => {
     const ra = rank(a);

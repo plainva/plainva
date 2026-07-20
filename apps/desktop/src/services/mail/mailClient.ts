@@ -20,8 +20,14 @@ import {
  * stringified numeric UID (mapped at this boundary), for Graph the opaque id.
  */
 
+/** Special-use role of a mailbox, where the backend states it authoritatively
+ * (Graph well-known folders). IMAP leaves it unset — there the role is guessed
+ * from the name, which only works for English/known conventions. */
+export type MailFolderRole = "inbox" | "drafts" | "sent" | "trash" | "junk" | "archive";
+
 export interface MailboxInfo {
   name: string;
+  role?: MailFolderRole;
 }
 
 export interface MailEnvelope {

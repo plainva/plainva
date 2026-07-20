@@ -1,12 +1,20 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-07-18
+Ultimo aggiornamento: 2026-07-20
 
-Plainva può leggere la tua casella di posta — e solo leggerla — per estrarre conoscenza dalle e-mail e portarla nel tuo vault. Deliberatamente **non** è un client di posta: si collega tramite IMAP in modalità di sola lettura, non modifica mai nulla nella casella (nemmeno i contrassegni di lettura) e non invia mai e-mail da sé.
+Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
+
+> **Sperimentale.** Il client di posta comunica con account esterni reali (IMAP/SMTP e Microsoft) che non si possono esercitare nei test automatizzati di Plainva. Funziona ed è usato quotidianamente, ma trattalo come un'anteprima: mantieni un backup e segnala per favore tutto ciò che sembra fuori posto.
 
 ## Collegare una casella di posta
 
-**Impostazioni → Vault → Calendario e account → E-mail (IMAP, sola lettura) → Aggiungi account…**: host, porta e una **Password per app**. Per Gmail è `imap.gmail.com`, porta `993`, con una password per app da [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (richiede l'autenticazione a due fattori) — nessun OAuth, nessuna verifica. Il collegamento verifica l'accesso prima che venga salvato qualcosa; la password finisce nel portachiavi del sistema operativo. L'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
+**Impostazioni → Vault → Account cloud → Collega account…** e scegli il provider:
+
+- **Microsoft** — per Outlook.com e Microsoft 365: spunta **E-mail** nel passaggio dei servizi (se vuoi, insieme a **File** e **Calendario e attività** — un account, un accesso) e accedi direttamente nel browser, senza password per l'app e senza IMAP. Plainva usa la registrazione app centrale di Plainva (puoi facoltativamente fornire un tuo ID app nei dettagli dell'account). Lettura, cattura e **invio diretto** passano tutti attraverso l'accesso Microsoft.
+- **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — schede dedicate: indirizzo e-mail più una **Password per app**, i server sono già precompilati (la maggior parte di queste schede permette anche di spuntare **Calendario e attività** nello stesso passaggio — una sola password per app per tutti i servizi scelti). L'assistente collega di volta in volta la guida ufficiale del provider per creare la password per app.
+- **Server e-mail (IMAP)** — per qualsiasi altro provider: host, porta e una password oppure una **Password per app**. Sono disponibili preimpostazioni già pronte per provider di tutto il mondo — da **web.de**/**GMX** e **T-Online**, passando per **Orange**, **Libero**, **WP**, **Seznam** e **Comcast**, fino a **QQ Mail**, **NetEase**, **Naver** e **Yahoo! JAPAN**; il menu **Provider** ha per questo una riga di ricerca, e digitando il tuo indirizzo viene scelta automaticamente la preimpostazione corrispondente. Dove un provider ha delle particolarità, l'assistente lo segnala subito sotto il modulo: alcuni richiedono una **Password per app** o un **codice di autorizzazione** al posto della password dell'account, altri richiedono di attivare prima IMAP nelle impostazioni del provider — ciascuno con un link alla guida ufficiale. Per Gmail è `imap.gmail.com`, porta `993`, con una password per app da [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (richiede l'autenticazione a due fattori) — nessun OAuth, nessuna verifica; l'assistente lo segnala da solo per gli indirizzi Gmail. Le **caselle Outlook.com** non si possono più collegare tramite IMAP con password (Microsoft ha disattivato questa via) — la preimpostazione rimanda alla scheda **Microsoft**. **Proton Mail** funziona solo tramite il Proton Mail Bridge locale a pagamento (ha una propria preimpostazione). Aggiungi un host SMTP per inviare direttamente.
+
+Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenziali finiscono nel portachiavi del sistema operativo. Le caselle collegate e le impostazioni di cattura si trovano poi nell'area **E-mail**: l'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
 
 ## Leggere le e-mail
 
@@ -26,9 +34,18 @@ Tre pulsanti su ogni messaggio:
 - **+ .eml** — memorizza inoltre l'originale grezzo accanto alla nota e lo collega. Il file `.eml` contiene tutto, allegati inclusi, e si apre in qualsiasi programma di posta.
 - **→ Attività** — crea una voce nel tuo [database attività predefinito](Tasks.md) con l'oggetto come titolo, la data odierna come scadenza e lo stato aperto precompilato.
 
-## Portare fuori i contenuti — senza inviare
+## Scrivere e inviare
 
-Plainva non parla mai SMTP. Invece:
+Non appena un account può inviare — un account **Microsoft**, oppure un account **IMAP** con un **host SMTP** configurato —, puoi scrivere e inviare e-mail da Plainva:
+
+- **Scrivi** (nella scheda e-mail) apre una finestra fluttuante con righe etichettate **Da / A / Cc / Ccn**. Digita un indirizzo e premi Invio o virgola per trasformarlo in un chip; **Cc/Ccn** compaiono su richiesta. Il corpo è un editor Markdown con una barra degli strumenti di formattazione e un menu comandi "/".
+- **Rispondi**, **Rispondi a tutti** e **Inoltra** su qualsiasi messaggio aprono la stessa finestra con l'originale citato e i destinatari precompilati; un inoltro porta con sé gli allegati.
+- **Invia** parte via SMTP (account IMAP) o Microsoft Graph (account Microsoft).
+- **Questa nota via e-mail** (menu `⋮` di una nota, o la palette dei comandi) avvia un messaggio con la nota attuale come allegato, oppure incorporata come testo.
+
+## Consegnare una nota senza il client di posta
+
+Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e non richiede SMTP:
 
 - **Rispondi come nota** (su un messaggio): crea una nota indirizzata al mittente (`to:` nel frontmatter) con l'originale citato — scrivi la tua risposta in Plainva.
 - **Salva la nota come bozza nella casella** (palette dei comandi, su qualsiasi nota aperta): salva la nota come **bozza nella tua casella** tramite IMAP — scegli account, destinatario e cartella bozze, poi apri il tuo programma di posta abituale, controlla e invia da lì. La formattazione viene mantenuta.

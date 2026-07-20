@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last reviewed: 2026-07-17
+Last reviewed: 2026-07-20
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -8,7 +8,8 @@ Which services work in general (also via WebDAV or the provider's desktop client
 
 ## Basics
 
-- Setup lives under **Settings → Vault → Sync**. The **Sync Provider** is chosen per vault: **None (Local only)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** or **S3-compatible storage** — always exactly one per vault.
+- Setup lives under **Settings → your vault → Cloud accounts**: **Connect account…** opens the assistant — pick the **provider** first, then tick the **services** (for file sync: **Files**), then sign in. The tile overview lists providers by real-world reach; **Search providers…** also finds the email providers that ship as presets. Exactly **one** account per vault carries the **Files** service. The **Sync** area then shows the connected account with its **Cloud folder** and holds the behavior (**Sync interval**, queue); **Manage account** leads back to the cloud accounts.
+- For the **Files** service, besides **Microsoft** (OneDrive), **Google** (Drive), **Dropbox**, **Nextcloud**, **Object storage (S3)** and generic **WebDAV / CalDAV**, the tiles also include **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru**, **Koofr** and **pCloud**: there, your email address plus an **app password** is enough — the server addresses are already filled in (WebDAV-based; changeable via **Advanced: set endpoints individually**).
 - **Open an existing online vault from the start screen**: **Open Vault** → **Online vault** walks you through the same three steps for every provider — **1. Connect** (sign in or enter credentials), **2. Choose the folder in the cloud** (a fresh folder can also be created there via **New folder**), **3. Choose or create the local folder**. Alternatively you can set up sync for an already-open vault any time under Settings.
 - **Create a new vault in the cloud**: **New Vault** → **With an online service** — first pick the starter structure (empty or a template like PARA), then connect and choose the target folder in the cloud or create it via **New folder**, finally the local folder. The structure is created in the local folder and uploaded automatically by the first sync.
 - Local saves are uploaded immediately; Plainva checks for remote changes at the configured **Sync Interval (seconds)**.
@@ -26,9 +27,11 @@ Which services work in general (also via WebDAV or the provider's desktop client
 
 The simplest route for self-hosted servers and most cloud storages:
 
-1. Set the **Sync Provider** to **WebDAV / Nextcloud**.
-2. Enter the **Server URL**, **Username** and **Password or App Token** — use an app password instead of your main password whenever possible (in Nextcloud: Settings → Security → App passwords).
-3. Pick the target folder via **Browse Server**, then **Save**.
+1. In **Cloud accounts** → **Connect account…** pick the **Nextcloud** tile (or **WebDAV / CalDAV**).
+2. Enter the **Server address**, **Username** and **Password or App Token** — use an app password instead of your main password whenever possible (in Nextcloud: Settings → Security → App passwords).
+3. **Connect** validates the credentials; afterwards pick the **Cloud folder** via **Choose folder…**.
+
+**Nextcloud** special: ONE form covers files **and** calendar — Plainva derives the WebDAV and CalDAV endpoints from the server address itself (the derived addresses are shown in the assistant; **Advanced: set endpoints individually** allows separate URLs). Tick both services and a single pass connects both.
 
 Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many more) are listed in [Sync Compatibility](Sync_Compatibility.md).
 
@@ -36,15 +39,15 @@ Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many m
 
 Google Drive currently runs with your own credentials ("Bring Your Own"): you create a free Google Cloud project once, owned by you alone. The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Short version: enter the **Client ID** and **Client Secret** from your Google project, set the **Drive Folder (Name)** (default "Plainva"), then **Connect to Google** — the sign-in opens in your browser. Once connected, pick the folder via **Choose folder…** straight from your Drive (subfolders included) instead of typing the name. Note: while the Google project is in testing mode, the login expires after 7 days and must be renewed via **Reconnect**.
+Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while the Google project is in testing mode, the login expires after 7 days and must be renewed via **Sign in again** in the account details.
 
 ## OneDrive
 
 Plainva ships its own app registration — you **no longer need your own ID**:
 
-1. Set the **Sync Provider** to **OneDrive**; optionally set the **OneDrive Folder (Name)** (default "Plainva").
-2. **Connect to Microsoft** and confirm the sign-in in the browser. Done — Plainva creates the folder and syncs its entire content, including externally added files.
-3. Optional: once connected, pick the target folder via **Choose folder…** straight from your OneDrive (subfolders included) instead of typing the name.
+1. In **Cloud accounts** → **Connect account…** pick the **Microsoft** tile and tick the **Files** service (OneDrive) — on request together with **Calendar & tasks** and **Email** (one Microsoft account can carry all three services).
+2. **Sign in with Microsoft…** and confirm the sign-in in the browser. Done — Plainva creates the folder (default "Plainva") and syncs its entire content, including externally added files.
+3. Optional: once connected, pick the **Cloud folder** via **Choose folder…** straight from your OneDrive (subfolders included).
 
 Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
@@ -52,15 +55,15 @@ Optional: via **Use your own app ID** you can instead supply a self-registered c
 
 Plainva ships its own Dropbox app — **no own app needed**:
 
-1. Set the **Sync Provider** to **Dropbox**; optionally set the **Dropbox Folder (Path)** (default `/Plainva`).
-2. **Connect to Dropbox** and confirm in the browser. Done.
-3. Optional: once connected, pick the target folder via **Choose folder…** straight from your Dropbox (subfolders included) instead of typing the path.
+1. In **Cloud accounts** → **Connect account…** pick the **Dropbox** tile (it carries only the **Files** service).
+2. **Sign in with Dropbox…** and confirm in the browser. Done (default folder `/Plainva`).
+3. Optional: once connected, pick the **Cloud folder** via **Choose folder…** straight from your Dropbox (subfolders included).
 
 Optional: via **Use your own app ID** you can instead supply a self-registered app key. Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 ## S3-compatible storage
 
-For AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner and others — key-based, no browser sign-in at all:
+For AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner and others — key-based, no browser sign-in at all. In **Cloud accounts** → **Connect account…** pick the **Object storage (S3)** tile and fill in the fields:
 
 | Field | Meaning |
 |---|---|
@@ -71,9 +74,9 @@ For AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner and others — k
 | **Key Prefix (optional)** | Subfolder inside the bucket for the vault; empty = bucket root |
 | **Path-style URLs** | Recommended (MinIO, R2 and most compatibles); disable only for virtual-hosted AWS buckets |
 
-You can also pick the **Key Prefix** via **Choose folder…** straight from the bucket — this already works before saving, as soon as the endpoint, bucket and keys are filled in.
+You can pick the **Key Prefix** (the cloud folder) via **Choose folder…** straight from the bucket once connected.
 
-After **Apply**, sync starts right away.
+After **Connect**, sync starts right away.
 
 ## See also
 

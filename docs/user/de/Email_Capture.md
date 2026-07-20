@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-07-19
+Stand: 2026-07-20
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -8,12 +8,13 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 
 ## Ein Postfach verbinden
 
-**Einstellungen → Dein Vault → Kalender & Konten → E-Mail → Konto hinzufügen…** Unter **Verbindungsart** wählst Du:
+**Einstellungen → Dein Vault → Cloud-Konten → Konto verbinden…** und den Anbieter wählen:
 
-- **Microsoft (Anmelden)** — für Outlook.com und Microsoft 365: Du meldest Dich direkt im Browser an, ganz ohne App-Passwort oder IMAP. Plainva nutzt dafür die zentrale Plainva-App-Registrierung (Deine eigene App-ID kannst Du optional hinterlegen). Postfach lesen, ablegen und **direkt senden** laufen über die Microsoft-Anmeldung.
-- **IMAP (App-Passwort)** — für alle anderen Anbieter: Host, Port und ein **App-Passwort**. Für Gmail ist das `imap.gmail.com`, Port `993`, mit einem App-Passwort von [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (setzt Zwei-Faktor-Anmeldung voraus) — kein OAuth, keine Verifizierung. Für **web.de** und **GMX** stehen fertige Voreinstellungen bereit. Für den Direktversand kann ein SMTP-Host hinterlegt werden.
+- **Microsoft** — für Outlook.com und Microsoft 365: im Dienste-Schritt **E-Mail** anhaken (auf Wunsch zusammen mit **Dateien** und **Kalender & Aufgaben** — ein Konto, eine Anmeldung) und Dich direkt im Browser anmelden, ganz ohne App-Passwort oder IMAP. Plainva nutzt dafür die zentrale Plainva-App-Registrierung (Deine eigene App-ID kannst Du optional in den Konto-Details hinterlegen). Postfach lesen, ablegen und **direkt senden** laufen über die Microsoft-Anmeldung.
+- **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — eigene Kacheln: E-Mail-Adresse plus **App-Passwort**, die Server sind bereits hinterlegt (bei den meisten dieser Kacheln lässt sich im selben Schritt auch **Kalender & Aufgaben** anhaken — ein App-Passwort für alle gewählten Dienste). Der Assistent verlinkt jeweils die offizielle Anleitung des Anbieters zum Erstellen des App-Passworts.
+- **E-Mail-Server (IMAP)** — für alle anderen Anbieter: Host, Port und ein Passwort bzw. **App-Passwort**. Fertige Voreinstellungen gibt es für Anbieter aus aller Welt — von **web.de**/**GMX** und **T-Online** über **Orange**, **Libero**, **WP**, **Seznam** und **Comcast** bis **QQ Mail**, **NetEase**, **Naver** und **Yahoo! JAPAN**; die Auswahl **Anbieter** hat dafür eine Suchzeile, und beim Eintippen der Adresse wird die passende Voreinstellung automatisch gewählt. Wo ein Anbieter Besonderheiten hat, sagt es der Assistent direkt unter dem Formular: manche verlangen ein **App-Passwort** oder einen **Autorisierungscode** statt des Konto-Passworts, bei anderen muss IMAP zuerst in den Einstellungen des Anbieters aktiviert werden — jeweils mit Link auf die offizielle Anleitung. Für Gmail ist das `imap.gmail.com`, Port `993`, mit einem App-Passwort von [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (setzt Zwei-Faktor-Anmeldung voraus) — kein OAuth, keine Verifizierung; der Assistent weist bei Gmail-Adressen selbst darauf hin. **Outlook.com-Postfächer** lassen sich nicht mehr per Passwort-IMAP verbinden (Microsoft hat diesen Weg abgeschaltet) — die Voreinstellung verweist auf die **Microsoft**-Kachel. **Proton Mail** funktioniert nur über die lokal laufende, kostenpflichtige Proton Mail Bridge (eigene Voreinstellung). Für den Direktversand kann ein SMTP-Host hinterlegt werden.
 
-Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
+Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
 ## Mails lesen
 

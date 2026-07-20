@@ -1,18 +1,21 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-07-19
+Dernière mise à jour : 2026-07-20
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
+> **Expérimental.** Le calendrier communique avec de vrais comptes externes (CalDAV, Google, Microsoft) qu'il n'est pas possible d'exercer dans les tests automatisés de Plainva. Il fonctionne et est utilisé quotidiennement, mais traitez-le comme un aperçu : gardez une sauvegarde, et merci de signaler tout ce qui semble anormal.
+
 ## Connecter un compte
 
-Ouvrez **Paramètres → Vault → Calendrier et comptes → Ajouter un compte…** et choisissez un fournisseur :
+Ouvrez **Paramètres → Vault → Comptes cloud → Connecter un compte…**, choisissez un fournisseur et cochez **Calendrier et tâches** à l'étape des services :
 
-- **CalDAV** : URL du serveur, nom d'utilisateur et un **mot de passe d'application** (dans Nextcloud : Paramètres → Sécurité → Appareils et sessions). Aucune inscription, aucune clé.
+- **Nextcloud / CalDAV** : adresse du serveur, nom d'utilisateur et un **mot de passe d'application** (dans Nextcloud : Paramètres → Sécurité → Appareils et sessions). Aucune inscription, aucune clé — pour Nextcloud, Plainva déduit l'adresse CalDAV directement de l'adresse du serveur (pour les autres serveurs CalDAV, utilisez la tuile **WebDAV / CalDAV** ou **Avancé : définir les endpoints individuellement**).
+- **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru** : des tuiles dédiées avec les adresses de calendrier déjà renseignées — une adresse e-mail plus un **mot de passe d'application** suffisent, sans champ serveur (pour Apple, le mot de passe d'application est obligatoire ; l'assistant renvoie vers le guide du fournisseur). Remarque : Yahoo lui-même signale que son service CalDAV n'est pas fiable — s'il fait des siennes, ce n'est pas la faute de Plainva.
 - **Google** : nécessite votre propre ID client OAuth (le même modèle BYO que pour la synchronisation Google Drive — voir le [guide Drive](Google_Drive_BYO_Guide.md)). Dans votre projet Google Cloud, activez en plus les API *Google Calendar* et *Google Tasks* et ajoutez leurs portées à l'écran de consentement. Le navigateur s'ouvre pour le consentement ; connecter le compte le valide avant que quoi que ce soit ne soit enregistré.
-- **Microsoft** : cliquez simplement sur **Connecter** et confirmez dans le navigateur — aucune configuration nécessaire.
+- **Microsoft** : cliquez simplement sur **Se connecter avec Microsoft…** et confirmez dans le navigateur — aucune configuration nécessaire. Un compte Microsoft peut aussi porter **Fichiers** (OneDrive) et **E-mail** dans le même passage.
 
-Chaque compte liste ses **calendriers** (ceux cochés apparaissent dans l'onglet calendrier) et ses **listes de tâches** (délibérément décochées par défaut — en cocher une démarre la synchronisation des tâches décrite ci-dessous). Les mots de passe et les jetons résident dans le trousseau de votre système d'exploitation. Le paramètre **Dossier des réunions** sous les comptes détermine où sont créées les notes de réunion.
+L'assistant affiche un statut par service (« connecté — n calendriers trouvés »). Vous gérez ensuite les **calendriers** (ceux cochés apparaissent dans l'onglet calendrier) et les **listes de tâches** (délibérément décochées par défaut — en cocher une démarre la synchronisation des tâches décrite ci-dessous) dans la zone **Calendrier** ; le **Dossier des réunions** (où sont créées les notes de réunion) et l'**Agenda par défaut** s'y trouvent aussi. Les mots de passe et les jetons résident dans le trousseau de votre système d'exploitation.
 
 ## L'onglet calendrier
 

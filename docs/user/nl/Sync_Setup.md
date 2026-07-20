@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-17
+Laatst bijgewerkt: 2026-07-20
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -8,7 +8,8 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 
 ## Basisprincipes
 
-- Installatie onder **Instellingen → Vault → Synchronisatie**. De **Sync-provider** wordt per vault gekozen: **Geen (alleen lokaal)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** of **S3-compatibele opslag** — altijd precies één per vault.
+- Installatie vind je onder **Instellingen → Vault → Cloudaccounts**: **Account verbinden…** opent de assistent — kies eerst de **provider**, vink dan de **diensten** aan (voor bestandssync: **Bestanden**), en meld je vervolgens aan. Het tegeloverzicht rangschikt de providers naar werkelijke verspreiding; via **Zoek naar providers…** vind je ook de e-mailproviders die als voorinstelling zijn opgenomen. **Precies één** account per vault draagt de dienst **Bestanden**. Het gebied **Synchronisatie** toont daarna het verbonden account met zijn **Cloudmap** en regelt het gedrag (**Sync-interval**, wachtrij); **Account beheren** leidt terug naar de cloudaccounts.
+- Voor de dienst **Bestanden** zijn er naast **Microsoft** (OneDrive), **Google** (Drive), **Dropbox**, **Nextcloud**, **Objectopslag (S3)** en generieke **WebDAV / CalDAV** ook **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru**, **Koofr** en **pCloud** als eigen tegels: daar volstaat je e-mailadres plus een **app-wachtwoord** — de serveradressen zijn al ingevuld (WebDAV-gebaseerd; te wijzigen via **Geavanceerd: endpoints afzonderlijk instellen**).
 - **Een bestaande online vault vanaf het startscherm openen**: **Vault openen** → **Online vault** loodst je voor elke provider door dezelfde drie stappen — **1. Verbinden** (aanmelden of toegangsgegevens invoeren), **2. Map in de cloud kiezen** (daar kun je ook via **Nieuwe map** meteen een nieuwe map aanmaken), **3. Lokale map kiezen of aanmaken**. Je kunt de synchronisatie voor een al geopende vault ook altijd onder Instellingen instellen.
 - **Een nieuwe vault in de cloud aanmaken**: **Nieuwe vault** → **Bij een onlinedienst** — kies eerst de startstructuur (leeg of een sjabloon zoals PARA), verbind daarna en kies de doelmap in de cloud of maak deze aan via **Nieuwe map**, ten slotte de lokale map. De structuur wordt in de lokale map aangemaakt en automatisch bij de eerste synchronisatie geüpload.
 - Lokale opslagen worden meteen geüpload; op externe wijzigingen controleert Plainva op het ingestelde **Sync-interval (seconden)**.
@@ -26,9 +27,11 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 
 De eenvoudigste weg voor eigen servers en de meeste cloudopslag:
 
-1. **Sync-provider** instellen op **WebDAV / Nextcloud**.
-2. **Server-URL**, **Gebruikersnaam** en **Wachtwoord of app-token** invoeren — gebruik indien mogelijk een app-wachtwoord in plaats van je hoofdwachtwoord (in Nextcloud: Instellingen → Beveiliging → App-wachtwoorden).
-3. Met **Server doorbladeren** de doelmap kiezen, dan **Opslaan**.
+1. Kies in **Cloudaccounts** → **Account verbinden…** de tegel **Nextcloud** (of **WebDAV / CalDAV**).
+2. Voer het **Serveradres**, de **Gebruikersnaam** en het **Wachtwoord of app-token** in — gebruik indien mogelijk een app-wachtwoord in plaats van je hoofdwachtwoord (in Nextcloud: Instellingen → Beveiliging → App-wachtwoorden).
+3. **Verbinden** controleert de toegangsgegevens; kies daarna de **Cloudmap** via **Map kiezen…**.
+
+Bijzonderheid **Nextcloud**: ÉÉN formulier dekt bestanden **en** agenda — Plainva leidt de WebDAV- en CalDAV-endpoints zelf af uit het serveradres (de afgeleide adressen worden in de assistent getoond; **Geavanceerd: endpoints afzonderlijk instellen** maakt aparte URL's mogelijk). Vink beide diensten aan en één keer verbinden koppelt ze allebei.
 
 Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele andere) vind je in [Sync-compatibiliteit](Sync_Compatibility.md).
 
@@ -36,15 +39,15 @@ Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele and
 
 Google Drive draait momenteel met eigen toegangsgegevens ("Bring Your Own"): je maakt eenmalig een gratis eigen Google Cloud-project aan, dat alleen van jou is. De stap-voor-stap-handleiding: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Kort samengevat: voer de **Client-ID** en **Client secret** uit je Google-project in, stel de **Drive-map (naam)** in (standaard "Plainva"), dan **Verbinden met Google** — de aanmelding opent in je browser. Eenmaal verbonden kun je de map via **Map kiezen…** rechtstreeks uit je Drive kiezen (submappen inbegrepen) in plaats van de naam te typen. Let op: zolang het Google-project in de testmodus staat, verloopt de aanmelding na 7 dagen en moet die worden vernieuwd via **Opnieuw verbinden**.
+Kort samengevat: kies in **Cloudaccounts** → **Account verbinden…** de tegel **Google**, vink de dienst **Bestanden** aan, voer de **Client-ID** en **Client secret** uit je Google-project in, en dan **Aanmelden met Google…** — de aanmelding opent in je browser. Eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je Drive (submappen inbegrepen, standaard "Plainva"). Let op: zolang het Google-project in de testmodus staat, verloopt de aanmelding na 7 dagen en moet die worden vernieuwd via **Opnieuw verbinden** in de accountdetails.
 
 ## OneDrive
 
 Plainva levert een eigen app-registratie mee — je hoeft **geen eigen ID meer aan te maken**:
 
-1. Zet de **Sync-provider** op **OneDrive**; stel optioneel de **OneDrive-map (naam)** in (standaard "Plainva").
-2. **Verbinden met Microsoft** en de aanmelding in de browser bevestigen. Klaar — Plainva maakt de map aan en synchroniseert de volledige inhoud, ook extern toegevoegde bestanden.
-3. Optioneel: eenmaal verbonden kun je de doelmap via **Map kiezen…** rechtstreeks uit je OneDrive kiezen (submappen inbegrepen) in plaats van de naam te typen.
+1. Kies in **Cloudaccounts** → **Account verbinden…** de tegel **Microsoft** en vink de dienst **Bestanden** (OneDrive) aan — desgewenst samen met **Agenda en taken** en **E-mail** (één Microsoft-account kan alle drie de diensten dragen).
+2. **Aanmelden met Microsoft…** en bevestig de aanmelding in de browser. Klaar — Plainva maakt de map aan (standaard "Plainva") en synchroniseert de volledige inhoud, ook extern toegevoegde bestanden.
+3. Optioneel: eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je OneDrive (submappen inbegrepen).
 
 Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf geregistreerde client-ID opgeven (bijv. bij bedrijfsbeperkingen). Uitgebreide handleiding: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
@@ -52,15 +55,15 @@ Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf gere
 
 Plainva levert een eigen Dropbox-app mee — **geen eigen app nodig**:
 
-1. Zet de **Sync-provider** op **Dropbox**; stel optioneel de **Dropbox-map (pad)** in (standaard `/Plainva`).
-2. **Verbinden met Dropbox** en bevestigen in de browser. Klaar.
-3. Optioneel: eenmaal verbonden kun je de doelmap via **Map kiezen…** rechtstreeks uit je Dropbox kiezen (submappen inbegrepen) in plaats van het pad te typen.
+1. Kies in **Cloudaccounts** → **Account verbinden…** de tegel **Dropbox** (deze draagt alleen de dienst **Bestanden**).
+2. **Aanmelden met Dropbox…** en bevestig in de browser. Klaar (standaardmap `/Plainva`).
+3. Optioneel: eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je Dropbox (submappen inbegrepen).
 
 Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf geregistreerde app-key opgeven. Uitgebreide handleiding: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 ## S3-compatibele opslag
 
-Voor AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner en andere — sleutelgebaseerd, helemaal zonder browseraanmelding:
+Voor AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner en andere — sleutelgebaseerd, helemaal zonder browseraanmelding. Kies in **Cloudaccounts** → **Account verbinden…** de tegel **Objectopslag (S3)** en vul de velden in:
 
 | Veld | Betekenis |
 |---|---|
@@ -71,9 +74,9 @@ Voor AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner en andere — s
 | **Key-prefix (optioneel)** | Submap in de bucket voor de vault; leeg = bucket-root |
 | **Path-style-URL's** | Aanbevolen (MinIO, R2 en de meeste compatibele opslag); alleen uitschakelen voor virtual-hosted AWS-buckets |
 
-Je kunt de **Key-prefix** ook via **Map kiezen…** rechtstreeks uit de bucket kiezen — dit werkt al vóór het opslaan, zodra endpoint, bucket en sleutels zijn ingevuld.
+Je kunt de **Key-prefix** (de cloudmap) via **Map kiezen…** rechtstreeks uit de bucket kiezen zodra je verbonden bent.
 
-Na **Toepassen** start de sync direct.
+Na **Verbinden** start de sync direct.
 
 ## Zie ook
 

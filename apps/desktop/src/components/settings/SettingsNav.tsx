@@ -28,6 +28,9 @@ export interface SettingsNavProps {
   canSwitchVault: boolean;
   onSwitchVault: () => void;
   onShowShortcuts: () => void;
+  /** Vault areas hidden for the shown vault (service not carried by any
+   * cloud account — mockup screen 6; Cloud-Konten itself is never hidden). */
+  hiddenAreaIds?: string[];
 }
 
 export const SettingsNav: React.FC<SettingsNavProps> = ({
@@ -41,6 +44,7 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
   canSwitchVault,
   onSwitchVault,
   onShowShortcuts,
+  hiddenAreaIds,
 }) => {
   const { t } = useTranslation();
 
@@ -56,7 +60,9 @@ export const SettingsNav: React.FC<SettingsNavProps> = ({
   };
 
   const renderArea = (areaWorld: SettingsWorld) =>
-    settingsAreas(areaWorld).map((a) => {
+    settingsAreas(areaWorld)
+      .filter((a) => !(areaWorld === "vault" && hiddenAreaIds?.includes(a.id)))
+      .map((a) => {
       const Icon = a.icon;
       const active = world === areaWorld && page === a.id;
       return (

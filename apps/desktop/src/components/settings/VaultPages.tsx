@@ -17,24 +17,35 @@ import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
  * semantics stay in SettingsModal and arrive as props.
  */
 
-export const PimPage: React.FC<{ isActiveVault: boolean }> = ({ isActiveVault }) => {
+export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: () => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
   const { t } = useTranslation();
   return (
     <div>
       <AreaHead areaId="pim" />
       {isActiveVault ? (
-        <>
-          <SettingCard label={t("settings.groupCalendars", { defaultValue: "Kalender" })}>
-            <SettingCardNote>
-              <PimAccountsSection />
-            </SettingCardNote>
-          </SettingCard>
-          <SettingCard label={t("mail.sectionTitle", { defaultValue: "E-Mail (IMAP, nur Lesen)" })}>
-            <SettingCardNote>
-              <MailAccountsSection />
-            </SettingCardNote>
-          </SettingCard>
-        </>
+        <SettingCard label={t("settings.groupCalendars", { defaultValue: "Kalender" })}>
+          <SettingCardNote>
+            <PimAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
+          </SettingCardNote>
+        </SettingCard>
+      ) : (
+        <SettingCard>
+          <SettingCardNote>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</SettingCardNote>
+        </SettingCard>
+      )}
+    </div>
+  );
+};
+
+/** Email service page (cloud-accounts split): mailbox references + capture
+ * behavior; connecting/removing mailboxes lives in the Cloud-Konten area. */
+export const MailPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: () => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <AreaHead areaId="mail" />
+      {isActiveVault ? (
+        <MailAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
       ) : (
         <SettingCard>
           <SettingCardNote>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</SettingCardNote>

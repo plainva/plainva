@@ -570,15 +570,27 @@ test('view modes: month / day / 3-day / week are time grids, agenda is a list', 
   await expect(page.getByTestId('calendar-agenda')).toBeVisible();
 });
 
-test('calendar tab without accounts shows the empty state and opens settings', async ({ page }) => {
+test('calendar tab without accounts: ribbon entry is gated away, palette still opens the empty state into cloud accounts', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__pimAccounts = [];
   });
   await openVault(page);
-  await page.getByTestId('ribbon-calendar').click();
+
+  // Cloud-accounts gating (mockup 6): no account carries the calendar
+  // service, so the ribbon shortcut disappears entirely.
+  await expect(page.getByTestId('ribbon-tasks')).toBeVisible();
+  await expect(page.getByTestId('ribbon-calendar')).toHaveCount(0);
+
+  // The palette command still reaches the tab (persisted layouts/deep links).
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByRole('button', { name: /Kalender öffnen|Open calendar/ }).click();
 
   await expect(page.getByTestId('calendar-view')).toBeVisible();
   await expect(page.getByTestId('calendar-open-settings')).toBeVisible();
   await page.getByTestId('calendar-open-settings').click();
+  // The empty state deep-links into the new Cloud accounts area.
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByTestId('cloudacct-add')).toBeVisible();
 });

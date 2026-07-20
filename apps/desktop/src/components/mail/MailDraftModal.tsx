@@ -98,10 +98,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     setMailboxes([]);
     void (async () => {
       try {
-        const names = (await listMailboxesFor(vaultPath, account)).map((m) => m.name);
+        const boxes = await listMailboxesFor(vaultPath, account);
         if (!alive) return;
+        const names = boxes.map((m) => m.name);
         setMailboxes(names);
-        setMailbox(guessDraftsMailbox(names));
+        // Backend-stated role first (Graph localizes "Entwürfe"), name guess second.
+        setMailbox(boxes.find((b) => b.role === "drafts")?.name ?? guessDraftsMailbox(names));
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }

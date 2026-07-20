@@ -44,6 +44,7 @@ import { MoreScreen } from "./screens/MoreScreen";
 import { GraphScreen } from "./screens/GraphScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { VaultsScreen } from "./screens/VaultsScreen";
+import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import {
   backStep,
   barTabs,
@@ -564,9 +565,11 @@ export default function App() {
             onOpenArea={(id) =>
               id === "appearance"
                 ? push({ kind: "appearance", path: "" })
-                : id === "sync"
-                  ? push({ kind: "vault", path: vault.vaultId })
-                  : push({ kind: "settingsArea", path: id })
+                : id === "cloudAccounts"
+                  ? push({ kind: "cloudaccounts", path: "" })
+                  : id === "sync"
+                    ? push({ kind: "vault", path: vault.vaultId })
+                    : push({ kind: "settingsArea", path: id })
             }
             onOpenVaults={() => push({ kind: "vaults", path: "" })}
           />
@@ -586,6 +589,13 @@ export default function App() {
             onAddVault={() => push({ kind: "sync", path: "" })}
             onBack={pop}
             onCreateVault={createVaultFlow}
+            onOpenVault={(id) => push({ kind: "vault", path: id })}
+          />
+        ) : top?.kind === "cloudaccounts" ? (
+          <CloudAccountsScreen
+            onAddVault={() => push({ kind: "sync", path: "" })}
+            onBack={pop}
+            onOpenCalendarAccounts={() => push({ kind: "pimaccounts", path: "" })}
             onOpenVault={(id) => push({ kind: "vault", path: id })}
           />
         ) : top?.kind === "sync" ? (

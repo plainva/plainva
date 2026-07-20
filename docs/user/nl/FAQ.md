@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-07-11
+Laatst bijgewerkt: 2026-07-20
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -63,6 +63,10 @@ Ze worden gewoon lokaal opgeslagen en verzameld in een wachtrij; zodra de verbin
 ### De statusbalk toont Offline terwijl ik wel internet heb
 
 Dan is de sync-verbinding zelf verstoord — vaak omdat de aanmelding is verlopen of de toegangsgegevens zijn gewijzigd (bijv. bij Google Drive). Klik op **Offline** in de statusbalk of op de waarschuwingsdriehoek naast de vaultnaam: het dialoogvenster toont de precieze foutmelding, en **Sync-instellingen openen** brengt je direct naar het bijbehorende providerformulier, waar je de verbinding opnieuw tot stand brengt (bijv. **Opnieuw verbinden**). Elke klik start bovendien meteen een nieuwe sync-poging.
+
+### Waarom ontbreekt provider X (Proton, Tuta, iCloud Drive …)?
+
+Plainva verbindt elke provider die een open interface biedt (IMAP, CalDAV, WebDAV, S3 of een gedocumenteerde API). Sommige diensten bieden simpelweg geen toegang voor andere apps — dat is geen keuze van Plainva: **Proton Mail** is end-to-end versleuteld en spreekt alleen IMAP via de lokaal draaiende, betaalde Proton Mail Bridge (daarvoor bestaat een voorinstelling); Proton Calendar en Proton Drive hebben geen bruikbare interface. **Tuta** biedt bewust geen IMAP en geen CalDAV aan. **iCloud Drive** heeft geen interface voor apps van derden (iCloud **Mail** en **Agenda** werken daarentegen wel via de Apple-tegel). **Baidu Netdisk/TeraBox** en **NAVER MYBOX** hebben hun interfaces voor onafhankelijke ontwikkelaars gesloten of uitgeschakeld. Mis je een provider met een open interface, laat het ons dan weten op GitHub.
 
 ## App
 

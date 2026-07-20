@@ -1,18 +1,21 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-07-19
+Ultimo aggiornamento: 2026-07-20
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
+> **Sperimentale.** Il calendario comunica con account esterni reali (CalDAV, Google, Microsoft) che non si possono esercitare nei test automatizzati di Plainva. Funziona ed è usato quotidianamente, ma trattalo come un'anteprima: mantieni un backup e segnala per favore tutto ciò che sembra fuori posto.
+
 ## Collegare un account
 
-Apri **Impostazioni → Vault → Calendario e account → Aggiungi account…** e scegli un provider:
+Apri **Impostazioni → Vault → Account cloud → Collega account…**, scegli un provider e spunta **Calendario e attività** nel passaggio dei servizi:
 
-- **CalDAV**: URL del server, nome utente e una **Password per app** (in Nextcloud: Impostazioni → Sicurezza → Dispositivi e sessioni). Nessuna registrazione, nessuna chiave.
+- **Nextcloud / CalDAV**: indirizzo del server, nome utente e una **Password per app** (in Nextcloud: Impostazioni → Sicurezza → Dispositivi e sessioni). Nessuna registrazione, nessuna chiave — per Nextcloud, Plainva deduce l'indirizzo CalDAV direttamente dall'indirizzo del server (per altri server CalDAV usa la scheda **WebDAV / CalDAV** oppure **Avanzate: imposta gli endpoint singolarmente**).
+- **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: schede dedicate con gli indirizzi calendario già precompilati — bastano l'indirizzo e-mail più una **Password per app**, senza campo server (per Apple la password per app è obbligatoria; l'assistente collega la guida del provider). Nota: lo stesso Yahoo segnala che il suo servizio CalDAV non è affidabile — se dà problemi, non dipende da Plainva.
 - **Google**: necessita di un proprio ID client OAuth (lo stesso modello BYO della sincronizzazione con Google Drive — vedi la [guida a Drive](Google_Drive_BYO_Guide.md)). Nel tuo progetto Google Cloud, abilita inoltre le *Google Calendar API* e *Google Tasks API* e aggiungi i loro ambiti alla schermata di consenso. Il browser si apre per il consenso; il collegamento verifica l'account prima che venga salvato qualcosa.
-- **Microsoft**: basta cliccare su **Collega** e confermare nel browser — non serve alcuna configurazione.
+- **Microsoft**: basta cliccare su **Accedi con Microsoft…** e confermare nel browser — non serve alcuna configurazione. Un account Microsoft può portare anche **File** (OneDrive) ed **E-mail** nello stesso passaggio.
 
-Ogni account elenca i suoi **calendari** (quelli spuntati compaiono nella scheda del calendario) e i suoi **elenchi attività** (deliberatamente non spuntati per impostazione predefinita — spuntandone uno avvia la sincronizzazione delle attività descritta di seguito). Le password e i token sono memorizzati nel portachiavi del sistema operativo. L'impostazione **Cartella riunioni** sotto gli account sceglie dove vengono create le note delle riunioni.
+L'assistente mostra uno stato per servizio ("collegato — n calendari trovati"). Gestisci quindi i **calendari** (quelli spuntati compaiono nella scheda del calendario) e gli **elenchi attività** (deliberatamente non spuntati per impostazione predefinita — spuntandone uno avvia la sincronizzazione delle attività descritta di seguito) nell'area **Calendario**; lì si trovano anche la **Cartella riunioni** (dove vengono create le note delle riunioni) e il **Calendario predefinito**. Le password e i token sono memorizzati nel portachiavi del sistema operativo.
 
 ## La scheda del calendario
 

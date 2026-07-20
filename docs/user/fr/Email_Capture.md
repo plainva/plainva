@@ -1,12 +1,20 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-07-18
+Dernière mise à jour : 2026-07-20
 
-Plainva peut lire votre boîte aux lettres — et seulement la lire — pour faire passer la connaissance de vos e-mails dans votre vault. Ce n'est délibérément **pas** un client de messagerie : la connexion se fait via IMAP en mode lecture seule, rien ne change jamais dans la boîte aux lettres (pas même les marqueurs de lecture), et Plainva n'envoie jamais de courrier lui-même.
+Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
+
+> **Expérimental.** Le client de messagerie communique avec de vrais comptes externes (IMAP/SMTP et Microsoft) qu'il n'est pas possible d'exercer dans les tests automatisés de Plainva. Il fonctionne et est utilisé quotidiennement, mais traitez-le comme un aperçu : gardez une sauvegarde, et merci de signaler tout ce qui semble anormal.
 
 ## Connecter une boîte aux lettres
 
-**Paramètres → Vault → Calendrier et comptes → E-mail (IMAP, lecture seule) → Ajouter un compte…** : hôte, port et un **mot de passe d'application**. Pour Gmail, c'est `imap.gmail.com`, port `993`, avec un mot de passe d'application depuis [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (nécessite l'authentification à deux facteurs) — pas d'OAuth, pas de vérification. Connecter le compte valide l'identification avant que quoi que ce soit ne soit enregistré ; le mot de passe va dans le trousseau de votre système d'exploitation. Le paramètre **Dossier e-mail** choisit où les e-mails capturés sont stockés (par défaut `Mail`).
+**Paramètres → Vault → Comptes cloud → Connecter un compte…** et choisissez le fournisseur :
+
+- **Microsoft** — pour Outlook.com et Microsoft 365 : cochez **E-mail** à l'étape des services (sur demande avec **Fichiers** et **Calendrier et tâches** — un compte, une connexion) et connectez-vous directement dans le navigateur, sans mot de passe d'application ni IMAP. Plainva utilise l'enregistrement d'application central de Plainva (vous pouvez éventuellement fournir votre propre ID d'application dans les détails du compte). Lire, capturer et **envoyer directement** passent tous par la connexion Microsoft.
+- **Apple iCloud**, **Yahoo**, **AOL**, **Zoho**, **Fastmail**, **mailbox.org**, **Yandex**, **Mail.ru** — des tuiles dédiées : adresse e-mail plus un **mot de passe d'application**, les serveurs sont déjà renseignés (la plupart de ces tuiles permettent aussi de cocher **Calendrier et tâches** à la même étape — un seul mot de passe d'application pour tous les services choisis). L'assistant renvoie à chaque fois vers le guide officiel du fournisseur pour créer le mot de passe d'application.
+- **Serveur e-mail (IMAP)** — pour tout autre fournisseur : hôte, port et un mot de passe ou un **mot de passe d'application**. Des préréglages tout prêts couvrent des fournisseurs du monde entier — de **web.de**/**GMX** et **T-Online** en passant par **Orange**, **Libero**, **WP**, **Seznam** et **Comcast** jusqu'à **QQ Mail**, **NetEase**, **Naver** et **Yahoo! JAPAN** ; la liste **Fournisseur** propose pour cela une ligne de recherche, et taper votre adresse sélectionne automatiquement le préréglage correspondant. Quand un fournisseur a des particularités, l'assistant le signale juste sous le formulaire : certains demandent un **mot de passe d'application** ou un **code d'autorisation** au lieu du mot de passe du compte, d'autres nécessitent d'abord d'activer IMAP dans les paramètres du fournisseur — chacun avec un lien vers le guide officiel. Pour Gmail, c'est `imap.gmail.com`, port `993`, avec un mot de passe d'application depuis [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (nécessite l'authentification à deux facteurs) — pas d'OAuth, pas de vérification ; l'assistant le signale lui-même pour les adresses Gmail. **Les boîtes Outlook.com** ne peuvent plus se connecter par IMAP avec mot de passe (Microsoft a désactivé cette voie) — le préréglage renvoie vers la tuile **Microsoft**. **Proton Mail** ne fonctionne que via le Proton Mail Bridge local et payant (son propre préréglage). Ajoutez un hôte SMTP pour envoyer directement.
+
+Connecter le compte valide l'identification avant que quoi que ce soit ne soit enregistré ; les identifiants vont dans le trousseau de votre système d'exploitation. Les boîtes connectées et les réglages de capture se trouvent ensuite dans la zone **E-mail** : le réglage **Dossier e-mail** choisit où les e-mails capturés sont stockés (par défaut `Mail`).
 
 ## Lire les e-mails
 
@@ -26,9 +34,18 @@ Trois boutons sur chaque message :
 - **+ .eml** — stocke en plus l'original brut à côté de la note et le lie. Le `.eml` contient tout, y compris les pièces jointes, et s'ouvre dans n'importe quel programme de messagerie.
 - **→ Tâche** — crée une entrée dans votre [base de tâches par défaut](Tasks.md) avec l'objet comme titre, la date du jour comme échéance et le statut ouvert préremplis.
 
-## Faire sortir du contenu — sans envoyer
+## Rédiger et envoyer
 
-Plainva ne parle jamais SMTP. À la place :
+Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP** avec un **hôte SMTP** configuré —, vous pouvez écrire et envoyer des e-mails depuis Plainva :
+
+- **Rédiger** (dans l'onglet e-mail) ouvre une fenêtre flottante avec des lignes étiquetées **De / À / Cc / Cci**. Tapez une adresse et appuyez sur Entrée ou une virgule pour la transformer en puce ; **Cc/Cci** s'affichent à la demande. Le corps est un éditeur Markdown avec une barre d'outils de mise en forme et un menu de commandes « / ».
+- **Répondre**, **Répondre à tous** et **Transférer** sur n'importe quel message ouvrent la même fenêtre avec l'original cité et les destinataires préremplis ; un transfert emporte les pièces jointes.
+- **Envoyer** part par SMTP (comptes IMAP) ou Microsoft Graph (comptes Microsoft).
+- **Cette note par e-mail** (menu `⋮` d'une note ou palette de commandes) démarre un message avec la note actuelle en pièce jointe, ou intégrée en texte.
+
+## Transmettre une note sans le client de messagerie
+
+Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe quelle note et ne nécessite aucun SMTP :
 
 - **Répondre comme note** (sur un message) : crée une note adressée à l'expéditeur (`to:` dans le frontmatter) avec l'original cité — rédigez votre réponse dans Plainva.
 - **Enregistrer la note comme brouillon dans la boîte** (palette de commandes, sur n'importe quelle note ouverte) : stocke la note comme **brouillon dans votre propre boîte aux lettres** via IMAP — choisissez le compte, le destinataire et le dossier des brouillons, puis ouvrez votre programme de messagerie habituel, relisez et envoyez depuis là-bas. La mise en forme est préservée.

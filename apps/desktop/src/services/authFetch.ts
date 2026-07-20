@@ -5,16 +5,20 @@ import { invoke } from "@tauri-apps/api/core";
 const MS_TOKEN_HOST = "https://login.microsoftonline.com";
 
 /**
- * fetch wrapper for the OneDrive flows. Tauri's webview `fetch` attaches the WebView
- * `Origin` header; Microsoft's token endpoint rejects that for a native client
- * (AADSTS90023: cross-origin token redemption is only allowed for SPA or
- * registered-origin clients). We route ONLY the Microsoft token POST through the Rust
- * `oauth_token_request` command (reqwest sends no Origin), so OneDrive stays a native
- * client with long-lived refresh tokens. Everything else — Microsoft Graph and unrelated
- * hosts — uses the normal Tauri fetch, which those endpoints accept (that is why Dropbox
- * and Google Drive were never affected).
+ * fetch wrapper for EVERY Microsoft OAuth flow (OneDrive files, Graph calendar,
+ * Graph mail). Tauri's webview `fetch` attaches the WebView `Origin` header;
+ * Microsoft's token endpoint rejects that for a native client (AADSTS90023:
+ * cross-origin token redemption is only allowed for SPA or registered-origin
+ * clients). We route ONLY the Microsoft token POST through the Rust
+ * `oauth_token_request` command (reqwest sends no Origin), so the app stays a
+ * native client with long-lived refresh tokens. Everything else — Microsoft
+ * Graph and unrelated hosts — uses the normal Tauri fetch, which those
+ * endpoints accept (that is why Dropbox and Google Drive were never affected).
+ * The calendar/mail flows launched WITHOUT this wrapper (maintainer finding
+ * 2026-07-20, first real Microsoft calendar/mail sign-in) — every
+ * exchangeOneDriveCode/refreshOneDriveAccessToken call must go through here.
  */
-export const oneDriveFetch = async (
+export const microsoftAuthFetch = async (
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> => {

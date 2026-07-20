@@ -233,6 +233,12 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-cardhover": "hover-state utility on --state-hover",
   "pv-chips": "chip flow container, layout only",
   "pv-setgroup": "settings group wrapper, layout only",
+  "pv-acct": "account rows inside .pv-setcard — the card carries the theme look",
+  "pv-svcchip": "service chip on the themed accent-container pair",
+  "pv-wizsteps": "wizard step header, layout only",
+  "pv-wizstep": "step chips on token colors; active/done discs use the accent pair",
+  "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
+  "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
