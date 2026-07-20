@@ -302,7 +302,11 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
 
         {hasByo && (
           <SettingCard label={t("cloudAccounts.appRegGroup")}>
-            <SettingRow label={t("settings.useOwnAppId")} desc={t("cloudAccounts.byoAccountHint")}>
+            {/* Google has NO central Plainva app — BYO is required, not optional. */}
+            <SettingRow
+              label={t("settings.useOwnAppId")}
+              desc={detail.family === "google" ? t("cloudAccounts.byoAccountHintGoogle") : t("cloudAccounts.byoAccountHint")}
+            >
               <TextInput
                 defaultValue={detail.byoClientId ?? ""}
                 placeholder={detail.family === "dropbox" ? t("settings.appKey") : t("settings.clientId")}

@@ -2179,6 +2179,7 @@
     "servicesGroup": "Dienste",
     "appRegGroup": "App-Registrierung",
     "byoAccountHint": "Standardmäßig nutzt Plainva seine zentrale App-Registrierung. Eine eigene App-ID gilt für das ganze Konto.",
+    "byoAccountHintGoogle": "Google verlangt eine eigene OAuth-Client-ID — eine zentrale Plainva-App gibt es hier nicht. Die ID gilt für das ganze Konto.",
     "serviceOffMsg": "„{{service}}“ wird bei diesem Konto abgeschaltet und die lokalen Daten des Dienstes entfernt. Beim Anbieter wird nichts gelöscht.",
     "svcConfigureSync": "Ordner und Verhalten im Bereich „Synchronisation“ konfigurieren.",
     "svcConfigureMail": "Ablage und Datenschutz im Bereich „E-Mail“ konfigurieren.",

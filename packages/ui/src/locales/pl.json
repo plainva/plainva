@@ -2193,6 +2193,7 @@
     "servicesGroup": "Usługi",
     "appRegGroup": "Rejestracja aplikacji",
     "byoAccountHint": "Domyślnie Plainva korzysta ze swojej centralnej rejestracji aplikacji. Własny identyfikator aplikacji dotyczy całego konta.",
+    "byoAccountHintGoogle": "Google wymaga własnego identyfikatora klienta OAuth — nie ma tu centralnej aplikacji Plainva. Identyfikator dotyczy całego konta.",
     "serviceOffMsg": "„{{service}}” zostanie wyłączone dla tego konta, a lokalne dane tej usługi zostaną usunięte. U dostawcy nic nie zostanie usunięte.",
     "svcConfigureSync": "Folder i zachowanie można skonfigurować w sekcji „Synchronizacja”.",
     "svcConfigureMail": "Zapisywanie i prywatność można skonfigurować w sekcji „E-mail”.",

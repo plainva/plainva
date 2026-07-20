@@ -2172,6 +2172,7 @@
     "servicesGroup": "サービス",
     "appRegGroup": "アプリの登録",
     "byoAccountHint": "既定ではPlainvaは中央のアプリ登録を使用します。独自のアプリIDはアカウント全体に適用されます。",
+    "byoAccountHintGoogle": "Google では独自の OAuth クライアント ID が必要です — ここには中央の Plainva アプリはありません。ID はアカウント全体に適用されます。",
     "serviceOffMsg": "「{{service}}」はこのアカウントで無効になり、そのサービスのローカルデータは削除されます。プロバイダー側では何も削除されません。",
     "svcConfigureSync": "フォルダーと動作は「同期」で設定できます。",
     "svcConfigureMail": "取り込みとプライバシーは「メール」で設定できます。",

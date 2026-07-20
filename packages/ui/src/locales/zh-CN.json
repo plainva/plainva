@@ -2172,6 +2172,7 @@
     "servicesGroup": "服务",
     "appRegGroup": "应用注册",
     "byoAccountHint": "默认情况下，Plainva 使用中央应用注册。自定义的应用 ID 适用于整个账户。",
+    "byoAccountHintGoogle": "Google 要求使用你自己的 OAuth 客户端 ID — 此处没有中央 Plainva 应用。该 ID 适用于整个账户。",
     "serviceOffMsg": "此账户的“{{service}}”将被关闭，该服务的本地数据会被移除。服务商那边不会删除任何内容。",
     "svcConfigureSync": "在“同步”区域配置文件夹和行为。",
     "svcConfigureMail": "在“邮件”区域配置归档和隐私。",

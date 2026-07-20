@@ -2186,6 +2186,7 @@
     "servicesGroup": "Servizi",
     "appRegGroup": "Registrazione dell'app",
     "byoAccountHint": "Per impostazione predefinita Plainva usa la sua registrazione app centrale. Un ID app proprio si applica all'intero account.",
+    "byoAccountHintGoogle": "Google richiede un ID client OAuth proprio — qui non esiste un'app Plainva centrale. L'ID si applica all'intero account.",
     "serviceOffMsg": "“{{service}}” verrà disattivato per questo account e i dati locali del servizio verranno rimossi. Nulla viene eliminato presso il provider.",
     "svcConfigureSync": "Configura cartella e comportamento nella sezione “Sincronizzazione”.",
     "svcConfigureMail": "Configura cattura e privacy nella sezione “E-mail”.",
