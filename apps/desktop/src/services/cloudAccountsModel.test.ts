@@ -26,6 +26,26 @@ describe("cloud account reconcile", () => {
     expect(reconcileCloudAccounts([], empty, ids())).toEqual([]);
   });
 
+  it("self-heals duplicate service references: the first stored record keeps the service", () => {
+    // Historic bind bug (control pass finding #1): a wizard retry minted a
+    // second record over the SAME pim account. Reconcile must collapse that —
+    // first record wins, the stale duplicate loses its ref and disappears.
+    const stored: CloudAccountRecord[] = [
+      { id: "a", family: "microsoft", label: "marco@outlook.com", services: { calendar: { pimAccountId: "P" } } },
+      { id: "b", family: "microsoft", label: "marco@outlook.com", services: { calendar: { pimAccountId: "P" }, mail: { mailAccountId: "M" } } },
+    ];
+    const observed: ObservedCloudState = {
+      sync: undefined,
+      pim: [{ id: "P", provider: "microsoft", label: "marco@outlook.com" }],
+      mail: [{ id: "M", kind: "microsoft", label: "marco@outlook.com", user: "marco@outlook.com", host: "" }],
+    };
+    const out = reconcileCloudAccounts(stored, observed, ids());
+    expect(out.map((r) => r.id)).toEqual(["a", "b"]);
+    expect(out[0].services).toEqual({ calendar: { pimAccountId: "P" } });
+    // "b" keeps only the ref "a" does not carry — the duplicate calendar ref is gone.
+    expect(out[1].services).toEqual({ mail: { mailAccountId: "M" } });
+  });
+
   it("re-deriving from an empty store keeps the id-less shape stable (event-storm guard basis)", () => {
     // A store that cannot persist hands reconcile an empty `stored` forever;
     // apart from the random id, the derived records must be identical so the

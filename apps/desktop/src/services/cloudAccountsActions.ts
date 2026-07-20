@@ -241,14 +241,19 @@ export async function runConnectSequence(
   return result;
 }
 
-/** Upserts the wizard result as ONE account record and re-reconciles. */
+/**
+ * Upserts the wizard result as ONE account record and re-reconciles. Returns
+ * the bound account's id so a RETRYING caller keeps upserting the SAME record
+ * (control pass 2026-07-20, finding #1: a retry without the id minted a second
+ * record referencing the already-bound subsystem entries).
+ */
 export async function bindConnectResult(
   vaultPath: string,
   runtime: PimRuntime | null,
   req: ConnectRequest,
   result: ConnectResult,
   existingAccountId?: string
-): Promise<CloudAccountRecord[]> {
+): Promise<{ records: CloudAccountRecord[]; accountId: string }> {
   const stored = await loadCloudAccounts(vaultPath);
   const existing = existingAccountId ? stored.find((r) => r.id === existingAccountId) : undefined;
   const record: CloudAccountRecord = existing
@@ -265,7 +270,7 @@ export async function bindConnectResult(
     .filter((r) => r.id !== record.id)
     .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
   await saveCloudAccounts(vaultPath, [...others, record]);
-  return refreshCloudAccounts(vaultPath, runtime);
+  return { records: await refreshCloudAccounts(vaultPath, runtime), accountId: record.id };
 }
 
 /** Reads a reusable Google BYO client (id + secret) from the account's existing slots. */

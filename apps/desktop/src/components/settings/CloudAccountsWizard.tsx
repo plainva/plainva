@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
 import {
@@ -68,6 +68,8 @@ const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
 export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime, records, onDone, onCancel }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  /** Account id of the first successful bind — retries upsert the same record. */
+  const boundIdRef = useRef<string | undefined>(undefined);
   const [tile, setTile] = useState<ProviderTileDef | null>(null);
   const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>({ files: false, calendar: false, mail: false });
   const [byoOpen, setByoOpen] = useState(false);
@@ -168,7 +170,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       // Bind whatever connected — a half-finished wizard must not lose services.
       if (merged.filesProvider || merged.pimAccountId || merged.mailAccountId) {
         try {
-          const next = await bindConnectResult(vaultPath, runtime, buildRequest(selected), merged);
+          // Retries keep upserting the SAME record (finding #1: a fresh bind
+          // per attempt minted duplicate accounts over the bound services).
+          const { records: next, accountId } = await bindConnectResult(vaultPath, runtime, buildRequest(selected), merged, boundIdRef.current);
+          boundIdRef.current = accountId;
           setBound(next);
           if (merged.filesProvider && merged.filesProvider !== "webdav") {
             setRootFolder(await getSyncRootFolder(vaultPath, merged.filesProvider));
@@ -314,9 +319,12 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const endpoints = !wd.advanced ? nextcloudEndpoints(wd.base, wd.user) : null;
   const oauthFamily = family === "microsoft" || family === "dropbox";
   const needsImapForm = family === "imap" || (family === "google" && svc.mail);
+  // Google needs the BYO OAuth client only for Drive/Calendar scopes — a
+  // mail-only selection connects via IMAP app password (finding #2).
+  const googleNeedsByo = family === "google" && (svc.files || svc.calendar);
   const connectDisabled =
     running ||
-    (family === "google" && (!byoId.trim() || !googleSecret.trim())) ||
+    (googleNeedsByo && (!byoId.trim() || !googleSecret.trim())) ||
     (family === "webdav" && (wd.advanced ? !(svc.files ? wd.filesUrl.trim() : true) || !(svc.calendar ? wd.caldavUrl.trim() : true) : !wd.base.trim()) ) ||
     (family === "webdav" && (!wd.user.trim() || !wd.pass)) ||
     (family === "s3" && (!s3.endpoint.trim() || !s3.bucket.trim() || !s3.accessKeyId.trim() || !s3.secretKey)) ||
@@ -326,7 +334,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     <div>
       {steps}
       {/* family-specific inputs */}
-      {family === "google" && (
+      {googleNeedsByo && (
         <SettingCard>
           <SettingRow label={t("settings.clientId")} wide>
             <TextInput value={byoId} onChange={(e) => setByoId(e.target.value)} data-testid="cloudacct-google-id" />

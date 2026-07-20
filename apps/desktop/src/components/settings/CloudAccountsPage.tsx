@@ -120,7 +120,7 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
     setBusy(true);
     try {
       const result = await runConnectSequence(selectedVault, runtime, req, () => undefined);
-      const next = await bindConnectResult(selectedVault, runtime, req, result, record.id);
+      const { records: next } = await bindConnectResult(selectedVault, runtime, req, result, record.id);
       setRecords(next);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));

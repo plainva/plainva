@@ -157,18 +157,29 @@ export function reconcileCloudAccounts(
   const pimById = new Map(observed.pim.map((p) => [p.id, p]));
   const mailById = new Map(observed.mail.map((m) => [m.id, m]));
 
-  // 1) Keep stored accounts, dropping references whose subsystem entry is gone.
+  // 1) Keep stored accounts, dropping references whose subsystem entry is
+  // gone. Duplicate references (a historic bind bug or a hand-edited store)
+  // self-heal here: the FIRST stored record keeps the service, later ones
+  // lose the reference and disappear once no service remains.
   const records: CloudAccountRecord[] = [];
+  let filesSeen = false;
+  const seenPim = new Set<string>();
+  const seenMail = new Set<string>();
   for (const rec of stored) {
     const services: CloudAccountServices = {};
-    if (rec.services.files && observed.sync && observed.sync.provider === rec.services.files.provider) {
+    if (rec.services.files && observed.sync && observed.sync.provider === rec.services.files.provider && !filesSeen) {
+      filesSeen = true;
       services.files = { provider: observed.sync.provider };
     }
-    if (rec.services.calendar && pimById.has(rec.services.calendar.pimAccountId)) {
-      services.calendar = { pimAccountId: rec.services.calendar.pimAccountId };
+    const pimId = rec.services.calendar?.pimAccountId;
+    if (pimId && pimById.has(pimId) && !seenPim.has(pimId)) {
+      seenPim.add(pimId);
+      services.calendar = { pimAccountId: pimId };
     }
-    if (rec.services.mail && mailById.has(rec.services.mail.mailAccountId)) {
-      services.mail = { mailAccountId: rec.services.mail.mailAccountId };
+    const mailId = rec.services.mail?.mailAccountId;
+    if (mailId && mailById.has(mailId) && !seenMail.has(mailId)) {
+      seenMail.add(mailId);
+      services.mail = { mailAccountId: mailId };
     }
     records.push({ ...rec, services });
   }
