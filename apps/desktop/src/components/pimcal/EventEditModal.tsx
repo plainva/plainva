@@ -25,7 +25,9 @@ const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
 interface EventEditModalProps {
   mode: "create" | "edit";
   initial: EventFormValues;
-  /** Writable calendars for the create picker (empty in edit mode). */
+  /** Writable calendars for the calendar picker. A non-empty list enables it; the
+   * caller passes an empty list to hide it (e.g. a series edit, where moving
+   * across calendars is not offered). */
   calendarOptions: Array<{ value: string; label: string }>;
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => Promise<void>;
@@ -209,7 +211,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 style={{ display: "block", width: "100%" }}
               />
             </div>
-            {mode === "create" && calendarOptions.length > 0 && (
+            {calendarOptions.length > 0 && (
               <div className="pv-setrow">
                 <div className="pv-setrow-main"><div className="pv-setrow-label">{t("pim.eventCalendar", { defaultValue: "Kalender" })}</div></div>
                 <div className="pv-setrow-ctrl" style={{ flexBasis: 260 }}>

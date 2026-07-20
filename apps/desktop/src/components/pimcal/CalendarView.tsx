@@ -451,6 +451,37 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const draft = eventFormToDraft(values);
       if (editState?.mode === "edit" && editState.event) {
         const e = editState.event;
+        // Calendar changed (the picker is only offered for single events): MOVE =
+        // create a faithful copy in the target calendar, then delete the source.
+        // The moved event gets a new provider id and loses server-side RSVP state.
+        const currentKey = `${e.accountId} ${e.calendarId}`;
+        const newKey = values.calendarKey.trim();
+        if (newKey && newKey !== currentKey) {
+          const [newAcc, ...rest] = newKey.split(" ");
+          const newCal = rest.join(" ");
+          const newTarget = newAcc ? await targetFor(newAcc) : null;
+          const oldTarget = await targetFor(e.accountId);
+          if (!newAcc || !newCal || !newTarget || !oldTarget) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          const moveDraft: PimEventDraft = {
+            ...draft,
+            description: draft.description ?? e.description ?? undefined,
+            descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
+            attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
+          };
+          const res = await newTarget.createEvent(newCal, moveDraft);
+          try {
+            await oldTarget.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
+          } catch (err) {
+            // The copy exists; a failed source delete leaves a duplicate after
+            // refresh (no data lost). Surface it and re-pull.
+            toast.error(err instanceof Error ? err.message : String(err));
+          }
+          setEvents((prev) => [...prev.filter((ev) => !sameEventRef(ev, e)), { ...draftToRow(newAcc, newCal, res.uid, moveDraft), etag: res.etag, href: res.href }]);
+          setEditState(null);
+          setCreateInitial(null);
+          refresh();
+          return;
+        }
         const target = await targetFor(e.accountId);
         if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         try {
@@ -1304,7 +1335,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               ? eventFormFromEvent(editState.event)
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
-          calendarOptions={calendarOptions}
+          calendarOptions={editState.mode === "edit" && (editState.event?.seriesMaster || editState.event?.recurrence) ? [] : calendarOptions}
           onCancel={() => { setEditState(null); setCreateInitial(null); }}
           onSubmit={submitEventForm}
           onMeetingNote={
