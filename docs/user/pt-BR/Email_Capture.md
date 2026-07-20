@@ -4,6 +4,8 @@
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
+> **Experimental.** O cliente de e-mail se comunica com contas externas reais (IMAP/SMTP e Microsoft) que não podem ser exercitadas nos testes automatizados do Plainva. Funciona e é usado diariamente, mas trate-o como uma prévia: guarde uma cópia de segurança e, por favor, relate qualquer coisa que pareça estranha.
+
 ## Conectando uma caixa de correio
 
 **Configurações → seu vault → Contas na nuvem → Conectar conta…** e escolha o provedor:
@@ -32,9 +34,18 @@ Três botões em cada mensagem:
 - **+ .eml** — além disso, guarda o original bruto ao lado da nota e o vincula a ela. O `.eml` contém tudo, inclusive os anexos, e abre em qualquer programa de e-mail.
 - **→ Tarefa** — cria um item no seu [banco de tarefas padrão](Tasks.md) com o assunto como título, a data de hoje como vencimento e o status aberto já preenchido.
 
-## Tirando conteúdo — sem enviar
+## Redigir e enviar
 
-O Plainva nunca fala SMTP. Em vez disso:
+Assim que uma conta puder enviar — uma conta **Microsoft**, ou uma conta **IMAP** com um **host SMTP** configurado —, você pode escrever e enviar e-mails a partir do Plainva:
+
+- **Redigir** (na aba de e-mail) abre uma janela flutuante com linhas rotuladas **De / Para / Cc / Cco**. Digite um endereço e pressione Enter ou vírgula para transformá-lo em um chip; **Cc/Cco** aparecem sob demanda. O corpo é um editor Markdown com uma barra de ferramentas de formatação e um menu de comandos "/".
+- **Responder**, **Responder a todos** e **Encaminhar** em qualquer mensagem abrem a mesma janela com o original citado e os destinatários pré-preenchidos; um encaminhamento leva consigo os anexos.
+- **Enviar** sai por SMTP (contas IMAP) ou Microsoft Graph (contas Microsoft).
+- **Esta nota por e-mail** (menu `⋮` de uma nota, ou a paleta de comandos) inicia uma mensagem com a nota atual anexada, ou incorporada como texto.
+
+## Entregar uma nota sem o cliente de e-mail
+
+Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota e não precisa de SMTP:
 
 - **Responder como nota** (em uma mensagem): cria uma nota endereçada ao remetente (`to:` no frontmatter) com o original citado — escreva sua resposta no Plainva.
 - **Salvar nota como rascunho na caixa de correio** (paleta de comandos, em qualquer nota aberta): grava a nota como um **rascunho na sua própria caixa de correio** via IMAP — escolha a conta, o destinatário e a pasta de rascunhos, depois abra seu programa de e-mail normal, revise e envie por lá. A formatação é preservada.

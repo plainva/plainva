@@ -4,6 +4,8 @@ Stan na: 2026-07-20
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
+> **Eksperymentalne.** Klient pocztowy komunikuje się z prawdziwymi zewnętrznymi kontami (IMAP/SMTP oraz Microsoft), których nie da się przećwiczyć w automatycznych testach Plainva. Działa i jest używany codziennie, ale traktuj go jako wersję zapoznawczą: zachowaj kopię zapasową i zgłaszaj, proszę, wszystko, co wygląda nietypowo.
+
 ## Łączenie skrzynki pocztowej
 
 **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…** i wybierz dostawcę:
@@ -32,9 +34,18 @@ Trzy przyciski przy każdej wiadomości:
 - **+ .eml** — dodatkowo zapisuje surowy oryginał obok notatki i go linkuje. Plik `.eml` zawiera wszystko, łącznie z załącznikami, i otwiera się w dowolnym programie pocztowym.
 - **→ Zadanie** — tworzy wpis w Twojej [domyślnej bazie zadań](Tasks.md) z tematem jako tytułem, dzisiejszą datą jako terminem i wstępnie ustawionym statusem otwarte.
 
-## Wyprowadzanie treści — bez wysyłania
+## Pisanie i wysyłanie
 
-Plainva nigdy nie używa SMTP. Zamiast tego:
+Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze skonfigurowanym **hostem SMTP** — możesz pisać i wysyłać wiadomości z Plainva:
+
+- **Napisz** (w karcie e-mail) otwiera pływające okno z opisanymi wierszami **Od / Do / DW / UDW**. Wpisz adres i naciśnij Enter lub przecinek, aby zamienić go w chip; **DW/UDW** pojawiają się na żądanie. Treść to edytor Markdown z paskiem narzędzi formatowania i menu poleceń „/".
+- **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** przy dowolnej wiadomości otwierają to samo okno z zacytowanym oryginałem i wstępnie wypełnionymi odbiorcami; przekazanie zabiera ze sobą załączniki.
+- **Wyślij** wychodzi przez SMTP (konta IMAP) lub Microsoft Graph (konta Microsoft).
+- **Ta notatka e-mailem** (menu `⋮` notatki lub paleta poleceń) rozpoczyna wiadomość z bieżącą notatką w załączniku lub wstawioną jako tekst.
+
+## Przekazanie notatki bez klienta pocztowego
+
+Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wymaga SMTP:
 
 - **Odpowiedz jako notatka** (przy wiadomości): tworzy notatkę zaadresowaną do nadawcy (`to:` we frontmatter) z zacytowanym oryginałem — napisz swoją odpowiedź w Plainva.
 - **Zapisz notatkę jako szkic w skrzynce** (paleta poleceń, przy dowolnej otwartej notatce): zapisuje notatkę jako **szkic we własnej skrzynce** przez IMAP — wybierz konto, odbiorcę i folder szkiców, a potem otwórz swój zwykły program pocztowy, sprawdź i wyślij stamtąd. Formatowanie jest zachowane.
