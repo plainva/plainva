@@ -1,6 +1,7 @@
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
+  identityKey,
   type CloudAccountRecord,
   type CloudProviderFamily,
   type CloudServiceId,
@@ -120,6 +121,15 @@ async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<Syn
       announceCredentials(true);
       return "dropbox";
     }
+    // Catalog suites with a files service (Yandex/Mail.ru/Fastmail/mailbox.org/
+    // Koofr/pCloud) ARE WebDAV file servers — same slot, same probe, the
+    // family only differs registry-side.
+    case "yandex":
+    case "mailru":
+    case "fastmail":
+    case "mailboxorg":
+    case "koofr":
+    case "pcloud":
     case "webdav": {
       const w = req.webdav!;
       // Probe before binding: a WebDAV connect that cannot list is a failed connect.
@@ -156,10 +166,23 @@ async function connectCalendar(vaultPath: string, runtime: PimRuntime, req: Conn
       });
       return { id: row.id, label: row.label };
     }
+    // Catalog suites with a calendar service run over plain CalDAV against
+    // their fixed endpoint (the adapter discovers the calendar home itself —
+    // principal discovery covers iCloud's partition hosts).
+    case "apple":
+    case "yahoo":
+    case "aol":
+    case "yandex":
+    case "mailru":
+    case "zoho":
+    case "fastmail":
+    case "mailboxorg":
     case "webdav": {
       const w = req.webdav!;
       const row = await connectCalDavAccount(runtime, vaultPath, { url: w.caldavUrl, user: w.user, pass: w.pass });
-      return { id: row.id, label: row.label };
+      // Suites sign in with the mail address — prefer it over the subsystem's
+      // user@host label so the registry card carries a mergeable identity.
+      return { id: row.id, label: identityKey(w.user) ? w.user : row.label };
     }
     default:
       throw new Error(`calendar is not available for ${req.family}`);

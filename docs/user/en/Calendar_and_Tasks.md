@@ -11,6 +11,7 @@ Plainva can connect your existing calendar and task accounts — **CalDAV** (Nex
 Open **Settings → your vault → Cloud accounts → Connect account…**, pick a provider and tick **Calendar & tasks** in the services step:
 
 - **Nextcloud / CalDAV**: server address, user name and an **app password** (in Nextcloud: Settings → Security → Devices & sessions). No registration, no keys — for Nextcloud, Plainva derives the CalDAV address from the server address itself (for other CalDAV servers use the **WebDAV / CalDAV** tile or **Advanced: set endpoints individually**).
+- **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: dedicated tiles with the calendar addresses already filled in — email address plus an **app password** is enough, no server field (for Apple the app password is mandatory; the assistant links the provider's guide). Note: Yahoo itself flags its CalDAV service as unreliable — if it acts up, it is not Plainva.
 - **Google**: needs your own OAuth client ID (the same BYO model as the Google Drive sync — see the [Drive guide](Google_Drive_BYO_Guide.md)). In your Google Cloud project, additionally enable the *Google Calendar API* and *Google Tasks API* and add their scopes to the consent screen. The browser opens for consent; connecting validates the account before anything is saved.
 - **Microsoft**: just click **Sign in with Microsoft…** and confirm in the browser — no setup needed. One Microsoft account can also carry **Files** (OneDrive) and **Email** in the same pass.
 

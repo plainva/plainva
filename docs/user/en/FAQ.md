@@ -64,6 +64,10 @@ They are saved locally as usual and collected in a queue; as soon as the connect
 
 Then the sync connection itself is broken — often because the sign-in expired or the credentials changed (e.g. with Google Drive). Click **Offline** in the status bar or the warning triangle next to the vault name: the dialog shows the exact error message, and **Open sync settings** takes you straight to the matching provider form where you reconnect (e.g. **Reconnect**). Every click also triggers an immediate sync retry.
 
+### Why is provider X missing (Proton, Tuta, iCloud Drive …)?
+
+Plainva connects every provider that offers an open interface (IMAP, CalDAV, WebDAV, S3 or a documented API). Some services simply offer no access for other apps — that is not Plainva's choice: **Proton Mail** is end-to-end encrypted and speaks IMAP only through the locally running, paid Proton Mail Bridge (there is a preset for it); Proton Calendar and Proton Drive have no usable interface. **Tuta** deliberately offers neither IMAP nor CalDAV. **iCloud Drive** has no interface for third-party apps (iCloud **Mail** and **Calendar** do work through the Apple tile). **Baidu Netdisk/TeraBox** and **NAVER MYBOX** closed or shut down their interfaces for independent developers. If you miss a provider that has an open interface, let us know on GitHub.
+
 ## App
 
 ### Why doesn't F5 reload, and where is the browser right-click menu?

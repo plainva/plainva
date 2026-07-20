@@ -1256,6 +1256,18 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-acct-mark--dropbox { background: var(--chip-6-bg); color: var(--chip-6-fg); }
 .pv-acct-mark--s3 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
 .pv-acct-mark--imap { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+/* Catalog suite families (stage A+, 2026-07-20); 16 families share the 8 chip
+ * slots — the monogram disambiguates repeats. */
+.pv-acct-mark--apple { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+.pv-acct-mark--yahoo { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.pv-acct-mark--aol { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.pv-acct-mark--yandex { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+.pv-acct-mark--mailru { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+.pv-acct-mark--zoho { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+.pv-acct-mark--fastmail { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+.pv-acct-mark--mailboxorg { background: var(--chip-2-bg); color: var(--chip-2-fg); }
+.pv-acct-mark--koofr { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+.pv-acct-mark--pcloud { background: var(--chip-7-bg); color: var(--chip-7-fg); }
 .pv-acct-who { flex: 1; min-width: 0; }
 .pv-acct-name {
   display: flex;
@@ -1321,9 +1333,13 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--on-accent-container);
 }
 .pv-provtile-name { font-size: var(--text-ui); font-weight: 600; }
+/* Preset hit surfaced by the tile search ("Orange" → mail tile subtitle). */
+.pv-provtile-hint { font-size: var(--text-sm); color: var(--text-muted); margin-top: -4px; }
 .pv-provtile-caps { display: flex; gap: 4px; color: var(--text-faint); }
 .pv-provtile.is-active .pv-provtile-name { color: inherit; }
+.pv-provtile.is-active .pv-provtile-hint { color: inherit; opacity: 0.75; }
 .pv-provtile.is-active .pv-provtile-caps { color: inherit; opacity: 0.75; }
+.pv-provtile-search { margin-bottom: var(--space-3); max-width: 340px; }
 
 .pv-wizsteps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pv-wizstep {

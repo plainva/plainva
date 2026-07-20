@@ -7,6 +7,9 @@ import {
   identityKey,
   parseDriveAboutIdentity,
   parseDropboxAccountIdentity,
+  familyOfWebDavUrl,
+  familyOfCalDavUrl,
+  familyOfImapHost,
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
   type CloudAccountRecord,
@@ -70,13 +73,25 @@ export async function observeSyncSlot(vaultPath: string): Promise<ObservedCloudS
   if (s3) return { provider: "s3", identity: s3.bucket || undefined };
   const webdav = await credentialManager.getWebDavCredentials(vaultPath);
   if (webdav) {
+    // A catalog provider's WebDAV host (Fastmail/Yandex/…) makes the slot a
+    // named suite family; the user field of those suites is the mail address.
+    const catalogFamily = familyOfWebDavUrl(webdav.url) ?? undefined;
     let identity: string | undefined;
-    try {
-      identity = `${webdav.user}@${new URL(webdav.url).host}`;
-    } catch {
-      identity = webdav.user || undefined;
+    if (catalogFamily && identityKey(webdav.user)) {
+      identity = webdav.user;
+    } else {
+      try {
+        identity = `${webdav.user}@${new URL(webdav.url).host}`;
+      } catch {
+        identity = webdav.user || undefined;
+      }
     }
-    return { provider: "webdav", identity, flavor: looksLikeNextcloud(webdav.url) ? "nextcloud" : undefined };
+    return {
+      provider: "webdav",
+      identity,
+      flavor: looksLikeNextcloud(webdav.url) ? "nextcloud" : undefined,
+      family: catalogFamily,
+    };
   }
   return undefined;
 }
@@ -94,6 +109,10 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
         typeof r.config?.clientId === "string" && r.config.clientId !== PLAINVA_ONEDRIVE_CLIENT_ID
           ? r.config.clientId
           : undefined,
+      family:
+        r.provider === "caldav" && typeof r.config?.url === "string"
+          ? (familyOfCalDavUrl(r.config.url) ?? undefined)
+          : undefined,
     }));
   }
   const mailAccounts = await listMailAccounts(vaultPath);
@@ -104,6 +123,7 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
     user: a.user,
     host: a.host,
     byoClientId: a.clientId && a.clientId !== PLAINVA_ONEDRIVE_CLIENT_ID ? a.clientId : undefined,
+    family: mailAccountKind(a) === "imap" ? (familyOfImapHost(a.host) ?? undefined) : undefined,
   }));
   return { sync, pim, mail };
 }

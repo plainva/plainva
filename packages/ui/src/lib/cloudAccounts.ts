@@ -16,9 +16,29 @@ export type CloudServiceId = "files" | "calendar" | "mail";
 /**
  * Provider FAMILY of an account (the thing the user picks in the wizard).
  * "webdav" covers Nextcloud and generic WebDAV/CalDAV servers — same
- * technology, one family; the Nextcloud tile is a preset of it.
+ * technology, one family; the Nextcloud tile is a preset of it. The named
+ * suite families (catalog stage A+, 2026-07-20) run over the SAME subsystem
+ * slots (webdav sync / caldav pim / imap mail) — the family is a registry-side
+ * grouping so one Fastmail/Yandex/… credential merges its services into one
+ * card and gets its own tile/monogram.
  */
-export type CloudProviderFamily = "microsoft" | "google" | "webdav" | "dropbox" | "s3" | "imap";
+export type CloudProviderFamily =
+  | "microsoft"
+  | "google"
+  | "webdav"
+  | "dropbox"
+  | "s3"
+  | "imap"
+  | "apple"
+  | "yahoo"
+  | "aol"
+  | "yandex"
+  | "mailru"
+  | "zoho"
+  | "fastmail"
+  | "mailboxorg"
+  | "koofr"
+  | "pcloud";
 
 /** Desktop file-sync provider ids (mirrors the keychain slot names). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -52,7 +72,39 @@ export const FAMILY_SERVICES: Record<CloudProviderFamily, readonly CloudServiceI
   dropbox: ["files"],
   s3: ["files"],
   imap: ["mail"],
+  // iCloud Drive has no third-party API — Apple is calendar+mail only.
+  apple: ["calendar", "mail"],
+  yahoo: ["calendar", "mail"],
+  aol: ["calendar", "mail"],
+  yandex: ["files", "calendar", "mail"],
+  mailru: ["files", "calendar", "mail"],
+  zoho: ["calendar", "mail"],
+  fastmail: ["files", "calendar", "mail"],
+  mailboxorg: ["files", "calendar", "mail"],
+  koofr: ["files"],
+  pcloud: ["files"],
 };
+
+/**
+ * Families whose services all bind through one app-password credential set
+ * (the generalized Nextcloud one-form without a server field).
+ */
+export const SUITE_FAMILIES: readonly CloudProviderFamily[] = [
+  "apple",
+  "yahoo",
+  "aol",
+  "yandex",
+  "mailru",
+  "zoho",
+  "fastmail",
+  "mailboxorg",
+  "koofr",
+  "pcloud",
+];
+
+/** Generic families a reconciled record may be UPGRADED away from once an
+ * observation reports a specific catalog family for the same bound entry. */
+const GENERIC_FAMILIES: readonly CloudProviderFamily[] = ["webdav", "imap"];
 
 export function familyOfSyncProvider(provider: SyncProviderId): CloudProviderFamily {
   switch (provider) {
@@ -119,11 +171,14 @@ export function identityKey(label: string | undefined): string | null {
   return EMAIL_RE.test(trimmed) ? trimmed : null;
 }
 
-/** What a shell observed in its subsystem stores (the runtime truth). */
+/** What a shell observed in its subsystem stores (the runtime truth).
+ * `family` overrides the coarse provider-derived family when the shell
+ * recognized a catalog provider from the entry's URL/host (providerCatalog
+ * helpers) — the observation stays the single place that knows URLs. */
 export interface ObservedCloudState {
-  sync?: { provider: SyncProviderId; identity?: string; byoClientId?: string; flavor?: "nextcloud" };
-  pim: { id: string; provider: "caldav" | "google" | "microsoft"; label: string; byoClientId?: string }[];
-  mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; byoClientId?: string }[];
+  sync?: { provider: SyncProviderId; identity?: string; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
+  pim: { id: string; provider: "caldav" | "google" | "microsoft"; label: string; byoClientId?: string; family?: CloudProviderFamily }[];
+  mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 
 function defaultNewId(): string {
@@ -197,7 +252,7 @@ export function reconcileCloudAccounts(
   // 2) Unbound calendar accounts.
   for (const pim of observed.pim) {
     if (boundPim.has(pim.id)) continue;
-    const family = familyOfPimProvider(pim.provider);
+    const family = pim.family ?? familyOfPimProvider(pim.provider);
     const target = attachTarget(family, pim.label);
     if (target && !target.services.calendar) {
       target.services.calendar = { pimAccountId: pim.id };
@@ -217,7 +272,7 @@ export function reconcileCloudAccounts(
   // 3) Unbound mail accounts.
   for (const mail of observed.mail) {
     if (boundMail.has(mail.id)) continue;
-    const family = familyOfMailAccount(mail);
+    const family = mail.family ?? familyOfMailAccount(mail);
     const identity = EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label;
     const target = attachTarget(family, identity);
     if (target && !target.services.mail) {
@@ -237,7 +292,7 @@ export function reconcileCloudAccounts(
 
   // 4) Unbound file sync of this vault.
   if (observed.sync && !filesBound) {
-    const family = familyOfSyncProvider(observed.sync.provider);
+    const family = observed.sync.family ?? familyOfSyncProvider(observed.sync.provider);
     const target = attachTarget(family, observed.sync.identity);
     if (target && !target.services.files) {
       target.services.files = { provider: observed.sync.provider };
@@ -256,16 +311,31 @@ export function reconcileCloudAccounts(
     }
   }
 
-  // 5) Refresh labels from live subsystem data + drop accounts without services.
+  // 5) Refresh labels from live subsystem data, upgrade generic families to a
+  // specific catalog family the observation now reports (a pre-catalog record
+  // stored as webdav/imap becomes e.g. fastmail — cosmetic + enables the
+  // identity merge with later-connected services), drop accounts without
+  // services.
+  const upgradeFamily = (rec: CloudAccountRecord, observedFamily: CloudProviderFamily | undefined): void => {
+    if (!observedFamily || observedFamily === rec.family) return;
+    if (GENERIC_FAMILIES.includes(rec.family) && !GENERIC_FAMILIES.includes(observedFamily)) rec.family = observedFamily;
+  };
   const result: CloudAccountRecord[] = [];
   for (const rec of records) {
+    if (rec.services.files && observed.sync) upgradeFamily(rec, observed.sync.family);
     if (rec.services.calendar) {
       const pim = pimById.get(rec.services.calendar.pimAccountId);
-      if (pim) rec.label = betterLabel(rec.label, pim.label);
+      if (pim) {
+        rec.label = betterLabel(rec.label, pim.label);
+        upgradeFamily(rec, pim.family);
+      }
     }
     if (rec.services.mail) {
       const mail = mailById.get(rec.services.mail.mailAccountId);
-      if (mail) rec.label = betterLabel(rec.label, EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label);
+      if (mail) {
+        rec.label = betterLabel(rec.label, EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label);
+        upgradeFamily(rec, mail.family);
+      }
     }
     if (rec.services.files || rec.services.calendar || rec.services.mail) result.push(rec);
   }

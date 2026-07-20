@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
+import { familyOfCalDavUrl } from "@plainva/ui";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { listPimAccounts } from "../services/pim/pimService";
 
@@ -16,7 +17,20 @@ import { listPimAccounts } from "../services/pim/pimService";
  */
 
 /** Desktop AccountMark's family → chip-pair mapping, mirrored as m- classes. */
-type Family = "microsoft" | "google" | "webdav" | "dropbox" | "s3";
+type Family =
+  | "microsoft"
+  | "google"
+  | "webdav"
+  | "dropbox"
+  | "s3"
+  | "apple"
+  | "yahoo"
+  | "aol"
+  | "yandex"
+  | "mailru"
+  | "zoho"
+  | "fastmail"
+  | "mailboxorg";
 
 const SYNC_FAMILY: Record<string, Family> = {
   drive: "google",
@@ -33,6 +47,14 @@ const PIM_FAMILY: Record<string, Family> = {
 };
 
 const MONOGRAM: Record<Family, string> = {
+  apple: "A",
+  yahoo: "Y!",
+  aol: "AOL",
+  yandex: "Я",
+  mailru: "MR",
+  zoho: "Z",
+  fastmail: "F",
+  mailboxorg: "MB",
   microsoft: "M",
   google: "G",
   webdav: "W",
@@ -114,7 +136,13 @@ export function CloudAccountsScreen({
         );
       })}
       {pimAccounts.map((a) => {
-        const family = PIM_FAMILY[a.provider] ?? "webdav";
+        // Catalog suite providers (Apple/Fastmail/…) are CalDAV accounts whose
+        // server URL names the family — same detection as the desktop registry.
+        const catalogFamily =
+          a.provider === "caldav" && typeof a.config?.url === "string"
+            ? (familyOfCalDavUrl(a.config.url) as Family | null)
+            : null;
+        const family = catalogFamily ?? PIM_FAMILY[a.provider] ?? "webdav";
         return (
           <button className="m-row" data-testid="cloudacct-calendar-row" key={a.id} onClick={onOpenCalendarAccounts}>
             <Mark family={family} />

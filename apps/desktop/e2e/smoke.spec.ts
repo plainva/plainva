@@ -1279,6 +1279,82 @@ test('Cloud accounts derive the pre-existing sync slot; service areas gate on ca
   await expect(dialog.getByTestId('cloudacct-add')).toBeVisible();
 });
 
+test('Provider catalog: tile search matches IMAP presets, dead-ends route to Microsoft', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Cloud-Konten|Cloud accounts)$/ }).click();
+  await dialog.getByTestId('cloudacct-add').click();
+
+  // 17 tiles, sorted by reach: Google first, the generic IMAP tile last.
+  const tiles = dialog.locator('[data-testid^="cloudacct-provider-"]');
+  await expect(tiles).toHaveCount(17);
+  await expect(tiles.first()).toHaveAttribute('data-testid', 'cloudacct-provider-google');
+  await expect(tiles.last()).toHaveAttribute('data-testid', 'cloudacct-provider-imap');
+
+  // A preset search ("Orange" is an IMAP preset, not a tile) surfaces the
+  // mail tile with the provider as subtitle; clicking preselects the preset.
+  await dialog.getByTestId('cloudacct-tile-search').fill('Orange');
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toHaveAttribute('data-testid', 'cloudacct-provider-imap');
+  await expect(dialog.locator('.pv-provtile-hint')).toHaveText('Orange');
+  await tiles.first().click();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+  // Orange requires an app password — the catalog hint + official guide link show.
+  await expect(dialog.getByText(/App-Passwort|app password/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /Anleitung von Orange|Open the Orange guide/ })).toBeVisible();
+
+  // Searching the dead Outlook IMAP preset routes to the MICROSOFT tile
+  // (basic auth is gone) instead of finding nothing.
+  await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
+  await dialog.getByTestId('cloudacct-tile-search').fill('Outlook');
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toHaveAttribute('data-testid', 'cloudacct-provider-microsoft');
+  await expect(dialog.locator('.pv-provtile-hint')).toHaveText('Outlook / Microsoft 365');
+});
+
+test('Provider catalog: a suite tile connects every service through ONE credential form', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Cloud-Konten|Cloud accounts)$/ }).click();
+  await dialog.getByTestId('cloudacct-add').click();
+
+  await dialog.getByTestId('cloudacct-tile-search').fill('Fastmail');
+  await dialog.getByTestId('cloudacct-provider-fastmail').click();
+  // Full three-service suite (files + calendar + mail) preselected.
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-calendar')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeChecked();
+  await dialog.getByTestId('cloudacct-to-signin').click();
+
+  // ONE credential form; endpoints derive from the catalog per service.
+  await expect(dialog.getByTestId('cloudacct-suite-email')).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-suite-pass')).toBeVisible();
+  await expect(dialog.getByText(/Endpunkt automatisch abgeleitet|Endpoint derived automatically/)).toHaveCount(3);
+  await expect(dialog.getByText(/Fastmail verlangt ein App-Passwort|Fastmail requires an app password/)).toBeVisible();
+  // Password mechanics: the connect button is the plain connect label, no OAuth.
+  const connect = dialog.getByTestId('cloudacct-connect');
+  await expect(connect).toHaveText(/^(Verbinden|Connect)$/);
+  await expect(connect).toBeDisabled();
+  await dialog.getByTestId('cloudacct-suite-email').fill('m@fastmail.com');
+  await dialog.getByTestId('cloudacct-suite-pass').fill('app-pass');
+  await expect(connect).toBeEnabled();
+
+  // Apple: files is not offered at all and the tile explains why.
+  await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
+  await dialog.getByTestId('cloudacct-tile-search').fill('Apple');
+  await dialog.getByTestId('cloudacct-provider-apple').click();
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toHaveCount(0);
+  await expect(dialog.getByText(/iCloud Drive/)).toBeVisible();
+});
+
 test('Vault folder picker: browsing fills the daily-notes and template folder fields', async ({ page }) => {
   // Two real folders in the vault (the picker hides dot folders like .plainva).
   await page.addInitScript(() => {

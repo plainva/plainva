@@ -209,3 +209,48 @@ describe("cloud account helpers", () => {
     expect(hasCloudService(records, "mail")).toBe(false);
   });
 });
+
+describe("catalog suite families (stage A+)", () => {
+  it("an observed catalog family overrides the coarse provider-derived family", () => {
+    // A Fastmail suite: webdav files slot + caldav calendar + imap mail, all
+    // reported with family "fastmail" and the SAME mail identity → ONE card.
+    const observed: ObservedCloudState = {
+      sync: { provider: "webdav", identity: "m@fastmail.com", family: "fastmail" },
+      pim: [{ id: "p1", provider: "caldav", label: "m@fastmail.com", family: "fastmail" }],
+      mail: [{ id: "m1", kind: "imap", label: "m@fastmail.com", user: "m@fastmail.com", host: "imap.fastmail.com", family: "fastmail" }],
+    };
+    const out = reconcileCloudAccounts([], observed, ids());
+    expect(out).toHaveLength(1);
+    expect(out[0].family).toBe("fastmail");
+    expect(accountServices(out[0])).toEqual(["files", "calendar", "mail"]);
+  });
+
+  it("upgrades a generic stored family once the observation names the catalog provider", () => {
+    // Pre-catalog record: an iCloud IMAP mailbox stored as family "imap".
+    const stored: CloudAccountRecord[] = [
+      { id: "a", family: "imap", label: "m@icloud.com", services: { mail: { mailAccountId: "m1" } } },
+    ];
+    const observed: ObservedCloudState = {
+      sync: undefined,
+      pim: [],
+      mail: [{ id: "m1", kind: "imap", label: "m@icloud.com", user: "m@icloud.com", host: "imap.mail.me.com", family: "apple" }],
+    };
+    const out = reconcileCloudAccounts(stored, observed, ids());
+    expect(out).toHaveLength(1);
+    expect(out[0].id).toBe("a");
+    expect(out[0].family).toBe("apple");
+  });
+
+  it("never downgrades a specific family and leaves non-generic families alone", () => {
+    const stored: CloudAccountRecord[] = [
+      { id: "a", family: "fastmail", label: "m@fastmail.com", services: { mail: { mailAccountId: "m1" } } },
+    ];
+    const observed: ObservedCloudState = {
+      sync: undefined,
+      pim: [],
+      mail: [{ id: "m1", kind: "imap", label: "m@fastmail.com", user: "m@fastmail.com", host: "imap.fastmail.com" }],
+    };
+    const out = reconcileCloudAccounts(stored, observed, ids());
+    expect(out[0].family).toBe("fastmail");
+  });
+});

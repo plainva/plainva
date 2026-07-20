@@ -2281,6 +2281,15 @@ textarea {
 .m-acctmark--webdav { background: var(--chip-1-bg); color: var(--chip-1-fg); }
 .m-acctmark--dropbox { background: var(--chip-6-bg); color: var(--chip-6-fg); }
 .m-acctmark--s3 { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+/* Catalog suite families (stage A+, 2026-07-20) — same pairs as desktop. */
+.m-acctmark--apple { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+.m-acctmark--yahoo { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.m-acctmark--aol { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+.m-acctmark--yandex { background: var(--chip-0-bg); color: var(--chip-0-fg); }
+.m-acctmark--mailru { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+.m-acctmark--zoho { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+.m-acctmark--fastmail { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+.m-acctmark--mailboxorg { background: var(--chip-2-bg); color: var(--chip-2-fg); }
 .m-acctwho {
   flex: 1;
   min-width: 0;

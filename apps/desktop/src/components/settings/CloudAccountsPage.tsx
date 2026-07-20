@@ -16,6 +16,7 @@ import {
   accountServices,
   looksLikeNextcloud,
   nextcloudEndpoints,
+  suiteProvider,
   toast,
   type CloudAccountRecord,
   type CloudServiceId,
@@ -23,6 +24,7 @@ import {
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
+import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
   CLOUD_ACCOUNTS_EVENT,
   backfillSyncIdentity,
@@ -113,6 +115,43 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
         return;
       }
       req.webdav = { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: creds.user, pass: creds.pass };
+    } else if (suiteProvider(record.family)) {
+      // App-password suites: reuse the ONE credential from an already
+      // connected service of this suite (files slot or CalDAV slot) against
+      // the catalog endpoints — that is the suite promise. No reusable
+      // credential = wizard.
+      const sd = suiteProvider(record.family)!;
+      let user = "";
+      let pass = "";
+      if (record.services.files) {
+        const creds = await credentialManager.getWebDavCredentials(selectedVault);
+        if (creds) {
+          user = creds.user;
+          pass = creds.pass;
+        }
+      }
+      if (!pass && record.services.calendar) {
+        const pc = await getPimCredentials(selectedVault, record.services.calendar.pimAccountId);
+        if (pc?.kind === "caldav") {
+          user = pc.user;
+          pass = pc.pass;
+        }
+      }
+      if (!pass) {
+        toast.info(t("cloudAccounts.useWizardHint"));
+        return;
+      }
+      req.webdav = { filesUrl: sd.endpoints.webdavUrl ?? "", caldavUrl: sd.endpoints.caldavUrl ?? "", user, pass };
+      if (service === "mail") {
+        req.imap = {
+          email: user,
+          host: sd.endpoints.imapHost ?? "",
+          port: sd.endpoints.imapPort ?? 993,
+          smtpHost: sd.endpoints.smtpHost,
+          smtpPort: sd.endpoints.smtpPort,
+          pass,
+        };
+      }
     } else if (record.family === "imap") {
       toast.info(t("cloudAccounts.useWizardHint"));
       return;

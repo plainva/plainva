@@ -5,6 +5,7 @@ import {
   Button,
   TextInput,
   Checkbox,
+  SearchField,
   SettingCard,
   SettingCardNote,
   SettingRow,
@@ -12,13 +13,19 @@ import {
   cx,
   FAMILY_SERVICES,
   nextcloudEndpoints,
+  suiteProvider,
+  MAIL_PRESETS,
+  presetById,
+  presetForEmail,
+  getPlatformServices,
   toast,
   type CloudAccountRecord,
   type CloudProviderFamily,
   type CloudServiceId,
+  type MailPreset,
+  type ProviderAuthMode,
 } from "@plainva/ui";
 import { Select } from "../Select";
-import { MAIL_PRESETS, presetById, presetForEmail } from "../../services/mail/mailPresets";
 import {
   runConnectSequence,
   bindConnectResult,
@@ -53,15 +60,35 @@ interface ProviderTileDef {
   flavor?: "nextcloud";
 }
 
+/** Tiles sorted by real-world reach (maintainer decision 2026-07-20), the
+ * generic mechanics (WebDAV/S3/IMAP) at the end. */
 const TILES: ProviderTileDef[] = [
-  { key: "microsoft", family: "microsoft" },
   { key: "google", family: "google" },
-  { key: "nextcloud", family: "webdav", flavor: "nextcloud" },
+  { key: "microsoft", family: "microsoft" },
+  { key: "apple", family: "apple" },
+  { key: "yahoo", family: "yahoo" },
   { key: "dropbox", family: "dropbox" },
-  { key: "s3", family: "s3" },
+  { key: "aol", family: "aol" },
+  { key: "yandex", family: "yandex" },
+  { key: "mailru", family: "mailru" },
+  { key: "nextcloud", family: "webdav", flavor: "nextcloud" },
+  { key: "zoho", family: "zoho" },
+  { key: "pcloud", family: "pcloud" },
+  { key: "fastmail", family: "fastmail" },
+  { key: "mailboxorg", family: "mailboxorg" },
+  { key: "koofr", family: "koofr" },
   { key: "webdav", family: "webdav" },
+  { key: "s3", family: "s3" },
   { key: "imap", family: "imap" },
 ];
+
+/** Auth-mode hint line for a preset/suite ("" = plain password, no hint). */
+function authHintText(t: (k: string, o?: Record<string, unknown>) => string, mode: ProviderAuthMode, provider: string): string {
+  if (mode === "app-password") return t("cloudAccounts.hintAppPassword", { provider });
+  if (mode === "auth-code") return t("cloudAccounts.hintAuthCode", { provider });
+  if (mode === "mail-password") return t("cloudAccounts.hintMailPassword", { provider });
+  return "";
+}
 
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
 
@@ -78,6 +105,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const [wd, setWd] = useState({ base: "", user: "", pass: "", advanced: false, filesUrl: "", caldavUrl: "" });
   const [s3, setS3] = useState({ endpoint: "", region: "", bucket: "", accessKeyId: "", secretKey: "", prefix: "", pathStyle: true });
   const [imap, setImap] = useState({ email: "", presetId: "custom", host: "", port: "993", smtpHost: "", smtpPort: "587", pass: "" });
+  /** App-password suite form (catalog providers): ONE credential, endpoints
+   * prefilled from the catalog, editable behind "advanced". */
+  const [suite, setSuite] = useState({ email: "", pass: "", advanced: false, imapHost: "", imapPort: "", smtpHost: "", smtpPort: "", caldavUrl: "", webdavUrl: "" });
+  const [query, setQuery] = useState("");
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [result, setResult] = useState<ConnectResult>({});
@@ -86,13 +117,14 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const family = tile?.family ?? null;
+  const suiteDef = family ? suiteProvider(family) : null;
   const available = family ? FAMILY_SERVICES[family] : [];
   const filesTakenBy = records.find((r) => r.services.files);
   const selected = SERVICE_ORDER.filter((s) => svc[s] && available.includes(s));
   const allDone = selected.length > 0 && selected.every((s) => status[s]?.state === "ok");
   const failed = selected.some((s) => status[s]?.state === "error");
 
-  const pickTile = (def: ProviderTileDef) => {
+  const pickTile = (def: ProviderTileDef, presetId?: string) => {
     setTile(def);
     const services = FAMILY_SERVICES[def.family];
     setSvc({
@@ -102,6 +134,21 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     });
     setWd((w) => ({ ...w, advanced: def.family === "webdav" && !def.flavor }));
     if (def.family === "google") setImap((m) => ({ ...m, presetId: "gmail", host: "imap.gmail.com", port: "993", smtpHost: "smtp.gmail.com", smtpPort: "587" }));
+    // A preset hit in the tile search jumps to the mail tile WITH the provider preselected.
+    if (def.family === "imap" && presetId) applyMailPreset(presetId, "");
+    const sd = suiteProvider(def.family);
+    if (sd) {
+      setSuite((s) => ({
+        ...s,
+        advanced: false,
+        imapHost: sd.endpoints.imapHost ?? "",
+        imapPort: sd.endpoints.imapPort ? String(sd.endpoints.imapPort) : "",
+        smtpHost: sd.endpoints.smtpHost ?? "",
+        smtpPort: sd.endpoints.smtpPort ? String(sd.endpoints.smtpPort) : "",
+        caldavUrl: sd.endpoints.caldavUrl ?? "",
+        webdavUrl: sd.endpoints.webdavUrl ?? "",
+      }));
+    }
     setStep(2);
   };
 
@@ -119,13 +166,34 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
 
   const buildRequest = (services: CloudServiceId[]): ConnectRequest => {
     const endpoints = wd.advanced ? { files: wd.filesUrl.trim(), caldav: wd.caldavUrl.trim() } : nextcloudEndpoints(wd.base, wd.user) ?? { files: "", caldav: "" };
+    // Suite families reuse the webdav (files+calendar) and imap (mail) request
+    // shapes — one credential, endpoints from the catalog unless edited.
+    const suiteDav = suiteDef
+      ? {
+          filesUrl: (suite.advanced ? suite.webdavUrl.trim() : suiteDef.endpoints.webdavUrl) ?? "",
+          caldavUrl: (suite.advanced ? suite.caldavUrl.trim() : suiteDef.endpoints.caldavUrl) ?? "",
+          user: suite.email.trim(),
+          pass: suite.pass,
+        }
+      : undefined;
+    const suiteImap =
+      suiteDef && services.includes("mail")
+        ? {
+            email: suite.email.trim(),
+            host: ((suite.advanced ? suite.imapHost.trim() : suiteDef.endpoints.imapHost) ?? "").trim(),
+            port: (suite.advanced ? Number(suite.imapPort) : suiteDef.endpoints.imapPort) || 993,
+            smtpHost: ((suite.advanced ? suite.smtpHost.trim() : suiteDef.endpoints.smtpHost) ?? "").trim() || undefined,
+            smtpPort: (suite.advanced ? Number(suite.smtpPort) : suiteDef.endpoints.smtpPort) || undefined,
+            pass: suite.pass,
+          }
+        : undefined;
     return {
       family: family!,
       flavor: tile?.flavor,
       services,
       byoClientId: byoOpen || family === "google" ? byoId.trim() || undefined : undefined,
       googleClientSecret: family === "google" ? googleSecret : undefined,
-      webdav: family === "webdav" ? { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: wd.user.trim(), pass: wd.pass } : undefined,
+      webdav: family === "webdav" ? { filesUrl: endpoints.files, caldavUrl: endpoints.caldav, user: wd.user.trim(), pass: wd.pass } : suiteDav,
       s3:
         family === "s3"
           ? {
@@ -139,7 +207,8 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             }
           : undefined,
       imap:
-        family === "imap" || (family === "google" && services.includes("mail"))
+        suiteImap ??
+        (family === "imap" || (family === "google" && services.includes("mail"))
           ? {
               email: imap.email.trim(),
               host: imap.host.trim(),
@@ -148,7 +217,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               smtpPort: Number(imap.smtpPort) || undefined,
               pass: imap.pass,
             }
-          : undefined,
+          : undefined),
     };
   };
 
@@ -218,20 +287,42 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
 
   /* ---------- step 1: provider tiles ---------- */
   if (step === 1) {
+    const q = query.trim().toLowerCase();
+    // The search also matches IMAP preset providers: typing "Orange" surfaces
+    // the mail tile with the provider preselected on click. A dead-end preset
+    // ("Outlook") surfaces its TARGET tile instead — searching "Outlook" must
+    // land on Microsoft, not on nothing.
+    const presetHit: MailPreset | null = q
+      ? (MAIL_PRESETS.find((p) => p.label.toLowerCase().includes(q) || p.domains.some((d) => d.includes(q))) ?? null)
+      : null;
+    const presetTileKey = presetHit ? (presetHit.useTileInstead ?? "imap") : null;
+    const visible = q
+      ? TILES.filter((def) => familyLabel(def.family, def.flavor).toLowerCase().includes(q) || def.key === presetTileKey)
+      : TILES;
     return (
       <div>
         {steps}
+        <SearchField
+          value={query}
+          onValueChange={setQuery}
+          clearLabel={t("sidebar.clearSearch")}
+          placeholder={t("cloudAccounts.searchProviders")}
+          aria-label={t("cloudAccounts.searchProviders")}
+          data-testid="cloudacct-tile-search"
+          className="pv-provtile-search"
+        />
         <div className="pv-provtile-grid">
-          {TILES.map((def) => (
+          {visible.map((def) => (
             <button
               key={def.key}
               type="button"
               className={cx("pv-provtile", tile?.key === def.key && "is-active")}
-              onClick={() => pickTile(def)}
+              onClick={() => pickTile(def, def.key === "imap" && presetHit && !presetHit.useTileInstead ? presetHit.id : undefined)}
               data-testid={`cloudacct-provider-${def.key}`}
             >
               <AccountMark family={def.family} flavor={def.flavor} small />
               <span className="pv-provtile-name">{familyLabel(def.family, def.flavor)}</span>
+              {def.key === presetTileKey && presetHit && <span className="pv-provtile-hint">{presetHit.label}</span>}
               <span className="pv-provtile-caps">
                 {FAMILY_SERVICES[def.family].map((s) => {
                   const Icon = SERVICE_ICONS[s];
@@ -241,6 +332,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             </button>
           ))}
         </div>
+        {visible.length === 0 && <SettingCardNote>{t("cloudAccounts.searchNoProvider")}</SettingCardNote>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
@@ -301,6 +393,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             );
           })}
           {family === "google" && svc.mail && <SettingCardNote>{t("cloudAccounts.gmailHint")}</SettingCardNote>}
+          {family === "apple" && <SettingCardNote>{t("cloudAccounts.appleNoFiles")}</SettingCardNote>}
           <SettingCardNote>{t("cloudAccounts.servicesHint")}</SettingCardNote>
         </SettingCard>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
@@ -319,6 +412,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const endpoints = !wd.advanced ? nextcloudEndpoints(wd.base, wd.user) : null;
   const oauthFamily = family === "microsoft" || family === "dropbox";
   const needsImapForm = family === "imap" || (family === "google" && svc.mail);
+  const activePreset = needsImapForm && family !== "google" ? presetById(imap.presetId) : null;
   // Google needs the BYO OAuth client only for Drive/Calendar scopes — a
   // mail-only selection connects via IMAP app password (finding #2).
   const googleNeedsByo = family === "google" && (svc.files || svc.calendar);
@@ -328,7 +422,16 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
     (family === "webdav" && (wd.advanced ? !(svc.files ? wd.filesUrl.trim() : true) || !(svc.calendar ? wd.caldavUrl.trim() : true) : !wd.base.trim()) ) ||
     (family === "webdav" && (!wd.user.trim() || !wd.pass)) ||
     (family === "s3" && (!s3.endpoint.trim() || !s3.bucket.trim() || !s3.accessKeyId.trim() || !s3.secretKey)) ||
-    (needsImapForm && (!imap.email.trim() || !imap.host.trim() || !imap.pass));
+    (needsImapForm && (!imap.email.trim() || !imap.host.trim() || !imap.pass)) ||
+    // Dead-end preset: outlook.com IMAP basic auth is gone — the Microsoft tile is the way.
+    !!activePreset?.useTileInstead ||
+    (!!suiteDef &&
+      (!suite.email.trim() ||
+        !suite.pass ||
+        (suite.advanced &&
+          ((svc.files && !suite.webdavUrl.trim()) ||
+            (svc.calendar && !suite.caldavUrl.trim()) ||
+            (svc.mail && !suite.imapHost.trim())))));
 
   return (
     <div>
@@ -389,6 +492,63 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           <SettingCardNote>
             <button type="button" className="pv-linkbtn" onClick={() => setWd({ ...wd, advanced: !wd.advanced })}>
               {wd.advanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
+            </button>
+          </SettingCardNote>
+        </SettingCard>
+      )}
+      {suiteDef && (
+        <SettingCard>
+          <SettingRow label={t("mail.emailAddress")} wide>
+            <TextInput value={suite.email} onChange={(e) => setSuite({ ...suite, email: e.target.value })} data-testid="cloudacct-suite-email" />
+          </SettingRow>
+          <SettingRow label={t("pim.davPass")} wide>
+            <TextInput type="password" value={suite.pass} onChange={(e) => setSuite({ ...suite, pass: e.target.value })} data-testid="cloudacct-suite-pass" />
+          </SettingRow>
+          {suite.advanced && svc.files && (
+            <SettingRow label={t("cloudAccounts.endpointFiles")} wide>
+              <TextInput value={suite.webdavUrl} onChange={(e) => setSuite({ ...suite, webdavUrl: e.target.value })} />
+            </SettingRow>
+          )}
+          {suite.advanced && svc.calendar && (
+            <SettingRow label={t("cloudAccounts.endpointCalendar")} wide>
+              <TextInput value={suite.caldavUrl} onChange={(e) => setSuite({ ...suite, caldavUrl: e.target.value })} />
+            </SettingRow>
+          )}
+          {suite.advanced && svc.mail && (
+            <>
+              <SettingRow label={t("cloudAccounts.imapHost")} wide>
+                <TextInput value={suite.imapHost} onChange={(e) => setSuite({ ...suite, imapHost: e.target.value })} />
+              </SettingRow>
+              <SettingRow label={t("mail.imapPort")}>
+                <TextInput value={suite.imapPort} onChange={(e) => setSuite({ ...suite, imapPort: e.target.value })} style={{ width: 90 }} />
+              </SettingRow>
+              <SettingRow label={t("cloudAccounts.smtpHost")} wide>
+                <TextInput value={suite.smtpHost} onChange={(e) => setSuite({ ...suite, smtpHost: e.target.value })} />
+              </SettingRow>
+              <SettingRow label={t("mail.smtpPort")}>
+                <TextInput value={suite.smtpPort} onChange={(e) => setSuite({ ...suite, smtpPort: e.target.value })} style={{ width: 90 }} />
+              </SettingRow>
+            </>
+          )}
+          {!suite.advanced &&
+            selected.map((service) => (
+              <div key={service} className="pv-svcstat pv-svcstat--ok">
+                <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
+                <span className="pv-svcstat-label">{serviceLabel(service)}</span>
+                <span className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</span>
+              </div>
+            ))}
+          {authHintText(t, suiteDef.authMode, familyLabel(family!)) && (
+            <SettingCardNote>{authHintText(t, suiteDef.authMode, familyLabel(family!))}</SettingCardNote>
+          )}
+          <SettingCardNote>
+            <button type="button" className="pv-linkbtn" onClick={() => void getPlatformServices().openExternal(suiteDef.helpUrl)}>
+              {t("cloudAccounts.providerHelp", { provider: familyLabel(family!) })}
+            </button>
+          </SettingCardNote>
+          <SettingCardNote>
+            <button type="button" className="pv-linkbtn" onClick={() => setSuite({ ...suite, advanced: !suite.advanced })}>
+              {suite.advanced ? t("cloudAccounts.simpleEndpoints") : t("cloudAccounts.advancedEndpoints")}
             </button>
           </SettingCardNote>
         </SettingCard>
@@ -461,6 +621,41 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             <TextInput type="password" value={imap.pass} onChange={(e) => setImap({ ...imap, pass: e.target.value })} data-testid="cloudacct-imap-pass" />
           </SettingRow>
           {family === "google" && <SettingCardNote>{t("cloudAccounts.gmailHint")}</SettingCardNote>}
+          {activePreset?.useTileInstead && (
+            <SettingCardNote>
+              {t("cloudAccounts.presetUseMicrosoft")}{" "}
+              <button
+                type="button"
+                className="pv-linkbtn"
+                onClick={() => pickTile(TILES.find((d) => d.key === "microsoft")!)}
+                data-testid="cloudacct-open-microsoft"
+              >
+                {t("cloudAccounts.presetOpenMicrosoft")}
+              </button>
+            </SettingCardNote>
+          )}
+          {activePreset && !activePreset.useTileInstead && (
+            <>
+              {activePreset.bridge && <SettingCardNote>{t("cloudAccounts.hintBridge")}</SettingCardNote>}
+              {!activePreset.bridge && authHintText(t, activePreset.authMode, activePreset.label) && (
+                <SettingCardNote>{authHintText(t, activePreset.authMode, activePreset.label)}</SettingCardNote>
+              )}
+              {activePreset.enableHint && (
+                <SettingCardNote>{t("cloudAccounts.hintEnableFirst", { provider: activePreset.label })}</SettingCardNote>
+              )}
+              {activePreset.helpUrl && (
+                <SettingCardNote>
+                  <button
+                    type="button"
+                    className="pv-linkbtn"
+                    onClick={() => void getPlatformServices().openExternal(activePreset.helpUrl!)}
+                  >
+                    {t("cloudAccounts.providerHelp", { provider: activePreset.label })}
+                  </button>
+                </SettingCardNote>
+              )}
+            </>
+          )}
         </SettingCard>
       )}
 

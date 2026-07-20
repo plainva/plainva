@@ -30,6 +30,26 @@ export function familyLabel(family: CloudProviderFamily, flavor?: "nextcloud"): 
       return i18n.t("cloudAccounts.familyDropbox");
     case "s3":
       return i18n.t("cloudAccounts.familyS3");
+    case "apple":
+      return i18n.t("cloudAccounts.familyApple");
+    case "yahoo":
+      return i18n.t("cloudAccounts.familyYahoo");
+    case "aol":
+      return i18n.t("cloudAccounts.familyAol");
+    case "yandex":
+      return i18n.t("cloudAccounts.familyYandex");
+    case "mailru":
+      return i18n.t("cloudAccounts.familyMailru");
+    case "zoho":
+      return i18n.t("cloudAccounts.familyZoho");
+    case "fastmail":
+      return i18n.t("cloudAccounts.familyFastmail");
+    case "mailboxorg":
+      return i18n.t("cloudAccounts.familyMailboxorg");
+    case "koofr":
+      return i18n.t("cloudAccounts.familyKoofr");
+    case "pcloud":
+      return i18n.t("cloudAccounts.familyPcloud");
     default:
       return i18n.t("cloudAccounts.familyImap");
   }
@@ -42,6 +62,16 @@ const MONOGRAM: Record<CloudProviderFamily, string> = {
   dropbox: "D",
   s3: "S3",
   imap: "@",
+  apple: "A",
+  yahoo: "Y!",
+  aol: "AOL",
+  yandex: "Я",
+  mailru: "MR",
+  zoho: "Z",
+  fastmail: "F",
+  mailboxorg: "MB",
+  koofr: "K",
+  pcloud: "P",
 };
 
 export function accountMonogram(family: CloudProviderFamily, flavor?: "nextcloud"): string {
