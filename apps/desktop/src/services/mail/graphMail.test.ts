@@ -30,15 +30,25 @@ vi.mock("@tauri-apps/plugin-http", () => ({
       const id = { inbox: "AAAinbox", drafts: "BBBdrafts", deleteditems: "CCCtrash" }[wellKnown[1]];
       return id ? json({ id }) : json({ error: "not found" }, 404);
     }
+    // Child folders of "Projekte" (id PPP) — nested reachability.
+    if (url.includes("/mailFolders/PPP/childFolders")) {
+      return json({ value: [{ id: "KKK", displayName: "Kunde A", childFolderCount: 0 }] });
+    }
+    if (url.includes("/childFolders")) return json({ value: [] });
     if (url.includes("/me/mailFolders") && !url.includes("/messages")) {
       // A GERMAN mailbox — the real-world case that broke the IMAP-flavored
-      // "INBOX" lookup (maintainer report 2026-07-20).
+      // "INBOX" lookup (maintainer report 2026-07-20). Paginated across two
+      // pages to pin the @odata.nextLink follow.
+      if (url.includes("$skiptoken=page2")) {
+        return json({ value: [{ id: "CCCtrash", displayName: "Gelöschte Elemente", childFolderCount: 0 }] });
+      }
       return json({
         value: [
-          { id: "AAAinbox", displayName: "Posteingang" },
-          { id: "BBBdrafts", displayName: "Entwürfe" },
-          { id: "CCCtrash", displayName: "Gelöschte Elemente" },
+          { id: "AAAinbox", displayName: "Posteingang", childFolderCount: 0 },
+          { id: "BBBdrafts", displayName: "Entwürfe", childFolderCount: 0 },
+          { id: "PPP", displayName: "Projekte", childFolderCount: 1 },
         ],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/mailFolders?$select=id,displayName,childFolderCount&$top=100&$skiptoken=page2",
       });
     }
     if (url.includes("/messages")) {
@@ -102,15 +112,22 @@ describe("graphMail pure transforms", () => {
 });
 
 describe("graphMail request shaping", () => {
-  it("lists folders with their localized name AND the backend-stated role", async () => {
+  it("lists folders across pages + child folders, with the backend-stated role", async () => {
     const boxes = await graphListFolders("/vault", account);
+    // Page 1 + page 2 (nextLink) + the nested child of "Projekte".
     expect(boxes).toEqual([
       { name: "Posteingang", role: "inbox" },
       { name: "Entwürfe", role: "drafts" },
+      { name: "Projekte", role: undefined },
       { name: "Gelöschte Elemente", role: "trash" },
+      { name: "Projekte/Kunde A", role: undefined },
     ]);
     const folderCall = calls.find((c) => c.url.includes("/me/mailFolders"));
     expect(folderCall?.headers.Authorization).toBe("Bearer ACCESS");
+    // The nested folder resolves by its full path for a subsequent list.
+    await graphListEnvelopes("/vault", account, "Projekte/Kunde A", 0, 10);
+    const nested = calls.find((c) => c.url.includes("/mailFolders/KKK/messages"));
+    expect(nested).toBeTruthy();
   });
 
   it("resolves the IMAP role name INBOX to Graph's well-known folder WITHOUT a lookup", async () => {

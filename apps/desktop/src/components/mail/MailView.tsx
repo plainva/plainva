@@ -232,6 +232,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setEnvelopes([]);
     setSelectedId(null);
     setMessage(null);
+    // Drop the search when the account/mailbox changes: IMAP UIDs are
+    // folder-local, so a stale id set would highlight unrelated mails in the
+    // new folder (and a Graph id set would just come up empty).
+    setSearchIds(null);
+    setSearchQuery("");
     if (account) void loadList(0);
   }, [account, loadList]);
 
@@ -266,21 +271,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const displayedEnvelopes = searchIds ? envelopes.filter((e) => searchIds.has(e.id)) : envelopes;
   const currentSeen = envelopes.find((e) => e.id === selectedId)?.seen ?? false;
 
+  const searchSeq = useRef(0);
   const runSearch = useCallback(async () => {
-    if (!vaultPath || !account) return;
+    if (!vaultPath || !account || !mailbox) return;
     const q = searchQuery.trim();
     if (!q) {
       setSearchIds(null);
       return;
     }
+    const seq = ++searchSeq.current;
+    const current = (): boolean => seq === searchSeq.current;
     setSearchBusy(true);
     try {
       const uids = await searchMessages(vaultPath, account, mailbox, q);
-      setSearchIds(new Set(uids));
+      if (current()) setSearchIds(new Set(uids));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      if (current()) toast.error(e instanceof Error ? e.message : String(e));
     } finally {
-      setSearchBusy(false);
+      if (current()) setSearchBusy(false);
     }
   }, [vaultPath, account, mailbox, searchQuery]);
 

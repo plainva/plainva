@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -104,6 +104,38 @@ describe("mail-out helpers (stage 6)", () => {
     expect(guessTrashMailbox(["INBOX", "Papierkorb"])).toBe("Papierkorb");
     expect(guessTrashMailbox(["INBOX", "[Gmail]/Trash"])).toBe("[Gmail]/Trash");
     expect(guessTrashMailbox(["INBOX", "Sent", "Drafts"])).toBeNull();
+  });
+
+  it("classifies special-use folders across the catalog's languages (A3)", () => {
+    // Regions that were MISSING before (NL/PL/CZ/RU/KR) — delete/drafts were
+    // silently broken there. "prullenbac" typo (missing k) fixed too.
+    expect(guessTrashMailbox(["INBOX", "Prullenbak"])).toBe("Prullenbak"); // nl (ziggo/kpn)
+    expect(guessTrashMailbox(["INBOX", "Koš"])).toBe("Koš"); // cz (seznam)
+    expect(guessTrashMailbox(["INBOX", "Корзина"])).toBe("Корзина"); // ru (mail.ru/yandex)
+    expect(guessTrashMailbox(["INBOX", "휴지통"])).toBe("휴지통"); // kr (naver/daum)
+    expect(guessDraftsMailbox(["INBOX", "Robocze"])).toBe("Robocze"); // pl (wp/interia)
+    expect(guessDraftsMailbox(["INBOX", "Koncepty"])).toBe("Koncepty"); // cz
+    expect(guessDraftsMailbox(["INBOX", "Черновики"])).toBe("Черновики"); // ru
+    // No false positives: a user folder is not mistaken for a role.
+    expect(classifyFolderRole("Sentinel Projekt")).toBeNull();
+    expect(classifyFolderRole("Junker")).toBeNull();
+    expect(classifyFolderRole("Archivierte Projekte")).toBeNull();
+    expect(classifyFolderRole("Absender")).toBeNull();
+  });
+
+  it("does not rank every INBOX.child as an inbox (Courier/Maildir++, B2)", () => {
+    // Strato/IONOS style: everything hangs under INBOX. The old full-path
+    // includes("inbox") gave every folder rank 0 and destroyed the ordering.
+    const out = sortMailFolders(["INBOX.Rechnungen", "INBOX.Kunden", "INBOX", "INBOX.Gesendet"]);
+    expect(out[0]).toBe("INBOX");
+    // The German "Gesendet" child now ranks as sent, before the plain children.
+    expect(out.indexOf("INBOX.Gesendet")).toBeLessThan(out.indexOf("INBOX.Kunden"));
+    // German special-use names sort to the top even without an English word.
+    const de = sortMailFolders(["Alpha", "Papierkorb", "INBOX", "Gesendet", "Entwürfe"]);
+    expect(de[0]).toBe("INBOX");
+    expect(de.indexOf("Gesendet")).toBeLessThan(de.indexOf("Alpha"));
+    expect(de.indexOf("Entwürfe")).toBeLessThan(de.indexOf("Alpha"));
+    expect(de.indexOf("Papierkorb")).toBeLessThan(de.indexOf("Alpha"));
   });
 
   it("picks the inbox by backend role before falling back to the name (localized mailboxes)", () => {

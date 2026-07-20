@@ -176,12 +176,49 @@ interface GraphFolder {
   displayName: string;
 }
 
+interface GraphFolderRaw extends GraphFolder {
+  childFolderCount?: number;
+}
+
+/** Follows @odata.nextLink to collect every page (Graph caps a page at ~100;
+ * a mailbox with more folders would otherwise silently lose the rest). */
+async function graphCollect(rt: GraphMailRuntime, firstPath: string): Promise<GraphFolderRaw[]> {
+  const out: GraphFolderRaw[] = [];
+  let path: string | null = firstPath;
+  while (path) {
+    const page: { value?: GraphFolderRaw[]; "@odata.nextLink"?: string } = await graphJson(rt, "GET", path);
+    out.push(...(page.value ?? []));
+    const next = page["@odata.nextLink"];
+    // The nextLink is an absolute URL; graphJson prefixes GRAPH, so strip it.
+    path = next ? next.replace(GRAPH, "") : null;
+  }
+  return out;
+}
+
 async function listFoldersInternal(rt: GraphMailRuntime): Promise<GraphFolder[]> {
-  const data = await graphJson<{ value: GraphFolder[] }>(rt, "GET", "/me/mailFolders?$select=id,displayName&$top=100");
-  const folders = data.value ?? [];
+  const select = "$select=id,displayName,childFolderCount&$top=100";
+  const roots = await graphCollect(rt, `/me/mailFolders?${select}`);
+  // Descend into child folders (Graph's top-level list omits them) so a nested
+  // "Projekte/Kunde A" is reachable. Bounded breadth-first; the label shows the
+  // last segment, the full path stays the folder identity.
+  const all: GraphFolder[] = [];
+  let frontier: { folder: GraphFolderRaw; path: string }[] = roots.map((f) => ({ folder: f, path: f.displayName }));
+  let depth = 0;
+  while (frontier.length && depth < 6) {
+    const next: typeof frontier = [];
+    for (const { folder, path } of frontier) {
+      all.push({ id: folder.id, displayName: path });
+      if (folder.childFolderCount && folder.childFolderCount > 0) {
+        const kids = await graphCollect(rt, `/me/mailFolders/${folder.id}/childFolders?${select}`);
+        for (const kid of kids) next.push({ folder: kid, path: `${path}/${kid.displayName}` });
+      }
+    }
+    frontier = next;
+    depth++;
+  }
   rt.folderIds.clear();
-  for (const f of folders) rt.folderIds.set(f.displayName, f.id);
-  return folders;
+  for (const f of all) rt.folderIds.set(f.displayName, f.id);
+  return all;
 }
 
 /**
