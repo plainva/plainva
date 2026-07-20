@@ -14,7 +14,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
-import { frontmatterBlockOf, plainvaMetaFromBlock } from "@plainva/ui";
+import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
 import { BasePicker } from "./BasePicker";
 import { createInlineBase, folderOf, baseEmbedText } from "../services/inlineBase";
@@ -525,7 +525,10 @@ export const Editor: React.FC<{
   const noteTitleFromPath = () => (activePath?.split("/").pop() ?? "").replace(/\.md$/i, "");
   const handleMenuSendMail = () => {
     if (!activePath) return;
-    window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: noteTitleFromPath(), markdown: currentDocText() } }));
+    // Strip the YAML frontmatter from the body (it must not travel in the mail)
+    // and lift a reply-as-note `to:` into the recipient field.
+    const text = currentDocText();
+    window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: noteTitleFromPath(), markdown: stripFrontmatter(text), to: frontmatterToAddress(text) ?? undefined } }));
   };
   const handleMenuSendMailAttachment = () => {
     if (!activePath) return;

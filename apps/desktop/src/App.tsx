@@ -60,6 +60,7 @@ import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
 import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Bookmark, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
+import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
@@ -1477,7 +1478,7 @@ function App() {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const { noteToClipboardFlavors } = await import("./services/mail/mailOut");
-                  const flavors = noteToClipboardFlavors(content);
+                  const flavors = noteToClipboardFlavors(stripFrontmatter(content));
                   await navigator.clipboard.write([
                     new ClipboardItem({
                       "text/html": new Blob([flavors.html], { type: "text/html" }),
@@ -1502,7 +1503,7 @@ function App() {
                     import("@tauri-apps/plugin-opener"),
                   ]);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  const res = buildMailtoUrl(title, markdownToPlainText(content));
+                  const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");
                   if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
                   await openUrl(res.url);
                 } catch (e) {
@@ -1517,7 +1518,7 @@ function App() {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  setMailDraft({ subject: title, markdown: content });
+                  setMailDraft({ subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined });
                 } catch (e) {
                   console.error("[App] draft prefill failed", e);
                 }
