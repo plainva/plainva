@@ -437,9 +437,10 @@ test('mail-out: reply-as-note quotes the original; the draft dialog appends via 
   expect(reply).toContain('> anbei die Rechnung.');
 
   // Draft dialog from the command palette on the open reply note: prefilled
-  // subject, guessed drafts folder, and the append call carries both bodies.
-  // (The mail-out commands are gated on an ACTIVE markdown note — wait for
-  // the reply note's editor before opening the palette.)
+  // subject, the recipient prefilled from the note's `to:` frontmatter (P2b), a
+  // guessed drafts folder, and the append call carries both bodies (frontmatter
+  // stripped). (The mail-out commands are gated on an ACTIVE markdown note — wait
+  // for the reply note's editor before opening the palette.)
   await expect(page.locator('.cm-content').getByText('Re: Rechnung Q3').first()).toBeVisible();
   await page.keyboard.press('Control+p');
   const palette = page.getByTestId('command-palette');
@@ -448,12 +449,12 @@ test('mail-out: reply-as-note quotes the original; the draft dialog appends via 
   await palette.getByRole('button', { name: /email draft|E-Mail-Entwurf/i }).click();
   await expect(page.getByTestId('draft-form')).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Re Rechnung/);
-  await page.getByTestId('draft-to').fill('anna@example.org');
   await page.getByTestId('draft-save').click();
   await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null)).toBeTruthy();
   const appended = await page.evaluate(() => (window as any).__appendedDraft);
   expect(appended.mailbox).toBe('Entwürfe');
-  expect(appended.to).toBe('anna@example.org');
+  // Prefilled from the note's `to:` frontmatter (reply-as-note round-trip, P2b).
+  expect(appended.to).toBe('Anna Beispiel <anna@example.org>');
   expect(appended.text).toContain('anbei die Rechnung.');
   expect(appended.html).toContain('<blockquote>');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
