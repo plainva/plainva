@@ -19,6 +19,7 @@ import type {
   PullTasksResult,
 } from "./types.js";
 import { PimConflictError } from "./types.js";
+import { htmlToMarkdown } from "./htmlToMarkdown.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -485,8 +486,22 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
   setTimeProperty(vevent, "dtend", draft.end, draft.allDay);
   if (draft.location) vevent.updatePropertyWithValue("location", draft.location);
   else vevent.removeAllProperties("location");
-  if (draft.description) vevent.updatePropertyWithValue("description", draft.description);
-  else vevent.removeAllProperties("description");
+  // Description follows the touched-guard: undefined leaves DESCRIPTION (and any
+  // X-ALT-DESC) untouched; a value writes the Markdown source as the plain
+  // DESCRIPTION plus an HTML alternative (X-ALT-DESC), so HTML-aware clients show
+  // formatting while others read the readable Markdown.
+  if (draft.description !== undefined) {
+    vevent.removeAllProperties("x-alt-desc");
+    if (draft.description) {
+      vevent.updatePropertyWithValue("description", draft.description);
+      if (draft.descriptionHtml) {
+        const alt = vevent.addPropertyWithValue("x-alt-desc", draft.descriptionHtml);
+        alt.setParameter("fmttype", "text/html");
+      }
+    } else {
+      vevent.removeAllProperties("description");
+    }
+  }
   // Per-event colour (RFC 7986 COLOR). We store a CSS colour / hex; other
   // clients that expect a CSS3 name simply ignore an unknown value.
   if (draft.color) vevent.updatePropertyWithValue("color", draft.color);
@@ -603,7 +618,7 @@ export function expandIcsEvents(
       end: { ts: endTs, date: allDay && details.endDate ? icalDateString(details.endDate) : undefined },
       allDay,
       location: details.item.location ?? undefined,
-      description: details.item.description ?? undefined,
+      description: caldavDescription(details.item.component, details.item.description),
       attendees: veventAttendees(details.item.component),
       status: veventStatus(details.item.component),
       etag,
@@ -612,6 +627,15 @@ export function expandIcsEvents(
     });
   }
   return out;
+}
+
+/** Event description as Markdown: prefer an HTML alternative (X-ALT-DESC, e.g.
+ * from Outlook/Apple) converted to Markdown, else the plain DESCRIPTION which is
+ * already valid Markdown source. */
+function caldavDescription(component: InstanceType<typeof ICAL.Component>, plain: string | null | undefined): string | undefined {
+  const html = component.getFirstPropertyValue("x-alt-desc");
+  if (typeof html === "string" && html.trim()) return htmlToMarkdown(html) || undefined;
+  return plain?.trim() || undefined;
 }
 
 function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId: string, href: string, etag: string | undefined): PimEvent | null {
@@ -627,7 +651,7 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     end: { ts: endTs, date: allDay && ev.endDate ? icalDateString(ev.endDate) : undefined },
     allDay,
     location: ev.location ?? undefined,
-    description: ev.description ?? undefined,
+    description: caldavDescription(ev.component, ev.description),
     attendees: veventAttendees(ev.component),
     rsvps: veventRsvps(ev.component),
     status: veventStatus(ev.component),

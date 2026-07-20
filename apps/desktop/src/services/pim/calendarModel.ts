@@ -1,5 +1,6 @@
 import type { PimEventDraft, PimEventRow, PimRecurrence, PimRecurrenceFreq } from "@plainva/core";
 import { parseRRule } from "@plainva/core";
+import { markdownToHtml } from "@plainva/ui";
 import { localIsoKey } from "../dailyNotePath";
 
 /**
@@ -107,6 +108,10 @@ export interface EventFormValues {
   endTime: string;
   location: string;
   description: string;
+  /** Set true once the user edits the description so an unrelated edit (or a drag
+   * reschedule) never REPLACES the remote description — which for Graph/Google/
+   * CalDAV could overwrite rich HTML with the cached Markdown. */
+  descriptionTouched: boolean;
   /** Per-event colour (hex from the palette; empty = the calendar's colour). */
   color: string;
   /** "<accountId> <calendarId>" of the target calendar (create picker). */
@@ -136,7 +141,7 @@ export interface EventFormValues {
 function baseForm(dayKey: string, calendarKey: string): EventFormValues {
   return {
     title: "", allDay: false, dayKey, endDayKey: dayKey, startTime: "09:00", endTime: "10:00",
-    location: "", description: "", color: "", calendarKey,
+    location: "", description: "", descriptionTouched: false, color: "", calendarKey,
     attendees: "", attendeesTouched: false, notifyAttendees: true,
     repeatFreq: "", repeatInterval: 1, repeatByWeekday: [], repeatEnd: "never", repeatUntil: "", repeatCount: 10, repeatTouched: false,
   };
@@ -192,6 +197,7 @@ export function buildBlockDraft(
     end: e.allDay && e.end.date ? { ts: e.end.ts, date: e.end.date } : { ts: e.end.ts },
     location: mode === "details" ? e.location ?? undefined : undefined,
     description: mode === "details" ? e.description ?? undefined : undefined,
+    descriptionHtml: mode === "details" && e.description ? markdownToHtml(e.description) : undefined,
     recurrence: recurrence ?? undefined,
   };
 }
@@ -245,7 +251,12 @@ export function formRecurrence(v: EventFormValues): PimRecurrence | null {
 export function eventFormToDraft(v: EventFormValues): PimEventDraft {
   const title = v.title.trim();
   const location = v.location.trim() || undefined;
-  const description = v.description.trim() || undefined;
+  // Touched-guard: only write the description when the user edited it; else
+  // undefined leaves the remote value (incl. provider HTML) untouched. The field
+  // is canonical Markdown; descriptionHtml is the rendered HTML for providers
+  // that accept it (Graph/Google body, CalDAV X-ALT-DESC).
+  const description = v.descriptionTouched ? v.description.trim() : undefined;
+  const descriptionHtml = description === undefined ? undefined : description ? markdownToHtml(description) : "";
   const color = v.color.trim() || undefined;
   const attendees = v.attendeesTouched ? parseEmails(v.attendees) : undefined;
   const recurrence = v.repeatTouched ? formRecurrence(v) : undefined;
@@ -263,6 +274,7 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
       end: { ts: Date.parse(`${endExclusive}T00:00:00Z`), date: endExclusive },
       location,
       description,
+      descriptionHtml,
       color,
       attendees,
       recurrence,
@@ -272,5 +284,5 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
   const startTs = new Date(`${v.dayKey}T${v.startTime || "09:00"}:00`).getTime();
   let endTs = new Date(`${v.dayKey}T${v.endTime || "10:00"}:00`).getTime();
   if (!(endTs > startTs)) endTs = startTs + 30 * 60 * 1000;
-  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, color, attendees, recurrence, notifyAttendees };
+  return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, descriptionHtml, color, attendees, recurrence, notifyAttendees };
 }

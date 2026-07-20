@@ -143,6 +143,10 @@ export interface PimEventDraft {
   allDay: boolean;
   location?: string;
   description?: string;
+  /** Pre-rendered HTML of `description` (canonical Markdown) for providers that
+   * accept HTML bodies (Graph, Google, CalDAV X-ALT-DESC). Set by the desktop
+   * layer alongside `description`; undefined when the description is untouched. */
+  descriptionHtml?: string;
   /** Per-event colour (CSS colour / hex). Written to the provider where
    * supported (CalDAV COLOR, Google colorId); undefined clears it. */
   color?: string;

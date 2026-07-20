@@ -284,10 +284,11 @@ describe("CalDavPimTarget writes", () => {
     expect(putBody).toContain("SUMMARY:Planning");
     expect(putBody).toContain("DTSTART:20260801T100000Z");
     expect(putBody).toContain("SEQUENCE:4");
-    // Foreign properties survive the rewrite; the cleared description is gone.
+    // Foreign properties survive the rewrite; an untouched description
+    // (draft.description === undefined) is LEFT in place by the touched-guard.
     expect(putBody).toContain("BEGIN:VALARM");
     expect(putBody).toContain("ATTENDEE;CN=Anna:mailto:anna@example.org");
-    expect(putBody).not.toContain("DESCRIPTION:Old desc");
+    expect(putBody).toContain("DESCRIPTION:Old desc");
   });
 
   it("update raises PimConflictError when the object moved past the known etag (pre-check, no PUT)", async () => {

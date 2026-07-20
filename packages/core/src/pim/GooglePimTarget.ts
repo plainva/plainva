@@ -18,6 +18,7 @@ import type {
   PullTasksResult,
 } from "./types.js";
 import { PimConflictError } from "./types.js";
+import { normalizeDescription } from "./htmlToMarkdown.js";
 
 /**
  * Google read adapter (stage 2): Calendar API v3 + Tasks API v1. Recurring
@@ -324,7 +325,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     end,
     allDay,
     location: item.location || undefined,
-    description: item.description || undefined,
+    description: normalizeDescription(item.description),
     attendees: (item.attendees ?? [])
       .filter((a) => !a.resource)
       .map((a) => a.displayName || a.email || "")
@@ -350,7 +351,9 @@ function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
     start: time(draft.start),
     end: time(draft.end),
     location: draft.location ?? "",
-    description: draft.description ?? "",
+    // description follows the touched-guard (undefined = untouched = preserved by
+    // the PATCH); set = replace with the rendered HTML (Google accepts HTML).
+    ...(draft.description !== undefined ? { description: draft.descriptionHtml ?? draft.description } : {}),
     colorId: hexToGoogleColorId(draft.color),
     // A provided list replaces the invitees; undefined leaves them (drag).
     ...(draft.attendees !== undefined ? { attendees: draft.attendees.filter((e) => e.trim()).map((email) => ({ email: email.trim() })) } : {}),

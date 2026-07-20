@@ -5,6 +5,7 @@ import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, Menu
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
+import { ComposeEditor } from "../mail/ComposeEditor";
 
 const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
   accepted: "var(--success-text)",
@@ -86,6 +87,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   // never REPLACES the remote value (attendee RSVP status, an unreadable Graph
   // rule) — the draft leaves untouched fields undefined.
   const setAttendees = (v: string) => setValues((prev) => ({ ...prev, attendees: v, attendeesTouched: true }));
+  const setDescription = (v: string) => setValues((prev) => ({ ...prev, description: v, descriptionTouched: true }));
   const attendeeList = parseEmails(values.attendees);
   const commitAttendees = (raw: string) => {
     if (!raw.trim()) return;
@@ -403,13 +405,10 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             </div>
             <div className="pv-setrow pv-setrow--wide">
               <span className="pv-setrow-label">{t("pim.eventDescription", { defaultValue: "Beschreibung" })}</span>
-              <textarea
-                className="pv-field pv-field--area"
+              <ComposeEditor
                 value={values.description}
-                onChange={(e) => set("description", e.target.value)}
+                onChange={setDescription}
                 data-testid="event-description"
-                rows={3}
-                style={{ display: "block", width: "100%" }}
               />
             </div>
           </div>

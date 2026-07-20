@@ -527,7 +527,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         start: { ts: newStartMs },
         end: { ts: Math.max(newStartMs + 60000, newEndMs) },
         location: e.location ?? undefined,
-        description: e.description ?? undefined,
+        // Description is left untouched on a pure time move (undefined): the
+        // adapter GET-modify-PUT / PATCH preserves the remote body, so rich HTML
+        // is never overwritten with the cached Markdown.
         color: e.color,
       };
       try {
