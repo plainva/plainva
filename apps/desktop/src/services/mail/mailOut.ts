@@ -168,6 +168,27 @@ export function mailFolderLabel(name: string): string {
   return segs.length ? segs[segs.length - 1] : decoded;
 }
 
+/**
+ * Picks the folder to open first: the backend-stated inbox role wins (Graph
+ * says so authoritatively and language independently — a German mailbox calls
+ * it "Posteingang"), then the English name heuristic, then the first folder.
+ * Pure.
+ */
+export function pickInboxFolder(boxes: readonly { name: string; role?: string }[]): string | null {
+  const byRole = boxes.find((b) => b.role === "inbox");
+  if (byRole) return byRole.name;
+  const byName = boxes.find((b) => /inbox/i.test(b.name));
+  if (byName) return byName.name;
+  return boxes[0]?.name ?? null;
+}
+
+/** Trash folder for delete: backend role first, then the name heuristic. Pure. */
+export function pickTrashFolder(boxes: readonly { name: string; role?: string }[]): string | null {
+  const byRole = boxes.find((b) => b.role === "trash");
+  if (byRole) return byRole.name;
+  return guessTrashMailbox(boxes.map((b) => b.name));
+}
+
 const FOLDER_ORDER = ["inbox", "sent", "draft", "archive", "junk", "spam", "trash"];
 
 /** Orders mailbox names for the folder column: INBOX first, then the usual

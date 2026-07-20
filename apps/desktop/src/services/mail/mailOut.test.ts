@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7 } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder } from "./mailOut";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -104,6 +104,26 @@ describe("mail-out helpers (stage 6)", () => {
     expect(guessTrashMailbox(["INBOX", "Papierkorb"])).toBe("Papierkorb");
     expect(guessTrashMailbox(["INBOX", "[Gmail]/Trash"])).toBe("[Gmail]/Trash");
     expect(guessTrashMailbox(["INBOX", "Sent", "Drafts"])).toBeNull();
+  });
+
+  it("picks the inbox by backend role before falling back to the name (localized mailboxes)", () => {
+    // A German Graph mailbox: no folder is called "Inbox", so only the role
+    // finds it — the name heuristic would land on the first folder ("Archiv").
+    const german = [
+      { name: "Archiv", role: "archive" },
+      { name: "Posteingang", role: "inbox" },
+      { name: "Gelöschte Elemente", role: "trash" },
+    ];
+    expect(pickInboxFolder(german)).toBe("Posteingang");
+    expect(pickTrashFolder(german)).toBe("Gelöschte Elemente");
+    // IMAP has no roles: the name heuristic still carries it.
+    const imap = [{ name: "Archive" }, { name: "INBOX" }, { name: "Trash" }];
+    expect(pickInboxFolder(imap)).toBe("INBOX");
+    expect(pickTrashFolder(imap)).toBe("Trash");
+    // Neither role nor name: first folder, and no trash rather than a wrong one.
+    expect(pickInboxFolder([{ name: "Zeta" }])).toBe("Zeta");
+    expect(pickTrashFolder([{ name: "Zeta" }])).toBeNull();
+    expect(pickInboxFolder([])).toBeNull();
   });
 
   it("orders folders INBOX-first then special-use then alphabetical (E1)", () => {

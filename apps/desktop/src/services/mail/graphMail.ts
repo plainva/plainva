@@ -11,7 +11,7 @@ import {
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
 import { microsoftAuthFetch } from "../authFetch";
-import type { MailboxInfo, MailEnvelopePage, MailMessage, MailAttachmentInfo } from "./mailClient";
+import type { MailboxInfo, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./mailClient";
 import type { MailAttachment } from "./mailOut";
 
 /**
@@ -20,7 +20,8 @@ import type { MailAttachment } from "./mailOut";
  * SCOPES differ (delegated Mail.ReadWrite + Mail.Send on the SAME central Entra
  * app as the OneDrive sync). Everything runs over the Tauri http bridge; there
  * is no Rust for Microsoft mail. Message ids are opaque Graph strings; folders
- * are addressed by their displayName (mapped to the Graph id per account).
+ * are addressed by their displayName (mapped to the Graph id per account) OR by
+ * a role name, which resolves to Graph's language-independent well-known folder.
  */
 
 export const GRAPH_MAIL_SCOPES = "User.Read Mail.ReadWrite Mail.Send offline_access";
@@ -55,6 +56,8 @@ interface GraphMailRuntime {
   getAccessToken(force?: boolean): Promise<string>;
   /** Cached displayName -> Graph folder id (populated by listFolders). */
   folderIds: Map<string, string>;
+  /** Cached Graph folder id -> special-use role (well-known lookup). */
+  roleByFolderId?: Map<string, MailFolderRole>;
 }
 
 const runtimes = new Map<string, GraphMailRuntime>();
@@ -127,8 +130,41 @@ async function graphJson<T>(rt: GraphMailRuntime, method: string, path: string, 
 
 // ---- Folder id resolution ------------------------------------------------
 
+/**
+ * Graph's WELL-KNOWN folder names are valid folder identifiers on their own
+ * (`/me/mailFolders/inbox/messages`) and — unlike displayName — language
+ * independent. A German mailbox calls the inbox "Posteingang", so resolving
+ * the app's IMAP-flavored role names by display name could never work
+ * (maintainer finding 2026-07-20: "Graph mail folder not found: INBOX").
+ * Everything that is a role name resolves to the well-known name WITHOUT a
+ * request; real folder names still go through the display-name lookup.
+ */
+const WELL_KNOWN_BY_ROLE: Record<MailFolderRole, string> = {
+  inbox: "inbox",
+  drafts: "drafts",
+  sent: "sentitems",
+  trash: "deleteditems",
+  junk: "junkemail",
+  archive: "archive",
+};
+
+/** Role of an app-side mailbox name, for the well-known shortcut above. */
+function roleOfName(name: string): MailFolderRole | null {
+  const n = name.trim().toLowerCase();
+  if (!n) return null;
+  if (n === "inbox") return "inbox";
+  if (n === "drafts" || n === "draft") return "drafts";
+  if (n === "sent" || n === "sentitems" || n === "sent items") return "sent";
+  if (n === "trash" || n === "deleteditems" || n === "deleted items") return "trash";
+  if (n === "junk" || n === "spam" || n === "junkemail") return "junk";
+  if (n === "archive") return "archive";
+  return null;
+}
+
 async function resolveFolderId(rt: GraphMailRuntime, displayName: string): Promise<string> {
   if (rt.folderIds.has(displayName)) return rt.folderIds.get(displayName) as string;
+  const role = roleOfName(displayName);
+  if (role) return WELL_KNOWN_BY_ROLE[role]; // usable as-is, no lookup needed
   await listFoldersInternal(rt); // populate the map
   const id = rt.folderIds.get(displayName);
   if (!id) throw new Error(`Graph mail folder not found: ${displayName}`);
@@ -148,12 +184,35 @@ async function listFoldersInternal(rt: GraphMailRuntime): Promise<GraphFolder[]>
   return folders;
 }
 
+/**
+ * Maps the well-known folders to their (localized) ids so the UI can label
+ * roles without guessing names. One cheap request per role, all in parallel,
+ * cached per runtime; a missing folder is simply skipped.
+ */
+async function wellKnownRoles(rt: GraphMailRuntime): Promise<Map<string, MailFolderRole>> {
+  if (rt.roleByFolderId) return rt.roleByFolderId;
+  const roles = Object.keys(WELL_KNOWN_BY_ROLE) as MailFolderRole[];
+  const found = new Map<string, MailFolderRole>();
+  await Promise.all(
+    roles.map(async (role) => {
+      try {
+        const f = await graphJson<{ id?: string }>(rt, "GET", `/me/mailFolders/${WELL_KNOWN_BY_ROLE[role]}?$select=id`);
+        if (f?.id) found.set(f.id, role);
+      } catch {
+        /* a mailbox without this special folder is fine */
+      }
+    })
+  );
+  rt.roleByFolderId = found;
+  return found;
+}
+
 // ---- Public backend (matches the mailClient function shapes) -------------
 
 export async function graphListFolders(vaultPath: string, account: MailAccountConfig): Promise<MailboxInfo[]> {
   const rt = await runtimeFor(vaultPath, account);
-  const folders = await listFoldersInternal(rt);
-  return folders.map((f) => ({ name: f.displayName }));
+  const [folders, roles] = await Promise.all([listFoldersInternal(rt), wellKnownRoles(rt)]);
+  return folders.map((f) => ({ name: f.displayName, role: roles.get(f.id) }));
 }
 
 /** The account's primary address (Graph /me) for the display label; also a
