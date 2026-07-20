@@ -124,9 +124,23 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
   }
   const next = reconcileCloudAccounts(stored, observed);
-  if (JSON.stringify(next) !== JSON.stringify(stored)) await saveCloudAccounts(vaultPath, next);
+  if (JSON.stringify(next) !== JSON.stringify(stored) && recordShape(next) !== lastSavedShape.get(vaultPath)) {
+    lastSavedShape.set(vaultPath, recordShape(next));
+    await saveCloudAccounts(vaultPath, next);
+  }
   return next;
 }
+
+/**
+ * Event-storm guard: saveCloudAccounts dispatches CLOUD_ACCOUNTS_EVENT, whose
+ * listeners call refreshCloudAccounts again. When the settings store cannot
+ * persist (readonly disk, mocked store), every round would re-derive the same
+ * accounts under FRESH random ids and "change" forever. The id-less shape of
+ * the last save therefore blocks re-saving the semantically identical result.
+ */
+const lastSavedShape = new Map<string, string>();
+const recordShape = (records: CloudAccountRecord[]): string =>
+  JSON.stringify(records.map(({ id: _id, ...rest }) => rest));
 
 /**
  * Best-effort identity backfill for the files-only account of this vault

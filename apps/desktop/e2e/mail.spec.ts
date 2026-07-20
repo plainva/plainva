@@ -444,14 +444,27 @@ test('mail-out: reply-as-note quotes the original; the draft dialog appends via 
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });
 
-test('mail tab without accounts shows the empty state and opens settings', async ({ page }) => {
+test('mail tab without accounts: ribbon entry is gated away, palette still opens the empty state into cloud accounts', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__noMailAccounts = true;
   });
   await openVault(page);
-  await page.getByTestId('ribbon-mail').click();
+
+  // Cloud-accounts gating (mockup 6): no account carries the mail service,
+  // so the ribbon shortcut disappears entirely.
+  await expect(page.getByTestId('ribbon-tasks')).toBeVisible();
+  await expect(page.getByTestId('ribbon-mail')).toHaveCount(0);
+
+  // The palette command still reaches the tab (persisted layouts/deep links).
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByRole('button', { name: /E-Mail öffnen|Open email/ }).click();
+
   await expect(page.getByTestId('mail-view')).toBeVisible();
   await expect(page.getByTestId('mail-open-settings')).toBeVisible();
   await page.getByTestId('mail-open-settings').click();
+  // The empty state deep-links into the new Cloud accounts area.
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByTestId('cloudacct-add')).toBeVisible();
 });

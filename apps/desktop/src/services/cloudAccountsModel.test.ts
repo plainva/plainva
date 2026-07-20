@@ -26,6 +26,22 @@ describe("cloud account reconcile", () => {
     expect(reconcileCloudAccounts([], empty, ids())).toEqual([]);
   });
 
+  it("re-deriving from an empty store keeps the id-less shape stable (event-storm guard basis)", () => {
+    // A store that cannot persist hands reconcile an empty `stored` forever;
+    // apart from the random id, the derived records must be identical so the
+    // desktop-side shape guard can stop the save→event→save loop.
+    const observed: ObservedCloudState = {
+      sync: { provider: "webdav", identity: "marco@cloud.example.org", flavor: "nextcloud" },
+      pim: [],
+      mail: [],
+    };
+    const strip = (rs: CloudAccountRecord[]) => rs.map(({ id: _id, ...rest }) => rest);
+    const a = reconcileCloudAccounts([], observed, () => "id-a");
+    const b = reconcileCloudAccounts([], observed, () => "id-b");
+    expect(a).toHaveLength(1);
+    expect(strip(a)).toEqual(strip(b));
+  });
+
   it("groups a Graph calendar and a Graph mailbox with the same identity into ONE Microsoft account", () => {
     const observed: ObservedCloudState = {
       sync: undefined,

@@ -1210,13 +1210,14 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
 
-  // Opens on the ACTIVE vault's sync page: the area title is the page heading.
-  await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toBeVisible();
+  // Opens on the ACTIVE vault's first area — Cloud accounts (the service
+  // areas are gated behind connected accounts): its title is the page heading.
+  await expect(dialog.getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
 
   // Cross-world: clicking an APP area renders exactly that page.
   await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
   await expect(dialog.getByRole('heading', { name: /^(Erscheinungsbild|Appearance)$/ })).toBeVisible();
-  await expect(dialog.getByRole('heading', { name: /^(Synchronisation|Sync)$/ })).toHaveCount(0);
+  await expect(dialog.getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toHaveCount(0);
 
   // …and a VAULT area click returns to the vault world (maintenance holds the reindex row).
   await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
@@ -1234,6 +1235,48 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await expect(dialog.getByTestId('settings-vault-name')).toHaveText('zweiter-vault');
   await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toHaveCount(0);
+});
+
+test('Cloud accounts derive the pre-existing sync slot; service areas gate on carried services', async ({ page }) => {
+  // A vault that was connected to Nextcloud BEFORE the cloud-accounts area
+  // existed: only the keychain slot is populated, no registry entry.
+  await page.addInitScript(() => {
+    const slot = 'webdav_credentials_' + btoa('/test-vault');
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'keychain_get' && args?.key === slot) {
+        return JSON.stringify({ url: 'https://cloud.example.org/remote.php/dav/files/marco/', user: 'marco', pass: 'secret' });
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+
+  // Migration: the slot appears as ONE derived Nextcloud account carrying the
+  // Files service — identity user@host, no re-auth, nothing else invented.
+  const row = dialog.getByTestId('cloudacct-row');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('marco@cloud.example.org');
+  await expect(row).toContainText(/Dateien|Files/);
+
+  // Gating: Sync is visible (an account carries Files) and shows the slim
+  // reference card; Calendar and Email stay hidden without their services.
+  await dialog.getByRole('button', { name: /^(Synchronisation|Sync)$/ }).click();
+  await expect(dialog.getByTestId('sync-manage-account')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Kalender|Calendar)$/ })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /^(E-Mail|Email)$/ })).toHaveCount(0);
+
+  // The account row opens the per-account detail (services + remove).
+  await dialog.getByRole('button', { name: /^(Cloud-Konten|Cloud accounts)$/ }).click();
+  await dialog.getByTestId('cloudacct-row').click();
+  await expect(dialog.getByTestId('cloudacct-remove')).toBeVisible();
+  await dialog.getByTestId('cloudacct-detail-back').click();
+  await expect(dialog.getByTestId('cloudacct-add')).toBeVisible();
 });
 
 test('Vault folder picker: browsing fills the daily-notes and template folder fields', async ({ page }) => {
