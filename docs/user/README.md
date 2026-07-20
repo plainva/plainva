@@ -12,6 +12,6 @@ The user guide lives in one folder per language (`de/`, `en/`, …). All languag
 
 - Neue Seiten werden in **allen** Sprachordnern angelegt, Änderungen in allen Sprachen nachgezogen (ein Paritätstest sichert die identische Dateiliste ab).
 - Dateinamen: sprachneutral (englisch), Title_Case mit Unterstrichen, keine Umlaute.
-- UI-Begriffe stammen wörtlich aus `apps/desktop/src/locales/<lang>.json` und werden **fett** markiert.
+- UI-Begriffe stammen wörtlich aus `packages/ui/src/locales/<lang>.json` und werden **fett** markiert.
 - Jede Seite trägt eine „Stand:"-Zeile mit dem Datum der letzten inhaltlichen Prüfung.
 - Terminologie und Anredeform je Sprache: `docs/engineering/Translation_Glossary.md`. Die Sprachfassungen außer Deutsch und Englisch sind maschinell übersetzt — Korrekturen sind willkommen. / All languages except German and English are machine-translated — corrections are welcome.

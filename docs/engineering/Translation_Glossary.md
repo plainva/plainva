@@ -61,12 +61,12 @@ Notes:
   concise, user-guide running text uses です・ます.
 - Terminology register: the respective locale JSON is the authoritative term
   register for its language. User-guide pages adopt UI terms VERBATIM (bolded)
-  from `apps/desktop/src/locales/<code>.json`; vault-template prose uses the
+  from `packages/ui/src/locales/<code>.json`; vault-template prose uses the
   same terms.
 
 ## Process Rules
 
-- New UI strings are ALWAYS added to all files under `apps/desktop/src/locales/`
+- New UI strings are ALWAYS added to all files under `packages/ui/src/locales/`
   at the same time (the parity test enforces this).
 - User-visible changes require updating the user-guide pages in ALL language
   folders (mandatory working rule; details in the internal AI workflow,
