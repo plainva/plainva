@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-07-17
+Última revisão: 2026-07-20
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -8,7 +8,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 
 ## Fundamentos
 
-- A configuração fica em **Configurações → Vault → Sincronização**. O **Provedor de sincronização** é escolhido por vault: **Nenhum (somente local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** ou **Armazenamento compatível com S3** — sempre exatamente um por vault.
+- A configuração fica em **Configurações → seu vault → Contas na nuvem**: **Conectar conta…** abre o assistente — primeiro escolha o **provedor** (**Microsoft**, **Google**, **Nextcloud**, **Dropbox**, **Armazenamento de objetos (S3)** ou **WebDAV / CalDAV**), depois marque os **serviços** (para sincronizar arquivos: **Arquivos**), depois faça login. Exatamente **uma** conta por vault carrega o serviço **Arquivos**. A área **Sincronização** então mostra a conta conectada com sua **Pasta na nuvem** e mantém o comportamento (**Intervalo de sincronização**, fila); **Gerenciar conta** leva de volta às contas na nuvem.
 - **Configurar um vault online existente a partir da tela inicial**: **Abrir vault** → **Vault on-line** guia você pelas mesmas três etapas em todos os provedores — **1. Conectar** (fazer login ou informar credenciais), **2. Escolher a pasta na nuvem** (uma pasta nova também pode ser criada ali com **Nova pasta**), **3. Escolher ou criar a pasta local**. Você também pode configurar a sincronização de um vault já aberto a qualquer momento em Configurações.
 - **Criar um novo vault na nuvem**: **Novo vault** → **Em um serviço on-line** — primeiro você escolhe a estrutura inicial (vazio ou um modelo como PARA), depois conecta e escolhe a pasta de destino na nuvem ou a cria com **Nova pasta**, por fim a pasta local. A estrutura é criada na pasta local e enviada automaticamente pela primeira sincronização.
 - Salvamentos locais são enviados imediatamente; o Plainva verifica alterações remotas no **Intervalo de sincronização (segundos)** configurado.
@@ -26,9 +26,11 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 
 O caminho mais simples para servidores autogerenciados e a maioria dos armazenamentos na nuvem:
 
-1. Defina o **Provedor de sincronização** como **WebDAV / Nextcloud**.
-2. Informe a **URL do servidor**, o **Nome de usuário** e a **Senha ou token de aplicativo** — use uma senha de aplicativo em vez da sua senha principal sempre que possível (no Nextcloud: Configurações → Segurança → Senhas de aplicativo).
-3. Escolha a pasta de destino com **Explorar servidor**, depois **Salvar**.
+1. Em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Nextcloud** (ou **WebDAV / CalDAV**).
+2. Informe o **Endereço do servidor**, o **Nome de usuário** e a **Senha ou token de aplicativo** — use uma senha de aplicativo em vez da sua senha principal sempre que possível (no Nextcloud: Configurações → Segurança → Senhas de aplicativo).
+3. **Login** valida as credenciais; depois escolha a **Pasta na nuvem** com **Escolher pasta…**.
+
+Caso especial do **Nextcloud**: UM único formulário cobre arquivos **e** calendário — o Plainva deriva os endpoints WebDAV e CalDAV a partir do endereço do servidor (os endereços derivados aparecem no assistente; **Avançado: definir os endpoints individualmente** permite URLs separadas). Marcando os dois serviços, uma única passagem conecta ambos.
 
 Endereços de servidor típicos (Nextcloud, Koofr, MagentaCLOUD, Storage Box e muitos outros) estão listados em [Compatibilidade de Sincronização](Sync_Compatibility.md).
 
@@ -36,15 +38,15 @@ Endereços de servidor típicos (Nextcloud, Koofr, MagentaCLOUD, Storage Box e m
 
 O Google Drive hoje funciona com suas próprias credenciais ("Bring Your Own"): você cria uma vez um projeto gratuito no Google Cloud, que pertence só a você. O guia passo a passo: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Versão resumida: informe o **Client ID** e o **Client Secret** do seu projeto do Google, defina a **Pasta no Drive (nome)** (padrão "Plainva"), depois **Conectar ao Google** — o login abre no seu navegador. Depois de conectado, escolha a pasta com **Escolher pasta…** direto do seu Drive (subpastas incluídas), em vez de digitar o nome. Observação: enquanto o projeto do Google estiver no modo de teste, o login expira após 7 dias e precisa ser renovado por **Reconectar**.
+Versão resumida: em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Google**, marque o serviço **Arquivos**, informe o **Client ID** e o **Client Secret** do seu projeto do Google, depois **Entrar com o Google…** — o login abre no seu navegador. Depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu Drive (subpastas incluídas, padrão "Plainva"). Observação: enquanto o projeto do Google estiver no modo de teste, o login expira após 7 dias e precisa ser renovado por **Entrar novamente**, nos detalhes da conta.
 
 ## OneDrive
 
 O Plainva já vem com seu próprio registro de app — você **não precisa mais de um ID próprio**:
 
-1. Defina o **Provedor de sincronização** como **OneDrive**; opcionalmente defina a **Pasta no OneDrive (nome)** (padrão "Plainva").
-2. **Conectar à Microsoft** e confirme o login no navegador. Pronto — o Plainva cria a pasta e sincroniza todo o seu conteúdo, inclusive arquivos adicionados externamente.
-3. Opcional: depois de conectado, escolha a pasta de destino com **Escolher pasta…** direto do seu OneDrive (subpastas incluídas), em vez de digitar o nome.
+1. Em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Microsoft** e marque o serviço **Arquivos** (OneDrive) — se quiser, junto com **Calendário e tarefas** e **E-mail** (uma conta Microsoft pode carregar os três serviços).
+2. **Entrar com a Microsoft…** e confirme o login no navegador. Pronto — o Plainva cria a pasta (padrão "Plainva") e sincroniza todo o seu conteúdo, inclusive arquivos adicionados externamente.
+3. Opcional: depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu OneDrive (subpastas incluídas).
 
 Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez disso, um Client ID registrado por você mesmo (por exemplo, por restrições corporativas). Guia detalhado: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
@@ -52,15 +54,15 @@ Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez 
 
 O Plainva já vem com seu próprio app do Dropbox — **nenhum app próprio é necessário**:
 
-1. Defina o **Provedor de sincronização** como **Dropbox**; opcionalmente defina a **Pasta no Dropbox (caminho)** (padrão `/Plainva`).
-2. **Conectar ao Dropbox** e confirme no navegador. Pronto.
-3. Opcional: depois de conectado, escolha a pasta de destino com **Escolher pasta…** direto do seu Dropbox (subpastas incluídas), em vez de digitar o caminho.
+1. Em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Dropbox** (ele carrega apenas o serviço **Arquivos**).
+2. **Entrar com o Dropbox…** e confirme no navegador. Pronto (pasta padrão `/Plainva`).
+3. Opcional: depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu Dropbox (subpastas incluídas).
 
 Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez disso, uma App Key registrada por você mesmo. Guia detalhado: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 ## Armazenamento compatível com S3
 
-Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner e outros — baseado em chaves, sem nenhum login pelo navegador:
+Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner e outros — baseado em chaves, sem nenhum login pelo navegador. Em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Armazenamento de objetos (S3)** e preencha os campos:
 
 | Campo | Significado |
 |---|---|
@@ -71,9 +73,9 @@ Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner e outros — ba
 | **Prefixo de chave (opcional)** | Subpasta dentro do bucket onde o vault fica; vazio = raiz do bucket |
 | **URLs path-style** | Recomendado (funciona para MinIO, R2 e a maioria dos compatíveis); desative apenas para buckets AWS virtual-hosted |
 
-Você também pode escolher o **Prefixo de chave** com **Escolher pasta…** direto do bucket — isso já funciona antes de salvar, assim que o endpoint, o bucket e as chaves estiverem preenchidos.
+Você pode escolher o **Prefixo de chave** (a pasta na nuvem) com **Escolher pasta…** direto do bucket depois de conectar.
 
-Após **Salvar**, a sincronização começa imediatamente.
+Após **Login**, a sincronização começa imediatamente.
 
 ## Veja também
 

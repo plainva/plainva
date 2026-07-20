@@ -1,18 +1,20 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-07-19
+Laatst bijgewerkt: 2026-07-20
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
+> **Experimenteel.** De agenda praat met echte externe accounts (CalDAV, Google, Microsoft) die niet doorlopen kunnen worden in Plainva's geautomatiseerde tests. Het werkt en wordt dagelijks gebruikt, maar behandel het als een preview: bewaar een back-up en meld alsjeblieft alles wat vreemd overkomt.
+
 ## Een account verbinden
 
-Open **Instellingen → Vault → Agenda en accounts → Account toevoegen…** en kies de provider:
+Open **Instellingen → Vault → Cloudaccounts → Account verbinden…**, kies een provider en vink **Agenda en taken** aan bij de stap diensten:
 
-- **CalDAV**: server-URL, gebruikersnaam en een **app-wachtwoord** (in Nextcloud: Instellingen → Beveiliging → Apparaten & sessies). Geen registratie, geen keys.
+- **Nextcloud / CalDAV**: serveradres, gebruikersnaam en een **app-wachtwoord** (in Nextcloud: Instellingen → Beveiliging → Apparaten & sessies). Geen registratie, geen keys — voor Nextcloud leidt Plainva het CalDAV-adres zelf af uit het serveradres (voor andere CalDAV-servers gebruik je de tegel **WebDAV / CalDAV** of **Geavanceerd: endpoints afzonderlijk instellen**).
 - **Google**: heeft je eigen OAuth-client-ID nodig (hetzelfde BYO-model als bij de Google Drive-sync — zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Schakel in je Google Cloud-project bovendien de *Google Calendar API* en *Google Tasks API* in en voeg hun scopes toe aan het toestemmingsscherm. De browser opent voor toestemming; bij het verbinden wordt het account gevalideerd voordat er iets wordt opgeslagen.
-- **Microsoft**: klik gewoon op **Verbinden** en bevestig in de browser — geen instelling nodig.
+- **Microsoft**: klik gewoon op **Aanmelden met Microsoft…** en bevestig in de browser — geen instelling nodig. Eén Microsoft-account kan in dezelfde stap ook **Bestanden** (OneDrive) en **E-mail** dragen.
 
-Elk account toont zijn **agenda's** (aangevinkte verschijnen in het agenda-tabblad) en zijn **takenlijsten** (bewust standaard niet aangevinkt — een vinkje start de hieronder beschreven takensynchronisatie). Wachtwoorden en tokens komen terecht in de sleutelhanger van het besturingssysteem. De instelling **Vergadermap** onder de accounts bepaalt waar vergadernotities worden aangemaakt.
+De assistent toont per dienst een status ("verbonden — n agenda's gevonden"). Je beheert daarna de **agenda's** (aangevinkte verschijnen in het agenda-tabblad) en de **takenlijsten** (bewust standaard niet aangevinkt — een vinkje start de hieronder beschreven takensynchronisatie) in het gebied **Agenda**; daar staan ook de **Vergadermap** (waar vergadernotities worden aangemaakt) en de **Standaardagenda**. Wachtwoorden en tokens komen terecht in de sleutelhanger van het besturingssysteem.
 
 ## Het agenda-tabblad
 

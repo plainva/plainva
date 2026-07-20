@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-07-17
+Última actualización: 2026-07-20
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -8,7 +8,7 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 
 ## Fundamentos
 
-- La configuración vive en **Configuración → Vault → Sincronización**. El **Proveedor de sincronización** se elige por vault: **Ninguno (solo local)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** o **Almacenamiento compatible con S3** — siempre exactamente uno por vault.
+- La configuración vive en **Ajustes → tu vault → Cuentas en la nube**: **Conectar cuenta…** abre el asistente — elige primero el **proveedor** (**Microsoft**, **Google**, **Nextcloud**, **Dropbox**, **Almacenamiento de objetos (S3)** o **WebDAV / CalDAV**), luego marca los **servicios** (para la sincronización de archivos: **Archivos**), luego inicia sesión. **Solo una** cuenta por vault lleva el servicio **Archivos**. La zona **Sincronización** muestra entonces la cuenta conectada con su **Carpeta en la nube** y regula el comportamiento (**Intervalo de sincronización**, cola); **Gestionar cuenta** te lleva de vuelta a las cuentas en la nube.
 - **Abrir un vault en línea ya existente desde la pantalla de bienvenida**: **Abrir vault** → **Vault en línea** te guía por los mismos tres pasos con cualquier proveedor — **1. Conectar** (inicia sesión o introduce las credenciales), **2. Elige la carpeta en la nube** (ahí mismo también puedes crear una carpeta nueva mediante **Nueva carpeta**), **3. Elige o crea la carpeta local**. También puedes configurar la sincronización de un vault ya abierto en cualquier momento desde Configuración.
 - **Crear un nuevo vault en la nube**: **Nuevo vault** → **En un servicio en línea** — primero eliges la estructura inicial (vacía o una plantilla como PARA), luego te conectas y eliges la carpeta de destino en la nube o la creas mediante **Nueva carpeta**, y por último la carpeta local. La estructura se crea en la carpeta local y se sube automáticamente en la primera sincronización.
 - Los guardados locales se suben de inmediato; Plainva comprueba si hay cambios remotos en el **Intervalo de sincronización (segundos)** configurado.
@@ -26,9 +26,11 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 
 La ruta más sencilla para servidores autoalojados y la mayoría de los almacenamientos en la nube:
 
-1. Establece el **Proveedor de sincronización** en **WebDAV / Nextcloud**.
-2. Introduce la **URL del servidor**, el **Nombre de usuario** y la **Contraseña o token de aplicación** — usa una contraseña de aplicación en lugar de tu contraseña principal siempre que sea posible (en Nextcloud: Configuración → Seguridad → Contraseñas de aplicación).
-3. Elige la carpeta de destino mediante **Explorar servidor**, luego **Guardar**.
+1. En **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Nextcloud** (o **WebDAV / CalDAV**).
+2. Introduce la **Dirección del servidor**, el **Nombre de usuario** y la **Contraseña o token de aplicación** — usa una contraseña de aplicación en lugar de tu contraseña principal siempre que sea posible (en Nextcloud: Configuración → Seguridad → Contraseñas de aplicación).
+3. **Iniciar sesión** valida las credenciales; después elige la **Carpeta en la nube** mediante **Elegir carpeta…**.
+
+Particularidad de **Nextcloud**: UN solo formulario cubre archivos **y** calendario — Plainva deriva los endpoints de WebDAV y CalDAV de la propia dirección del servidor (las direcciones derivadas se muestran en el asistente; **Avanzado: definir los endpoints individualmente** permite URLs separadas). Marca ambos servicios y una sola conexión los conecta a los dos.
 
 Las direcciones típicas de servidor (Nextcloud, Koofr, MagentaCLOUD, Storage Box y muchas más) están listadas en [Compatibilidad de sincronización](Sync_Compatibility.md).
 
@@ -36,15 +38,15 @@ Las direcciones típicas de servidor (Nextcloud, Koofr, MagentaCLOUD, Storage Bo
 
 Google Drive funciona actualmente con tus propias credenciales ("Bring Your Own"): creas una vez un proyecto gratuito de Google Cloud, del que solo tú eres propietario. La guía paso a paso: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Versión corta: introduce el **Client ID** y el **Client Secret** de tu proyecto de Google, define la **Carpeta de Drive (nombre)** (por defecto "Plainva"), y luego **Conectar con Google** — el inicio de sesión se abre en tu navegador. Una vez conectado, elige la carpeta mediante **Elegir carpeta…** directamente desde tu Drive (subcarpetas incluidas) en lugar de escribir el nombre. Nota: mientras el proyecto de Google esté en modo de prueba, el inicio de sesión caduca a los 7 días y debe renovarse mediante **Volver a conectar**.
+Versión corta: en **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Google**, marca el servicio **Archivos**, introduce el **Client ID** y el **Client Secret** de tu proyecto de Google, y luego **Iniciar sesión con Google…** — el inicio de sesión se abre en tu navegador. Una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu Drive (subcarpetas incluidas, por defecto «Plainva»). Nota: mientras el proyecto de Google esté en modo de prueba, el inicio de sesión caduca a los 7 días y debe renovarse mediante **Volver a conectar** en los detalles de la cuenta.
 
 ## OneDrive
 
 Plainva incluye su propio registro de aplicación — **ya no necesitas tu propio ID**:
 
-1. Establece el **Proveedor de sincronización** en **OneDrive**; opcionalmente define la **Carpeta de OneDrive (nombre)** (por defecto "Plainva").
-2. **Conectar con Microsoft** y confirma el inicio de sesión en el navegador. Listo — Plainva crea la carpeta y sincroniza todo su contenido, incluidos los archivos añadidos desde fuera.
-3. Opcional: una vez conectado, elige la carpeta de destino mediante **Elegir carpeta…** directamente desde tu OneDrive (subcarpetas incluidas) en lugar de escribir el nombre.
+1. En **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Microsoft** y marca el servicio **Archivos** (OneDrive) — si quieres, junto con **Calendario y tareas** y **Correo** (una cuenta de Microsoft puede llevar los tres servicios).
+2. **Iniciar sesión con Microsoft…** y confirma el inicio de sesión en el navegador. Listo — Plainva crea la carpeta (por defecto «Plainva») y sincroniza todo su contenido, incluidos los archivos añadidos desde fuera.
+3. Opcional: una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu OneDrive (subcarpetas incluidas).
 
 Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lugar un Client ID registrado por ti (p. ej. por restricciones corporativas). Guía detallada: [OneDrive y Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
@@ -52,15 +54,15 @@ Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lug
 
 Plainva incluye su propia app de Dropbox — **no hace falta ninguna app propia**:
 
-1. Establece el **Proveedor de sincronización** en **Dropbox**; opcionalmente define la **Carpeta de Dropbox (ruta)** (por defecto `/Plainva`).
-2. **Conectar con Dropbox** y confirma en el navegador. Listo.
-3. Opcional: una vez conectado, elige la carpeta de destino mediante **Elegir carpeta…** directamente desde tu Dropbox (subcarpetas incluidas) en lugar de escribir la ruta.
+1. En **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Dropbox** (solo lleva el servicio **Archivos**).
+2. **Iniciar sesión con Dropbox…** y confirma en el navegador. Listo (carpeta por defecto `/Plainva`).
+3. Opcional: una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu Dropbox (subcarpetas incluidas).
 
 Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lugar una App Key registrada por ti. Guía detallada: [OneDrive y Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 ## Almacenamiento compatible con S3
 
-Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner y otros — basado en claves, sin ningún inicio de sesión por navegador:
+Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner y otros — basado en claves, sin ningún inicio de sesión por navegador. En **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Almacenamiento de objetos (S3)** y rellena los campos:
 
 | Campo | Significado |
 |---|---|
@@ -71,9 +73,9 @@ Para AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner y otros — bas
 | **Prefijo de clave (opcional)** | Subcarpeta dentro del bucket donde vive el vault; vacío = raíz del bucket |
 | **URLs path-style** | Recomendado (MinIO, R2 y la mayoría de los compatibles); desactívalo solo para buckets de AWS virtual-hosted |
 
-También puedes elegir el **Prefijo de clave** mediante **Elegir carpeta…** directamente desde el bucket — esto ya funciona antes de guardar, en cuanto el endpoint, el bucket y las claves estén rellenados.
+Puedes elegir el **Prefijo de clave** (la carpeta en la nube) mediante **Elegir carpeta…** directamente desde el bucket una vez conectado.
 
-Después de **Aplicar**, la sincronización empieza de inmediato.
+Después de **Iniciar sesión**, la sincronización empieza de inmediato.
 
 ## Ver también
 

@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-07-19
+Last reviewed: 2026-07-20
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -8,12 +8,12 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 
 ## Connecting a mailbox
 
-**Settings → your vault → Calendar & accounts → Email → Add account…** Under **Connection type** you choose:
+**Settings → your vault → Cloud accounts → Connect account…** and pick the provider:
 
-- **Microsoft (sign in)** — for Outlook.com and Microsoft 365: you sign in directly in the browser, with no app password and no IMAP. Plainva uses the central Plainva app registration (you can optionally supply your own app ID). Reading, capturing and **sending directly** all go through the Microsoft sign-in.
-- **IMAP (app password)** — for every other provider: host, port and an **app password**. For Gmail that is `imap.gmail.com`, port `993`, with an app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-factor authentication) — no OAuth, no verification. Ready-made presets are available for **web.de** and **GMX**. Add an SMTP host to send directly.
+- **Microsoft** — for Outlook.com and Microsoft 365: tick **Email** in the services step (on request together with **Files** and **Calendar & tasks** — one account, one sign-in) and sign in directly in the browser, with no app password and no IMAP. Plainva uses the central Plainva app registration (you can optionally supply your own app ID in the account details). Reading, capturing and **sending directly** all go through the Microsoft sign-in.
+- **Email server (IMAP)** — for every other provider: host, port and an **app password**. For Gmail that is `imap.gmail.com`, port `993`, with an app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-factor authentication) — no OAuth, no verification; the assistant points this out itself for Gmail addresses. Ready-made presets are available for **web.de** and **GMX**. Add an SMTP host to send directly.
 
-Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The **Mail folder** setting chooses where captured emails are stored (default `Mail`).
+Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
 
 ## Reading mail
 

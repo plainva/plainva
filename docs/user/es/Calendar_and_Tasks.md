@@ -1,18 +1,20 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-07-19
+Última actualización: 2026-07-20
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
+> **Experimental.** El calendario se comunica con cuentas externas reales (CalDAV, Google, Microsoft) que no se pueden ejercitar en las pruebas automatizadas de Plainva. Funciona y se usa a diario, pero trátalo como una vista previa: conserva una copia de seguridad y, por favor, informa de cualquier cosa que parezca rara.
+
 ## Conectar una cuenta
 
-Abre **Ajustes → tu vault → Calendario y cuentas → Añadir cuenta…** y elige un proveedor:
+Abre **Ajustes → tu vault → Cuentas en la nube → Conectar cuenta…**, elige un proveedor y marca **Calendario y tareas** en el paso de servicios:
 
-- **CalDAV**: URL del servidor, nombre de usuario y una **contraseña de aplicación** (en Nextcloud: Ajustes → Seguridad → Dispositivos y sesiones). Sin registro, sin claves.
+- **Nextcloud / CalDAV**: dirección del servidor, nombre de usuario y una **contraseña de aplicación** (en Nextcloud: Ajustes → Seguridad → Dispositivos y sesiones). Sin registro, sin claves — para Nextcloud, Plainva deriva la dirección CalDAV de la propia dirección del servidor (para otros servidores CalDAV usa la ficha **WebDAV / CalDAV** o **Avanzado: definir los endpoints individualmente**).
 - **Google**: necesita tu propio ID de cliente OAuth (el mismo modelo BYO que la sincronización con Google Drive — ver la [guía de Drive](Google_Drive_BYO_Guide.md)). En tu proyecto de Google Cloud, activa además la *Google Calendar API* y la *Google Tasks API* y añade sus ámbitos a la pantalla de consentimiento. El navegador se abre para pedir consentimiento; al conectar se valida la cuenta antes de guardar nada.
-- **Microsoft**: solo haz clic en **Conectar** y confirma en el navegador — no hace falta ninguna configuración.
+- **Microsoft**: solo haz clic en **Iniciar sesión con Microsoft…** y confirma en el navegador — no hace falta ninguna configuración. Una cuenta de Microsoft también puede llevar **Archivos** (OneDrive) y **Correo** en el mismo proceso.
 
-Cada cuenta lista sus **Calendarios** (los marcados aparecen en la pestaña de calendario) y sus **Listas de tareas** (deliberadamente sin marcar por defecto — marcar una inicia la sincronización de tareas descrita más abajo). Las contraseñas y los tokens viven en el llavero de tu sistema operativo. El ajuste **Carpeta de reuniones** debajo de las cuentas elige dónde se crean las notas de reunión.
+El asistente muestra un estado por servicio ("conectado — n calendarios encontrados"). Después gestionas los **calendarios** (los marcados aparecen en la pestaña de calendario) y las **listas de tareas** (deliberadamente sin marcar por defecto — marcar una inicia la sincronización de tareas descrita más abajo) en la zona **Calendario**; ahí también están la **Carpeta de reuniones** (dónde se crean las notas de reunión) y el **Calendario predeterminado**. Las contraseñas y los tokens viven en el llavero de tu sistema operativo.
 
 ## La pestaña de calendario
 

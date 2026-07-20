@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-07-19
+Last reviewed: 2026-07-20
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -8,13 +8,13 @@ Plainva can connect your existing calendar and task accounts — **CalDAV** (Nex
 
 ## Connecting an account
 
-Open **Settings → your vault → Calendar & accounts → Add account…** and pick a provider:
+Open **Settings → your vault → Cloud accounts → Connect account…**, pick a provider and tick **Calendar & tasks** in the services step:
 
-- **CalDAV**: server URL, user name and an **app password** (in Nextcloud: Settings → Security → Devices & sessions). No registration, no keys.
+- **Nextcloud / CalDAV**: server address, user name and an **app password** (in Nextcloud: Settings → Security → Devices & sessions). No registration, no keys — for Nextcloud, Plainva derives the CalDAV address from the server address itself (for other CalDAV servers use the **WebDAV / CalDAV** tile or **Advanced: set endpoints individually**).
 - **Google**: needs your own OAuth client ID (the same BYO model as the Google Drive sync — see the [Drive guide](Google_Drive_BYO_Guide.md)). In your Google Cloud project, additionally enable the *Google Calendar API* and *Google Tasks API* and add their scopes to the consent screen. The browser opens for consent; connecting validates the account before anything is saved.
-- **Microsoft**: just click **Connect** and confirm in the browser — no setup needed.
+- **Microsoft**: just click **Sign in with Microsoft…** and confirm in the browser — no setup needed. One Microsoft account can also carry **Files** (OneDrive) and **Email** in the same pass.
 
-Each account lists its **calendars** (checked ones appear in the calendar tab) and its **task lists** (deliberately unchecked by default — ticking one starts the task sync described below). Passwords and tokens live in your operating system's keychain. The **Meetings folder** setting below the accounts chooses where meeting notes are created.
+The assistant shows a per-service status ("connected — n calendars found"). You then manage the **calendars** (checked ones appear in the calendar tab) and the **task lists** (deliberately unchecked by default — ticking one starts the task sync described below) in the **Calendar** area; the **Meetings folder** (where meeting notes are created) and the **Default calendar** live there too. Passwords and tokens live in your operating system's keychain.
 
 ## The calendar tab
 

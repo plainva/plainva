@@ -1,12 +1,17 @@
 # Captura de e-mail
 
-Última revisão: 2026-07-18
+Última revisão: 2026-07-20
 
-O Plainva pode ler sua caixa de e-mail — e só ler —, para tirar conhecimento dos e-mails e levá-lo para o seu vault. Ele deliberadamente **não** é um cliente de e-mail: conecta-se via IMAP em modo somente leitura, nunca altera nada na caixa de correio (nem mesmo as marcações de não lido) e nunca envia e-mails por conta própria.
+O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
 ## Conectando uma caixa de correio
 
-**Configurações → Vault → Calendário e contas → E-mail (IMAP, somente leitura) → Adicionar conta…**: host, porta e uma **senha de app**. Para o Gmail isso é `imap.gmail.com`, porta `993`, com uma senha de app de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (exige autenticação de dois fatores) — sem OAuth, sem verificação. Ao conectar, o login é validado antes de qualquer coisa ser salva; a senha vai para o chaveiro do seu sistema operacional. A configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
+**Configurações → seu vault → Contas na nuvem → Conectar conta…** e escolha o provedor:
+
+- **Microsoft** — para Outlook.com e Microsoft 365: marque **E-mail** na etapa de serviços (se quiser, junto com **Arquivos** e **Calendário e tarefas** — uma conta, um login) e entre diretamente pelo navegador, sem senha de app e sem IMAP. O Plainva usa o registro central de app do Plainva para isso (você pode informar seu próprio ID de app opcionalmente nos detalhes da conta). Ler a caixa, capturar e **enviar diretamente** passam todos pelo login da Microsoft.
+- **Servidor de e-mail (IMAP)** — para todos os outros provedores: host, porta e uma **senha de app**. Para o Gmail isso é `imap.gmail.com`, porta `993`, com uma senha de app de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (exige autenticação de dois fatores) — sem OAuth, sem verificação; o assistente já avisa isso sozinho para endereços do Gmail. Para **web.de** e **GMX** há predefinições prontas. Para enviar diretamente, é possível informar um host SMTP.
+
+Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
 
 ## Lendo e-mails
 

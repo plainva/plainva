@@ -1,12 +1,17 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-07-18
+Stan na: 2026-07-20
 
-Plainva może czytać Twoją skrzynkę pocztową — i tylko czytać — aby wydobyć wiedzę z e-maili do Twojego vaulta. To celowo **nie** jest klient pocztowy: połączenie odbywa się przez IMAP w trybie tylko do odczytu, w skrzynce nic się nie zmienia (nawet znaczniki nieprzeczytanych), a Plainva nigdy sam nie wysyła poczty.
+Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
 ## Łączenie skrzynki pocztowej
 
-**Ustawienia → Vault → Kalendarz i konta → E-mail (IMAP, tylko do odczytu) → Dodaj konto…**: host, port i **hasło aplikacji**. Dla Gmaila to `imap.gmail.com`, port `993`, z hasłem aplikacji z [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (wymaga uwierzytelniania dwuskładnikowego) — bez OAuth, bez weryfikacji. Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; hasło trafia do pęku kluczy Twojego systemu operacyjnego. Ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
+**Ustawienia → Twój vault → Konta w chmurze → Połącz konto…** i wybierz dostawcę:
+
+- **Microsoft** — dla Outlook.com i Microsoft 365: w kroku wyboru usług zaznacz **E-mail** (na życzenie razem z **Pliki** i **Kalendarz i zadania** — jedno konto, jedno logowanie) i zaloguj się bezpośrednio w przeglądarce, całkowicie bez hasła aplikacji i bez IMAP. Plainva korzysta w tym celu z centralnej rejestracji aplikacji Plainva (własny identyfikator aplikacji możesz opcjonalnie podać w szczegółach konta). Czytanie skrzynki, przechwytywanie i **bezpośrednie wysyłanie** odbywają się przez logowanie Microsoft.
+- **Serwer e-mail (IMAP)** — dla wszystkich innych dostawców: host, port i **hasło aplikacji**. Dla Gmaila to `imap.gmail.com`, port `993`, z hasłem aplikacji z [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (wymaga uwierzytelniania dwuskładnikowego) — bez OAuth, bez weryfikacji; asystent sam zwraca na to uwagę przy adresach Gmail. Dla **web.de** i **GMX** dostępne są gotowe ustawienia wstępne. Do bezpośredniego wysyłania można podać host SMTP.
+
+Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; dane dostępowe trafiają do pęku kluczy Twojego systemu operacyjnego. Połączone skrzynki i ustawienia przechwytywania znajdziesz później w obszarze **E-mail**: ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
 
 ## Czytanie poczty
 

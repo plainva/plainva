@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-17
+Stan na: 2026-07-20
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -8,7 +8,7 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 
 ## Podstawy
 
-- Konfiguracja znajduje się w **Ustawienia → Vault → Synchronizacja**. **Dostawca synchronizacji** jest wybierany dla każdego vaultu osobno: **Brak (tylko lokalnie)**, **WebDAV / Nextcloud**, **Google Drive**, **OneDrive**, **Dropbox** lub **magazyn zgodny z S3** — zawsze dokładnie jeden na vault.
+- Konfiguracja znajduje się w **Ustawienia → Twój vault → Konta w chmurze**: **Połącz konto…** otwiera asystenta — najpierw wybierz **dostawcę** (**Microsoft**, **Google**, **Nextcloud**, **Dropbox**, **Magazyn obiektowy (S3)** lub **WebDAV / CalDAV**), następnie zaznacz **usługi** (dla synchronizacji plików: **Pliki**), a na końcu się zaloguj. Dokładnie **jedno** konto na vault obsługuje usługę **Pliki**. Obszar **Synchronizacja** pokazuje wtedy połączone konto wraz z **Folderem w chmurze** i reguluje zachowanie (**interwał synchronizacji**, kolejka); **Zarządzaj kontem** prowadzi z powrotem do kont w chmurze.
 - **Otwórz istniejący vault online z ekranu powitalnego**: **Otwórz vault** → **Vault online** prowadzi Cię przez te same trzy kroki dla każdego dostawcy — **1. Połącz** (zaloguj się lub wpisz dane dostępowe), **2. Wybierz folder w chmurze** (tam też można od razu utworzyć nowy folder przez **Nowy folder**), **3. Wybierz lub utwórz folder lokalny**. Alternatywnie możesz w każdej chwili skonfigurować synchronizację dla już otwartego vaultu w Ustawieniach.
 - **Utwórz nowy vault w chmurze**: **Nowy vault** → **W usłudze online** — najpierw wybierz strukturę początkową (pustą lub szablon, np. PARA), następnie połącz się i wybierz folder docelowy w chmurze lub utwórz go przez **Nowy folder**, na końcu folder lokalny. Struktura powstaje w folderze lokalnym i zostaje automatycznie przesłana podczas pierwszej synchronizacji.
 - Lokalne zapisy są wysyłane od razu; Plainva sprawdza zdalne zmiany w skonfigurowanym **interwale synchronizacji (sekundy)**.
@@ -26,9 +26,11 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 
 Najprostsza droga dla własnych serwerów i większości magazynów w chmurze:
 
-1. Ustaw **Dostawcę synchronizacji** na **WebDAV / Nextcloud**.
-2. Wpisz **adres URL serwera**, **nazwę użytkownika** i **hasło lub token aplikacji** — używaj w miarę możliwości hasła aplikacji zamiast głównego hasła (w Nextcloud: Ustawienia → Bezpieczeństwo → Hasła aplikacji).
-3. Wybierz folder docelowy przez **Przeglądaj serwer**, następnie **Zapisz**.
+1. W **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Nextcloud** (lub **WebDAV / CalDAV**).
+2. Wpisz **Adres serwera**, **nazwę użytkownika** i **hasło lub token aplikacji** — używaj w miarę możliwości hasła aplikacji zamiast głównego hasła (w Nextcloud: Ustawienia → Bezpieczeństwo → Hasła aplikacji).
+3. **Logowanie** sprawdza dane dostępowe; następnie przez **Wybierz folder…** wybierz **Folder w chmurze**.
+
+Szczególny przypadek **Nextcloud**: JEDEN formularz obsługuje pliki **i** kalendarz — Plainva samodzielnie wyprowadza punkty końcowe WebDAV i CalDAV z adresu serwera (wyprowadzone adresy są pokazywane w asystencie; **Zaawansowane: ustaw punkty końcowe osobno** pozwala na osobne adresy URL). Jeśli zaznaczysz obie usługi, jeden przebieg połączy obie.
 
 Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele innych) znajdziesz w [Zgodności synchronizacji](Sync_Compatibility.md).
 
@@ -36,15 +38,15 @@ Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele inn
 
 Google Drive działa obecnie z własnymi danymi dostępowymi („Bring Your Own”): jednorazowo tworzysz darmowy własny projekt Google Cloud, który należy wyłącznie do Ciebie. Instrukcja krok po kroku: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Skrót: wpisz **Client ID** i **Client Secret** z Twojego projektu Google, ustaw **folder Google Drive (nazwa)** (domyślnie „Plainva”), następnie **Połącz z Google** — logowanie otwiera się w przeglądarce. Po połączeniu możesz wybrać folder przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami), zamiast wpisywać nazwę. Uwaga: w trybie testowym projektu Google logowanie wygasa po 7 dniach i musi zostać odnowione przez **Połącz ponownie**.
+Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: w trybie testowym projektu Google logowanie wygasa po 7 dniach i musi zostać odnowione przez **Zaloguj się ponownie** w szczegółach konta.
 
 ## OneDrive
 
 Plainva dostarcza własną rejestrację aplikacji — **nie musisz już zakładać własnego identyfikatora**:
 
-1. Ustaw **Dostawcę synchronizacji** na **OneDrive**; opcjonalnie ustaw **folder OneDrive (nazwa)** (domyślnie „Plainva”).
-2. Kliknij **Połącz z Microsoft** i potwierdź logowanie w przeglądarce. Gotowe — Plainva utworzy folder i zsynchronizuje całą jego zawartość, również pliki dodane z zewnątrz.
-3. Opcjonalnie: po połączeniu możesz wybrać folder docelowy przez **Wybierz folder…** bezpośrednio z Twojego OneDrive (łącznie z podfolderami), zamiast wpisywać nazwę.
+1. W **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Microsoft** i zaznacz usługę **Pliki** (OneDrive) — na życzenie od razu razem z **Kalendarz i zadania** oraz **E-mail** (jedno konto Microsoft może obsługiwać wszystkie trzy usługi).
+2. Kliknij **Zaloguj się przez Microsoft…** i potwierdź logowanie w przeglądarce. Gotowe — Plainva utworzy folder (domyślnie „Plainva”) i zsynchronizuje całą jego zawartość, również pliki dodane z zewnątrz.
+3. Opcjonalnie: po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego OneDrive (łącznie z podfolderami).
 
 Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast tego podać samodzielnie zarejestrowany Client ID (np. przy ograniczeniach firmowych). Szczegółowa instrukcja: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
@@ -52,15 +54,15 @@ Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast 
 
 Plainva dostarcza własną aplikację Dropbox — **nie potrzebujesz własnej aplikacji**:
 
-1. Ustaw **Dostawcę synchronizacji** na **Dropbox**; opcjonalnie ustaw **folder Dropbox (ścieżka)** (domyślnie `/Plainva`).
-2. Kliknij **Połącz z Dropbox** i potwierdź w przeglądarce. Gotowe.
-3. Opcjonalnie: po połączeniu możesz wybrać folder docelowy przez **Wybierz folder…** bezpośrednio z Twojego Dropbox (łącznie z podfolderami), zamiast wpisywać ścieżkę.
+1. W **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Dropbox** (obsługuje tylko usługę **Pliki**).
+2. Kliknij **Zaloguj się przez Dropbox…** i potwierdź w przeglądarce. Gotowe (domyślny folder `/Plainva`).
+3. Opcjonalnie: po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dropbox (łącznie z podfolderami).
 
 Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast tego podać samodzielnie zarejestrowany App Key. Szczegółowa instrukcja: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 ## Magazyn zgodny z S3
 
-Dla AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner i innych — w oparciu o klucze, całkowicie bez logowania w przeglądarce:
+Dla AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner i innych — w oparciu o klucze, całkowicie bez logowania w przeglądarce. W **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Magazyn obiektowy (S3)** i wypełnij pola:
 
 | Pole | Znaczenie |
 |---|---|
@@ -71,9 +73,9 @@ Dla AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, Hetzner i innych — w o
 | **Prefiks kluczy (opcjonalnie)** | Podfolder w buckecie dla vaultu; puste = katalog główny bucketa |
 | **Adresy URL w stylu path-style** | Zalecane (MinIO, R2 i większość zgodnych magazynów); wyłącz tylko dla bucketów AWS typu virtual-hosted |
 
-Możesz też wybrać **Prefiks kluczy** przez **Wybierz folder…** bezpośrednio z bucketa — to działa już przed zapisaniem, gdy tylko wypełnione są endpoint, bucket i klucze.
+**Prefiks kluczy** (folder w chmurze) możesz wybrać przez **Wybierz folder…** bezpośrednio z bucketa po połączeniu.
 
-Po **Zastosuj** synchronizacja startuje od razu.
+Po **Logowanie** synchronizacja startuje od razu.
 
 ## Zobacz też
 
