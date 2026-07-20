@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
@@ -85,10 +85,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
-  const [mailbox, setMailbox] = useState("");
+  /**
+   * The selected mailbox is BOUND TO THE ACCOUNT it was chosen for. Without
+   * that binding, switching accounts loaded the previous provider's folder
+   * name against the new one — Graph's "Posteingang" against Gmail's IMAP
+   * threw "Unknown Mailbox: Posteingang" (maintainer finding 2026-07-20).
+   * A foreign selection reads as "" = nothing to load yet.
+   */
+  const [mailboxSel, setMailboxSel] = useState<{ accountId: string; name: string }>({ accountId: "", name: "" });
+  const mailbox = mailboxSel.accountId === accountId ? mailboxSel.name : "";
+  const selectMailbox = useCallback((name: string) => setMailboxSel({ accountId, name }), [accountId]);
   /** The account's mailboxes in display order (with their backend role). */
   const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
   const folders = useMemo(() => boxes.map((b) => b.name), [boxes]);
+  /** Stale-response guards: only the newest request per channel writes state. */
+  const listSeq = useRef(0);
+  const msgSeq = useRef(0);
   const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const [total, setTotal] = useState(0);
@@ -165,8 +177,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   useEffect(() => {
     let alive = true;
     setBoxes([]);
-    setMailbox("");
+    setListError(null);
     if (!vaultPath || !account) return;
+    const forAccount = account.id;
     void listMailboxesFor(vaultPath, account)
       .then((list) => {
         if (!alive) return;
@@ -174,11 +187,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         const order = sortMailFolders(valid.map((b) => b.name));
         const sorted = order.map((n) => valid.find((b) => b.name === n)).filter((b): b is MailboxInfo => !!b);
         setBoxes(sorted);
-        setMailbox((m) => (order.includes(m) ? m : (pickInboxFolder(sorted) ?? "INBOX")));
+        setMailboxSel((prev) =>
+          prev.accountId === forAccount && order.includes(prev.name)
+            ? prev
+            : { accountId: forAccount, name: pickInboxFolder(sorted) ?? "INBOX" }
+        );
       })
       .catch(() => {
         // Fall back to the IMAP default so the envelope list still loads.
-        if (alive) setMailbox("INBOX");
+        if (alive) setMailboxSel({ accountId: forAccount, name: "INBOX" });
       });
     return () => {
       alive = false;
@@ -190,17 +207,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // No mailbox yet = the folder list is still loading; opening a guessed
       // name would fail on backends that localize their folders (Graph).
       if (!vaultPath || !account || !mailbox) return;
+      const seq = ++listSeq.current;
+      const current = (): boolean => seq === listSeq.current;
       setLoadingList(true);
       setListError(null);
       try {
         const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE);
+        if (!current()) return; // a newer account/mailbox took over
         setTotal(page.total);
         setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
       } catch (e) {
-        setListError(e instanceof Error ? e.message : String(e));
+        // A late failure of a superseded request must not surface as the
+        // current mailbox's error.
+        if (current()) setListError(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoadingList(false);
+        if (current()) setLoadingList(false);
       }
     },
     [vaultPath, account, mailbox]
@@ -216,16 +238,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const openMessage = useCallback(
     async (uid: string) => {
       if (!vaultPath || !account) return;
+      const seq = ++msgSeq.current;
+      const current = (): boolean => seq === msgSeq.current;
       setSelectedId(uid);
       setLoadingMessage(true);
       setMessage(null);
       setShowRemoteOnce(false);
       try {
-        setMessage(await fetchMessage(vaultPath, account, mailbox, uid));
+        const msg = await fetchMessage(vaultPath, account, mailbox, uid);
+        if (current()) setMessage(msg);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        if (current()) toast.error(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoadingMessage(false);
+        if (current()) setLoadingMessage(false);
       }
     },
     [vaultPath, account, mailbox]
@@ -536,7 +561,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           {(folders.length ? folders : ["INBOX"]).map((name) => {
             const on = name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => setMailbox(name)} data-tip={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => selectMailbox(name)} data-tip={name}>
                 <FolderGlyph name={name} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}

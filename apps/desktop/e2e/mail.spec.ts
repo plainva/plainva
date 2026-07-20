@@ -27,6 +27,8 @@ test.beforeEach(async ({ page }) => {
 
     const NOW = Date.now();
     const mailAccount = { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 };
+    // Second account with DIFFERENT folder names (the account-switch race).
+    const mailAccount2 = { id: 'm2', label: 'zweit@example.net', host: 'imap.example.net', port: 993, user: 'zweit@example.net', smtpHost: 'smtp.example.net', smtpPort: 587 };
     const envelopes = [
       { uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false },
       { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true },
@@ -60,16 +62,23 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           if (String(args.key || '').startsWith('mailAccounts_')) {
-            return (window as any).__noMailAccounts ? [null, false] : [[mailAccount], true];
+            if ((window as any).__noMailAccounts) return [null, false];
+            return [(window as any).__twoMailAccounts ? [mailAccount, mailAccount2] : [mailAccount], true];
           }
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
         if (cmd === 'keychain_get') {
-          if (String(args.key || '').startsWith('mail_m1_')) return JSON.stringify({ pass: 'app-pw' });
+          if (String(args.key || '').startsWith('mail_m1_') || String(args.key || '').startsWith('mail_m2_')) return JSON.stringify({ pass: 'app-pw' });
           return null;
         }
         if (cmd === 'mail_check_login') {
+          // The second account localizes its folders (a Graph mailbox) and
+          // answers slowly — a stale request would have time to land first.
+          if (String(args.user || '').includes('zweit')) {
+            await new Promise((r) => setTimeout(r, 250));
+            return [{ name: 'Archiv' }, { name: 'Posteingang', role: 'inbox' }];
+          }
           return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
         }
         if (cmd === 'mail_set_seen') {
@@ -94,6 +103,12 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'mail_list_envelopes') {
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
+          ((window as any).__envCalls ||= []).push({ user: args.user, mailbox: args.mailbox });
+          const own = String(args.user || '').includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
+          if (!own.includes(String(args.mailbox))) {
+            await new Promise((r) => setTimeout(r, 400)); // a SLOW failure, like a real server
+            throw new Error('examine failed: No Response: [NONEXISTENT] Unknown Mailbox: ' + args.mailbox + ' (Failure)');
+          }
           return { total: envelopes.length, unseen: envelopes.filter((e: any) => !e.seen).length, messages: envelopes };
         }
         if (cmd === 'mail_fetch_message') return fullMessage;
@@ -467,4 +482,41 @@ test('mail tab without accounts: ribbon entry is gated away, palette still opens
   // The empty state deep-links into the new Cloud accounts area.
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByTestId('cloudacct-add')).toBeVisible();
+});
+
+test('mail: switching accounts never loads the previous provider\'s folder name', async ({ page }) => {
+  // Reported 2026-07-20: going from the Outlook account (Graph, "Posteingang")
+  // back to Gmail (IMAP, "INBOX") showed "Unknown Mailbox" over the freshly
+  // loaded inbox — a request for the OLD folder had been fired against the NEW
+  // account, and its late failure overwrote the good state.
+  await page.addInitScript(() => {
+    (window as any).__twoMailAccounts = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
+
+  // Switch to the second (localized, slow) account.
+  await page.getByRole('button', { name: /^(Konto|Account)$/ }).click();
+  await page.getByRole('option', { name: 'zweit@example.net' }).click();
+
+  // Its own inbox arrives and is selected — by ROLE, not by the English name.
+  await expect(page.getByTestId('mail-folders')).toContainText('Posteingang', { timeout: 10000 });
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/);
+
+  // …and back again.
+  await page.getByRole('button', { name: /^(Konto|Account)$/ }).click();
+  await page.getByRole('option', { name: 'marco@example.org' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/INBOX/, { timeout: 10000 });
+
+  // No error surfaced at any point, and no request ever asked an account for a
+  // folder that belongs to the other one.
+  await expect(page.getByText(/Unknown Mailbox/)).toHaveCount(0);
+  const calls = (await page.evaluate(() => (window as any).__envCalls ?? [])) as { user: string; mailbox: string }[];
+  expect(calls.length).toBeGreaterThan(0);
+  for (const c of calls) {
+    const own = c.user.includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
+    expect(own, c.user + ' was asked for ' + c.mailbox).toContain(c.mailbox);
+  }
 });

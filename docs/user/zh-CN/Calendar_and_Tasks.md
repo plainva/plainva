@@ -9,6 +9,7 @@ Plainva可以连接你已有的日历和任务账户——**CalDAV**（Nextcloud
 打开**设置 → 仓库 → 云账户 → 连接账户…**，选择一个服务商，并在服务选择步骤中勾选**日历与任务**：
 
 - **Nextcloud / CalDAV**：服务器地址、用户名和一个**应用专用密码**（在Nextcloud中：设置 → 安全 → 设备和会话）。无需注册，也不需要密钥——对于Nextcloud，Plainva会直接从服务器地址推导出CalDAV地址（对于其他CalDAV服务器，请使用**WebDAV / CalDAV**图块，或**高级：分别设置各个端点**）。
+- **Apple iCloud、Yahoo、AOL、Zoho、Fastmail、mailbox.org、Yandex、Mail.ru**：专属图块，已预先填好日历地址——只需邮箱地址加一个**应用专用密码**即可，无需服务器字段（对Apple来说应用专用密码是必需的；助手会链接到该服务商的指南）。提示：Yahoo自己也承认其CalDAV服务不太稳定——如果它出现异常，并不是Plainva的问题。
 - **Google**：需要你自己的OAuth客户端ID（与Google Drive同步相同的自备凭据（BYO）模式——参见[Drive指南](Google_Drive_BYO_Guide.md)）。此外，请在你的Google Cloud项目中启用*Google Calendar API*和*Google Tasks API*，并在同意屏幕中添加它们的权限范围。浏览器会打开以获取同意；连接操作会在保存任何内容之前先验证账户。
 - **Microsoft**：只需点击**使用 Microsoft 登录…**并在浏览器中确认——无需任何设置。一个Microsoft账户还可以在同一次连接中承担**文件**（OneDrive）和**邮件**。
 

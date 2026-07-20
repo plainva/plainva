@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-07-11
+Dernière mise à jour : 2026-07-20
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -63,6 +63,10 @@ Elles sont enregistrées localement comme d'habitude et rassemblées dans une fi
 ### La barre d'état indique Hors ligne alors que j'ai internet
 
 Alors c'est la connexion de synchronisation elle-même qui est rompue — souvent parce que la connexion a expiré ou que les identifiants ont changé (p. ex. avec Google Drive). Cliquez sur **Hors ligne** dans la barre d'état ou sur le triangle d'avertissement à côté du nom du vault : le dialogue affiche le message d'erreur exact, et **Ouvrir les paramètres de synchronisation** vous amène directement au formulaire du fournisseur concerné où vous rétablissez la connexion (p. ex. **Se reconnecter**). Chaque clic déclenche aussi immédiatement une nouvelle tentative de synchronisation.
+
+### Pourquoi le fournisseur X manque-t-il (Proton, Tuta, iCloud Drive …) ?
+
+Plainva connecte tout fournisseur qui propose une interface ouverte (IMAP, CalDAV, WebDAV, S3 ou une API documentée). Certains services n'offrent tout simplement aucun accès pour d'autres applications — ce n'est pas un choix de Plainva : **Proton Mail** est chiffré de bout en bout et ne parle IMAP que via le Proton Mail Bridge local et payant (il existe un préréglage pour cela) ; Proton Calendar et Proton Drive n'ont pas d'interface utilisable. **Tuta** ne propose délibérément ni IMAP ni CalDAV. **iCloud Drive** n'a pas d'interface pour les applications tierces (iCloud **Mail** et **Calendrier**, en revanche, fonctionnent via la tuile Apple). **Baidu Netdisk/TeraBox** et **NAVER MYBOX** ont fermé ou désactivé leurs interfaces pour les développeurs indépendants. S'il vous manque un fournisseur doté d'une interface ouverte, faites-le-nous savoir sur GitHub.
 
 ## Application
 
