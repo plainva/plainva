@@ -10,6 +10,13 @@ import { localIsoKey } from "../dailyNotePath";
  * day(s) they touch.
  */
 
+/** Display title with a localized fallback for provider events (Google/Microsoft,
+ * recurring instances) whose summary/subject is empty — otherwise they render as
+ * a blank chip. Trims so whitespace-only titles fall back too. */
+export function eventDisplayTitle(title: string, fallback: string): string {
+  return title.trim() || fallback;
+}
+
 /** All local day keys (YYYY-MM-DD) an event instance covers. */
 export function eventDayKeys(e: PimEventRow): string[] {
   if (e.allDay && e.start.date) {

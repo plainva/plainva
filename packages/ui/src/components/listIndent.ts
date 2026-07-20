@@ -14,6 +14,13 @@ import { syntaxTree } from "@codemirror/language";
  */
 
 const INDENT_EM = 1.5;
+/** Hanging indent for a marker line's first row. The negative text-indent must
+ * equal the marker's RENDERED advance (bullet/number + gap), NOT the nesting
+ * step — otherwise soft-wrapped continuation lines land one full step deeper
+ * than the item text. ~1em matches the bullet widget + source space in the
+ * proportional content font (feedback 2026-07-20); a real nested item still
+ * steps by INDENT_EM via listDepthAt. */
+const MARKER_INDENT_EM = 1;
 const MARKER_RE = /^\s*([-*+]|\d+[.)])\s/;
 
 /** Whether a line begins a list item (bullet or ordered marker). */
@@ -26,14 +33,15 @@ export function isListMarkerLine(text: string): boolean {
  *
  * The read view puts even top-level bullets one level (1.5em) in from the body
  * text, so we pad by `(depth + 1) * 1.5em` — depth 1 sits at 1.5em, not flush
- * with paragraphs. Marker lines additionally pull their first line back by one
- * step via a negative text-indent (hanging indent: the marker sits at
- * `depth * 1.5em`, wrapped/continuation text aligns one step deeper).
+ * with paragraphs. Marker lines additionally pull their first line back by a
+ * negative text-indent equal to the marker's rendered advance (~1em), so a
+ * soft-wrapped continuation line aligns under the item text rather than one
+ * full step deeper (the visible over-indent before 2026-07-20).
  */
 export function listIndentStyle(depth: number, isMarker: boolean): string | null {
   if (depth <= 0) return null;
   const pad = `padding-left:${(depth + 1) * INDENT_EM}em;`;
-  return isMarker ? `${pad}text-indent:-${INDENT_EM}em;` : pad;
+  return isMarker ? `${pad}text-indent:-${MARKER_INDENT_EM}em;` : pad;
 }
 
 /** Number of ancestor ListItem nodes at a document position (0 = not in a list). */

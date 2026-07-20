@@ -28,8 +28,8 @@ describe("listIndentStyle", () => {
   });
 
   it("gives marker lines a hanging indent (negative text-indent), one level in from body", () => {
-    expect(listIndentStyle(1, true)).toBe("padding-left:3em;text-indent:-1.5em;");
-    expect(listIndentStyle(2, true)).toBe("padding-left:4.5em;text-indent:-1.5em;");
+    expect(listIndentStyle(1, true)).toBe("padding-left:3em;text-indent:-1em;");
+    expect(listIndentStyle(2, true)).toBe("padding-left:4.5em;text-indent:-1em;");
   });
 
   it("gives continuation lines only the block padding", () => {

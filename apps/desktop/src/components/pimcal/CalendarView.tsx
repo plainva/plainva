@@ -20,6 +20,7 @@ import { CALENDAR_TAB_PATH } from "../graph/virtualPaths";
 import {
   bucketEventsByDay,
   emptyEventForm,
+  eventDisplayTitle,
   eventFormFromEvent,
   eventFormToDraft,
   eventStartDayKey,
@@ -878,7 +879,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
           <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
           {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
         </span>
         {e.location || (e.attendees?.length ?? 0) > 0 ? (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 12 }}>
@@ -1143,7 +1144,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         aria-hidden
                         style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }}
                       />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </span>
                   ))}
                   {shownTasks.map((task) => (
@@ -1265,7 +1266,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {e.title}
+                              {eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
                             </button>
                           ))}
                         </div>
