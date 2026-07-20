@@ -36,8 +36,11 @@ function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<str
   return pending;
 }
 
+/** Right-click on a vault image → the host opens its own copy/save-as menu. */
+export type ImageContextFn = (e: MouseEvent, absolutePath: string) => void;
+
 class ImageWidget extends WidgetType {
-  constructor(readonly source: ImageSource, readonly key: string, readonly readBinary: ReadBinaryFn) { super(); }
+  constructor(readonly source: ImageSource, readonly key: string, readonly readBinary: ReadBinaryFn, readonly onImageContext?: ImageContextFn) { super(); }
 
   eq(other: ImageWidget) {
     return this.key === other.key;
@@ -59,9 +62,18 @@ class ImageWidget extends WidgetType {
     if (this.source.kind === "direct") {
       img.src = this.source.url;
     } else {
-      void blobUrlFor(this.source.absolutePath, this.readBinary).then((url) => {
+      const absolutePath = this.source.absolutePath;
+      void blobUrlFor(absolutePath, this.readBinary).then((url) => {
         if (url && img.isConnected !== false) img.src = url;
       });
+      if (this.onImageContext) {
+        const onCtx = this.onImageContext;
+        img.oncontextmenu = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onCtx(e, absolutePath);
+        };
+      }
     }
 
     container.appendChild(img);
@@ -81,7 +93,7 @@ function resolveImageSource(src: string, vaultRoot: string): ImageSource | null 
   return { kind: "vault", absolutePath: `${root}/${rel}` };
 }
 
-export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readBinary: ReadBinaryFn) {
+export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readBinary: ReadBinaryFn, onImageContext?: ImageContextFn) {
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -141,7 +153,7 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readB
               }
             }
 
-            const widget = new ImageWidget(source, source.kind === "direct" ? source.url : source.absolutePath, readBinary);
+            const widget = new ImageWidget(source, source.kind === "direct" ? source.url : source.absolutePath, readBinary, onImageContext);
             if (!hideSyntax || isFocused) {
               // Cursor is here or source mode: show text AND image below it
               const dec = Decoration.widget({ widget, side: 1 });

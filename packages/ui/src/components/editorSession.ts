@@ -113,6 +113,8 @@ export interface EditorSessionDeps {
   hostPath?: string;
   /** Reads a binary file for inline image previews (shell file access). */
   readBinaryFile: (absolutePath: string) => Promise<Uint8Array>;
+  /** Right-click on an inline image → host opens its copy / save-as menu. */
+  onImageContext?: (e: MouseEvent, absolutePath: string) => void;
   /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
   buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
   onOpenPath?: (path: string, newTab: boolean) => void;
@@ -243,7 +245,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
           ]
         : [],
       markdownDecorationPlugin(isLive),
-      imagePreviewPlugin(cfg.vaultPath, isLive, (path) => deps.current.readBinaryFile(path)),
+      imagePreviewPlugin(cfg.vaultPath, isLive, (path) => deps.current.readBinaryFile(path), (e, abs) => deps.current.onImageContext?.(e, abs)),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab) => deps.current.openWikiTarget(target, newTab), isLive),
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on

@@ -5,7 +5,10 @@
     "paste": "Paste",
     "label": "Context menu",
     "copyFailed": "Could not copy to the clipboard.",
-    "pasteFailed": "Could not paste from the clipboard."
+    "pasteFailed": "Could not paste from the clipboard.",
+    "copyImage": "Copy image",
+    "saveImageAs": "Save image as…",
+    "copyImageFailed": "Could not copy the image."
   },
   "common": {
     "save": "Save",
@@ -496,7 +499,7 @@
     "disconnect": "Disconnect sync",
     "errorTitle": "Sync Error",
     "unknownError": "Unknown error occurred.",
-    "errorHint": "Common cause: the sign-in has expired or the credentials changed (e.g. with Google Drive). You can reconnect in the sync settings.",
+    "errorHint": "Common causes: a temporary network problem or a timeout — those usually clear up on their own, and Plainva retries automatically. Or the sign-in has expired or the credentials changed (e.g. with Google Drive) — then you can reconnect in the sync settings.",
     "conflictCopies": "Conflict copies found:",
     "openSettings": "Open sync settings"
   },

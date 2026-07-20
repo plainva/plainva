@@ -5,7 +5,10 @@
     "paste": "Einfügen",
     "label": "Kontextmenü",
     "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen.",
-    "pasteFailed": "Einfügen aus der Zwischenablage fehlgeschlagen."
+    "pasteFailed": "Einfügen aus der Zwischenablage fehlgeschlagen.",
+    "copyImage": "Bild kopieren",
+    "saveImageAs": "Bild speichern unter…",
+    "copyImageFailed": "Bild konnte nicht kopiert werden."
   },
   "common": {
     "save": "Speichern",
@@ -496,7 +499,7 @@
     "disconnect": "Sync trennen",
     "errorTitle": "Sync-Fehler",
     "unknownError": "Unbekannter Fehler aufgetreten.",
-    "errorHint": "Häufige Ursache: Die Anmeldung ist abgelaufen oder die Zugangsdaten haben sich geändert (z. B. bei Google Drive). In den Sync-Einstellungen kannst Du die Verbindung neu herstellen.",
+    "errorHint": "Häufige Ursachen: ein vorübergehendes Netzwerkproblem oder eine Zeitüberschreitung — solche Fehler verschwinden meist von selbst, Plainva versucht es automatisch erneut. Oder die Anmeldung ist abgelaufen bzw. die Zugangsdaten haben sich geändert (z. B. bei Google Drive) — dann kannst Du die Verbindung in den Sync-Einstellungen neu herstellen.",
     "conflictCopies": "Gefundene Konfliktkopien:",
     "openSettings": "Sync-Einstellungen öffnen"
   },

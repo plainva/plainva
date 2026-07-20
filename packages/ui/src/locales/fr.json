@@ -5,7 +5,10 @@
     "paste": "Coller",
     "label": "Menu contextuel",
     "copyFailed": "Impossible de copier dans le presse-papiers.",
-    "pasteFailed": "Impossible de coller depuis le presse-papiers."
+    "pasteFailed": "Impossible de coller depuis le presse-papiers.",
+    "copyImage": "Copier l'image",
+    "saveImageAs": "Enregistrer l'image sous…",
+    "copyImageFailed": "Impossible de copier l'image."
   },
   "common": {
     "save": "Enregistrer",
@@ -496,7 +499,7 @@
     "disconnect": "Déconnecter la synchronisation",
     "errorTitle": "Erreur de synchronisation",
     "unknownError": "Une erreur inconnue s'est produite.",
-    "errorHint": "Cause fréquente : la connexion a expiré ou les identifiants ont changé (p. ex. avec Google Drive). Vous pouvez vous reconnecter dans les paramètres de synchronisation.",
+    "errorHint": "Causes fréquentes : un problème réseau temporaire ou un délai d'attente dépassé — ces erreurs disparaissent généralement d'elles-mêmes, et Plainva réessaie automatiquement. Ou bien la connexion a expiré, ou les identifiants ont changé (p. ex. avec Google Drive) — vous pouvez alors vous reconnecter dans les paramètres de synchronisation.",
     "conflictCopies": "Copies de conflit détectées :",
     "openSettings": "Ouvrir les paramètres de synchronisation"
   },

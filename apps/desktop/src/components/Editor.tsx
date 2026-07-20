@@ -45,6 +45,8 @@ import { toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
+import { imageMimeType } from "@plainva/ui";
+import { openContextMenu } from "../services/contextMenuStore";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
 // closed and reopened, the NEW editor instance must still wait for a write the
@@ -1443,6 +1445,10 @@ export const Editor: React.FC<{
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
       readBinaryFile: (absolutePath) => readFile(absolutePath),
+      onImageContext: (e, absolutePath) => openContextMenu({
+        x: e.clientX, y: e.clientY, selection: "", editable: null,
+        image: { loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
+      }),
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
     };
   });
