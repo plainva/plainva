@@ -99,6 +99,19 @@ describe("mail-out helpers (stage 6)", () => {
     expect(mailFolderLabel("INBOX.Archive")).toBe("Archive");
   });
 
+  it("splits at the server-stated delimiter so dotted names stay whole (P3)", () => {
+    // mailbox.org reports "/" — a top-level folder named "mailbox.org Rechnungen"
+    // must NOT be split at the dot (the old "[/.]" fallback did exactly that).
+    expect(mailFolderLabel("mailbox.org Rechnungen", "/")).toBe("mailbox.org Rechnungen");
+    expect(mailFolderLabel("Work/Clients/ACME", "/")).toBe("ACME");
+    // A "." server splits dotted hierarchies, not "/".
+    expect(mailFolderLabel("INBOX.Kunden.ACME", ".")).toBe("ACME");
+    // classify honours the delimiter for the last segment: "INBOX.Kunden" is a
+    // client folder, not an inbox, regardless of the reported separator.
+    expect(classifyFolderRole("INBOX.Kunden", ".")).toBeNull();
+    expect(classifyFolderRole("INBOX.Kunden", "/")).toBeNull();
+  });
+
   it("finds the Trash folder for delete (localized names + Gmail), else null (E4)", () => {
     expect(guessTrashMailbox(["INBOX", "Trash", "Sent"])).toBe("Trash");
     expect(guessTrashMailbox(["INBOX", "Papierkorb"])).toBe("Papierkorb");

@@ -114,13 +114,14 @@ describe("graphMail pure transforms", () => {
 describe("graphMail request shaping", () => {
   it("lists folders across pages + child folders, with the backend-stated role", async () => {
     const boxes = await graphListFolders("/vault", account);
-    // Page 1 + page 2 (nextLink) + the nested child of "Projekte".
+    // Page 1 + page 2 (nextLink) + the nested child of "Projekte". Graph nests
+    // with "/", stated so the UI splits labels at that separator.
     expect(boxes).toEqual([
-      { name: "Posteingang", role: "inbox" },
-      { name: "Entwürfe", role: "drafts" },
-      { name: "Projekte", role: undefined },
-      { name: "Gelöschte Elemente", role: "trash" },
-      { name: "Projekte/Kunde A", role: undefined },
+      { name: "Posteingang", role: "inbox", delimiter: "/" },
+      { name: "Entwürfe", role: "drafts", delimiter: "/" },
+      { name: "Projekte", role: undefined, delimiter: "/" },
+      { name: "Gelöschte Elemente", role: "trash", delimiter: "/" },
+      { name: "Projekte/Kunde A", role: undefined, delimiter: "/" },
     ]);
     const folderCall = calls.find((c) => c.url.includes("/me/mailFolders"));
     expect(folderCall?.headers.Authorization).toBe("Bearer ACCESS");

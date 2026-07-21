@@ -365,6 +365,7 @@ pub fn run() {
             mail_imap::mail_set_seen,
             mail_imap::mail_move_message,
             mail_imap::mail_search,
+            mail_imap::mail_search_envelopes,
             mail_smtp::mail_send
         ])
         .run(tauri::generate_context!())

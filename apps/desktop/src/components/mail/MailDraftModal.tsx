@@ -63,6 +63,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState("");
   const [mailboxes, setMailboxes] = useState<string[]>([]);
+  const [folderDelimiter, setFolderDelimiter] = useState<string | undefined>(undefined);
   const [mailbox, setMailbox] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
   // Recipients render as chips (like the event attendee field); each stays a
@@ -101,9 +102,11 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         const boxes = await listMailboxesFor(vaultPath, account);
         if (!alive) return;
         const names = boxes.map((m) => m.name);
+        const delim = boxes.find((b) => b.delimiter)?.delimiter;
         setMailboxes(names);
+        setFolderDelimiter(delim);
         // Backend-stated role first (Graph localizes "Entwürfe"), name guess second.
-        setMailbox(boxes.find((b) => b.role === "drafts")?.name ?? guessDraftsMailbox(names));
+        setMailbox(boxes.find((b) => b.role === "drafts")?.name ?? guessDraftsMailbox(names, delim));
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
@@ -329,7 +332,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               {mailboxes.length > 0 && (
                 <div>
                   <label style={{ display: "block", fontSize: "var(--text-sm)", marginBottom: 2 }}>{t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })}</label>
-                  <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m) }))} />
+                  <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m, folderDelimiter) }))} />
                 </div>
               )}
               <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>

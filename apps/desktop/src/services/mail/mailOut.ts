@@ -75,8 +75,8 @@ export type GuessedFolderRole = "inbox" | "sent" | "drafts" | "trash" | "junk" |
  * the DECODED last hierarchy segment — so "INBOX.Kunden" is NOT an inbox and a
  * "Sentinel"/"Junker" folder is not mistaken for sent/junk. Pure.
  */
-export function classifyFolderRole(name: string): GuessedFolderRole {
-  const seg = mailFolderLabel(name).toLowerCase();
+export function classifyFolderRole(name: string, delimiter?: string): GuessedFolderRole {
+  const seg = mailFolderLabel(name, delimiter).toLowerCase();
   // Whole decoded name too, so "[Gmail]/Bin" style special-use survives.
   const full = decodeImapUtf7(name).toLowerCase();
   const hit = (re: RegExp): boolean => re.test(seg) || re.test(full);
@@ -95,14 +95,14 @@ export function classifyFolderRole(name: string): GuessedFolderRole {
 
 /** Best-guess Trash mailbox for delete (localized), or null so the caller can
  * fall back to a flag. Matches names, returns the raw (IMAP) name. */
-export function guessTrashMailbox(names: string[]): string | null {
-  return names.find((n) => classifyFolderRole(n) === "trash") ?? null;
+export function guessTrashMailbox(names: string[], delimiter?: string): string | null {
+  return names.find((n) => classifyFolderRole(n, delimiter) === "trash") ?? null;
 }
 
 /** Best-guess drafts mailbox (localized), else a literal fallback. Matches
  * names, returns the raw (IMAP) name. */
-export function guessDraftsMailbox(names: string[]): string {
-  return names.find((n) => classifyFolderRole(n) === "drafts") ?? "Drafts";
+export function guessDraftsMailbox(names: string[], delimiter?: string): string {
+  return names.find((n) => classifyFolderRole(n, delimiter) === "drafts") ?? "Drafts";
 }
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
@@ -180,12 +180,20 @@ export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" |
   return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
 }
 
+/** Escapes a string for use inside a RegExp character class / literal. Pure. */
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Display label for an IMAP mailbox name: drop a leading "[Gmail]/" special-use
- * container and show the last hierarchy segment (separator-agnostic). Pure. */
-export function mailFolderLabel(name: string): string {
+ * container and show the last hierarchy segment. Splits at the server-stated
+ * `delimiter` when known (so "mailbox.org Rechnungen" stays whole); otherwise
+ * falls back to "/" or "." (the two common conventions). Pure. */
+export function mailFolderLabel(name: string, delimiter?: string): string {
   const decoded = decodeImapUtf7(name);
   const stripped = decoded.replace(/^\[Gmail\]\//i, "");
-  const segs = stripped.split(/[/.]/).filter(Boolean);
+  const splitter = delimiter ? new RegExp(escapeRe(delimiter)) : /[/.]/;
+  const segs = stripped.split(splitter).filter(Boolean);
   return segs.length ? segs[segs.length - 1] : decoded;
 }
 
@@ -204,10 +212,11 @@ export function pickInboxFolder(boxes: readonly { name: string; role?: string }[
 }
 
 /** Trash folder for delete: backend role first, then the name heuristic. Pure. */
-export function pickTrashFolder(boxes: readonly { name: string; role?: string }[]): string | null {
+export function pickTrashFolder(boxes: readonly { name: string; role?: string; delimiter?: string }[]): string | null {
   const byRole = boxes.find((b) => b.role === "trash");
   if (byRole) return byRole.name;
-  return guessTrashMailbox(boxes.map((b) => b.name));
+  const delimiter = boxes.find((b) => b.delimiter)?.delimiter;
+  return guessTrashMailbox(boxes.map((b) => b.name), delimiter);
 }
 
 const ROLE_ORDER: GuessedFolderRole[] = ["inbox", "sent", "drafts", "archive", "junk", "trash"];
@@ -216,16 +225,16 @@ const ROLE_ORDER: GuessedFolderRole[] = ["inbox", "sent", "drafts", "archive", "
  * special-use folders (by their classified role, so it works across languages
  * and does not rank every "INBOX.x" child as an inbox), then the rest
  * alphabetically by display label. Pure. */
-export function sortMailFolders(names: string[]): string[] {
+export function sortMailFolders(names: string[], delimiter?: string): string[] {
   const rank = (n: string): number => {
-    const i = ROLE_ORDER.indexOf(classifyFolderRole(n));
+    const i = ROLE_ORDER.indexOf(classifyFolderRole(n, delimiter));
     return i < 0 ? ROLE_ORDER.length : i;
   };
   return [...names].sort((a, b) => {
     const ra = rank(a);
     const rb = rank(b);
     if (ra !== rb) return ra - rb;
-    return mailFolderLabel(a).localeCompare(mailFolderLabel(b));
+    return mailFolderLabel(a, delimiter).localeCompare(mailFolderLabel(b, delimiter));
   });
 }
 

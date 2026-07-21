@@ -46,13 +46,12 @@ impl Write for SmtpStream {
     }
 }
 
-fn tls_config() -> rustls::ClientConfig {
-    let roots = rustls::RootCertStore {
-        roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
-    };
-    rustls::ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth()
+/// TLS config: full chain verification for real hosts, accept-any for loopback
+/// (a local Proton Mail Bridge on 127.0.0.1:1025 presents a self-signed cert
+/// that a network attacker could never substitute). Shared with the IMAP
+/// transport (`mail_imap::tls_config_for`).
+fn tls_config(host: &str) -> rustls::ClientConfig {
+    crate::mail_imap::tls_config_for(host)
 }
 
 /// Parses the leading 3-digit status code of an SMTP reply line. Pure.
@@ -233,7 +232,7 @@ fn cmd(stream: &mut SmtpStream, line: &str, expect: u16) -> Result<String, Strin
 fn wrap_tls(tcp: TcpStream, host: &str) -> Result<SmtpStream, String> {
     let server_name = rustls::pki_types::ServerName::try_from(host.to_string())
         .map_err(|e| format!("invalid server name: {e}"))?;
-    let conn = rustls::ClientConnection::new(Arc::new(tls_config()), server_name)
+    let conn = rustls::ClientConnection::new(Arc::new(tls_config(host)), server_name)
         .map_err(|e| format!("tls setup failed: {e}"))?;
     Ok(SmtpStream::Tls(Box::new(rustls::StreamOwned::new(conn, tcp))))
 }
