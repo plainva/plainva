@@ -82,3 +82,15 @@ Na **Verbinden** start de sync direct.
 
 - [Sync-compatibiliteit](Sync_Compatibility.md) — welke diensten hoe werken, inclusief de desktop-client-route
 - [FAQ & probleemoplossing](FAQ.md) — conflictbestanden, offline-gedrag
+
+## Sync-versleuteling (wachtwoordzin)
+
+Plainva kan versleutelen wat je apparaat richting de sync-server verlaat, terwijl je lokale vault altijd platte Markdown blijft die Obsidian kan lezen.
+
+Open **Instellingen → Synchronisatie → Sync-wachtwoordzin en versleuteling**:
+
+1. **Stel een wachtwoordzin in.** Dit maakt een versleutelingssleutel voor de vault aan en toont eenmalig een **herstelcode** — bewaar deze veilig; het is de enige weg terug als je de wachtwoordzin vergeet. Vanaf dat moment reizen de gesynchroniseerde **instellingen** van de vault versleuteld.
+2. **Vault-inhoud versleutelen** (optioneel). De knop **Versleutelen** uploadt elke notitie opnieuw als versleutelde tekst naar de sync-server. Je lokale bestanden blijven platte Markdown, dus een lokale vault loopt nooit risico — probeer het eerst op een wegwerpvault. Zodra de upload klaar is, gebruik je **Migratie voltooien** om vanaf dan alleen nog versleutelde tekst te accepteren.
+3. **Op een ander apparaat** open je dezelfde gesynchroniseerde vault. Plainva merkt dat de vault versleuteld is en vraagt om de wachtwoordzin (of de herstelcode). Na het ontgrendelen worden de notities ontsleuteld en verschijnen ze lokaal.
+
+De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwoordzin bij elke start vereisen** aan om deze in plaats daarvan na elke herstart opnieuw in te voeren, en gebruik **Vergrendelen** om de gecachete sleutel op dit apparaat te verwijderen.

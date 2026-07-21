@@ -82,3 +82,15 @@ Po **Połącz** synchronizacja startuje od razu.
 
 - [Zgodność synchronizacji](Sync_Compatibility.md) — które usługi działają i jak, w tym droga przez klienta desktopowego
 - [FAQ i rozwiązywanie problemów](FAQ.md) — pliki konfliktów, zachowanie offline
+
+## Szyfrowanie synchronizacji (hasło)
+
+Plainva może szyfrować to, co opuszcza Twoje urządzenie w kierunku serwera synchronizacji, podczas gdy Twój lokalny vault zawsze pozostaje zwykłym Markdownem, który potrafi odczytać Obsidian.
+
+Otwórz **Ustawienia → Synchronizacja → Hasło synchronizacji i szyfrowanie**:
+
+1. **Ustaw hasło.** Tworzy to klucz szyfrujący dla vaultu i pokazuje jednorazowy **kod odzyskiwania** — przechowuj go bezpiecznie; to jedyny sposób powrotu, jeśli zapomnisz hasła. Od tego momentu synchronizowane **ustawienia** vaultu przesyłane są w postaci zaszyfrowanej.
+2. **Zaszyfruj zawartość vaultu** (opcjonalnie). Przycisk **Szyfruj** ponownie przesyła każdą notatkę do serwera synchronizacji jako zaszyfrowaną treść. Twoje lokalne pliki pozostają zwykłym Markdownem, więc lokalny vault nigdy nie jest zagrożony — wypróbuj to najpierw na vaulcie do wyrzucenia. Gdy przesyłanie się zakończy, użyj **Zakończ migrację**, aby od tej pory akceptować tylko zaszyfrowaną treść.
+3. **Na innym urządzeniu** otwórz ten sam zsynchronizowany vault. Plainva wykrywa, że vault jest zaszyfrowany, i prosi o hasło (lub kod odzyskiwania). Po odblokowaniu notatki są odszyfrowywane i pojawiają się lokalnie.
+
+Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzeniu. Włącz **Wymagaj hasła przy każdym uruchomieniu**, aby zamiast tego wpisywać je ponownie po każdym restarcie, oraz użyj **Zablokuj**, aby usunąć zapamiętany klucz z tego urządzenia.

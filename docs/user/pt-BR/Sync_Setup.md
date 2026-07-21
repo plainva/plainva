@@ -82,3 +82,15 @@ Após **Conectar**, a sincronização começa imediatamente.
 
 - [Compatibilidade de Sincronização](Sync_Compatibility.md) — quais serviços funcionam e como, incluindo o caminho do cliente de desktop
 - [FAQ e Solução de Problemas](FAQ.md) — arquivos de conflito, comportamento offline
+
+## Criptografia de sincronização (senha)
+
+O Plainva pode criptografar o que sai do seu dispositivo em direção ao servidor de sincronização, enquanto o seu vault local sempre permanece em Markdown puro, que o Obsidian consegue ler.
+
+Abra **Configurações → Sincronização → Senha de sincronização e criptografia**:
+
+1. **Defina uma senha.** Isso cria uma chave de criptografia para o vault e mostra um **código de recuperação** único — guarde-o em local seguro; é a única forma de voltar a entrar caso você esqueça a senha. A partir daí, as **configurações** sincronizadas do vault passam a trafegar criptografadas.
+2. **Criptografar o conteúdo do vault** (opcional). O botão **Criptografar** envia novamente cada nota ao servidor de sincronização como texto cifrado. Seus arquivos locais continuam em Markdown puro, então um vault local nunca corre risco — experimente primeiro em um vault descartável. Quando o envio terminar, use **Concluir migração** para passar a aceitar somente texto cifrado a partir daí.
+3. **Em outro dispositivo**, abra o mesmo vault sincronizado. O Plainva detecta que o vault está criptografado e pede a senha (ou o código de recuperação). Depois de desbloquear, as notas são descriptografadas e aparecem localmente.
+
+A chave desbloqueada fica em cache em cada dispositivo. Ative **Exigir senha a cada início** para digitá-la novamente após cada reinicialização em vez disso, e use **Bloquear** para remover a chave em cache deste dispositivo.

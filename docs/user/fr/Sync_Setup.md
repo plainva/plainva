@@ -82,3 +82,15 @@ Après **Connecter**, la synchronisation démarre immédiatement.
 
 - [Compatibilité de synchronisation](Sync_Compatibility.md) — quels services fonctionnent et comment, y compris la voie du client de bureau
 - [FAQ & dépannage](FAQ.md) — fichiers en conflit, comportement hors ligne
+
+## Chiffrement de synchronisation (phrase de passe)
+
+Plainva peut chiffrer ce qui quitte votre appareil vers le serveur de synchronisation, tandis que votre vault local reste toujours en Markdown brut, lisible par Obsidian.
+
+Ouvrez **Paramètres → Synchronisation → Phrase de passe de synchronisation et chiffrement** :
+
+1. **Définir une phrase de passe.** Cela crée une clé de chiffrement pour le vault et affiche un **code de récupération** à usage unique — conservez-le en lieu sûr ; c'est le seul moyen de revenir si vous oubliez la phrase de passe. À partir de là, les **paramètres** synchronisés du vault circulent chiffrés.
+2. **Chiffrer le contenu du vault** (facultatif). Le bouton **Chiffrer** retéléverse chaque note vers le serveur de synchronisation sous forme de texte chiffré. Vos fichiers locaux restent en Markdown brut, un vault local n'est donc jamais en danger — essayez d'abord sur un vault jetable. Une fois le téléversement terminé, utilisez **Terminer la migration** pour n'accepter plus que du texte chiffré à partir de là.
+3. **Sur un autre appareil**, ouvrez le même vault synchronisé. Plainva détecte que le vault est chiffré et demande la phrase de passe (ou le code de récupération). Une fois déverrouillé, les notes sont déchiffrées et apparaissent localement.
+
+La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger la phrase de passe à chaque démarrage** pour la ressaisir après chaque redémarrage à la place, et utilisez **Verrouiller** pour supprimer la clé mise en cache sur cet appareil.

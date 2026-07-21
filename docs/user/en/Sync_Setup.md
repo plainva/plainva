@@ -82,3 +82,15 @@ After **Connect**, sync starts right away.
 
 - [Sync Compatibility](Sync_Compatibility.md) — which services work and how, including the desktop-client route
 - [FAQ & Troubleshooting](FAQ.md) — conflict files, offline behavior
+
+## Sync encryption (passphrase)
+
+Plainva can encrypt what leaves your device for the sync server, while your local vault always stays plain Markdown that Obsidian can read.
+
+Open **Settings → Synchronisation → Sync passphrase & encryption**:
+
+1. **Set a passphrase.** This creates an encryption key for the vault and shows a one-time **recovery code** — store it safely; it is the only way back in if you forget the passphrase. From then on the vault's synced **settings** travel encrypted.
+2. **Encrypt vault content** (optional). The **Encrypt** button re-uploads every note to the sync server as ciphertext. Your local files stay plain Markdown, so a local vault is never at risk — try it on a throwaway vault first. When the upload has finished, use **Finish migration** to accept only ciphertext from then on.
+3. **On another device**, open the same synced vault. Plainva detects that the vault is encrypted and prompts for the passphrase (or the recovery code). After you unlock, the notes are decrypted and appear locally.
+
+The unlocked key is cached on each device. Turn on **Require passphrase at every start** to re-enter it after each restart instead, and use **Lock** to remove the cached key from this device.

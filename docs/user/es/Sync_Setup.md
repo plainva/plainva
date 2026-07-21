@@ -82,3 +82,15 @@ Después de **Conectar**, la sincronización empieza de inmediato.
 
 - [Compatibilidad de sincronización](Sync_Compatibility.md) — qué servicios funcionan y cómo, incluida la ruta del cliente de escritorio
 - [FAQ y solución de problemas](FAQ.md) — archivos en conflicto, comportamiento sin conexión
+
+## Cifrado de sincronización (frase de contraseña)
+
+Plainva puede cifrar lo que sale de tu dispositivo hacia el servidor de sincronización, mientras que tu vault local siempre se mantiene en Markdown simple, legible por Obsidian.
+
+Abre **Ajustes → Sincronización → Frase de contraseña de sincronización y cifrado**:
+
+1. **Establece una frase de contraseña.** Esto crea una clave de cifrado para el vault y muestra un **código de recuperación** de un solo uso — guárdalo en un lugar seguro; es la única forma de volver a entrar si olvidas la frase de contraseña. A partir de ese momento, los **ajustes** sincronizados del vault viajan cifrados.
+2. **Cifrar el contenido del vault** (opcional). El botón **Cifrar** vuelve a subir cada nota al servidor de sincronización como texto cifrado. Tus archivos locales siguen siendo Markdown simple, así que un vault local nunca corre riesgo — pruébalo primero en un vault desechable. Cuando termine la subida, usa **Finalizar migración** para aceptar solo texto cifrado a partir de entonces.
+3. **En otro dispositivo**, abre el mismo vault sincronizado. Plainva detecta que el vault está cifrado y te pide la frase de contraseña (o el código de recuperación). Después de desbloquear, las notas se descifran y aparecen localmente.
+
+La clave desbloqueada se guarda en caché en cada dispositivo. Activa **Requerir frase de contraseña en cada inicio** para volver a introducirla después de cada reinicio en su lugar, y usa **Bloquear** para eliminar la clave en caché de este dispositivo.

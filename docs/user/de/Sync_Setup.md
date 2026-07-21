@@ -82,3 +82,15 @@ Nach **Verbinden** startet der Sync direkt.
 
 - [Sync-Kompatibilität](Sync_Compatibility.md) — welche Dienste wie funktionieren, inkl. Desktop-Client-Weg
 - [FAQ & Fehlerbehebung](FAQ.md) — Konfliktdateien, Offline-Verhalten
+
+## Sync-Verschlüsselung (Passphrase)
+
+Plainva kann verschlüsseln, was Deinen Rechner in Richtung Sync-Server verlässt — Dein lokaler Vault bleibt dabei immer reines Markdown, das Obsidian lesen kann.
+
+Öffne **Einstellungen → Synchronisation → Sync-Passphrase & Verschlüsselung**:
+
+1. **Passphrase festlegen.** Das erzeugt einen Verschlüsselungsschlüssel für den Vault und zeigt einmalig einen **Wiederherstellungscode** — bewahre ihn sicher auf, er ist der einzige Weg zurück, falls Du die Passphrase vergisst. Ab diesem Zeitpunkt reisen die synchronisierten **Einstellungen** des Vaults verschlüsselt.
+2. **Vault-Inhalt verschlüsseln** (optional). Der Knopf **Verschlüsseln** lädt jede Notiz erneut als Chiffretext zum Sync-Server hoch. Deine lokalen Dateien bleiben reines Markdown, ein lokaler Vault ist also nie in Gefahr — probier es zuerst an einem Wegwerf-Vault aus. Ist der Upload fertig, nutze **Migration abschließen**, damit ab dann nur noch Chiffretext akzeptiert wird.
+3. **Auf einem anderen Gerät** öffnest Du denselben synchronisierten Vault. Plainva erkennt, dass der Vault verschlüsselt ist, und fragt nach der Passphrase (oder dem Wiederherstellungscode). Nach dem Entsperren werden die Notizen entschlüsselt und erscheinen lokal.
+
+Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **Passphrase bei jedem Start verlangen** ein, um sie stattdessen nach jedem Neustart erneut einzugeben, und nutze **Sperren**, um den zwischengespeicherten Schlüssel auf diesem Gerät zu entfernen.

@@ -55,7 +55,12 @@ export const syncStatusStore = {
     return errorHistory;
   },
   reset() {
+    // Also clear the error history: it is a global module-level list, so without
+    // this a locked/failing vault's errors would keep showing in the sync
+    // settings of a DIFFERENT vault opened afterwards (loadVault + closeVault both
+    // call reset()).
     snapshot = IDLE;
+    errorHistory.length = 0;
     emit();
   },
   subscribe(listener: () => void): () => void {
