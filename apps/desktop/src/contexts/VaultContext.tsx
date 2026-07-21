@@ -830,11 +830,17 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     window.addEventListener("plainva-credentials-saved", handleCredentialsSaved);
     window.addEventListener("plainva-sync-queued", handleSyncQueued);
     window.addEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
+    // Encryption state changed (passphrase set/unlocked/locked) or a remote keyfile
+    // arrived: rebuild the sideband runner so the profile switches to/from sealed.
+    window.addEventListener("plainva-encryption-changed", handleSettingsSyncToggled);
+    window.addEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
 
     return () => {
       window.removeEventListener("plainva-credentials-saved", handleCredentialsSaved);
       window.removeEventListener("plainva-sync-queued", handleSyncQueued);
       window.removeEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
+      window.removeEventListener("plainva-encryption-changed", handleSettingsSyncToggled);
+      window.removeEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.syncWorker]);

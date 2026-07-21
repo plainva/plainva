@@ -15,10 +15,18 @@ import {
   type CloudAccountRecord,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
-import { MIN_SYNC_INTERVAL_SECONDS } from "../../contexts/VaultContext";
+import { MIN_SYNC_INTERVAL_SECONDS, useVault } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
 import { settingsSyncEnabledKey } from "../../services/settingsProfile";
+import {
+  hasLocalKeyfile,
+  loadCachedMasterKey,
+  lockVault,
+  isPassphraseEveryStart,
+  setPassphraseEveryStart,
+} from "../../services/encryptionSession";
+import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
@@ -50,11 +58,53 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
+  const { backupAdapter } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
+  const [encState, setEncState] = useState<"none" | "locked" | "unlocked">("none");
+  const [everyStart, setEveryStart] = useState(false);
+  const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
   const provider = p.activeProvider;
+
+  // Encryption state for this vault (only meaningful for the active, open vault).
+  useEffect(() => {
+    if (!p.isActiveVault || !backupAdapter) {
+      setEncState("none");
+      return;
+    }
+    let alive = true;
+    const refresh = async () => {
+      const hasKf = await hasLocalKeyfile(backupAdapter);
+      const mk = await loadCachedMasterKey(p.selectedVault);
+      const every = await isPassphraseEveryStart(p.selectedVault);
+      if (!alive) return;
+      setEveryStart(every);
+      setEncState(mk ? "unlocked" : hasKf ? "locked" : "none");
+    };
+    void refresh();
+    window.addEventListener("plainva-encryption-changed", refresh);
+    window.addEventListener("plainva-keyfile-arrived", refresh);
+    return () => {
+      alive = false;
+      window.removeEventListener("plainva-encryption-changed", refresh);
+      window.removeEventListener("plainva-keyfile-arrived", refresh);
+    };
+  }, [p.isActiveVault, p.selectedVault, backupAdapter]);
+
+  const doLock = useCallback(async () => {
+    await lockVault(p.selectedVault);
+    window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
+  }, [p.selectedVault]);
+
+  const toggleEveryStart = useCallback(
+    async (on: boolean) => {
+      setEveryStart(on);
+      await setPassphraseEveryStart(p.selectedVault, on);
+    },
+    [p.selectedVault]
+  );
 
   useEffect(() => {
     void getSettingsStore().then((s) =>
@@ -211,6 +261,48 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           </SettingRow>
           <SettingCardNote>{t("settingsSync.explainer")}</SettingCardNote>
         </SettingCard>
+      )}
+
+      {connected && p.isActiveVault && backupAdapter && (
+        <SettingCard label={t("encryption.cardLabel")}>
+          <SettingCardNote>
+            {encState === "unlocked"
+              ? t("encryption.statusUnlocked")
+              : encState === "locked"
+                ? t("encryption.statusLocked")
+                : t("encryption.statusNone")}
+          </SettingCardNote>
+          <SettingRow label={t("encryption.passphraseRow")} desc={t("encryption.passphraseRowDesc")}>
+            {encState === "none" && (
+              <Button variant="primary" onClick={() => setEncModal("create")} data-testid="encryption-set">
+                {t("encryption.setPassphrase")}
+              </Button>
+            )}
+            {encState === "locked" && (
+              <Button variant="primary" onClick={() => setEncModal("unlock")} data-testid="encryption-unlock-open">
+                {t("encryption.enterPassphrase")}
+              </Button>
+            )}
+            {encState === "unlocked" && (
+              <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
+            )}
+          </SettingRow>
+          {encState !== "none" && (
+            <SettingRow label={t("encryption.everyStart")} desc={t("encryption.everyStartDesc")}>
+              <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
+            </SettingRow>
+          )}
+        </SettingCard>
+      )}
+
+      {encModal && p.isActiveVault && backupAdapter && (
+        <EncryptionSetupModal
+          vaultPath={p.selectedVault}
+          raw={backupAdapter}
+          mode={encModal}
+          onDone={() => setEncModal(null)}
+          onCancel={() => setEncModal(null)}
+        />
       )}
 
       {showPicker && provider !== "none" && provider !== "webdav" && (

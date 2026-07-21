@@ -16,10 +16,21 @@
  * adapter (never the conflict-aware adapter — that would create .CONFLICT copies
  * of the settings file).
  */
-import { SettingsSyncStep, type ProfileSettingsPort } from "@plainva/core";
+import {
+  SettingsSyncStep,
+  KeyfileSyncStep,
+  sealBlob,
+  openBlob,
+  type ProfileSettingsPort,
+  type ProfileCrypto,
+  type SettingsSyncRunner,
+  type ISyncTarget,
+  type IVaultAdapter,
+} from "@plainva/core";
 import { toast, type ISettingsStore } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
+import { loadCachedMasterKey } from "./encryptionSession";
 import {
   backupMaxAgeDaysKey,
   backupMaxCountKey,
@@ -148,19 +159,60 @@ export function createDesktopProfilePort(vaultPath: string): ProfileSettingsPort
   };
 }
 
+/** Builds K_settings seal/open for the sealed profile mode from a cached MK. */
+function profileCryptoFor(mk: { keyId: string; masterKey: Uint8Array }): ProfileCrypto {
+  return {
+    seal: (plain) => sealBlob(mk, plain, "settings"),
+    open: (bytes) => openBlob(mk, bytes, "settings"),
+  };
+}
+
 /**
- * Builds the sideband sync step for a vault if profile-sync is opted in, else
- * null. Called during vault open to wire it into the SyncWorker.
+ * Composite sideband runner (P1 profile + P3 keyfile + E3 sealed profile). Once a
+ * master key is cached for the vault, the profile travels sealed as `settings.enc`
+ * and the public `keyfile.json` is transported so a second device can unlock.
+ * Steps run under one try/catch in the worker; each is independent.
  */
-export async function buildSettingsSyncStep(vaultPath: string): Promise<SettingsSyncStep | null> {
+class DesktopSidebandRunner implements SettingsSyncRunner {
+  constructor(
+    private readonly keyfileStep: KeyfileSyncStep | null,
+    private readonly profileStep: SettingsSyncStep | null
+  ) {}
+  async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+    if (this.keyfileStep) await this.keyfileStep.run(target, vault);
+    if (this.profileStep) await this.profileStep.run(target, vault);
+  }
+}
+
+/**
+ * Builds the sideband runner for a vault, or null when nothing is engaged.
+ * Called during vault open and on the toggle/encryption-changed events.
+ */
+export async function buildSettingsSyncStep(vaultPath: string): Promise<SettingsSyncRunner | null> {
   const store = await getSettingsStore();
-  if (!(await isSettingsSyncEnabled(vaultPath, store))) return null;
+  const profileOn = await isSettingsSyncEnabled(vaultPath, store);
+  const mk = await loadCachedMasterKey(vaultPath);
+  if (!profileOn && !mk) return null; // neither profile-sync nor an unlocked key
+
   const deviceId = await getDeviceId(store);
-  return new SettingsSyncStep({
-    port: createDesktopProfilePort(vaultPath),
-    deviceId,
-    onAdopted: () => {
-      toast.info(i18n.t("settingsSync.adopted"));
-    },
-  });
+  // Transport the public keyfile whenever this device holds a master key.
+  const keyfileStep = mk
+    ? new KeyfileSyncStep({
+        onRemoteKeyfileAdopted: () => {
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-keyfile-arrived"));
+        },
+      })
+    : null;
+  // Sync the profile only when opted in; sealed once a master key exists (E3).
+  const profileStep = profileOn
+    ? new SettingsSyncStep({
+        port: createDesktopProfilePort(vaultPath),
+        deviceId,
+        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        profileCrypto: mk ? profileCryptoFor(mk) : undefined,
+      })
+    : null;
+
+  if (!keyfileStep && !profileStep) return null;
+  return new DesktopSidebandRunner(keyfileStep, profileStep);
 }
