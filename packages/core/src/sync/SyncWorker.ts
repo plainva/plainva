@@ -6,25 +6,19 @@ import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { mergeText } from "../conflict-resolver.js";
 import { isTextFile } from "./fileType.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
+import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 
 /**
- * Thrown when a pulled file's bytes are a PVE1 sealed blob but this worker has no
- * decrypter configured — i.e. another device turned on end-to-end encryption for
- * this vault and this device is not decrypting (E2E off or not unlocked). Writing
- * the ciphertext into a Markdown file would corrupt it, so the reconcile throws
- * BEFORE any write; the consecutive-failure breaker then aborts the cycle and no
- * plaintext is pushed either (defensive guard, ships in P1 ahead of the E2E
- * feature — settings-sync plan A3).
+ * Optional settings-sync hook. `run` is the profile/secrets sideband, executed
+ * once per cycle after the file push (it transports `.plainva/sync/*` outside the
+ * queue/reconcile path). `guardBeforeCycle` is the fail-closed pre-pull check: it
+ * reads the encryption manifest and may throw FatalSyncProtocolError when this
+ * device cannot legitimately continue (encrypted remote without a usable key, a
+ * key-id switch, an invalid manifest, or a guard-too-old marker), aborting the
+ * cycle BEFORE any pull or push (settings-sync plan §3.5, P0 guard).
  */
-export class EncryptedRemoteError extends Error {
-  constructor(readonly path: string) {
-    super(`remote content is end-to-end encrypted and this device cannot decrypt it (${path})`);
-    this.name = "EncryptedRemoteError";
-  }
-}
-
-/** Optional profile-sync sideband, run once per cycle after the file push. */
 export interface SettingsSyncRunner {
+  guardBeforeCycle?(target: ISyncTarget, vault: IVaultAdapter): Promise<void>;
   run(target: ISyncTarget, vault: IVaultAdapter): Promise<void>;
 }
 
@@ -781,9 +775,14 @@ export class SyncWorker {
 
     // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
     // sealed blob, another device encrypted this vault and we cannot decrypt.
-    // Throw before ANY local write so ciphertext never lands in a file; the
-    // breaker aborts the cycle (and thus skips the plaintext push).
-    if (isSealedBlob(contentBytes)) throw new EncryptedRemoteError(path);
+    // Throw before ANY local write so ciphertext never lands in a file. This is a
+    // FatalSyncProtocolError, so guardPullStep rethrows it immediately and ends
+    // the whole cycle before the push (no plaintext leaves this device either).
+    if (isSealedBlob(contentBytes))
+      throw new FatalSyncProtocolError(
+        "encrypted-without-key",
+        `remote content is end-to-end encrypted and this device cannot decrypt it (${path})`
+      );
 
     // Binary files (images, PDFs, …) must never be decoded to text and merged —
     // that corrupts them. Reconcile them byte-wise with conflict-copy on divergence.
@@ -933,6 +932,11 @@ export class SyncWorker {
         await step();
         consecutivePullFailures = 0;
       } catch (e) {
+        // A protocol violation (encrypted remote we can't read, plaintext in
+        // strict mode, key/manifest mismatch) is fatal: never counted as an
+        // ordinary single-file failure — rethrow so it ends the whole cycle
+        // before the push, fail-closed (settings-sync plan §3.5/A3).
+        if (e instanceof FatalSyncProtocolError) throw e;
         pullFailureCount++;
         consecutivePullFailures++;
         console.error(`[SyncWorker] pull step failed for ${path}:`, e);
@@ -948,6 +952,13 @@ export class SyncWorker {
     try {
       console.log("[SyncWorker] cycle start");
       this.setStatus("syncing");
+
+      // 0. Fail-closed protocol guard (opt-in): inspect the encryption manifest
+      // before touching data. A FatalSyncProtocolError here ends the cycle in the
+      // outer catch (error status + cursor reset) — never a pull, never a push.
+      if (this.settingsSyncRunner?.guardBeforeCycle && alive()) {
+        await this.settingsSyncRunner.guardBeforeCycle(this.target, this.vault);
+      }
 
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the

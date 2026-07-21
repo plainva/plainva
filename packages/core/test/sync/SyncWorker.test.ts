@@ -92,10 +92,11 @@ describe("SyncWorker", () => {
     expect(engine.processQueue).toHaveBeenCalled();
   });
 
-  it("never writes an encrypted (PVE1) remote file locally; the breaker aborts before pushing (A3)", async () => {
-    // Three sealed files: each reconcile throws EncryptedRemoteError before any
-    // write, and after 3 consecutive failures the cycle aborts (no processQueue,
-    // so no plaintext gets pushed into the encrypted remote either).
+  it("never writes an encrypted (PVE1) remote file locally; the cycle aborts before pushing (A3)", async () => {
+    // Sealed remote files: the reconcile throws a FatalSyncProtocolError before
+    // any write, guardPullStep rethrows it immediately (it is never counted as an
+    // ordinary single-file failure), so the very first sealed file ends the cycle
+    // — no local write, and no plaintext gets pushed into the encrypted remote.
     const sealed = new TextEncoder().encode("PVE1\x01\x08ciphertext-bytes");
     target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "1"], ["b.md", "2"], ["c.md", "3"]]) });
     target.download.mockResolvedValue(sealed);

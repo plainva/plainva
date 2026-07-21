@@ -1,23 +1,35 @@
 /**
- * PVE1 sealed-blob format for the settings-sync + encryption feature (P0). A
- * self-describing container used for `secrets.enc` and, in P3, for E2E-encrypted
- * vault file contents:
+ * PVE1 sealed-blob binary frame for the settings-sync + encryption feature
+ * (v3 §3.2). Self-describing, length-checked container used for `settings.enc`,
+ * `secrets.enc` and E2E-encrypted vault contents:
  *
- *   'P' 'V' 'E' '1' | version(u8) | keyIdLen(u8) | keyId | nonce(24) | ciphertext
+ *   'P''V''E''1' | frameVersion:u8 | algorithm:u8 | purpose:u8 | flags:u8 |
+ *   keyIdLen:u8 | nonceLen:u8 | reserved:u16 | plaintextLen:u64 |
+ *   ciphertextLen:u64 | keyId(UTF-8) | nonce | ciphertext+tag
  *
- * The AAD binds the format version, the `purpose` (a per-use constant) and the
- * keyId — but deliberately NOT the file path: renames are metadata-only sync ops
- * that never re-encrypt content, so a path-bound tag would make every renamed
- * file undecodable. keyId is stored in the clear so a decoder can detect a blob
- * from a DIFFERENT master key (the enable-race guard) before even trying.
+ * The AAD is every header byte up to and including the nonce — it binds version,
+ * algorithm, PURPOSE, lengths and keyId, but deliberately NOT the path or any
+ * device-specific vault id, so renames (metadata-only sync ops) and cross-device
+ * re-keying keep working. keyId is in the clear so a decoder can detect a blob
+ * from a DIFFERENT master key before trying. Each purpose uses its own
+ * HKDF-derived subkey, so a settings blob can never be opened as content.
  */
-import { aeadDecrypt, aeadEncrypt, AEAD_NONCE_LENGTH } from "./aead.js";
-import { bytesEqual, concatBytes, fromHex, toHex, utf8Encode } from "./cryptoPrimitives.js";
+import { aeadDecrypt, aeadEncrypt, aeadNonce, AEAD_NONCE_LENGTH } from "./aead.js";
+import { bytesEqual, concatBytes, readU16BE, readU64BE, toHex, utf8Encode, writeU16BE, writeU64BE } from "./cryptoPrimitives.js";
+import { deriveSubkey, type KeyPurpose } from "./hkdf.js";
 import type { MasterKeyBundle } from "./keyfile.js";
 
 const MAGIC = utf8Encode("PVE1");
-const BLOB_VERSION = 1;
-const AAD_PREFIX = "plainva-blob-v1";
+const FRAME_VERSION = 1;
+const ALGO_XCHACHA20POLY1305 = 1;
+const AEAD_TAG_LENGTH = 16;
+const FIXED_HEADER_LEN = 28; // magic(4)+ver+algo+purpose+flags+keyIdLen+nonceLen+reserved(2)+plaintextLen(8)+ciphertextLen(8)
+const MAX_KEY_ID_LEN = 64;
+const MAX_BLOB_BYTES = 512 * 1024 * 1024;
+
+/** Numeric purpose tags (bound into the AAD). */
+const PURPOSE_TAG: Record<Exclude<KeyPurpose, "manifest">, number> = { content: 1, settings: 2, secrets: 3 };
+const PURPOSE_BY_TAG: Record<number, Exclude<KeyPurpose, "manifest">> = { 1: "content", 2: "settings", 3: "secrets" };
 
 /** Thrown when the bytes are not a PVE1 blob (e.g. plaintext during migration). */
 export class NotSealedError extends Error {
@@ -38,8 +50,12 @@ export class ForeignKeyError extends Error {
   }
 }
 
-function aadFor(purpose: string, keyId: string): Uint8Array {
-  return utf8Encode(`${AAD_PREFIX}|${purpose}|${keyId}`);
+/** Thrown when a blob's frame is malformed, truncated, over-sized or has a wrong purpose. */
+export class BlobFormatError extends Error {
+  constructor(message: string) {
+    super(`invalid PVE1 blob: ${message}`);
+    this.name = "BlobFormatError";
+  }
 }
 
 /** True when `bytes` start with the PVE1 magic (cheap, key-free detection). */
@@ -47,38 +63,95 @@ export function isSealedBlob(bytes: Uint8Array): boolean {
   return bytes.length >= MAGIC.length && bytesEqual(bytes.subarray(0, MAGIC.length), MAGIC);
 }
 
-/** Reads the keyId from a blob header without the master key, or null if not a blob. */
-export function readBlobKeyId(bytes: Uint8Array): string | null {
-  if (!isSealedBlob(bytes) || bytes.length < 6) return null;
-  const keyIdLen = bytes[5];
-  if (bytes.length < 6 + keyIdLen) return null;
-  return toHex(bytes.subarray(6, 6 + keyIdLen));
+interface ParsedHeader {
+  purposeTag: number;
+  keyId: string;
+  nonce: Uint8Array;
+  plaintextLen: number;
+  ciphertextLen: number;
+  aad: Uint8Array;
+  ciphertextOffset: number;
 }
 
-/** Encrypts `plaintext` into a PVE1 blob bound to `purpose` and the bundle's key. */
-export function sealBlob(bundle: MasterKeyBundle, plaintext: Uint8Array, purpose: string): Uint8Array {
-  const keyIdBytes = fromHex(bundle.keyId);
-  const { nonce, ciphertext } = aeadEncrypt(bundle.masterKey, plaintext, aadFor(purpose, bundle.keyId));
-  const header = new Uint8Array([...MAGIC, BLOB_VERSION, keyIdBytes.length]);
-  return concatBytes(header, keyIdBytes, nonce, ciphertext);
+/** Parses and hard-validates the frame header (before any allocation/AEAD). */
+function parseHeader(bytes: Uint8Array): ParsedHeader {
+  if (!isSealedBlob(bytes)) throw new NotSealedError();
+  if (bytes.length > MAX_BLOB_BYTES) throw new BlobFormatError("blob exceeds size limit");
+  if (bytes.length < FIXED_HEADER_LEN) throw new BlobFormatError("truncated header");
+  if (bytes[4] !== FRAME_VERSION) throw new BlobFormatError(`unsupported frame version ${bytes[4]}`);
+  if (bytes[5] !== ALGO_XCHACHA20POLY1305) throw new BlobFormatError(`unsupported algorithm ${bytes[5]}`);
+  const purposeTag = bytes[6];
+  if (!PURPOSE_BY_TAG[purposeTag]) throw new BlobFormatError(`unknown purpose ${purposeTag}`);
+  if (bytes[7] !== 0) throw new BlobFormatError("unknown flags set");
+  const keyIdLen = bytes[8];
+  const nonceLen = bytes[9];
+  if (keyIdLen === 0 || keyIdLen > MAX_KEY_ID_LEN) throw new BlobFormatError("bad keyId length");
+  if (nonceLen !== AEAD_NONCE_LENGTH) throw new BlobFormatError("bad nonce length");
+  if (readU16BE(bytes, 10) !== 0) throw new BlobFormatError("reserved bytes not zero");
+  const plaintextLen = readU64BE(bytes, 12);
+  const ciphertextLen = readU64BE(bytes, 20);
+  if (ciphertextLen !== plaintextLen + AEAD_TAG_LENGTH) throw new BlobFormatError("ciphertext length mismatch");
+  const keyIdEnd = FIXED_HEADER_LEN + keyIdLen;
+  const nonceEnd = keyIdEnd + nonceLen;
+  const ciphertextOffset = nonceEnd;
+  if (bytes.length !== ciphertextOffset + ciphertextLen) throw new BlobFormatError("declared lengths do not match blob size");
+  return {
+    purposeTag,
+    keyId: toHex(bytes.subarray(FIXED_HEADER_LEN, keyIdEnd)),
+    nonce: bytes.subarray(keyIdEnd, nonceEnd),
+    plaintextLen,
+    ciphertextLen,
+    aad: bytes.subarray(0, nonceEnd),
+    ciphertextOffset,
+  };
+}
+
+/** Reads the keyId from a blob header without the master key, or null if not a valid blob. */
+export function readBlobKeyId(bytes: Uint8Array): string | null {
+  try {
+    return parseHeader(bytes).keyId;
+  } catch {
+    return null;
+  }
+}
+
+function keyIdBytes(keyId: string): Uint8Array {
+  if (!/^[0-9a-f]+$/i.test(keyId) || keyId.length % 2 !== 0) throw new Error("keyId must be even-length hex");
+  const out = new Uint8Array(keyId.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(keyId.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+/** Encrypts `plaintext` into a PVE1 blob for `purpose` under the bundle's derived subkey. */
+export function sealBlob(bundle: MasterKeyBundle, plaintext: Uint8Array, purpose: Exclude<KeyPurpose, "manifest">): Uint8Array {
+  const kid = keyIdBytes(bundle.keyId);
+  const subkey = deriveSubkey(bundle.masterKey, purpose);
+  const nonce = aeadNonce();
+  const header = concatBytes(
+    MAGIC,
+    new Uint8Array([FRAME_VERSION, ALGO_XCHACHA20POLY1305, PURPOSE_TAG[purpose], 0, kid.length, AEAD_NONCE_LENGTH]),
+    writeU16BE(0),
+    writeU64BE(plaintext.length),
+    writeU64BE(plaintext.length + AEAD_TAG_LENGTH)
+  );
+  const aad = concatBytes(header, kid, nonce);
+  const ciphertext = aeadEncrypt(subkey, nonce, plaintext, aad);
+  return concatBytes(header, kid, nonce, ciphertext);
 }
 
 /**
- * Decrypts a PVE1 blob. Throws NotSealedError for non-blobs, ForeignKeyError for
- * a blob under a different key, and a generic auth error for a tampered/mismatched
+ * Decrypts a PVE1 blob for `purpose`. Throws NotSealedError for non-blobs,
+ * BlobFormatError for a malformed/over-sized frame or wrong purpose,
+ * ForeignKeyError for a different key, and a generic auth error for a tampered
  * ciphertext.
  */
-export function openBlob(bundle: MasterKeyBundle, bytes: Uint8Array, purpose: string): Uint8Array {
-  if (!isSealedBlob(bytes)) throw new NotSealedError();
-  if (bytes.length < 6) throw new Error("truncated PVE1 blob");
-  const version = bytes[4];
-  if (version !== BLOB_VERSION) throw new Error(`unsupported PVE1 version ${version}`);
-  const keyIdLen = bytes[5];
-  const headerEnd = 6 + keyIdLen;
-  if (bytes.length < headerEnd + AEAD_NONCE_LENGTH) throw new Error("truncated PVE1 blob");
-  const blobKeyId = toHex(bytes.subarray(6, headerEnd));
-  if (blobKeyId !== bundle.keyId) throw new ForeignKeyError(blobKeyId, bundle.keyId);
-  const nonce = bytes.subarray(headerEnd, headerEnd + AEAD_NONCE_LENGTH);
-  const ciphertext = bytes.subarray(headerEnd + AEAD_NONCE_LENGTH);
-  return aeadDecrypt(bundle.masterKey, nonce, ciphertext, aadFor(purpose, bundle.keyId));
+export function openBlob(bundle: MasterKeyBundle, bytes: Uint8Array, purpose: Exclude<KeyPurpose, "manifest">): Uint8Array {
+  const header = parseHeader(bytes);
+  if (header.purposeTag !== PURPOSE_TAG[purpose]) throw new BlobFormatError("purpose mismatch");
+  if (header.keyId !== bundle.keyId) throw new ForeignKeyError(header.keyId, bundle.keyId);
+  const subkey = deriveSubkey(bundle.masterKey, purpose);
+  const ciphertext = bytes.subarray(header.ciphertextOffset);
+  const plaintext = aeadDecrypt(subkey, header.nonce, ciphertext, header.aad);
+  if (plaintext.length !== header.plaintextLen) throw new BlobFormatError("decrypted length mismatch");
+  return plaintext;
 }

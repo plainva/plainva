@@ -92,6 +92,43 @@ export function wipeBytes(bytes: Uint8Array): void {
   bytes.fill(0);
 }
 
+// Big-endian ("network byte order") integer helpers for the binary blob frame.
+
+export function writeU16BE(value: number): Uint8Array {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffff) throw new Error("u16 out of range");
+  return new Uint8Array([(value >>> 8) & 0xff, value & 0xff]);
+}
+
+export function readU16BE(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+/** Writes a JS number as an 8-byte big-endian integer (safe up to 2^53). */
+export function writeU64BE(value: number): Uint8Array {
+  if (!Number.isInteger(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) throw new Error("u64 out of range");
+  const out = new Uint8Array(8);
+  const high = Math.floor(value / 0x100000000);
+  const low = value >>> 0;
+  out[0] = (high >>> 24) & 0xff;
+  out[1] = (high >>> 16) & 0xff;
+  out[2] = (high >>> 8) & 0xff;
+  out[3] = high & 0xff;
+  out[4] = (low >>> 24) & 0xff;
+  out[5] = (low >>> 16) & 0xff;
+  out[6] = (low >>> 8) & 0xff;
+  out[7] = low & 0xff;
+  return out;
+}
+
+/** Reads an 8-byte big-endian integer; throws if it exceeds the safe range. */
+export function readU64BE(bytes: Uint8Array, offset: number): number {
+  const high = (bytes[offset] * 0x1000000) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3];
+  const low = (bytes[offset + 4] * 0x1000000) + (bytes[offset + 5] << 16) + (bytes[offset + 6] << 8) + bytes[offset + 7];
+  const value = high * 0x100000000 + low;
+  if (value > Number.MAX_SAFE_INTEGER) throw new Error("u64 exceeds safe integer range");
+  return value;
+}
+
 // RFC 4648 base32 (uppercase, no padding) — used for the human-writable recovery
 // code. Chosen over base64 because the alphabet avoids look-alike characters and
 // is case-insensitive on input.

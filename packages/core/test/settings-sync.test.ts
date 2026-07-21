@@ -6,11 +6,39 @@ import {
   serializeProfile,
   SettingsSyncStep,
   stableStringify,
+  canonicalJson,
+  signManifest,
+  verifyManifest,
+  parseManifest,
+  isEncryptedState,
+  allowsMixed,
+  isStrict,
+  ManifestError,
+  type ManifestBody,
+  canonicalizeEndpoint,
+  bindingMatches,
+  mergeSecretEntries,
+  mergeSecretsBundles,
+  sealSecretsBundle,
+  openSecretsBundle,
+  assertShareable,
+  SecretPolicyError,
+  type SecretEntry,
+  type SecretsBundle,
+  EncryptingSyncTarget,
+  FatalSyncProtocolError,
+  isSealedBlob,
+  readBlobKeyId,
+  type MasterKeyBundle,
   type ProfileDoc,
   type ProfileSettingsPort,
 } from "../src/index.js";
 import type { ISyncTarget, SyncOperation, PushResult, PullResult } from "../src/index.js";
 import type { IVaultAdapter } from "../src/index.js";
+
+function mk(fill = 7, keyId = "aabbccddeeff0011"): MasterKeyBundle {
+  return { keyId, masterKey: new Uint8Array(32).fill(fill) };
+}
 
 function doc(rev: number, deviceId: string, updatedAt: string, values: Record<string, unknown>): ProfileDoc {
   return { format: "plainva-profile", version: 1, rev, updatedAt, deviceId, values };
@@ -192,5 +220,242 @@ describe("SettingsSyncStep.run", () => {
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.applied).toHaveLength(0);
     expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.rev).toBe(1);
+  });
+});
+
+// --- v3 canonical JSON ---
+
+describe("canonicalJson", () => {
+  it("sorts object keys deterministically and drops undefined", () => {
+    expect(canonicalJson({ b: 1, a: 2 })).toBe('{"a":2,"b":1}');
+    expect(canonicalJson({ a: undefined, b: 1 })).toBe('{"b":1}');
+    expect(canonicalJson({ z: { y: 1, x: 2 }, a: [3, 2] })).toBe('{"a":[3,2],"z":{"x":2,"y":1}}');
+  });
+
+  it("is stable across key insertion order", () => {
+    expect(canonicalJson({ a: 1, b: 2, c: 3 })).toBe(canonicalJson({ c: 3, a: 1, b: 2 }));
+  });
+
+  it("rejects non-finite numbers so a NaN can never change a MAC input", () => {
+    expect(() => canonicalJson({ n: NaN })).toThrow();
+    expect(() => canonicalJson(Infinity)).toThrow();
+  });
+});
+
+// --- v3 encryption manifest ---
+
+describe("manifest", () => {
+  const body: ManifestBody = {
+    formatVersion: 1,
+    minGuardVersion: 1,
+    connectionId: "drive:root",
+    keyId: "aabbccddeeff0011",
+    state: "strict",
+    ownerDeviceId: "",
+    ownerLeaseUntil: 0,
+    generation: 3,
+    createdAt: "2026-07-21T00:00:00Z",
+    updatedAt: "2026-07-21T00:00:00Z",
+  };
+
+  it("sign/verify round-trips and yields the original body", () => {
+    const signed = signManifest(mk(), body);
+    expect(typeof signed.mac).toBe("string");
+    expect(verifyManifest(mk(), signed)).toEqual(body);
+  });
+
+  it("rejects signing when the manifest keyId does not match the signing key", () => {
+    expect(() => signManifest(mk(7, "0000000000000000"), body)).toThrow(ManifestError);
+  });
+
+  it("a tampered field fails verification (fail-closed)", () => {
+    const signed = signManifest(mk(), body);
+    expect(() => verifyManifest(mk(), { ...signed, state: "plain" })).toThrow(ManifestError);
+    expect(() => verifyManifest(mk(), { ...signed, generation: 99 })).toThrow(ManifestError);
+  });
+
+  it("a different master key does not verify", () => {
+    const signed = signManifest(mk(), body);
+    expect(() => verifyManifest(mk(9), signed)).toThrow(ManifestError);
+  });
+
+  it("survives a JSON round-trip and an omitted optional field", () => {
+    const signed = signManifest(mk(), body);
+    const roundtripped = JSON.parse(JSON.stringify(signed));
+    expect(verifyManifest(mk(), roundtripped)).toEqual(body);
+    // newKeyId set during rotation must be part of the authenticated body.
+    const rotating = signManifest(mk(), { ...body, state: "rotating", newKeyId: "1122334455667788" });
+    expect(() => verifyManifest(mk(), { ...rotating, newKeyId: "ffffffffffffffff" })).toThrow(ManifestError);
+  });
+
+  it("parseManifest is a key-free shape check", () => {
+    const signed = signManifest(mk(), body);
+    expect(parseManifest(JSON.parse(JSON.stringify(signed)))).not.toBeNull();
+    expect(parseManifest(null)).toBeNull();
+    expect(parseManifest({ formatVersion: 2 })).toBeNull();
+    expect(parseManifest({ ...signed, state: "bogus" })).toBeNull();
+    expect(parseManifest({ ...signed, mac: 42 })).toBeNull();
+  });
+
+  it("state predicates classify the lifecycle correctly", () => {
+    expect(isEncryptedState("preparing")).toBe(true);
+    expect(isEncryptedState("migrating")).toBe(true);
+    expect(isEncryptedState("strict")).toBe(true);
+    expect(isEncryptedState("rotating")).toBe(true);
+    expect(isEncryptedState("decrypting")).toBe(false);
+    expect(isEncryptedState("plain")).toBe(false);
+    expect(allowsMixed("migrating")).toBe(true);
+    expect(allowsMixed("decrypting")).toBe(true);
+    expect(allowsMixed("strict")).toBe(false);
+    expect(isStrict("strict")).toBe(true);
+    expect(isStrict("migrating")).toBe(false);
+  });
+});
+
+// --- v3 secrets bundle ---
+
+describe("secretsBundle", () => {
+  it("canonicalizes endpoints and refuses credentials/fragments", () => {
+    expect(canonicalizeEndpoint("HTTPS://Mail.Example.COM:443/")).toBe("https://mail.example.com");
+    expect(canonicalizeEndpoint("https://dav.example.com:8443/caldav/")).toBe("https://dav.example.com:8443/caldav");
+    expect(() => canonicalizeEndpoint("https://user:pw@example.com")).toThrow(SecretPolicyError);
+    expect(() => canonicalizeEndpoint("https://example.com/#frag")).toThrow(SecretPolicyError);
+    expect(() => canonicalizeEndpoint("not a url")).toThrow(SecretPolicyError);
+  });
+
+  it("bindingMatches requires family + service + user + endpoint", () => {
+    const binding = {
+      family: "fastmail",
+      service: "mail" as const,
+      secretType: "imap-password" as const,
+      user: "a@b.com",
+      endpoint: "imaps://imap.fastmail.com:993",
+    };
+    expect(
+      bindingMatches(binding, { family: "fastmail", service: "mail", user: "A@B.com", endpoint: "imaps://imap.fastmail.com:993/" })
+    ).toBe(true);
+    expect(bindingMatches(binding, { family: "gmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:993" })).toBe(false);
+    expect(bindingMatches(binding, { family: "fastmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:1993" })).toBe(false);
+  });
+
+  it("mergeSecretEntries is per-entry LWW with a deterministic tiebreak", () => {
+    const base = (rev: number, at: string, dev: string): SecretEntry => ({
+      entryRev: rev,
+      updatedAt: at,
+      deviceId: dev,
+      binding: { family: "fastmail", service: "mail", secretType: "imap-password", user: "a@b.com", endpoint: "imaps://x:993" },
+      secret: { pass: `${rev}-${dev}` },
+    });
+    expect(mergeSecretEntries(base(2, "t", "a"), base(1, "t", "b")).secret).toEqual({ pass: "2-a" });
+    expect(mergeSecretEntries(base(1, "2026-07-21T09:00Z", "a"), base(1, "2026-07-21T10:00Z", "b")).secret).toEqual({ pass: "1-b" });
+    expect(mergeSecretEntries(base(1, "t", "aaa"), base(1, "t", "zzz")).deviceId).toBe("zzz");
+  });
+
+  it("mergeSecretsBundles unions entries without bundle-LWW", () => {
+    const local: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 1,
+      updatedAt: "t",
+      entries: {
+        e1: { entryRev: 2, updatedAt: "t", deviceId: "a", binding: { family: "f", service: "mail", secretType: "imap-password", user: "u", endpoint: "e" }, secret: { pass: "L" } },
+      },
+    };
+    const remote: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 5,
+      updatedAt: "t",
+      entries: {
+        e2: { entryRev: 1, updatedAt: "t", deviceId: "b", binding: { family: "f", service: "mail", secretType: "imap-password", user: "v", endpoint: "e2" }, secret: { pass: "R" } },
+      },
+    };
+    const merged = mergeSecretsBundles(local, remote, "now");
+    expect(Object.keys(merged.entries).sort()).toEqual(["e1", "e2"]);
+    expect(merged.bundleRev).toBe(6); // max(1,5)+1 (both present)
+  });
+
+  it("seal/open round-trips and refuses non-shareable entries", () => {
+    const bundle: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 1,
+      updatedAt: "t",
+      entries: {
+        cal: { entryRev: 1, updatedAt: "t", deviceId: "a", binding: { family: "fastmail", service: "calendar", secretType: "caldav-password", user: "u", endpoint: "https://dav" }, secret: { pass: "s3cr3t" } },
+      },
+    };
+    const sealed = sealSecretsBundle(mk(), bundle);
+    expect(isSealedBlob(sealed)).toBe(true);
+    expect(readBlobKeyId(sealed)).toBe("aabbccddeeff0011");
+    expect(openSecretsBundle(mk(), sealed)).toEqual(bundle);
+
+    const bad = { ...bundle.entries.cal, binding: { ...bundle.entries.cal.binding, secretType: "oauth-refresh" as unknown as SecretEntry["binding"]["secretType"] } };
+    expect(() => assertShareable(bad)).toThrow(SecretPolicyError);
+    const badBundle: SecretsBundle = { ...bundle, entries: { x: bad } };
+    expect(() => sealSecretsBundle(mk(), badBundle)).toThrow(SecretPolicyError);
+  });
+
+  it("a settings blob cannot be opened as a secrets bundle (purpose separation)", () => {
+    const sealed = sealSecretsBundle(mk(), { format: "plainva-secrets", version: 1, bundleRev: 1, updatedAt: "t", entries: {} });
+    // Same key, wrong purpose -> content decode fails.
+    expect(() => openSecretsBundle(mk(9), sealed)).toThrow();
+  });
+});
+
+// --- v3 EncryptingSyncTarget decorator ---
+
+describe("EncryptingSyncTarget", () => {
+  const options = { contentKey: mk(), isStrict: () => false };
+  const op = (partial: Partial<SyncOperation> & Pick<SyncOperation, "operation" | "file_path">): SyncOperation => ({
+    id: 1,
+    retry_count: 0,
+    next_retry_at: 0,
+    queued_at: 0,
+    ...partial,
+  });
+
+  it("seals write content on push without mutating the op; original stays plaintext", async () => {
+    const target = new FakeTarget();
+    const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, options);
+    const content = new TextEncoder().encode("# hello");
+    const writeOp = op({ operation: "write", file_path: "note.md", content });
+    await enc.push(writeOp);
+    // The op the caller holds is untouched (plaintext survives for base_sha256).
+    expect(writeOp.content).toBe(content);
+    const remote = target.remote.get("note.md")!;
+    expect(isSealedBlob(remote)).toBe(true);
+    // Decrypting the remote returns the plaintext.
+    expect(await enc.download("note.md")).toEqual(content);
+  });
+
+  it("passes through sideband, rename and delete ops unencrypted", async () => {
+    const target = new FakeTarget();
+    const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, options);
+    const sideband = new TextEncoder().encode('{"format":"plainva-profile"}');
+    await enc.push(op({ operation: "write", file_path: ".plainva/sync/settings.json", content: sideband }));
+    expect(isSealedBlob(target.remote.get(".plainva/sync/settings.json")!)).toBe(false);
+    // rename/delete carry no content -> straight passthrough (no throw).
+    await enc.push(op({ operation: "delete", file_path: "note.md" }));
+    await enc.push(op({ operation: "rename", file_path: "b.md", new_path: "a.md" }));
+  });
+
+  it("download passes plaintext through in mixed mode but throws in strict mode", async () => {
+    const target = new FakeTarget();
+    target.remote.set("plain.md", new TextEncoder().encode("still markdown"));
+    const mixed = new EncryptingSyncTarget(target as unknown as ISyncTarget, { contentKey: mk(), isStrict: () => false });
+    expect(new TextDecoder().decode((await mixed.download("plain.md"))!)).toBe("still markdown");
+
+    const strict = new EncryptingSyncTarget(target as unknown as ISyncTarget, { contentKey: mk(), isStrict: () => true });
+    await expect(strict.download("plain.md")).rejects.toBeInstanceOf(FatalSyncProtocolError);
+    // Sideband is exempt from the strict check.
+    target.remote.set(".plainva/sync/keyfile.json", new TextEncoder().encode("{}"));
+    expect(await strict.download(".plainva/sync/keyfile.json")).not.toBeNull();
+  });
+
+  it("passes a null download through", async () => {
+    const target = new FakeTarget();
+    const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, { contentKey: mk(), isStrict: () => true });
+    expect(await enc.download("missing.md")).toBeNull();
   });
 });

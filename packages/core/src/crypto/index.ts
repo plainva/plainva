@@ -6,6 +6,7 @@
  */
 export * from "./cryptoPrimitives.js";
 export * from "./kdf.js";
+export * from "./hkdf.js";
 export * from "./aead.js";
 export * from "./keyfile.js";
 export * from "./sealedBlob.js";
