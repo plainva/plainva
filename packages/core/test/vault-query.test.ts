@@ -82,6 +82,36 @@ describe("VaultQueryService", () => {
     expect((db.queries[0].params as any[])[0]).toBe("%world%");
   });
 
+  it("collects incoming relation refs across all property keys (cascade plan)", async () => {
+    // 1st query: resolver corpus (all non-attachment files)
+    db.mockedResults.push([
+      { path: "Projekte/A.md" },
+      { path: "Aufgaben/T1.md" },
+      { path: "Aufgaben/T2.md" },
+    ]);
+    // 2nd query: frontmatter-property links (property_key set)
+    db.mockedResults.push([
+      { source_path: "Aufgaben/T1.md", source_title: "T1", target_path: "A", property_key: "projekt" },
+      { source_path: "Aufgaben/T1.md", source_title: "T1", target_path: "A", property_key: "projekt" }, // duplicate row
+      { source_path: "Aufgaben/T2.md", source_title: "T2", target_path: "A", property_key: "review" },
+      { source_path: "Projekte/A.md", source_title: "A", target_path: "A", property_key: "self" }, // self-link: excluded
+      { source_path: "Aufgaben/T2.md", source_title: "T2", target_path: "Elsewhere", property_key: "projekt" }, // unresolved
+    ]);
+
+    const map = await queryService.getIncomingRelationRefs(["Projekte/A.md"]);
+    expect(db.queries[1].query).toContain("property_key IS NOT NULL");
+    expect(map.get("Projekte/A.md")).toEqual([
+      { path: "Aufgaben/T1.md", title: "T1", propertyKey: "projekt" },
+      { path: "Aufgaben/T2.md", title: "T2", propertyKey: "review" },
+    ]);
+  });
+
+  it("returns an empty map for empty cascade targets without querying", async () => {
+    const map = await queryService.getIncomingRelationRefs([]);
+    expect(map.size).toBe(0);
+    expect(db.queries.length).toBe(0);
+  });
+
   it("finds files by tag", async () => {
     db.mockedResults.push([{ path: "hello.md" }]);
     const files = await queryService.getFilesByTag("urgent");

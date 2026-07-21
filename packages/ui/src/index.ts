@@ -55,6 +55,8 @@ export * from "./base/baseConfigCatalog";
 export * from "./base/baseSelectorTypes";
 export * from "./base/baseFormat";
 export * from "./base/baseRelations";
+export * from "./base/deletionPlan";
+export * from "./base/relationCleanup";
 export * from "./base/boardOrder";
 export * from "./base/filterExpr";
 export * from "./base/newItemNaming";

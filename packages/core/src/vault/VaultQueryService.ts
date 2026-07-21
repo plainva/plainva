@@ -40,6 +40,13 @@ export interface RelationSource {
   title: string;
 }
 
+/** One incoming frontmatter-property link onto a target note (any key). */
+export interface IncomingRelationRef {
+  path: string;
+  title: string;
+  propertyKey: string;
+}
+
 /** One task checkbox found anywhere in the vault, with the note it lives in. */
 export interface TaskRecord extends ScannedTask {
   path: string;
@@ -461,6 +468,58 @@ export class VaultQueryService {
     }
     for (const bucket of result.values()) {
       bucket.sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return result;
+  }
+
+  /**
+   * Incoming FRONTMATTER property links (any property key) that resolve to one
+   * of `targetPaths` — the "assigned elements" edge set of the cascade-deletion
+   * plan. Body links never count as an assignment (property_key IS NOT NULL),
+   * self-links are excluded, and each (target, source, propertyKey) pair
+   * appears once. Map keys are the requested target paths; targets without
+   * incoming property links are absent.
+   */
+  async getIncomingRelationRefs(targetPaths: string[]): Promise<Map<string, IncomingRelationRef[]>> {
+    const result = new Map<string, IncomingRelationRef[]>();
+    if (targetPaths.length === 0) return result;
+
+    const allFilesRows = await this.db.query<{ path: string }>(
+      `SELECT path FROM files WHERE mode != 'attachment'`
+    );
+    const rows = await this.db.query<{
+      source_path: string;
+      source_title: string | null;
+      target_path: string;
+      property_key: string;
+    }>(
+      `SELECT f.path AS source_path, f.title AS source_title, l.target_path AS target_path, l.property_key AS property_key
+       FROM links l
+       JOIN files f ON f.id = l.source_id
+       WHERE l.property_key IS NOT NULL`
+    );
+
+    const targets = new Set(targetPaths);
+    const { buildLinkTargetIndex, resolveLinkTargetIndexed } = await import("./LinkResolver.js");
+    const corpus = buildLinkTargetIndex(allFilesRows.map((r) => r.path));
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const resolved = resolveLinkTargetIndexed(row.source_path, row.target_path, corpus);
+      if (!resolved || !targets.has(resolved)) continue;
+      if (resolved === row.source_path) continue; // a note is never its own sub-element
+      const dedupeKey = `${resolved}\n${row.source_path}\n${row.property_key}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      const bucket = result.get(resolved) ?? [];
+      bucket.push({
+        path: row.source_path,
+        title: row.source_title || row.source_path,
+        propertyKey: row.property_key,
+      });
+      result.set(resolved, bucket);
+    }
+    for (const bucket of result.values()) {
+      bucket.sort((a, b) => a.title.localeCompare(b.title) || a.propertyKey.localeCompare(b.propertyKey));
     }
     return result;
   }

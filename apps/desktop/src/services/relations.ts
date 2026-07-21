@@ -2,11 +2,11 @@ import {
   parseMarkdownAst,
   extractFrontmatter,
   upsertFrontmatterKeys,
-  deleteFrontmatterPath,
   resolveLinkTarget,
   wikiTargetForPath,
   type VaultQueryService,
 } from "@plainva/core";
+import { removeRelationLinksToNoteShared } from "@plainva/ui";
 
 /**
  * Owning-side relation writes (Gesamtplan Base-Relationen, P6): add/remove a
@@ -108,7 +108,9 @@ export async function addRelationLink(opts: {
 /**
  * Removes every link in `propertyKey` that RESOLVES to `targetNotePath`
  * (robust against bare vs qualified raw forms, aliases, anchors). Deletes the
- * key when the value empties; list values stay lists otherwise.
+ * key when the value empties; list values stay lists otherwise. The actual
+ * transformation lives in the shared relationCleanup kernel (`@plainva/ui`) so
+ * the mobile cascade deletion runs the identical cleanup.
  */
 export async function removeRelationLinksToNote(opts: {
   adapter: RelationWriteAdapter;
@@ -118,20 +120,15 @@ export async function removeRelationLinksToNote(opts: {
   targetNotePath: string;
 }): Promise<{ changed: boolean; removed: number }> {
   const { adapter, queryService, notePath, propertyKey, targetNotePath } = opts;
-  const { content, props, allFilePaths } = await loadNote(adapter, queryService, notePath);
-  if (!(propertyKey in props)) return { changed: false, removed: 0 };
-
-  const values = currentValues(props, propertyKey);
-  const kept = values.filter((v) => !resolvesToTarget(v, notePath, targetNotePath, allFilePaths));
-  const removed = values.length - kept.length;
-  if (removed === 0) return { changed: false, removed: 0 };
-
-  const next =
-    kept.length === 0
-      ? deleteFrontmatterPath(content, [propertyKey])
-      : upsertFrontmatterKeys(content, {
-          [propertyKey]: Array.isArray(props[propertyKey]) ? kept : kept[0],
-        });
-  await adapter.writeTextFile(notePath, next);
-  return { changed: true, removed };
+  return removeRelationLinksToNoteShared(
+    {
+      readTextFile: (p) => adapter.readTextFile(p),
+      writeTextFile: (p, c) => adapter.writeTextFile(p, c),
+      listNotePaths: async () =>
+        (await queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)).map(
+          (r) => r.path
+        ),
+    },
+    { notePath, propertyKey, targetNotePath }
+  );
 }
