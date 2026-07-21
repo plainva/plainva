@@ -42,7 +42,9 @@ export interface SecretsSyncStepOptions {
 export class SecretsSyncStep {
   constructor(private readonly options: SecretsSyncStepOptions) {}
 
-  async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+  // Secrets live in the OS keychain, not the vault, so the local adapter is
+  // unused here; the uniform (target, vault) shape mirrors SettingsSyncStep.
+  async run(target: ISyncTarget, _vault: IVaultAdapter): Promise<void> {
     const now = (this.options.now ?? (() => new Date().toISOString()))();
     const local = await this.options.port.exportBundle();
 
