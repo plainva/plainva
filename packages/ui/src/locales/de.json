@@ -2,7 +2,7 @@
   "settingsSync": {
     "cardLabel": "Einstellungen synchronisieren",
     "toggleLabel": "Einstellungen dieses Vaults synchronisieren",
-    "toggleDesc": "Legt die Vault-Einstellungen (Tagesnotizen, Vorlagen, Aufgaben-Datenbank, Backup-Regeln u. a.) verschlüsselt-frei als kleine Datei in den Vault, damit sie auf all Deinen Geräten gleich sind. Braucht eine aktive Cloud-Synchronisation.",
+    "toggleDesc": "Legt die Vault-Einstellungen (Tagesnotizen, Vorlagen, Aufgaben-Datenbank, Backup-Regeln u. a.) als kleine Datei in den Vault, damit sie auf all Deinen Geräten gleich sind. Braucht eine aktive Cloud-Synchronisation.",
     "explainer": "Es werden keine Zugangsdaten und keine gerätespezifischen Pfade übertragen. Bei Änderungen auf mehreren Geräten gewinnt die zuletzt gespeicherte Fassung.",
     "adopted": "Einstellungen von einem anderen Gerät übernommen."
   },

@@ -8,7 +8,7 @@ import { toast } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
-import { buildSettingsSyncStep } from "../services/settingsProfile";
+import { buildSettingsSyncStep, wrapEncryptedTargetIfActive } from "../services/settingsProfile";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -561,6 +561,13 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         if (target) {
+            // Content-E2E (settings-sync plan §3.5): once this connection has an
+            // activated encryption manifest and the master key is unlocked, wrap
+            // the target so remote content is ciphertext (the local vault stays
+            // plaintext). Inert for a normal vault — a target with no manifest is
+            // returned unchanged; a fatal protocol violation is enforced per cycle
+            // by the sideband runner's guardBeforeCycle, not here.
+            target = await wrapEncryptedTargetIfActive(path, target);
             const settingsStore = await getSettingsStore();
             // Per-vault interval, falling back to the legacy global value, then the default.
             const perVaultInterval = await settingsStore.get<number>(syncIntervalKey(path));

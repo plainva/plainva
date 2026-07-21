@@ -19,6 +19,7 @@
 import {
   SettingsSyncStep,
   KeyfileSyncStep,
+  EncryptingSyncTarget,
   sealBlob,
   openBlob,
   evaluateManifestGuard,
@@ -184,6 +185,47 @@ async function getActiveConnectionId(vaultPath: string): Promise<string | null> 
   if (!provider) return null;
   const root = await getSyncRootFolder(vaultPath, provider);
   return connectionIdFor(provider, root);
+}
+
+/**
+ * Wraps a sync target in the content-E2E decorator when THIS connection has an
+ * active encryption manifest AND the master key is unlocked, so remote content
+ * is ciphertext (the local vault always stays plaintext). Non-throwing and inert
+ * otherwise: with no cached master key (locked / never set up) or no remote
+ * manifest (a plaintext connection) the original target is returned unchanged —
+ * a fatal protocol violation is handled per cycle by the runner's
+ * `guardBeforeCycle`, not here at open. The extra manifest read only happens when
+ * a master key is cached, so a normal vault pays no cost.
+ */
+export async function wrapEncryptedTargetIfActive(
+  vaultPath: string,
+  target: ISyncTarget
+): Promise<ISyncTarget> {
+  try {
+    const mk = await loadCachedMasterKey(vaultPath);
+    if (!mk) return target; // locked or no encryption on this device
+    const connectionId = await getActiveConnectionId(vaultPath);
+    if (!connectionId) return target;
+    const manifestText = await readRemoteManifest(target);
+    if (!manifestText) return target; // plaintext connection (no manifest)
+    const known = await loadConnectionState(connectionId);
+    // Throws on a violation (key mismatch, downgrade, guard too old); caught
+    // below so vault-open never breaks — the per-cycle guard then fails closed.
+    const decision = evaluateManifestGuard({ manifestText, known, masterKey: mk, guardVersion: GUARD_VERSION });
+    if (decision.mode === "strict" || decision.mode === "mixed") {
+      return new EncryptingSyncTarget(target, {
+        contentKey: mk,
+        isStrict: () => decision.mode === "strict",
+      });
+    }
+    return target;
+  } catch {
+    // A fatal guard violation is surfaced per cycle by DesktopSidebandRunner
+    // (guardBeforeCycle throws before any push/pull); at construction we simply
+    // do not wrap, and the first cycle then fails closed if the remote really is
+    // encrypted.
+    return target;
+  }
 }
 
 /**
