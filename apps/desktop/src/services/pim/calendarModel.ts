@@ -180,6 +180,30 @@ export function eventFormFromEvent(e: PimEventRow): EventFormValues {
   };
 }
 
+/**
+ * Calendar options for the EDIT dialog. The writable calendars are the move
+ * TARGETS; the event's OWN calendar is always prepended as the current selection
+ * — even when it is read-only or not selected (a subscribed/shared calendar) and
+ * therefore absent from the writable set. It is resolved to its name via the
+ * FULL calendar-name map, so the picker shows the name instead of falling back
+ * to the raw "<accountId> <calendarId>" key. A series has no move picker (empty
+ * list hides it). Pure.
+ */
+export function buildEditCalendarOptions(
+  e: PimEventRow,
+  writableOptions: Array<{ value: string; label: string }>,
+  calName: Map<string, string>,
+  accountLabel: Map<string, string>,
+  multiAccount: boolean
+): Array<{ value: string; label: string }> {
+  if (e.seriesMaster || e.recurrence) return [];
+  const currentKey = `${e.accountId} ${e.calendarId}`;
+  if (writableOptions.some((o) => o.value === currentKey)) return writableOptions;
+  const name = calName.get(currentKey) || e.calendarId;
+  const label = multiAccount ? `${name} · ${accountLabel.get(e.accountId) ?? ""}` : name;
+  return [{ value: currentKey, label }, ...writableOptions];
+}
+
 /** Builds a draft that mirrors an event into ANOTHER calendar as a blocker
  * (calendar #1, Notion-Calendar style): either an opaque "Busy" placeholder or
  * a full copy with details. A recurrence (from the source series' master) makes

@@ -26,6 +26,7 @@ import {
   eventStartDayKey,
   formatTimeRange,
   buildBlockDraft,
+  buildEditCalendarOptions,
   type EventFormValues,
 } from "../../services/pim/calendarModel";
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
@@ -431,6 +432,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const defaultCalKey = useMemo(
     () => (calendarOptions.some((c) => c.value === prefDefaultCal) ? prefDefaultCal : calendarOptions[0]?.value ?? ""),
     [calendarOptions, prefDefaultCal]
+  );
+  // The edit dialog always shows the event's own calendar as the current
+  // selection (see buildEditCalendarOptions — even a read-only/subscribed one),
+  // so the picker never falls back to the raw key; create uses the writable list.
+  const editCalendarOptions = useMemo(
+    () =>
+      editState?.mode === "edit" && editState.event
+        ? buildEditCalendarOptions(editState.event, calendarOptions, calName, accountLabel, accounts.length > 1)
+        : calendarOptions,
+    [editState, calendarOptions, calName, accountLabel, accounts.length]
   );
 
   const targetFor = useCallback(
@@ -1337,7 +1348,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               ? eventFormFromEvent(editState.event)
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
-          calendarOptions={editState.mode === "edit" && (editState.event?.seriesMaster || editState.event?.recurrence) ? [] : calendarOptions}
+          calendarOptions={editCalendarOptions}
           onCancel={() => { setEditState(null); setCreateInitial(null); }}
           onSubmit={submitEventForm}
           onMeetingNote={

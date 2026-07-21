@@ -3,6 +3,7 @@ import type { PimEventRow } from "@plainva/core";
 import {
   bucketEventsByDay,
   buildBlockDraft,
+  buildEditCalendarOptions,
   emptyEventForm,
   eventDayKeys,
   eventFormFromEvent,
@@ -275,5 +276,49 @@ describe("eventStartDayKey / formatTimeRange", () => {
     expect(form.repeatCount).toBe(4);
     // A Graph master exposes only the pattern type -> at least the frequency.
     expect(eventFormFromEvent(ev({ start: { ts: 0 }, end: { ts: 0 }, recurrence: "absoluteMonthly" })).repeatFreq).toBe("monthly");
+  });
+});
+
+describe("buildEditCalendarOptions", () => {
+  const opt = (v: string, l: string) => ({ value: v, label: l });
+  const writable = [opt("acc calA", "Team · me@work"), opt("acc calB", "Personal · me@work")];
+  const calName = new Map([
+    ["acc calA", "Team"],
+    ["acc calB", "Personal"],
+    ["ro readonlyCal", "Holidays"],
+  ]);
+  const accountLabel = new Map([
+    ["acc", "me@work"],
+    ["ro", "sub@shared"],
+  ]);
+
+  it("prepends the event's own calendar with its name when it is not writable (read-only/subscribed)", () => {
+    const e = ev({ accountId: "ro", calendarId: "readonlyCal", start: { ts: 0 }, end: { ts: 0 } });
+    const out = buildEditCalendarOptions(e, writable, calName, accountLabel, true);
+    // Without this the Select would render the raw "ro readonlyCal" key.
+    expect(out[0]).toEqual(opt("ro readonlyCal", "Holidays · sub@shared"));
+    expect(out.slice(1)).toEqual(writable);
+  });
+
+  it("leaves the list unchanged when the event's calendar is already a writable option", () => {
+    const e = ev({ accountId: "acc", calendarId: "calA", start: { ts: 0 }, end: { ts: 0 } });
+    expect(buildEditCalendarOptions(e, writable, calName, accountLabel, true)).toBe(writable);
+  });
+
+  it("falls back to the calendarId when the calendar name is unknown", () => {
+    const e = ev({ accountId: "ro", calendarId: "ghost", start: { ts: 0 }, end: { ts: 0 } });
+    expect(buildEditCalendarOptions(e, writable, calName, accountLabel, true)[0]).toEqual(opt("ro ghost", "ghost · sub@shared"));
+  });
+
+  it("omits the account suffix for a single account", () => {
+    const e = ev({ accountId: "ro", calendarId: "readonlyCal", start: { ts: 0 }, end: { ts: 0 } });
+    expect(buildEditCalendarOptions(e, writable, calName, accountLabel, false)[0]).toEqual(opt("ro readonlyCal", "Holidays"));
+  });
+
+  it("returns an empty list for a series (no move picker)", () => {
+    const master = ev({ accountId: "acc", calendarId: "calA", seriesMaster: "master-uid", start: { ts: 0 }, end: { ts: 0 } });
+    expect(buildEditCalendarOptions(master, writable, calName, accountLabel, true)).toEqual([]);
+    const instance = ev({ accountId: "acc", calendarId: "calA", recurrence: "FREQ=WEEKLY", start: { ts: 0 }, end: { ts: 0 } });
+    expect(buildEditCalendarOptions(instance, writable, calName, accountLabel, true)).toEqual([]);
   });
 });

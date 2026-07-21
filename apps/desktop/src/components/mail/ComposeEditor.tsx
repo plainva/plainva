@@ -11,6 +11,11 @@ import {
   type TextEdit,
 } from "./composeMarkdown";
 import { ICON } from "@plainva/ui";
+// The .pv-mail-cmp* rules live in mail.css. Import it here so the editor carries
+// its own styling wherever it is used — the calendar event dialog reuses this
+// component and never loads a mail view, so without this the textarea rendered
+// as a bare (monospace, resizable) browser textarea.
+import "./mail.css";
 
 /**
  * Compose message editor: a Markdown <textarea> with a formatting toolbar and a
