@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -122,8 +122,18 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MailEnvelope[] | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
-  const [moveMenu, setMoveMenu] = useState<{ x: number; y: number } | null>(null);
+  // The "Move to…" menu carries the ids it acts on (one message from the reader,
+  // or the whole selection from the list context menu / bulk bar).
+  const [moveMenu, setMoveMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  // List selection (multi-select via Ctrl/Cmd+click and Shift+click) + the
+  // range anchor. A plain click clears it and opens the message.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const anchorRef = useRef<string | null>(null);
+  // Quick filter over the loaded list (server search still works alongside).
+  const [filterUnread, setFilterUnread] = useState(false);
+  // Right-click context menu on a list row.
+  const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -236,11 +246,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setEnvelopes([]);
     setSelectedId(null);
     setMessage(null);
-    // Drop the search when the account/mailbox changes: IMAP UIDs are
-    // folder-local, so a stale id set would highlight unrelated mails in the
-    // new folder (and a Graph id set would just come up empty).
+    // Drop the search AND the selection when the account/mailbox changes: IMAP
+    // UIDs are folder-local, so a stale id set would highlight unrelated mails
+    // in the new folder (and a Graph id set would just come up empty).
     setSearchResults(null);
     setSearchQuery("");
+    setSelectedIds(new Set());
+    setCtxMenu(null);
     if (account) void loadList(0);
   }, [account, loadList]);
 
@@ -273,7 +285,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   // ---- Mailbox actions (E4) ----
   const displayedEnvelopes = searchResults ?? envelopes;
+  // Quick filter (client-side over the loaded list; the server search runs
+  // independently). "Ungelesen" keeps only unread envelopes.
+  const visibleEnvelopes = useMemo(
+    () => (filterUnread ? displayedEnvelopes.filter((e) => !e.seen) : displayedEnvelopes),
+    [displayedEnvelopes, filterUnread]
+  );
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
+  // The ids the list context menu acts on: the whole selection when the
+  // right-clicked row is part of it, otherwise that single row.
+  const ctxIds = useMemo(
+    () => (ctxMenu ? (selectedIds.has(ctxMenu.id) && selectedIds.size > 0 ? [...selectedIds] : [ctxMenu.id]) : []),
+    [ctxMenu, selectedIds]
+  );
 
   const searchSeq = useRef(0);
   const runSearch = useCallback(async () => {
@@ -301,23 +325,47 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setSearchResults(null);
   }, []);
 
-  const markSeen = useCallback(
-    async (seen: boolean) => {
-      if (!vaultPath || !account || selectedId == null || actionBusy) return;
+  // ---- list selection (multi-select) ----
+  const toggleSel = useCallback((id: string) => {
+    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }, []);
+  const clearSel = useCallback(() => setSelectedIds(new Set()), []);
+  const selectRange = useCallback(
+    (id: string, list: MailEnvelope[]) => {
+      const a = anchorRef.current;
+      const ia = a ? list.findIndex((e) => e.id === a) : -1;
+      const ib = list.findIndex((e) => e.id === id);
+      if (ia < 0 || ib < 0) { toggleSel(id); return; }
+      const [lo, hi] = ia < ib ? [ia, ib] : [ib, ia];
+      setSelectedIds((prev) => { const n = new Set(prev); for (let i = lo; i <= hi; i++) n.add(list[i].id); return n; });
+    },
+    [toggleSel]
+  );
+
+  // ---- id-aware bulk actions (reader single message, list selection, context
+  // menu). Bulk = N single calls (the backend has no multi-uid command). ----
+  const bulkSetSeen = useCallback(
+    async (ids: string[], seen: boolean) => {
+      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      const idSet = new Set(ids);
+      const src = searchResults ?? envelopes;
+      let delta = 0;
+      for (const e of src) if (idSet.has(e.id) && e.seen !== seen) delta += seen ? -1 : 1;
       setActionBusy(true);
       try {
-        await setMessageSeen(vaultPath, account, mailbox, selectedId, seen);
-        setEnvelopes((list) => list.map((e) => (e.id === selectedId ? { ...e, seen } : e)));
-        // Keep the unread badge in step (auto-read + the manual toggle always flip).
-        setUnseen((u) => Math.max(0, seen ? u - 1 : u + 1));
+        for (const id of ids) await setMessageSeen(vaultPath, account, mailbox, id, seen);
+        setEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)));
+        setSearchResults((r) => (r ? r.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)) : r));
+        setUnseen((u) => Math.max(0, u + delta));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, selectedId, actionBusy]
+    [vaultPath, account, mailbox, actionBusy, envelopes, searchResults]
   );
+  const markSeen = useCallback((seen: boolean) => { if (selectedId != null) void bulkSetSeen([selectedId], seen); }, [selectedId, bulkSetSeen]);
 
   // Auto-mark-read: a message left open for a few seconds switches to "read" on
   // its own (like every mail client). Switching messages cancels the timer.
@@ -356,38 +404,53 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setMessage((m) => (m && m.id === uid ? null : m));
   }, []);
 
-  const moveTo = useCallback(
-    async (target: string) => {
+  const bulkMove = useCallback(
+    async (ids: string[], target: string) => {
       setMoveMenu(null);
-      if (!vaultPath || !account || selectedId == null || actionBusy || target === mailbox) return;
+      if (!vaultPath || !account || ids.length === 0 || actionBusy || target === mailbox) return;
       setActionBusy(true);
-      const uid = selectedId;
+      let moved = 0;
       try {
-        await moveMessage(vaultPath, account, mailbox, uid, target);
-        removeFromList(uid);
-        toast.info(t("mail.moved", { defaultValue: "Verschoben nach {{folder}}", folder: mailFolderLabel(target, delimiter) }));
+        for (const id of ids) {
+          await moveMessage(vaultPath, account, mailbox, id, target);
+          removeFromList(id);
+          moved++;
+        }
+        toast.info(
+          moved > 1
+            ? t("mail.movedN", { n: moved, folder: mailFolderLabel(target, delimiter), defaultValue: "{{n}} nach {{folder}} verschoben" })
+            : t("mail.moved", { folder: mailFolderLabel(target, delimiter), defaultValue: "Verschoben nach {{folder}}" })
+        );
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setActionBusy(false);
+        clearSel();
       }
     },
-    [vaultPath, account, mailbox, selectedId, actionBusy, removeFromList, delimiter, t]
+    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, t]
   );
 
-  const deleteMessage = useCallback(async () => {
-    if (!vaultPath || !account || selectedId == null || actionBusy) return;
-    const trash = pickTrashFolder(boxes);
-    if (!trash || trash === mailbox) {
-      toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
-      return;
-    }
-    const ok = await appConfirm({
-      title: t("mail.deleteTitle", { defaultValue: "In den Papierkorb verschieben?" }),
-      message: t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
-    });
-    if (ok) await moveTo(trash);
-  }, [vaultPath, account, mailbox, selectedId, actionBusy, boxes, moveTo, t]);
+  const bulkDeleteToTrash = useCallback(
+    async (ids: string[]) => {
+      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      const trash = pickTrashFolder(boxes);
+      if (!trash || trash === mailbox) {
+        toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
+        return;
+      }
+      const ok = await appConfirm({
+        title: t("mail.deleteTitle", { defaultValue: "In den Papierkorb verschieben?" }),
+        message:
+          ids.length > 1
+            ? t("mail.deleteMsgN", { n: ids.length, defaultValue: "{{n}} Nachrichten werden in den Papierkorb verschoben." })
+            : t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
+      });
+      if (ok) await bulkMove(ids, trash);
+    },
+    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, t]
+  );
+  const deleteMessage = useCallback(() => { if (selectedId != null) void bulkDeleteToTrash([selectedId]); }, [selectedId, bulkDeleteToTrash]);
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -601,24 +664,53 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <RefreshCw size={ICON.ui} />
           </IconButton>
         </div>
+        {selectedIds.size > 0 ? (
+          <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-bulkbar">
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("mail.selectedCount", { n: selectedIds.size, defaultValue: "{{n}} ausgewählt" })}</span>
+            <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
+            <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => void bulkDeleteToTrash([...selectedIds])} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{t("mail.delete", { defaultValue: "Löschen" })}</Button>
+            <span style={{ flex: 1 }} />
+            <Button size="sm" variant="ghost" onClick={clearSel} data-testid="mail-bulk-clear">{t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}</Button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center" }} data-testid="mail-filters">
+            <Button size="sm" variant={filterUnread ? "primary" : "ghost"} aria-pressed={filterUnread} onClick={() => setFilterUnread((v) => !v)} data-testid="mail-filter-unread" icon={<Mail size={ICON.ui} />}>
+              {t("mail.filterUnread", { defaultValue: "Ungelesen" })}
+            </Button>
+          </div>
+        )}
         <div className="pv-mail-scroll" data-testid="mail-list">
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {listError ? (
             <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
-          ) : displayedEnvelopes.length === 0 && !loadingList && !searchBusy ? (
+          ) : visibleEnvelopes.length === 0 && !loadingList && !searchBusy ? (
             <p className="pv-mail-hint">
-              {searchResults ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
+              {filterUnread && displayedEnvelopes.length > 0
+                ? t("mail.noUnread", { defaultValue: "Keine ungelesenen Nachrichten." })
+                : searchResults
+                  ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." })
+                  : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
             </p>
           ) : (
-            displayedEnvelopes.map((e) => {
+            visibleEnvelopes.map((e) => {
               const on = e.id === selectedId;
+              const sel = selectedIds.has(e.id);
               return (
                 <button
                   key={e.id}
                   type="button"
                   data-testid="mail-envelope"
                   className={`pv-mail-env${on ? " on" : ""}${e.seen ? " read" : ""}`}
-                  onClick={() => void openMessage(e.id)}
+                  aria-selected={sel}
+                  style={sel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
+                  onClick={(ev) => {
+                    if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); toggleSel(e.id); anchorRef.current = e.id; return; }
+                    if (ev.shiftKey) { ev.preventDefault(); selectRange(e.id, visibleEnvelopes); return; }
+                    clearSel(); anchorRef.current = e.id; void openMessage(e.id);
+                  }}
+                  onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: e.id, x: ev.clientX, y: ev.clientY }); }}
                 >
                   <span className="pv-mail-unread" />
                   <span className="pv-mail-ebody">
@@ -698,7 +790,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               </IconButton>
               <IconButton
                 label={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
-                onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY })}
+                onClick={(ev) => selectedId != null && setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [selectedId] })}
                 disabled={actionBusy}
                 data-testid="mail-move"
               >
@@ -776,12 +868,35 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       <MailDraftModal subject={compose.subject} markdown={compose.markdown} initialTo={compose.to} onClose={() => setCompose(null)} />
     )}
     {moveMenu && (
-      <MenuSurface open at={moveMenu} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
+      <MenuSurface open at={{ x: moveMenu.x, y: moveMenu.y }} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
         {folders.filter((f) => f !== mailbox).map((f) => (
-          <MenuItem key={f} onClick={() => void moveTo(f)}>
+          <MenuItem key={f} onClick={() => void bulkMove(moveMenu.ids, f)}>
             {mailFolderLabel(f, delimiter)}
           </MenuItem>
         ))}
+      </MenuSurface>
+    )}
+    {ctxMenu && (
+      <MenuSurface open at={{ x: ctxMenu.x, y: ctxMenu.y }} onClose={() => setCtxMenu(null)} ariaLabel={t("mail.listActions", { defaultValue: "Nachrichtenaktionen" })}>
+        {ctxIds.length > 1 && <MenuLabel>{t("mail.selectedCount", { n: ctxIds.length, defaultValue: "{{n}} ausgewählt" })}</MenuLabel>}
+        {ctxIds.length === 1 && (
+          <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-open" onSelect={() => void openMessage(ctxIds[0])}>
+            {t("mail.open", { defaultValue: "Öffnen" })}
+          </MenuItem>
+        )}
+        <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-read" onSelect={() => void bulkSetSeen(ctxIds, true)}>
+          {t("mail.markRead", { defaultValue: "Als gelesen markieren" })}
+        </MenuItem>
+        <MenuItem icon={<Mail size={ICON.ui} />} data-testid="mail-ctx-unread" onSelect={() => void bulkSetSeen(ctxIds, false)}>
+          {t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}
+        </MenuItem>
+        <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="mail-ctx-move" onSelect={() => setMoveMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
+          {t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
+        </MenuItem>
+        <MenuSeparator />
+        <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="mail-ctx-delete" onSelect={() => void bulkDeleteToTrash(ctxIds)}>
+          {t("mail.delete", { defaultValue: "Löschen" })}
+        </MenuItem>
       </MenuSurface>
     )}
     </>

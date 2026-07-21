@@ -527,3 +527,32 @@ test('mail: switching accounts never loads the previous provider\'s folder name'
     expect(own, c.user + ' was asked for ' + c.mailbox).toContain(c.mailbox);
   }
 });
+
+test('mail list: right-click context menu, multi-select bulk bar, and the unread filter', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const rows = page.getByTestId('mail-envelope');
+  await expect(rows).toHaveCount(2);
+
+  // Multi-select via Ctrl/Cmd+click -> the bulk bar counts the selection.
+  await rows.nth(0).click({ modifiers: ['ControlOrMeta'] });
+  await rows.nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('mail-bulkbar')).toContainText('2');
+  await page.getByTestId('mail-bulk-clear').click();
+  await expect(page.getByTestId('mail-bulkbar')).toHaveCount(0);
+
+  // "Ungelesen" filter keeps only the unread envelope (uid 2), hides the read one.
+  await page.getByTestId('mail-filter-unread').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+  await expect(page.getByTestId('mail-envelope').first()).toContainText('Rechnung Q3');
+  await page.getByTestId('mail-filter-unread').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+
+  // Right-click a row -> context menu; "Als gelesen" marks that message read.
+  await rows.filter({ hasText: 'Rechnung Q3' }).click({ button: 'right' });
+  await expect(page.getByTestId('mail-ctx-open')).toBeVisible();
+  await expect(page.getByTestId('mail-ctx-move')).toBeVisible();
+  await expect(page.getByTestId('mail-ctx-delete')).toBeVisible();
+  await page.getByTestId('mail-ctx-read').click();
+  expect(await page.evaluate(() => (window as any).__setSeen)).toMatchObject({ uid: 2, seen: true });
+});
