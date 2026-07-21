@@ -4,7 +4,7 @@
     "toggleLabel": "Sincronizza le impostazioni di questo vault",
     "toggleDesc": "Salva le impostazioni di questo vault (note giornaliere, modelli, database attività, regole di backup e altro) come un piccolo file all'interno del vault, così sono uguali su tutti i tuoi dispositivi. Richiede una sincronizzazione cloud attiva.",
     "explainer": "Non vengono trasferite credenziali né percorsi specifici del dispositivo. Se modifichi le impostazioni su più di un dispositivo, vince la versione salvata più di recente.",
-    "adopted": "Impostazioni adottate da un altro dispositivo."
+    "adopted": "Impostazioni adottate da un altro dispositivo.", "secretsLabel": "Sincronizza credenziali account", "secretsDesc": "Solo password IMAP/CalDAV statiche e credenziali personalizzate di Google Calendar; i token OAuth restano su questo dispositivo."
   },
   "encryption": {
     "contentRow": "Cifra il contenuto del vault",
@@ -46,7 +46,9 @@
     "create": "Crea",
     "unlock": "Sblocca",
     "done": "Fatto",
-    "useRecovery": "Usa codice di recupero"
+    "useRecovery": "Usa codice di recupero",
+    "deactivate": "Disattiva crittografia", "deactivateTitle": "Disattivare la crittografia del vault?", "deactivateConfirm": "Tutti i file remoti saranno riscritti in chiaro. Il vault locale non cambia. Continuare?", "deactivateStarted": "Decrittazione avviata: {{n}} file in riscrittura.", "deactivateFailed": "Impossibile avviare la decrittazione.", "deactivateDone": "La crittografia è disattivata.", "completeDeactivation": "Completa decrittazione",
+    "rotate": "Ruota chiave", "rotateTitle": "Ruota chiave di crittografia", "rotateConfirm": "Inserisci la passphrase. Verrà creata una nuova chiave e tutti i file remoti saranno ricrittografati.", "rotateStarted": "Rotazione avviata: {{n}} file in ricrittografia.", "rotateFailed": "Impossibile avviare la rotazione. Controlla la passphrase.", "rotateDone": "Rotazione completata; la vecchia chiave è stata rimossa.", "completeRotation": "Completa rotazione", "migrationActive": "È attiva una migrazione ripristinabile. Completala quando la coda di sincronizzazione è vuota."
   },
   "contextMenu": {
     "cut": "Taglia",
@@ -2105,16 +2107,16 @@
     "agendaTomorrow": "Domani",
     "dueToday": "scade oggi",
     "dueOn": "scade {{date}}",
-    "inviteSubject": "Invito: {{title}}"
+    "inviteSubject": "Invito: {{title}}", "linkedBlock": "Blocco calendario collegato"
   },
   "mail": {
-    "sectionTitle": "E-mail (IMAP, sola lettura)",
+    "sectionTitle": "E-mail (IMAP)",
     "title": "E-mail",
     "openMail": "Apri e-mail",
     "empty": "Nessun account e-mail collegato",
-    "emptyHint": "Collega un account IMAP in sola lettura nelle Impostazioni, sezione “Calendario e account”.",
+    "emptyHint": "Collega un account IMAP nelle Impostazioni, sezione “Calendario e account”.",
     "noAccounts": "Nessun account e-mail collegato finora.",
-    "imapHint": "Sola lettura — Plainva non modifica mai la casella. Gmail: imap.gmail.com, porta 993, con password per le app.",
+    "imapHint": "Plainva legge senza contrassegnare i messaggi come letti; contrassegno, spostamento ed eliminazione avvengono solo su tua richiesta. Gmail: imap.gmail.com, porta 993, con password per le app.",
     "backend": "Tipo di connessione",
     "backendMicrosoft": "Microsoft (accedi)",
     "backendImap": "IMAP (password per l'app)",
@@ -2195,7 +2197,8 @@
     "listActions": "Azioni messaggio",
     "noTrash": "Nessuna cartella cestino trovata.",
     "sendNoteViaEmail": "Invia per email",
-    "sendNoteAsAttachment": "Invia come allegato"
+    "sendNoteAsAttachment": "Invia come allegato",
+    "gmailLabelsChanged": "Etichetta Gmail di {{n}} messaggi cambiata in {{folder}}.", "gmailAllMailDeleteWarning": "Rimuove il messaggio da tutte le etichette Gmail e lo sposta nel cestino.", "deleteForeverTitle": "Eliminare definitivamente?", "deleteForeverMsgN": "{{n}} messaggi verranno eliminati definitivamente.", "deleteForeverMsg": "Il messaggio verrà eliminato definitivamente.", "deleteForever": "Elimina definitivamente", "filterFlagged": "Contrassegnati", "flagged": "Contrassegnato", "unflag": "Rimuovi contrassegno", "flag": "Contrassegna"
   },
   "cloudAccounts": {
     "serviceFiles": "File",

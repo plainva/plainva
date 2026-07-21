@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-07-18
+Stand: 2026-07-21
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -37,6 +37,6 @@ In den **Einstellungen** (⋮) führt **Aktiver Vault** zur Vault-Verwaltung; do
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.
 
-## Teilen und Verknüpfungen (Android)
+## Teilen und Verknüpfungen
 
-Geteilter Text aus anderen Apps landet als neue Notiz im Eingangsordner. Das App-Symbol gedrückt halten bietet die Verknüpfungen **Neue Notiz** und **Heute**.
+Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsordner; geteilte Bilder und Dateien werden als Anhänge übernommen (maximal 25 MB pro Datei). Auf Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Notiz** und **Heute**. Auf der Vault-Seite kannst Du **Einstellungen synchronisieren** aktivieren und verschlüsselte Vaults sicher per Passphrase entsperren oder wieder sperren.

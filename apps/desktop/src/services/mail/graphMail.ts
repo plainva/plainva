@@ -273,6 +273,7 @@ interface GraphMessageEnvelope {
   from?: { emailAddress?: { name?: string; address?: string } };
   receivedDateTime?: string;
   isRead?: boolean;
+  flag?: { flagStatus?: string };
 }
 
 function addressLabel(who: GraphMessageEnvelope["from"]): string {
@@ -294,7 +295,7 @@ export async function graphListEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$select=id,subject,from,receivedDateTime,isRead&$orderby=receivedDateTime desc` +
+    `?$select=id,subject,from,receivedDateTime,isRead,flag&$orderby=receivedDateTime desc` +
     `&$top=${limit}&$skip=${offset}&$count=true`;
   const data = await graphJson<{ value: GraphMessageEnvelope[]; "@odata.count"?: number }>(rt, "GET", q);
   const messages = (data.value ?? []).map((m) => ({
@@ -303,6 +304,7 @@ export async function graphListEnvelopes(
     from: addressLabel(m.from),
     dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
     seen: m.isRead === true,
+    flagged: m.flag?.flagStatus === "flagged",
   }));
   // The folder carries its own unread count (no need to page every message).
   const folder = await graphJson<{ unreadItemCount?: number }>(rt, "GET", `/me/mailFolders/${encodeURIComponent(folderId)}?$select=unreadItemCount`);
@@ -317,6 +319,7 @@ interface GraphMessageFull {
   receivedDateTime?: string;
   body?: { contentType?: string; content?: string };
   hasAttachments?: boolean;
+  internetMessageId?: string;
 }
 
 export async function graphFetchMessage(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string): Promise<MailMessage> {
@@ -324,7 +327,7 @@ export async function graphFetchMessage(vaultPath: string, account: MailAccountC
   const m = await graphJson<GraphMessageFull>(
     rt,
     "GET",
-    `/me/messages/${encodeURIComponent(id)}?$select=id,subject,from,toRecipients,receivedDateTime,body,hasAttachments`
+    `/me/messages/${encodeURIComponent(id)}?$select=id,subject,from,toRecipients,receivedDateTime,body,hasAttachments,internetMessageId`
   );
   const isHtml = (m.body?.contentType ?? "").toLowerCase() === "html";
   const content = m.body?.content ?? "";
@@ -347,6 +350,7 @@ export async function graphFetchMessage(vaultPath: string, account: MailAccountC
     text: isHtml ? null : content,
     html: isHtml ? content : null,
     attachments,
+    providerMessageId: m.internetMessageId,
   };
 }
 
@@ -368,6 +372,18 @@ export async function graphSetSeen(vaultPath: string, account: MailAccountConfig
   await graphJson(rt, "PATCH", `/me/messages/${encodeURIComponent(id)}`, { isRead: seen });
 }
 
+export async function graphSetFlagged(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string, flagged: boolean): Promise<void> {
+  const rt = await runtimeFor(vaultPath, account);
+  await graphJson(rt, "PATCH", `/me/messages/${encodeURIComponent(id)}`, {
+    flag: { flagStatus: flagged ? "flagged" : "notFlagged" },
+  });
+}
+
+export async function graphDeleteMessage(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string): Promise<void> {
+  const rt = await runtimeFor(vaultPath, account);
+  await graphJson(rt, "DELETE", `/me/messages/${encodeURIComponent(id)}`);
+}
+
 export async function graphMove(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string, targetDisplayName: string): Promise<void> {
   const rt = await runtimeFor(vaultPath, account);
   const destinationId = await resolveFolderId(rt, targetDisplayName);
@@ -387,7 +403,7 @@ export async function graphSearchEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead&$top=50`;
+    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead,flag&$top=50`;
   const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
   return (data.value ?? [])
     .map((m) => ({
@@ -396,6 +412,32 @@ export async function graphSearchEnvelopes(
       from: addressLabel(m.from),
       dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
       seen: m.isRead === true,
+      flagged: m.flag?.flagStatus === "flagged",
+    }))
+    .sort((a, b) => b.dateTs - a.dateTs);
+}
+
+/** Server-side list of flagged messages in one folder. */
+export async function graphListFlaggedEnvelopes(
+  vaultPath: string,
+  account: MailAccountConfig,
+  mailbox: string,
+  limit = 200
+): Promise<MailEnvelope[]> {
+  const rt = await runtimeFor(vaultPath, account);
+  const folderId = await resolveFolderId(rt, mailbox);
+  const q =
+    `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
+    `?$filter=flag/flagStatus eq 'flagged'&$select=id,subject,from,receivedDateTime,isRead,flag&$top=${Math.min(limit, 500)}`;
+  const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
+  return (data.value ?? [])
+    .map((m) => ({
+      id: m.id,
+      subject: m.subject ?? "",
+      from: addressLabel(m.from),
+      dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
+      seen: m.isRead === true,
+      flagged: m.flag?.flagStatus === "flagged",
     }))
     .sort((a, b) => b.dateTs - a.dateTs);
 }

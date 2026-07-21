@@ -68,6 +68,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
                   if (e.key === "Enter") submitPrompt();
                 }}
                 placeholder={dialog.placeholder}
+                type={dialog.secure ? "password" : "text"}
                 value={text}
               />
             </div>

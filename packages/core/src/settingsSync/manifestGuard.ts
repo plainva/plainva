@@ -43,6 +43,8 @@ export interface GuardContext {
   known: ConnectionE2EState;
   /** The unlocked master key, or null if the vault is locked / has no key. */
   masterKey: MasterKeyBundle | null;
+  /** Additional unlocked keys kept only for a resumable key rotation. */
+  masterKeys?: ReadonlyMap<string, MasterKeyBundle>;
   /** This app's guard version (must be >= manifest.minGuardVersion). */
   guardVersion: number;
 }
@@ -52,7 +54,7 @@ export interface GuardContext {
  * returns how the cycle should proceed. Deterministic and side-effect-free.
  */
 export function evaluateManifestGuard(ctx: GuardContext): GuardDecision {
-  const { manifestText, known, masterKey, guardVersion } = ctx;
+  const { manifestText, known, masterKey, masterKeys, guardVersion } = ctx;
 
   // No manifest present.
   if (!manifestText) {
@@ -99,18 +101,23 @@ export function evaluateManifestGuard(ctx: GuardContext): GuardDecision {
     return { mode: "plain" }; // unknown connection, plain manifest, no key -> TOFU plain
   }
 
+  const verificationKey = masterKeys?.get(parsed.keyId)
+    ?? (masterKey.keyId === parsed.keyId ? masterKey : undefined);
+  if (!verificationKey) {
+    throw new FatalSyncProtocolError("key-mismatch", `manifest signing key ${parsed.keyId} is not held by this device`);
+  }
   let body;
   try {
-    body = verifyManifest(masterKey, parsed);
+    body = verifyManifest(verificationKey, parsed);
   } catch {
     throw new FatalSyncProtocolError("manifest-invalid", `manifest MAC does not verify for ${known.connectionId}`);
   }
 
-  if (known.expectedKeyId && body.keyId !== known.expectedKeyId && body.newKeyId !== body.keyId) {
+  if (known.expectedKeyId && body.keyId !== known.expectedKeyId && body.newKeyId !== known.expectedKeyId) {
     // A key switch outside a rotation we know about.
     throw new FatalSyncProtocolError("key-mismatch", `manifest keyId ${body.keyId} != expected ${known.expectedKeyId}`);
   }
-  if (body.keyId !== masterKey.keyId && body.newKeyId !== masterKey.keyId) {
+  if (body.keyId !== masterKey.keyId && body.newKeyId !== masterKey.keyId && !masterKeys?.has(body.keyId)) {
     throw new FatalSyncProtocolError("key-mismatch", `manifest key ${body.keyId} not held by this device (${masterKey.keyId})`);
   }
 

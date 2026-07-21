@@ -527,6 +527,7 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
     if (draft.recurrence === null) vevent.removeAllProperties("rrule");
     else vevent.updatePropertyWithValue("rrule", ICAL.Recur.fromString(recurrenceToRRule(draft.recurrence)));
   }
+  if (draft.blockOf) vevent.updatePropertyWithValue("x-plainva-block-of", draft.blockOf);
 }
 
 function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {
@@ -624,6 +625,7 @@ export function expandIcsEvents(
       etag,
       seriesMaster: uid,
       href,
+      blockOf: (details.item.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
     });
   }
   return out;
@@ -658,6 +660,7 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     etag,
     href,
     color: (ev.component.getFirstPropertyValue("color") as string | null) ?? undefined,
+    blockOf: (ev.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
   };
 }
 

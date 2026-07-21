@@ -1,12 +1,12 @@
 # Settings-sync & encryption protocol (v1)
 
-Status: **protocol + crypto core shipped (dormant), wiring gated.** This document
-is the publicly reviewable specification of the on-disk/on-wire formats, the
-state machine and the threat model for Plainva's opt-in settings-sync and
-end-to-end vault encryption. It is written to be checkable by an independent
-security reviewer before the credential- and sync-core-touching wiring is
-enabled. The corresponding code lives in `packages/core/src/crypto/` and
-`packages/core/src/settingsSync/`.
+Status: **implemented and wired on Desktop; read/write participation wired on
+mobile; independent security review and native provider acceptance remain release
+gates.** This document is the publicly reviewable specification of the
+on-disk/on-wire formats, state machine and threat model for Plainva's opt-in
+settings-sync and end-to-end vault encryption. The corresponding protocol code
+lives in `packages/core/src/crypto/` and `packages/core/src/settingsSync/`; shell
+wiring lives in the desktop and mobile apps.
 
 Nothing here requires or implies a Plainva account. The passphrase (or the master
 key it protects) is the only factor.
@@ -127,6 +127,13 @@ re-keyed per device). Excluded by design: absolute paths, runtime timestamps,
 one-time hints, layout/localStorage, `recents.json`, `graph.json`, and sync
 provider credentials.
 
+The desktop projection includes vault content/backup settings, bookmarks and
+the metadata for cloud, PIM and mail accounts. Imported account IDs are mapped
+to device-local IDs and every dependent reference is rewritten through that
+map. Unknown forward-compatible fields are retained. Validation finishes before
+the first write; a durable import journal snapshots all affected stores and
+rolls them back after a crash or failed multi-store import.
+
 ## 5. Secrets bundle
 
 `{ format:"plainva-secrets", version, bundleRev, updatedAt,
@@ -175,6 +182,20 @@ States: `preparing | migrating | strict | decrypting | rotating | plain`.
 `decrypting`, `rotating`; `strict` accepts only valid ciphertext for the active
 key/purpose. An authenticated `plain` is the terminal deactivation tombstone.
 
+Desktop activation first requires a clean queue and two stable, matching
+local/remote inventories. It publishes and verifies `preparing`, then `migrating`,
+persists an exact-path journal and force-enqueues the full rewrite. Completion
+requires an empty queue, an unchanged inventory and authenticated inspection of
+every remote blob. Deactivation applies the same checks in reverse. True key
+rotation publishes the two-key keyfile before `rotating`, reads with both keys,
+writes only the new key, verifies every blob under the new key, commits `strict`,
+and only then prunes the old key.
+
+The transition owner holds a signed 24-hour lease. Its journal and forced sweep
+are reconstructed on restart. Another unlocked device may adopt an expired
+lease only with the complete key ring, a clean queue and matching stable
+inventories; it keeps the same generation and repeats the idempotent sweep.
+
 ## 8. Fail-closed guard
 
 `FatalSyncProtocolError` (reasons: `encrypted-without-key`, `plaintext-in-strict`,
@@ -217,12 +238,25 @@ negative cases: corrupted/truncated/over-sized/foreign-purpose/foreign-key blobs
 tampered manifest MAC, endpoint-binding mismatch, non-shareable secret refusal,
 plaintext-in-strict, and NFC passphrase equivalence.
 
-## 11. What is deliberately gated
+## 11. Shell integration and remaining release gates
 
-The credential-handling wiring (keychain secrets, passphrase/MK cache), the
-account-manifest re-keying (cloudAccounts/PIM/mailAccounts/bookmarks), and the
-sync-core encryption lifecycle sweeps (activation/migration/rotation/deactivation
-with owner-lease, generation, force-queue and crash-resume) require real cloud
-accounts, native two-device acceptance per provider, and an independent security
-review before Stable. The protocol and crypto core specified here ships first and
-dormant, so that review can happen against a stable spec + implementation.
+Desktop provides passphrase/recovery setup, OS-keychain-backed key caching,
+sealed profile and allowlisted-secret ports, lifecycle controls, crash recovery,
+key rotation and fail-closed worker startup. The diagnostic ring redacts common
+credential fields, authorization headers and URL userinfo before storing an
+error; exporters never query credential stores.
+
+Mobile performs the same connection-fingerprint and manifest guard before its
+worker starts, stores its unlocked multi-key ring in the native secure store,
+wraps reads/writes for mixed/strict/rotating states, and participates in sealed
+profile sync while retaining unknown desktop fields. Lifecycle activation,
+deactivation and rotation are initiated on Desktop; mobile safely participates
+and can unlock/lock the connection.
+
+The following are verification/release gates, not missing protocol wiring:
+
+- native two-device round trips for WebDAV, Google Drive, S3, OneDrive and
+  Dropbox, including interruption/resume and a rotation;
+- Android/iOS secure-RNG, key-store and memory-budget acceptance;
+- failure-injection/large-file runs beyond the deterministic unit suite;
+- an independent security review before declaring the feature Stable.

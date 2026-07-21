@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-07-20
+Stan na: 2026-07-21
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -51,3 +51,7 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 - **Zapisz notatkę jako szkic w skrzynce** (paleta poleceń, przy dowolnej otwartej notatce): zapisuje notatkę jako **szkic we własnej skrzynce** przez IMAP — wybierz konto, odbiorcę i folder szkiców, a potem otwórz swój zwykły program pocztowy, sprawdź i wyślij stamtąd. Formatowanie jest zachowane.
 - **Wyślij notatkę e-mailem (mailto)** (paleta poleceń): otwiera Twój domyślny program pocztowy z notatką jako zwykłym tekstem (długie notatki są skracane).
 - **Kopiuj notatkę jako tekst e-maila** (paleta poleceń): umieszcza notatkę w schowku z formatowaniem — wklej ją w dowolnym edytorze wiadomości.
+
+## Działania w skrzynce
+
+Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.

@@ -224,6 +224,26 @@ export class SyncQueue {
     return n;
   }
 
+  /** Snapshot used by the E2E lifecycle gate. Strict/plain may only be
+   * published when every forced sweep write has completed and no queued item
+   * is blocked for manual intervention. */
+  async getEncryptionSweepStatus(): Promise<{ forcedPending: number; pending: number; failed: number; manual: number }> {
+    const row = await this.db.queryOne<{ forced_pending: number; pending: number; failed: number; manual: number }>(
+      `SELECT
+         COALESCE(SUM(CASE WHEN force = 1 THEN 1 ELSE 0 END), 0) AS forced_pending,
+         COUNT(*) AS pending,
+         COALESCE(SUM(CASE WHEN retry_count > 0 OR last_error IS NOT NULL THEN 1 ELSE 0 END), 0) AS failed,
+         COALESCE(SUM(CASE WHEN requires_manual_intervention = 1 THEN 1 ELSE 0 END), 0) AS manual
+       FROM offline_queue`
+    );
+    return {
+      forcedPending: Number(row?.forced_pending ?? 0),
+      pending: Number(row?.pending ?? 0),
+      failed: Number(row?.failed ?? 0),
+      manual: Number(row?.manual ?? 0),
+    };
+  }
+
   /**
    * Whether the given path currently has any queued operation (matched as either the
    * source path or a rename target).

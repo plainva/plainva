@@ -91,17 +91,25 @@ export class PimCacheRepository {
       [accountId]
     );
     const prevSel = new Map(prev.map((r) => [r.cal_id, r.selected !== 0]));
+    const account = await this.db.queryOne<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
+    const config = safeJson(account?.config ?? null) as Record<string, unknown> | null;
+    const pending = config?.plainvaPendingCalendarSelections as Record<string, unknown> | undefined;
     await this.db.execute(`DELETE FROM pim_calendars WHERE account_id = ?`, [accountId]);
     for (const group of chunk(calendars, CHUNK)) {
       const values: unknown[] = [];
       for (const c of group) {
-        values.push(accountId, c.id, c.name, c.color ?? null, (prevSel.get(c.id) ?? true) ? 1 : 0, c.readOnly ? 1 : 0);
+        const pendingSelected = typeof pending?.[c.id] === "boolean" ? pending[c.id] as boolean : undefined;
+        values.push(accountId, c.id, c.name, c.color ?? null, (pendingSelected ?? prevSel.get(c.id) ?? true) ? 1 : 0, c.readOnly ? 1 : 0);
       }
       await this.db.execute(
         `INSERT INTO pim_calendars (account_id, cal_id, name, color, selected, read_only) VALUES ` +
           group.map(() => `(?, ?, ?, ?, ?, ?)`).join(", "),
         values
       );
+    }
+    if (config && pending) {
+      delete config.plainvaPendingCalendarSelections;
+      await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
     }
   }
 
@@ -168,12 +176,13 @@ export class PimCacheRepository {
           e.recurrence ?? null,
           e.href ?? null,
           e.color ?? null,
-          e.rsvps && e.rsvps.length > 0 ? JSON.stringify(e.rsvps) : null
+          e.rsvps && e.rsvps.length > 0 ? JSON.stringify(e.rsvps) : null,
+          e.blockOf ?? null
         );
       }
       await this.db.execute(
-        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         values
       );
     }
@@ -185,7 +194,7 @@ export class PimCacheRepository {
   async listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -213,6 +222,7 @@ export class PimCacheRepository {
       recurrence: r.recurrence ? String(r.recurrence) : undefined,
       href: r.href ? String(r.href) : undefined,
       color: r.color ? String(r.color) : undefined,
+      blockOf: r.block_of ? String(r.block_of) : undefined,
       ...rsvpFields(r.rsvps),
     }));
   }
@@ -225,15 +235,25 @@ export class PimCacheRepository {
       [accountId]
     );
     const prevSel = new Map(prev.map((r) => [r.list_id, r.selected !== 0]));
+    const account = await this.db.queryOne<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
+    const config = safeJson(account?.config ?? null) as Record<string, unknown> | null;
+    const pending = config?.plainvaPendingTaskListSelections as Record<string, unknown> | undefined;
     await this.db.execute(`DELETE FROM pim_tasklists WHERE account_id = ?`, [accountId]);
     for (const group of chunk(lists, CHUNK)) {
       const values: unknown[] = [];
-      for (const l of group) values.push(accountId, l.id, l.name, (prevSel.get(l.id) ?? false) ? 1 : 0);
+      for (const l of group) {
+        const pendingSelected = typeof pending?.[l.id] === "boolean" ? pending[l.id] as boolean : undefined;
+        values.push(accountId, l.id, l.name, (pendingSelected ?? prevSel.get(l.id) ?? false) ? 1 : 0);
+      }
       await this.db.execute(
         `INSERT INTO pim_tasklists (account_id, list_id, name, selected) VALUES ` +
           group.map(() => `(?, ?, ?, ?)`).join(", "),
         values
       );
+    }
+    if (config && pending) {
+      delete config.plainvaPendingTaskListSelections;
+      await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
     }
   }
 
@@ -293,7 +313,7 @@ export class PimCacheRepository {
   async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
     const r = await this.db.queryOne<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
@@ -315,6 +335,7 @@ export class PimCacheRepository {
       recurrence: r.recurrence ? String(r.recurrence) : undefined,
       href: r.href ? String(r.href) : undefined,
       color: r.color ? String(r.color) : undefined,
+      blockOf: r.block_of ? String(r.block_of) : undefined,
       ...rsvpFields(r.rsvps),
     };
   }

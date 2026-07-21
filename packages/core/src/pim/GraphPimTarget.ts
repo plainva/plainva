@@ -51,7 +51,12 @@ interface GraphEventItem {
   responseStatus?: { response?: string };
   recurrence?: { pattern?: { type?: string } } | null;
   "@odata.etag"?: string;
+  singleValueExtendedProperties?: Array<{ id?: string; value?: string }>;
 }
+
+/** Stable named-property id used for Plainva blocker linkage. */
+export const GRAPH_BLOCK_OF_PROPERTY_ID = "String {4F21D2AE-7A5A-4B66-9E47-7F2B96AB0C31} Name plainva-block-of";
+const GRAPH_BLOCK_EXPAND = `$expand=singleValueExtendedProperties($filter=id eq '${GRAPH_BLOCK_OF_PROPERTY_ID}')`;
 
 /** Graph attendee response -> normalised PARTSTAT. */
 function graphResponseToStatus(r: string | undefined): PimAttendeeStatus {
@@ -119,7 +124,7 @@ export class GraphPimTarget implements IPimTarget {
     const endIso = new Date(rangeEndTs).toISOString();
     let url: string | undefined =
       `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView` +
-      `?startDateTime=${encodeURIComponent(startIso)}&endDateTime=${encodeURIComponent(endIso)}&$top=200`;
+      `?startDateTime=${encodeURIComponent(startIso)}&endDateTime=${encodeURIComponent(endIso)}&$top=200&${GRAPH_BLOCK_EXPAND}`;
     while (url) {
       const data: { value?: GraphEventItem[]; "@odata.nextLink"?: string } = await this.getJson(url, {
         Prefer: 'outlook.timezone="UTC"',
@@ -141,7 +146,7 @@ export class GraphPimTarget implements IPimTarget {
     for (const id of seriesIds) {
       try {
         const master: GraphEventItem = await this.getJson(
-          `${GRAPH_BASE}/me/events/${encodeURIComponent(id)}`,
+          `${GRAPH_BASE}/me/events/${encodeURIComponent(id)}?${GRAPH_BLOCK_EXPAND}`,
           { Prefer: 'outlook.timezone="UTC"' }
         );
         const mapped = mapGraphEvent(master, calendarId);
@@ -295,6 +300,9 @@ function graphEventBody(draft: PimEventDraft): Record<string, unknown> {
     // undefined leaves the rule, null clears it, an object sets/replaces it —
     // so an existing series' rule CAN now be edited from the field dialog.
     ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? graphRecurrence(draft.recurrence, draft) : null } : {}),
+    ...(draft.blockOf
+      ? { singleValueExtendedProperties: [{ id: GRAPH_BLOCK_OF_PROPERTY_ID, value: draft.blockOf }] }
+      : {}),
   };
 }
 
@@ -384,6 +392,7 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
     status: item.showAs === "tentative" ? "tentative" : "confirmed",
     etag: item["@odata.etag"],
     seriesMaster: item.seriesMasterId,
+    blockOf: item.singleValueExtendedProperties?.find((p) => p.id === GRAPH_BLOCK_OF_PROPERTY_ID)?.value || undefined,
   };
 }
 

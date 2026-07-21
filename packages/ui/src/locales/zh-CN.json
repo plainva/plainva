@@ -4,7 +4,7 @@
     "toggleLabel": "同步此仓库的设置",
     "toggleDesc": "将此仓库的设置（每日笔记、模板、任务数据库、备份规则等）保存为仓库内的一个小文件，以便在你的所有设备上保持一致。需要有效的云同步。",
     "explainer": "不会传输任何凭据或设备专属路径。如果你在多台设备上更改设置，以最近保存的版本为准。",
-    "adopted": "已采用来自另一台设备的设置。"
+    "adopted": "已采用来自另一台设备的设置。", "secretsLabel": "同步账户凭据", "secretsDesc": "仅同步静态 IMAP/CalDAV 密码和自定义 Google 日历应用凭据；OAuth 令牌保留在此设备上。"
   },
   "encryption": {
     "contentRow": "加密仓库内容",
@@ -46,7 +46,9 @@
     "create": "创建",
     "unlock": "解锁",
     "done": "完成",
-    "useRecovery": "使用恢复代码"
+    "useRecovery": "使用恢复代码",
+    "deactivate": "关闭加密", "deactivateTitle": "关闭保险库加密？", "deactivateConfirm": "所有远程文件将重写为明文。本地保险库不会改变。是否继续？", "deactivateStarted": "已开始解密，正在重写 {{n}} 个文件。", "deactivateFailed": "无法开始解密。", "deactivateDone": "加密已关闭。", "completeDeactivation": "完成解密",
+    "rotate": "轮换密钥", "rotateTitle": "轮换加密密钥", "rotateConfirm": "请输入同步密码短语。系统将创建新密钥并重新加密所有远程文件。", "rotateStarted": "已开始密钥轮换，正在重新加密 {{n}} 个文件。", "rotateFailed": "无法开始密钥轮换。请检查密码短语。", "rotateDone": "密钥轮换完成，旧密钥已删除。", "completeRotation": "完成密钥轮换", "migrationActive": "可恢复的加密迁移正在进行。同步队列为空后请完成迁移。"
   },
   "contextMenu": {
     "cut": "剪切",
@@ -2093,16 +2095,16 @@
     "agendaTomorrow": "明天",
     "dueToday": "今天到期",
     "dueOn": "{{date}} 到期",
-    "inviteSubject": "邀请：{{title}}"
+    "inviteSubject": "邀请：{{title}}", "linkedBlock": "已关联的日历时间块"
   },
   "mail": {
-    "sectionTitle": "邮件（IMAP，只读）",
+    "sectionTitle": "邮件（IMAP）",
     "title": "邮件",
     "openMail": "打开邮件",
     "empty": "尚未连接邮件账户",
-    "emptyHint": "请在设置的“日历与账户”中连接一个只读 IMAP 账户。",
+    "emptyHint": "请在设置的“日历与账户”中连接一个 IMAP 账户。",
     "noAccounts": "尚未连接任何邮件账户。",
-    "imapHint": "只读——Plainva 不会更改邮箱。Gmail：imap.gmail.com，端口 993，使用应用专用密码。",
+    "imapHint": "Plainva 读取邮件时不会标记为已读；仅在你明确操作时才会标星、移动或删除。Gmail：imap.gmail.com，端口 993，使用应用专用密码。",
     "backend": "连接方式",
     "backendMicrosoft": "Microsoft（登录）",
     "backendImap": "IMAP（应用专用密码）",
@@ -2183,7 +2185,8 @@
     "listActions": "邮件操作",
     "noTrash": "未找到回收站文件夹。",
     "sendNoteViaEmail": "通过邮件发送",
-    "sendNoteAsAttachment": "作为附件发送"
+    "sendNoteAsAttachment": "作为附件发送",
+    "gmailLabelsChanged": "已将 {{n}} 封邮件的 Gmail 标签更改为 {{folder}}。", "gmailAllMailDeleteWarning": "这会从所有 Gmail 标签中移除邮件并将其移至垃圾箱。", "deleteForeverTitle": "永久删除？", "deleteForeverMsgN": "将永久删除 {{n}} 封邮件。", "deleteForeverMsg": "将永久删除此邮件。", "deleteForever": "永久删除", "filterFlagged": "已标记", "flagged": "已标记", "unflag": "取消标记", "flag": "标记"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

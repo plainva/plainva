@@ -4,7 +4,7 @@
     "toggleLabel": "この保管庫の設定を同期",
     "toggleDesc": "この保管庫の設定（デイリーノート、テンプレート、タスクデータベース、バックアップのルールなど）を保管庫内の小さなファイルとして保存し、すべての端末で同じ状態に保ちます。有効なクラウド同期が必要です。",
     "explainer": "認証情報や端末固有のパスは転送されません。複数の端末で設定を変更した場合は、最後に保存されたバージョンが優先されます。",
-    "adopted": "設定は別の端末から採用されました。"
+    "adopted": "設定は別の端末から採用されました。", "secretsLabel": "アカウント認証情報を同期", "secretsDesc": "静的な IMAP/CalDAV パスワードと独自の Google カレンダー認証情報のみ。OAuth トークンはこのデバイスに残ります。"
   },
   "encryption": {
     "contentRow": "保管庫のコンテンツを暗号化",
@@ -46,7 +46,9 @@
     "create": "作成",
     "unlock": "アンロック",
     "done": "完了",
-    "useRecovery": "復元コードを使う"
+    "useRecovery": "復元コードを使う",
+    "deactivate": "暗号化を解除", "deactivateTitle": "Vault の暗号化を解除しますか？", "deactivateConfirm": "リモートの全ファイルを平文で書き直します。ローカル Vault は変更されません。続行しますか？", "deactivateStarted": "復号を開始しました — {{n}} 件を書き直しています。", "deactivateFailed": "復号を開始できませんでした。", "deactivateDone": "暗号化を解除しました。", "completeDeactivation": "復号を完了",
+    "rotate": "鍵をローテーション", "rotateTitle": "暗号鍵をローテーション", "rotateConfirm": "同期パスフレーズを入力してください。新しい鍵を作成し、リモートの全ファイルを再暗号化します。", "rotateStarted": "鍵のローテーションを開始しました — {{n}} 件を再暗号化しています。", "rotateFailed": "鍵のローテーションを開始できませんでした。パスフレーズを確認してください。", "rotateDone": "鍵のローテーションが完了し、古い鍵を削除しました。", "completeRotation": "ローテーションを完了", "migrationActive": "再開可能な暗号化移行が進行中です。同期キューが空になったら完了してください。"
   },
   "contextMenu": {
     "cut": "切り取り",
@@ -2093,16 +2095,16 @@
     "agendaTomorrow": "明日",
     "dueToday": "今日締め切り",
     "dueOn": "{{date}} 締め切り",
-    "inviteSubject": "招待: {{title}}"
+    "inviteSubject": "招待: {{title}}", "linkedBlock": "リンク済みカレンダーブロック"
   },
   "mail": {
-    "sectionTitle": "メール（IMAP・読み取り専用）",
+    "sectionTitle": "メール（IMAP）",
     "title": "メール",
     "openMail": "メールを開く",
     "empty": "メールアカウントが接続されていません",
-    "emptyHint": "設定の「カレンダーとアカウント」で読み取り専用の IMAP アカウントを接続してください。",
+    "emptyHint": "設定の「カレンダーとアカウント」で IMAP アカウントを接続してください。",
     "noAccounts": "メールアカウントはまだ接続されていません。",
-    "imapHint": "読み取り専用 — Plainva がメールボックスを変更することはありません。Gmail: imap.gmail.com、ポート 993、アプリパスワードを使用。",
+    "imapHint": "Plainva は既読にせず読み込みます。フラグ、移動、削除は明示的な操作時のみ実行されます。Gmail: imap.gmail.com、ポート 993、アプリパスワードを使用。",
     "backend": "接続方法",
     "backendMicrosoft": "Microsoft（サインイン）",
     "backendImap": "IMAP（アプリパスワード）",
@@ -2183,7 +2185,8 @@
     "listActions": "メッセージの操作",
     "noTrash": "ゴミ箱フォルダーが見つかりません。",
     "sendNoteViaEmail": "メールで送信",
-    "sendNoteAsAttachment": "添付ファイルとして送信"
+    "sendNoteAsAttachment": "添付ファイルとして送信",
+    "gmailLabelsChanged": "{{n}} 件の Gmail ラベルを {{folder}} に変更しました。", "gmailAllMailDeleteWarning": "すべての Gmail ラベルからメッセージを削除し、ゴミ箱へ移動します。", "deleteForeverTitle": "完全に削除しますか？", "deleteForeverMsgN": "{{n}} 件のメッセージを完全に削除します。", "deleteForeverMsg": "メッセージを完全に削除します。", "deleteForever": "完全に削除", "filterFlagged": "フラグ付き", "flagged": "フラグ付き", "unflag": "フラグを外す", "flag": "フラグを付ける"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

@@ -24,6 +24,7 @@ export type MobileDialog =
       kind: "prompt";
       initial?: string;
       placeholder?: string;
+      secure?: boolean;
       resolve: (r: { value: string; cancelled: boolean }) => void;
     })
   | (BaseRequest & {
@@ -73,6 +74,7 @@ export function mPrompt(opts: {
   message?: string;
   initial?: string;
   placeholder?: string;
+  secure?: boolean;
 }): Promise<{ value: string; cancelled: boolean }> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "prompt", id: nextId++, ...opts, resolve }];

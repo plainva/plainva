@@ -35,35 +35,44 @@ export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft
   return account.kind ?? "imap";
 }
 
-const accountsKey = (vaultPath: string) => `mailAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-const secretKey = (vaultPath: string, accountId: string) =>
+export const mailAccountsKey = (vaultPath: string) => `mailAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const mailSecretKey = (vaultPath: string, accountId: string) =>
   `mail_${accountId}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 export async function listMailAccounts(vaultPath: string): Promise<MailAccountConfig[]> {
   const store = await getSettingsStore();
-  const raw = await store.get<MailAccountConfig[]>(accountsKey(vaultPath));
+  const raw = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
   return Array.isArray(raw) ? raw.filter((a) => a && typeof a.id === "string") : [];
+}
+
+/** Replaces non-secret account metadata during settings-profile import. No
+ * credential slot is touched; imported accounts therefore correctly show as
+ * needing sign-in until an allowed secret is imported or OAuth is completed. */
+export async function replaceMailAccounts(vaultPath: string, accounts: MailAccountConfig[]): Promise<void> {
+  const store = await getSettingsStore();
+  await store.set(mailAccountsKey(vaultPath), accounts);
+  await store.save();
 }
 
 export async function saveMailAccount(vaultPath: string, account: MailAccountConfig, password: string): Promise<void> {
   const store = await getSettingsStore();
   const list = await listMailAccounts(vaultPath);
   const next = [...list.filter((a) => a.id !== account.id), account];
-  await store.set(accountsKey(vaultPath), next);
+  await store.set(mailAccountsKey(vaultPath), next);
   await store.save();
-  await credentialManager.writeSecret(secretKey(vaultPath, account.id), { pass: password });
+  await credentialManager.writeSecret(mailSecretKey(vaultPath, account.id), { pass: password });
 }
 
 export async function removeMailAccount(vaultPath: string, accountId: string): Promise<void> {
   const store = await getSettingsStore();
   const list = await listMailAccounts(vaultPath);
-  await store.set(accountsKey(vaultPath), list.filter((a) => a.id !== accountId));
+  await store.set(mailAccountsKey(vaultPath), list.filter((a) => a.id !== accountId));
   await store.save();
-  await credentialManager.removeSecret(secretKey(vaultPath, accountId)).catch(() => undefined);
+  await credentialManager.removeSecret(mailSecretKey(vaultPath, accountId)).catch(() => undefined);
 }
 
 export async function getMailPassword(vaultPath: string, accountId: string): Promise<string | null> {
-  const secret = await credentialManager.readSecret<{ pass: string }>(secretKey(vaultPath, accountId));
+  const secret = await credentialManager.readSecret<{ pass: string }>(mailSecretKey(vaultPath, accountId));
   return secret?.pass ?? null;
 }
 
@@ -72,18 +81,18 @@ export async function saveMicrosoftMailAccount(vaultPath: string, account: MailA
   const store = await getSettingsStore();
   const list = await listMailAccounts(vaultPath);
   const next = [...list.filter((a) => a.id !== account.id), account];
-  await store.set(accountsKey(vaultPath), next);
+  await store.set(mailAccountsKey(vaultPath), next);
   await store.save();
-  await credentialManager.writeSecret(secretKey(vaultPath, account.id), { refreshToken });
+  await credentialManager.writeSecret(mailSecretKey(vaultPath, account.id), { refreshToken });
 }
 
 export async function getMailRefreshToken(vaultPath: string, accountId: string): Promise<string | null> {
-  const secret = await credentialManager.readSecret<{ refreshToken: string }>(secretKey(vaultPath, accountId));
+  const secret = await credentialManager.readSecret<{ refreshToken: string }>(mailSecretKey(vaultPath, accountId));
   return secret?.refreshToken ?? null;
 }
 
 /** Persists a rotated refresh token (Microsoft rotates on every refresh — a
  * dropped rotation kills the account; see the sync flow's hard-won lesson). */
 export async function saveMailRefreshToken(vaultPath: string, accountId: string, refreshToken: string): Promise<void> {
-  await credentialManager.writeSecret(secretKey(vaultPath, accountId), { refreshToken });
+  await credentialManager.writeSecret(mailSecretKey(vaultPath, accountId), { refreshToken });
 }

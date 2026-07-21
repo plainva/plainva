@@ -89,7 +89,7 @@ describe("PimCacheRepository", () => {
 
   it("listEvents filters deselected calendars, disabled accounts, cancelled events and series masters", async () => {
     await repo.replaceEventWindow("acc1", "cal1", 0, Date.parse("2027-01-01T00:00:00Z"), [
-      ev("plain", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z", { attendees: ["Anna"], etag: '"1"' }),
+      ev("plain", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z", { attendees: ["Anna"], etag: '"1"', blockOf: "source-uid" }),
       ev("master", "2026-08-03T09:00:00Z", "2026-08-03T09:15:00Z", { recurrence: "RRULE:FREQ=WEEKLY" }),
       ev("inst", "2026-08-03T09:00:00Z", "2026-08-03T09:15:00Z", { seriesMaster: "master" }),
       ev("gone", "2026-08-04T09:00:00Z", "2026-08-04T10:00:00Z", { status: "cancelled" }),
@@ -97,6 +97,7 @@ describe("PimCacheRepository", () => {
     let rows = await repo.listEvents(0, Date.parse("2027-01-01T00:00:00Z"));
     expect(rows.map((e) => e.uid).sort()).toEqual(["inst", "plain"]);
     expect(rows.find((e) => e.uid === "plain")!.attendees).toEqual(["Anna"]);
+    expect(rows.find((e) => e.uid === "plain")!.blockOf).toBe("source-uid");
 
     await repo.setCalendarSelected("acc1", "cal1", false);
     rows = await repo.listEvents(0, Date.parse("2027-01-01T00:00:00Z"));

@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-07-20
+Laatst bijgewerkt: 2026-07-21
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -51,3 +51,7 @@ Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft g
 - **Notitie als e-mailconcept in de mailbox opslaan** (opdrachtenpalet, bij elke geopende notitie): bewaart de notitie via IMAP als **concept in je eigen mailbox** — kies het account, de ontvanger en de conceptenmap, open dan je gewone mailprogramma, controleer en verstuur van daaruit. De opmaak blijft behouden.
 - **Notitie per e-mail versturen (mailto)** (opdrachtenpalet): opent je standaard mailprogramma met de notitie als platte tekst (lange notities worden ingekort).
 - **Notitie als e-mailtekst kopiëren** (opdrachtenpalet): zet de notitie met opmaak op het klembord — plak hem in elk venster waarin je een e-mail opstelt.
+
+## Mailboxacties
+
+Sterren/markeringen synchroniseren via IMAP en Microsoft; **Gemarkeerd** toont de serverselectie. Berichten kunnen afzonderlijk of in bulk worden verplaatst. Buiten de prullenbak betekent **Verwijderen** altijd “naar de prullenbak”; alleen daar is **Definitief verwijderen** na bevestiging beschikbaar. Bij Gmail is verplaatsen een labelwijziging en kunnen acties in **Alle e-mail** het bericht in alle labels raken; Plainva waarschuwt vooraf.

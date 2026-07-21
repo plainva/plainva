@@ -83,6 +83,9 @@ import {
   graphListEnvelopes,
   graphSendMail,
   graphMove,
+  graphSetFlagged,
+  graphDeleteMessage,
+  graphListFlaggedEnvelopes,
   forgetGraphMailRuntime,
 } from "./graphMail";
 import type { MailAccountConfig } from "./mailAccounts";
@@ -167,6 +170,20 @@ describe("graphMail request shaping", () => {
     const move = calls.find((c) => c.url.includes("/move"));
     expect(move?.method).toBe("POST");
     expect(JSON.parse(move?.body ?? "{}")).toEqual({ destinationId: "CCCtrash" });
+  });
+
+  it("flags, lists flagged, and permanently deletes through Graph", async () => {
+    await graphSetFlagged("/vault", account, "INBOX", "AAMkmsg1==", true);
+    const patch = calls.find((c) => c.method === "PATCH" && c.url.includes("/me/messages/AAMkmsg1%3D%3D"));
+    expect(JSON.parse(patch?.body ?? "{}")).toEqual({ flag: { flagStatus: "flagged" } });
+
+    const flagged = await graphListFlaggedEnvelopes("/vault", account, "INBOX");
+    expect(flagged[0]).toMatchObject({ id: "AAMkmsg1==", flagged: false });
+    const list = calls.find((c) => c.url.includes("flag%2FflagStatus") || c.url.includes("flag/flagStatus"));
+    expect(list?.url).toContain("$filter=");
+
+    await graphDeleteMessage("/vault", account, "INBOX", "AAMkmsg1==");
+    expect(calls.some((c) => c.method === "DELETE" && c.url.includes("/me/messages/AAMkmsg1%3D%3D"))).toBe(true);
   });
 
   it("moves via the well-known name when the caller passes a role name", async () => {

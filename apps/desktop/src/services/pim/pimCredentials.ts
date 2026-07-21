@@ -13,7 +13,7 @@ export type PimStoredCredentials =
   | { kind: "google"; clientId: string; clientSecret: string; refreshToken: string }
   | { kind: "microsoft"; clientId: string; refreshToken: string };
 
-function pimSecretKey(vaultPath: string, accountId: string): string {
+export function pimSecretKey(vaultPath: string, accountId: string): string {
   return `pim_${accountId}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 }
 

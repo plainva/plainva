@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-07-20
+Laatst bijgewerkt: 2026-07-21
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -46,3 +46,5 @@ Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschij
 Twee veiligheidsregels beschermen je gegevens: **het verwijderen van de notitie verwijdert nooit de externe taak** (de synchronisatie stopt gewoon en de taak wordt ook niet opnieuw geïmporteerd), en **een extern verwijderde taak verwijdert nooit je notitie** (die wordt gewoon een gewone notitie). Een taaknotitie hernoemen of verplaatsen is geen probleem — de frontmatter-markering houdt de koppeling in stand.
 
 Huidige beperkingen: als gewone notities aangemaakte taken worden niet naar de provider gepusht (maak ze extern aan of via de takendatabase), en alles op deze pagina is voorlopig desktop-first.
+
+Kopieën van **Blokkeren in andere agenda’s** krijgen bij Google, Microsoft en CalDAV een providerspecifieke Plainva-koppeling. Agendaweergaven tonen die relatie met een kettingpictogram; na vernieuwen worden bron en blokkade opnieuw gekoppeld in plaats van losse duplicaten te worden.

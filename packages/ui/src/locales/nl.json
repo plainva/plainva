@@ -4,7 +4,7 @@
     "toggleLabel": "Instellingen van deze vault synchroniseren",
     "toggleDesc": "Slaat de instellingen van deze vault (dagelijkse notities, sjablonen, takendatabase, back-upregels en meer) op als een klein bestand in de vault, zodat ze op al je apparaten hetzelfde zijn. Vereist een actieve cloudsynchronisatie.",
     "explainer": "Er worden geen inloggegevens en geen apparaatspecifieke paden overgedragen. Als je op meer dan één apparaat instellingen wijzigt, wint de laatst opgeslagen versie.",
-    "adopted": "Instellingen overgenomen van een ander apparaat."
+    "adopted": "Instellingen overgenomen van een ander apparaat.", "secretsLabel": "Accountgegevens synchroniseren", "secretsDesc": "Alleen statische IMAP-/CalDAV-wachtwoorden en eigen Google Agenda-appgegevens; OAuth-tokens blijven op dit apparaat."
   },
   "encryption": {
     "contentRow": "Vault-inhoud versleutelen",
@@ -46,7 +46,9 @@
     "create": "Aanmaken",
     "unlock": "Ontgrendelen",
     "done": "Klaar",
-    "useRecovery": "Herstelcode gebruiken"
+    "useRecovery": "Herstelcode gebruiken",
+    "deactivate": "Versleuteling uitschakelen", "deactivateTitle": "Vault-versleuteling uitschakelen?", "deactivateConfirm": "Alle externe bestanden worden als platte tekst herschreven. De lokale vault verandert niet. Doorgaan?", "deactivateStarted": "Ontsleuteling gestart — {{n}} bestanden worden herschreven.", "deactivateFailed": "Ontsleuteling kon niet worden gestart.", "deactivateDone": "Versleuteling is uitgeschakeld.", "completeDeactivation": "Ontsleuteling voltooien",
+    "rotate": "Sleutel roteren", "rotateTitle": "Versleutelingssleutel roteren", "rotateConfirm": "Voer de sync-wachtwoordzin in. Er wordt een nieuwe sleutel gemaakt en alle externe bestanden worden opnieuw versleuteld.", "rotateStarted": "Sleutelrotatie gestart — {{n}} bestanden worden opnieuw versleuteld.", "rotateFailed": "Sleutelrotatie kon niet worden gestart. Controleer de wachtwoordzin.", "rotateDone": "Sleutelrotatie voltooid; de oude sleutel is verwijderd.", "completeRotation": "Sleutelrotatie voltooien", "migrationActive": "Er is een hervatbare versleutelingsmigratie actief. Voltooi die als de syncwachtrij leeg is."
   },
   "contextMenu": {
     "cut": "Knippen",
@@ -2099,16 +2101,16 @@
     "agendaTomorrow": "Morgen",
     "dueToday": "vandaag te doen",
     "dueOn": "te doen {{date}}",
-    "inviteSubject": "Uitnodiging: {{title}}"
+    "inviteSubject": "Uitnodiging: {{title}}", "linkedBlock": "Gekoppeld kalenderblok"
   },
   "mail": {
-    "sectionTitle": "E-mail (IMAP, alleen-lezen)",
+    "sectionTitle": "E-mail (IMAP)",
     "title": "E-mail",
     "openMail": "E-mail openen",
     "empty": "Geen e-mailaccount verbonden",
-    "emptyHint": "Verbind een alleen-lezen IMAP-account in Instellingen onder “Agenda en accounts”.",
+    "emptyHint": "Verbind een IMAP-account in Instellingen onder “Agenda en accounts”.",
     "noAccounts": "Nog geen e-mailaccount verbonden.",
-    "imapHint": "Alleen-lezen — Plainva wijzigt nooit iets in de mailbox. Gmail: imap.gmail.com, poort 993, met een app-wachtwoord.",
+    "imapHint": "Plainva leest zonder berichten als gelezen te markeren; markeren, verplaatsen en verwijderen gebeuren alleen op jouw verzoek. Gmail: imap.gmail.com, poort 993, met een app-wachtwoord.",
     "backend": "Verbindingstype",
     "backendMicrosoft": "Microsoft (aanmelden)",
     "backendImap": "IMAP (app-wachtwoord)",
@@ -2189,7 +2191,8 @@
     "listActions": "Berichtacties",
     "noTrash": "Geen prullenbakmap gevonden.",
     "sendNoteViaEmail": "Verzenden per e-mail",
-    "sendNoteAsAttachment": "Verzenden als bijlage"
+    "sendNoteAsAttachment": "Verzenden als bijlage",
+    "gmailLabelsChanged": "Gmail-label van {{n}} bericht(en) gewijzigd in {{folder}}.", "gmailAllMailDeleteWarning": "Dit verwijdert het bericht uit alle Gmail-labels en verplaatst het naar de prullenbak.", "deleteForeverTitle": "Definitief verwijderen?", "deleteForeverMsgN": "{{n}} berichten worden definitief verwijderd.", "deleteForeverMsg": "Het bericht wordt definitief verwijderd.", "deleteForever": "Definitief verwijderen", "filterFlagged": "Gemarkeerd", "flagged": "Gemarkeerd", "unflag": "Markering verwijderen", "flag": "Markeren"
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

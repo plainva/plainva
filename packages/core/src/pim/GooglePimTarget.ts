@@ -47,6 +47,7 @@ interface GoogleEventItem {
   colorId?: string;
   recurringEventId?: string;
   recurrence?: string[];
+  extendedProperties?: { private?: Record<string, string> };
 }
 
 /** Google's fixed 11 event colours (colorId -> hex). Per-event colours use this
@@ -335,6 +336,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     etag: item.etag,
     seriesMaster: item.recurringEventId,
     color: item.colorId ? GOOGLE_EVENT_COLORS[item.colorId] : undefined,
+    blockOf: item.extendedProperties?.private?.["plainva-block-of"] || undefined,
   };
 }
 
@@ -360,6 +362,7 @@ function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
     // undefined leaves the rule, null clears it ([]), an object sets it — so an
     // existing rule CAN now be edited (the drag path leaves recurrence unset).
     ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? [`RRULE:${recurrenceToRRule(draft.recurrence)}`] : [] } : {}),
+    ...(draft.blockOf ? { extendedProperties: { private: { "plainva-block-of": draft.blockOf } } } : {}),
   };
 }
 

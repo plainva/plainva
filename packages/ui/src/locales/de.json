@@ -4,7 +4,9 @@
     "toggleLabel": "Einstellungen dieses Vaults synchronisieren",
     "toggleDesc": "Legt die Vault-Einstellungen (Tagesnotizen, Vorlagen, Aufgaben-Datenbank, Backup-Regeln u. a.) als kleine Datei in den Vault, damit sie auf all Deinen Geräten gleich sind. Braucht eine aktive Cloud-Synchronisation.",
     "explainer": "Es werden keine Zugangsdaten und keine gerätespezifischen Pfade übertragen. Bei Änderungen auf mehreren Geräten gewinnt die zuletzt gespeicherte Fassung.",
-    "adopted": "Einstellungen von einem anderen Gerät übernommen."
+    "adopted": "Einstellungen von einem anderen Gerät übernommen.",
+    "secretsLabel": "Konten-Zugangsdaten synchronisieren",
+    "secretsDesc": "Nur statische IMAP-/CalDAV-Passwörter und eigene Google-Kalender-App-Daten; OAuth-Tokens bleiben auf diesem Gerät."
   },
   "encryption": {
     "contentRow": "Vault-Inhalt verschlüsseln",
@@ -46,7 +48,22 @@
     "create": "Erstellen",
     "unlock": "Entsperren",
     "done": "Fertig",
-    "useRecovery": "Wiederherstellungscode verwenden"
+    "useRecovery": "Wiederherstellungscode verwenden",
+    "deactivate": "Verschlüsselung ausschalten",
+    "deactivateTitle": "Vault-Verschlüsselung ausschalten?",
+    "deactivateConfirm": "Alle entfernten Dateien werden als Klartext neu geschrieben. Dein lokaler Vault bleibt unverändert. Fortfahren?",
+    "deactivateStarted": "Entschlüsselung gestartet — {{n}} Dateien werden neu geschrieben.",
+    "deactivateFailed": "Entschlüsselung konnte nicht gestartet werden.",
+    "deactivateDone": "Die Verschlüsselung ist aus; der authentifizierte Klartext-Zustand ist aktiv.",
+    "completeDeactivation": "Entschlüsselung abschließen",
+    "rotate": "Schlüssel wechseln",
+    "rotateTitle": "Verschlüsselungsschlüssel wechseln",
+    "rotateConfirm": "Gib die Sync-Passphrase ein. Ein neuer Schlüssel wird erstellt und alle entfernten Dateien werden neu verschlüsselt.",
+    "rotateStarted": "Schlüsselwechsel gestartet — {{n}} Dateien werden neu verschlüsselt.",
+    "rotateFailed": "Schlüsselwechsel konnte nicht gestartet werden. Prüfe die Passphrase.",
+    "rotateDone": "Schlüsselwechsel abgeschlossen; der alte Schlüssel wurde entfernt.",
+    "completeRotation": "Schlüsselwechsel abschließen",
+    "migrationActive": "Eine fortsetzbare Verschlüsselungsmigration läuft. Schließe sie ab, sobald die Sync-Warteschlange leer ist."
   },
   "contextMenu": {
     "cut": "Ausschneiden",
@@ -2099,16 +2116,17 @@
     "agendaTomorrow": "Morgen",
     "dueToday": "fällig heute",
     "dueOn": "fällig {{date}}",
-    "inviteSubject": "Einladung: {{title}}"
+    "inviteSubject": "Einladung: {{title}}",
+    "linkedBlock": "Verknüpfter Kalenderblock"
   },
   "mail": {
-    "sectionTitle": "E-Mail (IMAP, nur Lesen)",
+    "sectionTitle": "E-Mail (IMAP)",
     "title": "E-Mail",
     "openMail": "E-Mail öffnen",
     "empty": "Kein E-Mail-Konto verbunden",
-    "emptyHint": "Verbinde in den Einstellungen unter „Kalender & Konten“ ein IMAP-Konto (nur Lesen).",
+    "emptyHint": "Verbinde in den Einstellungen unter „Kalender & Konten“ ein IMAP-Konto.",
     "noAccounts": "Noch kein E-Mail-Konto verbunden.",
-    "imapHint": "Nur Lesen — Plainva ändert nichts im Postfach. Gmail: imap.gmail.com, Port 993, mit App-Passwort.",
+    "imapHint": "Plainva liest, ohne Nachrichten als gelesen zu markieren; Markieren, Verschieben und Löschen erfolgen nur auf deinen ausdrücklichen Befehl. Gmail: imap.gmail.com, Port 993, mit App-Passwort.",
     "backend": "Verbindungsart",
     "backendMicrosoft": "Microsoft (Anmelden)",
     "backendImap": "IMAP (App-Passwort)",
@@ -2189,7 +2207,17 @@
     "listActions": "Nachrichtenaktionen",
     "noTrash": "Kein Papierkorb-Ordner gefunden.",
     "sendNoteViaEmail": "Per Mail verschicken",
-    "sendNoteAsAttachment": "Per Mail als Anhang"
+    "sendNoteAsAttachment": "Per Mail als Anhang",
+    "gmailLabelsChanged": "Gmail-Label für {{n}} Nachricht(en) auf {{folder}} geändert.",
+    "gmailAllMailDeleteWarning": "Diese Aktion entfernt die Nachricht in Gmail global aus allen Labels und verschiebt sie in den Papierkorb.",
+    "deleteForeverTitle": "Endgültig löschen?",
+    "deleteForeverMsgN": "{{n}} Nachrichten werden unwiderruflich gelöscht.",
+    "deleteForeverMsg": "Die Nachricht wird unwiderruflich gelöscht.",
+    "deleteForever": "Endgültig löschen",
+    "filterFlagged": "Markiert",
+    "flagged": "Markiert",
+    "unflag": "Markierung entfernen",
+    "flag": "Markieren"
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

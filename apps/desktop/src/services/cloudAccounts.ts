@@ -32,17 +32,17 @@ import type { PimRuntime } from "./pim/pimRuntime";
 
 export const CLOUD_ACCOUNTS_EVENT = "plainva-cloud-accounts-changed";
 
-const registryKey = (vaultPath: string) => `cloudAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const cloudAccountsRegistryKey = (vaultPath: string) => `cloudAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 export async function loadCloudAccounts(vaultPath: string): Promise<CloudAccountRecord[]> {
   const store = await getSettingsStore();
-  const raw = await store.get<CloudAccountRecord[]>(registryKey(vaultPath));
+  const raw = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
   return Array.isArray(raw) ? raw.filter((r) => r && typeof r.id === "string" && !!r.services) : [];
 }
 
 export async function saveCloudAccounts(vaultPath: string, records: CloudAccountRecord[]): Promise<void> {
   const store = await getSettingsStore();
-  await store.set(registryKey(vaultPath), records);
+  await store.set(cloudAccountsRegistryKey(vaultPath), records);
   await store.save();
   window.dispatchEvent(new CustomEvent(CLOUD_ACCOUNTS_EVENT, { detail: { vaultPath } }));
 }

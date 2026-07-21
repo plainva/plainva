@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-07-20
+Última actualización: 2026-07-21
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -46,3 +46,5 @@ Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como
 Dos reglas de seguridad protegen tus datos: **eliminar la nota nunca elimina la tarea remota** (simplemente deja de sincronizarse y no se vuelve a importar), y **una tarea eliminada de forma remota nunca elimina tu nota** (simplemente se convierte en una nota normal). Renombrar o mover una nota de tarea no es ningún problema — la marca en el frontmatter mantiene el enlace.
 
 Límites actuales: las tareas creadas como notas normales no se envían al proveedor (créalas de forma remota o mediante la base de datos de tareas), y todo lo de esta página es por ahora desktop-first.
+
+Las copias creadas por **Bloquear en otros calendarios** llevan un vínculo de Plainva específico del proveedor en Google, Microsoft y CalDAV. Las vistas muestran la relación con un icono de enlace; después de actualizar, el origen y el bloqueo vuelven a asociarse en lugar de convertirse en duplicados independientes.

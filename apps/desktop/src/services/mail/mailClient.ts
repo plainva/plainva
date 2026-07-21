@@ -9,12 +9,16 @@ import {
   graphSetSeen,
   graphMove,
   graphSearchEnvelopes,
+  graphSetFlagged,
+  graphDeleteMessage,
+  graphListFlaggedEnvelopes,
 } from "./graphMail";
 
 /**
  * Backend-agnostic mail client. Two backends share one surface:
- *   - IMAP: the read-only Rust commands (EXAMINE + BODY.PEEK, the mailbox is
- *     never mutated — not even \Seen). Numeric IMAP UIDs.
+ *   - IMAP: Rust commands use EXAMINE + BODY.PEEK for non-mutating reads and
+ *     explicit STORE/COPY/EXPUNGE operations for user-requested changes.
+ *     Numeric IMAP UIDs.
  *   - Microsoft Graph (graphMail.ts): direct-login OAuth, opaque string ids.
  * The public message identifier is therefore a STRING; for IMAP it is the
  * stringified numeric UID (mapped at this boundary), for Graph the opaque id.
@@ -39,6 +43,7 @@ export interface MailEnvelope {
   from: string;
   dateTs: number;
   seen: boolean;
+  flagged: boolean;
 }
 
 export interface MailEnvelopePage {
@@ -64,6 +69,10 @@ export interface MailMessage {
   text: string | null;
   html: string | null;
   attachments: MailAttachmentInfo[];
+  /** IMAP mailbox epoch; paired with UID for a safe fallback identity. */
+  uidValidity?: number;
+  /** RFC Message-ID for cross-folder identity (notably Gmail All Mail). */
+  providerMessageId?: string;
 }
 
 // ---- IMAP wire shapes (numeric uid) mapped to the string-id surface -------
@@ -74,6 +83,7 @@ interface RawImapEnvelope {
   from: string;
   dateTs: number;
   seen: boolean;
+  flagged: boolean;
 }
 interface RawImapEnvelopePage {
   total: number;
@@ -89,6 +99,8 @@ interface RawImapMessage {
   text: string | null;
   html: string | null;
   attachments: MailAttachmentInfo[];
+  uidValidity?: number;
+  providerMessageId?: string;
 }
 
 async function creds(vaultPath: string, account: MailAccountConfig) {
@@ -117,10 +129,17 @@ export async function listEnvelopes(
   account: MailAccountConfig,
   mailbox: string,
   offset: number,
-  limit: number
+  limit: number,
+  beforeId?: string
 ): Promise<MailEnvelopePage> {
   if (mailAccountKind(account) === "microsoft") return graphListEnvelopes(vaultPath, account, mailbox, offset, limit);
-  const page = await invoke<RawImapEnvelopePage>("mail_list_envelopes", { ...(await creds(vaultPath, account)), mailbox, offset, limit });
+  const page = await invoke<RawImapEnvelopePage>("mail_list_envelopes", {
+    ...(await creds(vaultPath, account)),
+    mailbox,
+    offset,
+    limit,
+    beforeUid: beforeId ? Number(beforeId) : undefined,
+  });
   return { total: page.total, unseen: page.unseen, messages: page.messages.map((m) => ({ ...m, id: String(m.uid) })) };
 }
 
@@ -142,6 +161,29 @@ export async function fetchRawMessage(vaultPath: string, account: MailAccountCon
 export async function setMessageSeen(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, seen: boolean): Promise<void> {
   if (mailAccountKind(account) === "microsoft") return graphSetSeen(vaultPath, account, mailbox, id, seen);
   await invoke("mail_set_seen", { ...(await creds(vaultPath, account)), mailbox, uid: Number(id), seen });
+}
+
+/** Sets or clears the message's flagged/starred marker. */
+export async function setMessageFlagged(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, flagged: boolean): Promise<void> {
+  if (mailAccountKind(account) === "microsoft") return graphSetFlagged(vaultPath, account, mailbox, id, flagged);
+  await invoke("mail_set_flagged", { ...(await creds(vaultPath, account)), mailbox, uid: Number(id), flagged });
+}
+
+/** Irreversible delete, exposed by the UI only while the Trash folder is open. */
+export async function deleteMessagePermanently(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<void> {
+  if (mailAccountKind(account) === "microsoft") return graphDeleteMessage(vaultPath, account, mailbox, id);
+  await invoke("mail_delete_message", { ...(await creds(vaultPath, account)), mailbox, uid: Number(id) });
+}
+
+/** Server-side flagged filter (not limited to the currently loaded page). */
+export async function listFlaggedEnvelopes(vaultPath: string, account: MailAccountConfig, mailbox: string): Promise<MailEnvelope[]> {
+  if (mailAccountKind(account) === "microsoft") return graphListFlaggedEnvelopes(vaultPath, account, mailbox);
+  const page = await invoke<RawImapEnvelope[]>("mail_list_flagged_envelopes", {
+    ...(await creds(vaultPath, account)),
+    mailbox,
+    limit: 200,
+  });
+  return page.map((m) => ({ ...m, id: String(m.uid) }));
 }
 
 /** Moves a message to another mailbox (move, or delete = move to Trash). */

@@ -4,7 +4,9 @@
     "toggleLabel": "Sincronizar la configuración de este vault",
     "toggleDesc": "Guarda la configuración de este vault (notas diarias, plantillas, base de datos de tareas, reglas de copia de seguridad y más) como un pequeño archivo dentro del vault, para que coincida en todos tus dispositivos. Requiere una sincronización en la nube activa.",
     "explainer": "No se transfieren credenciales ni rutas específicas de cada dispositivo. Si cambias la configuración en más de un dispositivo, gana la versión guardada más recientemente.",
-    "adopted": "Configuración adoptada desde otro dispositivo."
+    "adopted": "Configuración adoptada desde otro dispositivo.",
+    "secretsLabel": "Sincronizar credenciales de cuentas",
+    "secretsDesc": "Solo contraseñas IMAP/CalDAV estáticas y credenciales propias de Google Calendar; los tokens OAuth permanecen en este dispositivo."
   },
   "encryption": {
     "contentRow": "Cifrar el contenido del vault",
@@ -46,7 +48,9 @@
     "create": "Crear",
     "unlock": "Desbloquear",
     "done": "Listo",
-    "useRecovery": "Usar código de recuperación"
+    "useRecovery": "Usar código de recuperación",
+    "deactivate": "Desactivar cifrado", "deactivateTitle": "¿Desactivar el cifrado del vault?", "deactivateConfirm": "Todos los archivos remotos se reescribirán sin cifrar. El vault local no cambia. ¿Continuar?", "deactivateStarted": "Descifrado iniciado: se reescriben {{n}} archivos.", "deactivateFailed": "No se pudo iniciar el descifrado.", "deactivateDone": "El cifrado está desactivado.", "completeDeactivation": "Finalizar descifrado",
+    "rotate": "Rotar clave", "rotateTitle": "Rotar clave de cifrado", "rotateConfirm": "Introduce la frase de contraseña. Se creará una clave nueva y se volverán a cifrar todos los archivos remotos.", "rotateStarted": "Rotación iniciada: se vuelven a cifrar {{n}} archivos.", "rotateFailed": "No se pudo iniciar la rotación. Comprueba la frase de contraseña.", "rotateDone": "Rotación completada; se eliminó la clave anterior.", "completeRotation": "Finalizar rotación", "migrationActive": "Hay una migración reanudable activa. Finalízala cuando la cola de sincronización esté vacía."
   },
   "contextMenu": {
     "cut": "Cortar",
@@ -2105,16 +2109,16 @@
     "agendaTomorrow": "Mañana",
     "dueToday": "vence hoy",
     "dueOn": "vence {{date}}",
-    "inviteSubject": "Invitación: {{title}}"
+    "inviteSubject": "Invitación: {{title}}", "linkedBlock": "Bloque de calendario vinculado"
   },
   "mail": {
-    "sectionTitle": "Correo (IMAP, solo lectura)",
+    "sectionTitle": "Correo (IMAP)",
     "title": "Correo",
     "openMail": "Abrir correo",
     "empty": "Ninguna cuenta de correo conectada",
-    "emptyHint": "Conecta una cuenta IMAP de solo lectura en Ajustes, sección «Calendario y cuentas».",
+    "emptyHint": "Conecta una cuenta IMAP en Ajustes, sección «Calendario y cuentas».",
     "noAccounts": "Aún no hay ninguna cuenta de correo conectada.",
-    "imapHint": "Solo lectura — Plainva nunca cambia el buzón. Gmail: imap.gmail.com, puerto 993, con contraseña de aplicación.",
+    "imapHint": "Plainva lee sin marcar mensajes como leídos; marcar, mover y eliminar solo se ejecutan cuando lo solicitas. Gmail: imap.gmail.com, puerto 993, con contraseña de aplicación.",
     "backend": "Tipo de conexión",
     "backendMicrosoft": "Microsoft (iniciar sesión)",
     "backendImap": "IMAP (contraseña de aplicación)",
@@ -2195,7 +2199,8 @@
     "listActions": "Acciones del mensaje",
     "noTrash": "No se encontró la carpeta de papelera.",
     "sendNoteViaEmail": "Enviar por correo",
-    "sendNoteAsAttachment": "Enviar como adjunto"
+    "sendNoteAsAttachment": "Enviar como adjunto",
+    "gmailLabelsChanged": "Etiqueta de Gmail de {{n}} mensaje(s) cambiada a {{folder}}.", "gmailAllMailDeleteWarning": "Esto elimina el mensaje de todas las etiquetas de Gmail y lo mueve a la papelera.", "deleteForeverTitle": "¿Eliminar permanentemente?", "deleteForeverMsgN": "Se eliminarán permanentemente {{n}} mensajes.", "deleteForeverMsg": "El mensaje se eliminará permanentemente.", "deleteForever": "Eliminar permanentemente", "filterFlagged": "Marcados", "flagged": "Marcado", "unflag": "Quitar marca", "flag": "Marcar"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

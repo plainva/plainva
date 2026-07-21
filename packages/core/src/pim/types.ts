@@ -78,6 +78,11 @@ export interface PimEvent {
   /** Per-event colour override (CSS colour / hex), overriding the calendar
    * colour on the grid. CalDAV `COLOR` (RFC 7986) / Google `colorId` mapping. */
   color?: string;
+  /** Stable provider-side id of the original event when this event is a
+   * Plainva-created blocker in another calendar. */
+  blockOf?: string;
+  /** Derived by the UI/cache consumer for originals; never written remotely. */
+  blockedIn?: Array<{ accountId: string; calendarId: string; uid: string }>;
 }
 
 export interface PimTaskList {
@@ -162,6 +167,9 @@ export interface PimEventDraft {
    * an event with the SAME uid so RSVPs sync back). Providers without server
    * scheduling (CalDAV) ignore it; there the caller sends an iMIP email itself. */
   notifyAttendees?: boolean;
+  /** Original provider event id for a mirrored blocker. Adapters persist this
+   * in a provider-private/custom property so it survives round-trips. */
+  blockOf?: string;
 }
 
 /** Addresses an existing event for update/delete. `etag` (when known) arms

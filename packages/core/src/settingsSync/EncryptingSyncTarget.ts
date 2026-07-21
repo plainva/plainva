@@ -23,7 +23,7 @@
  */
 import type { ISyncTarget, PullResult, PushResult, SyncOperation } from "../sync/ISyncTarget.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
-import { isSealedBlob, openBlob, sealBlob } from "../crypto/sealedBlob.js";
+import { isSealedBlob, openBlob, readBlobKeyId, sealBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "./errors.js";
 
 /** Path prefix of the control/sideband files the content decorator never encrypts. */
@@ -32,7 +32,14 @@ export function isSidebandControlPath(path: string): boolean {
 }
 
 export interface EncryptingSyncTargetOptions {
-  contentKey: MasterKeyBundle;
+  /** Key used for new ciphertext writes. Kept for backwards compatibility. */
+  contentKey?: MasterKeyBundle;
+  /** Explicit write key. During rotation this is the new active key. */
+  writeKey?: MasterKeyBundle;
+  /** Every key accepted for reads, keyed by keyId. Required during rotation. */
+  readKeys?: ReadonlyMap<string, MasterKeyBundle>;
+  /** False during the reverse (decrypting) sweep so forced writes become plaintext. */
+  encryptWrites?: boolean;
   /** True while the connection is in the strict state (only ciphertext allowed). */
   isStrict: () => boolean;
 }
@@ -66,9 +73,14 @@ export class EncryptingSyncTarget implements ISyncTarget {
     if (op.operation !== "write" || !op.content || isSidebandControlPath(op.file_path)) {
       return this.inner.push(op);
     }
+    if (this.options.encryptWrites === false) return this.inner.push(op);
+    const writeKey = this.options.writeKey ?? this.options.contentKey;
+    if (!writeKey) {
+      throw new FatalSyncProtocolError("encrypted-without-key", "no active content-encryption key is available");
+    }
     // Encrypt a COPY; never mutate the op (its plaintext content is re-hashed
     // after the push for base_sha256).
-    const sealed = sealBlob(this.options.contentKey, op.content, "content");
+    const sealed = sealBlob(writeKey, op.content, "content");
     return this.inner.push({ ...op, content: sealed });
   }
 
@@ -80,7 +92,14 @@ export class EncryptingSyncTarget implements ISyncTarget {
     const bytes = await this.inner.download(filePath);
     if (bytes === null || isSidebandControlPath(filePath)) return bytes;
     if (isSealedBlob(bytes)) {
-      return openBlob(this.options.contentKey, bytes, "content");
+      const keyId = readBlobKeyId(bytes);
+      const key = (keyId ? this.options.readKeys?.get(keyId) : undefined)
+        ?? (this.options.writeKey?.keyId === keyId ? this.options.writeKey : undefined)
+        ?? (this.options.contentKey?.keyId === keyId ? this.options.contentKey : undefined);
+      if (!key) {
+        throw new FatalSyncProtocolError("key-mismatch", `no unlocked key can decrypt ${filePath} (${keyId ?? "unknown key"})`);
+      }
+      return openBlob(key, bytes, "content");
     }
     // Unsealed (plaintext) content.
     if (this.options.isStrict()) {

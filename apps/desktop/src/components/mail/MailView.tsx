@@ -11,10 +11,10 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "../../services/mail/mailClient";
+import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "../../services/mail/mailOut";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "../../services/mail/mailOut";
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
@@ -22,14 +22,13 @@ import { findColumnKey } from "../../services/taskPromotion";
 import { MailDraftModal } from "./MailDraftModal";
 
 /**
- * Mail-capture tab (PIM stage 5, virtual path plainva://mail): a read-only
- * IMAP browser whose one job is getting knowledge OUT of the mailbox and
- * INTO the vault. Left: envelope list of the selected mailbox (newest
+ * Mail workspace (virtual path plainva://mail): a provider-neutral browser for
+ * reading, flagging, moving and capturing messages into the vault. Left:
+ * envelope list of the selected mailbox (newest
  * first). Right: the message in a hard-sandboxed viewer (see mailSanitize —
  * no scripts, remote content blocked; links open in the system browser on an
- * explicit click) plus the capture actions
- * ("Als Notiz ablegen", "+ .eml", "→ Aufgabe"). The mailbox itself is never
- * mutated (EXAMINE + BODY.PEEK on the Rust side).
+ * explicit click) plus mail and capture actions. Reads remain non-mutating;
+ * mailbox changes only happen after an explicit user action.
  */
 
 const PAGE_SIZE = 50;
@@ -61,16 +60,16 @@ function avatarInitial(name: string): string {
 }
 
 /** Icon per mailbox role — matches the mockup's folder rail. */
-function FolderGlyph({ name }: { name: string }): ReactElement {
-  const l = name.toLowerCase();
-  if (/inbox|posteingang|entrada|boîte|posta in arrivo|skrzynka|受信/.test(l)) return <Inbox size={ICON.ui} />;
-  if (/sent|gesend|gesendet|envoy|enviad|inviat|verzonden|wys[łl]|送信/.test(l)) return <Send size={ICON.ui} />;
-  if (/draft|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|szkic|下書き|草稿/.test(l)) return <FileText size={ICON.ui} />;
-  if (/archive|archiv|archiwum|アーカイブ/.test(l)) return <Archive size={ICON.ui} />;
-  if (/trash|papierkorb|corbeille|papelera|lixeira|cestino|prullenbac|kosz|已删除|ゴミ箱|deleted|bin/.test(l)) return <Trash2 size={ICON.ui} />;
-  if (/junk|spam|pourriel|correo no|posta indes/.test(l)) return <ShieldOff size={ICON.ui} />;
-  if (/star|markiert|flagged|wichtig|suivi|destacad|speciali|oznaczone|スター/.test(l)) return <Star size={ICON.ui} />;
-  return <Folder size={ICON.ui} />;
+function FolderGlyph({ name, delimiter }: { name: string; delimiter?: string }): ReactElement {
+  switch (classifyFolderRole(name, delimiter)) {
+    case "inbox": return <Inbox size={ICON.ui} />;
+    case "sent": return <Send size={ICON.ui} />;
+    case "drafts": return <FileText size={ICON.ui} />;
+    case "archive": return <Archive size={ICON.ui} />;
+    case "trash": return <Trash2 size={ICON.ui} />;
+    case "junk": return <ShieldOff size={ICON.ui} />;
+    default: return <Folder size={ICON.ui} />;
+  }
 }
 
 interface MailViewProps {
@@ -106,6 +105,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const msgSeq = useRef(0);
   const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
+  const envelopesRef = useRef<MailEnvelope[]>([]);
+  useEffect(() => { envelopesRef.current = envelopes; }, [envelopes]);
   const [total, setTotal] = useState(0);
   const [unseen, setUnseen] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
@@ -132,6 +133,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const anchorRef = useRef<string | null>(null);
   // Quick filter over the loaded list (server search still works alongside).
   const [filterUnread, setFilterUnread] = useState(false);
+  const [filterFlagged, setFilterFlagged] = useState(false);
+  const [flaggedResults, setFlaggedResults] = useState<MailEnvelope[] | null>(null);
   // Right-click context menu on a list row.
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
@@ -226,7 +229,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setLoadingList(true);
       setListError(null);
       try {
-        const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE);
+        const beforeId = offset > 0 ? envelopesRef.current[envelopesRef.current.length - 1]?.id : undefined;
+        const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE, beforeId);
         if (!current()) return; // a newer account/mailbox took over
         setTotal(page.total);
         setUnseen(page.unseen);
@@ -250,6 +254,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     // UIDs are folder-local, so a stale id set would highlight unrelated mails
     // in the new folder (and a Graph id set would just come up empty).
     setSearchResults(null);
+    setFlaggedResults(null);
+    setFilterFlagged(false);
     setSearchQuery("");
     setSelectedIds(new Set());
     setCtxMenu(null);
@@ -284,14 +290,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
 
   // ---- Mailbox actions (E4) ----
-  const displayedEnvelopes = searchResults ?? envelopes;
+  const displayedEnvelopes = searchResults ?? flaggedResults ?? envelopes;
   // Quick filter (client-side over the loaded list; the server search runs
   // independently). "Ungelesen" keeps only unread envelopes.
   const visibleEnvelopes = useMemo(
-    () => (filterUnread ? displayedEnvelopes.filter((e) => !e.seen) : displayedEnvelopes),
-    [displayedEnvelopes, filterUnread]
+    () => displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged)),
+    [displayedEnvelopes, filterUnread, filterFlagged]
   );
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
+  const currentFlagged = displayedEnvelopes.find((e) => e.id === selectedId)?.flagged ?? false;
+  const isTrash = useMemo(
+    () => boxes.find((b) => b.name === mailbox)?.role === "trash" || classifyFolderRole(mailbox, delimiter) === "trash",
+    [boxes, mailbox, delimiter]
+  );
+  const isGmail = /(^|\.)gmail\.com$/i.test(account?.host ?? "") || /googlemail/i.test(account?.host ?? "");
+  const isGmailAllMail = isGmail && /all mail|alle nachrichten|todos|tous les messages|tutta la posta|すべてのメール/i.test(mailbox);
   // The ids the list context menu acts on: the whole selection when the
   // right-clicked row is part of it, otherwise that single row.
   const ctxIds = useMemo(
@@ -324,6 +337,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setSearchQuery("");
     setSearchResults(null);
   }, []);
+
+  const toggleFlaggedFilter = useCallback(async () => {
+    const next = !filterFlagged;
+    setFilterFlagged(next);
+    if (!next) {
+      setFlaggedResults(null);
+      return;
+    }
+    if (!vaultPath || !account || !mailbox) return;
+    setSearchBusy(true);
+    try {
+      setFlaggedResults(await listFlaggedEnvelopes(vaultPath, account, mailbox));
+    } catch (e) {
+      setFilterFlagged(false);
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSearchBusy(false);
+    }
+  }, [filterFlagged, vaultPath, account, mailbox]);
 
   // ---- list selection (multi-select) ----
   const toggleSel = useCallback((id: string) => {
@@ -367,6 +399,26 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   const markSeen = useCallback((seen: boolean) => { if (selectedId != null) void bulkSetSeen([selectedId], seen); }, [selectedId, bulkSetSeen]);
 
+  const bulkSetFlagged = useCallback(
+    async (ids: string[], flagged: boolean) => {
+      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      const idSet = new Set(ids);
+      setActionBusy(true);
+      try {
+        for (const id of ids) await setMessageFlagged(vaultPath, account, mailbox, id, flagged);
+        const apply = (list: MailEnvelope[]) => list.map((e) => (idSet.has(e.id) ? { ...e, flagged } : e));
+        setEnvelopes(apply);
+        setSearchResults((r) => (r ? apply(r) : r));
+        setFlaggedResults((r) => (r ? (flagged ? apply(r) : r.filter((e) => !idSet.has(e.id))) : r));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [vaultPath, account, mailbox, actionBusy]
+  );
+
   // Auto-mark-read: a message left open for a few seconds switches to "read" on
   // its own (like every mail client). Switching messages cancels the timer.
   useEffect(() => {
@@ -400,6 +452,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const removeFromList = useCallback((uid: string) => {
     setEnvelopes((list) => list.filter((e) => e.id !== uid));
     setSearchResults((r) => (r ? r.filter((e) => e.id !== uid) : r));
+    setFlaggedResults((r) => (r ? r.filter((e) => e.id !== uid) : r));
     setSelectedId((cur) => (cur === uid ? null : cur));
     setMessage((m) => (m && m.id === uid ? null : m));
   }, []);
@@ -417,7 +470,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           moved++;
         }
         toast.info(
-          moved > 1
+          isGmail
+            ? t("mail.gmailLabelsChanged", { n: moved, folder: mailFolderLabel(target, delimiter), defaultValue: "Gmail-Label für {{n}} Nachricht(en) auf {{folder}} geändert" })
+            : moved > 1
             ? t("mail.movedN", { n: moved, folder: mailFolderLabel(target, delimiter), defaultValue: "{{n}} nach {{folder}} verschoben" })
             : t("mail.moved", { folder: mailFolderLabel(target, delimiter), defaultValue: "Verschoben nach {{folder}}" })
         );
@@ -428,7 +483,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         clearSel();
       }
     },
-    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, t]
+    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t]
   );
 
   const bulkDeleteToTrash = useCallback(
@@ -441,16 +496,45 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       }
       const ok = await appConfirm({
         title: t("mail.deleteTitle", { defaultValue: "In den Papierkorb verschieben?" }),
-        message:
-          ids.length > 1
+        message: isGmailAllMail
+          ? t("mail.gmailAllMailDeleteWarning", { defaultValue: "Diese Aktion entfernt die Nachricht in Gmail global aus allen Labels und verschiebt sie in den Papierkorb." })
+          : ids.length > 1
             ? t("mail.deleteMsgN", { n: ids.length, defaultValue: "{{n}} Nachrichten werden in den Papierkorb verschoben." })
             : t("mail.deleteMsg", { defaultValue: "Die Nachricht wird in den Papierkorb verschoben." }),
       });
       if (ok) await bulkMove(ids, trash);
     },
-    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, t]
+    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, isGmailAllMail, t]
   );
   const deleteMessage = useCallback(() => { if (selectedId != null) void bulkDeleteToTrash([selectedId]); }, [selectedId, bulkDeleteToTrash]);
+
+  const bulkDeleteForever = useCallback(
+    async (ids: string[]) => {
+      if (!isTrash || !vaultPath || !account || ids.length === 0 || actionBusy) return;
+      const ok = await appConfirm({
+        title: t("mail.deleteForeverTitle", { defaultValue: "Endgültig löschen?" }),
+        message: ids.length > 1
+          ? t("mail.deleteForeverMsgN", { n: ids.length, defaultValue: "{{n}} Nachrichten werden unwiderruflich gelöscht." })
+          : t("mail.deleteForeverMsg", { defaultValue: "Die Nachricht wird unwiderruflich gelöscht." }),
+        kind: "danger",
+      });
+      if (!ok) return;
+      setActionBusy(true);
+      try {
+        for (const id of ids) {
+          await deleteMessagePermanently(vaultPath, account, mailbox, id);
+          removeFromList(id);
+        }
+        setTotal((n) => Math.max(0, n - ids.length));
+        clearSel();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [isTrash, vaultPath, account, mailbox, actionBusy, removeFromList, clearSel, t]
+  );
 
   const mailFolder = useCallback(async () => {
     const store = await getSettingsStore();
@@ -632,7 +716,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             const on = name === mailbox;
             return (
               <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => selectMailbox(name)} data-tip={name}>
-                <FolderGlyph name={name} />
+                <FolderGlyph name={name} delimiter={delimiter} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name, delimiter)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
               </button>
@@ -669,8 +753,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("mail.selectedCount", { n: selectedIds.size, defaultValue: "{{n}} ausgewählt" })}</span>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => void bulkSetFlagged([...selectedIds], true)} data-testid="mail-bulk-flag" icon={<Star size={ICON.ui} />}>{t("mail.flag", { defaultValue: "Markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
-            <Button size="sm" variant="ghost" onClick={() => void bulkDeleteToTrash([...selectedIds])} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{t("mail.delete", { defaultValue: "Löschen" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
             <span style={{ flex: 1 }} />
             <Button size="sm" variant="ghost" onClick={clearSel} data-testid="mail-bulk-clear">{t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}</Button>
           </div>
@@ -678,6 +763,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center" }} data-testid="mail-filters">
             <Button size="sm" variant={filterUnread ? "primary" : "ghost"} aria-pressed={filterUnread} onClick={() => setFilterUnread((v) => !v)} data-testid="mail-filter-unread" icon={<Mail size={ICON.ui} />}>
               {t("mail.filterUnread", { defaultValue: "Ungelesen" })}
+            </Button>
+            <Button size="sm" variant={filterFlagged ? "primary" : "ghost"} aria-pressed={filterFlagged} onClick={() => void toggleFlaggedFilter()} data-testid="mail-filter-flagged" icon={<Star size={ICON.ui} />}>
+              {t("mail.filterFlagged", { defaultValue: "Markiert" })}
             </Button>
           </div>
         )}
@@ -716,6 +804,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   <span className="pv-mail-ebody">
                     <span className="pv-mail-erow">
                       <span className="pv-mail-from">{fromName(e.from)}</span>
+                      {e.flagged && <Star size={ICON.meta} fill="currentColor" aria-label={t("mail.flagged", { defaultValue: "Markiert" })} />}
                       <span className="pv-mail-when">{envTime(e.dateTs)}</span>
                     </span>
                     <span className="pv-mail-subj">{e.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}</span>
@@ -789,6 +878,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 {currentSeen ? <Mail size={ICON.ui} /> : <MailOpen size={ICON.ui} />}
               </IconButton>
               <IconButton
+                label={currentFlagged ? t("mail.unflag", { defaultValue: "Markierung entfernen" }) : t("mail.flag", { defaultValue: "Markieren" })}
+                onClick={() => selectedId != null && void bulkSetFlagged([selectedId], !currentFlagged)}
+                disabled={actionBusy}
+                data-testid="mail-flag"
+              >
+                <Star size={ICON.ui} fill={currentFlagged ? "currentColor" : "none"} />
+              </IconButton>
+              <IconButton
                 label={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
                 onClick={(ev) => selectedId != null && setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [selectedId] })}
                 disabled={actionBusy}
@@ -796,7 +893,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               >
                 <FolderInput size={ICON.ui} />
               </IconButton>
-              <IconButton label={t("mail.delete", { defaultValue: "Löschen" })} onClick={() => void deleteMessage()} disabled={actionBusy} data-testid="mail-delete">
+              <IconButton label={isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })} onClick={() => selectedId != null && void (isTrash ? bulkDeleteForever([selectedId]) : deleteMessage())} disabled={actionBusy} data-testid="mail-delete">
                 <Trash2 size={ICON.ui} />
               </IconButton>
             </div>
@@ -890,12 +987,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         <MenuItem icon={<Mail size={ICON.ui} />} data-testid="mail-ctx-unread" onSelect={() => void bulkSetSeen(ctxIds, false)}>
           {t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}
         </MenuItem>
+        <MenuItem icon={<Star size={ICON.ui} />} data-testid="mail-ctx-flag" onSelect={() => void bulkSetFlagged(ctxIds, true)}>
+          {t("mail.flag", { defaultValue: "Markieren" })}
+        </MenuItem>
         <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="mail-ctx-move" onSelect={() => setMoveMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
           {t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
         </MenuItem>
         <MenuSeparator />
-        <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="mail-ctx-delete" onSelect={() => void bulkDeleteToTrash(ctxIds)}>
-          {t("mail.delete", { defaultValue: "Löschen" })}
+        <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="mail-ctx-delete" onSelect={() => void (isTrash ? bulkDeleteForever(ctxIds) : bulkDeleteToTrash(ctxIds))}>
+          {isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}
         </MenuItem>
       </MenuSurface>
     )}

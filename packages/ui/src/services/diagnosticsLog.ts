@@ -14,8 +14,22 @@ export interface DiagEntry {
 const MAX_ENTRIES = 200;
 const entries: DiagEntry[] = [];
 
+const SECRET_FIELD = "password|pass|secret|client_secret|access_token|refresh_token|id_token|api[_-]?key|authorization";
+
+/** Best-effort redaction before diagnostic text enters the in-memory buffer.
+ * The exporter never reads credential stores; this additionally protects
+ * against provider/library errors that echo a request field or URL userinfo. */
+export function redactDiagnosticText(input: string): string {
+  return input
+    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)[^\s/@]+@/gi, "$1[REDACTED]@")
+    .replace(/(authorization\s*[:=]\s*)(?:bearer|basic)\s+[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(new RegExp(`(["']?(?:${SECRET_FIELD})["']?\\s*[:=]\\s*)["'][^"']*["']`, "gi"), "$1\"[REDACTED]\"")
+    .replace(new RegExp(`((?:^|[?&\\s,;])(?:${SECRET_FIELD})\\s*=\\s*)[^&\\s,;]+`, "gi"), "$1[REDACTED]");
+}
+
 export function logDiagnostic(source: string, message: string): void {
-  const text = message.length > 500 ? `${message.slice(0, 500)}…` : message;
+  const safe = redactDiagnosticText(message);
+  const text = safe.length > 500 ? `${safe.slice(0, 500)}…` : safe;
   const last = entries[entries.length - 1];
   // Collapse identical repeats (a failing 15-s sync would flood the buffer).
   if (last && last.source === source && last.message === text) {

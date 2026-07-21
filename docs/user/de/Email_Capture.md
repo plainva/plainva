@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-07-20
+Stand: 2026-07-21
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -51,3 +51,7 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 - **Notiz als E-Mail-Entwurf ins Postfach** (Befehlspalette, an jeder offenen Notiz): legt die Notiz per IMAP als **Entwurf in Dein eigenes Postfach** — Konto, Empfänger und Entwurfsordner wählen, dann im normalen Mail-Programm öffnen, prüfen und von dort senden. Die Formatierung bleibt erhalten.
 - **Notiz per E-Mail senden (mailto)** (Befehlspalette): öffnet Dein Standard-Mail-Programm mit der Notiz als reinem Text (lange Notizen werden gekürzt).
 - **Notiz als E-Mail-Text kopieren** (Befehlspalette): legt die Notiz mit Formatierung in die Zwischenablage — in jeden Editor einfügbar.
+
+## Postfachaktionen
+
+Sterne/Markierungen werden mit IMAP und Microsoft synchronisiert; **Markiert** zeigt die serverseitige Auswahl. Nachrichten lassen sich einzeln oder gesammelt verschieben. Außerhalb des Papierkorbs bedeutet **Löschen** immer „in den Papierkorb verschieben“; nur im Papierkorb ist **Endgültig löschen** nach einer Bestätigung verfügbar. Bei Gmail entspricht Verschieben einem Labelwechsel, und Aktionen in **Alle Nachrichten** können die Nachricht in allen Labels betreffen – Plainva weist vor der Aktion darauf hin.

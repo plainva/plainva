@@ -11,5 +11,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(WebDavHttpPlugin())
         bridge?.registerPluginInstance(SecureStorePlugin())
         bridge?.registerPluginInstance(AtomicFilePlugin())
+        bridge?.registerPluginInstance(ShareTargetPlugin())
     }
 }

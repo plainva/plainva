@@ -6,9 +6,11 @@ import {
   getSyncStatus,
   pauseProvider,
   resumeProvider,
+  restartSync,
   subscribeSyncStatus,
   syncNow,
 } from "./services/syncService";
+import { isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
@@ -47,6 +49,8 @@ export function VaultDetailScreen({
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
   const [deleted, setDeleted] = useState(false);
+  const [settingsSyncOn, setSettingsSyncOn] = useState(false);
+  const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
 
   useEffect(() => {
     void getVaultEntry(vaultId).then(setEntry);
@@ -54,6 +58,17 @@ export function VaultDetailScreen({
     window.addEventListener("m-vaults-changed", reload);
     return () => window.removeEventListener("m-vaults-changed", reload);
   }, [vaultId]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const reload = () => {
+      void isMobileSettingsSyncEnabled(vaultId).then(setSettingsSyncOn);
+      void mobileEncryptionStatus(activeVault).then(setEncryption);
+    };
+    reload();
+    window.addEventListener("m-encryption-locked", reload);
+    return () => window.removeEventListener("m-encryption-locked", reload);
+  }, [activeVault, isActive, vaultId]);
 
   if (!entry) return <div className="m-page" />;
 
@@ -156,6 +171,58 @@ export function VaultDetailScreen({
           </p>
         )}
         {isActive && entry.provider && <QueuePeek vault={activeVault} />}
+        {isActive && entry.provider && (
+          <>
+            <p className="m-sectionlabel">{t("settingsSync.cardLabel")}</p>
+            <div className="m-row m-row--static">
+              <span>{t("settingsSync.toggleLabel")}</span>
+              <button
+                className={settingsSyncOn ? "m-btn m-btn--filled" : "m-btn m-btn--tonal"}
+                disabled={busy}
+                aria-pressed={settingsSyncOn}
+                onClick={() => {
+                  setBusy(true);
+                  const next = !settingsSyncOn;
+                  void setMobileSettingsSyncEnabled(vaultId, next)
+                    .then(() => restartSync(activeVault))
+                    .then(() => setSettingsSyncOn(next))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                {settingsSyncOn ? t("common.on") : t("common.off")}
+              </button>
+            </div>
+            <p className="m-hint">{t("settingsSync.toggleDesc")}</p>
+            {encryption === "locked" && (
+              <button
+                className="m-btn m-btn--filled"
+                disabled={busy}
+                onClick={() => {
+                  void mPrompt({ title: t("encryption.modalUnlockTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
+                    if (cancelled || !value) return;
+                    setBusy(true);
+                    try {
+                      await unlockMobileEncryption(activeVault, value);
+                      await restartSync(activeVault);
+                      setEncryption("unlocked");
+                    } catch {
+                      toast.warning(t("encryption.wrongPassphrase"));
+                    } finally {
+                      setBusy(false);
+                    }
+                  });
+                }}
+              >
+                {t("encryption.enterPassphrase")}
+              </button>
+            )}
+            {encryption === "unlocked" && (
+              <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
+                {t("encryption.lock")}
+              </button>
+            )}
+          </>
+        )}
         {isActive && status.errorHistory.length > 0 && (
           <>
             <p className="m-sectionlabel">{t("settings.syncErrorHistory")}</p>

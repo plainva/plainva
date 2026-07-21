@@ -148,6 +148,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       href          TEXT,
       color         TEXT,
       rsvps         TEXT,
+      block_of      TEXT,
       PRIMARY KEY (account_id, cal_id, uid)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_tasklists (
@@ -272,6 +273,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   try {
     // Attendee RSVP details (2026-07-18): the accept/decline back-channel.
     await db.execute(`ALTER TABLE pim_events ADD COLUMN rsvps TEXT;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Calendar blocker linkage (2026-07-21): provider marker pointing back to
+    // the original event. Cache-only and fully rebuildable from the provider.
+    await db.execute(`ALTER TABLE pim_events ADD COLUMN block_of TEXT;`);
   } catch {
     // Column might already exist
   }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
 import { buildInviteIcs } from "../../services/mail/inviteIcs";
 import { utf8ToBase64 } from "../../services/mail/mailOut";
 import { listMailAccounts } from "../../services/mail/mailAccounts";
@@ -27,6 +27,7 @@ import {
   formatTimeRange,
   buildBlockDraft,
   buildEditCalendarOptions,
+  linkCalendarBlocks,
   type EventFormValues,
 } from "../../services/pim/calendarModel";
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
@@ -84,6 +85,7 @@ function draftToRow(accountId: string, calendarId: string, uid: string, draft: P
     description: draft.description,
     color: draft.color,
     attendees: draft.attendees,
+    blockOf: draft.blockOf,
   };
 }
 
@@ -315,7 +317,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return () => ro.disconnect();
   }, [viewMode, monthRows]);
 
-  const byDay = useMemo(() => bucketEventsByDay(events), [events]);
+  const linkedEvents = useMemo(() => linkCalendarBlocks(events), [events]);
+  const byDay = useMemo(() => bucketEventsByDay(linkedEvents), [linkedEvents]);
   const calColor = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of calendars) map.set(`${c.accountId} ${c.id}`, c.color ?? "");
@@ -998,6 +1001,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
           <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
           {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
+          {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
         </span>
         {e.location || (e.attendees?.length ?? 0) > 0 ? (
@@ -1265,6 +1269,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         aria-hidden
                         style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }}
                       />
+                      {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </span>
                   ))}

@@ -56,7 +56,7 @@ export function connectionIdFor(provider: string, remoteRoot: string): string {
 }
 
 /** Writes the HMAC-signed encryption.json to the remote (sideband control path). */
-async function putManifest(target: ISyncTarget, mk: MasterKeyBundle, body: ManifestBody): Promise<void> {
+export async function putManifest(target: ISyncTarget, mk: MasterKeyBundle, body: ManifestBody): Promise<void> {
   const manifest = signManifest(mk, body);
   const content = new TextEncoder().encode(JSON.stringify(manifest));
   await target.push({
@@ -70,6 +70,49 @@ async function putManifest(target: ISyncTarget, mk: MasterKeyBundle, body: Manif
   });
 }
 
+/** Writes then downloads and authenticates the exact lifecycle transition. */
+export async function putAndVerifyManifest(target: ISyncTarget, mk: MasterKeyBundle, body: ManifestBody): Promise<ManifestBody> {
+  await putManifest(target, mk, body);
+  const text = await readRemoteManifest(target);
+  const parsed = text ? parseManifest(JSON.parse(text)) : null;
+  if (!parsed) throw new Error("encryption manifest did not round-trip");
+  const verified = verifyManifest(mk, parsed);
+  if (verified.connectionId !== body.connectionId || verified.generation !== body.generation || verified.state !== body.state) {
+    throw new Error("encryption manifest changed concurrently");
+  }
+  return verified;
+}
+
+export async function readVerifiedManifest(target: ISyncTarget, mk: MasterKeyBundle): Promise<ManifestBody | null> {
+  const text = await readRemoteManifest(target);
+  if (!text) return null;
+  const parsed = parseManifest(JSON.parse(text));
+  if (!parsed) throw new Error("invalid encryption manifest");
+  return verifyManifest(mk, parsed);
+}
+
+/** Verifies a manifest with the key named by its authenticated keyId. */
+export async function readVerifiedManifestWithKeys(
+  target: ISyncTarget,
+  keys: ReadonlyMap<string, MasterKeyBundle>
+): Promise<ManifestBody | null> {
+  const text = await readRemoteManifest(target);
+  if (!text) return null;
+  const parsed = parseManifest(JSON.parse(text));
+  if (!parsed) throw new Error("invalid encryption manifest");
+  const signingKey = keys.get(parsed.keyId);
+  if (!signingKey) throw new Error(`manifest signing key ${parsed.keyId} is not unlocked`);
+  return verifyManifest(signingKey, parsed);
+}
+
+export async function writeLifecycleManifest(
+  target: ISyncTarget,
+  signingKey: MasterKeyBundle,
+  body: ManifestBody
+): Promise<void> {
+  await putAndVerifyManifest(target, signingKey, body);
+}
+
 /**
  * Activates content-E2E for a connection: writes a `migrating` (mixed) manifest at
  * generation 1. Mixed mode accepts both plaintext and ciphertext, so a half-swept
@@ -79,20 +122,44 @@ export async function writeMigratingManifest(
   target: ISyncTarget,
   mk: MasterKeyBundle,
   connectionId: string,
-  deviceId: string
+  deviceId: string,
+  generation = 1,
+  createdAt = new Date().toISOString()
 ): Promise<void> {
   const now = new Date().toISOString();
-  await putManifest(target, mk, {
+  await putAndVerifyManifest(target, mk, {
     formatVersion: 1,
     minGuardVersion: GUARD_VERSION,
     connectionId,
     keyId: mk.keyId,
     state: "migrating",
     ownerDeviceId: deviceId,
-    ownerLeaseUntil: Date.now() + 60 * 60 * 1000,
-    generation: 1,
-    createdAt: now,
+    ownerLeaseUntil: Date.now() + 24 * 60 * 60 * 1000,
+    generation,
+    createdAt,
     updatedAt: now,
+  });
+}
+
+export async function writePreparingManifest(
+  target: ISyncTarget,
+  mk: MasterKeyBundle,
+  connectionId: string,
+  deviceId: string,
+  generation: number,
+  createdAt: string
+): Promise<void> {
+  await putAndVerifyManifest(target, mk, {
+    formatVersion: 1,
+    minGuardVersion: GUARD_VERSION,
+    connectionId,
+    keyId: mk.keyId,
+    state: "preparing",
+    ownerDeviceId: deviceId,
+    ownerLeaseUntil: Date.now() + 24 * 60 * 60 * 1000,
+    generation,
+    createdAt,
+    updatedAt: new Date().toISOString(),
   });
 }
 
@@ -111,7 +178,7 @@ export async function writeStrictManifest(
   const existing = text ? parseManifest(JSON.parse(text)) : null;
   const verified = existing ? verifyManifest(mk, existing) : null; // throws on tamper
   const now = new Date().toISOString();
-  await putManifest(target, mk, {
+  await putAndVerifyManifest(target, mk, {
     formatVersion: 1,
     minGuardVersion: GUARD_VERSION,
     connectionId,

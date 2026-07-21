@@ -55,6 +55,16 @@ describe("GooglePimTarget writes", () => {
     expect(sent.location).toBe("Room 5");
   });
 
+  it("persists the source UID for a linked busy block", async () => {
+    let sent: any;
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      sent = JSON.parse(String(init?.body));
+      return jsonRes({ id: "block", etag: '"e"' });
+    });
+    await new GooglePimTarget(auth(), fetchFn).createEvent("cal1", { ...timedDraft, blockOf: "source-uid" });
+    expect(sent.extendedProperties.private["plainva-block-of"]).toBe("source-uid");
+  });
+
   it("adds sendUpdates=all ONLY when the draft asks to notify attendees", async () => {
     const urls: string[] = [];
     const fetchFn: FetchFn = vi.fn(async (input, init) => {
@@ -156,6 +166,18 @@ describe("GraphPimTarget writes", () => {
     expect(sent.end).toEqual({ dateTime: "2026-08-12T00:00:00", timeZone: "UTC" });
   });
 
+  it("persists linked-block metadata as a single-value extended property", async () => {
+    let sent: any;
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      sent = JSON.parse(String(init?.body));
+      return jsonRes({ id: "g1" });
+    });
+    await new GraphPimTarget(auth(), fetchFn).createEvent("calX", { ...timedDraft, blockOf: "source-uid" });
+    expect(sent.singleValueExtendedProperties).toEqual([
+      { id: "String {4F21D2AE-7A5A-4B66-9E47-7F2B96AB0C31} Name plainva-block-of", value: "source-uid" },
+    ]);
+  });
+
   it("updateEvent uses If-Match and maps 412 to PimConflictError", async () => {
     const fetchFn: FetchFn = vi.fn(async (input, init) => {
       expect(String(input)).toContain("/me/events/ev9");
@@ -229,6 +251,16 @@ describe("CalDavPimTarget writes", () => {
     expect(putBody).toContain("DTEND:20260801T110000Z");
     expect(putBody).toContain("LOCATION:Room 5");
     expect(putBody).toContain(`UID:${res.uid}`);
+  });
+
+  it("persists linked-block metadata as an iCalendar extension property", async () => {
+    let putBody = "";
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      putBody = String(init?.body);
+      return new Response("", { status: 201 });
+    });
+    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", { ...timedDraft, blockOf: "source-uid" });
+    expect(putBody).toContain("X-PLAINVA-BLOCK-OF:source-uid");
   });
 
   it("creates an all-day event with VALUE=DATE civil dates", async () => {

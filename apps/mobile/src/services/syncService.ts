@@ -16,6 +16,7 @@ import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { updateMobileSettings } from "./mobileSettings";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
+import { prepareMobileSettingsSync } from "./mobileSettingsSync";
 import {
   addVault,
   getActiveVaultEntry,
@@ -142,7 +143,7 @@ export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
     setState({ status: "off", message: null });
     return;
   }
-  startWorker(v, stored);
+  await startWorker(v, stored);
 }
 
 /** Human-readable vault name for a fresh connection. */
@@ -260,7 +261,7 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
   await updateVault(vaultId, { paused: false });
   if ((await getActiveVaultEntry()).id === vaultId) {
     stopSync();
-    startWorker(await getMobileVault(), merged);
+    await startWorker(await getMobileVault(), merged);
   }
 }
 
@@ -419,14 +420,15 @@ export async function createProviderFolder(p: MobileSyncProvider, path: string):
   if (target.createFolder) await target.createFolder(path);
 }
 
-function startWorker(v: MobileVault, p: MobileSyncProvider): void {
+async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void> {
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the
   // native bridge before requests fly. Fire-and-forget is safe — a request
   // racing the registration fails ONE cycle and the next one self-heals.
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const target = buildTarget(p, credKeyFor(v.vaultId));
+  const rawTarget = buildTarget(p, credKeyFor(v.vaultId));
+  const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
@@ -435,6 +437,7 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, 30_000, {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
+    settingsSync,
   });
   w.onStatusChange = (status, errorMsg) => {
     setState({ status, message: errorMsg ?? null });
@@ -472,4 +475,10 @@ function startWorker(v: MobileVault, p: MobileSyncProvider): void {
   // The startup cycle counts as the foreground sync so a resume within a minute
   // of a cold start doesn't fire a second one.
   lastForegroundSyncAt = Date.now();
+}
+
+/** Rebuilds the worker after unlocking or changing the settings-sync opt-in. */
+export async function restartSync(v: MobileVault): Promise<void> {
+  await stopSyncAndDrain();
+  await startSyncIfConfigured(v);
 }

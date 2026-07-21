@@ -11,6 +11,7 @@ import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { PROFILE_SYNC_PATH, parseProfile, reconcileProfile, serializeProfile } from "./profileFile.js";
 import { SETTINGS_ENC_PATH } from "./paths.js";
+import { FatalSyncProtocolError } from "./errors.js";
 
 /** Shell-implemented bridge between the profile document and the native store. */
 export interface ProfileSettingsPort {
@@ -63,8 +64,11 @@ export class SettingsSyncStep {
     if (this.options.profileCrypto) {
       try {
         return decoder.decode(this.options.profileCrypto.open(bytes) as BufferSource);
-      } catch {
-        return null; // foreign key / corrupt sealed profile: treat as absent (guard handles fatal cases)
+      } catch (error) {
+        throw new FatalSyncProtocolError(
+          "key-mismatch",
+          `sealed settings profile cannot be opened: ${error instanceof Error ? error.message : "unknown error"}`
+        );
       }
     }
     return decoder.decode(bytes as BufferSource);
@@ -86,9 +90,16 @@ export class SettingsSyncStep {
       localText = sealed ? this.readProfileText(await vault.readBinaryFile(path)) : await vault.readTextFile(path);
     }
     const local = parseProfile(localText);
+    if (localText && !local) {
+      throw new FatalSyncProtocolError("manifest-invalid", `local settings profile ${path} is malformed`);
+    }
 
     const remoteBytes = await target.download(path);
-    const remote = parseProfile(this.readProfileText(remoteBytes));
+    const remoteText = this.readProfileText(remoteBytes);
+    const remote = parseProfile(remoteText);
+    if (remoteText && !remote) {
+      throw new FatalSyncProtocolError("manifest-invalid", `remote settings profile ${path} is malformed`);
+    }
 
     const decision = reconcileProfile({
       current,

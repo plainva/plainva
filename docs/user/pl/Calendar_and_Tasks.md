@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-07-20
+Stan na: 2026-07-21
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -44,3 +44,5 @@ Zaznacz **listę zadań** przy połączonym koncie, a jej zadania pojawią się 
 Dwie zasady bezpieczeństwa chronią Twoje dane: **usunięcie notatki nigdy nie usuwa zdalnego zadania** (synchronizacja po prostu się zatrzymuje i zadanie nie jest ponownie importowane), a **zdalnie usunięte zadanie nigdy nie usuwa Twojej notatki** (po prostu staje się zwykłą notatką). Zmiana nazwy lub przeniesienie notatki zadania nie stanowi problemu — znacznik we frontmatter utrzymuje powiązanie.
 
 Obecne ograniczenia: zadania utworzone jako zwykłe notatki nie są wysyłane do dostawcy (twórz je zdalnie albo przez bazę zadań), a wszystko na tej stronie jest na razie desktop-first.
+
+Kopie utworzone przez **Zablokuj w innych kalendarzach** zawierają zależne od dostawcy powiązanie Plainva w Google, Microsoft i CalDAV. Widoki kalendarza pokazują relację ikoną łącza; po odświeżeniu źródło i blokada są ponownie kojarzone zamiast tworzyć niezależne duplikaty.

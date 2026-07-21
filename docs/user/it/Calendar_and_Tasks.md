@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-07-20
+Ultimo aggiornamento: 2026-07-21
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -46,3 +46,5 @@ Spunta un **elenco attività** in un account collegato e le sue attività appaio
 Due regole di sicurezza proteggono i tuoi dati: **eliminare la nota non elimina mai l'attività remota** (smette semplicemente di sincronizzarsi e non viene reimportata), e **un'attività eliminata da remoto non elimina mai la tua nota** (diventa semplicemente una nota normale). Rinominare o spostare una nota di attività va bene — la marcatura nel frontmatter mantiene il collegamento.
 
 Limiti attuali: le attività create come normali note non vengono inviate al provider (creale da remoto o tramite il database attività), e per ora tutto in questa pagina è desktop-first.
+
+Le copie create da **Blocca in altri calendari** contengono un collegamento Plainva specifico del provider su Google, Microsoft e CalDAV. Le viste del calendario mostrano la relazione con un’icona di collegamento; dopo l’aggiornamento, origine e blocco vengono associati di nuovo invece di diventare duplicati indipendenti.

@@ -4,7 +4,7 @@
     "toggleLabel": "Synchronizuj ustawienia tego vaultu",
     "toggleDesc": "Zapisuje ustawienia tego vaultu (notatki dzienne, szablony, bazę zadań, reguły backupu i więcej) jako mały plik wewnątrz vaultu, dzięki czemu są takie same na wszystkich Twoich urządzeniach. Wymaga aktywnej synchronizacji z chmurą.",
     "explainer": "Nie są przesyłane żadne dane logowania ani ścieżki właściwe dla danego urządzenia. Jeśli zmienisz ustawienia na więcej niż jednym urządzeniu, wygrywa ostatnio zapisana wersja.",
-    "adopted": "Ustawienia przejęte z innego urządzenia."
+    "adopted": "Ustawienia przejęte z innego urządzenia.", "secretsLabel": "Synchronizuj dane logowania kont", "secretsDesc": "Tylko statyczne hasła IMAP/CalDAV i własne dane aplikacji Kalendarza Google; tokeny OAuth pozostają na tym urządzeniu."
   },
   "encryption": {
     "contentRow": "Szyfruj zawartość vaultu",
@@ -46,7 +46,9 @@
     "create": "Utwórz",
     "unlock": "Odblokuj",
     "done": "Gotowe",
-    "useRecovery": "Użyj kodu odzyskiwania"
+    "useRecovery": "Użyj kodu odzyskiwania",
+    "deactivate": "Wyłącz szyfrowanie", "deactivateTitle": "Wyłączyć szyfrowanie skarbca?", "deactivateConfirm": "Wszystkie pliki zdalne zostaną zapisane jako tekst jawny. Lokalny skarbiec nie zmieni się. Kontynuować?", "deactivateStarted": "Rozpoczęto odszyfrowywanie — trwa zapis {{n}} plików.", "deactivateFailed": "Nie udało się rozpocząć odszyfrowywania.", "deactivateDone": "Szyfrowanie jest wyłączone.", "completeDeactivation": "Zakończ odszyfrowywanie",
+    "rotate": "Zmień klucz", "rotateTitle": "Zmień klucz szyfrowania", "rotateConfirm": "Wpisz hasło synchronizacji. Zostanie utworzony nowy klucz, a wszystkie pliki zdalne zostaną ponownie zaszyfrowane.", "rotateStarted": "Rozpoczęto zmianę klucza — trwa szyfrowanie {{n}} plików.", "rotateFailed": "Nie udało się rozpocząć zmiany klucza. Sprawdź hasło.", "rotateDone": "Zmiana klucza zakończona; stary klucz usunięto.", "completeRotation": "Zakończ zmianę klucza", "migrationActive": "Trwa wznawialna migracja szyfrowania. Zakończ ją po opróżnieniu kolejki synchronizacji."
   },
   "contextMenu": {
     "cut": "Wytnij",
@@ -2111,16 +2113,16 @@
     "agendaTomorrow": "Jutro",
     "dueToday": "termin dziś",
     "dueOn": "termin {{date}}",
-    "inviteSubject": "Zaproszenie: {{title}}"
+    "inviteSubject": "Zaproszenie: {{title}}", "linkedBlock": "Połączony blok kalendarza"
   },
   "mail": {
-    "sectionTitle": "E-mail (IMAP, tylko do odczytu)",
+    "sectionTitle": "E-mail (IMAP)",
     "title": "E-mail",
     "openMail": "Otwórz e-mail",
     "empty": "Brak połączonego konta e-mail",
-    "emptyHint": "Połącz konto IMAP tylko do odczytu w Ustawieniach, w sekcji „Kalendarz i konta”.",
+    "emptyHint": "Połącz konto IMAP w Ustawieniach, w sekcji „Kalendarz i konta”.",
     "noAccounts": "Nie połączono jeszcze konta e-mail.",
-    "imapHint": "Tylko odczyt — Plainva nigdy nie zmienia skrzynki. Gmail: imap.gmail.com, port 993, z hasłem aplikacji.",
+    "imapHint": "Plainva odczytuje wiadomości bez oznaczania ich jako przeczytane; flagowanie, przenoszenie i usuwanie odbywa się tylko na żądanie. Gmail: imap.gmail.com, port 993, z hasłem aplikacji.",
     "backend": "Typ połączenia",
     "backendMicrosoft": "Microsoft (logowanie)",
     "backendImap": "IMAP (hasło aplikacji)",
@@ -2201,7 +2203,8 @@
     "listActions": "Akcje wiadomości",
     "noTrash": "Nie znaleziono folderu kosza.",
     "sendNoteViaEmail": "Wyślij e-mailem",
-    "sendNoteAsAttachment": "Wyślij jako załącznik"
+    "sendNoteAsAttachment": "Wyślij jako załącznik",
+    "gmailLabelsChanged": "Zmieniono etykietę Gmail dla {{n}} wiadomości na {{folder}}.", "gmailAllMailDeleteWarning": "Usuwa wiadomość ze wszystkich etykiet Gmail i przenosi ją do kosza.", "deleteForeverTitle": "Usunąć trwale?", "deleteForeverMsgN": "{{n}} wiadomości zostanie trwale usuniętych.", "deleteForeverMsg": "Wiadomość zostanie trwale usunięta.", "deleteForever": "Usuń trwale", "filterFlagged": "Oznaczone", "flagged": "Oznaczone", "unflag": "Usuń oznaczenie", "flag": "Oznacz"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

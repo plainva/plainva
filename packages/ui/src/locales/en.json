@@ -4,7 +4,9 @@
     "toggleLabel": "Sync this vault's settings",
     "toggleDesc": "Stores this vault's settings (daily notes, templates, task database, backup rules and more) as a small file inside the vault so they match on all your devices. Requires an active cloud sync.",
     "explainer": "No credentials and no device-specific paths are transferred. If you change settings on more than one device, the most recently saved version wins.",
-    "adopted": "Settings adopted from another device."
+    "adopted": "Settings adopted from another device.",
+    "secretsLabel": "Sync account credentials",
+    "secretsDesc": "Only static IMAP/CalDAV passwords and custom Google Calendar app credentials; OAuth tokens stay on this device."
   },
   "encryption": {
     "contentRow": "Encrypt vault content",
@@ -46,7 +48,22 @@
     "create": "Create",
     "unlock": "Unlock",
     "done": "Done",
-    "useRecovery": "Use recovery code"
+    "useRecovery": "Use recovery code",
+    "deactivate": "Turn off encryption",
+    "deactivateTitle": "Turn off vault encryption?",
+    "deactivateConfirm": "Every remote file will be rewritten as plaintext. Your local vault is unchanged. Continue?",
+    "deactivateStarted": "Decryption started — {{n}} files are being rewritten.",
+    "deactivateFailed": "Could not start decryption.",
+    "deactivateDone": "Encryption is off; the authenticated plaintext state is active.",
+    "completeDeactivation": "Finish decryption",
+    "rotate": "Rotate key",
+    "rotateTitle": "Rotate encryption key",
+    "rotateConfirm": "Enter the sync passphrase. A new key will be created and every remote file will be re-encrypted.",
+    "rotateStarted": "Key rotation started — {{n}} files are being re-encrypted.",
+    "rotateFailed": "Could not start key rotation. Check the passphrase.",
+    "rotateDone": "Key rotation finished; the old key was removed.",
+    "completeRotation": "Finish key rotation",
+    "migrationActive": "A resumable encryption migration is active. Finish it after the sync queue is empty."
   },
   "contextMenu": {
     "cut": "Cut",
@@ -2099,16 +2116,17 @@
     "agendaTomorrow": "Tomorrow",
     "dueToday": "due today",
     "dueOn": "due {{date}}",
-    "inviteSubject": "Invitation: {{title}}"
+    "inviteSubject": "Invitation: {{title}}",
+    "linkedBlock": "Linked calendar block"
   },
   "mail": {
-    "sectionTitle": "Email (IMAP, read-only)",
+    "sectionTitle": "Email (IMAP)",
     "title": "Email",
     "openMail": "Open email",
     "empty": "No email account connected",
-    "emptyHint": "Connect a read-only IMAP account in Settings under “Calendar & accounts”.",
+    "emptyHint": "Connect an IMAP account in Settings under “Calendar & accounts”.",
     "noAccounts": "No email account connected yet.",
-    "imapHint": "Read-only — Plainva never changes the mailbox. Gmail: imap.gmail.com, port 993, with an app password.",
+    "imapHint": "Plainva reads without marking messages as read; flag, move and delete actions only run when you request them. Gmail: imap.gmail.com, port 993, with an app password.",
     "backend": "Connection type",
     "backendMicrosoft": "Microsoft (sign in)",
     "backendImap": "IMAP (app password)",
@@ -2189,7 +2207,17 @@
     "listActions": "Message actions",
     "noTrash": "No Trash folder found.",
     "sendNoteViaEmail": "Send via email",
-    "sendNoteAsAttachment": "Send as email attachment"
+    "sendNoteAsAttachment": "Send as email attachment",
+    "gmailLabelsChanged": "Changed the Gmail label for {{n}} message(s) to {{folder}}.",
+    "gmailAllMailDeleteWarning": "This removes the message globally from all Gmail labels and moves it to Trash.",
+    "deleteForeverTitle": "Delete permanently?",
+    "deleteForeverMsgN": "{{n}} messages will be deleted permanently.",
+    "deleteForeverMsg": "The message will be deleted permanently.",
+    "deleteForever": "Delete permanently",
+    "filterFlagged": "Flagged",
+    "flagged": "Flagged",
+    "unflag": "Remove flag",
+    "flag": "Flag"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

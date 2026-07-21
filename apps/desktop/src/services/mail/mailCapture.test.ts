@@ -64,6 +64,23 @@ describe("mail capture", () => {
     expect(res).toEqual({ path: "Mail/2026-07-20 Rechnung Q3 2.md", created: true });
   });
 
+  it("deduplicates a stable RFC Message-ID across Gmail labels", async () => {
+    const { adapter } = fakeAdapter();
+    const message = msg({ providerMessageId: "<stable@gmail.test>", uidValidity: 99 });
+    const first = await captureMailAsNote({ adapter, message, accountId: "gmail", mailbox: "INBOX", folder: "Mail" });
+    const second = await captureMailAsNote({ adapter, message: { ...message, id: "9002", uidValidity: 100 }, accountId: "gmail", mailbox: "[Gmail]/All Mail", folder: "Mail" });
+    expect(second).toEqual({ path: first.path, created: false });
+  });
+
+  it("does not deduplicate a reused IMAP UID after UIDVALIDITY changes", async () => {
+    const { adapter } = fakeAdapter();
+    const first = await captureMailAsNote({ adapter, message: msg({ uidValidity: 10 }), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
+    const second = await captureMailAsNote({ adapter, message: msg({ uidValidity: 11 }), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
+    expect(first.created).toBe(true);
+    expect(second.created).toBe(true);
+    expect(second.path).not.toBe(first.path);
+  });
+
   it("saves the raw message as a collision-free .eml", async () => {
     const { adapter, files } = fakeAdapter();
     const raw = btoa("From: a@example.org\r\n\r\nBody");

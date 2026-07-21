@@ -483,6 +483,36 @@ describe("EncryptingSyncTarget", () => {
     const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, { contentKey: mk(), isStrict: () => true });
     expect(await enc.download("missing.md")).toBeNull();
   });
+
+  it("writes plaintext during deactivation while still decrypting sealed reads", async () => {
+    const target = new FakeTarget();
+    const key = mk();
+    target.remote.set("old.md", sealBlob(key, new TextEncoder().encode("old"), "content"));
+    const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, {
+      writeKey: key,
+      readKeys: new Map([[key.keyId, key]]),
+      encryptWrites: false,
+      isStrict: () => false,
+    });
+    expect(new TextDecoder().decode((await enc.download("old.md"))!)).toBe("old");
+    await enc.push(op({ operation: "write", file_path: "new.md", content: new TextEncoder().encode("plain") }));
+    expect(isSealedBlob(target.remote.get("new.md")!)).toBe(false);
+  });
+
+  it("rotates writes to the new key while accepting old-key ciphertext", async () => {
+    const target = new FakeTarget();
+    const oldKey = mk(7, "aabbccddeeff0011");
+    const newKey = mk(8, "1122334455667788");
+    target.remote.set("old.md", sealBlob(oldKey, new TextEncoder().encode("old"), "content"));
+    const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, {
+      writeKey: newKey,
+      readKeys: new Map([[oldKey.keyId, oldKey], [newKey.keyId, newKey]]),
+      isStrict: () => false,
+    });
+    expect(new TextDecoder().decode((await enc.download("old.md"))!)).toBe("old");
+    await enc.push(op({ operation: "write", file_path: "next.md", content: new TextEncoder().encode("next") }));
+    expect(readBlobKeyId(target.remote.get("next.md")!)).toBe(newKey.keyId);
+  });
 });
 
 // --- v3 sealed profile mode (settings.enc) ---
@@ -722,5 +752,19 @@ describe("evaluateManifestGuard", () => {
     const other = { keyId: "1111111111111111", masterKey: new Uint8Array(32).fill(9) };
     const foreign = JSON.stringify(signManifest(other, { ...body(), keyId: other.keyId }));
     expect(() => evaluateManifestGuard({ manifestText: foreign, known: known(), masterKey: mk(), guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("accepts a rotating manifest signed by the old key while the new key is active", () => {
+    const oldKey = mk(7, "aabbccddeeff0011");
+    const newKey = mk(8, "1122334455667788");
+    const rotating = JSON.stringify(signManifest(oldKey, body({ state: "rotating", keyId: oldKey.keyId, newKeyId: newKey.keyId })));
+    const decision = evaluateManifestGuard({
+      manifestText: rotating,
+      known: known({ knownEncrypted: true, expectedKeyId: oldKey.keyId }),
+      masterKey: newKey,
+      masterKeys: new Map([[oldKey.keyId, oldKey], [newKey.keyId, newKey]]),
+      guardVersion: 1,
+    });
+    expect(decision).toMatchObject({ mode: "mixed", state: "rotating" });
   });
 });

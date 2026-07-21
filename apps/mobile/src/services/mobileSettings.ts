@@ -20,7 +20,7 @@ export type ThemeMode = "system" | "light" | "dark";
 export type DefaultView = "read" | "edit";
 export type MotionPref = "system" | "on" | "off";
 
-interface MobileSettings {
+export interface MobileSettings {
   themeMode: ThemeMode;
   /** Bundled theme id from the shared registry (package D3); single-mode
    * themes pin `data-theme` regardless of `themeMode`. */

@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-07-20
+Última revisão: 2026-07-21
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -51,3 +51,7 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 - **Salvar nota como rascunho na caixa de correio** (paleta de comandos, em qualquer nota aberta): grava a nota como um **rascunho na sua própria caixa de correio** via IMAP — escolha a conta, o destinatário e a pasta de rascunhos, depois abra seu programa de e-mail normal, revise e envie por lá. A formatação é preservada.
 - **Enviar nota por e-mail (mailto)** (paleta de comandos): abre seu programa de e-mail padrão com a nota como texto simples (notas longas são encurtadas).
 - **Copiar nota como texto de e-mail** (paleta de comandos): coloca a nota na área de transferência com formatação — cole em qualquer editor de e-mail.
+
+## Ações da caixa de correio
+
+Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.

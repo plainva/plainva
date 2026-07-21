@@ -3,9 +3,9 @@
 //!
 //! Design constraints:
 //! - Reads are non-mutating: `EXAMINE` instead of `SELECT` and `BODY.PEEK[…]`
-//!   fetches (never sets `\Seen`). The write commands (mail_set_seen,
-//!   mail_move_message, mail_search) are the ONLY ones that `SELECT` the
-//!   mailbox; deletion is a MOVE to Trash (reversible), never a hard expunge.
+//!   fetches (never sets `\Seen`). Explicit write commands are the only paths
+//!   that `SELECT` a mailbox. Normal deletion moves to Trash; permanent delete
+//!   is a separate, confirmed frontend action scoped to the Trash folder.
 //! - No credential state in Rust: every command receives host/port/user/pass
 //!   from the frontend (which reads the OS keychain) and opens a fresh
 //!   connection. Personal-mailbox scale; pooling/IDLE is a later optimization.
@@ -42,6 +42,7 @@ pub struct MailEnvelope {
     /// Unix ms of the INTERNALDATE (arrival), 0 when unknown.
     pub date_ts: i64,
     pub seen: bool,
+    pub flagged: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -74,6 +75,10 @@ pub struct MailMessage {
     pub text: Option<String>,
     pub html: Option<String>,
     pub attachments: Vec<MailAttachmentInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uid_validity: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_message_id: Option<String>,
 }
 
 /// A rustls stream over a plain TCP socket (the same OpenSSL-free stack the
@@ -309,7 +314,8 @@ fn fetch_to_envelope(f: &imap::types::Fetch) -> Option<MailEnvelope> {
         .unwrap_or_default();
     let date_ts = f.internal_date().map(|d| d.timestamp_millis()).unwrap_or(0);
     let seen = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Seen));
-    Some(MailEnvelope { uid, subject, from, date_ts, seen })
+    let flagged = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Flagged));
+    Some(MailEnvelope { uid, subject, from, date_ts, seen, flagged })
 }
 
 #[tauri::command]
@@ -322,6 +328,7 @@ pub async fn mail_list_envelopes(
     mailbox: String,
     offset: u32,
     limit: u32,
+    before_uid: Option<u32>,
 ) -> Result<MailEnvelopePage, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut session = open_session(&host, port, &user, &pass)?;
@@ -332,16 +339,28 @@ pub async fn mail_list_envelopes(
         let total = mb.exists;
         // Unread count (read-only SEARCH is allowed after EXAMINE).
         let unseen = session.search("UNSEEN").map(|s| s.len() as u32).unwrap_or(0);
-        // Newest first: sequence numbers count from 1 = oldest.
-        let hi = total.saturating_sub(offset);
-        if total == 0 || hi == 0 {
+        // Page by stable UID, not sequence number. New arrivals change sequence
+        // positions and previously caused duplicates/skips between pages.
+        let mut uids: Vec<u32> = session
+            .uid_search("ALL")
+            .map_err(|e| format!("uid search failed: {e}"))?
+            .into_iter()
+            .collect();
+        uids.sort_unstable_by(|a, b| b.cmp(a));
+        if let Some(before) = before_uid {
+            uids.retain(|uid| *uid < before);
+        } else if offset > 0 {
+            uids = uids.into_iter().skip(offset as usize).collect();
+        }
+        uids.truncate(limit.max(1) as usize);
+        if uids.is_empty() {
             let _ = session.logout();
             return Ok(MailEnvelopePage { total, unseen, messages: Vec::new() });
         }
-        let lo = hi.saturating_sub(limit.saturating_sub(1)).max(1);
+        let set = uids.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
         let fetches = session
-            .fetch(
-                format!("{lo}:{hi}"),
+            .uid_fetch(
+                set,
                 "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
             )
             .map_err(|e| format!("fetch failed: {e}"))?;
@@ -351,8 +370,7 @@ pub async fn mail_list_envelopes(
                 messages.push(env);
             }
         }
-        // fetch returns ascending sequence order — newest first for the UI.
-        messages.reverse();
+        messages.sort_by_key(|m| std::cmp::Reverse(m.uid));
         let _ = session.logout();
         Ok(MailEnvelopePage { total, unseen, messages })
     })
@@ -388,9 +406,10 @@ pub async fn mail_fetch_message(
 ) -> Result<MailMessage, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut session = open_session(&host, port, &user, &pass)?;
-        session
+        let selected = session
             .examine(&mailbox)
             .map_err(|e| format!("examine failed: {e}"))?;
+        let uid_validity = selected.uid_validity;
         let raw = fetch_raw(&mut session, uid)?;
         let _ = session.logout();
         let parsed = parse_message(&raw)?;
@@ -419,6 +438,8 @@ pub async fn mail_fetch_message(
             text: parsed.body_text(0).map(|c| c.to_string()),
             html: parsed.body_html(0).map(|c| c.to_string()),
             attachments,
+            uid_validity,
+            provider_message_id: parsed.message_id().map(str::to_string),
         })
     })
     .await
@@ -522,7 +543,7 @@ pub async fn mail_append_draft(
         let mime = build_draft_mime(&to, &cc.unwrap_or_default(), &bcc.unwrap_or_default(), &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
         let mut session = open_session(&host, port, &user, &pass)?;
         session
-            .append_with_flags(&mailbox, &mime, &[imap::types::Flag::Draft])
+            .append_with_flags(escape_imap_string(&mailbox), &mime, &[imap::types::Flag::Draft])
             .map_err(|e| format!("append failed: {e}"))?;
         let _ = session.logout();
         Ok(())
@@ -567,6 +588,62 @@ pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, 
         let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
         let op = if seen { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" };
         session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
+        let _ = session.logout();
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// Sets or clears the RFC 3501 `\Flagged` marker on a message.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, flagged: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
+        let op = if flagged { "+FLAGS (\\Flagged)" } else { "-FLAGS (\\Flagged)" };
+        session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
+        let _ = session.logout();
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// Permanently removes exactly one message. With UIDPLUS the server can expunge
+/// the UID directly. On older servers we temporarily unmark OTHER deleted
+/// messages, run EXPUNGE, then restore those flags so unrelated mail is safe.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_delete_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
+        let uid_s = uid.to_string();
+        let has_uidplus = session.capabilities().map(|c| c.has_str("UIDPLUS")).unwrap_or(false);
+        if has_uidplus {
+            session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
+            session.uid_expunge(&uid_s).map_err(|e| format!("uid expunge failed: {e}"))?;
+        } else {
+            let other_deleted: Vec<u32> = session
+                .uid_search("DELETED")
+                .map_err(|e| format!("deleted search failed: {e}"))?
+                .into_iter()
+                .filter(|other| *other != uid)
+                .collect();
+            let other_set = other_deleted.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            if !other_set.is_empty() {
+                session.uid_store(&other_set, "-FLAGS (\\Deleted)").map_err(|e| format!("protect deleted messages failed: {e}"))?;
+            }
+            let result = (|| -> Result<(), String> {
+                session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
+                session.expunge().map_err(|e| format!("expunge failed: {e}"))?;
+                Ok(())
+            })();
+            if !other_set.is_empty() {
+                let _ = session.uid_store(&other_set, "+FLAGS (\\Deleted)");
+            }
+            result?;
+        }
         let _ = session.logout();
         Ok(())
     })
@@ -649,6 +726,40 @@ pub async fn mail_search_envelopes(
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
+/// Returns the newest flagged messages from one mailbox (server-side filter).
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_list_flagged_envelopes(
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+    mailbox: String,
+    limit: u32,
+) -> Result<Vec<MailEnvelope>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut session = open_session(&host, port, &user, &pass)?;
+        session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+        let mut ordered: Vec<u32> = session.uid_search("FLAGGED").map_err(|e| format!("search flagged failed: {e}"))?.into_iter().collect();
+        ordered.sort_unstable_by(|a, b| b.cmp(a));
+        ordered.truncate(limit.clamp(1, 500) as usize);
+        if ordered.is_empty() {
+            let _ = session.logout();
+            return Ok(Vec::new());
+        }
+        let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+        let fetches = session
+            .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+            .map_err(|e| format!("fetch failed: {e}"))?;
+        let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
+        messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
+        let _ = session.logout();
+        Ok(messages)
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -658,6 +769,7 @@ mod tests {
         assert_eq!(escape_imap_string("hello"), "hello");
         assert_eq!(escape_imap_string("a\"b"), "a\\\"b");
         assert_eq!(escape_imap_string("a\\b"), "a\\\\b");
+        assert_eq!(escape_imap_string("Drafts \\\"Team\\\""), "Drafts \\\\\\\"Team\\\\\\\"");
     }
 
     #[test]

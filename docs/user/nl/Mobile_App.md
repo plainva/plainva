@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-07-18
+Laatst bijgewerkt: 2026-07-21
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -37,6 +37,6 @@ In **Instellingen** (⋮) leidt **Actieve vault** naar het vaultbeheer; daar ver
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.
 
-## Delen en snelkoppelingen (Android)
+## Delen en snelkoppelingen
 
-Tekst die vanuit andere apps wordt gedeeld, komt terecht als nieuwe notitie in de inbox-map. Houd het app-pictogram ingedrukt voor de snelkoppelingen **Nieuwe notitie** en **Vandaag**.
+Op Android en iOS worden gedeelde tekst en URL’s een nieuwe notitie in de inbox-map; afbeeldingen en bestanden worden als bijlage geïmporteerd (maximaal 25 MB per bestand). Houd op Android het app-pictogram ingedrukt voor de extra snelkoppelingen **Nieuwe notitie** en **Vandaag**. Op de vaultpagina kun je **Instellingen synchroniseren** inschakelen en een versleutelde vault veilig met de wachtwoordzin ontgrendelen of vergrendelen.

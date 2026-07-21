@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-07-20
+Última actualización: 2026-07-21
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -51,3 +51,7 @@ No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y
 - **Guardar la nota como borrador en el buzón** (paleta de comandos, en cualquier nota abierta): guarda la nota como un **borrador en tu propio buzón** por IMAP — elige la cuenta, el destinatario y la carpeta de borradores, luego abre tu programa de correo habitual, revisa y envía desde ahí. El formato se conserva.
 - **Enviar la nota por correo (mailto)** (paleta de comandos): abre tu programa de correo predeterminado con la nota como texto sin formato (las notas largas se acortan).
 - **Copiar la nota como texto de correo** (paleta de comandos): pone la nota en el portapapeles con formato — pégala en cualquier editor de correo.
+
+## Acciones del buzón
+
+Las estrellas/marcas se sincronizan por IMAP y Microsoft; **Marcados** muestra la selección del servidor. Puedes mover mensajes de forma individual o en grupo. Fuera de la papelera, **Eliminar** siempre significa «mover a la papelera»; solo allí aparece **Eliminar permanentemente** tras una confirmación. En Gmail, mover cambia etiquetas y las acciones en **Todos** pueden afectar al mensaje en todas sus etiquetas; Plainva avisa antes.

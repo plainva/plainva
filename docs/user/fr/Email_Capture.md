@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-07-20
+Dernière mise à jour : 2026-07-21
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -51,3 +51,7 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 - **Enregistrer la note comme brouillon dans la boîte** (palette de commandes, sur n'importe quelle note ouverte) : stocke la note comme **brouillon dans votre propre boîte aux lettres** via IMAP — choisissez le compte, le destinataire et le dossier des brouillons, puis ouvrez votre programme de messagerie habituel, relisez et envoyez depuis là-bas. La mise en forme est préservée.
 - **Envoyer la note par e-mail (mailto)** (palette de commandes) : ouvre votre programme de messagerie par défaut avec la note en texte brut (les notes longues sont raccourcies).
 - **Copier la note comme texte d'e-mail** (palette de commandes) : place la note dans le presse-papiers avec sa mise en forme — collez-la dans n'importe quel éditeur de message.
+
+## Actions sur la boîte aux lettres
+
+Les étoiles/marqueurs sont synchronisés via IMAP et Microsoft ; **Marqués** affiche la sélection du serveur. Les messages peuvent être déplacés seuls ou en groupe. Hors de la corbeille, **Supprimer** signifie toujours « déplacer vers la corbeille » ; seule la corbeille propose **Supprimer définitivement** après confirmation. Avec Gmail, un déplacement change les libellés et une action dans **Tous les messages** peut toucher le message dans tous ses libellés ; Plainva vous prévient avant l’action.

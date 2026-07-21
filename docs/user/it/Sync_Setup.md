@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-07-20
+Ultimo aggiornamento: 2026-07-21
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -94,3 +94,5 @@ Apri **Impostazioni → Sincronizzazione → Passphrase di sincronizzazione e cr
 3. **Su un altro dispositivo**, apri lo stesso vault sincronizzato. Plainva rileva che il vault è cifrato e chiede la passphrase (o il codice di ripristino). Dopo lo sblocco, le note vengono decifrate e appaiono localmente.
 
 La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **Richiedi la passphrase a ogni avvio** per reinserirla invece dopo ogni riavvio, e usa **Blocca** per rimuovere la chiave in cache da questo dispositivo.
+
+**Sincronizza impostazioni** trasferisce le impostazioni condivise del vault e i metadati degli account; percorsi locali, layout e dati di runtime restano specifici del dispositivo. **Sincronizza segreti degli account** è un’opzione separata per password delle app e credenziali BYO consentite; i token OAuth non vengono mai condivisi. Lo stato della crittografia guida attraverso **Preparazione**, **Migrazione**, **Rigido**, **Decrittografia** e **Rotazione della chiave**. I dispositivi mobili possono sbloccare lo stesso vault cifrato con la passphrase.

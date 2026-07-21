@@ -44,7 +44,14 @@ export function buildEmailNoteContent(message: MailMessage, accountId: string, m
       date: dayKey,
       // `uid` holds the message identifier (IMAP UID as string, or the opaque
       // Graph id) — the idempotency anchor for a second capture.
-      plainva: { pim: { kind: "email", account: accountId, mailbox, uid: message.id } },
+      plainva: { pim: {
+        kind: "email",
+        account: accountId,
+        mailbox,
+        uid: message.id,
+        uidValidity: message.uidValidity,
+        messageId: message.providerMessageId,
+      } },
     });
   } catch {
     /* anchor best-effort */
@@ -86,9 +93,14 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
     }
     try {
       const existing = await adapter.readTextFile(path);
-      if (
+      const messageId = String(readFrontmatterPath(existing, ["plainva", "pim", "messageId"]) ?? "");
+      const sameStableMessage = !!message.providerMessageId && messageId === message.providerMessageId;
+      const sameUidEpoch =
         String(readFrontmatterPath(existing, ["plainva", "pim", "uid"]) ?? "") === message.id &&
-        readFrontmatterPath(existing, ["plainva", "pim", "mailbox"]) === mailbox &&
+        Number(readFrontmatterPath(existing, ["plainva", "pim", "uidValidity"]) ?? 0) === (message.uidValidity ?? 0) &&
+        readFrontmatterPath(existing, ["plainva", "pim", "mailbox"]) === mailbox;
+      if (
+        (sameStableMessage || sameUidEpoch) &&
         readFrontmatterPath(existing, ["plainva", "pim", "account"]) === accountId
       ) {
         return { path, created: false };

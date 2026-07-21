@@ -4,7 +4,9 @@
     "toggleLabel": "Synchroniser les paramètres de ce vault",
     "toggleDesc": "Enregistre les paramètres de ce vault (notes quotidiennes, modèles, base de tâches, règles de sauvegarde et plus) sous la forme d'un petit fichier à l'intérieur du vault, afin qu'ils soient identiques sur tous vos appareils. Nécessite une synchronisation cloud active.",
     "explainer": "Aucun identifiant ni chemin spécifique à l'appareil n'est transféré. Si vous modifiez les paramètres sur plusieurs appareils, la version enregistrée le plus récemment l'emporte.",
-    "adopted": "Paramètres repris d'un autre appareil."
+    "adopted": "Paramètres repris d'un autre appareil.",
+    "secretsLabel": "Synchroniser les identifiants de compte",
+    "secretsDesc": "Uniquement les mots de passe IMAP/CalDAV statiques et les identifiants Google Agenda personnalisés ; les jetons OAuth restent sur cet appareil."
   },
   "encryption": {
     "contentRow": "Chiffrer le contenu du vault",
@@ -46,7 +48,9 @@
     "create": "Créer",
     "unlock": "Déverrouiller",
     "done": "Terminé",
-    "useRecovery": "Utiliser le code de récupération"
+    "useRecovery": "Utiliser le code de récupération",
+    "deactivate": "Désactiver le chiffrement", "deactivateTitle": "Désactiver le chiffrement du coffre ?", "deactivateConfirm": "Tous les fichiers distants seront réécrits en clair. Le coffre local ne change pas. Continuer ?", "deactivateStarted": "Déchiffrement lancé — {{n}} fichiers sont réécrits.", "deactivateFailed": "Impossible de lancer le déchiffrement.", "deactivateDone": "Le chiffrement est désactivé.", "completeDeactivation": "Terminer le déchiffrement",
+    "rotate": "Renouveler la clé", "rotateTitle": "Renouveler la clé de chiffrement", "rotateConfirm": "Saisissez la phrase secrète. Une nouvelle clé sera créée et tous les fichiers distants seront rechiffrés.", "rotateStarted": "Renouvellement lancé — {{n}} fichiers sont rechiffrés.", "rotateFailed": "Impossible de lancer le renouvellement. Vérifiez la phrase secrète.", "rotateDone": "Clé renouvelée ; l’ancienne clé a été supprimée.", "completeRotation": "Terminer le renouvellement", "migrationActive": "Une migration reprenable est active. Terminez-la lorsque la file de synchronisation est vide."
   },
   "contextMenu": {
     "cut": "Couper",
@@ -2105,16 +2109,16 @@
     "agendaTomorrow": "Demain",
     "dueToday": "échéance aujourd'hui",
     "dueOn": "échéance {{date}}",
-    "inviteSubject": "Invitation : {{title}}"
+    "inviteSubject": "Invitation : {{title}}", "linkedBlock": "Bloc de calendrier lié"
   },
   "mail": {
-    "sectionTitle": "E-mail (IMAP, lecture seule)",
+    "sectionTitle": "E-mail (IMAP)",
     "title": "E-mail",
     "openMail": "Ouvrir les e-mails",
     "empty": "Aucun compte e-mail connecté",
-    "emptyHint": "Connectez un compte IMAP en lecture seule dans les réglages, section « Calendrier et comptes ».",
+    "emptyHint": "Connectez un compte IMAP dans les réglages, section « Calendrier et comptes ».",
     "noAccounts": "Aucun compte e-mail connecté pour l’instant.",
-    "imapHint": "Lecture seule — Plainva ne modifie jamais la boîte. Gmail : imap.gmail.com, port 993, avec un mot de passe d’application.",
+    "imapHint": "Plainva lit sans marquer les messages comme lus ; le marquage, le déplacement et la suppression ne s’exécutent qu’à votre demande. Gmail : imap.gmail.com, port 993, avec un mot de passe d’application.",
     "backend": "Type de connexion",
     "backendMicrosoft": "Microsoft (connexion)",
     "backendImap": "IMAP (mot de passe d'application)",
@@ -2195,7 +2199,8 @@
     "listActions": "Actions du message",
     "noTrash": "Aucun dossier corbeille trouvé.",
     "sendNoteViaEmail": "Envoyer par e-mail",
-    "sendNoteAsAttachment": "Envoyer en pièce jointe"
+    "sendNoteAsAttachment": "Envoyer en pièce jointe",
+    "gmailLabelsChanged": "Libellé Gmail de {{n}} message(s) remplacé par {{folder}}.", "gmailAllMailDeleteWarning": "Cette action retire le message de tous les libellés Gmail et le place dans la corbeille.", "deleteForeverTitle": "Supprimer définitivement ?", "deleteForeverMsgN": "{{n}} messages seront supprimés définitivement.", "deleteForeverMsg": "Le message sera supprimé définitivement.", "deleteForever": "Supprimer définitivement", "filterFlagged": "Marqués", "flagged": "Marqué", "unflag": "Retirer le marquage", "flag": "Marquer"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

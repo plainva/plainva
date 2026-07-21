@@ -22,6 +22,7 @@ import {
   sealSecretsBundle,
   type SecretsBundle,
 } from "./secretsBundle.js";
+import { SecretPolicyError } from "./secretsBundle.js";
 import { stableStringify } from "./profileFile.js";
 
 /** Shell bridge between the OS keychain and the shareable secrets bundle. */
@@ -53,11 +54,13 @@ export class SecretsSyncStep {
     if (remoteBytes) {
       try {
         remote = openSecretsBundle(this.options.masterKey, remoteBytes);
-      } catch {
-        // Foreign key / corrupt bundle: leave remote null; the fail-closed guard
-        // handles genuine protocol violations. A merge with local re-establishes
-        // our entries on the next healthy write.
-        remote = null;
+      } catch (error) {
+        // Never replace an unreadable remote secrets bundle with local data. It
+        // may belong to another key or be a truncated provider version; either
+        // way treating it as "absent" would silently destroy the only copy.
+        throw new SecretPolicyError(
+          `remote secrets bundle cannot be opened: ${error instanceof Error ? error.message : "unknown error"}`
+        );
       }
     }
 

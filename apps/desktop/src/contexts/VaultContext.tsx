@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, parseManifest, type EncryptionState } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "@plainva/ui";
@@ -9,7 +9,8 @@ import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, wrapEncryptedTargetIfActive } from "../services/settingsProfile";
-import { activateContentEncryption, completeContentEncryption } from "../services/encryptionActivation";
+import { activateContentEncryption, completeContentDecryption, completeContentEncryption, completeContentKeyRotation, deactivateContentEncryption, resumeContentEncryptionIfOwned, rotateContentEncryptionKey } from "../services/encryptionActivation";
+import { readRemoteManifest } from "../services/encryptionManifest";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -100,6 +101,11 @@ interface VaultContextType extends VaultState {
   activateEncryption: () => Promise<{ queued: number }>;
   /** Completes the migration: flips the connection from mixed to strict. */
   completeEncryptionMigration: () => Promise<void>;
+  deactivateEncryption: () => Promise<{ queued: number }>;
+  completeDecryptionMigration: () => Promise<void>;
+  rotateEncryptionKey: (passphrase: string) => Promise<{ queued: number; newKeyId: string }>;
+  completeEncryptionRotation: () => Promise<void>;
+  getEncryptionLifecycleState: () => Promise<EncryptionState | "off">;
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -585,6 +591,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // returned unchanged; a fatal protocol violation is enforced per cycle
             // by the sideband runner's guardBeforeCycle, not here.
             syncTargetRef.current = target; // raw target (for activation + manifest writes)
+            // A crash during the migration leaves a signed journal + owned
+            // manifest. Recreate the idempotent forced sweep before the worker
+            // starts so it can safely continue where the previous process ended.
+            await resumeContentEncryptionIfOwned({ vaultPath: path, rawTarget: target, dbAdapter, rawVault: backupVaultAdapter });
             target = await wrapEncryptedTargetIfActive(path, target);
             const settingsStore = await getSettingsStore();
             // Per-vault interval, falling back to the legacy global value, then the default.
@@ -596,7 +606,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
             // the vault has not opted in.
-            const settingsSync = (await buildSettingsSyncStep(path)) ?? undefined;
+            const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
@@ -844,7 +854,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // once. With no worker (no cloud sync configured), nothing to do.
       if (!state.vaultPath || !state.syncWorker) return;
       const worker = state.syncWorker;
-      buildSettingsSyncStep(state.vaultPath)
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();
@@ -992,13 +1002,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // re-encryption, then reopens the vault so the reloaded worker wraps the target
   // and pushes ciphertext. The local vault always stays plaintext.
   const activateEncryption = async (): Promise<{ queued: number }> => {
-    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) {
       throw new Error("encryption-no-connection");
     }
     const res = await activateContentEncryption({
       vaultPath: state.vaultPath,
       rawTarget: syncTargetRef.current,
       dbAdapter: state.dbAdapter,
+      rawVault: state.backupAdapter,
     });
     await openVault(state.vaultPath); // reload -> wrapped worker sweeps the queued files
     return res;
@@ -1008,20 +1019,58 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // uploaded ciphertext for every file — after this a plaintext download is a
   // fatal protocol violation (fail-closed).
   const completeEncryptionMigration = async (): Promise<void> => {
-    if (!state.vaultPath || !syncTargetRef.current) {
+    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) {
       throw new Error("encryption-no-connection");
     }
     await completeContentEncryption({
       vaultPath: state.vaultPath,
       rawTarget: syncTargetRef.current,
+      dbAdapter: state.dbAdapter,
     });
     await openVault(state.vaultPath); // reload -> the wrap now enforces strict mode
+  };
+
+  const deactivateEncryption = async (): Promise<{ queued: number }> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
+    const result = await deactivateContentEncryption({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter });
+    await openVault(state.vaultPath);
+    return result;
+  };
+
+  const completeDecryptionMigration = async (): Promise<void> => {
+    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
+    await completeContentDecryption({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter });
+    await openVault(state.vaultPath);
+  };
+
+  const rotateEncryptionKey = async (passphrase: string): Promise<{ queued: number; newKeyId: string }> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
+    const result = await rotateContentEncryptionKey({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter, passphrase });
+    await openVault(state.vaultPath);
+    return result;
+  };
+
+  const completeEncryptionRotation = async (): Promise<void> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
+    await completeContentKeyRotation({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter });
+    await openVault(state.vaultPath);
+  };
+
+  const getEncryptionLifecycleState = async (): Promise<EncryptionState | "off"> => {
+    if (!syncTargetRef.current) return "off";
+    const text = await readRemoteManifest(syncTargetRef.current);
+    if (!text) return "off";
+    try {
+      return parseManifest(JSON.parse(text))?.state ?? "off";
+    } catch {
+      return "off";
+    }
   };
 
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, activateEncryption, completeEncryptionMigration }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, activateEncryption, completeEncryptionMigration, deactivateEncryption, completeDecryptionMigration, rotateEncryptionKey, completeEncryptionRotation, getEncryptionLifecycleState }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

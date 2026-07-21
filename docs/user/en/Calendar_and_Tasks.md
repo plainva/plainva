@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-07-21
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -46,3 +46,5 @@ Tick a **task list** on a connected account and its tasks appear as notes in you
 Two safety rules protect your data: **deleting the note never deletes the remote task** (it just stops syncing and is not re-imported), and **a remotely deleted task never deletes your note** (it simply becomes a normal note). Renaming or moving a task note is fine — the frontmatter marker keeps the link.
 
 Current limits: tasks created as plain notes are not pushed to the provider (create them remotely or via the task database), and everything on this page is desktop-first for now.
+
+Copies created by **Block in other calendars** carry a provider-specific Plainva link on Google, Microsoft and CalDAV. Calendar views show that relationship with a link icon; after a refresh, source and block are matched again instead of becoming unrelated duplicates.

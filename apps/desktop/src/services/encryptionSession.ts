@@ -15,7 +15,10 @@
 import {
   createKeyfile,
   unlockKeyfile,
+  unlockAllKeys,
   changePassphrase as coreChangePassphrase,
+  addRotationKey,
+  dropKey,
   exportRecoveryCode,
   parseRecoveryCode,
   isKeyfile,
@@ -42,10 +45,13 @@ export const passphraseEveryStartKey = (vaultPath: string) => `passphraseEverySt
 
 /** In-memory unlocked MK per vault for the running session. */
 const memoryCache = new Map<string, MasterKeyBundle>();
+const memoryKeyrings = new Map<string, Map<string, MasterKeyBundle>>();
 
 interface CachedMk {
   keyId: string;
   mk: string; // base64 master key
+  /** v2 cache: includes temporary old keys while a rotation is resumable. */
+  keys?: Array<{ keyId: string; mk: string }>;
 }
 
 /** Whether "passphrase every start" is enabled for this vault. */
@@ -92,19 +98,45 @@ export async function loadCachedMasterKey(vaultPath: string): Promise<MasterKeyB
   if (!cached || typeof cached.keyId !== "string" || typeof cached.mk !== "string") return null;
   const bundle: MasterKeyBundle = { keyId: cached.keyId, masterKey: fromBase64(cached.mk) };
   memoryCache.set(vaultPath, bundle);
+  const ring = new Map<string, MasterKeyBundle>();
+  for (const item of cached.keys ?? [cached]) {
+    if (typeof item.keyId === "string" && typeof item.mk === "string") {
+      ring.set(item.keyId, { keyId: item.keyId, masterKey: fromBase64(item.mk) });
+    }
+  }
+  ring.set(bundle.keyId, bundle);
+  memoryKeyrings.set(vaultPath, ring);
   return bundle;
 }
 
-async function cacheMasterKey(vaultPath: string, bundle: MasterKeyBundle): Promise<void> {
-  memoryCache.set(vaultPath, bundle);
+async function cacheMasterKeys(vaultPath: string, active: MasterKeyBundle, keys: Map<string, MasterKeyBundle>): Promise<void> {
+  const ring = new Map(keys);
+  ring.set(active.keyId, active);
+  memoryKeyrings.set(vaultPath, ring);
+  memoryCache.set(vaultPath, active);
   if (!(await isPassphraseEveryStart(vaultPath))) {
-    await credentialManager.writeSecret<CachedMk>(mkCacheKey(vaultPath), { keyId: bundle.keyId, mk: toBase64(bundle.masterKey) });
+    await credentialManager.writeSecret<CachedMk>(mkCacheKey(vaultPath), {
+      keyId: active.keyId,
+      mk: toBase64(active.masterKey),
+      keys: [...ring.values()].map((key) => ({ keyId: key.keyId, mk: toBase64(key.masterKey) })),
+    });
   }
+}
+
+async function cacheMasterKey(vaultPath: string, bundle: MasterKeyBundle): Promise<void> {
+  await cacheMasterKeys(vaultPath, bundle, new Map([[bundle.keyId, bundle]]));
+}
+
+/** All unlocked content keys. Usually one; two while a rotation is in progress. */
+export async function loadCachedMasterKeys(vaultPath: string): Promise<Map<string, MasterKeyBundle>> {
+  if (!memoryCache.has(vaultPath)) await loadCachedMasterKey(vaultPath);
+  return new Map(memoryKeyrings.get(vaultPath) ?? []);
 }
 
 /** Clears the unlocked MK (memory + keychain cache) — the vault relocks. */
 export async function lockVault(vaultPath: string): Promise<void> {
   memoryCache.delete(vaultPath);
+  memoryKeyrings.delete(vaultPath);
   await credentialManager.removeSecret(mkCacheKey(vaultPath));
 }
 
@@ -119,7 +151,7 @@ export async function createEncryptionSession(
 ): Promise<{ bundle: MasterKeyBundle; recoveryCode: string }> {
   const { keyfile, bundle } = await createKeyfile(passphrase);
   await raw.writeTextFile(KEYFILE_SYNC_PATH, JSON.stringify(keyfile, null, 2));
-  await cacheMasterKey(vaultPath, bundle);
+  await cacheMasterKeys(vaultPath, bundle, new Map([[bundle.keyId, bundle]]));
   return { bundle, recoveryCode: exportRecoveryCode(bundle) };
 }
 
@@ -127,8 +159,9 @@ export async function createEncryptionSession(
 export async function unlockWithPassphrase(vaultPath: string, raw: RawFileAccess, passphrase: string): Promise<MasterKeyBundle> {
   const keyfile = await readLocalKeyfile(raw);
   if (!keyfile) throw new Error("no keyfile present for this vault yet");
-  const bundle = await unlockKeyfile(keyfile, passphrase);
-  await cacheMasterKey(vaultPath, bundle);
+  const keys = await unlockAllKeys(keyfile, passphrase);
+  const bundle = keys.get(keyfile.activeKeyId) ?? await unlockKeyfile(keyfile, passphrase);
+  await cacheMasterKeys(vaultPath, bundle, keys);
   return bundle;
 }
 
@@ -152,4 +185,41 @@ export async function changeSessionPassphrase(vaultPath: string, raw: RawFileAcc
   await raw.writeTextFile(KEYFILE_SYNC_PATH, JSON.stringify(next, null, 2));
   // The active MK is unchanged; refresh the cache from the re-wrapped keyfile.
   await cacheMasterKey(vaultPath, await unlockKeyfile(next, newPass));
+}
+
+/** Creates and persists a second key for a resumable content-key rotation. */
+export async function prepareSessionRotation(
+  vaultPath: string,
+  raw: RawFileAccess,
+  passphrase: string
+): Promise<{ previousKeyfile: Keyfile; keyfile: Keyfile; oldBundle: MasterKeyBundle; newBundle: MasterKeyBundle; keys: Map<string, MasterKeyBundle> }> {
+  const previousKeyfile = await readLocalKeyfile(raw);
+  if (!previousKeyfile) throw new Error("no keyfile present for this vault");
+  const oldKeys = await unlockAllKeys(previousKeyfile, passphrase);
+  const oldBundle = oldKeys.get(previousKeyfile.activeKeyId);
+  if (!oldBundle) throw new Error("active key is missing from keyfile");
+  const { keyfile, newBundle } = await addRotationKey(previousKeyfile, passphrase);
+  const keys = new Map(oldKeys);
+  keys.set(newBundle.keyId, newBundle);
+  await raw.writeTextFile(KEYFILE_SYNC_PATH, JSON.stringify(keyfile, null, 2));
+  await cacheMasterKeys(vaultPath, newBundle, keys);
+  return { previousKeyfile, keyfile, oldBundle, newBundle, keys };
+}
+
+/** Keeps only the new active key after every remote blob has been verified. */
+export async function finishSessionRotation(vaultPath: string, raw: RawFileAccess, keepKeyId: string): Promise<Keyfile> {
+  const current = await readLocalKeyfile(raw);
+  if (!current) throw new Error("no keyfile present for this vault");
+  const next = dropKey(current, keepKeyId);
+  const active = (await loadCachedMasterKeys(vaultPath)).get(keepKeyId);
+  if (!active) throw new Error("rotation key is not unlocked");
+  await raw.writeTextFile(KEYFILE_SYNC_PATH, JSON.stringify(next, null, 2));
+  await cacheMasterKey(vaultPath, active);
+  return next;
+}
+
+/** Restores a pre-rotation keyfile when publishing the rotation manifest fails. */
+export async function restoreSessionKeyfile(vaultPath: string, raw: RawFileAccess, keyfile: Keyfile, active: MasterKeyBundle): Promise<void> {
+  await raw.writeTextFile(KEYFILE_SYNC_PATH, JSON.stringify(keyfile, null, 2));
+  await cacheMasterKey(vaultPath, active);
 }

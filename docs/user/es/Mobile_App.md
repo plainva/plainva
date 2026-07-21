@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-07-18
+Última actualización: 2026-07-21
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -37,6 +37,6 @@ En los **Ajustes** (⋮), **Vault activo** lleva a la gestión de vaults; ahí c
 
 Los snapshots (historial de versiones), un diario de borradores (tras un fallo, la nota ofrece tu último estado sin guardar) y las copias en conflicto con una vista de comparación protegen tus datos. La retención se configura en **Ajustes** → **Copias de seguridad y versionado**.
 
-## Compartir y accesos directos (Android)
+## Compartir y accesos directos
 
-El texto compartido desde otras apps llega como una nota nueva en la carpeta de entrada. Mantén pulsado el icono de la app para los accesos directos **Nueva nota** y **Hoy**.
+En Android e iOS, el texto y las URL compartidos se convierten en una nota nueva en la carpeta de entrada; las imágenes y los archivos se importan como adjuntos (hasta 25 MB por archivo). En Android, mantén pulsado el icono para los accesos adicionales **Nueva nota** y **Hoy**. La página del vault permite activar **Sincronizar ajustes** y desbloquear o bloquear de forma segura un vault cifrado con su frase de contraseña.

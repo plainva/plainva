@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-20
+Dernière mise à jour : 2026-07-21
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -94,3 +94,5 @@ Ouvrez **Paramètres → Synchronisation → Phrase de passe de synchronisation 
 3. **Sur un autre appareil**, ouvrez le même vault synchronisé. Plainva détecte que le vault est chiffré et demande la phrase de passe (ou le code de récupération). Une fois déverrouillé, les notes sont déchiffrées et apparaissent localement.
 
 La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger la phrase de passe à chaque démarrage** pour la ressaisir après chaque redémarrage à la place, et utilisez **Verrouiller** pour supprimer la clé mise en cache sur cet appareil.
+
+**Synchroniser les réglages** transfère les réglages partagés du vault et les métadonnées des comptes ; les chemins locaux, la disposition et les données d’exécution restent propres à l’appareil. **Synchroniser les secrets des comptes** est une option distincte pour les mots de passe d’application et identifiants BYO autorisés ; les jetons OAuth ne sont jamais partagés. L’état du chiffrement guide les étapes **Préparation**, **Migration**, **Strict**, **Déchiffrement** et **Rotation de clé**. Les appareils mobiles peuvent déverrouiller le même vault chiffré avec sa phrase de passe.

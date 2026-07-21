@@ -1,12 +1,9 @@
 import { registerPlugin } from "@capacitor/core";
 
 /**
- * JS side of the Android share target (M3E package J): MainActivity buffers an
- * ACTION_SEND / ACTION_SEND_MULTIPLE payload in the native plugin — plain text
- * as text+subject, images and arbitrary files as base64 file payloads. The
- * shell polls on boot and on every resume (a warm share always foregrounds the
- * app). Web/iOS return nothing from THIS poll — iOS sharing INTO the app
- * arrives through its own Share Extension; this is an Android launcher feature.
+ * Cross-platform share target (M3E package J). Android buffers launcher intents
+ * in memory; the iOS Share Extension atomically stores the same payload contract
+ * in the app-group container. The shell polls on boot and every resume.
  */
 
 export interface SharedFile {
@@ -37,7 +34,7 @@ export async function consumePendingShare(): Promise<PendingShare | null> {
     const text = res.text && res.text.trim() ? res.text : "";
     if (text || files.length > 0) return { text, subject: res.subject ?? "", files };
   } catch {
-    /* plugin absent (web, iOS) */
+    /* plugin absent (web or an older native shell) */
   }
   return null;
 }

@@ -4,7 +4,7 @@
     "toggleLabel": "Sincronizar as configurações deste vault",
     "toggleDesc": "Salva as configurações deste vault (notas diárias, modelos, banco de tarefas, regras de backup e mais) como um pequeno arquivo dentro do vault, para que fiquem iguais em todos os seus dispositivos. Requer uma sincronização na nuvem ativa.",
     "explainer": "Não transferimos credenciais nem caminhos específicos de cada dispositivo. Se você alterar as configurações em mais de um dispositivo, vale a versão salva mais recentemente.",
-    "adopted": "Configurações adotadas de outro dispositivo."
+    "adopted": "Configurações adotadas de outro dispositivo.", "secretsLabel": "Sincronizar credenciais de contas", "secretsDesc": "Somente senhas IMAP/CalDAV estáticas e credenciais próprias do Google Agenda; tokens OAuth permanecem neste dispositivo."
   },
   "encryption": {
     "contentRow": "Criptografar o conteúdo do vault",
@@ -46,7 +46,9 @@
     "create": "Criar",
     "unlock": "Desbloquear",
     "done": "Concluído",
-    "useRecovery": "Usar código de recuperação"
+    "useRecovery": "Usar código de recuperação",
+    "deactivate": "Desativar criptografia", "deactivateTitle": "Desativar a criptografia do vault?", "deactivateConfirm": "Todos os arquivos remotos serão regravados em texto simples. O vault local não muda. Continuar?", "deactivateStarted": "Descriptografia iniciada — {{n}} arquivos estão sendo regravados.", "deactivateFailed": "Não foi possível iniciar a descriptografia.", "deactivateDone": "A criptografia está desativada.", "completeDeactivation": "Concluir descriptografia",
+    "rotate": "Trocar chave", "rotateTitle": "Trocar chave de criptografia", "rotateConfirm": "Digite a frase secreta de sincronização. Uma nova chave será criada e todos os arquivos remotos serão criptografados novamente.", "rotateStarted": "Troca de chave iniciada — {{n}} arquivos estão sendo criptografados novamente.", "rotateFailed": "Não foi possível iniciar a troca. Verifique a frase secreta.", "rotateDone": "Troca de chave concluída; a chave antiga foi removida.", "completeRotation": "Concluir troca de chave", "migrationActive": "Há uma migração de criptografia retomável ativa. Conclua quando a fila de sincronização estiver vazia."
   },
   "contextMenu": {
     "cut": "Recortar",
@@ -2105,16 +2107,16 @@
     "agendaTomorrow": "Amanhã",
     "dueToday": "vence hoje",
     "dueOn": "vence {{date}}",
-    "inviteSubject": "Convite: {{title}}"
+    "inviteSubject": "Convite: {{title}}", "linkedBlock": "Bloco de calendário vinculado"
   },
   "mail": {
-    "sectionTitle": "E-mail (IMAP, somente leitura)",
+    "sectionTitle": "E-mail (IMAP)",
     "title": "E-mail",
     "openMail": "Abrir e-mail",
     "empty": "Nenhuma conta de e-mail conectada",
-    "emptyHint": "Conecte uma conta IMAP somente leitura nas Configurações, seção “Calendário e contas”.",
+    "emptyHint": "Conecte uma conta IMAP nas Configurações, seção “Calendário e contas”.",
     "noAccounts": "Ainda não há conta de e-mail conectada.",
-    "imapHint": "Somente leitura — o Plainva nunca altera a caixa de correio. Gmail: imap.gmail.com, porta 993, com senha de app.",
+    "imapHint": "O Plainva lê sem marcar mensagens como lidas; sinalizar, mover e excluir só ocorre quando você solicita. Gmail: imap.gmail.com, porta 993, com senha de app.",
     "backend": "Tipo de conexão",
     "backendMicrosoft": "Microsoft (entrar)",
     "backendImap": "IMAP (senha de aplicativo)",
@@ -2195,7 +2197,8 @@
     "listActions": "Ações da mensagem",
     "noTrash": "Nenhuma pasta de lixeira encontrada.",
     "sendNoteViaEmail": "Enviar por e-mail",
-    "sendNoteAsAttachment": "Enviar como anexo"
+    "sendNoteAsAttachment": "Enviar como anexo",
+    "gmailLabelsChanged": "Rótulo do Gmail de {{n}} mensagem(ns) alterado para {{folder}}.", "gmailAllMailDeleteWarning": "Isso remove a mensagem de todos os rótulos do Gmail e a move para a lixeira.", "deleteForeverTitle": "Excluir permanentemente?", "deleteForeverMsgN": "{{n}} mensagens serão excluídas permanentemente.", "deleteForeverMsg": "A mensagem será excluída permanentemente.", "deleteForever": "Excluir permanentemente", "filterFlagged": "Marcadas", "flagged": "Marcada", "unflag": "Remover marca", "flag": "Marcar"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

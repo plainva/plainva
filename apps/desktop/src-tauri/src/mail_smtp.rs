@@ -1,7 +1,8 @@
 //! SMTP submission (mail-client E3): a small, hand-rolled SMTP client over the
 //! SAME rustls-on-TcpStream stack as `mail_imap` (OpenSSL-free, no extra async
 //! dependency). Supports STARTTLS (port 587) and implicit TLS (port 465),
-//! AUTH LOGIN, and a text+html MIME built with mail-builder. Runs inside
+//! AUTH PLAIN/LOGIN with EHLO capability negotiation, and a text+html MIME
+//! built with mail-builder. Runs inside
 //! spawn_blocking. Plainva speaks SMTP only to SUBMIT the user's own outgoing
 //! mail through their provider — no relaying, no listener.
 //!
@@ -229,6 +230,51 @@ fn cmd(stream: &mut SmtpStream, line: &str, expect: u16) -> Result<String, Strin
     Ok(text)
 }
 
+/** AUTH mechanisms advertised by an EHLO reply, case-insensitive. */
+fn auth_mechanisms(ehlo: &str) -> Vec<String> {
+    ehlo.lines()
+        .filter_map(|line| {
+            let upper = line.to_ascii_uppercase();
+            let rest = upper
+                .strip_prefix("250-AUTH ")
+                .or_else(|| upper.strip_prefix("250 AUTH "))
+                .or_else(|| upper.strip_prefix("250-AUTH="))
+                .or_else(|| upper.strip_prefix("250 AUTH="))?;
+            Some(rest.split_whitespace().map(str::to_string).collect::<Vec<_>>())
+        })
+        .flatten()
+        .collect()
+}
+
+fn authenticate(stream: &mut SmtpStream, ehlo: &str, user: &str, pass: &str) -> Result<(), String> {
+    let mechanisms = auth_mechanisms(ehlo);
+    if mechanisms.iter().any(|m| m == "PLAIN") {
+        let payload = base64::engine::general_purpose::STANDARD.encode(format!("\0{user}\0{pass}").as_bytes());
+        stream.write_all(format!("AUTH PLAIN {payload}\r\n").as_bytes()).map_err(|e| format!("smtp write failed: {e}"))?;
+        stream.flush().map_err(|e| format!("smtp flush failed: {e}"))?;
+        let (code, text) = read_reply(stream)?;
+        if code == 235 { return Ok(()); }
+        // Some servers request the initial response on a second line.
+        if code == 334 {
+            cmd(stream, &payload, 235)?;
+            return Ok(());
+        }
+        return Err(format!("smtp AUTH PLAIN rejected ({code}): {}", text.trim()));
+    }
+    if mechanisms.iter().any(|m| m == "LOGIN") || mechanisms.is_empty() {
+        // Empty capability list keeps compatibility with servers that accept
+        // LOGIN but fail to advertise AUTH (common with local bridges).
+        cmd(stream, "AUTH LOGIN", 334)?;
+        cmd(stream, &base64::engine::general_purpose::STANDARD.encode(user.as_bytes()), 334)?;
+        cmd(stream, &base64::engine::general_purpose::STANDARD.encode(pass.as_bytes()), 235)?;
+        return Ok(());
+    }
+    Err(format!(
+        "smtp server offers no password mechanism supported by Plainva (offered: {})",
+        mechanisms.join(", ")
+    ))
+}
+
 fn wrap_tls(tcp: TcpStream, host: &str) -> Result<SmtpStream, String> {
     let server_name = rustls::pki_types::ServerName::try_from(host.to_string())
         .map_err(|e| format!("invalid server name: {e}"))?;
@@ -296,7 +342,7 @@ pub async fn mail_send(
             return Err(format!("smtp greeting error ({code}): {}", text.trim()));
         }
 
-        cmd(&mut stream, &format!("EHLO {}", client_ident()), 250)?;
+        let mut ehlo = cmd(&mut stream, &format!("EHLO {}", client_ident()), 250)?;
 
         // STARTTLS upgrade for the submission port.
         if let SmtpStream::Plain(_) = stream {
@@ -306,13 +352,10 @@ pub async fn mail_send(
                 SmtpStream::Tls(_) => unreachable!(),
             };
             stream = wrap_tls(tcp, &host)?;
-            cmd(&mut stream, &format!("EHLO {}", client_ident()), 250)?;
+            ehlo = cmd(&mut stream, &format!("EHLO {}", client_ident()), 250)?;
         }
 
-        // AUTH LOGIN (base64 username, then base64 password).
-        cmd(&mut stream, "AUTH LOGIN", 334)?;
-        cmd(&mut stream, &base64::engine::general_purpose::STANDARD.encode(user.as_bytes()), 334)?;
-        cmd(&mut stream, &base64::engine::general_purpose::STANDARD.encode(pass.as_bytes()), 235)?;
+        authenticate(&mut stream, &ehlo, &user, &pass)?;
 
         cmd(&mut stream, &format!("MAIL FROM:<{}>", envelope_addr(&from)), 250)?;
         for rcpt in &recipients {
@@ -376,6 +419,13 @@ mod tests {
         assert_eq!(split_recipients("a@x.org, b@y.org"), vec!["a@x.org", "b@y.org"]);
         assert_eq!(split_recipients(" one@x.org ,, "), vec!["one@x.org"]);
         assert!(split_recipients("").is_empty());
+    }
+
+    #[test]
+    fn parses_ehlo_auth_mechanisms() {
+        let reply = "250-mail.example\n250-AUTH PLAIN LOGIN\n250 SIZE 1000\n";
+        assert_eq!(auth_mechanisms(reply), vec!["PLAIN", "LOGIN"]);
+        assert_eq!(auth_mechanisms("250 AUTH=LOGIN PLAIN\n"), vec!["LOGIN", "PLAIN"]);
     }
 
     #[test]

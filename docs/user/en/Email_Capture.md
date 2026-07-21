@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-07-21
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -51,3 +51,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 - **Save note as email draft in the mailbox** (command palette, on any open note): stores the note as a **draft in your own mailbox** via IMAP — pick the account, recipient and drafts folder, then open your regular mail program, review and send from there. Formatting is preserved.
 - **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened).
 - **Copy note as email text** (command palette): puts the note on the clipboard with formatting — paste it into any composer.
+
+## Mailbox actions
+
+Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.

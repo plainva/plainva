@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-07-20
+Ultimo aggiornamento: 2026-07-21
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -51,3 +51,7 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 - **Salva la nota come bozza nella casella** (palette dei comandi, su qualsiasi nota aperta): salva la nota come **bozza nella tua casella** tramite IMAP — scegli account, destinatario e cartella bozze, poi apri il tuo programma di posta abituale, controlla e invia da lì. La formattazione viene mantenuta.
 - **Invia la nota via e-mail (mailto)** (palette dei comandi): apre il tuo programma di posta predefinito con la nota come testo semplice (le note lunghe vengono accorciate).
 - **Copia la nota come testo e-mail** (palette dei comandi): mette la nota negli appunti con la formattazione — incollala in qualsiasi finestra di composizione e-mail.
+
+## Azioni sulla casella
+
+Stelle e contrassegni si sincronizzano tramite IMAP e Microsoft; **Contrassegnati** mostra la selezione del server. I messaggi si possono spostare singolarmente o in gruppo. Fuori dal cestino, **Elimina** significa sempre “sposta nel cestino”; solo nel cestino compare **Elimina definitivamente** dopo una conferma. Con Gmail, lo spostamento cambia le etichette e le azioni in **Tutti i messaggi** possono interessare il messaggio in ogni etichetta; Plainva avvisa prima.
