@@ -87,6 +87,12 @@ let state: SyncState = { status: "off", message: null, lastSyncAt: null, progres
 const listeners = new Set<() => void>();
 let worker: SyncWorker | null = null;
 
+/** Cascade deletion (plan Kaskadenloeschung): user-confirmed deletions must
+ * not trip — or be resurrected by — the sync mass-deletion guard. */
+export function notifyUserInitiatedDeletion(paths: string[]): void {
+  worker?.noteUserInitiatedDeletion(paths);
+}
+
 function setState(next: { status: MobileSyncStatus; message: string | null }): void {
   const finished = state.status === "syncing" && next.status === "idle";
   const errorHistory =

@@ -26,9 +26,10 @@ import {
   type PinboardDropSlot,
 } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { mConfirm, mSelect } from "../../services/mobileDialogs";
+import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
-import { vaultOps, type MobileVault } from "../../services/vaultService";
+import { confirmDeleteFile } from "../../lib/deleteFile";
+import { type MobileVault } from "../../services/vaultService";
 
 /**
  * Mobile pinboard view (plan Pinboard P6): the Keep-style board over the SAME
@@ -394,16 +395,15 @@ export function PinboardView({
     } else if (picked === "color") {
       await pickColor(path);
     } else if (picked === "delete") {
-      const ok = await mConfirm({
-        title: t("pinboard.delete", { defaultValue: "Löschen" }),
-        message: noteDisplayName(path.split("/").pop() ?? path),
-        danger: true,
-      });
-      if (!ok) return;
-      // vaultOps.remove is the established mobile delete path (sync chain,
-      // bookmark cleanup) — same flow the note screens use.
-      await vaultOps.remove(vault, path).catch((e: any) => toast.error(String(e?.message ?? e)));
-      onMutated();
+      // Cascade-aware shared delete flow (plan Kaskadenloeschung) — pinboard
+      // cards can be relation targets.
+      const done = await confirmDeleteFile(vault, path, noteDisplayName(path.split("/").pop() ?? path), t).catch(
+        (e: any) => {
+          toast.error(String(e?.message ?? e));
+          return false;
+        }
+      );
+      if (done) onMutated();
     }
   }, [sections, order, pinnedList, presentSet, persistSections, editLabels, pickColor, vault, t, onMutated]);
 

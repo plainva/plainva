@@ -37,6 +37,11 @@ export type MobileDialog =
       options: MobileSelectOption[];
       value?: string;
       resolve: (v: string | null) => void;
+    })
+  | (BaseRequest & {
+      kind: "cascade";
+      plan: import("@plainva/ui").DeletionPlan;
+      resolve: (sel: import("@plainva/ui").CascadeSelection | null) => void;
     });
 
 let queue: MobileDialog[] = [];
@@ -95,6 +100,19 @@ export function mSelect(opts: {
 }): Promise<string | null> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "select", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/** Cascade-deletion sheet (plan Kaskadenloeschung, mobile v1): group checkboxes
+ * + counters, no per-element opt-out — shared/multi-membership exclusions from
+ * the plan still apply. Resolves the chosen selection, or null on cancel. */
+export function mCascade(opts: {
+  title: string;
+  plan: import("@plainva/ui").DeletionPlan;
+}): Promise<import("@plainva/ui").CascadeSelection | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "cascade", id: nextId++, ...opts, resolve }];
     emit();
   });
 }

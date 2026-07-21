@@ -338,16 +338,9 @@ export function BrowseScreen({
 
   const deleteNote = (target: { path: string; title: string }) => {
     setSheet(null);
-    void (async () => {
-      const ok = await mConfirm({
-        title: t("mobile.deleteNote"),
-        message: t("mobile.deleteNoteConfirm", { name: target.title }),
-        danger: true,
-        confirmLabel: t("common.delete"),
-      });
-      if (!ok) return;
-      await vaultOps.remove(vault, target.path);
-    })();
+    // Cascade-aware shared delete flow (plan Kaskadenloeschung): relation
+    // targets get the cascade sheet, plain notes keep the slim confirm.
+    void confirmDeleteFile(vault, target.path, target.title, t);
   };
 
   return (

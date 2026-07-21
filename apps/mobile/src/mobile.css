@@ -2308,3 +2308,50 @@ textarea {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* ── Cascade deletion sheet (plan Kaskadenloeschung, mobile v1) ─────────────
+   Group rows with a checkbox + count pill inside the shared dialog sheet;
+   step 2 of a linked database is danger-tinted. Tokens only. */
+.m-cascade-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-md);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-md);
+  color: var(--text-main);
+}
+.m-cascade-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-color);
+  flex-shrink: 0;
+}
+.m-cascade-row--danger {
+  background: color-mix(in srgb, var(--error-text) 6%, transparent);
+  color: var(--error-text);
+}
+.m-cascade-main {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.m-cascade-count {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.m-cascade-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
