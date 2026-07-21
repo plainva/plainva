@@ -12,6 +12,7 @@ import { getSettingsStore } from "./services/settingsStore";
 import { credentialManager } from "./services/CredentialManager";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
+import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
 import { VaultProvider } from "./contexts/VaultContext";
 import { initTheme } from "./services/theme";
@@ -60,6 +61,7 @@ void i18nReady.then(() => {
       <ErrorBoundary>
         <VaultProvider>
           <App />
+          <EncryptionUnlockHost />
         </VaultProvider>
         <DialogHost />
         <ToastHost />

@@ -283,6 +283,11 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         } catch {
           // best-effort; the fatal guard below still stops the cycle
         }
+        // The keyfile is now local: prompt the user to unlock this device
+        // directly (EncryptionUnlockHost), instead of hunting through settings.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath: this.vaultPath } }));
+        }
       }
     }
     // Throws FatalSyncProtocolError on any violation (fail-closed).
