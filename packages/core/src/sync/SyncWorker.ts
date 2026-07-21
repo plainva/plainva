@@ -5,6 +5,28 @@ import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { mergeText } from "../conflict-resolver.js";
 import { isTextFile } from "./fileType.js";
+import { isSealedBlob } from "../crypto/sealedBlob.js";
+
+/**
+ * Thrown when a pulled file's bytes are a PVE1 sealed blob but this worker has no
+ * decrypter configured — i.e. another device turned on end-to-end encryption for
+ * this vault and this device is not decrypting (E2E off or not unlocked). Writing
+ * the ciphertext into a Markdown file would corrupt it, so the reconcile throws
+ * BEFORE any write; the consecutive-failure breaker then aborts the cycle and no
+ * plaintext is pushed either (defensive guard, ships in P1 ahead of the E2E
+ * feature — settings-sync plan A3).
+ */
+export class EncryptedRemoteError extends Error {
+  constructor(readonly path: string) {
+    super(`remote content is end-to-end encrypted and this device cannot decrypt it (${path})`);
+    this.name = "EncryptedRemoteError";
+  }
+}
+
+/** Optional profile-sync sideband, run once per cycle after the file push. */
+export interface SettingsSyncRunner {
+  run(target: ISyncTarget, vault: IVaultAdapter): Promise<void>;
+}
 
 function bytesToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -151,6 +173,12 @@ const DEFAULT_DOWNLOAD_BUFFER_BYTES = 32 * 1024 * 1024;
 export interface SyncWorkerOptions {
   downloadConcurrency?: number;
   downloadBufferBytes?: number;
+  /**
+   * Optional profile-sync sideband (settings-sync plan P1). Run once per cycle
+   * after the file push, in its own try/catch so a settings error never affects
+   * the file sync. Undefined = feature off.
+   */
+  settingsSync?: SettingsSyncRunner;
 }
 
 /**
@@ -331,7 +359,17 @@ export class SyncWorker {
     private readonly queue: SyncQueue,
     private readonly intervalMs: number = 60000,
     private readonly options: SyncWorkerOptions = {}
-  ) {}
+  ) {
+    this.settingsSyncRunner = options.settingsSync;
+  }
+
+  /** Profile-sync sideband, toggled live when the vault opt-in changes. */
+  private settingsSyncRunner?: SettingsSyncRunner;
+
+  /** Enables/disables the profile-sync sideband at runtime (opt-in toggle). */
+  public setSettingsSync(runner?: SettingsSyncRunner) {
+    this.settingsSyncRunner = runner;
+  }
 
   private setStatus(status: SyncStatus, error?: string) {
     if (this.currentStatus !== status) {
@@ -741,6 +779,12 @@ export class SyncWorker {
     const contentBytes = await (download ? download() : this.target.download(path));
     if (!contentBytes) return;
 
+    // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
+    // sealed blob, another device encrypted this vault and we cannot decrypt.
+    // Throw before ANY local write so ciphertext never lands in a file; the
+    // breaker aborts the cycle (and thus skips the plaintext push).
+    if (isSealedBlob(contentBytes)) throw new EncryptedRemoteError(path);
+
     // Binary files (images, PDFs, …) must never be decoded to text and merged —
     // that corrupts them. Reconcile them byte-wise with conflict-copy on divergence.
     if (!isTextFile(path)) {
@@ -1109,6 +1153,17 @@ export class SyncWorker {
         (current, total) => this.emitProgress("push", current, total),
         { skipDeletes: deletionsHeld !== null }
       );
+
+      // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`
+      // directly, outside the queue/reconcile path. Its own try/catch so a
+      // settings hiccup never fails or slows the file sync.
+      if (this.settingsSyncRunner && alive()) {
+        try {
+          await this.settingsSyncRunner.run(this.target, this.vault);
+        } catch (e) {
+          console.error("[SyncWorker] settings-sync sideband failed:", e);
+        }
+      }
 
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote, ${pullFailureCount} pull failure(s))`);
       this.onProgress?.(null); // clear progress; the cycle's work is done

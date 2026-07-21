@@ -1,4 +1,11 @@
 {
+  "settingsSync": {
+    "cardLabel": "Synchronizuj ustawienia",
+    "toggleLabel": "Synchronizuj ustawienia tego vaultu",
+    "toggleDesc": "Zapisuje ustawienia tego vaultu (notatki dzienne, szablony, bazę zadań, reguły backupu i więcej) jako mały plik wewnątrz vaultu, dzięki czemu są takie same na wszystkich Twoich urządzeniach. Wymaga aktywnej synchronizacji z chmurą.",
+    "explainer": "Nie są przesyłane żadne dane logowania ani ścieżki właściwe dla danego urządzenia. Jeśli zmienisz ustawienia na więcej niż jednym urządzeniu, wygrywa ostatnio zapisana wersja.",
+    "adopted": "Ustawienia przejęte z innego urządzenia."
+  },
   "contextMenu": {
     "cut": "Wytnij",
     "copy": "Kopiuj",

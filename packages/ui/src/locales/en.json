@@ -1,4 +1,11 @@
 {
+  "settingsSync": {
+    "cardLabel": "Sync settings",
+    "toggleLabel": "Sync this vault's settings",
+    "toggleDesc": "Stores this vault's settings (daily notes, templates, task database, backup rules and more) as a small file inside the vault so they match on all your devices. Requires an active cloud sync.",
+    "explainer": "No credentials and no device-specific paths are transferred. If you change settings on more than one device, the most recently saved version wins.",
+    "adopted": "Settings adopted from another device."
+  },
   "contextMenu": {
     "cut": "Cut",
     "copy": "Copy",

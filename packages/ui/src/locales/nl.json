@@ -1,4 +1,11 @@
 {
+  "settingsSync": {
+    "cardLabel": "Instellingen synchroniseren",
+    "toggleLabel": "Instellingen van deze vault synchroniseren",
+    "toggleDesc": "Slaat de instellingen van deze vault (dagelijkse notities, sjablonen, takendatabase, back-upregels en meer) op als een klein bestand in de vault, zodat ze op al je apparaten hetzelfde zijn. Vereist een actieve cloudsynchronisatie.",
+    "explainer": "Er worden geen inloggegevens en geen apparaatspecifieke paden overgedragen. Als je op meer dan één apparaat instellingen wijzigt, wint de laatst opgeslagen versie.",
+    "adopted": "Instellingen overgenomen van een ander apparaat."
+  },
   "contextMenu": {
     "cut": "Knippen",
     "copy": "Kopiëren",

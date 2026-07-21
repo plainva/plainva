@@ -43,6 +43,8 @@ export * from "./sync/DropboxSyncTarget.js";
 export * from "./sync/DropboxAuth.js";
 export * from "./sync/SyncEngine.js";
 export * from "./sync/SyncWorker.js";
+export * from "./settingsSync/profileFile.js";
+export * from "./settingsSync/SettingsSyncStep.js";
 export * from "./db/IDatabaseAdapter.js";
 export * from "./db/Schema.js";
 export * from "./db/batch.js";

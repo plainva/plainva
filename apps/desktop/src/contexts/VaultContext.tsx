@@ -8,6 +8,7 @@ import { toast } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
+import { buildSettingsSyncStep } from "../services/settingsProfile";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -567,10 +568,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const savedInterval = perVaultInterval ?? globalInterval;
             const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? DEFAULT_SYNC_INTERVAL_SECONDS) * 1000;
             const engine = new SyncEngine(syncQueue, target, vaultAdapter, syncRepo);
+            // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
+            // through the same target, outside the file queue/merge path. null when
+            // the vault has not opted in.
+            const settingsSync = (await buildSettingsSyncStep(path)) ?? undefined;
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs);
+            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
             syncWorker.onStatusChange = (status, errorMsg) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app.
@@ -807,13 +812,29 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         state.syncWorker.triggerImmediate();
       }
     };
-    
+
+    const handleSettingsSyncToggled = () => {
+      // Opt-in changed: rebuild the sideband step and swap it into the running
+      // worker (no vault reload), then sync now so the change takes effect at
+      // once. With no worker (no cloud sync configured), nothing to do.
+      if (!state.vaultPath || !state.syncWorker) return;
+      const worker = state.syncWorker;
+      buildSettingsSyncStep(state.vaultPath)
+        .then((step) => {
+          worker.setSettingsSync(step ?? undefined);
+          if (step) worker.triggerImmediate();
+        })
+        .catch((err) => console.error("[VaultContext] settings-sync toggle failed", err));
+    };
+
     window.addEventListener("plainva-credentials-saved", handleCredentialsSaved);
     window.addEventListener("plainva-sync-queued", handleSyncQueued);
-    
+    window.addEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
+
     return () => {
       window.removeEventListener("plainva-credentials-saved", handleCredentialsSaved);
       window.removeEventListener("plainva-sync-queued", handleSyncQueued);
+      window.removeEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.syncWorker]);

@@ -92,6 +92,44 @@ describe("SyncWorker", () => {
     expect(engine.processQueue).toHaveBeenCalled();
   });
 
+  it("never writes an encrypted (PVE1) remote file locally; the breaker aborts before pushing (A3)", async () => {
+    // Three sealed files: each reconcile throws EncryptedRemoteError before any
+    // write, and after 3 consecutive failures the cycle aborts (no processQueue,
+    // so no plaintext gets pushed into the encrypted remote either).
+    const sealed = new TextEncoder().encode("PVE1\x01\x08ciphertext-bytes");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "1"], ["b.md", "2"], ["c.md", "3"]]) });
+    target.download.mockResolvedValue(sealed);
+
+    await worker.runCycle();
+
+    expect(vault.writeTextFile).not.toHaveBeenCalled();
+    expect(engine.processQueue).not.toHaveBeenCalled();
+  });
+
+  it("runs the profile-sync sideband after the file push when configured", async () => {
+    const settingsSync = { run: vi.fn().mockResolvedValue(undefined) };
+    const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+    w["isRunning"] = true;
+
+    await w.runCycle();
+
+    expect(engine.processQueue).toHaveBeenCalled();
+    expect(settingsSync.run).toHaveBeenCalledWith(target, vault);
+  });
+
+  it("a failing profile-sync sideband never fails the file cycle", async () => {
+    const settingsSync = { run: vi.fn().mockRejectedValue(new Error("settings boom")) };
+    const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+    w["isRunning"] = true;
+    const statuses: string[] = [];
+    w.onStatusChange = (s) => statuses.push(s);
+
+    await w.runCycle();
+
+    expect(settingsSync.run).toHaveBeenCalled();
+    expect(statuses[statuses.length - 1]).toBe("idle"); // file cycle still succeeded
+  });
+
   it("emits pull progress carrying the remote listing size, then clears it (WP6)", async () => {
     target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "1"], ["b.md", "2"]]) });
     target.download.mockResolvedValue(new TextEncoder().encode("x"));

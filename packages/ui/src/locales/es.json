@@ -1,4 +1,11 @@
 {
+  "settingsSync": {
+    "cardLabel": "Sincronizar la configuración",
+    "toggleLabel": "Sincronizar la configuración de este vault",
+    "toggleDesc": "Guarda la configuración de este vault (notas diarias, plantillas, base de datos de tareas, reglas de copia de seguridad y más) como un pequeño archivo dentro del vault, para que coincida en todos tus dispositivos. Requiere una sincronización en la nube activa.",
+    "explainer": "No se transfieren credenciales ni rutas específicas de cada dispositivo. Si cambias la configuración en más de un dispositivo, gana la versión guardada más recientemente.",
+    "adopted": "Configuración adoptada desde otro dispositivo."
+  },
   "contextMenu": {
     "cut": "Cortar",
     "copy": "Copiar",

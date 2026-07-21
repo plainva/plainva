@@ -1,4 +1,11 @@
 {
+  "settingsSync": {
+    "cardLabel": "Synchroniser les paramètres",
+    "toggleLabel": "Synchroniser les paramètres de ce vault",
+    "toggleDesc": "Enregistre les paramètres de ce vault (notes quotidiennes, modèles, base de tâches, règles de sauvegarde et plus) sous la forme d'un petit fichier à l'intérieur du vault, afin qu'ils soient identiques sur tous vos appareils. Nécessite une synchronisation cloud active.",
+    "explainer": "Aucun identifiant ni chemin spécifique à l'appareil n'est transféré. Si vous modifiez les paramètres sur plusieurs appareils, la version enregistrée le plus récemment l'emporte.",
+    "adopted": "Paramètres repris d'un autre appareil."
+  },
   "contextMenu": {
     "cut": "Couper",
     "copy": "Copier",

@@ -7,6 +7,7 @@ import {
   SettingCard,
   SettingCardNote,
   SettingRow,
+  Switch,
   TextInput,
   ICON,
   familyOfSyncProvider,
@@ -16,6 +17,8 @@ import {
 import { AreaHead } from "./AppPages";
 import { MIN_SYNC_INTERVAL_SECONDS } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
+import { getSettingsStore } from "../../services/settingsStore";
+import { settingsSyncEnabledKey } from "../../services/settingsProfile";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
@@ -50,7 +53,26 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const provider = p.activeProvider;
+
+  useEffect(() => {
+    void getSettingsStore().then((s) =>
+      s.get<boolean>(settingsSyncEnabledKey(p.selectedVault)).then((v) => setSettingsSyncOn(v === true))
+    );
+  }, [p.selectedVault]);
+
+  const toggleSettingsSync = useCallback(
+    async (on: boolean) => {
+      setSettingsSyncOn(on);
+      const s = await getSettingsStore();
+      await s.set(settingsSyncEnabledKey(p.selectedVault), on);
+      await s.save();
+      // Live-swap the sideband into the running worker (VaultContext handles it).
+      window.dispatchEvent(new CustomEvent("plainva-settings-sync-toggled"));
+    },
+    [p.selectedVault]
+  );
 
   const reload = useCallback(async () => {
     setRecords(await loadCloudAccounts(p.selectedVault));
@@ -175,6 +197,19 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               </div>
             </SettingCardNote>
           )}
+        </SettingCard>
+      )}
+
+      {connected && (
+        <SettingCard label={t("settingsSync.cardLabel")}>
+          <SettingRow label={t("settingsSync.toggleLabel")} desc={t("settingsSync.toggleDesc")}>
+            <Switch
+              checked={settingsSyncOn}
+              onChange={(on) => void toggleSettingsSync(on)}
+              label={t("settingsSync.toggleLabel")}
+            />
+          </SettingRow>
+          <SettingCardNote>{t("settingsSync.explainer")}</SettingCardNote>
         </SettingCard>
       )}
 
