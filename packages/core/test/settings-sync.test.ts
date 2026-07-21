@@ -34,6 +34,10 @@ import {
   SecretsSyncStep,
   SETTINGS_ENC_PATH,
   SECRETS_SYNC_PATH,
+  KEYFILE_SYNC_PATH,
+  KeyfileSyncStep,
+  evaluateManifestGuard,
+  connectionFingerprint,
   type SecretsPort,
   type ProfileCrypto,
   type MasterKeyBundle,
@@ -595,5 +599,128 @@ describe("SecretsSyncStep", () => {
     const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.imported).toHaveLength(0);
+  });
+});
+
+// --- v3 keyfile sideband step ---
+
+describe("KeyfileSyncStep", () => {
+  const kf = (updatedAt: string) => JSON.stringify({ format: "plainva-keyfile", version: 1, updatedAt });
+
+  it("publishes the local keyfile when the remote has none", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    vault.files.set(KEYFILE_SYNC_PATH, kf("2026-07-21T10:00:00Z"));
+    await new KeyfileSyncStep().run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(target.remote.has(KEYFILE_SYNC_PATH)).toBe(true);
+  });
+
+  it("adopts a strictly newer remote keyfile and fires the re-unlock hint", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    vault.files.set(KEYFILE_SYNC_PATH, kf("2026-07-21T10:00:00Z"));
+    target.remote.set(KEYFILE_SYNC_PATH, new TextEncoder().encode(kf("2026-07-21T12:00:00Z")));
+    const adopted: number[] = [];
+    await new KeyfileSyncStep({ onRemoteKeyfileAdopted: () => adopted.push(1) }).run(
+      target as unknown as ISyncTarget,
+      vault as unknown as IVaultAdapter
+    );
+    expect(JSON.parse(vault.files.get(KEYFILE_SYNC_PATH)!).updatedAt).toBe("2026-07-21T12:00:00Z");
+    expect(adopted).toHaveLength(1);
+  });
+
+  it("keeps and re-publishes the local keyfile when it is newer", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    vault.files.set(KEYFILE_SYNC_PATH, kf("2026-07-21T14:00:00Z"));
+    target.remote.set(KEYFILE_SYNC_PATH, new TextEncoder().encode(kf("2026-07-21T12:00:00Z")));
+    await new KeyfileSyncStep().run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(JSON.parse(new TextDecoder().decode(target.remote.get(KEYFILE_SYNC_PATH)!)).updatedAt).toBe("2026-07-21T14:00:00Z");
+  });
+});
+
+// --- v3 connection fingerprint ---
+
+describe("connectionFingerprint", () => {
+  it("is deterministic and normalizes the remote root", () => {
+    expect(connectionFingerprint("drive", "Plainva")).toBe("drive:plainva");
+    expect(connectionFingerprint("Drive", "/Plainva/")).toBe("drive:plainva");
+    expect(connectionFingerprint("onedrive", "Apps/Plainva")).toBe("onedrive:apps/plainva");
+    expect(connectionFingerprint("webdav", "  root  ")).toBe("webdav:root");
+  });
+});
+
+// --- v3 fail-closed content-E2E guard evaluation ---
+
+describe("evaluateManifestGuard", () => {
+  const CONN = "drive:plainva";
+  const known = (over: Partial<{ knownEncrypted: boolean; expectedKeyId: string }> = {}) => ({
+    connectionId: CONN,
+    knownEncrypted: over.knownEncrypted ?? false,
+    expectedKeyId: over.expectedKeyId,
+  });
+  const body = (over: Partial<ManifestBody> = {}): ManifestBody => ({
+    formatVersion: 1,
+    minGuardVersion: 1,
+    connectionId: CONN,
+    keyId: "aabbccddeeff0011",
+    state: "strict",
+    ownerDeviceId: "",
+    ownerLeaseUntil: 0,
+    generation: 1,
+    createdAt: "t",
+    updatedAt: "t",
+    ...over,
+  });
+  const manifestText = (over: Partial<ManifestBody> = {}) => JSON.stringify(signManifest(mk(), body(over)));
+
+  it("TOFU: no manifest + never-encrypted connection -> plain", () => {
+    expect(evaluateManifestGuard({ manifestText: null, known: known(), masterKey: null, guardVersion: 1 })).toEqual({ mode: "plain" });
+  });
+
+  it("no manifest on a KNOWN-encrypted connection -> fatal", () => {
+    expect(() => evaluateManifestGuard({ manifestText: null, known: known({ knownEncrypted: true }), masterKey: null, guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("a valid strict manifest with the key -> strict + pins the connection", () => {
+    const d = evaluateManifestGuard({ manifestText: manifestText(), known: known(), masterKey: mk(), guardVersion: 1 });
+    expect(d.mode).toBe("strict");
+    expect(d.state).toBe("strict");
+    expect(d.pinEncrypted).toBe(true);
+  });
+
+  it("a migrating manifest -> mixed", () => {
+    const d = evaluateManifestGuard({ manifestText: manifestText({ state: "migrating" }), known: known(), masterKey: mk(), guardVersion: 1 });
+    expect(d.mode).toBe("mixed");
+  });
+
+  it("an encrypting manifest but the vault is locked -> fatal (encrypted-without-key)", () => {
+    expect(() => evaluateManifestGuard({ manifestText: manifestText(), known: known(), masterKey: null, guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("a foreign connectionId -> fatal", () => {
+    expect(() => evaluateManifestGuard({ manifestText: manifestText({ connectionId: "drive:other" }), known: known(), masterKey: mk(), guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("app guard older than the manifest minimum -> fatal (guard-too-old)", () => {
+    expect(() => evaluateManifestGuard({ manifestText: manifestText({ minGuardVersion: 5 }), known: known(), masterKey: mk(), guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("a tampered manifest MAC -> fatal", () => {
+    const tampered = JSON.stringify({ ...signManifest(mk(), body()), generation: 99 });
+    expect(() => evaluateManifestGuard({ manifestText: tampered, known: known(), masterKey: mk(), guardVersion: 1 })).toThrow(FatalSyncProtocolError);
+  });
+
+  it("an authenticated plain tombstone with the key -> plain", () => {
+    const d = evaluateManifestGuard({ manifestText: manifestText({ state: "plain" }), known: known({ knownEncrypted: true }), masterKey: mk(), guardVersion: 1 });
+    expect(d.mode).toBe("plain");
+    expect(d.state).toBe("plain");
+  });
+
+  it("a key this device does not hold -> fatal (key-mismatch)", () => {
+    // Manifest signed+keyed for a different MK; our device holds mk().
+    const other = { keyId: "1111111111111111", masterKey: new Uint8Array(32).fill(9) };
+    const foreign = JSON.stringify(signManifest(other, { ...body(), keyId: other.keyId }));
+    expect(() => evaluateManifestGuard({ manifestText: foreign, known: known(), masterKey: mk(), guardVersion: 1 })).toThrow(FatalSyncProtocolError);
   });
 });
