@@ -10,6 +10,7 @@
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { PROFILE_SYNC_PATH, parseProfile, reconcileProfile, serializeProfile } from "./profileFile.js";
+import { SETTINGS_ENC_PATH } from "./paths.js";
 
 /** Shell-implemented bridge between the profile document and the native store. */
 export interface ProfileSettingsPort {
@@ -17,6 +18,16 @@ export interface ProfileSettingsPort {
   exportValues(): Promise<Record<string, unknown>>;
   /** Writes imported values back into the native store and fires live-apply events. */
   applyValues(values: Record<string, unknown>): Promise<void>;
+}
+
+/**
+ * Sealed-profile crypto, injected by the shell once a master key exists (E3
+ * hybrid). Keeps the core crypto-agnostic in signature: `seal` produces the
+ * `settings.enc` bytes (a PVE1 blob under K_settings), `open` reverses it.
+ */
+export interface ProfileCrypto {
+  seal(plaintext: Uint8Array): Uint8Array;
+  open(bytes: Uint8Array): Uint8Array;
 }
 
 const encoder = new TextEncoder();
@@ -30,20 +41,54 @@ export interface SettingsSyncStepOptions {
   now?: () => string;
   /** Called when settings were adopted from another device. */
   onAdopted?: (fromDeviceId: string) => void;
+  /**
+   * When present, the profile is sealed as `settings.enc` (K_settings) instead
+   * of plaintext `settings.json`. A one-time upload-verify-delete of the stale
+   * plaintext variant runs on the first sealed cycle (E3: never two active
+   * truths). Absent = plaintext mode (unchanged P1 behavior).
+   */
+  profileCrypto?: ProfileCrypto;
 }
 
 /** Runs the profile-sync sideband against a target + raw vault adapter. */
 export class SettingsSyncStep {
   constructor(private readonly options: SettingsSyncStepOptions) {}
 
+  private get path(): string {
+    return this.options.profileCrypto ? SETTINGS_ENC_PATH : PROFILE_SYNC_PATH;
+  }
+
+  private readProfileText(bytes: Uint8Array | null): string | null {
+    if (!bytes) return null;
+    if (this.options.profileCrypto) {
+      try {
+        return decoder.decode(this.options.profileCrypto.open(bytes) as BufferSource);
+      } catch {
+        return null; // foreign key / corrupt sealed profile: treat as absent (guard handles fatal cases)
+      }
+    }
+    return decoder.decode(bytes as BufferSource);
+  }
+
+  private encodeProfile(text: string): Uint8Array {
+    const plain = encoder.encode(text);
+    return this.options.profileCrypto ? this.options.profileCrypto.seal(plain) : plain;
+  }
+
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+    const path = this.path;
+    const sealed = !!this.options.profileCrypto;
     const current = await this.options.port.exportValues();
 
-    const localText = (await vault.exists(PROFILE_SYNC_PATH)) ? await vault.readTextFile(PROFILE_SYNC_PATH) : null;
+    // Local copy: sealed mode reads the ciphertext bytes; plaintext mode reads text.
+    let localText: string | null = null;
+    if (await vault.exists(path)) {
+      localText = sealed ? this.readProfileText(await vault.readBinaryFile(path)) : await vault.readTextFile(path);
+    }
     const local = parseProfile(localText);
 
-    const remoteBytes = await target.download(PROFILE_SYNC_PATH);
-    const remote = parseProfile(remoteBytes ? decoder.decode(remoteBytes as BufferSource) : null);
+    const remoteBytes = await target.download(path);
+    const remote = parseProfile(this.readProfileText(remoteBytes));
 
     const decision = reconcileProfile({
       current,
@@ -54,18 +99,41 @@ export class SettingsSyncStep {
     });
 
     if (decision.applyToStore) await this.options.port.applyValues(decision.applyToStore);
-    if (decision.writeLocal) await vault.writeTextFile(PROFILE_SYNC_PATH, serializeProfile(decision.writeLocal));
+    if (decision.writeLocal) {
+      const text = serializeProfile(decision.writeLocal);
+      if (sealed) await vault.writeBinaryFile(path, this.encodeProfile(text));
+      else await vault.writeTextFile(path, text);
+    }
     if (decision.upload) {
       await target.push({
         id: 0,
-        file_path: PROFILE_SYNC_PATH,
+        file_path: path,
         operation: "write",
-        content: encoder.encode(serializeProfile(decision.upload)),
+        content: this.encodeProfile(serializeProfile(decision.upload)),
         retry_count: 0,
         next_retry_at: 0,
         queued_at: 0,
       });
+      // One-time cleanup of the stale plaintext variant once we go sealed (E3).
+      if (sealed) await this.dropStalePlaintext(target, vault);
     }
     if (decision.adoptedFrom) this.options.onAdopted?.(decision.adoptedFrom);
+  }
+
+  /** Best-effort removal of a leftover plaintext `settings.json` after going sealed. */
+  private async dropStalePlaintext(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+    try {
+      if (await vault.exists(PROFILE_SYNC_PATH)) await vault.deleteItem(PROFILE_SYNC_PATH);
+      await target.push({
+        id: 0,
+        file_path: PROFILE_SYNC_PATH,
+        operation: "delete",
+        retry_count: 0,
+        next_retry_at: 0,
+        queued_at: 0,
+      });
+    } catch {
+      // A leftover plaintext copy is a hygiene warning, not a failure.
+    }
   }
 }

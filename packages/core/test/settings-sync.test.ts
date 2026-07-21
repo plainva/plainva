@@ -29,6 +29,13 @@ import {
   FatalSyncProtocolError,
   isSealedBlob,
   readBlobKeyId,
+  sealBlob,
+  openBlob,
+  SecretsSyncStep,
+  SETTINGS_ENC_PATH,
+  SECRETS_SYNC_PATH,
+  type SecretsPort,
+  type ProfileCrypto,
   type MasterKeyBundle,
   type ProfileDoc,
   type ProfileSettingsPort,
@@ -135,8 +142,9 @@ describe("reconcileProfile", () => {
 
 class FakeVault implements Partial<IVaultAdapter> {
   files = new Map<string, string>();
+  bins = new Map<string, Uint8Array>();
   async exists(path: string) {
-    return this.files.has(path);
+    return this.files.has(path) || this.bins.has(path);
   }
   async readTextFile(path: string) {
     const v = this.files.get(path);
@@ -145,6 +153,18 @@ class FakeVault implements Partial<IVaultAdapter> {
   }
   async writeTextFile(path: string, content: string) {
     this.files.set(path, content);
+  }
+  async readBinaryFile(path: string) {
+    const v = this.bins.get(path);
+    if (v === undefined) throw new Error("not found");
+    return v;
+  }
+  async writeBinaryFile(path: string, content: Uint8Array) {
+    this.bins.set(path, content);
+  }
+  async deleteItem(path: string) {
+    this.files.delete(path);
+    this.bins.delete(path);
   }
 }
 
@@ -155,6 +175,7 @@ class FakeTarget implements Partial<ISyncTarget> {
   }
   async push(op: SyncOperation): Promise<PushResult | void> {
     if (op.operation === "write" && op.content) this.remote.set(op.file_path, op.content);
+    else if (op.operation === "delete") this.remote.delete(op.file_path);
   }
   async pull(): Promise<PullResult> {
     return { etagMap: new Map() };
@@ -457,5 +478,122 @@ describe("EncryptingSyncTarget", () => {
     const target = new FakeTarget();
     const enc = new EncryptingSyncTarget(target as unknown as ISyncTarget, { contentKey: mk(), isStrict: () => true });
     expect(await enc.download("missing.md")).toBeNull();
+  });
+});
+
+// --- v3 sealed profile mode (settings.enc) ---
+
+describe("SettingsSyncStep sealed mode", () => {
+  const dev = { deviceId: "laptop", now: () => "2026-07-21T12:00:00Z" };
+  const profileCrypto: ProfileCrypto = {
+    seal: (b) => sealBlob(mk(), b, "settings"),
+    open: (b) => openBlob(mk(), b, "settings"),
+  };
+
+  it("publishes and imports the profile as sealed settings.enc (never plaintext)", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const store = { values: { theme: "nord" }, applied: [] as Record<string, unknown>[] };
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, profileCrypto });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    const remote = target.remote.get(SETTINGS_ENC_PATH)!;
+    expect(isSealedBlob(remote)).toBe(true);
+    expect(target.remote.has(PROFILE_SYNC_PATH)).toBe(false);
+    // Decrypting the sealed remote yields the profile JSON.
+    const doc = parseProfile(new TextDecoder().decode(openBlob(mk(), remote, "settings")));
+    expect(doc?.values).toEqual({ theme: "nord" });
+    // The local copy is the ciphertext blob, not readable plaintext.
+    expect(vault.bins.has(SETTINGS_ENC_PATH)).toBe(true);
+
+    // A second fresh device imports the sealed remote.
+    const target2Vault = new FakeVault();
+    const store2 = { values: { theme: "dark" }, applied: [] as Record<string, unknown>[] };
+    const step2 = new SettingsSyncStep({ port: makePort(store2), deviceId: "phone", now: dev.now, profileCrypto });
+    await step2.run(target as unknown as ISyncTarget, target2Vault as unknown as IVaultAdapter);
+    expect(store2.values).toEqual({ theme: "nord" });
+  });
+
+  it("removes a stale plaintext settings.json when it first goes sealed", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    // Pretend a previous plaintext session existed both remotely and locally.
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(doc(0, "laptop", "old", { theme: "nord" }))));
+    vault.files.set(PROFILE_SYNC_PATH, serializeProfile(doc(0, "laptop", "old", { theme: "nord" })));
+    const store = { values: { theme: "light" }, applied: [] as Record<string, unknown>[] };
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, profileCrypto });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    expect(target.remote.has(PROFILE_SYNC_PATH)).toBe(false); // stale plaintext dropped remotely
+    expect(vault.files.has(PROFILE_SYNC_PATH)).toBe(false); // and locally
+    expect(isSealedBlob(target.remote.get(SETTINGS_ENC_PATH)!)).toBe(true);
+  });
+});
+
+// --- v3 secrets sideband step ---
+
+describe("SecretsSyncStep", () => {
+  const entry = (id: string, rev: number, pass: string): SecretEntry => ({
+    entryRev: rev,
+    updatedAt: "2026-07-21T00:00:00Z",
+    deviceId: "laptop",
+    binding: { family: "fastmail", service: "mail", secretType: "imap-password", user: id, endpoint: "imaps://imap.fastmail.com:993" },
+    secret: { pass },
+  });
+  const bundle = (entries: Record<string, SecretEntry>, bundleRev = 1): SecretsBundle => ({
+    format: "plainva-secrets",
+    version: 1,
+    bundleRev,
+    updatedAt: "2026-07-21T00:00:00Z",
+    entries,
+  });
+  function makeSecretsPort(store: { bundle: SecretsBundle; imported: SecretsBundle[] }): SecretsPort {
+    return {
+      async exportBundle() {
+        return store.bundle;
+      },
+      async importBundle(b) {
+        store.bundle = b;
+        store.imported.push(b);
+      },
+    };
+  }
+
+  it("publishes local secrets sealed under K_secrets", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const store = { bundle: bundle({ a: entry("a@x", 1, "s1") }), imported: [] as SecretsBundle[] };
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    const sealed = target.remote.get(SECRETS_SYNC_PATH)!;
+    expect(isSealedBlob(sealed)).toBe(true);
+    expect(openSecretsBundle(mk(), sealed).entries.a.secret).toEqual({ pass: "s1" });
+  });
+
+  it("merges a remote entry per-entry and imports it into the keychain", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    // Device 2 already published account b; device 1 has account a.
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), bundle({ b: entry("b@x", 1, "sB") })));
+    const store = { bundle: bundle({ a: entry("a@x", 1, "sA") }), imported: [] as SecretsBundle[] };
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    // Both accounts present locally (imported) and remotely (uploaded).
+    expect(Object.keys(store.bundle.entries).sort()).toEqual(["a", "b"]);
+    expect(store.imported).toHaveLength(1);
+    expect(Object.keys(openSecretsBundle(mk(), target.remote.get(SECRETS_SYNC_PATH)!).entries).sort()).toEqual(["a", "b"]);
+  });
+
+  it("is a no-op import when local and remote already agree", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const shared = bundle({ a: entry("a@x", 3, "sA") });
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), shared));
+    const store = { bundle: shared, imported: [] as SecretsBundle[] };
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(store.imported).toHaveLength(0);
   });
 });
