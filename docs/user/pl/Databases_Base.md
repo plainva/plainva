@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-07-18
+Stan na: 2026-07-21
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -117,6 +117,16 @@ Uwaga dotycząca synchronizowanych vaultów: jeśli dwa urządzenia jednocześni
 - **Automatyczny zakres wewnątrz powiązanego elementu**: gdy osadzisz bazę danych wewnątrz pojedynczego elementu *powiązanej* bazy danych, jest ona automatycznie filtrowana do tego elementu — osadź bazę danych zadań w notatce projektu, a zobaczysz tylko zadania tego projektu. Działa to w obu kierunkach (osadź stronę „wiele”, aby zobaczyć wiersze wskazujące na element główny, lub stronę „jeden”, aby zobaczyć, na co wskazuje element główny) oraz dla baz danych z relacjami do samych siebie i hierarchią nadrzędny/elementy podrzędne (osadzenie bazy danych wewnątrz elementu pokazuje zagnieżdżone elementy podrzędne tego elementu). Mały chip **Filtr** w nagłówku osadzonej bazy danych pokazuje, do czego jest ograniczony zakres; użyj go, aby zmienić relację lub wybrać **Pokaż wszystko**. Zakres nigdy nie jest zapisywany w pliku `.base`, dzięki czemu ta sama baza danych pokazuje właściwe wiersze w każdym elemencie, w którym jest osadzona.
 - **Nowe wpisy dziedziczą powiązanie**: utworzenie wpisu przyciskiem **Wpis** wewnątrz takiego zakresowego osadzenia automatycznie łączy go z elementem głównym (zadanie utworzone w osadzonej liście zadań projektu od razu należy do tego projektu). W kierunku odwrotnym to element główny zostaje powiązany z nowym wpisem; już przypisana relacja jednowartościowa pozostaje nienaruszona.
 - **Jawny filtr „Ta notatka” (jak „ta strona” w Notion)**: zamiast polegać na automatycznym zakresie, możesz uczynić go jawnym i trwałym. W **Konfiguruj → Filtr** dodaj regułę na właściwości relacji i wybierz wartość **Ta notatka**. Baza danych jest wtedy ograniczona do notatki, w której akurat jest osadzona — idealne dla **szablonów**: osadź bazę danych zadań w szablonie projektu, a każdy utworzony na jego podstawie projekt pokazuje własne zadania. Działa to dla dowolnej właściwości typu link wiki, nie tylko wykrytych relacji, a jawny filtr **Ta notatka** ma pierwszeństwo przed automatycznym zakresem. Ten filtr istnieje wyłącznie w Plainva (nie jest zapisywany w `.base` jako zwykły filtr), więc zarówno Obsidian, jak i samodzielne otwarcie pokazują wszystkie wiersze.
+
+## Usuwanie z powiązaniami (usuwanie kaskadowe)
+
+Gdy usuwasz coś, z czym powiązane są inne wpisy, Plainva pokazuje przegląd zamiast zwykłego pytania tak/nie:
+
+- **Element z przypisanymi elementami** (np. projekt, na który wskazują zadania przez relację): okno dialogowe wymienia przypisane elementy — łącznie z ich własnymi elementami podrzędnymi — pogrupowane według bazy danych źródłowej, z pytaniem **Usuń też przypisane elementy**. Elementy **wspólne** (przypisane też do innego elementu) są domyślnie wykluczone i noszą odznakę w rodzaju „również ‘Kampania Q3’”.
+- **Usuwanie całej bazy danych**: przy usuwaniu `.base` okno dialogowe pyta, czy razem z nią mają zniknąć również **wszystkie elementy** bazy danych (**Usuń też wszystkie elementy**). Elementy będące zarazem wierszami *innej* bazy danych są domyślnie wykluczone. Przeglądy folderów (`index.md`) i załączniki zawsze pozostają.
+- **Powiązane bazy danych**: każda baza danych powiązana przez relację dostaje własną, wyraźnie nazwaną kartę z dwoma poziomami — najpierw tylko elementy **przypisane**, opcjonalnie **cała** baza danych (plik plus wszystkie elementy). Oba poziomy są domyślnie **wyłączone**: nic z powiązanej bazy danych nie zostaje usunięte bez Twojego wyraźnego zaznaczenia.
+
+**Pokaż elementy** otwiera listę dla każdej grupy z polem wyboru przy każdym elemencie, dzięki czemu możesz zachować pojedyncze elementy. Czerwony przycisk liczy na żywo („Usuń 15 plików”). **Uporządkuj odwołania** (domyślnie włączone) usuwa z właściwości pozostałych notatek odwołania do usuniętych elementów; linki w treści notatki pozostają nietknięte. Po przekroczeniu znanego progu masowego usuwania pojawia się też drugie zabezpieczające potwierdzenie, a przy aktywnej synchronizacji usunięcie dociera również do chmury. Każdy usunięty plik zachowuje migawkę wersji — możliwą do przywrócenia przez **Przywróć usunięte pliki**. Jeśli usunięta zostanie baza danych ustawiona jako **Domyślna baza zadań**, Plainva resetuje to ustawienie i usuwa przypisania szablonów; zadania w Google/Microsoft pozostają nietknięte. Na telefonie ten sam przegląd pojawia się jako arkusz z zaznaczeniami grupowymi i licznikiem (bez odznaczania pojedynczych elementów).
 
 ## Przykład: jak wygląda plik .base
 

@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-18
+Last reviewed: 2026-07-21
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -117,6 +117,16 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 - **Automatic scope inside a related element**: when you embed a database inside a single element of a *related* database, it is automatically filtered to that element — embed the task database inside a project note and you only see that project's tasks. This works in both directions (embed the "many" side to see the rows that point at the host element, or the "one" side to see what the host points at) and for self-referential databases with a parent/sub-items hierarchy (embedding the database inside an element shows that element's sub-items, nested). A small **Filter** chip in the embedded header shows what it is scoped to; use it to switch the relation or choose **Show all**. The scope is never written into the `.base` file, so the same database shows the right rows in every element it is embedded in.
 - **New entries inherit the link**: creating an entry with **Entry** inside such a scoped embed automatically links it to the host element (a task you create in a project's embedded task list belongs to that project right away). For the reverse direction the host is linked to the new entry instead; an already assigned single-value relation is left untouched.
 - **Explicit "This note" filter (like Notion's "this page")**: instead of relying on the automatic scope, you can make it explicit and permanent. In **Configure → Filter**, add a rule on a relation property and pick the value **This note**. The database is then scoped to whichever note it is embedded in — ideal for **templates**: embed the task database in a project template, and every project created from it shows its own tasks. It works for any wiki-link property, not only detected relations, and an explicit **This note** filter takes precedence over the automatic scope. This filter lives only in Plainva (it is not written into the `.base` as a normal filter), so both Obsidian and a standalone open show all rows.
+
+## Deleting with connections (cascade deletion)
+
+When you delete something other entries hang off, Plainva shows an overview instead of a bare yes/no question:
+
+- **Element with assigned elements** (e.g. a project that tasks point at via a relation): the dialog lists the assigned elements — including their own sub-elements — grouped by their source database, asking **Also delete assigned elements**. **Shared** elements (also assigned to another element) are excluded by default and carry a badge like "also 'Q3 campaign'".
+- **Deleting a whole database**: when you delete a `.base`, the dialog asks whether **all elements** of the database should go too (**Also delete all elements**). Elements that are also rows of *another* database are excluded by default. Folder overviews (`index.md`) and attachments always stay.
+- **Linked databases**: every database linked via a relation gets its own clearly named card with two steps — first the **assigned** elements only, optionally the **whole** database (file plus every element). Both steps default to **off**: nothing from a linked database is deleted without your explicit checkmark.
+
+**Show elements** opens a per-group list with a checkbox per element, so you can keep individual elements. The red button counts live ("Delete 15 files"). **Clean up references** (on by default) removes references to deleted items from the properties of the remaining notes; body links stay untouched. Past the familiar large-deletion threshold the second safety prompt appears as well, and with sync active the deletion also reaches the cloud. Every deleted file keeps a version snapshot — recoverable via **Restore deleted files**. If the database configured as the **Default task database** is deleted, Plainva resets that setting and removes template assignments; tasks at Google/Microsoft remain untouched. On the phone the same overview appears as a sheet with group checkmarks and a counter (without per-element opt-out).
 
 ## Example: what a .base file looks like
 

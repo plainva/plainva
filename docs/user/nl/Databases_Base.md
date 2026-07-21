@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-07-18
+Laatst bijgewerkt: 2026-07-21
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -117,6 +117,16 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 - **Automatisch bereik binnen een gerelateerd item**: sluit je een database in binnen één item van een *gerelateerde* database, dan wordt de weergave automatisch gefilterd op dat item — sluit de takendatabase in een projectnotitie in en je ziet alleen de taken van dat project. Dit werkt in beide richtingen (sluit de "veel"-kant in om de items te zien die naar het host-item verwijzen, of sluit de "één"-kant in om te zien waar het host-item naar verwijst) en ook voor zelfverwijzende databases met een hiërarchie van bovenliggende items en subitems (de database insluiten in een item toont de subitems van dat item, genest). Een kleine chip **Filter** in de header van de insluiting toont waarop hij is afgestemd; gebruik hem om de relatie te wijzigen of **Alles tonen** te kiezen. Het bereik wordt nooit in het `.base`-bestand geschreven, dus toont dezelfde database overal waar hij is ingesloten de juiste items.
 - **Nieuwe items erven de koppeling**: maak je met **Item** een nieuw item aan binnen zo'n afgestemde insluiting, dan wordt het automatisch gekoppeld aan het host-item (een taak die je aanmaakt in de ingesloten takenlijst van een project hoort meteen bij dat project). In de omgekeerde richting wordt in plaats daarvan het host-item gekoppeld aan het nieuwe item; een relatie die al een waarde heeft en op **Precies 1** staat, blijft ongewijzigd.
 - **Expliciet "Deze notitie"-filter (zoals Notions "this page")**: in plaats van te vertrouwen op het automatische bereik, kun je het expliciet en permanent maken. Voeg in **Configureren → Filter** een regel toe op een relatie-eigenschap en kies de waarde **Deze notitie**. De database wordt dan afgestemd op de notitie waarin hij is ingesloten — ideaal voor **sjablonen**: sluit de takendatabase in binnen een projectsjabloon, en elk project dat daaruit wordt aangemaakt toont zijn eigen taken. Het werkt voor elke wiki-link-eigenschap, niet alleen gedetecteerde relaties, en een expliciet **Deze notitie**-filter heeft voorrang op het automatische bereik. Dit filter bestaat alleen in Plainva (het wordt niet als een normaal filter in de `.base` geschreven), dus negeert Obsidian het en toont alle rijen; ook los (zonder host) geopend toont Plainva alle rijen.
+
+## Verwijderen met verbanden (cascade-verwijdering)
+
+Als je iets verwijdert waar andere items van afhangen, toont Plainva een overzicht in plaats van een simpele ja/nee-vraag:
+
+- **Item met toegewezen items** (bijv. een project waar taken via een relatie naar verwijzen): het dialoogvenster somt de toegewezen items op — inclusief hun eigen subitems — gegroepeerd per bron-database, met de vraag **Toegewezen items ook verwijderen**. **Gedeelde** items (ook aan een ander item toegewezen) zijn standaard uitgesloten en dragen een badge zoals "ook 'Q3-campagne'".
+- **Een hele database verwijderen**: als je een `.base` verwijdert, vraagt het dialoogvenster of ook **alle items** van de database moeten verdwijnen (**Alle items ook verwijderen**). Items die ook rijen zijn van een *andere* database zijn standaard uitgesloten. Mapoverzichten (`index.md`) en bijlagen blijven altijd behouden.
+- **Gekoppelde databases**: elke database die via een relatie is gekoppeld, krijgt een eigen duidelijk benoemde kaart met twee stappen — eerst alleen de **toegewezen** items, optioneel de **hele** database (bestand plus elk item). Beide stappen staan standaard **uit**: niets uit een gekoppelde database wordt verwijderd zonder jouw uitdrukkelijke vinkje.
+
+**Items tonen** opent een lijst per groep met een selectievakje per item, zodat je afzonderlijke items kunt behouden. De rode knop telt live mee ("15 bestanden verwijderen"). **Verwijzingen opruimen** (standaard aan) verwijdert verwijzingen naar verwijderde items uit de eigenschappen van de overige notities; links in de hoofdtekst blijven ongemoeid. Voorbij de bekende drempel voor massaverwijdering verschijnt ook de tweede veiligheidsvraag, en bij actieve synchronisatie bereikt de verwijdering ook de cloud. Elk verwijderd bestand behoudt een versiesnapshot — te herstellen via **Verwijderde bestanden herstellen**. Wordt de database die is ingesteld als **Standaard takendatabase** verwijderd, dan zet Plainva die instelling terug en verwijdert het de sjabloontoewijzingen; taken bij Google/Microsoft blijven ongemoeid. Op de telefoon verschijnt hetzelfde overzicht als een sheet met groepsvinkjes en een teller (zonder afwijzing per item).
 
 ## Voorbeeld: hoe een .base-bestand eruitziet
 
