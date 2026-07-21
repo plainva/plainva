@@ -205,7 +205,7 @@ export async function buildDeletionPlan(deps: DeletionPlanDeps, targetPaths: str
   const membersOf = async (base: BaseInfo) => {
     const cached = memberCache.get(base.path);
     if (cached) return cached;
-    let rows: Array<{ path: string; title: string }> = [];
+    let rows: Array<{ path: string; title: string }>;
     try {
       rows = (await deps.queryDatabaseFiles(stripPropertyFilters(base.config))).map((r) => ({
         path: normPath(r.path),
@@ -266,7 +266,7 @@ export async function buildDeletionPlan(deps: DeletionPlanDeps, targetPaths: str
   // "Shared" detection: the same property still points at a surviving target.
   const potentialDeletes = new Set<string>([...seedSet, ...targets, ...candidates.keys()]);
   const elementFor = async (path: string, c: { title: string; depth: number; viaKey: string }): Promise<CascadeElement> => {
-    let sharedWith: string[] = [];
+    let sharedWith: string[];
     try {
       const outgoing = await deps.getOutgoingRelationTargets(path, c.viaKey);
       sharedWith = outgoing.filter((t) => !potentialDeletes.has(normPath(t))).map((t) => noteDisplayName(t));
