@@ -17,6 +17,8 @@
     "benchmark": "tsx scripts/benchmark.ts"
   },
   "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
     "fast-xml-parser": "^5.10.0",
     "ical.js": "^2.2.1",
     "node-diff3": "^3.2.1",
