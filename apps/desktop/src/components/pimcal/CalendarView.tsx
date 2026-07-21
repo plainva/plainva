@@ -31,6 +31,7 @@ import {
 } from "../../services/pim/calendarModel";
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
 import { EventEditModal } from "./EventEditModal";
+import { EventContextMenu } from "./EventContextMenu";
 import { BlockCalendarsModal } from "./BlockCalendarsModal";
 import { SeriesScopeModal } from "./SeriesScopeModal";
 import { DayTimeGrid } from "./DayTimeGrid";
@@ -402,6 +403,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       calendars.filter((c) => c.selected && !c.readOnly && enabledAccounts.has(c.accountId)),
     [calendars, enabledAccounts]
   );
+  // How many calendars one could WRITE a block into (across ALL enabled
+  // accounts), regardless of visibility (`selected`). Blocking into a calendar
+  // you don't currently display is valid, so the block action / dialog must not
+  // hide it — the visibility toggle is not a write-permission gate.
+  const writableAnyCount = useMemo(
+    () => calendars.filter((c) => !c.readOnly && enabledAccounts.has(c.accountId)).length,
+    [calendars, enabledAccounts]
+  );
   const accountLabel = useMemo(() => new Map(accounts.map((a) => [a.id, a.label])), [accounts]);
   const calendarOptions = useMemo(
     () =>
@@ -616,6 +625,42 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [targetFor, refresh, t]
   );
 
+  // ---- quick colour set (context menu): set/clear the per-event colour without
+  // opening the full dialog. A minimal draft leaves description/attendees/
+  // recurrence undefined so the adapter GET-modify-PUT preserves them; passing
+  // color:"" clears back to the calendar colour (same contract as the dialog).
+  const setEventColor = useCallback(
+    async (e: PimEventRow, color: string) => {
+      const target = await targetFor(e.accountId);
+      if (!target) {
+        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+        return;
+      }
+      const draft: PimEventDraft = {
+        title: e.title,
+        allDay: e.allDay,
+        start: e.start,
+        end: e.end,
+        location: e.location ?? undefined,
+        color,
+      };
+      try {
+        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+      } catch (err) {
+        if (err instanceof PimConflictError) {
+          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
+          refresh();
+          return;
+        }
+        toast.error(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, color } : ev)));
+      refresh();
+    },
+    [targetFor, refresh, t]
+  );
+
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
 
   const timedForm = useCallback(
@@ -706,6 +751,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [seriesPrompt, setSeriesPrompt] = useState<{ action: "edit" | "delete"; event: PimEventRow } | null>(null);
   // "Block in other calendars" (#1): the event being mirrored, or null.
   const [blockEvent, setBlockEvent] = useState<PimEventRow | null>(null);
+  // Right-click context menu on an event (quick actions), or null.
+  const [ctxMenu, setCtxMenu] = useState<{ event: PimEventRow; x: number; y: number } | null>(null);
+  const openEventContextMenu = useCallback(
+    (e: PimEventRow, at: { x: number; y: number }) => setCtxMenu({ event: e, x: at.x, y: at.y }),
+    []
+  );
 
   const resolveSeriesMaster = useCallback(
     async (e: PimEventRow): Promise<PimEventRow | null> => {
@@ -851,12 +902,19 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const recurrence = master ? parseRRule(master.recurrence) : null;
       const busyLabel = t("pim.busyTitle", { defaultValue: "Beschäftigt" });
       let ok = 0;
+      // Collect per-calendar failures so a partial failure is SURFACED (before,
+      // a failed target was silently skipped and the toast still claimed success).
+      const failed: string[] = [];
       for (const key of selectedKeys) {
         const [accountId, ...rest] = key.split(" ");
         const calId = rest.join(" ");
         if (!accountId || !calId) continue;
+        const calLabel = calName.get(key) || key;
         const target = await targetFor(accountId);
-        if (!target) continue;
+        if (!target) {
+          failed.push(calLabel);
+          continue;
+        }
         try {
           const bd = buildBlockDraft(source, mode, busyLabel, recurrence);
           const res = await target.createEvent(calId, bd);
@@ -867,23 +925,37 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           }
           ok++;
         } catch {
-          /* skip this calendar, keep the rest */
+          failed.push(calLabel);
         }
       }
       if (ok > 0) {
         toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
         refresh();
-      } else {
+      }
+      if (failed.length > 0) {
+        toast.error(t("pim.blockFailedFor", { cals: failed.join(", "), defaultValue: "Konnte in {{cals}} nicht blockieren." }));
+      } else if (ok === 0) {
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       }
     },
-    [resolveSeriesMaster, targetFor, refresh, t]
+    [resolveSeriesMaster, targetFor, refresh, calName, t]
   );
 
-  /** The OTHER writable calendars (never the event's own) for the block dialog. */
-  const otherCalendarsFor = useCallback(
-    (e: PimEventRow) => calendarOptions.filter((c) => c.value !== `${e.accountId} ${e.calendarId}`),
-    [calendarOptions]
+  /** The OTHER writable calendars (never the event's own) for the block dialog.
+   * Unlike the create/move picker (`calendarOptions`), this deliberately drops
+   * the `selected` VISIBILITY gate: you can block into a calendar you don't
+   * currently show. Only read-only / disabled-account calendars are excluded. */
+  const blockTargetsFor = useCallback(
+    (e: PimEventRow) => {
+      const own = `${e.accountId} ${e.calendarId}`;
+      return calendars
+        .filter((c) => !c.readOnly && enabledAccounts.has(c.accountId) && `${c.accountId} ${c.id}` !== own)
+        .map((c) => ({
+          value: `${c.accountId} ${c.id}`,
+          label: accounts.length > 1 ? `${c.name} · ${accountLabel.get(c.accountId) ?? ""}` : c.name,
+        }));
+    },
+    [calendars, enabledAccounts, accounts.length, accountLabel]
   );
 
   const calNameOf = (e: PimEventRow) => calName.get(`${e.accountId} ${e.calendarId}`) ?? "";
@@ -901,6 +973,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
       type="button"
       onClick={() => requestEdit(e)}
+      onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
       data-testid="calendar-event"
       className="pv-rowhover"
       style={{
@@ -1006,6 +1079,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       canCreate={calendarOptions.length > 0}
       canEditEvent={canEditEvent}
       onEventClick={requestEdit}
+      onEventContextMenu={openEventContextMenu}
       onOpenTask={(p) => onOpenPath(p, false)}
       onCreateSlot={onCreateSlot}
       onEventMove={onEventMove}
@@ -1173,6 +1247,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   {shownEvents.map((e) => (
                     <span
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                      onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -1295,6 +1370,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                               key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                               type="button"
                               onClick={() => requestEdit(e)}
+                              onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                               data-testid="agenda-allday"
                               style={{
                                 fontSize: "var(--text-xs)",
@@ -1362,7 +1438,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : undefined
           }
           onBlock={
-            editState.mode === "edit" && editState.event && calendarOptions.length > 1
+            editState.mode === "edit" && editState.event && writableAnyCount > 1
               ? () => { const ev = editState.event!; setEditState(null); setBlockEvent(ev); }
               : undefined
           }
@@ -1391,10 +1467,28 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       {blockEvent && (
         <BlockCalendarsModal
           eventTitle={blockEvent.title}
-          calendars={otherCalendarsFor(blockEvent)}
+          calendars={blockTargetsFor(blockEvent)}
           isSeries={!!blockEvent.seriesMaster}
           onConfirm={(keys, mode) => void blockInCalendars(blockEvent, keys, mode)}
           onCancel={() => setBlockEvent(null)}
+        />
+      )}
+      {ctxMenu && (
+        <EventContextMenu
+          event={ctxMenu.event}
+          at={{ x: ctxMenu.x, y: ctxMenu.y }}
+          onClose={() => setCtxMenu(null)}
+          onEdit={() => requestEdit(ctxMenu.event)}
+          onMeetingNote={() => void openMeetingNote(ctxMenu.event)}
+          onEmailInvite={() => void emailInvite(ctxMenu.event)}
+          onDelete={() => requestDelete(ctxMenu.event)}
+          onSetColor={canEditEvent(ctxMenu.event) ? (hex) => void setEventColor(ctxMenu.event, hex) : undefined}
+          onRespond={
+            ctxMenu.event.selfResponse
+              ? (r) => void respondToEventAs(ctxMenu.event, r).catch((err) => toast.error(err instanceof Error ? err.message : String(err)))
+              : undefined
+          }
+          onBlock={writableAnyCount > 1 ? () => setBlockEvent(ctxMenu.event) : undefined}
         />
       )}
     </div>

@@ -47,6 +47,8 @@ export interface DayTimeGridProps {
    * them. Non-editable events are click-only. */
   canEditEvent: (e: PimEventRow) => boolean;
   onEventClick: (e: PimEventRow) => void;
+  /** Right-click an event block → quick-action context menu. */
+  onEventContextMenu?: (e: PimEventRow, at: { x: number; y: number }) => void;
   onOpenTask?: (path: string) => void;
   /** Click/drag on an empty slot → create. Minutes are snapped day-minutes;
    * `anchor` is the pointer position for the quick-create popover. */
@@ -90,7 +92,7 @@ interface BlockDrag {
 const eventKey = (e: PimEventRow) => `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`;
 
 export function DayTimeGrid(props: DayTimeGridProps) {
-  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
+  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onEventContextMenu, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const laneRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -322,6 +324,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   key={`${e.accountId}-${e.calendarId}-${e.uid}`}
                   type="button"
                   onClick={() => onEventClick(e)}
+                  onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); onEventContextMenu?.(e, { x: ev.clientX, y: ev.clientY }); }}
                   data-testid="calendar-allday-event"
                   data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
                   style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
@@ -432,6 +435,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         if (suppressClickRef.current) { suppressClickRef.current = false; return; }
                         onEventClick(b.ev);
                       }}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onEventContextMenu?.(b.ev, { x: e.clientX, y: e.clientY }); }}
                       data-tip={`${eventDisplayTitle(b.ev.title, untitledLabel)}${calName(b.ev) ? ` · ${calName(b.ev)}` : ""}`}
                       style={{
                         position: "absolute",

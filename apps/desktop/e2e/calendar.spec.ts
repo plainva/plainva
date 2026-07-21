@@ -294,6 +294,29 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
     .toBe(false);
 });
 
+test('right-click an event opens the quick-action context menu (edit/colour/RSVP)', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  // Day view renders today's timed events as blocks.
+  await page.getByTestId('calendar-mode-day').click();
+  const standup = page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
+  await expect(standup).toBeVisible();
+  await standup.click({ button: 'right' });
+  // The context menu mirrors the ⋮ actions + inline quick-sets.
+  await expect(page.getByTestId('ctx-edit')).toBeVisible();
+  await expect(page.getByTestId('ctx-meeting-note')).toBeVisible();
+  await expect(page.getByTestId('ctx-delete')).toBeVisible();
+  // Colour swatch row (writable event) + RSVP (ev-standup carries a self invitee).
+  await expect(page.getByTestId('ctx-colors')).toBeVisible();
+  await expect(page.getByTestId('ctx-rsvp-accept')).toBeVisible();
+  // Only one writable calendar in the fixture -> no "block in other calendars" item.
+  await expect(page.getByTestId('ctx-block')).toHaveCount(0);
+  // Choosing "edit" opens the full dialog.
+  await page.getByTestId('ctx-edit').click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+});
+
 test('mail-client E6: an event can be emailed as an iCal invite', async ({ page }) => {
   await openVault(page);
   await page.evaluate(() => {
