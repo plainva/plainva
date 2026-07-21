@@ -69,7 +69,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       next_retry_at INTEGER DEFAULT 0,
       priority INTEGER DEFAULT 50,
       last_error TEXT,
-      requires_manual_intervention INTEGER DEFAULT 0
+      requires_manual_intervention INTEGER DEFAULT 0,
+      force INTEGER DEFAULT 0
     );`,
 
     `CREATE TABLE IF NOT EXISTS audit_log (
@@ -227,6 +228,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   try {
     await db.execute(`ALTER TABLE offline_queue ADD COLUMN requires_manual_intervention INTEGER DEFAULT 0;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // E2E migration/rotation sweep (settings-sync plan §3.5): a forced re-write
+    // that re-encrypts a file under the active key. Additive; it does not
+    // invalidate remote_etag or base_sha256 (the plaintext hashes are unchanged).
+    await db.execute(`ALTER TABLE offline_queue ADD COLUMN force INTEGER DEFAULT 0;`);
   } catch {
     // Column might already exist
   }

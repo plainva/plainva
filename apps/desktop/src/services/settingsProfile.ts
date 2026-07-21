@@ -21,6 +21,7 @@ import {
   KeyfileSyncStep,
   sealBlob,
   openBlob,
+  evaluateManifestGuard,
   type ProfileSettingsPort,
   type ProfileCrypto,
   type SettingsSyncRunner,
@@ -31,6 +32,15 @@ import { toast, type ISettingsStore } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { loadCachedMasterKey } from "./encryptionSession";
+import {
+  GUARD_VERSION,
+  connectionIdFor,
+  loadConnectionState,
+  readRemoteManifest,
+  saveConnectionState,
+} from "./encryptionManifest";
+import { loadCloudAccounts } from "./cloudAccounts";
+import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
   backupMaxAgeDaysKey,
   backupMaxCountKey,
@@ -167,17 +177,56 @@ function profileCryptoFor(mk: { keyId: string; masterKey: Uint8Array }): Profile
   };
 }
 
+/** The active sync connection's fingerprint (provider + remote root), or null. */
+async function getActiveConnectionId(vaultPath: string): Promise<string | null> {
+  const records = await loadCloudAccounts(vaultPath);
+  const provider = records.find((r) => r.services.files)?.services.files?.provider;
+  if (!provider) return null;
+  const root = await getSyncRootFolder(vaultPath, provider);
+  return connectionIdFor(provider, root);
+}
+
 /**
- * Composite sideband runner (P1 profile + P3 keyfile + E3 sealed profile). Once a
- * master key is cached for the vault, the profile travels sealed as `settings.enc`
- * and the public `keyfile.json` is transported so a second device can unlock.
- * Steps run under one try/catch in the worker; each is independent.
+ * Composite sideband runner (P1 profile + P3 keyfile + E3 sealed profile + the
+ * P4/P5 fail-closed content-E2E guard). `guardBeforeCycle` reads the connection's
+ * `encryption.json` before any pull/push and throws FatalSyncProtocolError on a
+ * protocol violation (an encrypting/strict manifest we can't decrypt, a
+ * key/manifest mismatch, a downgraded manifest for a known-encrypted connection);
+ * this ends the cycle before the queue is pushed, fail-closed. `run` transports
+ * the keyfile and the (sealed) profile. Steps run under one try/catch each.
  */
 class DesktopSidebandRunner implements SettingsSyncRunner {
   constructor(
+    private readonly vaultPath: string,
+    private readonly connectionId: string | null,
     private readonly keyfileStep: KeyfileSyncStep | null,
     private readonly profileStep: SettingsSyncStep | null
   ) {}
+
+  async guardBeforeCycle(target: ISyncTarget, _vault: IVaultAdapter): Promise<void> {
+    if (!this.connectionId) return; // no sync connection -> nothing to guard
+    const known = await loadConnectionState(this.connectionId);
+    let manifestText: string | null;
+    try {
+      manifestText = await readRemoteManifest(target);
+    } catch (e) {
+      // A known-encrypted connection must fail closed if we can't read the
+      // manifest (an attacker could otherwise block it to force plaintext).
+      // For a never-encrypted connection a transient fetch error just proceeds
+      // plain and retries next cycle.
+      if (known.knownEncrypted) throw e;
+      return;
+    }
+    const mk = await loadCachedMasterKey(this.vaultPath);
+    // Throws FatalSyncProtocolError on any violation (fail-closed).
+    const decision = evaluateManifestGuard({ manifestText, known, masterKey: mk, guardVersion: GUARD_VERSION });
+    // Pin the connection as encrypted the first time we see a valid encrypted
+    // manifest, so a later missing/downgraded manifest fails closed.
+    if (decision.pinEncrypted) {
+      await saveConnectionState({ ...known, knownEncrypted: true, expectedKeyId: mk?.keyId });
+    }
+  }
+
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     if (this.keyfileStep) await this.keyfileStep.run(target, vault);
     if (this.profileStep) await this.profileStep.run(target, vault);
@@ -186,13 +235,16 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
 
 /**
  * Builds the sideband runner for a vault, or null when nothing is engaged.
- * Called during vault open and on the toggle/encryption-changed events.
+ * Called during vault open and on the toggle/encryption-changed events. A runner
+ * is built whenever the vault has a sync connection (for the fail-closed guard),
+ * profile-sync is opted in, or a master key is unlocked.
  */
 export async function buildSettingsSyncStep(vaultPath: string): Promise<SettingsSyncRunner | null> {
   const store = await getSettingsStore();
   const profileOn = await isSettingsSyncEnabled(vaultPath, store);
   const mk = await loadCachedMasterKey(vaultPath);
-  if (!profileOn && !mk) return null; // neither profile-sync nor an unlocked key
+  const connectionId = await getActiveConnectionId(vaultPath);
+  if (!profileOn && !mk && !connectionId) return null;
 
   const deviceId = await getDeviceId(store);
   // Transport the public keyfile whenever this device holds a master key.
@@ -213,6 +265,5 @@ export async function buildSettingsSyncStep(vaultPath: string): Promise<Settings
       })
     : null;
 
-  if (!keyfileStep && !profileStep) return null;
-  return new DesktopSidebandRunner(keyfileStep, profileStep);
+  return new DesktopSidebandRunner(vaultPath, connectionId, keyfileStep, profileStep);
 }
