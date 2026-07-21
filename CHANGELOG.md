@@ -7,6 +7,66 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-07-21
+
+Everything since 0.4.0 gathered up: all your cloud logins in one **Cloud accounts**
+area, a much larger **mail provider catalog** (Apple/iCloud, mailbox.org, Fastmail,
+Yahoo, Zoho, Yandex and ~46 more), sturdier mail plumbing, and a top-to-bottom
+**design-language** pass that makes the whole app calmer and more consistent.
+Calendar and email keep maturing but remain experimental. Still plain Markdown,
+still your files — no format changes; existing vaults and `.base` files are
+untouched.
+
+### Added
+
+- **Cloud accounts.** A new first Settings area gathers every cloud login for a
+  vault in one place. A provider → services → sign-in wizard connects files,
+  calendar and mail per provider, with per-service status and a clear files-only
+  note. The service pages (Sync, Calendar, Email) become slim references to the
+  account and only appear once a service is actually connected; the ribbon buttons
+  gate the same way. Mobile gets the overview too.
+- **Provider catalog for mail (and more).** 17 wizard tiles with search, plus
+  dedicated app-password suites for **Apple/iCloud, mailbox.org, Fastmail, Yahoo,
+  AOL, Zoho, Yandex, Mail.ru, Koofr and pCloud** — files, calendar and mail from a
+  single form. ~46 verified international IMAP presets are auto-detected from your
+  address, each with a setup hint and a link to the provider's own guide. The Apple
+  tile sets up iCloud Mail and iCloud Calendar together; iCloud Drive stays out
+  (Apple offers no third-party API for it, and the tile says so).
+- **STARTTLS + Proton Bridge transport.** IMAP/SMTP can use STARTTLS on non-993
+  ports, with a loopback-scoped certificate exception so the Proton Mail Bridge
+  (127.0.0.1) works while every real server still verifies strictly.
+- **Server-side mail search** returns matches from the whole mailbox, not just the
+  messages already loaded.
+- **Sidebar sections.** Bookmarks and recently-opened notes are now collapsible,
+  reorderable sections above the file tree.
+- **Copy / Save images.** Right-click an image in a note to copy it or save it — in
+  both live preview and reading mode.
+
+### Changed
+
+- **One design language across the whole app.** A full sweep puts desktop, mobile
+  and every theme on one governed set of tokens and primitives: consistent field and
+  chip metrics, themed Select panels, clearer menus and selection states, and
+  WCAG-AA contrast throughout.
+- **Calendar polish.** Rich Markdown event descriptions (read from the full body),
+  move a single event to another calendar, a default calendar for new events,
+  standards-compliant HTML invitations, and faster, more autonomous background sync.
+- **Delimiter-aware mail folders + SEARCH CHARSET**, so folders like
+  "mailbox.org Rechnungen" stay whole and non-ASCII search works on strict servers.
+- **macOS builds are now signed and notarized** (Developer ID). Windows installers
+  stay unsigned for now (first run: "More info" → "Run anyway").
+
+### Fixed
+
+- All-day calendar labels no longer wrap mid-word; untitled events show a placeholder.
+- The `plainva` frontmatter namespace no longer shows up in `.base` property settings.
+- Pinboard card order is stable across re-index.
+- Clearer Google Drive sync errors; throttled foreground sync and newest-first
+  ordering on mobile.
+- Microsoft mail: folders addressed by role rather than the literal name "INBOX",
+  the mailbox bound to its account so a switch can't load a foreign folder, and
+  calendar/mail token calls routed through the Origin-free relay.
+
 ## [0.4.0] — 2026-07-19
 
 The biggest release since 0.3.0: a new view type (the **Pinboard**), a completely

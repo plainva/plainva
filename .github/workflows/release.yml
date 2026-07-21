@@ -98,12 +98,13 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Notarization is temporarily disabled: notarytool --wait hung indefinitely on
-          # Apple's service for 0.4.0 (with both the old and freshly rotated credentials),
-          # so builds are signed but not notarized (first launch on macOS: right-click ->
-          # Open). Re-enable by restoring these two once notarization is confirmed working:
-          #   APPLE_ID: ${{ secrets.APPLE_ID }}
-          #   APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # Notarization (re-enabled for 0.4.1): notarytool --wait submits the signed
+          # app to Apple and staples the ticket, so macOS opens it without the
+          # right-click -> Open dance. It hung on Apple's service during the 0.4.0 cut;
+          # the 60-minute job cap above bounds a repeat hang. If it stalls again,
+          # comment these two out for a signed-but-not-notarized build.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Plainva ${{ github.ref_name }}'
