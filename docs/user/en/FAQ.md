@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-07-11
+Last reviewed: 2026-07-20
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
