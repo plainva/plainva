@@ -23,6 +23,8 @@ import {
   sealBlob,
   openBlob,
   evaluateManifestGuard,
+  parseManifest,
+  isEncryptedState,
   type ProfileSettingsPort,
   type ProfileCrypto,
   type SettingsSyncRunner,
@@ -187,6 +189,15 @@ export async function getActiveConnectionId(vaultPath: string): Promise<string |
   return connectionIdFor(provider, root);
 }
 
+/** Key-free manifest shape parse (state only), tolerant of malformed JSON. */
+function safeParseManifest(text: string) {
+  try {
+    return parseManifest(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Wraps a sync target in the content-E2E decorator when THIS connection has an
  * active encryption manifest AND the master key is unlocked, so remote content
@@ -245,7 +256,7 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
     private readonly profileStep: SettingsSyncStep | null
   ) {}
 
-  async guardBeforeCycle(target: ISyncTarget, _vault: IVaultAdapter): Promise<void> {
+  async guardBeforeCycle(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     if (!this.connectionId) return; // no sync connection -> nothing to guard
     const known = await loadConnectionState(this.connectionId);
     let manifestText: string | null;
@@ -260,6 +271,20 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
       return;
     }
     const mk = await loadCachedMasterKey(this.vaultPath);
+    // Locked device on an encrypted connection: pull the PUBLIC keyfile FIRST so
+    // the settings can offer "enter passphrase" (unlock), THEN fail closed below.
+    // Without this the guard aborts the cycle before the sideband transports the
+    // keyfile, so a second device shows "set passphrase" (create) forever.
+    if (!mk && manifestText && this.keyfileStep) {
+      const shape = safeParseManifest(manifestText);
+      if (shape && isEncryptedState(shape.state)) {
+        try {
+          await this.keyfileStep.run(target, vault);
+        } catch {
+          // best-effort; the fatal guard below still stops the cycle
+        }
+      }
+    }
     // Throws FatalSyncProtocolError on any violation (fail-closed).
     const decision = evaluateManifestGuard({ manifestText, known, masterKey: mk, guardVersion: GUARD_VERSION });
     // Pin the connection as encrypted the first time we see a valid encrypted
@@ -289,8 +314,10 @@ export async function buildSettingsSyncStep(vaultPath: string): Promise<Settings
   if (!profileOn && !mk && !connectionId) return null;
 
   const deviceId = await getDeviceId(store);
-  // Transport the public keyfile whenever this device holds a master key.
-  const keyfileStep = mk
+  // Transport the public keyfile whenever this device holds a master key OR has a
+  // sync connection — a locked second device needs to PULL the keyfile (which the
+  // guard does before failing closed) so it can be unlocked with the passphrase.
+  const keyfileStep = mk || connectionId
     ? new KeyfileSyncStep({
         onRemoteKeyfileAdopted: () => {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-keyfile-arrived"));

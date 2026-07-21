@@ -73,7 +73,7 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
   // After a successful create, show the one-time recovery code.
   if (recoveryCode) {
     return (
-      <Modal title={t("encryption.recoveryTitle")} onClose={onDone} size="sm">
+      <Modal title={t("encryption.recoveryTitle")} onClose={onDone} size="md">
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <div style={{ color: "var(--text-muted)" }}>{t("encryption.recoveryBody")}</div>
           <code
@@ -106,7 +106,7 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
 
   const isCreate = mode === "create";
   return (
-    <Modal title={isCreate ? t("encryption.modalCreateTitle") : t("encryption.modalUnlockTitle")} onClose={onCancel} size="sm">
+    <Modal title={isCreate ? t("encryption.modalCreateTitle") : t("encryption.modalUnlockTitle")} onClose={onCancel} size="md">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {!useRecovery && (
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
@@ -136,7 +136,7 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
         {error && <div style={{ color: "var(--error-text)", fontSize: "var(--text-sm)" }}>{error}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" }}>
           {!isCreate ? (
-            <Button variant="ghost" size="sm" onClick={() => { setUseRecovery((v) => !v); setError(null); }}>
+            <Button variant="ghost" size="md" onClick={() => { setUseRecovery((v) => !v); setError(null); }}>
               {useRecovery ? t("encryption.usePassphraseInstead", { defaultValue: "Passphrase verwenden" }) : t("encryption.useRecovery")}
             </Button>
           ) : (

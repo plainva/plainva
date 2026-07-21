@@ -126,8 +126,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
     setEncBusy(true);
     try {
       const { queued } = await activateEncryption();
+      // activateEncryption reopens the vault itself (rewrap); no encryption-changed
+      // event here or the vault would reload twice.
       toast.info(t("encryption.activateStarted", { n: queued }));
-      window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
     } catch (e) {
       console.error("[SyncPage] activate content encryption failed", e);
       toast.error(t("encryption.activateFailed"));
@@ -147,8 +148,8 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
     setEncBusy(true);
     try {
       await completeEncryptionMigration();
+      // completeEncryptionMigration reopens the vault itself; no event here.
       toast.info(t("encryption.completeDone"));
-      window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
     } catch (e) {
       console.error("[SyncPage] complete content-encryption migration failed", e);
       toast.error(t("encryption.completeFailed"));

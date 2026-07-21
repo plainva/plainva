@@ -852,19 +852,31 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .catch((err) => console.error("[VaultContext] settings-sync toggle failed", err));
     };
 
+    const handleEncryptionChanged = () => {
+      // Encryption state changed (passphrase set / unlocked / locked): reopen so
+      // the sync target is (re-)wrapped in the correct mode. An unlock on a second
+      // device must rewrap the target to DECRYPT content — a runner swap alone
+      // cannot do that. Activation/complete reopen themselves (they do not fire
+      // this event, to avoid a double reload).
+      if (!state.vaultPath) return;
+      if (state.syncWorker) state.syncWorker.stop();
+      loadVault(state.vaultPath);
+    };
+
     window.addEventListener("plainva-credentials-saved", handleCredentialsSaved);
     window.addEventListener("plainva-sync-queued", handleSyncQueued);
     window.addEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
-    // Encryption state changed (passphrase set/unlocked/locked) or a remote keyfile
-    // arrived: rebuild the sideband runner so the profile switches to/from sealed.
-    window.addEventListener("plainva-encryption-changed", handleSettingsSyncToggled);
+    // Encryption state changed (passphrase set/unlocked/locked): reopen the vault
+    // so the target is (re-)wrapped. A remote keyfile arriving (locked 2nd device)
+    // only needs the runner rebuilt so the "enter passphrase" UI can appear.
+    window.addEventListener("plainva-encryption-changed", handleEncryptionChanged);
     window.addEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
 
     return () => {
       window.removeEventListener("plainva-credentials-saved", handleCredentialsSaved);
       window.removeEventListener("plainva-sync-queued", handleSyncQueued);
       window.removeEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
-      window.removeEventListener("plainva-encryption-changed", handleSettingsSyncToggled);
+      window.removeEventListener("plainva-encryption-changed", handleEncryptionChanged);
       window.removeEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
