@@ -374,7 +374,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
   await expect(page.getByTestId('event-end-time')).toHaveValue('11:00');
   await expect(page.getByTestId('event-location')).toHaveValue('Raum 5');
-  await expect(page.getByTestId('event-description')).toHaveValue('Kurzes Standup');
+  await expect(page.getByTestId('event-description')).toContainText('Kurzes Standup');
   // The event's own colour preselects its swatch, and the dialog offers the palette.
   await expect(page.getByTestId('event-color-#039be5')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('event-color-#d50000').click();

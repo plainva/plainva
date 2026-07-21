@@ -356,9 +356,11 @@ test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the or
   // The prefilled recipient shows as a chip (Enter/comma-committed).
   await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
-  await expect(page.getByTestId('draft-body')).toHaveValue(/anbei die Rechnung\./);
-  // The body is editable; sending goes straight through SMTP with the edited text.
-  await page.getByTestId('draft-body').fill('Danke, passt!');
+  await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  // The body is a live-preview editor (CodeMirror); select all + type replaces it.
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Danke, passt!');
   await page.getByTestId('draft-send').click();
   await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);

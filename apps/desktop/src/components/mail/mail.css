@@ -626,19 +626,19 @@
 .pv-mail-cmpbody {
   flex: 1;
   width: 100%;
-  resize: none;
-  border: none;
+  min-height: 0;
+  overflow: auto;
   background: transparent;
   color: var(--text-main);
-  font: inherit;
-  font-size: var(--text-md);
-  line-height: 1.55;
-  padding: 10px 12px;
-  outline: none;
 }
-.pv-mail-cmpbody::placeholder {
-  color: var(--text-faint);
-}
+/* The isolated CodeMirror live preview fills the host; markdownTheme provides
+   the rendered look. Keep the body compact and full-width (not the note
+   editor's centred column). */
+.pv-mail-cmpbody .cm-editor { height: 100%; background: transparent; }
+.pv-mail-cmpbody .cm-editor.cm-focused { outline: none; }
+.pv-mail-cmpbody .cm-scroller { font-family: var(--font-content, inherit); font-size: var(--text-md); line-height: 1.55; }
+.pv-mail-cmpbody .cm-content { max-width: none; padding: 10px 12px; }
+.pv-mail-cmpbody .cm-placeholder { color: var(--text-faint); }
 .pv-mail-cmpslash {
   position: absolute;
   z-index: var(--z-menu);
