@@ -11,7 +11,7 @@ import {
 import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { connectProvider, createProviderVault, type MobileSyncProvider } from "./syncService";
+import { connectProvider, createProviderVault, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
 import { getMobileVault } from "./vaultService";
 
 /**
@@ -55,6 +55,12 @@ export interface OAuthExtras {
    * absent = plain connect to an existing vault.
    */
   createTemplateId?: string;
+  /**
+   * Re-authorize an EXISTING vault (dead refresh token) instead of creating a
+   * new one. When set, the redirect writes the fresh token into this vault's
+   * slot and restarts its worker — no folder pick, no new vault.
+   */
+  reconnectVaultId?: string;
 }
 
 interface PendingFlow {
@@ -168,6 +174,33 @@ export function cancelConnect(): void {
   pendingCreateTemplateId = null;
 }
 
+/**
+ * Re-authorize an EXISTING vault whose OAuth token expired: run a fresh consent
+ * for the vault's own provider and thread its id through the flow so the
+ * redirect writes the new token into that vault's slot (no new vault, no folder
+ * pick). Only OAuth providers (Drive/OneDrive/Dropbox) can be reconnected this
+ * way; WebDAV/S3 use static form credentials.
+ */
+export async function reconnectVault(vaultId: string): Promise<void> {
+  const stored = await getStoredProvider(vaultId);
+  if (!stored) {
+    toast.error(i18n.t("mobile.reconnectFailed", { defaultValue: "Kein Konto zum Neuanmelden gefunden." }));
+    return;
+  }
+  if (stored.provider === "drive") {
+    await beginOAuth("drive", {
+      clientId: stored.creds.clientId,
+      clientSecret: stored.creds.clientSecret,
+      rootFolderName: stored.creds.rootFolderName,
+      reconnectVaultId: vaultId,
+    });
+  } else if (stored.provider === "onedrive") {
+    await beginOAuth("onedrive", { clientId: stored.creds.clientId, rootFolderName: stored.creds.rootFolderName, reconnectVaultId: vaultId });
+  } else if (stored.provider === "dropbox") {
+    await beginOAuth("dropbox", { rootPath: stored.creds.rootPath, reconnectVaultId: vaultId });
+  }
+}
+
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   const pkce = await generatePkcePair();
@@ -279,6 +312,13 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           rootFolderName: flow.extras.rootFolderName || undefined,
         },
       };
+    }
+    // Reconnect an EXISTING vault (dead token): write the fresh token into its
+    // slot and restart its worker — no folder pick, no new vault.
+    if (flow.extras.reconnectVaultId) {
+      await reauthorizeVault(flow.extras.reconnectVaultId, mp);
+      toast.info(i18n.t("mobile.reconnected", { defaultValue: "Konto neu verbunden." }));
+      return true;
     }
     // Two-phase folder pick (#10): don't create the vault yet — hold the fresh
     // token and let the React host browse the cloud folders, then finishConnect.

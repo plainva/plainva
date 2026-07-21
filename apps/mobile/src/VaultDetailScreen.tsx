@@ -9,6 +9,7 @@ import {
   subscribeSyncStatus,
   syncNow,
 } from "./services/syncService";
+import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
@@ -218,6 +219,18 @@ export function VaultDetailScreen({
               }}
             >
               {t("mobile.syncResume")}
+            </button>
+          )}
+          {entry.provider && (entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
+            <button
+              className={status.status === "error" && isActive ? "m-btn m-btn--filled" : "m-btn m-btn--tonal"}
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void reconnectVault(vaultId).finally(() => setBusy(false));
+              }}
+            >
+              <Cloud size={16} /> {t("mobile.reconnectAction", { defaultValue: "Neu anmelden" })}
             </button>
           )}
           {isActive && activeVault.indexer && (

@@ -231,6 +231,33 @@ export async function resumeProvider(vaultId: string): Promise<void> {
   }
 }
 
+/**
+ * Re-authorize an EXISTING vault after its OAuth refresh token died
+ * (revoked/rotated away). Unlike connectProvider it never mints a new vault:
+ * it merges the fresh token into the vault's stored credentials (keeping its
+ * cloud folder), un-pauses it, and restarts the worker when it is active — so
+ * a dead token is fixed in place instead of forcing delete + re-create.
+ */
+export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvider): Promise<void> {
+  const existing = await getStoredProvider(vaultId);
+  let merged: MobileSyncProvider = fresh;
+  if (existing && existing.provider === fresh.provider) {
+    if (fresh.provider === "drive" && existing.provider === "drive") {
+      merged = { provider: "drive", creds: { ...existing.creds, clientId: fresh.creds.clientId, clientSecret: fresh.creds.clientSecret, refreshToken: fresh.creds.refreshToken } };
+    } else if (fresh.provider === "onedrive" && existing.provider === "onedrive") {
+      merged = { provider: "onedrive", creds: { ...existing.creds, clientId: fresh.creds.clientId, refreshToken: fresh.creds.refreshToken } };
+    } else if (fresh.provider === "dropbox" && existing.provider === "dropbox") {
+      merged = { provider: "dropbox", creds: { ...existing.creds, appKey: fresh.creds.appKey, refreshToken: fresh.creds.refreshToken } };
+    }
+  }
+  await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
+  await updateVault(vaultId, { paused: false });
+  if ((await getActiveVaultEntry()).id === vaultId) {
+    stopSync();
+    startWorker(await getMobileVault(), merged);
+  }
+}
+
 /** Final credential cleanup when a vault is deleted. */
 export async function purgeCredentials(vaultId: string): Promise<void> {
   await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId));
