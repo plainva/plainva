@@ -11,7 +11,7 @@ import {
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
 import { microsoftAuthFetch } from "../authFetch";
-import type { MailboxInfo, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./mailClient";
+import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./mailClient";
 import type { MailAttachment } from "./mailOut";
 
 /**
@@ -249,7 +249,9 @@ async function wellKnownRoles(rt: GraphMailRuntime): Promise<Map<string, MailFol
 export async function graphListFolders(vaultPath: string, account: MailAccountConfig): Promise<MailboxInfo[]> {
   const rt = await runtimeFor(vaultPath, account);
   const [folders, roles] = await Promise.all([listFoldersInternal(rt), wellKnownRoles(rt)]);
-  return folders.map((f) => ({ name: f.displayName, role: roles.get(f.id) }));
+  // Graph nests folders with "/" (via displayName paths); state it so the UI
+  // splits labels at that separator instead of guessing "." vs "/".
+  return folders.map((f) => ({ name: f.displayName, role: roles.get(f.id), delimiter: "/" }));
 }
 
 /** The account's primary address (Graph /me) for the display label; also a
@@ -372,12 +374,30 @@ export async function graphMove(vaultPath: string, account: MailAccountConfig, _
   await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(id)}/move`, { destinationId });
 }
 
-export async function graphSearch(vaultPath: string, account: MailAccountConfig, mailbox: string, query: string): Promise<string[]> {
+/** Searches a folder and returns matching ENVELOPES (not just ids), so hits
+ * outside the loaded page still appear. Graph's $search cannot combine with
+ * $orderby, so we sort client-side. */
+export async function graphSearchEnvelopes(
+  vaultPath: string,
+  account: MailAccountConfig,
+  mailbox: string,
+  query: string
+): Promise<MailEnvelope[]> {
   const rt = await runtimeFor(vaultPath, account);
   const folderId = await resolveFolderId(rt, mailbox);
-  const q = `/me/mailFolders/${encodeURIComponent(folderId)}/messages?$search="${encodeURIComponent(query)}"&$select=id&$top=50`;
-  const data = await graphJson<{ value: Array<{ id: string }> }>(rt, "GET", q);
-  return (data.value ?? []).map((m) => m.id);
+  const q =
+    `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
+    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead&$top=50`;
+  const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
+  return (data.value ?? [])
+    .map((m) => ({
+      id: m.id,
+      subject: m.subject ?? "",
+      from: addressLabel(m.from),
+      dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
+      seen: m.isRead === true,
+    }))
+    .sort((a, b) => b.dateTs - a.dateTs);
 }
 
 // ---- Outgoing (compose send / draft) -------------------------------------

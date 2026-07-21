@@ -93,6 +93,12 @@ test.beforeEach(async ({ page }) => {
           const q = String(args.query || '').toLowerCase();
           return envelopes.filter((e) => e.subject.toLowerCase().includes(q)).map((e) => e.uid);
         }
+        if (cmd === 'mail_search_envelopes') {
+          // Server-side search returns the matching ENVELOPES (not just ids),
+          // so hits outside the loaded page still show (P2).
+          const q = String(args.query || '').toLowerCase();
+          return envelopes.filter((e) => e.subject.toLowerCase().includes(q));
+        }
         if (cmd === 'mail_append_draft') {
           (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
           return null;

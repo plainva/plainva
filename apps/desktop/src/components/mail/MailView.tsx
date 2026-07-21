@@ -11,7 +11,7 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchMessages, type MailEnvelope, type MailMessage, type MailboxInfo } from "../../services/mail/mailClient";
+import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "../../services/mail/mailClient";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "../../services/mail/mailSanitize";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "../../services/mail/mailCapture";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "../../services/mail/mailOut";
@@ -98,6 +98,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   /** The account's mailboxes in display order (with their backend role). */
   const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
   const folders = useMemo(() => boxes.map((b) => b.name), [boxes]);
+  /** Server-stated hierarchy delimiter, so folder labels split at the real
+   * separator instead of guessing "." vs "/". */
+  const delimiter = useMemo(() => boxes.find((b) => b.delimiter)?.delimiter, [boxes]);
   /** Stale-response guards: only the newest request per channel writes state. */
   const listSeq = useRef(0);
   const msgSeq = useRef(0);
@@ -117,7 +120,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // Mailbox actions (E4): a text search over the current folder, plus a
   // "Move to…" menu anchored on the reader toolbar.
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchIds, setSearchIds] = useState<Set<string> | null>(null);
+  const [searchResults, setSearchResults] = useState<MailEnvelope[] | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
   const [moveMenu, setMoveMenu] = useState<{ x: number; y: number } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -151,10 +154,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // stats. Only the focused pane publishes.
   useEffect(() => {
     if (!isActivePane) return;
-    let info = `${mailFolderLabel(mailbox)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
+    let info = `${mailFolderLabel(mailbox, delimiter)} · ${total} ${t("mail.messagesLabel", { defaultValue: "Nachrichten" })}`;
     if (unseen > 0) info += ` · ${unseen} ${t("mail.unreadLabel", { defaultValue: "ungelesen" })}`;
     activeDocument.set({ path: MAIL_TAB_PATH, content: "", kind: "virtual", meta: { info } });
-  }, [isActivePane, mailbox, total, unseen, t]);
+  }, [isActivePane, mailbox, delimiter, total, unseen, t]);
 
   useEffect(() => {
     let alive = true;
@@ -184,7 +187,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       .then((list) => {
         if (!alive) return;
         const valid = list.filter((b) => b.name);
-        const order = sortMailFolders(valid.map((b) => b.name));
+        const delim = valid.find((b) => b.delimiter)?.delimiter;
+        const order = sortMailFolders(valid.map((b) => b.name), delim);
         const sorted = order.map((n) => valid.find((b) => b.name === n)).filter((b): b is MailboxInfo => !!b);
         setBoxes(sorted);
         setMailboxSel((prev) =>
@@ -235,7 +239,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     // Drop the search when the account/mailbox changes: IMAP UIDs are
     // folder-local, so a stale id set would highlight unrelated mails in the
     // new folder (and a Graph id set would just come up empty).
-    setSearchIds(null);
+    setSearchResults(null);
     setSearchQuery("");
     if (account) void loadList(0);
   }, [account, loadList]);
@@ -268,23 +272,23 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
 
   // ---- Mailbox actions (E4) ----
-  const displayedEnvelopes = searchIds ? envelopes.filter((e) => searchIds.has(e.id)) : envelopes;
-  const currentSeen = envelopes.find((e) => e.id === selectedId)?.seen ?? false;
+  const displayedEnvelopes = searchResults ?? envelopes;
+  const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
 
   const searchSeq = useRef(0);
   const runSearch = useCallback(async () => {
     if (!vaultPath || !account || !mailbox) return;
     const q = searchQuery.trim();
     if (!q) {
-      setSearchIds(null);
+      setSearchResults(null);
       return;
     }
     const seq = ++searchSeq.current;
     const current = (): boolean => seq === searchSeq.current;
     setSearchBusy(true);
     try {
-      const uids = await searchMessages(vaultPath, account, mailbox, q);
-      if (current()) setSearchIds(new Set(uids));
+      const hits = await searchEnvelopes(vaultPath, account, mailbox, q);
+      if (current()) setSearchResults(hits);
     } catch (e) {
       if (current()) toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -294,7 +298,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setSearchIds(null);
+    setSearchResults(null);
   }, []);
 
   const markSeen = useCallback(
@@ -347,12 +351,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   const removeFromList = useCallback((uid: string) => {
     setEnvelopes((list) => list.filter((e) => e.id !== uid));
-    setSearchIds((s) => {
-      if (!s) return s;
-      const n = new Set(s);
-      n.delete(uid);
-      return n;
-    });
+    setSearchResults((r) => (r ? r.filter((e) => e.id !== uid) : r));
     setSelectedId((cur) => (cur === uid ? null : cur));
     setMessage((m) => (m && m.id === uid ? null : m));
   }, []);
@@ -366,14 +365,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       try {
         await moveMessage(vaultPath, account, mailbox, uid, target);
         removeFromList(uid);
-        toast.info(t("mail.moved", { defaultValue: "Verschoben nach {{folder}}", folder: mailFolderLabel(target) }));
+        toast.info(t("mail.moved", { defaultValue: "Verschoben nach {{folder}}", folder: mailFolderLabel(target, delimiter) }));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, selectedId, actionBusy, removeFromList, t]
+    [vaultPath, account, mailbox, selectedId, actionBusy, removeFromList, delimiter, t]
   );
 
   const deleteMessage = useCallback(async () => {
@@ -571,7 +570,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             return (
               <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => selectMailbox(name)} data-tip={name}>
                 <FolderGlyph name={name} />
-                <span className="pv-mail-folder-label">{mailFolderLabel(name)}</span>
+                <span className="pv-mail-folder-label">{mailFolderLabel(name, delimiter)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
               </button>
             );
@@ -592,7 +591,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               aria-label={t("mail.searchPlaceholder", { defaultValue: "In diesem Ordner suchen…" })}
               data-testid="mail-search"
             />
-            {(searchIds || searchQuery) && (
+            {(searchResults || searchQuery) && (
               <button type="button" className="pv-mail-search-clear" onClick={clearSearch} aria-label={t("mail.clearSearch", { defaultValue: "Suche leeren" })} data-testid="mail-search-clear">
                 <X size={ICON.ui} />
               </button>
@@ -608,7 +607,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
           ) : displayedEnvelopes.length === 0 && !loadingList && !searchBusy ? (
             <p className="pv-mail-hint">
-              {searchIds ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
+              {searchResults ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." }) : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
             </p>
           ) : (
             displayedEnvelopes.map((e) => {
@@ -634,7 +633,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               );
             })
           )}
-          {!searchIds && envelopes.length < total && (
+          {!searchResults && envelopes.length < total && (
             <div style={{ padding: "var(--space-2)" }}>
               <Button variant="ghost" disabled={loadingList} onClick={() => void loadList(envelopes.length)}>
                 {t("mail.loadMore", { defaultValue: "Mehr laden" })}
@@ -780,7 +779,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       <MenuSurface open at={moveMenu} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
         {folders.filter((f) => f !== mailbox).map((f) => (
           <MenuItem key={f} onClick={() => void moveTo(f)}>
-            {mailFolderLabel(f)}
+            {mailFolderLabel(f, delimiter)}
           </MenuItem>
         ))}
       </MenuSurface>

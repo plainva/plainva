@@ -8,7 +8,7 @@ import {
   graphFetchRaw,
   graphSetSeen,
   graphMove,
-  graphSearch,
+  graphSearchEnvelopes,
 } from "./graphMail";
 
 /**
@@ -28,6 +28,9 @@ export type MailFolderRole = "inbox" | "drafts" | "sent" | "trash" | "junk" | "a
 export interface MailboxInfo {
   name: string;
   role?: MailFolderRole;
+  /** Server-stated IMAP hierarchy delimiter (Graph folders use "/"). Lets the
+   * UI split nested names at the real separator instead of guessing. */
+  delimiter?: string;
 }
 
 export interface MailEnvelope {
@@ -147,9 +150,20 @@ export async function moveMessage(vaultPath: string, account: MailAccountConfig,
   await invoke("mail_move_message", { ...(await creds(vaultPath, account)), mailbox, uid: Number(id), target });
 }
 
-/** Full-text search in a mailbox; returns matching ids, newest first. */
-export async function searchMessages(vaultPath: string, account: MailAccountConfig, mailbox: string, query: string): Promise<string[]> {
-  if (mailAccountKind(account) === "microsoft") return graphSearch(vaultPath, account, mailbox, query);
-  const uids = await invoke<number[]>("mail_search", { ...(await creds(vaultPath, account)), mailbox, query });
-  return uids.map((u) => String(u));
+/** Full-text search in a mailbox; returns matching ENVELOPES, newest first —
+ * server hits, not a filter over the loaded page. */
+export async function searchEnvelopes(
+  vaultPath: string,
+  account: MailAccountConfig,
+  mailbox: string,
+  query: string
+): Promise<MailEnvelope[]> {
+  if (mailAccountKind(account) === "microsoft") return graphSearchEnvelopes(vaultPath, account, mailbox, query);
+  const page = await invoke<RawImapEnvelope[]>("mail_search_envelopes", {
+    ...(await creds(vaultPath, account)),
+    mailbox,
+    query,
+    limit: 200,
+  });
+  return page.map((m) => ({ ...m, id: String(m.uid) }));
 }
