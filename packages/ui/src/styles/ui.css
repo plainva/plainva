@@ -1417,3 +1417,116 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-svcstat-label { flex: 1; min-width: 0; }
 .pv-svcstat-sub { font-size: var(--text-sm); color: var(--text-muted); }
 .pv-svcstat--err .pv-svcstat-sub { color: var(--error-text); }
+
+/* ── Cascade deletion dialog (plan Kaskadenloeschung 2026-07-21) ─────────────
+   One danger dialog rendered from the precomputed deletion plan. Cards reuse
+   the setcard grammar (the card carries the theme look); the cascade family
+   below adds group rows with a count pill, collapsible element lists and the
+   exception badges. Docking: scaffold + rows live inside .pv-setcard and paint
+   exclusively from shared tokens — THEME_EXEMPT entry in designGuards. */
+.pv-cascade { display: flex; flex-direction: column; gap: var(--space-4); }
+.pv-cascade-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+}
+.pv-setcard .pv-cascade-row:last-child { border-bottom: none; }
+.pv-cascade-row > .pv-check { margin-top: 3px; }
+.pv-cascade-row--danger { background: color-mix(in srgb, var(--error-text) 5%, transparent); }
+.pv-cascade-row--danger .pv-cascade-label { color: var(--error-text); }
+.pv-cascade-main { flex: 1; min-width: 0; }
+.pv-cascade-label { font-size: var(--text-md); font-weight: 600; color: var(--text-main); }
+.pv-cascade-desc {
+  margin-top: 2px;
+  max-width: 62ch;
+  font-size: var(--text-ui);
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.pv-cascade-count {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pv-cascade-note {
+  padding: 9px var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-setcard .pv-cascade-note:last-child { border-bottom: none; }
+.pv-cascade-showbtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-top: 1px dashed var(--border-color-light);
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.pv-cascade-showbtn:hover { background: var(--state-hover); }
+.pv-cascade-items {
+  max-height: 224px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color-light);
+  background: var(--bg-primary);
+}
+.pv-cascade-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-4);
+  border-bottom: 1px solid var(--border-color-light);
+  font-size: var(--text-ui);
+  color: var(--text-main);
+}
+.pv-cascade-item:last-child { border-bottom: none; }
+.pv-cascade-item--sub { padding-left: var(--space-8); }
+.pv-cascade-item.is-off { color: var(--text-faint); }
+.pv-cascade-item-ic { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
+.pv-cascade-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-cascade-item-path {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-cascade-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pv-cascade-badge--warn { background: var(--warning-bg); color: var(--warning-text); }
+.pv-cascade-badge--muted {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  color: var(--text-muted);
+}
+.pv-cascade-foot {
+  margin-right: auto;
+  max-width: 44ch;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}

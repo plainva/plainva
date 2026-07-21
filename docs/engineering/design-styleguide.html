@@ -689,6 +689,16 @@
         <li><b>Kontextmenü:</b> Öffnen-Gruppe → Objekt-Aktionen → <b>Danger zuletzt</b> nach Separator; Gruppen mit MenuLabel — auch mobil.</li>
         <li><b>Suchfeld:</b> Lupe · Eingabe · X — Escape leert erst, schließt dann. Überall identisch (SearchField).</li>
       </ul>
+      <h4 style="margin-top:14px;">Kaskaden-Lösch-Dialog (<code>.pv-cascade</code>, 2026-07-21)</h4>
+      <div class="schema">
+        <span class="blk">Wird gelöscht (fix)</span><span class="blk hi">Karte je Gruppe: ☑ + Zähler-Pille</span><span class="blk">Elemente-Liste (Scroll, ☑ je Zeile)</span><span class="blk">Aufräumen</span><span class="gap">→</span><span class="blk hi">Danger-Button zählt live</span>
+      </div>
+      <ul class="tight">
+        <li>Setcard-Grammatik: <code>.pv-setgroup</code>-Label über <code>.pv-setcard</code>; Gruppen-Zeile = Checkbox-Primitive + Label/Beschreibung + <code>.pv-cascade-count</code> (Akzent-Container-Paar).</li>
+        <li>Verknüpfte Datenbanken sind NIE Fließtext — immer eine eigene benannte Karte, Stufe 2 („ganze Datenbank") als <code>.pv-cascade-row--danger</code>; beide Stufen default AUS.</li>
+        <li>Elementlisten eingeklappt (nur Zähler); aufgeklappt scrollbar auf <code>--bg-primary</code>, Unterelemente eingerückt (<code>--sub</code>), Ausnahmen erklärt ein Badge (<code>.pv-cascade-badge--warn</code> geteilt/Mehrfach-Mitglied, <code>--muted</code> Unterelement-Zähler).</li>
+        <li>Bestehende Zweitabfrage ab der Großlöschungs-Schwelle + Cloud-/Snapshot-Fußnote bleiben unverändert.</li>
+      </ul>
     </div>
   </section>
 

@@ -32,6 +32,8 @@ const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceMo
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
+import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
+import { requestCascadeDelete } from "./services/cascadeDelete";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
 import { TitleBar } from "./components/TitleBar";
@@ -51,7 +53,6 @@ import { appConfirm, appMessage } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { confirmDeletion } from "./services/deleteConfirm";
 import { toast } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -554,30 +555,31 @@ function App() {
 
   const handleDeleteFile = async (path: string) => {
     if (!vaultAdapter) return;
-    // Shared confirmation with the tree (cloud note when sync is connected);
-    // a single file never triggers the large-deletion second prompt.
-    const ok = await confirmDeletion({
-      t,
-      single: { name: path.split(/[/\\]/).pop() ?? path, isFolder: false },
-      fileCount: 1,
-      vaultFileCount: 0,
-      syncActive: !!syncWorker,
-    });
-    if (!ok) return;
-    syncWorker?.noteUserInitiatedDeletion([path]);
-    try {
-      await vaultAdapter.deleteItem(path);
-      closeTabsByPrefix(path);
-      if (indexer) await applyIndexChanges(indexer, { removed: [path] });
-      triggerFileTreeUpdate();
-      notifyFileOps([{ type: "delete", path }]);
-    } catch (e) {
-      // The user explicitly confirmed the deletion — if the file is still
-      // there, that must never fail silently into the console only.
-      console.error("Failed to delete file", e);
-      toast.error(t("dialogs.deleteFailedMsg", { error: e instanceof Error ? e.message : String(e) }));
-    }
+    // The cascade host owns the whole flow (plan Kaskadenloeschung): slim
+    // confirmation when nothing hangs off the file, the cascade dialog for
+    // relation targets and `.base` files, execution, reindex and the tab/
+    // bookmark cleanup via handleCascadeDeleted.
+    await requestCascadeDelete({ paths: [path] });
   };
+
+  // Central after-delete cleanup for every cascade deletion (tree, editor ⋮,
+  // pinboard, graph…): close affected tabs and drop dangling bookmarks (the
+  // desktop previously left deleted paths in the bookmark list — mobile
+  // already cleans them in vaultOps.remove).
+  const handleCascadeDeleted = useStableHandler((paths: string[]) => {
+    for (const p of paths) closeTabsByPrefix(p);
+    setBookmarks((prev) => {
+      const gone = new Set(paths);
+      const next = prev.filter((b) => !gone.has(b));
+      if (next.length !== prev.length && vaultPath && vaultAdapter) {
+        vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(next)).catch((e) => {
+          console.error("Failed to persist bookmarks", e);
+          toast.error(t("sidebar.bookmarkSaveFailed"));
+        });
+      }
+      return next;
+    });
+  });
 
   // Drag the divider between the two panes to change their size ratio (the hook clamps
   // the value and persists it as part of the per-vault layout).
@@ -1541,6 +1543,7 @@ function App() {
           </Suspense>
         )}
       </Suspense>
+      <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
       <QuickSwitcher isOpen={showQuickSwitcher} onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); normalizeNow(); }} onOpenPath={(p) => openInFocusedPane(p, quickSwitcherNewTab)} recentPaths={recentPaths} />
       {tabMenu && (
         <TabContextMenu

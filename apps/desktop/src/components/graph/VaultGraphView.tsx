@@ -8,6 +8,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
+import { requestCascadeDelete } from "../../services/cascadeDelete";
 import { toast } from "@plainva/ui";
 import { renameFileWithLinkUpdates } from "../../services/renameNote";
 import { createConnectedNote, removeLinksTo } from "../../services/graphActions";
@@ -424,28 +425,15 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const deleteNodes = useCallback(
     async (paths: string[]) => {
       if (!vaultAdapter || paths.length === 0) return;
-      const ok = await appConfirm({
-        title: t("graph.deleteTitle", { defaultValue: "Löschen?" }),
-        message:
-          paths.length === 1
-            ? t("graph.deleteOneMsg", { defaultValue: "„{{name}}“ wird gelöscht (OS-Papierkorb).", name: titleOf(paths[0]) })
-            : t("graph.deleteManyMsg", { defaultValue: "{{n}} Notizen werden gelöscht (OS-Papierkorb).", n: paths.length }),
-        kind: "danger",
-        confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
-      });
+      // Unified delete flow (plan Kaskadenloeschung): the cascade host brings
+      // the cloud note, the large-deletion second prompt and the sync guard's
+      // noteUserInitiatedDeletion — the graph used to skip all three.
+      const ok = await requestCascadeDelete({ paths });
       if (!ok) return;
-      for (const p of paths) {
-        try {
-          await vaultAdapter.deleteItem(p);
-        } catch {
-          toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
-          return;
-        }
-      }
       setSelection([]);
       sceneRef.current?.setSelection([]);
     },
-    [vaultAdapter, t, titleOf]
+    [vaultAdapter]
   );
 
   const newConnectedNote = useCallback(

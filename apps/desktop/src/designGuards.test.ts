@@ -239,6 +239,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-wizstep": "step chips on token colors; active/done discs use the accent pair",
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
+  "pv-cascade": "cascade-delete dialog scaffold — rows/badges live inside .pv-setcard on shared status/accent tokens the themes already override",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

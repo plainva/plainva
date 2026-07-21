@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { appConfirm } from "../../services/appDialogs";
+import { requestCascadeDelete } from "../../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
 import { applyMentionLink, createConnectedNote } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
@@ -92,21 +92,13 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
   const deleteOrphan = useCallback(
     async (path: string) => {
       if (!vaultAdapter) return;
-      const ok = await appConfirm({
-        title: t("graph.cleanupDeleteTitle", { defaultValue: "Notiz löschen?" }),
-        message: t("graph.cleanupDeleteMsg", { defaultValue: "„{{name}}“ wird gelöscht (OS-Papierkorb).", name: path }),
-        kind: "danger",
-        confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
-      });
-      if (!ok) return;
-      try {
-        await vaultAdapter.deleteItem(path);
-        setOrphans((prev) => prev.filter((o) => o.path !== path));
-      } catch {
-        toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." }));
-      }
+      // Unified with every other delete entry (plan Kaskadenloeschung): the
+      // cascade host adds the cloud note, the large-deletion prompt and
+      // noteUserInitiatedDeletion — all of which this panel used to skip.
+      const done = await requestCascadeDelete({ paths: [path] });
+      if (done) setOrphans((prev) => prev.filter((o) => o.path !== path));
     },
-    [vaultAdapter, t]
+    [vaultAdapter]
   );
 
   const createBrokenTarget = useCallback(

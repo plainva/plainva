@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
+import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
@@ -850,6 +851,14 @@ export const FileTree: React.FC<{
     setContextMenu(null);
     if (!vaultAdapter || !indexer) return;
 
+    // Files run through the cascade host (relation targets and `.base` files
+    // get the cascade dialog; anything else keeps the identical slim flow).
+    // Folder deletion deliberately stays on the existing prompts (E7c).
+    if (!isFolder) {
+      await requestCascadeDelete({ paths: [path] });
+      return;
+    }
+
     const displayName = path.split(/[/\\]/).pop();
     // Shared confirmation (cloud note + second prompt for large deletions, E2).
     const ok = await confirmDeletion({
@@ -906,6 +915,16 @@ export const FileTree: React.FC<{
     setContextMenu(null);
     if (!vaultAdapter || !indexer) return;
     const roots = pruneNestedPaths(paths);
+    // A pure-file selection runs through the cascade host (aggregated plan);
+    // as soon as a folder is part of the roots the existing flow stays (E7c).
+    if (!roots.some((r) => folderPaths.has(r))) {
+      const done = await requestCascadeDelete({ paths: roots });
+      if (done) {
+        setSelection(new Set());
+        setSelectionAnchor(null);
+      }
+      return;
+    }
     // Shared confirmation (cloud note + second prompt for large deletions, E2).
     const ok = await confirmDeletion({
       t,

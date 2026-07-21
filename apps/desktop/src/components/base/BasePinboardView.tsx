@@ -2,14 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, noteDisplayName, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { HeaderColorPicker } from "../HeaderColorPicker";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
-import { confirmDeletion } from "../../services/deleteConfirm";
-import { notifyFileOps } from "../../services/indexMdAutoUpdate";
+import { requestCascadeDelete } from "../../services/cascadeDelete";
 
 /**
  * Pinboard view (plan Pinboard P3): a Keep-style masonry of note cards.
@@ -106,7 +105,7 @@ export function BasePinboardView({
   embedded?: boolean;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate, syncWorker } = useVault();
+  const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
 
   // ── Card data (body/tags/ctime) from the FTS index (P2) ──
   const [cardData, setCardData] = useState<Record<string, NoteCardData>>({});
@@ -325,24 +324,10 @@ export function BasePinboardView({
 
   const handleDelete = useCallback(async (path: string) => {
     if (!vaultAdapter || !indexer) return;
-    const ok = await confirmDeletion({
-      t,
-      single: { name: noteDisplayName(path.split("/").pop() ?? path), isFolder: false },
-      fileCount: 1,
-      vaultFileCount: 0, // a single file never triggers the bulk threshold
-      syncActive: !!syncWorker,
-    });
-    if (!ok) return;
-    syncWorker?.noteUserInitiatedDeletion([path]);
-    try {
-      await vaultAdapter.deleteItem(path, true);
-      await applyIndexChanges(indexer, { removed: [path] });
-      triggerFileTreeUpdate();
-      notifyFileOps([{ type: "delete", path, isFolder: false }]);
-    } catch (err: any) {
-      toast.error(t("dialogs.deleteErrorMsg", { error: err?.message ?? String(err) }));
-    }
-  }, [vaultAdapter, indexer, syncWorker, t, triggerFileTreeUpdate]);
+    // Cascade host owns confirmation, execution, reindex and tab/bookmark
+    // cleanup (plan Kaskadenloeschung) — pinboard cards can be relation targets.
+    await requestCascadeDelete({ paths: [path] });
+  }, [vaultAdapter, indexer]);
 
   // ── Label editing (P4): tags mode writes the frontmatter tags list, property
   //    mode the multiselect value — both through the surgical updater and the

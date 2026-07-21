@@ -64,12 +64,21 @@ export async function confirmDeletion(opts: {
   });
   if (!ok) return false;
   if (!isLargeDeletion(opts.fileCount, opts.vaultFileCount)) return true;
+  return confirmLargeDeletion(t, opts.fileCount, opts.vaultFileCount, opts.syncActive);
+}
 
+/** The sharper second prompt alone — the cascade dialog reuses it unchanged. */
+export async function confirmLargeDeletion(
+  t: Translate,
+  fileCount: number,
+  vaultFileCount: number,
+  syncActive: boolean
+): Promise<boolean> {
   return appConfirm({
     title: t("dialogs.deleteLargeTitle"),
-    message: t(opts.syncActive ? "dialogs.deleteLargeMsgSynced" : "dialogs.deleteLargeMsg", {
-      count: opts.fileCount,
-      total: opts.vaultFileCount,
+    message: t(syncActive ? "dialogs.deleteLargeMsgSynced" : "dialogs.deleteLargeMsg", {
+      count: fileCount,
+      total: vaultFileCount,
     }),
     kind: "danger",
     confirmLabel: t("dialogs.deleteLargeConfirm"),
