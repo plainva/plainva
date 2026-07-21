@@ -239,4 +239,31 @@ describe("SyncQueue", () => {
     expect(paths).toEqual([]);
     expect(db.queries.some(q => q.query.includes("DELETE FROM offline_queue"))).toBe(false);
   });
+
+  it("enqueueAllForReencrypt force-enqueues a write for every non-internal file", async () => {
+    db.mockedResults.push([{ path: "a.md" }, { path: "sub/b.md" }]);
+    // No structural op and no pending write for either (queryOne exhausts to null).
+    const n = await queue.enqueueAllForReencrypt();
+    expect(n).toBe(2);
+    const forced = db.queries.filter(
+      (q) => q.query.includes("INSERT INTO offline_queue") && q.query.includes("force")
+    );
+    expect(forced.length).toBe(2);
+    expect(forced[0].query).toContain("VALUES (?, 'write', ?, 1)");
+  });
+
+  it("enqueueAllForReencrypt upgrades a pending write and skips files with a structural op", async () => {
+    db.mockedResults.push([{ path: "keep.md" }, { path: "renamed.md" }]);
+    db.mockedOneResults.push(null);        // keep.md: no structural op
+    db.mockedOneResults.push({ id: 7 });   // keep.md: has a pending write -> upgrade
+    db.mockedOneResults.push({ id: 9 });   // renamed.md: has a structural op -> skip
+
+    const n = await queue.enqueueAllForReencrypt();
+
+    expect(n).toBe(1); // only keep.md
+    expect(db.queries.some((q) => q.query.includes("SET force = 1"))).toBe(true);
+    expect(
+      db.queries.some((q) => q.query.includes("INSERT INTO offline_queue") && q.query.includes("force"))
+    ).toBe(false); // keep.md upgraded, renamed.md skipped -> no forced insert
+  });
 });

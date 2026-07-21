@@ -178,6 +178,53 @@ export class SyncQueue {
   }
 
   /**
+   * Content-E2E migration sweep (settings-sync plan §3.5): force-enqueues a write
+   * for EVERY local file so the (wrapping) worker re-uploads it as ciphertext,
+   * even files already in sync. `force = 1` makes SyncEngine.processQueue bypass
+   * the "already in sync, skip" shortcut and the optimistic-concurrency guard, so
+   * the plaintext-unchanged file is still pushed. A file that already has a
+   * pending structural op (rename/delete) is left alone (that op wins); a pending
+   * plain write is upgraded to a forced write. `.plainva`/`.CONFLICT` are
+   * device-local and never encrypted. Returns the number of files queued/upgraded.
+   */
+  async enqueueAllForReencrypt(): Promise<number> {
+    let n = 0;
+    await this.db.transaction(async () => {
+      const files = await this.db.query<{ path: string }>(
+        `SELECT path FROM files WHERE path NOT LIKE '.plainva%' AND path NOT LIKE '%.CONFLICT%'`
+      );
+      for (const row of files) {
+        const structural = await this.db.queryOne<{ id: number }>(
+          `SELECT id FROM offline_queue WHERE file_path = ? AND operation IN ('rename', 'delete') LIMIT 1`,
+          [row.path]
+        );
+        if (structural) continue;
+        const pendingWrite = await this.db.queryOne<{ id: number }>(
+          `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'write' LIMIT 1`,
+          [row.path]
+        );
+        if (pendingWrite) {
+          await this.db.execute(
+            `UPDATE offline_queue SET force = 1 WHERE file_path = ? AND operation = 'write'`,
+            [row.path]
+          );
+        } else {
+          await this.db.execute(
+            `INSERT INTO offline_queue (file_path, operation, queued_at, force) VALUES (?, 'write', ?, 1)`,
+            [row.path, Date.now()]
+          );
+          await this.db.execute(
+            `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
+            [row.path]
+          );
+        }
+        n++;
+      }
+    });
+    return n;
+  }
+
+  /**
    * Whether the given path currently has any queued operation (matched as either the
    * source path or a rename target).
    */

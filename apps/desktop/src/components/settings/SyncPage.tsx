@@ -12,13 +12,16 @@ import {
   ICON,
   familyOfSyncProvider,
   hasCloudService,
+  toast,
   type CloudAccountRecord,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
 import { MIN_SYNC_INTERVAL_SECONDS, useVault } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
-import { settingsSyncEnabledKey } from "../../services/settingsProfile";
+import { settingsSyncEnabledKey, getActiveConnectionId } from "../../services/settingsProfile";
+import { loadConnectionState } from "../../services/encryptionManifest";
+import { appConfirm } from "../../services/appDialogs";
 import {
   hasLocalKeyfile,
   loadCachedMasterKey,
@@ -58,7 +61,7 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
-  const { backupAdapter } = useVault();
+  const { backupAdapter, activateEncryption, completeEncryptionMigration } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -66,6 +69,8 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [encState, setEncState] = useState<"none" | "locked" | "unlocked">("none");
   const [everyStart, setEveryStart] = useState(false);
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
+  const [contentEnc, setContentEnc] = useState<"off" | "on">("off");
+  const [encBusy, setEncBusy] = useState(false);
   const provider = p.activeProvider;
 
   // Encryption state for this vault (only meaningful for the active, open vault).
@@ -79,9 +84,12 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       const hasKf = await hasLocalKeyfile(backupAdapter);
       const mk = await loadCachedMasterKey(p.selectedVault);
       const every = await isPassphraseEveryStart(p.selectedVault);
+      const connId = await getActiveConnectionId(p.selectedVault);
+      const known = connId ? (await loadConnectionState(connId)).knownEncrypted : false;
       if (!alive) return;
       setEveryStart(every);
       setEncState(mk ? "unlocked" : hasKf ? "locked" : "none");
+      setContentEnc(known ? "on" : "off");
     };
     void refresh();
     window.addEventListener("plainva-encryption-changed", refresh);
@@ -105,6 +113,49 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
     },
     [p.selectedVault]
   );
+
+  const doActivateEncryption = useCallback(async () => {
+    if (encBusy) return;
+    const ok = await appConfirm({
+      title: t("encryption.activateTitle"),
+      message: t("encryption.activateConfirm"),
+      kind: "danger",
+      confirmLabel: t("encryption.activate"),
+    });
+    if (!ok) return;
+    setEncBusy(true);
+    try {
+      const { queued } = await activateEncryption();
+      toast.info(t("encryption.activateStarted", { n: queued }));
+      window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
+    } catch (e) {
+      console.error("[SyncPage] activate content encryption failed", e);
+      toast.error(t("encryption.activateFailed"));
+    } finally {
+      setEncBusy(false);
+    }
+  }, [encBusy, t, activateEncryption]);
+
+  const doCompleteMigration = useCallback(async () => {
+    if (encBusy) return;
+    const ok = await appConfirm({
+      title: t("encryption.completeTitle"),
+      message: t("encryption.completeConfirm"),
+      confirmLabel: t("encryption.complete"),
+    });
+    if (!ok) return;
+    setEncBusy(true);
+    try {
+      await completeEncryptionMigration();
+      toast.info(t("encryption.completeDone"));
+      window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
+    } catch (e) {
+      console.error("[SyncPage] complete content-encryption migration failed", e);
+      toast.error(t("encryption.completeFailed"));
+    } finally {
+      setEncBusy(false);
+    }
+  }, [encBusy, t, completeEncryptionMigration]);
 
   useEffect(() => {
     void getSettingsStore().then((s) =>
@@ -291,6 +342,34 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             <SettingRow label={t("encryption.everyStart")} desc={t("encryption.everyStartDesc")}>
               <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
             </SettingRow>
+          )}
+          {encState === "unlocked" && (
+            <SettingRow label={t("encryption.contentRow")} desc={t("encryption.contentRowDesc")}>
+              {contentEnc === "off" ? (
+                <Button
+                  variant="primary"
+                  disabled={encBusy}
+                  onClick={() => void doActivateEncryption()}
+                  data-testid="encryption-activate"
+                >
+                  {t("encryption.activate")}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  disabled={encBusy}
+                  onClick={() => void doCompleteMigration()}
+                  data-testid="encryption-complete"
+                >
+                  {t("encryption.complete")}
+                </Button>
+              )}
+            </SettingRow>
+          )}
+          {encState === "unlocked" && (
+            <SettingCardNote>
+              {contentEnc === "on" ? t("encryption.contentActiveNote") : t("encryption.contentWarning")}
+            </SettingCardNote>
           )}
         </SettingCard>
       )}

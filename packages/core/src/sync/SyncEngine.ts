@@ -84,8 +84,13 @@ export class SyncEngine {
               op.content = await this.vault.readBinaryFile(op.file_path);
               const currentSha = await sha256Bytes(op.content);
 
-              // Skip push if local content is identical to base_sha256 (e.g. from a recent pull)
-              if (state && state.base_sha256) {
+              // Skip push if local content is identical to base_sha256 (e.g. from a recent pull).
+              // A forced re-encrypt write (content-E2E migration/rotation) bypasses
+              // BOTH this shortcut and the optimistic-concurrency deferral below, so
+              // the file is re-uploaded as ciphertext even though its plaintext is
+              // unchanged and the remote may already hold ciphertext under a different
+              // etag. The push journal + guarded base update below run unchanged.
+              if (!op.force && state && state.base_sha256) {
                  if (currentSha === state.base_sha256 && state.remote_etag) {
                    // Already in sync with the server, skip push.
                    await this.queue.markSynced(op.id, op.file_path, op.file_path);

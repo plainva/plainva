@@ -7,6 +7,14 @@ export interface SyncOperation {
   retry_count: number;
   next_retry_at: number;
   queued_at: number;
+  /**
+   * Content-E2E migration/rotation sweep (settings-sync plan §3.5): when set the
+   * engine pushes this write UNCONDITIONALLY — it bypasses the "already in sync,
+   * skip" shortcut and the optimistic-concurrency deferral so the file is
+   * re-uploaded (as ciphertext through the wrapping target) even though its
+   * plaintext content is unchanged. The post-push base hashes stay plaintext.
+   */
+  force?: number;
 }
 
 export interface PushResult {

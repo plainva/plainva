@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath } from "@plainva/core";
@@ -9,6 +9,7 @@ import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, wrapEncryptedTargetIfActive } from "../services/settingsProfile";
+import { activateContentEncryption, completeContentEncryption } from "../services/encryptionActivation";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -90,6 +91,15 @@ interface VaultContextType extends VaultState {
   /** Forgets a vault in the recent list — files on disk are untouched. */
   removeRecentVault: (path: string) => Promise<void>;
   setAutoOpenLastVault: (value: boolean) => Promise<void>;
+  /**
+   * Content-E2E (settings-sync §3.5): activate end-to-end encryption for the
+   * active sync connection (writes the migrating manifest, force-enqueues a
+   * re-encrypt sweep, reopens the vault). Requires an unlocked master key and a
+   * sync connection. Returns how many files were queued for re-encryption.
+   */
+  activateEncryption: () => Promise<{ queued: number }>;
+  /** Completes the migration: flips the connection from mixed to strict. */
+  completeEncryptionMigration: () => Promise<void>;
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -237,6 +247,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     recentVaults: [],
     autoOpenLastVault: false,
   });
+
+  // Raw (unwrapped) sync target of the open vault, captured before the content-E2E
+  // decorator wraps it. Held on a ref (not state) so the encryption activation can
+  // write the remote manifest + drive the migration sweep synchronously, without
+  // waiting for a state update. null when no vault/sync connection is open.
+  const syncTargetRef = useRef<ISyncTarget | null>(null);
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
@@ -502,6 +518,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // states: Drive > OneDrive > Dropbox > S3 > WebDAV. Drive additionally drives the
         // worker's incremental cursor pull (getStartCursor + pull(cursor)); the others use
         // the full-listing model.
+        syncTargetRef.current = null; // cleared each load; set to the raw target below
         let target: ISyncTarget | null = null;
         if (driveReady && driveCreds && driveCreds.refreshToken) {
           syncProvider = "drive";
@@ -567,6 +584,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // plaintext). Inert for a normal vault — a target with no manifest is
             // returned unchanged; a fatal protocol violation is enforced per cycle
             // by the sideband runner's guardBeforeCycle, not here.
+            syncTargetRef.current = target; // raw target (for activation + manifest writes)
             target = await wrapEncryptedTargetIfActive(path, target);
             const settingsStore = await getSettingsStore();
             // Per-vault interval, falling back to the legacy global value, then the default.
@@ -882,6 +900,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       state.syncWorker.stop();
     }
     state.pimRuntime?.stop();
+    syncTargetRef.current = null;
     
     // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
     syncStatusStore.reset();
@@ -955,10 +974,42 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  // Content-E2E (settings-sync plan §3.5): turn on end-to-end encryption for the
+  // active sync connection. Writes the `migrating` (mixed) manifest to the remote,
+  // pins the local connection state as encrypted, force-enqueues every file for
+  // re-encryption, then reopens the vault so the reloaded worker wraps the target
+  // and pushes ciphertext. The local vault always stays plaintext.
+  const activateEncryption = async (): Promise<{ queued: number }> => {
+    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) {
+      throw new Error("encryption-no-connection");
+    }
+    const res = await activateContentEncryption({
+      vaultPath: state.vaultPath,
+      rawTarget: syncTargetRef.current,
+      dbAdapter: state.dbAdapter,
+    });
+    await openVault(state.vaultPath); // reload -> wrapped worker sweeps the queued files
+    return res;
+  };
+
+  // Flips the connection from mixed (migrating) to strict once the sweep has
+  // uploaded ciphertext for every file — after this a plaintext download is a
+  // fatal protocol violation (fail-closed).
+  const completeEncryptionMigration = async (): Promise<void> => {
+    if (!state.vaultPath || !syncTargetRef.current) {
+      throw new Error("encryption-no-connection");
+    }
+    await completeContentEncryption({
+      vaultPath: state.vaultPath,
+      rawTarget: syncTargetRef.current,
+    });
+    await openVault(state.vaultPath); // reload -> the wrap now enforces strict mode
+  };
+
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, activateEncryption, completeEncryptionMigration }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

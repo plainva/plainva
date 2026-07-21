@@ -179,7 +179,7 @@ function profileCryptoFor(mk: { keyId: string; masterKey: Uint8Array }): Profile
 }
 
 /** The active sync connection's fingerprint (provider + remote root), or null. */
-async function getActiveConnectionId(vaultPath: string): Promise<string | null> {
+export async function getActiveConnectionId(vaultPath: string): Promise<string | null> {
   const records = await loadCloudAccounts(vaultPath);
   const provider = records.find((r) => r.services.files)?.services.files?.provider;
   if (!provider) return null;

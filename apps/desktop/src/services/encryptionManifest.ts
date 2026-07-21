@@ -10,8 +10,13 @@
 import {
   ENCRYPTION_MANIFEST_PATH,
   connectionFingerprint,
+  signManifest,
+  parseManifest,
+  verifyManifest,
   type ConnectionE2EState,
   type ISyncTarget,
+  type ManifestBody,
+  type MasterKeyBundle,
 } from "@plainva/core";
 import { getSettingsStore } from "./settingsStore";
 
@@ -48,4 +53,74 @@ export async function readRemoteManifest(target: ISyncTarget): Promise<string | 
 /** The connection fingerprint for a provider + remote root (re-exported helper). */
 export function connectionIdFor(provider: string, remoteRoot: string): string {
   return connectionFingerprint(provider, remoteRoot);
+}
+
+/** Writes the HMAC-signed encryption.json to the remote (sideband control path). */
+async function putManifest(target: ISyncTarget, mk: MasterKeyBundle, body: ManifestBody): Promise<void> {
+  const manifest = signManifest(mk, body);
+  const content = new TextEncoder().encode(JSON.stringify(manifest));
+  await target.push({
+    id: 0,
+    file_path: ENCRYPTION_MANIFEST_PATH,
+    operation: "write",
+    content,
+    retry_count: 0,
+    next_retry_at: 0,
+    queued_at: 0,
+  });
+}
+
+/**
+ * Activates content-E2E for a connection: writes a `migrating` (mixed) manifest at
+ * generation 1. Mixed mode accepts both plaintext and ciphertext, so a half-swept
+ * connection never trips the fatal guard. The MK signs it with the manifest subkey.
+ */
+export async function writeMigratingManifest(
+  target: ISyncTarget,
+  mk: MasterKeyBundle,
+  connectionId: string,
+  deviceId: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  await putManifest(target, mk, {
+    formatVersion: 1,
+    minGuardVersion: GUARD_VERSION,
+    connectionId,
+    keyId: mk.keyId,
+    state: "migrating",
+    ownerDeviceId: deviceId,
+    ownerLeaseUntil: Date.now() + 60 * 60 * 1000,
+    generation: 1,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+/**
+ * Completes the migration: reads and verifies the current manifest (throws on a
+ * bad MAC), then rewrites it as `strict` — after which a plaintext download is a
+ * fatal protocol violation. Generation + createdAt are preserved from the
+ * existing manifest; the owner lease is cleared (steady state).
+ */
+export async function writeStrictManifest(
+  target: ISyncTarget,
+  mk: MasterKeyBundle,
+  connectionId: string
+): Promise<void> {
+  const text = await readRemoteManifest(target);
+  const existing = text ? parseManifest(JSON.parse(text)) : null;
+  const verified = existing ? verifyManifest(mk, existing) : null; // throws on tamper
+  const now = new Date().toISOString();
+  await putManifest(target, mk, {
+    formatVersion: 1,
+    minGuardVersion: GUARD_VERSION,
+    connectionId,
+    keyId: mk.keyId,
+    state: "strict",
+    ownerDeviceId: "",
+    ownerLeaseUntil: 0,
+    generation: verified?.generation ?? 1,
+    createdAt: verified?.createdAt ?? now,
+    updatedAt: now,
+  });
 }

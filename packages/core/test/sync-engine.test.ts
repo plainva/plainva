@@ -47,6 +47,11 @@ class MockVaultAdapter {
   }
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const h = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 describe("SyncEngine", () => {
   let db: MockDatabaseAdapter;
   let queue: SyncQueue;
@@ -130,6 +135,44 @@ describe("SyncEngine", () => {
     expect(params[1]).toMatch(/^[0-9a-f]{64}$/); // sha of the pushed bytes
     expect(params[2]).toBe("v1 content");        // base_text = the pushed content
     expect(params[3]).toBe("shaV1");             // guard = marker at push start
+  });
+
+  it("skips a non-forced write whose content already equals base_sha256 (already in sync)", async () => {
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    const content = new TextEncoder().encode("stable note");
+    vault.files.set("note.md", content);
+    const sha = await sha256Hex(content);
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([
+      { path: "note.md", local_sha256: sha, remote_etag: "etag1", base_sha256: sha, base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null }
+    ]);
+
+    await engine.processQueue();
+
+    expect(target.pushes.length).toBe(0); // in sync -> skipped
+  });
+
+  it("force-pushes an unchanged file for the content-E2E migration sweep", async () => {
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    const content = new TextEncoder().encode("stable note");
+    vault.files.set("note.md", content);
+    const sha = await sha256Hex(content);
+    // Same "already in sync" state as above, but the op carries force = 1.
+    db.mockedResults.push([
+      { id: 1, file_path: "note.md", operation: "write", force: 1, retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([
+      { path: "note.md", local_sha256: sha, remote_etag: "etag1", base_sha256: sha, base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null }
+    ]);
+
+    await engine.processQueue();
+
+    expect(target.pushes.length).toBe(1); // pushed despite being in sync (re-encrypt)
+    expect(target.pushes[0].file_path).toBe("note.md");
   });
 
   it("persists the push journal BEFORE the upload and clears it once the base advanced (2026-07-16)", async () => {
