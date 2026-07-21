@@ -60,7 +60,7 @@ import {
   type NavState,
   type TabScreenId,
 } from "./navigation";
-import { consumePendingShare } from "./services/shareTarget";
+import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
 import { isoOf } from "./lib/dates";
 
@@ -121,7 +121,7 @@ export default function App() {
   // here; the PendingIntentRunner below (rendered after the vault guard)
   // executes them with the real capture/openDaily closures.
   const [pendingShortcut, setPendingShortcut] = useState<string | null>(null);
-  const [pendingShare, setPendingShare] = useState<{ text: string; subject: string } | null>(null);
+  const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
   useEffect(() => {
     const onShortcut = (e: Event) => setPendingShortcut(String((e as CustomEvent).detail?.which ?? ""));
     const onPollShare = () => {
@@ -330,11 +330,32 @@ export default function App() {
   const runPendingIntents = (
     <PendingIntentRunner
       onCapture={capture}
-      onCaptureShared={(text, subject) => {
-        const title = subject.trim() || text.split("\n")[0].slice(0, 60).trim() || "Note";
-        void vaultOps
-          .createNoteFromTemplate(vault, getMobileSettings().inboxFolder, title, text)
-          .then((path) => setNav((s2) => pushCapturedNote(s2, slots, path)));
+      onCaptureShared={(share) => {
+        void (async () => {
+          const inbox = getMobileSettings().inboxFolder;
+          const sanitize = (n: string) => ((n || "shared").split(/[\\/]/).pop() || "shared").replace(/[<>:"|?*]/g, "_").slice(0, 120) || "shared";
+          const suffixed = (n: string, k: number) => { const d = n.lastIndexOf("."); return d > 0 ? `${n.slice(0, d)} ${k}${n.slice(d)}` : `${n} ${k}`; };
+          const embeds: string[] = [];
+          for (const f of share.files) {
+            try {
+              const binStr = atob(f.data);
+              const bytes = new Uint8Array(binStr.length);
+              for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+              const rel = sanitize(f.name);
+              let path = `Attachments/${rel}`;
+              for (let k = 2; await vault.files.exists(path); k++) path = `Attachments/${suffixed(rel, k)}`;
+              await vault.files.writeBinaryFile(path, bytes);
+              // Images embed inline; other files are linked.
+              embeds.push((f.mime || "").startsWith("image/") ? `![[${path}]]` : `[[${path}]]`);
+            } catch { /* skip a bad payload, keep the rest */ }
+          }
+          const firstLine = share.text.split("\n")[0]?.slice(0, 60).trim() ?? "";
+          const firstFileTitle = share.files[0] ? sanitize(share.files[0].name).replace(/\.[^.]+$/, "") : "";
+          const title = share.subject.trim() || firstLine || firstFileTitle || "Note";
+          const body = [share.text.trim(), ...embeds].filter(Boolean).join("\n\n");
+          const notePath = await vaultOps.createNoteFromTemplate(vault, inbox, title, body);
+          setNav((s2) => pushCapturedNote(s2, slots, notePath));
+        })();
       }}
       onOpenToday={() => openDaily(isoOf(new Date()))}
       pendingShare={pendingShare}
@@ -839,11 +860,11 @@ function PendingIntentRunner({
   onOpenToday,
 }: {
   pendingShortcut: string | null;
-  pendingShare: { text: string; subject: string } | null;
+  pendingShare: PendingShare | null;
   setPendingShortcut: (v: string | null) => void;
-  setPendingShare: (v: { text: string; subject: string } | null) => void;
+  setPendingShare: (v: PendingShare | null) => void;
   onCapture: () => void;
-  onCaptureShared: (text: string, subject: string) => void;
+  onCaptureShared: (share: PendingShare) => void;
   onOpenToday: () => void;
 }) {
   useEffect(() => {
@@ -856,7 +877,7 @@ function PendingIntentRunner({
   useEffect(() => {
     if (!pendingShare) return;
     setPendingShare(null);
-    onCaptureShared(pendingShare.text, pendingShare.subject);
+    onCaptureShared(pendingShare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShare]);
   return null;

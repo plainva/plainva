@@ -30,12 +30,26 @@
                 <data android:scheme="com.plainva.app" />
             </intent-filter>
 
-            <!-- Share target (package J): plain text from any app lands as a
-                 captured note (ShareTargetPlugin buffers, JS polls on resume). -->
+            <!-- Share target (package J): plain text becomes a captured note;
+                 images and arbitrary files (single or multiple) are saved as
+                 vault attachments and embedded/linked in a new note.
+                 ShareTargetPlugin buffers, the JS shell polls on resume. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
             </intent-filter>
 
             <!-- Static launcher shortcuts (package J): new note / today. -->
