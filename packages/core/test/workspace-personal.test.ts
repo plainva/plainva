@@ -220,6 +220,26 @@ describe("personal encrypted workspace P3", () => {
     expect((await state.listQueue()).length).toBe(0);
   });
 
+  it("reports queue-building progress over the vault inventory so setup can show a bar (2026-07-22)", async () => {
+    const { first } = await setupRuntime();
+    const vault = new MemoryVault();
+    for (let i = 0; i < 12; i++) await vault.writeTextFile(`Notes/n${i}.md`, `# note ${i}\n`);
+    const state = new MemoryWorkspaceStateStore();
+    const store = new FakeWorkspaceObjectStore();
+    const calls: Array<[number, number]> = [];
+    const migration = await initializePersonalWorkspaceMigration({
+      store, state, vault, runtime: first,
+      recoveryConfirmedAt: "2026-07-22T12:01:00.000Z",
+      onProgress: (done, total) => calls.push([done, total]),
+    });
+    expect(calls.length).toBeGreaterThan(1);
+    // Every report carries the counted inventory total.
+    expect(calls.every(([, total]) => total === migration.total)).toBe(true);
+    // `done` is non-decreasing and the final report reaches the total.
+    for (let i = 1; i < calls.length; i++) expect(calls[i][0]).toBeGreaterThanOrEqual(calls[i - 1][0]);
+    expect(calls.at(-1)?.[0]).toBe(migration.total);
+  });
+
   it("resumes with the same staged revision after a kill between payload and operation upload", async () => {
     const { first } = await setupRuntime();
     const vault = new MemoryVault();

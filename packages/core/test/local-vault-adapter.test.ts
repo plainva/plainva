@@ -64,6 +64,19 @@ describe("LocalVaultAdapter", () => {
     expect(await adapter.exists("folder")).toBe(false);
   });
 
+  it("treats deleting an already-gone path as success (idempotent)", async () => {
+    // A file/folder removed externally (e.g. the sync deleted it remotely) must
+    // not throw: every remote sync target treats not-found as success, and the
+    // local delete now matches. Otherwise a phantom tree row could never be
+    // cleared and every retry re-threw.
+    await expect(adapter.deleteItem("never-existed.md")).resolves.toBeUndefined();
+    await expect(adapter.deleteItem("gone/folder", true)).resolves.toBeUndefined();
+    // Deleting the same item a second time is also a no-op.
+    await adapter.writeTextFile("once.md", "data");
+    await adapter.deleteItem("once.md");
+    await expect(adapter.deleteItem("once.md")).resolves.toBeUndefined();
+  });
+
   it("can rename files", async () => {
     await adapter.writeTextFile("old.txt", "data");
     await adapter.renameItem("old.txt", "new.txt");

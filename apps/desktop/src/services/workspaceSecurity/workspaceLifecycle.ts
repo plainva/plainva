@@ -100,6 +100,7 @@ export async function activatePreparedPersonalWorkspace(input: {
   rawTarget: ISyncTarget;
   rawVault: IVaultAdapter;
   state: WorkspaceStateStore;
+  onProgress?: (done: number, total: number) => void;
 }): Promise<{ runtime: PersonalWorkspaceRuntime; queued: number; total: number }> {
   const draft = drafts.get(input.draftId);
   if (!draft || draft.vaultPath !== input.vaultPath || draft.expiresAt <= Date.now()) {
@@ -120,6 +121,7 @@ export async function activatePreparedPersonalWorkspace(input: {
       vault: input.rawVault,
       runtime: draft.runtime,
       recoveryConfirmedAt: draft.recoveryConfirmedAt,
+      onProgress: input.onProgress,
     });
     const status: WorkspaceSecurityPublicStatus = {
       version: 1,

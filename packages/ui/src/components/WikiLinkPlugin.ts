@@ -303,6 +303,17 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         textDecoration: "underline",
         cursor: "pointer"
       },
+      // lezer-markdown tags the inner `[target]` of `[[wiki]]` (and `[text](url)`)
+      // as a Link, so the highlighter paints its own SOLID underline on the token
+      // nested inside this mark. It stacked with this mark's underline — invisible
+      // on a resolved link (two solid lines merge) but on an UNRESOLVED link it
+      // showed a solid line beneath the dashed one. This mark owns the link
+      // underline; drop the nested token's so exactly one line renders. Scoped to
+      // `.cm-wiki-link`, so the compose editor (no wiki plugin) keeps its links
+      // underlined.
+      ".cm-wiki-link *": {
+        textDecoration: "none",
+      },
       // Unresolved (note doesn't exist yet): muted + dashed underline, still
       // clickable — clicking creates the note (Obsidian parity). Kept visually
       // identical to the reading view's `underline dashed` (maintainer: the

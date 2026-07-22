@@ -131,6 +131,10 @@ export class LocalVaultAdapter implements IVaultAdapter {
         await fs.unlink(absolutePath);
       }
     } catch (err) {
+      // Idempotent: a target that is already gone is a successful delete
+      // ("not found = success"), matching the remote sync targets. This keeps
+      // deletes of externally/remotely removed items from surfacing an error.
+      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return;
       this.handleError(err, vaultPath);
     }
   }

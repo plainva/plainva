@@ -72,6 +72,9 @@ export async function initializePersonalWorkspaceMigration(input: {
   runtime: PersonalWorkspaceRuntime;
   recoveryConfirmedAt: string;
   signal?: AbortSignal;
+  /** Reports queue-building progress over the vault inventory so the first-run
+   * setup UI can show a determinate bar while every file is hashed. */
+  onProgress?: (done: number, total: number) => void;
 }): Promise<PersonalWorkspaceMigrationResult> {
   let meta = await input.state.loadMeta();
   if (!meta) {
@@ -91,9 +94,14 @@ export async function initializePersonalWorkspaceMigration(input: {
     });
   let queued = 0;
   let completed = 0;
+  let processed = 0;
+  const progressStep = Math.max(1, Math.ceil(inventory.length / 100));
+  input.onProgress?.(0, inventory.length);
   const localPaths = new Set(inventory.map((entry) => entry.path));
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
+    processed += 1;
+    if (processed === inventory.length || processed % progressStep === 0) input.onProgress?.(processed, inventory.length);
     const existing = await input.state.getObjectByPath(entry.path);
     if (await input.state.hasPendingForPath(entry.path)) { queued += 1; continue; }
     if (existing && !existing.deleted) {

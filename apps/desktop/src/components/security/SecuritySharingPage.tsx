@@ -483,6 +483,7 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
   const [challengeAnswers, setChallengeAnswers] = useState<[string, string]>(["", ""]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     void credentialManager.checkKeychainStatus().then((mode) => setFallbackRequired(mode === "fallback"));
@@ -527,14 +528,15 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
 
   const activateNow = async () => {
     if (!prepared) return;
-    setBusy(true); setError(null); setStep(3);
+    setBusy(true); setError(null); setProgress(null); setStep(3);
     try {
-      const result = await activate(prepared.draftId);
+      const result = await activate(prepared.draftId, (done, total) => setProgress({ done, total }));
       toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
       onClose();
     } catch (cause) {
       console.error("[WorkspaceSetupWizard] activation failed", cause);
       setError(t("workspaceSecurity.activationFailed"));
+      setProgress(null);
       setStep(2);
     } finally { setBusy(false); }
   };
@@ -649,7 +651,27 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
             <details className="pv-security-tech"><summary>{t("workspaceSecurity.details")}</summary><SettingCardNote>{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</SettingCardNote></details>
           </>
         )}
-        {step === 3 && <Banner kind="info" rounded>{t("workspaceSecurity.activating")}</Banner>}
+        {step === 3 && (
+          <>
+            <Banner kind="info" rounded>{t("workspaceSecurity.activating")}</Banner>
+            <div
+              style={{ height: 6, background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", margin: "0.6rem 0", overflow: "hidden" }}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={progress?.total}
+              aria-valuenow={progress?.done}
+            >
+              {progress && progress.total > 0 ? (
+                <div style={{ height: "100%", width: `${(progress.done / progress.total) * 100}%`, background: "var(--accent-color)", borderRadius: "var(--radius-xs)", transition: "width var(--dur-1) var(--ease-1)" }} />
+              ) : (
+                <div className="indeterminate-progress" style={{ height: "100%", background: "var(--accent-color)", borderRadius: "var(--radius-xs)" }} />
+              )}
+            </div>
+            {progress && progress.total > 0 && (
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("workspaceSecurity.activatingProgress", { done: progress.done, total: progress.total })}</div>
+            )}
+          </>
+        )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
         <div className="pv-security-actions">
           <Button variant="ghost" disabled={busy} onClick={onClose}>{t("common.cancel")}</Button>

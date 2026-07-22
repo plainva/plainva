@@ -113,7 +113,12 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {
     const absPath = await this.getAbsolutePath(path);
-    if (!(await exists(absPath))) throw new VaultFileNotFoundError(path);
+    // Idempotent: a target that is already gone (e.g. a folder the sync removed
+    // remotely, or an external deletion) is a successful delete — same contract
+    // as every remote sync target ("not found = success"). Throwing here left a
+    // phantom tree row that could never be cleared. The caller still runs its
+    // index/tree cleanup on this success path.
+    if (!(await exists(absPath))) return;
 
     // Internal housekeeping (backup rotation, pruning) must not flood the OS
     // trash — hard-delete everything under .plainva; user content keeps

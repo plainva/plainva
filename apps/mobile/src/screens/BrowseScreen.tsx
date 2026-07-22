@@ -14,7 +14,7 @@ import {
   FileText,
   Folder,
   FolderInput,
-  Ellipsis,
+  MoreVertical,
   Pencil,
   Trash2,
   CheckSquare,
@@ -344,7 +344,7 @@ export function BrowseScreen({
           <h1>{folder.split("/").pop()}</h1>
           <span className="m-headactions">
             <button aria-label={t("settings.title")} className="m-iconbtn" onClick={onOpenSettings}>
-              <Ellipsis size={22} />
+              <MoreVertical size={22} />
             </button>
           </span>
         </header>

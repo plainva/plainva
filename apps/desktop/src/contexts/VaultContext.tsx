@@ -106,7 +106,7 @@ interface VaultContextType extends VaultState {
   setAutoOpenLastVault: (value: boolean) => Promise<void>;
   /** Prepare a personal encrypted workspace and its recovery package. */
   preparePersonalWorkspace: (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => Promise<PreparedPersonalWorkspace>;
-  activatePersonalWorkspace: (draftId: string) => Promise<{ queued: number; total: number }>;
+  activatePersonalWorkspace: (draftId: string, onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
   lockPersonalWorkspace: () => Promise<void>;
   removeRemotePlaintext: () => Promise<number>;
@@ -1165,7 +1165,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return preparePersonalWorkspace({ vaultPath: state.vaultPath, ...input });
   };
 
-  const activateWorkspace = async (draftId: string): Promise<{ queued: number; total: number }> => {
+  const activateWorkspace = async (draftId: string, onProgress?: (done: number, total: number) => void): Promise<{ queued: number; total: number }> => {
     if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
       throw new Error("workspace-no-connection");
     }
@@ -1179,6 +1179,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       rawTarget: syncTargetRef.current,
       rawVault: state.backupAdapter,
       state: workspaceState,
+      onProgress,
     });
     // Keep the legacy queue intact until encrypted initialization succeeds. It
     // is ignored from now on, but clearing it earlier could lose pending work if

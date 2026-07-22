@@ -129,10 +129,10 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
 
   const runtime = status?.phase === "locked" ? null : vault.workspaceRuntime;
   return <div className="m-page">
-    <header className="m-header"><button aria-label="Back" className="m-iconbtn" onClick={onBack}><ChevronLeft size={20} /></button><h1>{t("settings.securitySharing")}</h1></header>
+    <header className="m-header"><button aria-label="Back" className="m-iconbtn" onClick={onBack}><ChevronLeft size={20} /></button><h1>{t("settings.sectionSecurity")}</h1></header>
     <p className="m-sectionlabel">{t("workspaceSecurity.currentStatus")}</p>
     <div className="m-row m-row--static"><ShieldCheck className="m-accent" size={18} /><span>{status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}</span></div>
-    {runtime && <div className="m-security-tabs" role="tablist" aria-label={t("settings.securitySharing")}>{(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => <button role="tab" aria-selected={area === value} key={value} onClick={() => setArea(value)}>{t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) })}</button>)}</div>}
+    {runtime && <div className="m-security-tabs" role="tablist" aria-label={t("settings.sectionSecurity")}>{(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => <button role="tab" aria-selected={area === value} key={value} onClick={() => setArea(value)}>{t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) })}</button>)}</div>}
     {status?.phase === "locked" && <button className="m-row" disabled={busy} onClick={() => void unlock()}><ShieldCheck className="m-accent" size={18} /><span>{t("workspaceSecurity.unlock")}</span></button>}
     {runtime ? <>
       {(area === "overview" || area === "devices") && <>
