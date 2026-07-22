@@ -478,6 +478,7 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
   const [fallbackPassphraseConfirm, setFallbackPassphraseConfirm] = useState("");
   const [prepared, setPrepared] = useState<PreparedPersonalWorkspace | null>(null);
   const [saved, setSaved] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [challenge, setChallenge] = useState<[number, number]>([0, 1]);
   const [challengeAnswers, setChallengeAnswers] = useState<[string, string]>(["", ""]);
   const [busy, setBusy] = useState(false);
@@ -502,6 +503,7 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
       if (second === first) second = (second + 1) % groups.length;
       setChallenge([first, second]);
       setChallengeAnswers(["", ""]);
+      setCodeCopied(false);
       setPrepared(result); setStep(2);
     } catch (cause) {
       console.error("[WorkspaceSetupWizard] preparation failed", cause);
@@ -537,10 +539,28 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
     } finally { setBusy(false); }
   };
 
+  const copyRecoveryCode = async () => {
+    if (!prepared) return;
+    try {
+      await navigator.clipboard.writeText(prepared.recoveryCode);
+      setCodeCopied(true);
+      toast.info(t("workspaceSecurity.codeCopied"));
+    } catch (cause) {
+      console.error("[WorkspaceSetupWizard] recovery code copy failed", cause);
+      setError(t("workspaceSecurity.recoveryCopyFailed"));
+    }
+  };
+
   const recoveryGroups = prepared?.recoveryCode.split("-").slice(1) ?? [];
+  const recoveryPrefix = prepared?.recoveryCode.split("-")[0] ?? "PVR1";
   const challengeConfirmed = recoveryGroups.length > 1 && challenge.every((groupIndex, answerIndex) =>
     challengeAnswers[answerIndex].trim().toUpperCase() === recoveryGroups[groupIndex]?.toUpperCase()
   );
+  const recoveryNext = !saved
+    ? t("workspaceSecurity.recoveryNextSave")
+    : !challengeConfirmed
+      ? t("workspaceSecurity.recoveryNextCheck")
+      : t("workspaceSecurity.recoveryReady");
 
   return (
     <Modal title={t("workspaceSecurity.setupTitle")} onClose={() => { if (!busy) onClose(); }} size="md">
@@ -566,25 +586,67 @@ const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaultPath, 
         )}
         {step === 2 && prepared && (
           <>
-            <Banner kind="warning" rounded>{t("workspaceSecurity.recoveryWarning")}</Banner>
-            <SettingRow label={t("workspaceSecurity.recoveryFile")} desc={t("workspaceSecurity.recoveryFileDesc")}>
-              <Button variant="secondary" onClick={() => void saveRecovery()}>{saved ? t("workspaceSecurity.saved") : t("workspaceSecurity.saveRecovery")}</Button>
-            </SettingRow>
-            <label className="pv-security-field"><span>{t("workspaceSecurity.recoveryCode")}</span><code className="pv-security-code">{prepared.recoveryCode}</code></label>
-            <Button variant="ghost" size="sm" onClick={() => void navigator.clipboard.writeText(prepared.recoveryCode).then(() => toast.info(t("workspaceSecurity.codeCopied")))}>{t("workspaceSecurity.copyCode")}</Button>
-            <span className="pv-security-confirm">{t("settings.securityRecoveryChallenge")}</span>
-            <div className="pv-security-steps">
-              {challenge.map((groupIndex, answerIndex) => (
-                <label className="pv-security-field" key={groupIndex}>
-                  <span>{t("workspaceSecurity.recoveryCode")} · {groupIndex + 1}</span>
-                  <TextInput
-                    value={challengeAnswers[answerIndex]}
-                    onChange={(event) => setChallengeAnswers((current) => answerIndex === 0 ? [event.target.value, current[1]] : [current[0], event.target.value])}
-                  />
-                </label>
-              ))}
-            </div>
-            <SettingCardNote>{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</SettingCardNote>
+            <Banner kind="warning" rounded><strong>{t("workspaceSecurity.recoverySetupTitle")}</strong><br />{t("workspaceSecurity.recoverySetupIntro")}</Banner>
+            <section className="pv-security-recovery-task" data-complete={saved}>
+              <span className="pv-security-task-number" aria-hidden="true">1</span>
+              <div className="pv-security-task-body">
+                <div className="pv-security-task-head">
+                  <div><strong>{t("workspaceSecurity.recoveryTaskFileTitle")}</strong><span>{t("workspaceSecurity.recoveryTaskFileDesc")}</span></div>
+                  <Button variant="secondary" onClick={() => void saveRecovery()}>{saved ? t("workspaceSecurity.saved") : t("workspaceSecurity.saveRecovery")}</Button>
+                </div>
+                {saved && <span className="pv-security-task-status" data-state="correct">{t("workspaceSecurity.recoveryFileSavedStatus")}</span>}
+              </div>
+            </section>
+            <section className="pv-security-recovery-task">
+              <span className="pv-security-task-number" aria-hidden="true">2</span>
+              <div className="pv-security-task-body">
+                <div className="pv-security-task-head">
+                  <div><strong>{t("workspaceSecurity.recoveryTaskCodeTitle")}</strong><span>{t("workspaceSecurity.recoveryTaskCodeDesc")}</span></div>
+                  <Button variant="ghost" size="sm" onClick={() => void copyRecoveryCode()}>{codeCopied ? t("workspaceSecurity.copied") : t("workspaceSecurity.copyCode")}</Button>
+                </div>
+                <div className="pv-security-code-groups" role="list" aria-label={t("workspaceSecurity.recoveryCodeGroupsLabel")}>
+                  <code className="pv-security-code-group pv-security-code-prefix" role="listitem"><small>{t("workspaceSecurity.recoveryPrefix")}</small><span>{recoveryPrefix}</span></code>
+                  {recoveryGroups.map((group, groupIndex) => {
+                    const requested = challenge.includes(groupIndex);
+                    return <code className="pv-security-code-group" data-requested={requested} role="listitem" key={`${groupIndex}-${group}`}><small>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}{requested ? ` · ${t("workspaceSecurity.recoveryRequested")}` : ""}</small><span>{group}</span></code>;
+                  })}
+                </div>
+              </div>
+            </section>
+            <section className="pv-security-recovery-task" data-complete={challengeConfirmed}>
+              <span className="pv-security-task-number" aria-hidden="true">3</span>
+              <div className="pv-security-task-body">
+                <div><strong>{t("workspaceSecurity.recoveryTaskCheckTitle")}</strong><span>{t("workspaceSecurity.recoveryTaskCheckDesc", { first: challenge[0] + 1, second: challenge[1] + 1 })}</span></div>
+                <div className="pv-security-challenge-grid">
+                  {challenge.map((groupIndex, answerIndex) => {
+                    const answer = challengeAnswers[answerIndex];
+                    const matches = answer.trim().toUpperCase() === recoveryGroups[groupIndex]?.toUpperCase();
+                    const state = answer ? (matches ? "correct" : "mismatch") : "pending";
+                    const statusId = `recovery-group-${groupIndex}-status`;
+                    return (
+                      <label className="pv-security-field" key={groupIndex}>
+                        <span>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}</span>
+                        <TextInput
+                          autoComplete="off"
+                          aria-describedby={statusId}
+                          aria-invalid={state === "mismatch"}
+                          maxLength={recoveryGroups[groupIndex]?.length}
+                          spellCheck={false}
+                          value={answer}
+                          onChange={(event) => {
+                            const value = event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+                            setChallengeAnswers((current) => answerIndex === 0 ? [value, current[1]] : [current[0], value]);
+                          }}
+                        />
+                        <span className="pv-security-field-status" data-state={state} id={statusId} aria-live="polite">{state === "correct" ? t("workspaceSecurity.recoveryCorrect") : state === "mismatch" ? t("workspaceSecurity.recoveryMismatch") : t("workspaceSecurity.recoveryEnterHighlighted")}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+            <div className="pv-security-next" data-ready={saved && challengeConfirmed} role="status">{recoveryNext}</div>
+            <details className="pv-security-tech"><summary>{t("workspaceSecurity.details")}</summary><SettingCardNote>{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</SettingCardNote></details>
           </>
         )}
         {step === 3 && <Banner kind="info" rounded>{t("workspaceSecurity.activating")}</Banner>}

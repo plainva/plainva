@@ -21,6 +21,16 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(desktop).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full")');
   });
 
+  it("makes recovery setup a self-explanatory numbered verification flow", () => {
+    for (const className of ["pv-security-recovery-task", "pv-security-task-number", "pv-security-code-groups", "pv-security-code-group", "pv-security-challenge-grid", "pv-security-next"]) expect(desktop).toContain(className);
+    expect(desktop).toContain("data-requested={requested}");
+    expect(desktop).toContain('t("workspaceSecurity.recoveryTaskCheckDesc", { first: challenge[0] + 1, second: challenge[1] + 1 })');
+    expect(desktop).toContain('event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase()');
+    expect(desktop).toContain("disabled={busy || !saved || !challengeConfirmed}");
+    expect(desktop).toContain('t("workspaceSecurity.recoveryNextSave")');
+    expect(desktop).toContain('t("workspaceSecurity.recoveryReady")');
+  });
+
   it("provides mobile master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");

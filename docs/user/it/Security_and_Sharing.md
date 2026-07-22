@@ -11,7 +11,7 @@ Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia c
 ## Configurazione
 
 1. Scegli i nomi di proprietario e dispositivo. Le chiavi restano nel portachiavi di sistema o, se non disponibile, sotto una passphrase locale.
-2. Salva il file `.pvrecovery`, conserva il codice separatamente e inserisci i due gruppi richiesti. Servono entrambe le parti e nessuna contiene credenziali cloud.
+2. Salva il file `.pvrecovery` e conserva separatamente il codice visualizzato. Ogni blocco ha un numero di gruppo visibile; inserisci i valori dei due gruppi evidenziati per confermare che il backup sia leggibile. Servono entrambe le parti e nessuna contiene credenziali cloud.
 3. Attiva il workspace. Plainva pubblica la policy firmata e cifra tutti i file in `.pvws/`. Il vault locale resta leggibile e la migrazione riprende dopo interruzioni.
 
 Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. Puoi rimuoverlo esplicitamente solo con stato **Protetto**; i file locali non vengono mai eliminati.

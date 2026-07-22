@@ -677,3 +677,12 @@
   border-color: var(--lcars-4);
   border-left: 6px solid var(--lcars-2);
 }
+
+[data-theme-name="lcars"] .pv-security-recovery-task,
+[data-theme-name="lcars"] .pv-security-code-group,
+[data-theme-name="lcars"] .pv-security-next {
+  border-width: 2px;
+  background: #000000;
+}
+[data-theme-name="lcars"] .pv-security-recovery-task { border-left: 6px solid var(--lcars-2); }
+[data-theme-name="lcars"] .pv-security-code-group[data-requested="true"] { background: var(--accent-container); }

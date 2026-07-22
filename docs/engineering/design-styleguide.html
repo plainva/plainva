@@ -157,6 +157,19 @@
   .pv-security-choice span { color:var(--text-muted); font-size:var(--text-sm); }
   .pv-security-choice.is-active { border-color:var(--accent-color); background:var(--accent-container); color:var(--on-accent-container); }
   .pv-security-choice.is-active span { color:inherit; opacity:.8; }
+  .pv-security-recovery-demo { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); }
+  .pv-security-recovery-task { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
+  .pv-security-task-number { display:grid; place-items:center; width:var(--control-md); height:var(--control-md); border-radius:var(--radius-pill); background:var(--accent-container); color:var(--on-accent-container); font-weight:700; }
+  .pv-security-task-body { display:grid; gap:var(--space-2); min-width:0; }
+  .pv-security-task-head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); }
+  .pv-security-task-head p { margin:var(--space-1) 0 0; color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-code-groups { display:grid; grid-template-columns:repeat(auto-fit,minmax(8ch,1fr)); gap:var(--space-2); }
+  .pv-security-code-group { display:grid; gap:var(--space-1); padding:var(--space-2); border:1px solid var(--border-color-light); border-radius:var(--radius-md); background:var(--surface-container-low); font-family:var(--font-mono); }
+  .pv-security-code-group small { color:var(--text-muted); font-family:var(--font-ui); }
+  .pv-security-code-group[data-requested="true"] { border-color:var(--accent-color); background:var(--accent-container); color:var(--on-accent-container); }
+  .pv-security-code-group[data-requested="true"] small { color:inherit; }
+  .pv-security-challenge-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-2); }
+  .pv-security-next { padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--surface-container-low); color:var(--text-main); }
   .splitbtn { display: inline-flex; }
   .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
@@ -741,11 +754,18 @@
       <div class="pv-security-steps"><span>Details</span><span data-active="true">Content</span><span>Permissions</span><span>Review</span></div>
       <div class="pv-security-choice-grid"><button class="pv-security-choice is-active"><strong>Folder</strong><span>A folder and optional descendants</span></button><button class="pv-security-choice"><strong>Selection</strong><span>Explicit notes and attachments</span></button><button class="pv-security-choice"><strong>Dynamic</strong><span>Materialized rule result</span></button></div>
     </div>
+    <div id="security-recovery" class="pv-security-recovery-demo">
+      <strong>Recovery setup · explicit three-task flow</strong>
+      <article class="pv-security-recovery-task"><span class="pv-security-task-number">1</span><div class="pv-security-task-body"><div class="pv-security-task-head"><div><strong>Save the recovery file</strong><p>Keep it somewhere you can reach if this device is lost.</p></div><button class="pvbtn secondary">Saved</button></div></div></article>
+      <article class="pv-security-recovery-task"><span class="pv-security-task-number">2</span><div class="pv-security-task-body"><div class="pv-security-task-head"><div><strong>Store the recovery code separately</strong><p>Use a password manager, printed copy, or another safe location.</p></div><button class="pvbtn ghost">Copy code</button></div><div class="pv-security-code-groups"><code class="pv-security-code-group"><small>Group 1</small>AFHE</code><code class="pv-security-code-group" data-requested="true"><small>Group 2 · Requested</small>OVJK</code><code class="pv-security-code-group"><small>Group 3</small>HGR2</code><code class="pv-security-code-group" data-requested="true"><small>Group 4 · Requested</small>YHMG</code></div></div></article>
+      <article class="pv-security-recovery-task"><span class="pv-security-task-number">3</span><div class="pv-security-task-body"><div><strong>Check that you can read the code</strong><p>Enter groups 2 and 4 from the highlighted list above.</p></div><div class="pv-security-challenge-grid"><input class="field" aria-label="Group 2" value="OVJK" readonly><input class="field" aria-label="Group 4" placeholder="Group 4"></div></div></article>
+      <div class="pv-security-next"><strong>Next:</strong> Enter the remaining highlighted code group.</div>
+    </div>
     <div class="card spec">
       <div class="schema"><span class="blk">Identität</span><span class="blk hi">Recovery-Datei + separater Code</span><span class="blk">Bestätigung</span><span class="gap">→</span><span class="blk hi">Verschlüsselte Migration</span></div>
       <ul class="tight">
         <li>Quiet Cards für Status, Recovery, Geräte, Mitglieder/Gruppen/Slices und Integrität; technische Fakten als zweispaltige Definitionen.</li>
-        <li>Aktivierung erst nach gespeichertem OS-Dateidialog und separater Checkbox. Auch Recovery-Erneuerung speichert/teilt zuerst, verankert danach und zeigt dann den neuen Code.</li>
+        <li>Recovery-Setup als drei nummerierte Aufgaben: Datei speichern, Code getrennt sichern, zwei sichtbar markierte und nummerierte Code-Gruppen eingeben. Der nächste fehlende Schritt steht immer direkt vor der Aktivierungsaktion.</li>
         <li>Pairing zeigt vor der Freigabe den Geräte-Fingerprint. Rollen + Geltungsbereich sind explizite Feld-Controls; Slices erhalten eine lokale Pfad-Vorschau.</li>
         <li>Reader/Commenter: Banner + hart schreibgeschützter Editor; Kommentare als kompakter Seiten-Stack, verschlüsselte Historie im bestehenden Versionsmodal.</li>
         <li>Quarantäne: Retry/Export/Repariert/Ignorieren als sekundäre Aktionen. Zugriffsverlust durch Verschieben verlangt einen App-Bestätigungsdialog.</li>

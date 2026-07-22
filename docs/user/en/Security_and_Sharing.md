@@ -13,7 +13,7 @@ Plainva can keep a vault as ordinary readable files on your device while storing
 ## First setup
 
 1. Choose an owner and device name. Device keys stay in the operating-system keychain; where that is unavailable, Plainva asks for a local passphrase.
-2. Save the `.pvrecovery` file, store the displayed recovery code separately, and enter the two requested code groups. You need both parts for recovery; neither contains cloud credentials.
+2. Save the `.pvrecovery` file and store the displayed recovery code separately. Every code block has a visible group number; enter the values of the two highlighted groups to prove the backup is readable. You need both parts for recovery; neither contains cloud credentials.
 3. Activate the workspace. Plainva publishes its signed owner policy and encrypts every local file into `.pvws/`. The local vault remains readable and migration resumes after interruptions.
 
 Existing plaintext at the provider remains beside `.pvws/` during migration. Only after the status is **Protected** can you explicitly remove it. This action never removes local files.

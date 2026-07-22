@@ -1554,6 +1554,72 @@ button.pv-acct:hover { background: var(--state-hover); }
   overflow-wrap: anywhere;
   user-select: all;
 }
+.pv-security-recovery-task {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-low);
+}
+.pv-security-task-number {
+  display: grid;
+  place-items: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-weight: 700;
+}
+.pv-security-recovery-task[data-complete="true"] .pv-security-task-number { background: var(--success-bg); color: var(--success-text); }
+.pv-security-task-body { display: grid; min-width: 0; gap: var(--space-2); }
+.pv-security-task-body > div:not(.pv-security-task-head, .pv-security-code-groups, .pv-security-challenge-grid) { display: grid; gap: var(--space-1); }
+.pv-security-task-body > div > span { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-security-task-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.pv-security-task-head > div { display: grid; gap: var(--space-1); }
+.pv-security-task-head > div > span { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-security-task-status, .pv-security-field-status { font-size: var(--text-xs); }
+.pv-security-task-status[data-state="correct"], .pv-security-field-status[data-state="correct"] { color: var(--success-text); }
+.pv-security-field-status[data-state="mismatch"] { color: var(--error-text); }
+.pv-security-field-status[data-state="pending"] { color: var(--text-faint); }
+.pv-security-code-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8ch, 1fr));
+  gap: var(--space-2);
+}
+.pv-security-code-group {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  user-select: all;
+}
+.pv-security-code-group small { overflow: hidden; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pv-security-code-group > span { font-size: var(--text-ui); font-weight: 700; }
+.pv-security-code-group[data-requested="true"] { border-color: var(--accent-color); background: var(--accent-container); color: var(--on-accent-container); }
+.pv-security-code-group[data-requested="true"] small { color: inherit; }
+.pv-security-code-prefix { border-style: dashed; }
+.pv-security-challenge-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.pv-security-next {
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.pv-security-next[data-ready="true"] { border-color: var(--success-border); background: var(--success-bg); color: var(--success-text); }
+.pv-security-tech { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-security-tech summary { cursor: pointer; }
+.pv-security-tech .pv-setrow--note { margin-top: var(--space-2); }
 .pv-security-confirm { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--text-main); font-size: var(--text-ui); }
 .pv-security-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 .pv-security-vault { color: var(--text-faint); font-size: var(--text-xs); overflow-wrap: anywhere; }
@@ -1601,4 +1667,7 @@ button.pv-acct:hover { background: var(--state-hover); }
 @media (max-width: 760px) {
   .pv-security-hero { align-items: flex-start; flex-wrap: wrap; }
   .pv-security-summary-grid, .pv-security-choice-grid { grid-template-columns: 1fr; }
+  .pv-security-task-head { align-items: stretch; flex-direction: column; }
+  .pv-security-task-head .pv-btn { align-self: flex-start; }
+  .pv-security-challenge-grid { grid-template-columns: 1fr; }
 }

@@ -11,7 +11,7 @@ Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze 
 ## Konfiguracja
 
 1. Wybierz nazwy właściciela i urządzenia. Klucze pozostają w systemowym magazynie albo, gdy go brak, pod lokalnym hasłem.
-2. Zapisz plik `.pvrecovery`, przechowuj kod osobno i wpisz dwie wskazane grupy. Do odzyskania potrzebne są oba elementy; żaden nie zawiera danych chmury.
+2. Zapisz plik `.pvrecovery` i przechowuj wyświetlony kod osobno. Każdy blok ma widoczny numer grupy; wpisz wartości dwóch wyróżnionych grup, aby potwierdzić czytelność kopii. Do odzyskania potrzebne są oba elementy; żaden nie zawiera danych chmury.
 3. Aktywuj workspace. Plainva publikuje podpisaną politykę i szyfruje wszystkie pliki do `.pvws/`. Lokalny vault pozostaje czytelny, a migracja wznawia się po przerwach.
 
 Stary tekst jawny pozostaje obok `.pvws/` podczas migracji. Można go jawnie usunąć dopiero przy stanie **Chroniony**; pliki lokalne nie są usuwane.

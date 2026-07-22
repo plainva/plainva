@@ -11,7 +11,7 @@ Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloud
 ## Instellen
 
 1. Kies een eigenaar- en apparaatnaam. Sleutels blijven in de systeemsleutelhanger of, als die ontbreekt, onder een lokale wachtzin.
-2. Sla het `.pvrecovery`-bestand op, bewaar de herstelcode apart en voer de twee gevraagde groepen in. Beide delen zijn nodig en bevatten geen cloudgegevens.
+2. Sla het `.pvrecovery`-bestand op en bewaar de getoonde herstelcode afzonderlijk. Elk codeblok heeft een zichtbaar groepsnummer; voer de waarden van de twee gemarkeerde groepen in om te bevestigen dat de back-up leesbaar is. Beide delen zijn nodig en bevatten geen cloudgegevens.
 3. Activeer de workspace. Plainva publiceert het ondertekende beleid en versleutelt alle bestanden naar `.pvws/`. De lokale vault blijft leesbaar en migratie wordt na onderbrekingen hervat.
 
 Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveiligd** kun je die expliciet verwijderen; lokale bestanden worden nooit verwijderd.
