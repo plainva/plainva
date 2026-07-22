@@ -122,6 +122,9 @@ jobs:
 
       - name: Archive
         working-directory: apps/mobile/ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         # CURRENT_PROJECT_VERSION = the monotonic workflow run number, so every
         # upload gets a unique, increasing build number (App Store Connect
         # rejects a re-used one). MARKETING_VERSION (1.0) stays the user-facing
@@ -133,6 +136,11 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
 
       - name: Export and upload to TestFlight
@@ -153,12 +161,7 @@ jobs:
             <key>teamID</key>
             <string>M3FGXPBLFZ</string>
             <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.plainva.app</key>
-              <string>Plainva App Store</string>
-            </dict>
+            <string>automatic</string>
           </dict>
           </plist>
           PLIST
