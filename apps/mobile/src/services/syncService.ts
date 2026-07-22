@@ -294,7 +294,8 @@ export function syncNow(): void {
   // repeated failures must be revived by the user's explicit action — mobile
   // has no other button that would (2026-07-16). fullResync = reset stuck
   // queue ops + drop the cursor + immediate cycle.
-  if (worker?.fullResync) void worker.fullResync(); else { worker?.retryFailed(); worker?.triggerImmediate(); }
+  if (worker?.fullResync) void worker.fullResync().catch((e) => console.error("[sync] resync failed", e));
+  else { worker?.retryFailed(); worker?.triggerImmediate(); }
 }
 
 let lastForegroundSyncAt = 0;
@@ -309,7 +310,8 @@ export function foregroundSync(): void {
   const now = Date.now();
   if (now - lastForegroundSyncAt < 60_000) return;
   lastForegroundSyncAt = now;
-  if (worker.fullResync) void worker.fullResync(); else { worker.retryFailed(); worker.triggerImmediate(); }
+  if (worker.fullResync) void worker.fullResync().catch((e) => console.error("[sync] foreground resync failed", e));
+  else { worker.retryFailed(); worker.triggerImmediate(); }
 }
 
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -466,7 +468,22 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const rawTarget = buildTarget(p, credKeyFor(v.vaultId));
   if (!v.workspaceRuntime) {
-    const remoteWorkspace = await createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget).get(".pvws/genesis.pvgen");
+    // Probe for an encrypted-workspace genesis so a plaintext local vault is
+    // never synced blindly against a workspace remote. A transport/auth failure
+    // here (e.g. an expired Google Drive token → HTTP 400) must NOT abort
+    // startWorker: that rejection used to escape to the boot handler and cover
+    // the ENTIRE app with a fatal "startup error", locking the user out (they
+    // couldn't even reach Reconnect). We cannot confirm a workspace on a failed
+    // probe, so fall through to the regular worker — its cycle reports the auth
+    // error as a recoverable sync-error status and its fail-closed sealed-blob
+    // guard still protects note content. Only a SUCCESSFUL probe that returns a
+    // genesis refuses to sync.
+    let remoteWorkspace: Uint8Array | null = null;
+    try {
+      remoteWorkspace = await createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget).get(".pvws/genesis.pvgen");
+    } catch (e) {
+      console.warn("[sync] workspace genesis probe failed; starting the regular worker", e);
+    }
     if (remoteWorkspace) {
       setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }) });
       return;

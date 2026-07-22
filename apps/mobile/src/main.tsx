@@ -37,13 +37,20 @@ function showFatalError(label: string, err: unknown): void {
   box.textContent = `Plainva startup error\n[${label}]\n\n${detail}`;
 }
 
+// The fatal overlay is a BOOT-failure safety net: a black screen on a real
+// device gives no clue why the app failed to mount. Once the app HAS mounted,
+// a stray background rejection — a failed sync/token refresh, a plugin error —
+// must NOT cover the whole app; it is logged for diagnostics and the UI keeps
+// running (sync surfaces its own error/reconnect state instead). Before mount,
+// any error is a genuine boot failure and stays fatal + readable.
+let appMounted = false;
 window.addEventListener("error", (e) => {
   logDiagnostic("window.error", String(e.error ?? e.message));
-  showFatalError("error", e.error ?? e.message);
+  if (!appMounted) showFatalError("error", e.error ?? e.message);
 });
 window.addEventListener("unhandledrejection", (e) => {
   logDiagnostic("unhandledrejection", String(e.reason));
-  showFatalError("promise", e.reason);
+  if (!appMounted) showFatalError("promise", e.reason);
 });
 
 // Catches errors thrown while rendering the tree (a mounted-but-crashing
@@ -90,6 +97,9 @@ async function boot(): Promise<void> {
       </FatalBoundary>
     </React.StrictMode>,
   );
+  // Mounted: from here on, a render crash is caught by FatalBoundary, and a
+  // stray background rejection is logged rather than covering the app.
+  appMounted = true;
 }
 
 void boot().catch((err) => showFatalError("boot", err));

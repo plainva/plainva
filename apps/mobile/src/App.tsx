@@ -144,8 +144,8 @@ export default function App() {
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
-      void startSyncIfConfigured(v);
-      void startPim(v);
+      void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
+      void startPim(v).catch((e) => console.error("[boot] pim start failed", e));
     });
     void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onChanged = () => setBump((n) => n + 1);
@@ -158,8 +158,8 @@ export default function App() {
       void getMobileVault().then((v) => {
         setVault(v);
         setBump((n) => n + 1);
-        void startSyncIfConfigured(v);
-        void startPim(v);
+        void startSyncIfConfigured(v).catch((e) => console.error("[switch] sync start failed", e));
+        void startPim(v).catch((e) => console.error("[switch] pim start failed", e));
       });
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
