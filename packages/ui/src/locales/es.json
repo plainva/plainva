@@ -301,6 +301,8 @@
     "pageDescUpdates": "Comprobación automática y búsqueda manual de nuevas versiones.",
     "pageDescAbout": "Versiones, llavero y diagnóstico local.",
     "pageDescSync": "Proveedor de nube y comportamiento de sincronización de este vault.",
+    "pageDescSecurity": "Cifrado, recuperación, dispositivos y uso compartido de este vault.",
+    "securityRecoveryChallenge": "Para confirmar la copia, introduce los dos grupos solicitados del código.",
     "pageDescPim": "Cuentas de calendario, selección y calendario predeterminado de este vault.",
     "pageDescContent": "Notas diarias, plantillas, tareas y el formato OKF.",
     "pageDescBackup": "Copias ZIP automáticas y el historial de versiones por archivo.",
@@ -329,6 +331,7 @@
     "weekStartSaturday": "Sábado",
     "weekStartSunday": "Domingo",
     "sectionCloudAccounts": "Cuentas en la nube",
+    "sectionSecurity": "Seguridad y uso compartido",
     "pageDescCloudAccounts": "Conecta los proveedores de este vault y elige qué servicios gestionan.",
     "sectionMail": "Correo",
     "pageDescMail": "Buzones, carpeta de captura y privacidad de este vault."
@@ -2292,6 +2295,17 @@
     "openArea": "Abrir cuentas en la nube",
     "mailboxesGroup": "Buzones",
     "mailCaptureGroup": "Captura y privacidad"
+  },
+  "workspaceSecurity": {
+    "statusCard":"Estado de protección","currentStatus":"Espacio de trabajo cifrado","workspaceProtected":"El contenido remoto se guarda como objetos cifrados con cambios firmados.","notConfigured":"Aún no configurado.","setup":"Configurar cifrado","connectionRequired":"Conecta este vault a un proveedor de nube antes de activar la sincronización cifrada.","openVaultFirst":"Abre este vault para administrar su seguridad.",
+    "phase":{"preparing":"Preparando","migrating":"Cifrando","active":"Protegido","locked":"Bloqueado","error":"Acción necesaria"},
+    "lockedMessage":"El espacio de trabajo cifrado está bloqueado en este dispositivo.","device":"Este dispositivo","nativeKeychain":"Las claves están protegidas por el llavero del sistema.","passphraseProtected":"Las claves están protegidas por tu frase local.","lock":"Bloquear","unlock":"Desbloquear","unlockTitle":"Desbloquear espacio cifrado","unlockFailed":"No se pudo desbloquear. Comprueba la frase.","passphrase":"Frase de contraseña",
+    "details":"Detalles técnicos","showDetails":"Mostrar detalles","hideDetails":"Ocultar detalles","fingerprint":"Huella","workspaceId":"ID del espacio","progress":"Progreso de migración","lastSync":"Última sincronización correcta","queued":"Pendiente de cifrar","legacyPlaintext":"Objetos antiguos sin cifrar","refresh":"Actualizar",
+    "recoveryCard":"Recuperación","recoveryPackage":"Paquete de recuperación","recoveryProtected":"Guardado y confirmado durante la configuración.","recoverySetupHint":"Se crea durante la configuración.","recoverySaved":"Guardado externamente","recoverySeparation":"Guarda el archivo .pvrecovery y el código por separado. No contienen credenciales de nube.",
+    "devicesCard":"Dispositivos","currentDevice":"Dispositivo actual","devicesP4":"Añadir, vincular y revocar dispositivos llegará en P4.","teamsCard":"Personas y permisos","teamsComing":"Uso compartido en equipo","teamsP4":"Roles, grupos, invitaciones y slices compartidos llegarán desde P4.","manageTeams":"Administrar",
+    "cleanupCard":"Finalizar migración","cleanupWarning":"Aún existen {{n}} objeto(s) antiguos sin cifrar en el proveedor.","cleanupLabel":"Eliminar texto sin cifrar remoto","cleanupDesc":"Los archivos locales no cambian; solo se elimina la copia antigua del proveedor.","cleanupTitle":"¿Eliminar el texto sin cifrar remoto?","cleanupBody":"Esto elimina permanentemente {{n}} objeto(s) antiguos del proveedor. .pvws y los archivos locales permanecen.","cleanupAction":"Eliminar texto sin cifrar","cleanupDone":"Se eliminaron {{n}} objeto(s) antiguos.","cleanupFailed":"No se pudo completar la limpieza.",
+    "setupTitle":"Configurar espacio cifrado","setupProgress":"Paso {{step}} de 3","stepIdentity":"1 Identidad","stepRecovery":"2 Recuperación","stepActivate":"3 Activar","setupIntro":"Plainva crea una identidad propietaria y claves de dispositivo. El vault local sigue legible; la nube pasa a objetos cifrados.","ownerName":"Nombre del propietario","deviceName":"Nombre del dispositivo","thisDevice":"Este dispositivo","fallbackPassphrase":"Frase local de claves (mínimo 10 caracteres)","setupFailed":"No se pudo preparar el espacio cifrado.",
+    "recoveryWarning":"Guarda archivo y código por separado. Perder ambos impide la recuperación.","recoveryFile":"Archivo de recuperación","recoveryFileDesc":"Paquete cifrado con claves de recuperación y propietario; sin credenciales de nube.","saveRecovery":"Guardar archivo","saved":"Guardado","saveFailed":"No se pudo guardar el archivo.","recoverySavedToast":"Archivo de recuperación guardado.","recoveryCode":"Código de recuperación","copyCode":"Copiar código","codeCopied":"Código copiado.","confirmRecovery":"Guardé archivo y código por separado en lugares seguros.","fingerprintValue":"Huella del espacio: {{value}}","activate":"Activar espacio cifrado","activating":"Publicando el espacio y preparando la cola reanudable…","activationFailed":"Falló la activación. No se eliminó el texto remoto existente.","migrationStarted":"Cifrado iniciado: {{n}} de {{total}} elemento(s) en cola."
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

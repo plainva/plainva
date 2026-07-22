@@ -1,6 +1,6 @@
 # ADR 0013: Settings Sync and Content-E2E Lifecycle
 
-- Status: Accepted
+- Status: Accepted for settings/secrets sideband; content lifecycle superseded by ADR 0014
 - Date: 2026-07-21
 
 ## Context

@@ -85,6 +85,8 @@ Po **Połącz** synchronizacja startuje od razu.
 
 ## Szyfrowanie synchronizacji (hasło)
 
+> **Zastąpione w P3:** Poniższe instrukcje nie dotyczą już zawartości. Użyj [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md). Pozostałe tu hasło chroni tylko opcjonalne ustawienia i sekrety.
+
 Plainva może szyfrować to, co opuszcza Twoje urządzenie w kierunku serwera synchronizacji, podczas gdy Twój lokalny vault zawsze pozostaje zwykłym Markdownem, który potrafi odczytać Obsidian.
 
 Otwórz **Ustawienia → Synchronizacja → Hasło synchronizacji i szyfrowanie**:

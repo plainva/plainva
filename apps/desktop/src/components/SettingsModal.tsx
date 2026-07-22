@@ -50,6 +50,7 @@ import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
+import { SecuritySharingPage } from "./security/SecuritySharingPage";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -774,6 +775,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           .then((snap) => setSyncQueueSnapshot(snap))
                           .catch(() => setSyncQueueSnapshot({ total: 0, items: [] }));
                       }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "security"}>
+                    <SecuritySharingPage
+                      selectedVault={selectedVault}
+                      isActiveVault={isActiveVault}
+                      hasSyncConnection={activeProvider !== "none"}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "pim"}>

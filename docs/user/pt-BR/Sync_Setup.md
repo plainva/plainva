@@ -85,6 +85,8 @@ Após **Conectar**, a sincronização começa imediatamente.
 
 ## Criptografia de sincronização (senha)
 
+> **Substituído no P3:** As instruções abaixo não se aplicam mais ao conteúdo. Use [Segurança e compartilhamento](Security_and_Sharing.md). A frase restante aqui protege apenas configurações e segredos opcionais.
+
 O Plainva pode criptografar o que sai do seu dispositivo em direção ao servidor de sincronização, enquanto o seu vault local sempre permanece em Markdown puro, que o Obsidian consegue ler.
 
 Abra **Configurações → Sincronização → Senha de sincronização e criptografia**:

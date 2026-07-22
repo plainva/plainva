@@ -314,6 +314,8 @@
     "pageDescUpdates": "Automatic checks and manual search for new versions.",
     "pageDescAbout": "Versions, keychain and local diagnostics.",
     "pageDescSync": "Cloud provider and sync behavior of this vault.",
+    "pageDescSecurity": "Encryption, recovery, devices, and sharing for this vault.",
+    "securityRecoveryChallenge": "To confirm your backup, enter the two requested groups from the recovery code.",
     "pageDescPim": "Calendar accounts, selection and default calendar for this vault.",
     "pageDescContent": "Daily notes, templates, tasks and the OKF format.",
     "pageDescBackup": "Automatic ZIP backups and the per-file version history.",
@@ -342,6 +344,7 @@
     "weekStartSaturday": "Saturday",
     "weekStartSunday": "Sunday",
     "sectionCloudAccounts": "Cloud accounts",
+    "sectionSecurity": "Security & Sharing",
     "pageDescCloudAccounts": "Connect this vault's providers and choose which services they carry.",
     "sectionMail": "Email",
     "pageDescMail": "Mailboxes, capture folder and privacy for this vault."
@@ -2308,6 +2311,17 @@
     "openArea": "Open cloud accounts",
     "mailboxesGroup": "Mailboxes",
     "mailCaptureGroup": "Capture & privacy"
+  },
+  "workspaceSecurity": {
+    "statusCard": "Protection status", "currentStatus": "Encrypted workspace", "workspaceProtected": "Content is stored remotely as encrypted objects with signed changes.", "notConfigured": "Not configured yet.", "setup": "Set up encryption", "connectionRequired": "Connect this vault to a cloud provider before enabling encrypted sync.", "openVaultFirst": "Open this vault to manage its security settings.",
+    "phase": { "preparing": "Preparing", "migrating": "Encrypting", "active": "Protected", "locked": "Locked", "error": "Action required" },
+    "lockedMessage": "The encrypted workspace is locked on this device.", "device": "This device", "nativeKeychain": "Keys are protected by the operating-system keychain.", "passphraseProtected": "Keys are protected by your local passphrase.", "lock": "Lock", "unlock": "Unlock", "unlockTitle": "Unlock encrypted workspace", "unlockFailed": "The workspace could not be unlocked. Check the passphrase.", "passphrase": "Passphrase",
+    "details": "Technical details", "showDetails": "Show details", "hideDetails": "Hide details", "fingerprint": "Fingerprint", "workspaceId": "Workspace ID", "progress": "Migration progress", "lastSync": "Last successful sync", "queued": "Still to encrypt", "legacyPlaintext": "Legacy plaintext objects", "refresh": "Refresh",
+    "recoveryCard": "Recovery", "recoveryPackage": "Recovery package", "recoveryProtected": "Saved and confirmed during setup.", "recoverySetupHint": "A recovery package is created during setup.", "recoverySaved": "Saved externally", "recoverySeparation": "Keep the .pvrecovery file and recovery code in separate safe places. Neither part contains cloud credentials.",
+    "devicesCard": "Devices", "currentDevice": "Current device", "devicesP4": "Adding, pairing, and revoking further devices follows in P4.", "teamsCard": "People & permissions", "teamsComing": "Team sharing", "teamsP4": "Roles, groups, invitations, and shared slices follow in P4 and later phases.", "manageTeams": "Manage",
+    "cleanupCard": "Finish migration", "cleanupWarning": "{{n}} legacy plaintext object(s) still exist next to the encrypted workspace at the provider.", "cleanupLabel": "Remove old remote plaintext", "cleanupDesc": "Local plaintext files remain untouched. Only the old provider-side copy is removed.", "cleanupTitle": "Remove old remote plaintext?", "cleanupBody": "This permanently deletes {{n}} legacy plaintext object(s) from the cloud provider. The encrypted .pvws copy and local files remain.", "cleanupAction": "Remove plaintext", "cleanupDone": "Removed {{n}} legacy plaintext object(s).", "cleanupFailed": "The plaintext cleanup could not be completed.",
+    "setupTitle": "Set up encrypted workspace", "setupProgress": "Setup step {{step}} of 3", "stepIdentity": "1 Identity", "stepRecovery": "2 Recovery", "stepActivate": "3 Activate", "setupIntro": "Plainva creates a personal owner identity and device keys. Your local vault stays readable; cloud content moves to encrypted objects.", "ownerName": "Owner name", "deviceName": "Device name", "thisDevice": "This device", "fallbackPassphrase": "Local key passphrase (at least 10 characters)", "setupFailed": "The encrypted workspace could not be prepared.",
+    "recoveryWarning": "Save the file and code separately. Losing both means losing recovery access.", "recoveryFile": "Recovery file", "recoveryFileDesc": "Encrypted package with recovery and owner keys; contains no cloud credentials.", "saveRecovery": "Save file", "saved": "Saved", "saveFailed": "The recovery file could not be saved.", "recoverySavedToast": "Recovery file saved.", "recoveryCode": "Recovery code", "copyCode": "Copy code", "codeCopied": "Recovery code copied.", "confirmRecovery": "I saved the recovery file and code in separate safe places.", "fingerprintValue": "Workspace fingerprint: {{value}}", "activate": "Activate encrypted workspace", "activating": "Publishing the workspace and preparing the resumable encryption queue…", "activationFailed": "Activation failed. The existing remote plaintext was not removed.", "migrationStarted": "Encryption started: {{n}} of {{total}} item(s) queued."
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

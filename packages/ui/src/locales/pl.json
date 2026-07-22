@@ -299,6 +299,8 @@
     "pageDescUpdates": "Automatyczne sprawdzanie i ręczne wyszukiwanie nowych wersji.",
     "pageDescAbout": "Wersje, pęk kluczy i diagnostyka lokalna.",
     "pageDescSync": "Dostawca chmury i zachowanie synchronizacji tego vaulta.",
+    "pageDescSecurity": "Szyfrowanie, odzyskiwanie, urządzenia i udostępnianie tego vaulta.",
+    "securityRecoveryChallenge": "Aby potwierdzić kopię, wpisz dwie wskazane grupy kodu odzyskiwania.",
     "pageDescPim": "Konta kalendarza, wybór i domyślny kalendarz tego vaulta.",
     "pageDescContent": "Notatki dzienne, szablony, zadania i format OKF.",
     "pageDescBackup": "Automatyczne backupy ZIP i historia wersji dla każdego pliku.",
@@ -327,6 +329,7 @@
     "weekStartSaturday": "Sobota",
     "weekStartSunday": "Niedziela",
     "sectionCloudAccounts": "Konta w chmurze",
+    "sectionSecurity": "Bezpieczeństwo i udostępnianie",
     "pageDescCloudAccounts": "Łączenie dostawców tego vaulta i wybór usług, które mają obsługiwać.",
     "sectionMail": "E-mail",
     "pageDescMail": "Skrzynki pocztowe, zapisywanie i prywatność tego vaulta."
@@ -2297,6 +2300,17 @@
     "openArea": "Otwórz konta w chmurze",
     "mailboxesGroup": "Skrzynki pocztowe",
     "mailCaptureGroup": "Zapisywanie i prywatność"
+  },
+  "workspaceSecurity": {
+    "statusCard":"Stan ochrony","currentStatus":"Szyfrowany workspace","workspaceProtected":"Zdalna zawartość jest przechowywana jako szyfrowane obiekty z podpisanymi zmianami.","notConfigured":"Jeszcze nie skonfigurowano.","setup":"Skonfiguruj szyfrowanie","connectionRequired":"Najpierw połącz ten vault z dostawcą chmury.","openVaultFirst":"Otwórz ten vault, aby zarządzać zabezpieczeniami.",
+    "phase":{"preparing":"Przygotowanie","migrating":"Szyfrowanie","active":"Chroniony","locked":"Zablokowany","error":"Wymagane działanie"},
+    "lockedMessage":"Szyfrowany workspace jest zablokowany na tym urządzeniu.","device":"To urządzenie","nativeKeychain":"Klucze są chronione przez systemowy magazyn kluczy.","passphraseProtected":"Klucze są chronione lokalnym hasłem.","lock":"Zablokuj","unlock":"Odblokuj","unlockTitle":"Odblokuj workspace","unlockFailed":"Nie udało się odblokować. Sprawdź hasło.","passphrase":"Hasło",
+    "details":"Szczegóły techniczne","showDetails":"Pokaż szczegóły","hideDetails":"Ukryj szczegóły","fingerprint":"Odcisk","workspaceId":"ID workspace","progress":"Postęp migracji","lastSync":"Ostatnia udana synchronizacja","queued":"Pozostało do zaszyfrowania","legacyPlaintext":"Stare jawne obiekty","refresh":"Odśwież",
+    "recoveryCard":"Odzyskiwanie","recoveryPackage":"Pakiet odzyskiwania","recoveryProtected":"Zapisany i potwierdzony podczas konfiguracji.","recoverySetupHint":"Tworzony podczas konfiguracji.","recoverySaved":"Zapisany zewnętrznie","recoverySeparation":"Przechowuj plik .pvrecovery i kod osobno. Nie zawierają danych logowania do chmury.",
+    "devicesCard":"Urządzenia","currentDevice":"Bieżące urządzenie","devicesP4":"Dodawanie, parowanie i unieważnianie urządzeń pojawi się w P4.","teamsCard":"Osoby i uprawnienia","teamsComing":"Udostępnianie zespołowe","teamsP4":"Role, grupy, zaproszenia i udostępnione slices pojawią się od P4.","manageTeams":"Zarządzaj",
+    "cleanupCard":"Zakończ migrację","cleanupWarning":"U dostawcy nadal istnieje {{n}} starych jawnych obiektów.","cleanupLabel":"Usuń stary zdalny tekst jawny","cleanupDesc":"Pliki lokalne pozostają; usuwana jest tylko stara kopia u dostawcy.","cleanupTitle":"Usunąć zdalny tekst jawny?","cleanupBody":"Spowoduje to trwałe usunięcie {{n}} starych obiektów u dostawcy. .pvws i pliki lokalne pozostaną.","cleanupAction":"Usuń tekst jawny","cleanupDone":"Usunięto {{n}} starych obiektów.","cleanupFailed":"Nie udało się dokończyć czyszczenia.",
+    "setupTitle":"Skonfiguruj szyfrowany workspace","setupProgress":"Krok {{step}} z 3","stepIdentity":"1 Tożsamość","stepRecovery":"2 Odzyskiwanie","stepActivate":"3 Aktywacja","setupIntro":"Plainva tworzy tożsamość właściciela i klucze urządzenia. Lokalny vault pozostaje czytelny; chmura przechodzi na szyfrowane obiekty.","ownerName":"Nazwa właściciela","deviceName":"Nazwa urządzenia","thisDevice":"To urządzenie","fallbackPassphrase":"Lokalne hasło klucza (co najmniej 10 znaków)","setupFailed":"Nie udało się przygotować szyfrowanego workspace.",
+    "recoveryWarning":"Zapisz plik i kod osobno. Utrata obu uniemożliwia odzyskanie.","recoveryFile":"Plik odzyskiwania","recoveryFileDesc":"Szyfrowany pakiet z kluczami odzyskiwania i właściciela; bez danych chmury.","saveRecovery":"Zapisz plik","saved":"Zapisano","saveFailed":"Nie udało się zapisać pliku.","recoverySavedToast":"Plik odzyskiwania zapisany.","recoveryCode":"Kod odzyskiwania","copyCode":"Kopiuj kod","codeCopied":"Kod skopiowany.","confirmRecovery":"Plik i kod zapisano osobno w bezpiecznych miejscach.","fingerprintValue":"Odcisk workspace: {{value}}","activate":"Aktywuj szyfrowany workspace","activating":"Publikowanie workspace i przygotowanie wznawialnej kolejki…","activationFailed":"Aktywacja nie powiodła się. Zdalny tekst jawny nie został usunięty.","migrationStarted":"Szyfrowanie rozpoczęte: {{n}} z {{total}} elementów w kolejce."
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

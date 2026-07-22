@@ -28,9 +28,15 @@ canonicalisation, path rules, limits and validation order are normative in
 `docs/engineering/Encrypted_Workspace_Protocol.md`.
 
 PVE1 is not a public encrypted-workspace legacy format. Its content activation
-path will be replaced during P3. Settings and account-secret sideband encryption
+path was removed during P3. Settings and account-secret sideband encryption
 remain separately keyed and may reuse lower-level primitives, but not workspace
 content keys or authority.
+
+P3 implements the personal single-owner lifecycle: dual-signed bootstrap,
+two-piece recovery backup, resumable plaintext-to-`.pvws/` migration, durable
+operation queue/staging, verified local materialisation, checkpoints and a
+Desktop Security & Sharing center. Existing remote plaintext remains until the
+user removes it after successful migration.
 
 ## Consequences
 

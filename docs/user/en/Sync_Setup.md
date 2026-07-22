@@ -85,6 +85,8 @@ After **Connect**, sync starts right away.
 
 ## Sync encryption (passphrase)
 
+> **Replaced in P3:** The controls described below are no longer used for vault content. Use [Security & Sharing](Security_and_Sharing.md) for the current encrypted-workspace setup. The passphrase controls that remain on this page protect only the optional settings/secrets sideband.
+
 Plainva can encrypt what leaves your device for the sync server, while your local vault always stays plain Markdown that Obsidian can read.
 
 Open **Settings → Synchronisation → Sync passphrase & encryption**:

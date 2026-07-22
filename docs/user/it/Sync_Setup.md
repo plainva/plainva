@@ -85,6 +85,8 @@ Dopo **Collega**, la sincronizzazione parte subito.
 
 ## Crittografia di sincronizzazione (passphrase)
 
+> **Sostituito in P3:** Le istruzioni seguenti non valgono più per il contenuto. Usa [Sicurezza e condivisione](Security_and_Sharing.md). La passphrase rimasta qui protegge solo impostazioni e segreti opzionali.
+
 Plainva può cifrare ciò che lascia il tuo dispositivo verso il server di sincronizzazione, mentre il tuo vault locale resta sempre in Markdown semplice, leggibile da Obsidian.
 
 Apri **Impostazioni → Sincronizzazione → Passphrase di sincronizzazione e crittografia**:

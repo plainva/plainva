@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as 
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { applyIndexChanges } from "./services/fileActions";
-import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId } from "./contexts/VaultContext";
+import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
 import { useDisplaySyncStatus } from "./services/syncStatusStore";
-import type { SyncWorker } from "@plainva/core";
 import { scanVaultOkf } from "./services/okfConversion";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
 // paint the first frame, and each becomes its own chunk that only ever
@@ -1584,7 +1583,7 @@ function App() {
  * The switcher keeps the calm cloud while syncing — only errors change the icon;
  * busy feedback lives in the status bar.
  */
-function SyncSwitcherIcon({ syncWorker, onError }: { syncWorker: SyncWorker; onError: () => void }) {
+function SyncSwitcherIcon({ syncWorker, onError }: { syncWorker: VaultSyncWorker; onError: () => void }) {
   const { t } = useTranslation();
   const { status } = useDisplaySyncStatus();
   return (

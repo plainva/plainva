@@ -17,6 +17,7 @@ Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-
 | [Backups & Versionsverlauf](Backups_and_Versioning.md) | Automatische Datei-Versionen, Wiederherstellen (auch gelöschter Dateien) und tägliche ZIP-Sicherungen des Vaults |
 | [Die mobile App](Mobile_App.md) | Plainva auf Android und iOS: Aufbau, Bearbeiten, Datenbanken, Sync und Sicherheitsnetz |
 | [Sync einrichten](Sync_Setup.md) | Schritt für Schritt je Anbieter: WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3 |
+| [Sicherheit & Freigaben](Security_and_Sharing.md) | Persönlicher verschlüsselter Workspace, Recovery-Sicherung, Migration und Sperren |
 | [Sync-Kompatibilität](Sync_Compatibility.md) | Welche Dienste heute funktionieren — direkt, über WebDAV oder über den Desktop-Client des Anbieters |
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | Google-Drive-Sync mit eigenen Zugangsdaten einrichten |
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | OneDrive- und Dropbox-Sync mit eigener App-Registrierung einrichten |

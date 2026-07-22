@@ -301,6 +301,8 @@
     "pageDescUpdates": "Vérification automatique et recherche manuelle de nouvelles versions.",
     "pageDescAbout": "Versions, trousseau et diagnostic local.",
     "pageDescSync": "Fournisseur cloud et comportement de la synchronisation de ce vault.",
+    "pageDescSecurity": "Chiffrement, récupération, appareils et partage de ce vault.",
+    "securityRecoveryChallenge": "Pour confirmer la sauvegarde, saisissez les deux groupes demandés du code.",
     "pageDescPim": "Comptes d'agenda, sélection et agenda par défaut de ce vault.",
     "pageDescContent": "Notes quotidiennes, modèles, tâches et le format OKF.",
     "pageDescBackup": "Sauvegardes ZIP automatiques et historique des versions par fichier.",
@@ -329,6 +331,7 @@
     "weekStartSaturday": "Samedi",
     "weekStartSunday": "Dimanche",
     "sectionCloudAccounts": "Comptes cloud",
+    "sectionSecurity": "Sécurité et partage",
     "pageDescCloudAccounts": "Connectez les fournisseurs de ce vault et choisissez les services qu'ils prennent en charge.",
     "sectionMail": "E-mail",
     "pageDescMail": "Boîtes mail, dossier de capture et confidentialité de ce vault."
@@ -2292,6 +2295,17 @@
     "openArea": "Ouvrir les comptes cloud",
     "mailboxesGroup": "Boîtes mail",
     "mailCaptureGroup": "Capture et confidentialité"
+  },
+  "workspaceSecurity": {
+    "statusCard":"État de protection","currentStatus":"Espace chiffré","workspaceProtected":"Le contenu distant est stocké sous forme d’objets chiffrés avec des modifications signées.","notConfigured":"Pas encore configuré.","setup":"Configurer le chiffrement","connectionRequired":"Connectez ce vault à un fournisseur cloud avant d’activer la synchronisation chiffrée.","openVaultFirst":"Ouvrez ce vault pour gérer sa sécurité.",
+    "phase":{"preparing":"Préparation","migrating":"Chiffrement","active":"Protégé","locked":"Verrouillé","error":"Action requise"},
+    "lockedMessage":"L’espace chiffré est verrouillé sur cet appareil.","device":"Cet appareil","nativeKeychain":"Les clés sont protégées par le trousseau du système.","passphraseProtected":"Les clés sont protégées par votre phrase secrète locale.","lock":"Verrouiller","unlock":"Déverrouiller","unlockTitle":"Déverrouiller l’espace chiffré","unlockFailed":"Impossible de déverrouiller. Vérifiez la phrase secrète.","passphrase":"Phrase secrète",
+    "details":"Détails techniques","showDetails":"Afficher les détails","hideDetails":"Masquer les détails","fingerprint":"Empreinte","workspaceId":"ID de l’espace","progress":"Progression de la migration","lastSync":"Dernière synchronisation réussie","queued":"Reste à chiffrer","legacyPlaintext":"Anciens objets en clair","refresh":"Actualiser",
+    "recoveryCard":"Récupération","recoveryPackage":"Paquet de récupération","recoveryProtected":"Enregistré et confirmé pendant la configuration.","recoverySetupHint":"Un paquet est créé pendant la configuration.","recoverySaved":"Enregistré à l’extérieur","recoverySeparation":"Conservez le fichier .pvrecovery et le code séparément. Ils ne contiennent aucun identifiant cloud.",
+    "devicesCard":"Appareils","currentDevice":"Appareil actuel","devicesP4":"L’ajout, l’association et la révocation d’appareils arrivent en P4.","teamsCard":"Personnes et droits","teamsComing":"Partage en équipe","teamsP4":"Rôles, groupes, invitations et slices partagés arrivent à partir de P4.","manageTeams":"Gérer",
+    "cleanupCard":"Terminer la migration","cleanupWarning":"{{n}} ancien(s) objet(s) en clair subsistent chez le fournisseur.","cleanupLabel":"Supprimer l’ancien contenu distant en clair","cleanupDesc":"Les fichiers locaux restent intacts ; seule l’ancienne copie distante est supprimée.","cleanupTitle":"Supprimer le contenu distant en clair ?","cleanupBody":"Ceci supprime définitivement {{n}} ancien(s) objet(s) chez le fournisseur. .pvws et les fichiers locaux restent.","cleanupAction":"Supprimer le contenu en clair","cleanupDone":"{{n}} ancien(s) objet(s) supprimé(s).","cleanupFailed":"Le nettoyage n’a pas pu être terminé.",
+    "setupTitle":"Configurer l’espace chiffré","setupProgress":"Étape {{step}} sur 3","stepIdentity":"1 Identité","stepRecovery":"2 Récupération","stepActivate":"3 Activation","setupIntro":"Plainva crée une identité propriétaire et des clés d’appareil. Le vault local reste lisible ; le cloud passe à des objets chiffrés.","ownerName":"Nom du propriétaire","deviceName":"Nom de l’appareil","thisDevice":"Cet appareil","fallbackPassphrase":"Phrase secrète locale (10 caractères minimum)","setupFailed":"Impossible de préparer l’espace chiffré.",
+    "recoveryWarning":"Conservez fichier et code séparément. Perdre les deux empêche toute récupération.","recoveryFile":"Fichier de récupération","recoveryFileDesc":"Paquet chiffré avec clés de récupération et propriétaire ; sans identifiants cloud.","saveRecovery":"Enregistrer le fichier","saved":"Enregistré","saveFailed":"Impossible d’enregistrer le fichier.","recoverySavedToast":"Fichier de récupération enregistré.","recoveryCode":"Code de récupération","copyCode":"Copier le code","codeCopied":"Code copié.","confirmRecovery":"J’ai conservé le fichier et le code séparément en lieu sûr.","fingerprintValue":"Empreinte de l’espace : {{value}}","activate":"Activer l’espace chiffré","activating":"Publication de l’espace et préparation de la file reprenable…","activationFailed":"Échec de l’activation. Le contenu distant en clair n’a pas été supprimé.","migrationStarted":"Chiffrement lancé : {{n}} élément(s) sur {{total}} mis en file."
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

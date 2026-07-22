@@ -17,6 +17,12 @@ describe("Database Schema", () => {
     expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS files"))).toBe(true);
     expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS sync_state"))).toBe(true);
     expect(queries.some(q => q.includes("CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_meta"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_object"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_revision"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_operation"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_queue"))).toBe(true);
+    expect(queries.some(q => q.includes("CREATE TABLE IF NOT EXISTS workspace_checkpoint"))).toBe(true);
   });
 
   it("creates the links table with property_key and the meta table", async () => {

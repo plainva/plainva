@@ -299,6 +299,8 @@
     "pageDescUpdates": "Automatische controle en handmatig zoeken naar nieuwe versies.",
     "pageDescAbout": "Versies, sleutelhanger en lokale diagnose.",
     "pageDescSync": "Cloudprovider en synchronisatiegedrag van deze vault.",
+    "pageDescSecurity": "Versleuteling, herstel, apparaten en delen voor deze vault.",
+    "securityRecoveryChallenge": "Voer ter bevestiging de twee gevraagde groepen van de herstelcode in.",
     "pageDescPim": "Agenda-accounts, selectie en standaardagenda van deze vault.",
     "pageDescContent": "Dagnotities, sjablonen, taken en het OKF-formaat.",
     "pageDescBackup": "Automatische ZIP-backups en de versiegeschiedenis per bestand.",
@@ -327,6 +329,7 @@
     "weekStartSaturday": "Zaterdag",
     "weekStartSunday": "Zondag",
     "sectionCloudAccounts": "Cloudaccounts",
+    "sectionSecurity": "Beveiliging en delen",
     "pageDescCloudAccounts": "Verbind de providers van deze vault en kies welke diensten ze verzorgen.",
     "sectionMail": "E-mail",
     "pageDescMail": "Mailboxen, vastlegmap en privacy van deze vault."
@@ -2283,6 +2286,17 @@
     "openArea": "Cloudaccounts openen",
     "mailboxesGroup": "Mailboxen",
     "mailCaptureGroup": "Vastleggen & privacy"
+  },
+  "workspaceSecurity": {
+    "statusCard":"Beveiligingsstatus","currentStatus":"Versleutelde workspace","workspaceProtected":"Externe inhoud staat als versleutelde objecten met ondertekende wijzigingen opgeslagen.","notConfigured":"Nog niet ingesteld.","setup":"Versleuteling instellen","connectionRequired":"Verbind deze vault eerst met een cloudprovider.","openVaultFirst":"Open deze vault om de beveiliging te beheren.",
+    "phase":{"preparing":"Voorbereiden","migrating":"Versleutelen","active":"Beveiligd","locked":"Vergrendeld","error":"Actie vereist"},
+    "lockedMessage":"De versleutelde workspace is op dit apparaat vergrendeld.","device":"Dit apparaat","nativeKeychain":"Sleutels worden beschermd door de systeemsleutelhanger.","passphraseProtected":"Sleutels worden beschermd door je lokale wachtzin.","lock":"Vergrendelen","unlock":"Ontgrendelen","unlockTitle":"Workspace ontgrendelen","unlockFailed":"Ontgrendelen mislukt. Controleer de wachtzin.","passphrase":"Wachtzin",
+    "details":"Technische details","showDetails":"Details tonen","hideDetails":"Details verbergen","fingerprint":"Vingerafdruk","workspaceId":"Workspace-ID","progress":"Migratievoortgang","lastSync":"Laatste geslaagde synchronisatie","queued":"Nog te versleutelen","legacyPlaintext":"Oude onversleutelde objecten","refresh":"Vernieuwen",
+    "recoveryCard":"Herstel","recoveryPackage":"Herstelpakket","recoveryProtected":"Tijdens installatie opgeslagen en bevestigd.","recoverySetupHint":"Wordt tijdens de installatie gemaakt.","recoverySaved":"Extern opgeslagen","recoverySeparation":"Bewaar .pvrecovery-bestand en herstelcode apart. Ze bevatten geen cloudgegevens.",
+    "devicesCard":"Apparaten","currentDevice":"Huidig apparaat","devicesP4":"Meer apparaten toevoegen, koppelen en intrekken volgt in P4.","teamsCard":"Personen en rechten","teamsComing":"Delen met teams","teamsP4":"Rollen, groepen, uitnodigingen en gedeelde slices volgen vanaf P4.","manageTeams":"Beheren",
+    "cleanupCard":"Migratie afronden","cleanupWarning":"Bij de provider bestaan nog {{n}} oude onversleutelde object(en).","cleanupLabel":"Oude externe platte tekst verwijderen","cleanupDesc":"Lokale bestanden blijven intact; alleen de oude providerkopie wordt verwijderd.","cleanupTitle":"Oude externe platte tekst verwijderen?","cleanupBody":"Dit verwijdert {{n}} oude object(en) permanent bij de provider. .pvws en lokale bestanden blijven.","cleanupAction":"Platte tekst verwijderen","cleanupDone":"{{n}} oude object(en) verwijderd.","cleanupFailed":"Opschonen kon niet worden voltooid.",
+    "setupTitle":"Versleutelde workspace instellen","setupProgress":"Stap {{step}} van 3","stepIdentity":"1 Identiteit","stepRecovery":"2 Herstel","stepActivate":"3 Activeren","setupIntro":"Plainva maakt een eigenaaridentiteit en apparaatsleutels. De lokale vault blijft leesbaar; cloudinhoud wordt versleuteld.","ownerName":"Naam eigenaar","deviceName":"Apparaatnaam","thisDevice":"Dit apparaat","fallbackPassphrase":"Lokale sleutelwachtzin (minstens 10 tekens)","setupFailed":"De versleutelde workspace kon niet worden voorbereid.",
+    "recoveryWarning":"Bewaar bestand en code apart. Verlies van beide maakt herstel onmogelijk.","recoveryFile":"Herstelbestand","recoveryFileDesc":"Versleuteld pakket met herstel- en eigenaarssleutels; zonder cloudgegevens.","saveRecovery":"Bestand opslaan","saved":"Opgeslagen","saveFailed":"Het herstelbestand kon niet worden opgeslagen.","recoverySavedToast":"Herstelbestand opgeslagen.","recoveryCode":"Herstelcode","copyCode":"Code kopiëren","codeCopied":"Herstelcode gekopieerd.","confirmRecovery":"Ik heb bestand en code apart op veilige plaatsen opgeslagen.","fingerprintValue":"Workspace-vingerafdruk: {{value}}","activate":"Versleutelde workspace activeren","activating":"Workspace publiceren en hervatbare wachtrij voorbereiden…","activationFailed":"Activering mislukt. Externe platte tekst is niet verwijderd.","migrationStarted":"Versleuteling gestart: {{n}} van {{total}} item(s) in wachtrij."
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

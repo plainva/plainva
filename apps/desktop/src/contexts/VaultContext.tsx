@@ -1,16 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, parseManifest, type EncryptionState } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
-import { buildSettingsSyncStep, wrapEncryptedTargetIfActive } from "../services/settingsProfile";
-import { activateContentEncryption, completeContentDecryption, completeContentEncryption, completeContentKeyRotation, deactivateContentEncryption, resumeContentEncryptionIfOwned, rotateContentEncryptionKey } from "../services/encryptionActivation";
-import { readRemoteManifest } from "../services/encryptionManifest";
+import { buildSettingsSyncStep } from "../services/settingsProfile";
+import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
+import { getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -25,6 +25,17 @@ import { runTaskSync } from "../services/pim/taskSync";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
+
+/** Common control surface shared by the legacy and encrypted sync workers. */
+export interface VaultSyncWorker {
+  start(): void;
+  stop(): void;
+  stopAndDrain(): Promise<void>;
+  triggerImmediate(): void;
+  retryFailed(): void;
+  noteUserInitiatedDeletion(paths: string[]): void;
+  listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
+}
 
 interface VaultState {
   vaultPath: string | null;
@@ -52,7 +63,8 @@ interface VaultState {
    * affect them (P2.7).
    */
   fileTreeVersionPaths: string[] | null;
-  syncWorker: SyncWorker | null;
+  syncWorker: VaultSyncWorker | null;
+  workspaceSecurityStatus: WorkspaceSecurityPublicStatus | null;
   /**
    * PIM runtime (Gesamtplan PIM-Ausbau 2026-07-17): calendar/task object
    * cache + pull worker, bound to this vault's index DB. null until a vault
@@ -92,20 +104,13 @@ interface VaultContextType extends VaultState {
   /** Forgets a vault in the recent list — files on disk are untouched. */
   removeRecentVault: (path: string) => Promise<void>;
   setAutoOpenLastVault: (value: boolean) => Promise<void>;
-  /**
-   * Content-E2E (settings-sync §3.5): activate end-to-end encryption for the
-   * active sync connection (writes the migrating manifest, force-enqueues a
-   * re-encrypt sweep, reopens the vault). Requires an unlocked master key and a
-   * sync connection. Returns how many files were queued for re-encryption.
-   */
-  activateEncryption: () => Promise<{ queued: number }>;
-  /** Completes the migration: flips the connection from mixed to strict. */
-  completeEncryptionMigration: () => Promise<void>;
-  deactivateEncryption: () => Promise<{ queued: number }>;
-  completeDecryptionMigration: () => Promise<void>;
-  rotateEncryptionKey: (passphrase: string) => Promise<{ queued: number; newKeyId: string }>;
-  completeEncryptionRotation: () => Promise<void>;
-  getEncryptionLifecycleState: () => Promise<EncryptionState | "off">;
+  /** Prepare a personal encrypted workspace and its recovery package. */
+  preparePersonalWorkspace: (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => Promise<PreparedPersonalWorkspace>;
+  activatePersonalWorkspace: (draftId: string) => Promise<{ queued: number; total: number }>;
+  unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
+  lockPersonalWorkspace: () => Promise<void>;
+  removeRemotePlaintext: () => Promise<number>;
+  getWorkspaceDiagnostics: () => Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number }>;
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -249,6 +254,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     treeStructureVersion: 0,
     fileTreeVersionPaths: null,
     syncWorker: null,
+    workspaceSecurityStatus: null,
     indexQueue: null,
     recentVaults: [],
     autoOpenLastVault: false,
@@ -259,6 +265,8 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // write the remote manifest + drive the migration sweep synchronously, without
   // waiting for a state update. null when no vault/sync connection is open.
   const syncTargetRef = useRef<ISyncTarget | null>(null);
+  const syncProviderRef = useRef<SyncProviderId | null>(null);
+  const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
@@ -319,7 +327,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await initializeSchema(dbAdapter);
 
       const syncQueue = new SyncQueue(dbAdapter);
-      const queueingVaultAdapter = new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
+      const workspaceSecurityStatus = await getWorkspaceSecurityStatus(path);
+      let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
+      const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
+      const workspaceMaterializedPaths = new Set<string>();
+      workspaceStateRef.current = workspaceStateStore;
+      const queueingVaultAdapter = workspaceStateStore
+        ? new WorkspaceQueueingVaultAdapter(backupVaultAdapter, workspaceStateStore)
+        : new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
 
       const syncRepo = new SyncStateRepository(dbAdapter);
       const vaultAdapter = new ConflictAwareVaultAdapter(
@@ -349,7 +364,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // are indexed but were never enqueued. Push them when this vault has a sync target.
       const enqueueLocalChange = (changedPath: string) => {
         if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
-        syncQueue.queueWrite(changedPath)
+        if (workspaceMaterializedPaths.delete(changedPath)) return;
+        const queued = workspaceStateStore
+          ? workspaceStateStore.enqueue("write", changedPath)
+          : syncQueue.queueWrite(changedPath);
+        queued
           .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
           .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
       };
@@ -376,9 +395,13 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         },
         onLocalFileDeleted: (path) => {
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
+          if (workspaceMaterializedPaths.delete(path)) return;
           if (hasSyncTarget) {
             // Propagate the deletion to the remote; sync_state is cleaned after the push.
-            syncQueue.queueDelete(path)
+            const queued = workspaceStateStore
+              ? workspaceStateStore.enqueue("delete", path)
+              : syncQueue.queueDelete(path);
+            queued
               .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
               .catch((e) => console.error("[VaultContext] failed to enqueue local delete", e));
           } else {
@@ -512,11 +535,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
-      if (isNewConnection) {
+      if (isNewConnection && !workspaceStateStore) {
         await syncQueue.enqueueAllLocalFiles();
       }
 
-      let syncWorker: SyncWorker | null = null;
+      let syncWorker: SyncWorker | EncryptedWorkspaceWorker | null = null;
       let syncProvider: SyncProviderId | null = null;
       try {
         // Target selection per vault: the settings UI enforces one provider per vault
@@ -525,6 +548,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // worker's incremental cursor pull (getStartCursor + pull(cursor)); the others use
         // the full-listing model.
         syncTargetRef.current = null; // cleared each load; set to the raw target below
+        syncProviderRef.current = null;
         let target: ISyncTarget | null = null;
         if (driveReady && driveCreds && driveCreds.refreshToken) {
           syncProvider = "drive";
@@ -584,24 +608,64 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         if (target) {
-            // Content-E2E (settings-sync plan §3.5): once this connection has an
-            // activated encryption manifest and the master key is unlocked, wrap
-            // the target so remote content is ciphertext (the local vault stays
-            // plaintext). Inert for a normal vault — a target with no manifest is
-            // returned unchanged; a fatal protocol violation is enforced per cycle
-            // by the sideband runner's guardBeforeCycle, not here.
-            syncTargetRef.current = target; // raw target (for activation + manifest writes)
-            // A crash during the migration leaves a signed journal + owned
-            // manifest. Recreate the idempotent forced sweep before the worker
-            // starts so it can safely continue where the previous process ended.
-            await resumeContentEncryptionIfOwned({ vaultPath: path, rawTarget: target, dbAdapter, rawVault: backupVaultAdapter });
-            target = await wrapEncryptedTargetIfActive(path, target);
-            const settingsStore = await getSettingsStore();
-            // Per-vault interval, falling back to the legacy global value, then the default.
-            const perVaultInterval = await settingsStore.get<number>(syncIntervalKey(path));
-            const globalInterval = await settingsStore.get<number>("syncIntervalSeconds");
-            const savedInterval = perVaultInterval ?? globalInterval;
-            const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? DEFAULT_SYNC_INTERVAL_SECONDS) * 1000;
+          syncTargetRef.current = target;
+          syncProviderRef.current = syncProvider;
+          const settingsStore = await getSettingsStore();
+          // Per-vault interval, falling back to the legacy global value, then the default.
+          const perVaultInterval = await settingsStore.get<number>(syncIntervalKey(path));
+          const globalInterval = await settingsStore.get<number>("syncIntervalSeconds");
+          const savedInterval = perVaultInterval ?? globalInterval;
+          const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? DEFAULT_SYNC_INTERVAL_SECONDS) * 1000;
+          if (workspaceSecurityStatus && workspaceStateStore) {
+            const runtime = await loadWorkspaceRuntime(path);
+            if (!runtime) {
+              const lockedStatus: WorkspaceSecurityPublicStatus = { ...workspaceSecurityStatus, phase: "locked" };
+              resolvedWorkspaceSecurityStatus = lockedStatus;
+              await saveWorkspaceSecurityStatus(path, lockedStatus);
+              syncStatusStore.set({ status: "error", message: i18n.t("workspaceSecurity.lockedMessage"), provider: syncProvider });
+            } else {
+              if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
+                throw new Error("The stored workspace key bundle does not match this vault.");
+              }
+              const objectStore = createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
+              await initializePersonalWorkspaceMigration({
+                store: objectStore,
+                state: workspaceStateStore,
+                vault: backupVaultAdapter,
+                runtime,
+                recoveryConfirmedAt: workspaceSecurityStatus.recoveryConfirmedAt,
+              });
+              const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
+              syncWorker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
+                intervalMs,
+                sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
+              });
+              syncWorker.onStatusChange = (status, errorMsg) => {
+                syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+                void workspaceStateStore.loadMeta().then(async (meta) => {
+                  if (!meta) return;
+                  const publicStatus: WorkspaceSecurityPublicStatus = {
+                    ...workspaceSecurityStatus,
+                    phase: status === "error" ? "error" : meta.phase,
+                    lastError: errorMsg || meta.lastError,
+                  };
+                  await saveWorkspaceSecurityStatus(path, publicStatus);
+                  setState((s) => s.vaultPath === path ? { ...s, workspaceSecurityStatus: publicStatus } : s);
+                });
+              };
+              syncWorker.onProgress = (progress) => syncStatusStore.set({ progress });
+              syncWorker.onFilesChanged = (paths) => {
+                for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
+                indexQueue.enqueue(paths);
+                for (const changedPath of paths) {
+                  if (!changedPath.includes(".CONFLICT")) {
+                    window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: changedPath } }));
+                  }
+                }
+              };
+              syncWorker.start();
+            }
+          } else {
             const engine = new SyncEngine(syncQueue, target, vaultAdapter, syncRepo);
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
@@ -672,14 +736,25 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               })();
             };
             syncWorker.start();
+          }
         }
       } catch (e) {
-          console.error("Failed to start SyncWorker", e);
+        console.error("Failed to start SyncWorker", e);
+        if (workspaceSecurityStatus) {
+          const message = e instanceof Error ? e.message : String(e);
+          resolvedWorkspaceSecurityStatus = { ...workspaceSecurityStatus, phase: "error", lastError: message.slice(0, 1000) };
+          await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(() => undefined);
+          syncStatusStore.set({ status: "error", message, provider: syncProvider });
+        }
       }
 
       if (currentAbortSignal.aborted) return;
 
-      syncStatusStore.set({ status: "idle", message: null, provider: syncWorker ? syncProvider : null });
+      // Preserve the explicit locked status when an encrypted workspace has no
+      // key material. The final load-state update below must not turn it idle.
+      if (syncWorker || !workspaceSecurityStatus) {
+        syncStatusStore.set({ status: "idle", message: null, provider: syncWorker ? syncProvider : null });
+      }
       setState(s => ({
         ...s,
         vaultPath: path,
@@ -695,6 +770,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         treeStructureVersion: s.treeStructureVersion + 1,
         fileTreeVersionPaths: null,
         syncWorker,
+        workspaceSecurityStatus: resolvedWorkspaceSecurityStatus,
         pimRuntime,
         indexQueue,
         loadingProgress: undefined,
@@ -854,6 +930,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // once. With no worker (no cloud sync configured), nothing to do.
       if (!state.vaultPath || !state.syncWorker) return;
       const worker = state.syncWorker;
+      if (!(worker instanceof SyncWorker)) {
+        loadVault(state.vaultPath);
+        return;
+      }
       buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
@@ -923,6 +1003,8 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     state.pimRuntime?.stop();
     syncTargetRef.current = null;
+    syncProviderRef.current = null;
+    workspaceStateRef.current = null;
     
     // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
     syncStatusStore.reset();
@@ -937,6 +1019,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       graphService: null,
       fileTreeVersion: 0,
       syncWorker: null,
+      workspaceSecurityStatus: null,
       pimRuntime: null,
       indexQueue: null,
       isLoading: false,
@@ -996,81 +1079,75 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  // Content-E2E (settings-sync plan §3.5): turn on end-to-end encryption for the
-  // active sync connection. Writes the `migrating` (mixed) manifest to the remote,
-  // pins the local connection state as encrypted, force-enqueues every file for
-  // re-encryption, then reopens the vault so the reloaded worker wraps the target
-  // and pushes ciphertext. The local vault always stays plaintext.
-  const activateEncryption = async (): Promise<{ queued: number }> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) {
-      throw new Error("encryption-no-connection");
+  // Build recovery material before any remote state is created. Activation is a
+  // separate, recovery-confirmed step in the Security Center.
+  const prepareWorkspace = async (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => {
+    if (!state.vaultPath || !syncTargetRef.current) throw new Error("workspace-no-connection");
+    return preparePersonalWorkspace({ vaultPath: state.vaultPath, ...input });
+  };
+
+  const activateWorkspace = async (draftId: string): Promise<{ queued: number; total: number }> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
+      throw new Error("workspace-no-connection");
     }
-    const res = await activateContentEncryption({
+    await state.syncWorker?.stopAndDrain();
+    const workspaceState = new SqlWorkspaceStateStore(state.dbAdapter);
+    workspaceStateRef.current = workspaceState;
+    const result = await activatePreparedPersonalWorkspace({
+      draftId,
       vaultPath: state.vaultPath,
+      provider: workspaceProviderName(syncProviderRef.current),
       rawTarget: syncTargetRef.current,
-      dbAdapter: state.dbAdapter,
       rawVault: state.backupAdapter,
+      state: workspaceState,
     });
-    await openVault(state.vaultPath); // reload -> wrapped worker sweeps the queued files
-    return res;
+    // Keep the legacy queue intact until encrypted initialization succeeds. It
+    // is ignored from now on, but clearing it earlier could lose pending work if
+    // the selected remote turns out to contain another workspace.
+    await state.dbAdapter.execute("DELETE FROM offline_queue");
+    await openVault(state.vaultPath);
+    return { queued: result.queued, total: result.total };
   };
 
-  // Flips the connection from mixed (migrating) to strict once the sweep has
-  // uploaded ciphertext for every file — after this a plaintext download is a
-  // fatal protocol violation (fail-closed).
-  const completeEncryptionMigration = async (): Promise<void> => {
-    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) {
-      throw new Error("encryption-no-connection");
-    }
-    await completeContentEncryption({
-      vaultPath: state.vaultPath,
-      rawTarget: syncTargetRef.current,
-      dbAdapter: state.dbAdapter,
+  const unlockWorkspace = async (passphrase?: string): Promise<void> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
+    await unlockWorkspaceRuntime(state.vaultPath, passphrase);
+    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
+    const meta = await workspaceState.loadMeta();
+    await saveWorkspaceSecurityStatus(state.vaultPath, {
+      ...state.workspaceSecurityStatus,
+      phase: meta?.phase ?? "migrating",
+      lastError: null,
     });
-    await openVault(state.vaultPath); // reload -> the wrap now enforces strict mode
-  };
-
-  const deactivateEncryption = async (): Promise<{ queued: number }> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
-    const result = await deactivateContentEncryption({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter });
-    await openVault(state.vaultPath);
-    return result;
-  };
-
-  const completeDecryptionMigration = async (): Promise<void> => {
-    if (!state.vaultPath || !state.dbAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
-    await completeContentDecryption({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter });
     await openVault(state.vaultPath);
   };
 
-  const rotateEncryptionKey = async (passphrase: string): Promise<{ queued: number; newKeyId: string }> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
-    const result = await rotateContentEncryptionKey({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter, passphrase });
-    await openVault(state.vaultPath);
-    return result;
-  };
-
-  const completeEncryptionRotation = async (): Promise<void> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current) throw new Error("encryption-no-connection");
-    await completeContentKeyRotation({ vaultPath: state.vaultPath, rawTarget: syncTargetRef.current, dbAdapter: state.dbAdapter, rawVault: state.backupAdapter });
+  const lockWorkspace = async (): Promise<void> => {
+    if (!state.vaultPath || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
+    await state.syncWorker?.stopAndDrain();
+    lockWorkspaceRuntime(state.vaultPath);
+    await saveWorkspaceSecurityStatus(state.vaultPath, { ...state.workspaceSecurityStatus, phase: "locked", lastError: null });
     await openVault(state.vaultPath);
   };
 
-  const getEncryptionLifecycleState = async (): Promise<EncryptionState | "off"> => {
-    if (!syncTargetRef.current) return "off";
-    const text = await readRemoteManifest(syncTargetRef.current);
-    if (!text) return "off";
-    try {
-      return parseManifest(JSON.parse(text))?.state ?? "off";
-    } catch {
-      return "off";
-    }
+  const cleanupRemotePlaintext = async (): Promise<number> => {
+    if (!syncTargetRef.current) throw new Error("workspace-no-connection");
+    return removeLegacyRemotePlaintext(syncTargetRef.current);
+  };
+
+  const getWorkspaceDiagnostics = async (): Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number }> => {
+    const workspaceState = workspaceStateRef.current;
+    const [meta, queuedMutations] = workspaceState
+      ? await Promise.all([workspaceState.loadMeta(), workspaceState.listQueue().then((entries) => entries.length)])
+      : [null, 0];
+    const legacyPlaintextPaths = syncTargetRef.current ? (await listLegacyRemotePlaintext(syncTargetRef.current)).length : 0;
+    return { meta, queuedMutations, legacyPlaintextPaths };
   };
 
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, activateEncryption, completeEncryptionMigration, deactivateEncryption, completeDecryptionMigration, rotateEncryptionKey, completeEncryptionRotation, getEncryptionLifecycleState }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

@@ -99,6 +99,62 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       value TEXT
     );`,
 
+    // Encrypted Workspace P3. The index DB contains public protocol state,
+    // ciphertext staging references and the resumable mutation queue only.
+    // Device, recovery and group private keys are never persisted here.
+    `CREATE TABLE IF NOT EXISTS workspace_meta (
+      id         INTEGER PRIMARY KEY CHECK (id = 1),
+      state_json TEXT NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_object (
+      object_id           TEXT PRIMARY KEY,
+      path                TEXT NOT NULL UNIQUE,
+      current_revision_id TEXT,
+      payload_hash        TEXT,
+      plaintext_sha256    TEXT,
+      content_kind        TEXT NOT NULL,
+      deleted             INTEGER NOT NULL DEFAULT 0,
+      created_at          TEXT NOT NULL,
+      modified_at         TEXT NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_revision (
+      revision_id        TEXT PRIMARY KEY,
+      object_id          TEXT NOT NULL,
+      payload_hash       TEXT,
+      parent_revision_ids TEXT NOT NULL,
+      operation_hash     TEXT NOT NULL,
+      device_id          TEXT NOT NULL,
+      sequence           INTEGER NOT NULL,
+      materialized_path  TEXT,
+      plaintext_sha256   TEXT
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_operation (
+      operation_hash TEXT PRIMARY KEY,
+      device_id      TEXT NOT NULL,
+      sequence       INTEGER NOT NULL,
+      document_json  TEXT NOT NULL,
+      UNIQUE(device_id, sequence)
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_queue (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      operation     TEXT NOT NULL,
+      path          TEXT NOT NULL,
+      new_path      TEXT,
+      queued_at     INTEGER NOT NULL,
+      retry_count   INTEGER NOT NULL DEFAULT 0,
+      last_error    TEXT,
+      prepared_json TEXT
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_checkpoint (
+      checkpoint_hash TEXT PRIMARY KEY,
+      document_json   TEXT NOT NULL,
+      published       INTEGER NOT NULL DEFAULT 0
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_queue_path ON workspace_queue(path, new_path);`,
+
     // FTS5 Virtual Table for full-text search
     `CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(
       content,

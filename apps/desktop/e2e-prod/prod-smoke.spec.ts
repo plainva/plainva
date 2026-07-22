@@ -22,7 +22,7 @@ import { test, expect } from '@playwright/test';
  */
 test('production bundle boots and renders the splash without an uncaught error', async ({ page }) => {
   const pageErrors: string[] = [];
-  page.on('pageerror', (err) => pageErrors.push(err.message));
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
 
   await page.goto('/');
 
@@ -30,9 +30,16 @@ test('production bundle boots and renders the splash without an uncaught error',
   // evaluated, React mounted and the first real screen rendered (not just an
   // ErrorBoundary fallback). Startup is async — main.tsx renders inside
   // i18nReady.then(...) after the locale chunk loads — so allow a generous wait.
-  await expect(
-    page.getByText(/Willkommen bei Plainva|Welcome to Plainva/),
-  ).toBeVisible({ timeout: 15000 });
+  try {
+    await expect(
+      page.getByText(/Willkommen bei Plainva|Welcome to Plainva/),
+    ).toBeVisible({ timeout: 15000 });
+  } catch (error) {
+    throw new Error(
+      `${String(error)}\nUncaught page errors during startup:\n${pageErrors.join("\n") || "(none)"}`,
+      { cause: error },
+    );
+  }
 
   // Belt and suspenders: a white-screen leaves #root empty even if some other
   // element happened to match the text.

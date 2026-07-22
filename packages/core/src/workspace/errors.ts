@@ -1,10 +1,12 @@
 export type WorkspaceProtocolErrorCode =
   | "bounds"
+  | "authorization"
   | "canonical"
   | "conflict"
   | "crypto"
   | "format"
   | "integrity"
+  | "rollback"
   | "unsupported";
 
 /** A deliberately value-free protocol error safe to surface in diagnostics. */

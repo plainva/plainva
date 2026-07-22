@@ -665,3 +665,9 @@
   border-radius: var(--radius-pill);
   color: #000000;
 }
+
+[data-theme-name="lcars"] .pv-security-code {
+  background: #000000;
+  border-color: var(--lcars-4);
+  border-left: 6px solid var(--lcars-2);
+}

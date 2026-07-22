@@ -299,6 +299,8 @@
     "pageDescUpdates": "Controllo automatico e ricerca manuale di nuove versioni.",
     "pageDescAbout": "Versioni, portachiavi e diagnostica locale.",
     "pageDescSync": "Provider cloud e comportamento di sincronizzazione di questo vault.",
+    "pageDescSecurity": "Crittografia, recupero, dispositivi e condivisione di questo vault.",
+    "securityRecoveryChallenge": "Per confermare il backup, inserisci i due gruppi richiesti del codice.",
     "pageDescPim": "Account calendario, selezione e calendario predefinito di questo vault.",
     "pageDescContent": "Note giornaliere, modelli, attività e il formato OKF.",
     "pageDescBackup": "Backup ZIP automatici e la cronologia delle versioni per file.",
@@ -327,6 +329,7 @@
     "weekStartSaturday": "Sabato",
     "weekStartSunday": "Domenica",
     "sectionCloudAccounts": "Account cloud",
+    "sectionSecurity": "Sicurezza e condivisione",
     "pageDescCloudAccounts": "Collega i provider di questo vault e scegli quali servizi gestiscono.",
     "sectionMail": "E-mail",
     "pageDescMail": "Caselle di posta, cartella di cattura e privacy di questo vault."
@@ -2290,6 +2293,17 @@
     "openArea": "Apri account cloud",
     "mailboxesGroup": "Caselle di posta",
     "mailCaptureGroup": "Cattura e privacy"
+  },
+  "workspaceSecurity": {
+    "statusCard":"Stato protezione","currentStatus":"Workspace cifrato","workspaceProtected":"Il contenuto remoto è memorizzato come oggetti cifrati con modifiche firmate.","notConfigured":"Non ancora configurato.","setup":"Configura cifratura","connectionRequired":"Collega questo vault a un provider cloud prima di attivare la sincronizzazione cifrata.","openVaultFirst":"Apri questo vault per gestirne la sicurezza.",
+    "phase":{"preparing":"Preparazione","migrating":"Cifratura","active":"Protetto","locked":"Bloccato","error":"Azione richiesta"},
+    "lockedMessage":"Il workspace cifrato è bloccato su questo dispositivo.","device":"Questo dispositivo","nativeKeychain":"Le chiavi sono protette dal portachiavi di sistema.","passphraseProtected":"Le chiavi sono protette dalla passphrase locale.","lock":"Blocca","unlock":"Sblocca","unlockTitle":"Sblocca workspace cifrato","unlockFailed":"Impossibile sbloccare. Controlla la passphrase.","passphrase":"Passphrase",
+    "details":"Dettagli tecnici","showDetails":"Mostra dettagli","hideDetails":"Nascondi dettagli","fingerprint":"Impronta","workspaceId":"ID workspace","progress":"Avanzamento migrazione","lastSync":"Ultima sincronizzazione riuscita","queued":"Ancora da cifrare","legacyPlaintext":"Vecchi oggetti in chiaro","refresh":"Aggiorna",
+    "recoveryCard":"Recupero","recoveryPackage":"Pacchetto di recupero","recoveryProtected":"Salvato e confermato durante la configurazione.","recoverySetupHint":"Viene creato durante la configurazione.","recoverySaved":"Salvato esternamente","recoverySeparation":"Conserva il file .pvrecovery e il codice separatamente. Non contengono credenziali cloud.",
+    "devicesCard":"Dispositivi","currentDevice":"Dispositivo attuale","devicesP4":"Aggiunta, associazione e revoca di altri dispositivi arrivano in P4.","teamsCard":"Persone e permessi","teamsComing":"Condivisione team","teamsP4":"Ruoli, gruppi, inviti e slice condivisi arrivano da P4.","manageTeams":"Gestisci",
+    "cleanupCard":"Completa migrazione","cleanupWarning":"Nel provider restano {{n}} vecchi oggetti in chiaro.","cleanupLabel":"Rimuovi vecchio contenuto remoto in chiaro","cleanupDesc":"I file locali restano invariati; viene rimossa solo la vecchia copia remota.","cleanupTitle":"Rimuovere il contenuto remoto in chiaro?","cleanupBody":"Elimina definitivamente {{n}} vecchi oggetti dal provider. .pvws e i file locali restano.","cleanupAction":"Rimuovi contenuto in chiaro","cleanupDone":"Rimossi {{n}} vecchi oggetti.","cleanupFailed":"Impossibile completare la pulizia.",
+    "setupTitle":"Configura workspace cifrato","setupProgress":"Passaggio {{step}} di 3","stepIdentity":"1 Identità","stepRecovery":"2 Recupero","stepActivate":"3 Attiva","setupIntro":"Plainva crea un’identità proprietario e chiavi dispositivo. Il vault locale resta leggibile; il cloud passa a oggetti cifrati.","ownerName":"Nome proprietario","deviceName":"Nome dispositivo","thisDevice":"Questo dispositivo","fallbackPassphrase":"Passphrase chiavi locale (almeno 10 caratteri)","setupFailed":"Impossibile preparare il workspace cifrato.",
+    "recoveryWarning":"Salva file e codice separatamente. Perderli entrambi impedisce il recupero.","recoveryFile":"File di recupero","recoveryFileDesc":"Pacchetto cifrato con chiavi di recupero e proprietario; senza credenziali cloud.","saveRecovery":"Salva file","saved":"Salvato","saveFailed":"Impossibile salvare il file.","recoverySavedToast":"File di recupero salvato.","recoveryCode":"Codice di recupero","copyCode":"Copia codice","codeCopied":"Codice copiato.","confirmRecovery":"Ho salvato file e codice separatamente in luoghi sicuri.","fingerprintValue":"Impronta workspace: {{value}}","activate":"Attiva workspace cifrato","activating":"Pubblicazione del workspace e preparazione della coda ripristinabile…","activationFailed":"Attivazione non riuscita. Il contenuto remoto in chiaro non è stato rimosso.","migrationStarted":"Cifratura avviata: {{n}} di {{total}} elementi in coda."
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",

@@ -85,6 +85,8 @@ Nach **Verbinden** startet der Sync direkt.
 
 ## Sync-Verschlüsselung (Passphrase)
 
+> **Mit P3 ersetzt:** Die folgenden Bedienelemente gelten nicht mehr für Vault-Inhalte. Nutze [Sicherheit & Freigaben](Security_and_Sharing.md) für den aktuellen verschlüsselten Workspace. Die hier verbleibende Passphrase schützt nur den optionalen Einstellungen-/Secrets-Sideband.
+
 Plainva kann verschlüsseln, was Deinen Rechner in Richtung Sync-Server verlässt — Dein lokaler Vault bleibt dabei immer reines Markdown, das Obsidian lesen kann.
 
 Öffne **Einstellungen → Synchronisation → Sync-Passphrase & Verschlüsselung**:

@@ -85,6 +85,8 @@ Na **Verbinden** start de sync direct.
 
 ## Sync-versleuteling (wachtwoordzin)
 
+> **Vervangen in P3:** De onderstaande instructies gelden niet meer voor vaultinhoud. Gebruik [Beveiliging en delen](Security_and_Sharing.md). De wachtzin hier beschermt alleen optionele instellingen en geheimen.
+
 Plainva kan versleutelen wat je apparaat richting de sync-server verlaat, terwijl je lokale vault altijd platte Markdown blijft die Obsidian kan lezen.
 
 Open **Instellingen → Synchronisatie → Sync-wachtwoordzin en versleuteling**:

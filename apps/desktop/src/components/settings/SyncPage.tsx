@@ -4,7 +4,6 @@ import { Users } from "lucide-react";
 import {
   Button,
   EmptyState,
-  Modal,
   SettingCard,
   SettingCardNote,
   SettingRow,
@@ -13,7 +12,6 @@ import {
   ICON,
   familyOfSyncProvider,
   hasCloudService,
-  toast,
   type CloudAccountRecord,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
@@ -21,7 +19,6 @@ import { MIN_SYNC_INTERVAL_SECONDS, useVault } from "../../contexts/VaultContext
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
 import { settingsSyncEnabledKey, secretsSyncEnabledKey } from "../../services/settingsProfile";
-import { appConfirm } from "../../services/appDialogs";
 import {
   hasLocalKeyfile,
   loadCachedMasterKey,
@@ -61,7 +58,7 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
-  const { backupAdapter, activateEncryption, completeEncryptionMigration, deactivateEncryption, completeDecryptionMigration, rotateEncryptionKey, completeEncryptionRotation, getEncryptionLifecycleState } = useVault();
+  const { backupAdapter } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -71,11 +68,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [encState, setEncState] = useState<"none" | "locked" | "unlocked">("none");
   const [everyStart, setEveryStart] = useState(false);
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
-  const [contentEnc, setContentEnc] = useState<"off" | "preparing" | "migrating" | "strict" | "decrypting" | "rotating" | "plain">("off");
-  const [encBusy, setEncBusy] = useState(false);
-  const [rotationModal, setRotationModal] = useState(false);
-  const [rotationPassphrase, setRotationPassphrase] = useState("");
-  const [rotationError, setRotationError] = useState<string | null>(null);
   const provider = p.activeProvider;
 
   // Encryption state for this vault (only meaningful for the active, open vault).
@@ -89,11 +81,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       const hasKf = await hasLocalKeyfile(backupAdapter);
       const mk = await loadCachedMasterKey(p.selectedVault);
       const every = await isPassphraseEveryStart(p.selectedVault);
-      const lifecycle = await getEncryptionLifecycleState();
       if (!alive) return;
       setEveryStart(every);
       setEncState(mk ? "unlocked" : hasKf ? "locked" : "none");
-      setContentEnc(lifecycle === "plain" ? "off" : lifecycle);
     };
     void refresh();
     window.addEventListener("plainva-encryption-changed", refresh);
@@ -103,7 +93,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       window.removeEventListener("plainva-encryption-changed", refresh);
       window.removeEventListener("plainva-keyfile-arrived", refresh);
     };
-  }, [p.isActiveVault, p.selectedVault, backupAdapter, getEncryptionLifecycleState]);
+  }, [p.isActiveVault, p.selectedVault, backupAdapter]);
 
   const doLock = useCallback(async () => {
     await lockVault(p.selectedVault);
@@ -117,111 +107,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
     },
     [p.selectedVault]
   );
-
-  const doActivateEncryption = useCallback(async () => {
-    if (encBusy) return;
-    const ok = await appConfirm({
-      title: t("encryption.activateTitle"),
-      message: t("encryption.activateConfirm"),
-      kind: "danger",
-      confirmLabel: t("encryption.activate"),
-    });
-    if (!ok) return;
-    setEncBusy(true);
-    try {
-      const { queued } = await activateEncryption();
-      // activateEncryption reopens the vault itself (rewrap); no encryption-changed
-      // event here or the vault would reload twice.
-      toast.info(t("encryption.activateStarted", { n: queued }));
-    } catch (e) {
-      console.error("[SyncPage] activate content encryption failed", e);
-      toast.error(t("encryption.activateFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [encBusy, t, activateEncryption]);
-
-  const doCompleteMigration = useCallback(async () => {
-    if (encBusy) return;
-    const ok = await appConfirm({
-      title: t("encryption.completeTitle"),
-      message: t("encryption.completeConfirm"),
-      confirmLabel: t("encryption.complete"),
-    });
-    if (!ok) return;
-    setEncBusy(true);
-    try {
-      await completeEncryptionMigration();
-      // completeEncryptionMigration reopens the vault itself; no event here.
-      toast.info(t("encryption.completeDone"));
-    } catch (e) {
-      console.error("[SyncPage] complete content-encryption migration failed", e);
-      toast.error(t("encryption.completeFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [encBusy, t, completeEncryptionMigration]);
-
-  const doDeactivateEncryption = useCallback(async () => {
-    if (encBusy) return;
-    const ok = await appConfirm({ title: t("encryption.deactivateTitle"), message: t("encryption.deactivateConfirm"), kind: "danger", confirmLabel: t("encryption.deactivate") });
-    if (!ok) return;
-    setEncBusy(true);
-    try {
-      const { queued } = await deactivateEncryption();
-      toast.info(t("encryption.deactivateStarted", { n: queued }));
-    } catch (e) {
-      console.error("[SyncPage] deactivate content encryption failed", e);
-      toast.error(t("encryption.deactivateFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [deactivateEncryption, encBusy, t]);
-
-  const doCompleteDecryption = useCallback(async () => {
-    if (encBusy) return;
-    setEncBusy(true);
-    try {
-      await completeDecryptionMigration();
-      toast.info(t("encryption.deactivateDone"));
-    } catch (e) {
-      console.error("[SyncPage] complete content decryption failed", e);
-      toast.error(t("encryption.completeFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [completeDecryptionMigration, encBusy, t]);
-
-  const doRotateEncryption = useCallback(async () => {
-    if (encBusy || !rotationPassphrase) return;
-    setEncBusy(true);
-    setRotationError(null);
-    try {
-      const { queued } = await rotateEncryptionKey(rotationPassphrase);
-      setRotationPassphrase("");
-      setRotationModal(false);
-      toast.info(t("encryption.rotateStarted", { n: queued }));
-    } catch (e) {
-      console.error("[SyncPage] rotate content key failed", e);
-      setRotationError(t("encryption.rotateFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [encBusy, rotateEncryptionKey, rotationPassphrase, t]);
-
-  const doCompleteRotation = useCallback(async () => {
-    if (encBusy) return;
-    setEncBusy(true);
-    try {
-      await completeEncryptionRotation();
-      toast.info(t("encryption.rotateDone"));
-    } catch (e) {
-      console.error("[SyncPage] complete content key rotation failed", e);
-      toast.error(t("encryption.completeFailed"));
-    } finally {
-      setEncBusy(false);
-    }
-  }, [completeEncryptionRotation, encBusy, t]);
 
   useEffect(() => {
     void getSettingsStore().then(async (s) => {
@@ -429,51 +314,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
             </SettingRow>
           )}
-          {encState === "unlocked" && (
-            <SettingRow label={t("encryption.contentRow")} desc={t("encryption.contentRowDesc")}>
-              {contentEnc === "off" ? (
-                <Button
-                  variant="primary"
-                  disabled={encBusy}
-                  onClick={() => void doActivateEncryption()}
-                  data-testid="encryption-activate"
-                >
-                  {t("encryption.activate")}
-                </Button>
-              ) : contentEnc === "migrating" || contentEnc === "preparing" ? (
-                <Button
-                  variant="ghost"
-                  disabled={encBusy}
-                  onClick={() => void doCompleteMigration()}
-                  data-testid="encryption-complete"
-                >
-                  {t("encryption.complete")}
-                </Button>
-              ) : contentEnc === "decrypting" ? (
-                <Button variant="primary" disabled={encBusy} onClick={() => void doCompleteDecryption()} data-testid="encryption-complete-decryption">
-                  {t("encryption.completeDeactivation")}
-                </Button>
-              ) : contentEnc === "rotating" ? (
-                <Button variant="primary" disabled={encBusy} onClick={() => void doCompleteRotation()} data-testid="encryption-complete-rotation">
-                  {t("encryption.completeRotation")}
-                </Button>
-              ) : (
-                <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                  <Button variant="secondary" disabled={encBusy} onClick={() => setRotationModal(true)} data-testid="encryption-rotate">
-                    {t("encryption.rotate")}
-                  </Button>
-                  <Button variant="ghost" disabled={encBusy} onClick={() => void doDeactivateEncryption()} data-testid="encryption-deactivate">
-                    {t("encryption.deactivate")}
-                  </Button>
-                </div>
-              )}
-            </SettingRow>
-          )}
-          {encState === "unlocked" && (
-            <SettingCardNote>
-              {contentEnc === "strict" ? t("encryption.contentActiveNote") : contentEnc === "off" ? t("encryption.contentWarning") : t("encryption.migrationActive")}
-            </SettingCardNote>
-          )}
         </SettingCard>
       )}
 
@@ -496,23 +336,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           }}
           onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}
         />
-      )}
-
-      {rotationModal && (
-        <Modal title={t("encryption.rotateTitle")} onClose={() => { if (!encBusy) setRotationModal(false); }} size="sm">
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            <div style={{ color: "var(--text-muted)" }}>{t("encryption.rotateConfirm")}</div>
-            <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
-              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("encryption.passphrase")}</span>
-              <input type="password" className="pv-field" autoFocus value={rotationPassphrase} onChange={(e) => setRotationPassphrase(e.target.value)} />
-            </label>
-            {rotationError && <div style={{ color: "var(--error-text)", fontSize: "var(--text-sm)" }}>{rotationError}</div>}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
-              <Button variant="ghost" disabled={encBusy} onClick={() => setRotationModal(false)}>{t("common.cancel")}</Button>
-              <Button variant="primary" disabled={encBusy || !rotationPassphrase} onClick={() => void doRotateEncryption()}>{t("encryption.rotate")}</Button>
-            </div>
-          </div>
-        </Modal>
       )}
 
       {showPicker && provider !== "none" && provider !== "webdav" && (

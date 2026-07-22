@@ -299,6 +299,8 @@
     "pageDescUpdates": "Verificação automática e busca manual por novas versões.",
     "pageDescAbout": "Versões, chaveiro e diagnóstico local.",
     "pageDescSync": "Provedor de nuvem e comportamento de sincronização deste vault.",
+    "pageDescSecurity": "Criptografia, recuperação, dispositivos e compartilhamento deste vault.",
+    "securityRecoveryChallenge": "Para confirmar o backup, informe os dois grupos solicitados do código.",
     "pageDescPim": "Contas de calendário, seleção e calendário padrão deste vault.",
     "pageDescContent": "Notas diárias, modelos, tarefas e o formato OKF.",
     "pageDescBackup": "Backups ZIP automáticos e o histórico de versões por arquivo.",
@@ -327,6 +329,7 @@
     "weekStartSaturday": "Sábado",
     "weekStartSunday": "Domingo",
     "sectionCloudAccounts": "Contas na nuvem",
+    "sectionSecurity": "Segurança e compartilhamento",
     "pageDescCloudAccounts": "Conecte os provedores deste vault e escolha quais serviços eles carregam.",
     "sectionMail": "E-mail",
     "pageDescMail": "Caixas de e-mail, captura e privacidade deste vault."
@@ -2290,6 +2293,17 @@
     "openArea": "Abrir contas na nuvem",
     "mailboxesGroup": "Caixas de e-mail",
     "mailCaptureGroup": "Captura e privacidade"
+  },
+  "workspaceSecurity": {
+    "statusCard":"Status da proteção","currentStatus":"Workspace criptografado","workspaceProtected":"O conteúdo remoto é armazenado como objetos criptografados com alterações assinadas.","notConfigured":"Ainda não configurado.","setup":"Configurar criptografia","connectionRequired":"Conecte este vault a um provedor de nuvem antes de ativar a sincronização criptografada.","openVaultFirst":"Abra este vault para gerenciar sua segurança.",
+    "phase":{"preparing":"Preparando","migrating":"Criptografando","active":"Protegido","locked":"Bloqueado","error":"Ação necessária"},
+    "lockedMessage":"O workspace criptografado está bloqueado neste dispositivo.","device":"Este dispositivo","nativeKeychain":"As chaves são protegidas pelo chaveiro do sistema.","passphraseProtected":"As chaves são protegidas pela frase secreta local.","lock":"Bloquear","unlock":"Desbloquear","unlockTitle":"Desbloquear workspace","unlockFailed":"Não foi possível desbloquear. Verifique a frase secreta.","passphrase":"Frase secreta",
+    "details":"Detalhes técnicos","showDetails":"Mostrar detalhes","hideDetails":"Ocultar detalhes","fingerprint":"Impressão digital","workspaceId":"ID do workspace","progress":"Progresso da migração","lastSync":"Última sincronização bem-sucedida","queued":"Ainda por criptografar","legacyPlaintext":"Objetos antigos em texto simples","refresh":"Atualizar",
+    "recoveryCard":"Recuperação","recoveryPackage":"Pacote de recuperação","recoveryProtected":"Salvo e confirmado durante a configuração.","recoverySetupHint":"Criado durante a configuração.","recoverySaved":"Salvo externamente","recoverySeparation":"Guarde o arquivo .pvrecovery e o código separadamente. Eles não contêm credenciais da nuvem.",
+    "devicesCard":"Dispositivos","currentDevice":"Dispositivo atual","devicesP4":"Adicionar, parear e revogar outros dispositivos chega no P4.","teamsCard":"Pessoas e permissões","teamsComing":"Compartilhamento em equipe","teamsP4":"Funções, grupos, convites e slices compartilhados chegam a partir do P4.","manageTeams":"Gerenciar",
+    "cleanupCard":"Concluir migração","cleanupWarning":"Ainda existem {{n}} objeto(s) antigos em texto simples no provedor.","cleanupLabel":"Remover texto simples remoto antigo","cleanupDesc":"Arquivos locais permanecem; apenas a cópia antiga do provedor é removida.","cleanupTitle":"Remover texto simples remoto?","cleanupBody":"Isto exclui permanentemente {{n}} objeto(s) antigos do provedor. .pvws e arquivos locais permanecem.","cleanupAction":"Remover texto simples","cleanupDone":"{{n}} objeto(s) antigos removidos.","cleanupFailed":"A limpeza não pôde ser concluída.",
+    "setupTitle":"Configurar workspace criptografado","setupProgress":"Etapa {{step}} de 3","stepIdentity":"1 Identidade","stepRecovery":"2 Recuperação","stepActivate":"3 Ativar","setupIntro":"Plainva cria uma identidade de proprietário e chaves de dispositivo. O vault local continua legível; a nuvem passa a objetos criptografados.","ownerName":"Nome do proprietário","deviceName":"Nome do dispositivo","thisDevice":"Este dispositivo","fallbackPassphrase":"Frase secreta local (mínimo de 10 caracteres)","setupFailed":"Não foi possível preparar o workspace criptografado.",
+    "recoveryWarning":"Guarde arquivo e código separadamente. Perder ambos impede a recuperação.","recoveryFile":"Arquivo de recuperação","recoveryFileDesc":"Pacote criptografado com chaves de recuperação e proprietário; sem credenciais da nuvem.","saveRecovery":"Salvar arquivo","saved":"Salvo","saveFailed":"Não foi possível salvar o arquivo.","recoverySavedToast":"Arquivo de recuperação salvo.","recoveryCode":"Código de recuperação","copyCode":"Copiar código","codeCopied":"Código copiado.","confirmRecovery":"Salvei arquivo e código separadamente em locais seguros.","fingerprintValue":"Impressão digital do workspace: {{value}}","activate":"Ativar workspace criptografado","activating":"Publicando o workspace e preparando a fila retomável…","activationFailed":"A ativação falhou. O texto simples remoto não foi removido.","migrationStarted":"Criptografia iniciada: {{n}} de {{total}} item(ns) na fila."
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

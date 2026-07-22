@@ -2,8 +2,8 @@
 
 Status: **implemented but unreleased. The profile/secrets sideband remains the
 current implementation; the PVE1 content-encryption portion is superseded by
-`Encrypted_Workspace_Protocol.md` and will be removed from activation paths in
-P3.** This document is the publicly reviewable specification of the
+`Encrypted_Workspace_Protocol.md` and was removed from content activation paths
+in P3.** This document is the publicly reviewable specification of the
 on-disk/on-wire formats, state machine and threat model for Plainva's opt-in
 settings-sync and end-to-end vault encryption. The corresponding protocol code
 lives in `packages/core/src/crypto/` and `packages/core/src/settingsSync/`; shell

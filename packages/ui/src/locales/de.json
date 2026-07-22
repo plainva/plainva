@@ -314,6 +314,8 @@
     "pageDescUpdates": "Automatische Prüfung und manuelle Suche nach neuen Versionen.",
     "pageDescAbout": "Versionen, Schlüsselbund und lokale Diagnose.",
     "pageDescSync": "Cloud-Anbieter und Verhalten der Synchronisation dieses Vaults.",
+    "pageDescSecurity": "Verschlüsselung, Wiederherstellung, Geräte und Freigaben dieses Vaults.",
+    "securityRecoveryChallenge": "Gib zur Bestätigung die beiden abgefragten Gruppen des Wiederherstellungscodes ein.",
     "pageDescPim": "Kalender-Konten, Auswahl und Standardkalender dieses Vaults.",
     "pageDescContent": "Tagesnotizen, Vorlagen, Aufgaben und das OKF-Format.",
     "pageDescBackup": "Automatische ZIP-Sicherungen und der Versionsverlauf je Datei.",
@@ -342,6 +344,7 @@
     "weekStartSaturday": "Samstag",
     "weekStartSunday": "Sonntag",
     "sectionCloudAccounts": "Cloud-Konten",
+    "sectionSecurity": "Sicherheit & Freigaben",
     "pageDescCloudAccounts": "Anbieter dieses Vaults verbinden und festlegen, welche Dienste sie übernehmen.",
     "sectionMail": "E-Mail",
     "pageDescMail": "Postfächer, Ablage und Datenschutz dieses Vaults."
@@ -2308,6 +2311,17 @@
     "openArea": "Cloud-Konten öffnen",
     "mailboxesGroup": "Postfächer",
     "mailCaptureGroup": "Ablage & Datenschutz"
+  },
+  "workspaceSecurity": {
+    "statusCard": "Schutzstatus", "currentStatus": "Verschlüsselter Workspace", "workspaceProtected": "Inhalte liegen remote als verschlüsselte Objekte mit signierten Änderungen.", "notConfigured": "Noch nicht eingerichtet.", "setup": "Verschlüsselung einrichten", "connectionRequired": "Verbinde diesen Vault zuerst mit einem Cloud-Anbieter.", "openVaultFirst": "Öffne diesen Vault, um seine Sicherheitseinstellungen zu verwalten.",
+    "phase": { "preparing": "Vorbereitung", "migrating": "Wird verschlüsselt", "active": "Geschützt", "locked": "Gesperrt", "error": "Handlung erforderlich" },
+    "lockedMessage": "Der verschlüsselte Workspace ist auf diesem Gerät gesperrt.", "device": "Dieses Gerät", "nativeKeychain": "Schlüssel sind durch den System-Schlüsselbund geschützt.", "passphraseProtected": "Schlüssel sind durch Deine lokale Passphrase geschützt.", "lock": "Sperren", "unlock": "Entsperren", "unlockTitle": "Workspace entsperren", "unlockFailed": "Der Workspace konnte nicht entsperrt werden. Prüfe die Passphrase.", "passphrase": "Passphrase",
+    "details": "Technische Details", "showDetails": "Details anzeigen", "hideDetails": "Details ausblenden", "fingerprint": "Fingerprint", "workspaceId": "Workspace-ID", "progress": "Migrationsfortschritt", "lastSync": "Letzte erfolgreiche Synchronisation", "queued": "Noch zu verschlüsseln", "legacyPlaintext": "Alte Klartextobjekte", "refresh": "Aktualisieren",
+    "recoveryCard": "Wiederherstellung", "recoveryPackage": "Wiederherstellungspaket", "recoveryProtected": "Bei der Einrichtung gespeichert und bestätigt.", "recoverySetupHint": "Bei der Einrichtung wird ein Wiederherstellungspaket erzeugt.", "recoverySaved": "Extern gespeichert", "recoverySeparation": "Bewahre .pvrecovery-Datei und Wiederherstellungscode getrennt auf. Beide enthalten keine Cloud-Zugangsdaten.",
+    "devicesCard": "Geräte", "currentDevice": "Aktuelles Gerät", "devicesP4": "Weitere Geräte hinzufügen, koppeln und sperren folgt in P4.", "teamsCard": "Personen & Rechte", "teamsComing": "Teamfreigaben", "teamsP4": "Rollen, Gruppen, Einladungen und geteilte Slices folgen ab P4.", "manageTeams": "Verwalten",
+    "cleanupCard": "Migration abschließen", "cleanupWarning": "Beim Anbieter liegen noch {{n}} alte Klartextobjekte neben dem verschlüsselten Workspace.", "cleanupLabel": "Alten Remote-Klartext entfernen", "cleanupDesc": "Lokale Klartextdateien bleiben erhalten. Nur die alte Kopie beim Anbieter wird entfernt.", "cleanupTitle": "Alten Remote-Klartext entfernen?", "cleanupBody": "Dies löscht {{n}} alte Klartextobjekte dauerhaft beim Cloud-Anbieter. Die verschlüsselte .pvws-Kopie und lokale Dateien bleiben erhalten.", "cleanupAction": "Klartext entfernen", "cleanupDone": "{{n}} alte Klartextobjekte entfernt.", "cleanupFailed": "Der Klartext konnte nicht vollständig entfernt werden.",
+    "setupTitle": "Verschlüsselten Workspace einrichten", "setupProgress": "Einrichtungsschritt {{step}} von 3", "stepIdentity": "1 Identität", "stepRecovery": "2 Wiederherstellung", "stepActivate": "3 Aktivieren", "setupIntro": "Plainva erzeugt eine persönliche Owner-Identität und Geräteschlüssel. Dein lokaler Vault bleibt lesbar; Cloud-Inhalte werden zu verschlüsselten Objekten.", "ownerName": "Name des Owners", "deviceName": "Gerätename", "thisDevice": "Dieses Gerät", "fallbackPassphrase": "Lokale Schlüssel-Passphrase (mindestens 10 Zeichen)", "setupFailed": "Der verschlüsselte Workspace konnte nicht vorbereitet werden.",
+    "recoveryWarning": "Speichere Datei und Code getrennt. Gehen beide verloren, ist keine Wiederherstellung möglich.", "recoveryFile": "Wiederherstellungsdatei", "recoveryFileDesc": "Verschlüsseltes Paket mit Recovery- und Owner-Schlüsseln; ohne Cloud-Zugangsdaten.", "saveRecovery": "Datei speichern", "saved": "Gespeichert", "saveFailed": "Die Wiederherstellungsdatei konnte nicht gespeichert werden.", "recoverySavedToast": "Wiederherstellungsdatei gespeichert.", "recoveryCode": "Wiederherstellungscode", "copyCode": "Code kopieren", "codeCopied": "Wiederherstellungscode kopiert.", "confirmRecovery": "Ich habe Datei und Code getrennt an sicheren Orten gespeichert.", "fingerprintValue": "Workspace-Fingerprint: {{value}}", "activate": "Verschlüsselten Workspace aktivieren", "activating": "Workspace wird veröffentlicht und die fortsetzbare Verschlüsselungswarteschlange vorbereitet…", "activationFailed": "Aktivierung fehlgeschlagen. Bestehender Remote-Klartext wurde nicht entfernt.", "migrationStarted": "Verschlüsselung gestartet: {{n}} von {{total}} Elementen eingereiht."
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

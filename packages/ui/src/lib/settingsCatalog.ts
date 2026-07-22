@@ -10,6 +10,7 @@ import {
   Pencil,
   RefreshCw,
   Rocket,
+  ShieldCheck,
   Users,
   Wrench,
 } from "lucide-react";
@@ -49,6 +50,7 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "about", world: "app", labelKey: "settings.about", descKey: "settings.pageDescAbout", icon: Info },
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
+  { id: "security", world: "vault", labelKey: "settings.sectionSecurity", descKey: "settings.pageDescSecurity", icon: ShieldCheck },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },

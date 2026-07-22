@@ -1530,3 +1530,39 @@ button.pv-acct:hover { background: var(--state-hover); }
   line-height: 1.4;
   color: var(--text-muted);
 }
+
+/* Personal encrypted-workspace setup and diagnostics (Security & Sharing). */
+.pv-security-wizard { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-security-steps { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.pv-security-steps > span {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.pv-security-steps > span[data-active="true"] { background: var(--accent-container); color: var(--on-accent-container); }
+.pv-security-field { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--text-sm); }
+.pv-security-code {
+  display: block;
+  padding: var(--space-3);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.pv-security-confirm { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--text-main); font-size: var(--text-ui); }
+.pv-security-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.pv-security-vault { color: var(--text-faint); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.pv-security-details {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+.pv-security-details dt { color: var(--text-muted); }
+.pv-security-details dd { margin: 0; color: var(--text-main); overflow-wrap: anywhere; }
