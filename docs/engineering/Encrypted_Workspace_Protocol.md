@@ -1,6 +1,6 @@
 # Encrypted Workspace protocol (v1)
 
-Status: **normative P0 specification; P1/P2 implementation in progress.**
+Status: **normative P0 specification; P1/P2 implemented on 2026-07-22.**
 
 This document defines the first Plainva encrypted-workspace wire protocol. It is
 the security boundary for personal encrypted vaults and future team vaults.
@@ -92,6 +92,13 @@ HPKE is provided by `@hpke/core`, `@hpke/dhkem-x25519` and
 provided by `@noble/curves`. Object AEAD and hashes reuse the audited Noble
 packages already used by Plainva.
 
+Each device owns an Ed25519 signing pair and an X25519/HPKE receive pair. The
+owner recovery identity owns a separate Ed25519 pair plus a stable random
+32-byte recovery root. Each group epoch owns an X25519/HPKE pair and an
+independent random 32-byte catalog key. The recovery private material and root
+are package-only secrets; recovery-package wrapping and restore UX activate in
+P3/P4 and do not broaden normal content-signing authority.
+
 All random values MUST come from `crypto.getRandomValues` or a platform CSPRNG.
 The deterministic entropy hooks in the core are test-only and MUST NOT be
 configured by application code.
@@ -132,6 +139,8 @@ A canonical vault path:
   Windows-reserved character `< > : " | ? *`;
 - does not end in a space or dot and does not use a Windows device basename
   (`CON`, `PRN`, `AUX`, `NUL`, `COM1`…`COM9`, `LPT1`…`LPT9`);
+- does not use `.pvws` (case-insensitively) as its first segment because that
+  namespace is reserved for provider-side protocol objects;
 - preserves case. Equality in the protocol is byte equality after NFC; any
   platform-specific case collision is a materialisation conflict, never silent
   coalescing.
@@ -178,6 +187,13 @@ signature value. Verification uses strict RFC-8032 semantics (`zip215: false`).
 The SHA-256 of the complete canonical document, including signatures, is its
 document hash. Signature order is lexicographic by `signerKind`, then
 `signerId`; duplicate signer entries are invalid.
+
+Grant, operation, catalog and head documents require exactly one device
+signature; grant, operation and head signer IDs MUST equal their respective
+issuer/author/device payload ID. A checkpoint requires exactly one device or
+recovery signature. Policy signer-authority and chain acceptance are evaluated
+against the previously accepted policy in P5; framing never makes a signer
+authoritative by itself.
 
 ### 5.1 Document schemas
 
@@ -233,20 +249,35 @@ signature in addition to HPKE authentication.
 
 #### Operation (`operations/<deviceId>/<sequence>-<hash>.pvop`, maximum 64 KiB)
 
-Payload fields: `deviceId`, `sequence`, `policyHash`, `operation`, `objectId`,
-`revisionId`, `parentRevisionIds`, `payloadHash`, `createdAt`. Operation is one
-of `create`, `write`, `rename`, `delete`, `mkdir`, `comment` or `resolve`.
-Fields irrelevant to an operation are `null`, never omitted. A sequence is a
-positive safe integer and MUST increase per device. Timestamps do not establish
-authority or ordering.
+Payload fields: `operationId`, `deviceId`, `memberId`, `sequence`,
+`previousDeviceOperationHash`, `policyHash`, `capability`, `operation`,
+`objectId`, `revisionId`, `parentRevisionIds`, `payloadHash`, `createdAt`.
+Operation is one of `create`, `write`, `rename`, `delete`, `mkdir`, `comment` or
+`resolve`. IDs are 16-byte IDs; predecessor, policy and payload references are
+SHA-256 hashes. A sequence is a positive safe integer, starts at one and MUST
+increase per device. Sequence one has a `null` predecessor; later operations
+have the complete previous operation-document hash.
+
+The capability is fixed by the operation kind: `create|mkdir` use
+`content.create`, `write|resolve` use `content.write`, `rename` uses
+`content.rename`, `delete` uses `content.delete`, and `comment` uses
+`comment.create`. `create|mkdir` have no revision parents. Ordinary mutations
+have at least one parent; `resolve` has at least two. Non-delete operations bind
+a new logical `revisionId` and the complete PVO1 `payloadHash`. Delete binds one
+or more parent revisions and has `null` revision/payload fields. Timestamps do
+not establish authority or ordering.
 
 #### Catalog (`catalogs/<groupId>/<epoch>/<hash>.pvcat`, maximum 16 MiB)
 
 Payload fields: `groupId`, `keyEpoch`, `catalogVersion`,
-`previousCatalogHash`, `objectRefs`. Each object reference contains `objectId`
-and `revisionId`; references are sorted and unique. Catalog confidentiality is
-provided by a separate PVO-style sealed body under a catalog key; the signed
-document identifies and hashes that body.
+`previousCatalogHash`, `bodyHash`, `bodySize`, `nonce`, `ciphertext`. The
+XChaCha-encrypted canonical body is exactly `{objectRefs:[...]}`; each reference
+contains `objectId`, logical `revisionId` and the complete PVO1 `payloadHash`,
+and references are sorted and unique. The
+signed document binds the ciphertext hash and its public group/epoch/version
+context without exposing the object-reference set. The decrypted body is at
+most `12 MiB - 4 KiB`, leaving deterministic room for AEAD/base64 expansion and
+the signature envelope inside the 16 MiB document limit.
 
 #### Checkpoint (`checkpoints/<hash>.pvcheck`, maximum 4 MiB)
 
@@ -362,8 +393,8 @@ releasing plaintext.
 .pvws/catalogs/<groupId>/<epoch>/<catalogHash>.pvcat
 .pvws/operations/<deviceId>/<sequence>-<operationHash>.pvop
 .pvws/heads/<deviceId>.pvhead
-.pvws/objects/<objectId>/<revisionHash>.pvobj
-.pvws/chunks/<objectId>/<revisionHash>/<chunkIndex>.pvchunk
+.pvws/objects/<objectId>/<payloadHash>.pvobj
+.pvws/chunks/<objectId>/<revisionId>/<chunkIndex>-<chunkHash>.pvchunk
 .pvws/checkpoints/<checkpointHash>.pvcheck
 ```
 
@@ -466,3 +497,23 @@ documents, PVO1/PVC1 and hardened parsers. P2 implements the opaque object-store
 contract and adapters over the five existing provider transports. P0–P2 do not
 activate encryption, migrate a vault, materialise plaintext, evaluate team
 capabilities or expose UI. Those are P3 and later packages.
+
+## 14. Implementation map
+
+- `packages/core/src/workspace/crypto.ts`, `identity.ts`, `grant.ts` and
+  `catalog.ts`: device/recovery/group keys, HPKE grants and encrypted catalogs;
+- `packages/core/src/workspace/documents.ts`: bounded canonical signed control
+  documents and operation-chain framing;
+- `packages/core/src/workspace/pvo1.ts`: PVO1/PVC1 encoding, decoding and the
+  fuzz entry point;
+- `packages/core/src/workspace/objectStore.ts` and `fakeObjectStore.ts`: store
+  contract, deterministic fake, and WebDAV/Drive/S3/OneDrive/Dropbox adapters;
+- `packages/core/test/fixtures/workspace-v1-golden.json`: checked-in machine
+  vectors regenerated by `pnpm --filter @plainva/core vectors:workspace`;
+- `pnpm --filter @plainva/core fuzz:workspace -- <iterations>`: prepared parser
+  mutation harness.
+
+Provider adapters are intentionally library-only until P3. Real-account
+provider round trips and native-device crypto probes remain credential/device
+release gates; P0–P2 verify the shared module in Node and production Desktop and
+Mobile bundles without exposing an incomplete user workflow.

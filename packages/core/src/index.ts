@@ -1,4 +1,5 @@
 export * from "./crypto/index.js";
+export * from "./workspace/index.js";
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
 export * from "./markdown-serializer.js";
