@@ -1,5 +1,11 @@
 # Security & Sharing
 
+## Security Center, rekeying, and published slices
+
+The dashboard now follows the recovery/device/team cards and the tabbed administration shown in the product mockups. Visible actions stay usable: Plainva opens the selected vault, connection setup, workspace setup, or unlock flow when a prerequisite is missing. Removing a device or member can start a durable full rekey; its object-by-object progress survives pause, crash, and restart. A future-only rotation changes only subsequent writes.
+
+Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. External publications use a separate encrypted workspace namespace. Sanitized projections remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds. Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions are additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
+
 Last reviewed: 2026-07-22
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.

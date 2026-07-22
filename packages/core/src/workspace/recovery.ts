@@ -176,6 +176,7 @@ export async function rotateWorkspaceRecoveryPackage(input: {
   runtime: PersonalWorkspaceRuntime;
   store: WorkspaceObjectStore;
   now?: string;
+  replacement?: Pick<PersonalWorkspaceRuntime, "ownerMemberId" | "ownerGroup" | "policy" | "grants">;
 }): Promise<RotatedWorkspaceRecovery> {
   const payload = openWorkspaceRecoveryPackage(input.bytes, input.recoveryCode);
   protocolAssert(payload.workspaceId === input.runtime.workspaceId, "integrity", "recovery package belongs to another workspace");
@@ -195,13 +196,13 @@ export async function rotateWorkspaceRecoveryPackage(input: {
   const nextAnchors = [...uniqueAnchors, rotated.anchor];
   const created = createWorkspaceRecoveryPackage({
     workspaceId: input.runtime.workspaceId,
-    ownerMemberId: input.runtime.ownerMemberId,
-    ownerGroup: input.runtime.ownerGroup,
+    ownerMemberId: input.replacement?.ownerMemberId ?? input.runtime.ownerMemberId,
+    ownerGroup: input.replacement?.ownerGroup ?? input.runtime.ownerGroup,
     device: input.runtime.device,
     recovery: rotated.recovery,
-    policy: input.runtime.policy,
+    policy: input.replacement?.policy ?? input.runtime.policy,
     genesis: input.runtime.genesis,
-    grants: input.runtime.grants,
+    grants: input.replacement?.grants ?? input.runtime.grants,
   }, { now: input.now, anchors: nextAnchors.map((anchor) => toBase64(encodeWorkspaceDocument(anchor))) });
   return { ...created, anchor: rotated.anchor };
 }

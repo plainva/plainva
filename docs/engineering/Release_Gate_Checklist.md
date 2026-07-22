@@ -66,6 +66,15 @@ Per provider, a file round trip (create → appears on device B → change on B 
 - [ ] WebDriver smoke (B2/P8): build the app, then `pnpm --filter desktop test:native` (or dispatch `.github/workflows/native-smoke.yml`) — start → vault auto-opens → type → save → restart → content present. Windows/Linux/macOS as available. See `WebDriver_Smoke.md`.
 - [ ] `cargo test` + `cargo clippy -- -D warnings` in `apps/desktop/src-tauri`.
 
+## 8. Encrypted workspace (P8-P11; hard blocker)
+
+- [ ] Workspace unit, fuzz, provider-fault, desktop E2E, and mobile-background suites pass.
+- [ ] Independent cryptographic review is attached with no open critical/high finding.
+- [ ] Revocation is tested in future-only and full-rekey mode; a kill at every phase resumes without rollback.
+- [ ] Sanitized publication contains no excluded property, link target, embed, attachment, catalog, or search metadata.
+- [ ] Physical Android and iOS two-device runs reject revoked-device replay.
+- [ ] Android internal and iOS TestFlight builds contain the tested security centre.
+
 ## Results
 
 | Date | Build/Tag | OS/Provider | Item | Result |

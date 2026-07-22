@@ -1,5 +1,11 @@
 # Sicherheit & Freigaben
 
+## Sicherheitszentrale, Neuverschlüsselung und veröffentlichte Slices
+
+Das Dashboard entspricht jetzt den Mockups mit Statusbereich, Karten für Wiederherstellung/Geräte/Team und einer Verwaltung mit Tabs. Sichtbare Aktionen bleiben benutzbar: Fehlt eine Voraussetzung, öffnet Plainva den ausgewählten Vault, die Verbindungsverwaltung, die Einrichtung oder die Entsperrung. Beim Entfernen eines Geräts oder Mitglieds kann eine dauerhafte vollständige Neuverschlüsselung starten; ihr Fortschritt überlebt Pause, Absturz und Neustart. Die schnelle Rotation betrifft nur künftige Schreibvorgänge.
+
+Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. Externe Veröffentlichungen verwenden einen getrennten verschlüsselten Workspace-Namensraum. Bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg. Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
+
 Zuletzt geprüft: 2026-07-22
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.

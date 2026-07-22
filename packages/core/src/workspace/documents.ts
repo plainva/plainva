@@ -138,6 +138,13 @@ export interface WorkspacePolicySlice {
   kind: "folder" | "selection" | "dynamic";
   definition: string;
   materializedObjectIds: string[];
+  publication?: {
+    mode: "exact" | "sanitized";
+    access: "read" | "comment" | "suggest";
+    provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3";
+    propertyAllowlist: string[] | null;
+    privateProperties: string[];
+  };
 }
 
 export interface WorkspacePolicyObjectOverride {
@@ -376,7 +383,8 @@ function validatePolicy(payload: unknown): asserts payload is WorkspacePolicyPay
 
   const slices = asArray(value.slices, 10_000, "slices").map((entry) => asRecord(entry, "slice"));
   for (const slice of slices) {
-    assertExactKeys(slice, ["sliceId", "name", "kind", "definition", "materializedObjectIds"], "slice");
+    const hasPublication = Object.prototype.hasOwnProperty.call(slice, "publication");
+    assertExactKeys(slice, hasPublication ? ["sliceId", "name", "kind", "definition", "materializedObjectIds", "publication"] : ["sliceId", "name", "kind", "definition", "materializedObjectIds"], "slice");
     assertWorkspaceId(slice.sliceId as string, "slice.sliceId");
     assertDisplayName(slice.name, "slice.name");
     protocolAssert(slice.kind === "folder" || slice.kind === "selection" || slice.kind === "dynamic", "format", "invalid slice kind");
@@ -384,6 +392,21 @@ function validatePolicy(payload: unknown): asserts payload is WorkspacePolicyPay
     const objectIds = asArray(slice.materializedObjectIds, 100_000, "slice.materializedObjectIds") as string[];
     for (const objectId of objectIds) assertWorkspaceId(objectId, "slice.objectId");
     assertSortedUnique(objectIds, (objectId) => objectId, "slice.materializedObjectIds");
+    if (hasPublication) {
+      const publication = asRecord(slice.publication, "slice.publication");
+      assertExactKeys(publication, ["mode", "access", "provider", "propertyAllowlist", "privateProperties"], "slice.publication");
+      protocolAssert(publication.mode === "exact" || publication.mode === "sanitized", "format", "invalid publication mode");
+      protocolAssert(publication.access === "read" || publication.access === "comment" || publication.access === "suggest", "format", "invalid publication access");
+      protocolAssert(["google-drive", "onedrive", "nextcloud", "dropbox", "webdav", "s3"].includes(publication.provider as string), "format", "invalid publication provider");
+      if (publication.propertyAllowlist !== null) {
+        const allowlist = asArray(publication.propertyAllowlist, 256, "slice.publication.propertyAllowlist") as string[];
+        for (const key of allowlist) assertString(key, 128, "slice.publication.propertyAllowlist key");
+        assertSortedUnique(allowlist, (key) => key, "slice.publication.propertyAllowlist");
+      }
+      const privateProperties = asArray(publication.privateProperties, 256, "slice.publication.privateProperties") as string[];
+      for (const key of privateProperties) assertString(key, 128, "slice.publication.privateProperties key");
+      assertSortedUnique(privateProperties, (key) => key, "slice.publication.privateProperties");
+    }
   }
   assertSortedUnique(slices, (slice) => slice.sliceId as string, "slices");
 

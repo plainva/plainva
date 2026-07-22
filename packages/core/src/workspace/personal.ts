@@ -56,7 +56,7 @@ export interface PersonalWorkspaceRuntime {
   workspaceId: string;
   /** Logical member represented by this device. */
   memberId: string;
-  /** The immutable workspace owner member, retained for recovery operations. */
+  /** Active workspace owner member, retained for recovery operations and transferable in P8. */
   ownerMemberId: string;
   ownerGroup: WorkspaceGroupKeyEpoch;
   /** Every group epoch this device can currently decrypt. */

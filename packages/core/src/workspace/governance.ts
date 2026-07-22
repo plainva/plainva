@@ -8,6 +8,7 @@ import { decodeBase64Exact, sha256Hex, toBase64 } from "./encoding.js";
 import { protocolAssert } from "./errors.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
 import { createWorkspaceSliceDefinition, type WorkspaceDynamicSliceDefinition } from "./slices.js";
+import type { PublishedSliceAccess, PublishedSliceMode, PublishedSliceProvider } from "./publishedSlices.js";
 
 export interface WorkspaceGovernanceUpdate {
   policy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
@@ -64,10 +65,11 @@ export function createWorkspaceSlice(input: {
   name: string;
   definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition };
   materializedObjectIds: string[];
+  publication?: { mode: PublishedSliceMode; access: PublishedSliceAccess; provider: PublishedSliceProvider; propertyAllowlist?: string[] | null; privateProperties?: string[] };
 }): { sliceId: string; policy: WorkspaceGovernanceUpdate["policy"] } {
   const sliceId = createWorkspaceMemberId();
   const policy = createWorkspacePolicySuccessor({ current: input.runtime.policy, signer: runtimeSigner(input.runtime), mutate: (draft) => {
-    draft.slices.push({ sliceId, name: input.name, kind: input.definition.kind, definition: createWorkspaceSliceDefinition(input.definition), materializedObjectIds: [...new Set(input.materializedObjectIds)].sort() });
+    draft.slices.push({ sliceId, name: input.name, kind: input.definition.kind, definition: createWorkspaceSliceDefinition(input.definition), materializedObjectIds: [...new Set(input.materializedObjectIds)].sort(), ...(input.publication ? { publication: { mode: input.publication.mode, access: input.publication.access, provider: input.publication.provider, propertyAllowlist: input.publication.propertyAllowlist ? [...new Set(input.publication.propertyAllowlist)].sort() : null, privateProperties: [...new Set(input.publication.privateProperties ?? [])].sort() } } : {}) });
   } });
   return { sliceId, policy };
 }
@@ -131,7 +133,35 @@ export async function revokeWorkspaceMemberAndRotate(input: { runtime: PersonalW
   return { policy, grants, groupKeys: [...input.runtime.groupKeys.filter((key) => !rotatedIds.has(key.groupId)), ...rotations] };
 }
 
-async function grantsForGroup(runtime: PersonalWorkspaceRuntime, policy: WorkspaceGovernanceUpdate["policy"], group: WorkspaceGroupKeyEpoch): Promise<WorkspaceSignedDocument<"grant", WorkspaceGrantPayload>[]> {
+/**
+ * Transfers the unique workspace Owner role and rotates the owner's group.
+ * The caller must prepare and durably save a replacement recovery package
+ * containing this policy before publishing the update.
+ */
+export async function transferWorkspaceOwnership(input: { runtime: PersonalWorkspaceRuntime; targetMemberId: string }): Promise<WorkspaceGovernanceUpdate & { ownerMemberId: string; ownerGroup: WorkspaceGroupKeyEpoch }> {
+  const target = input.runtime.policy.payload.members.find((entry) => entry.memberId === input.targetMemberId && entry.state === "active");
+  protocolAssert(!!target, "conflict", "new owner is not an active member");
+  protocolAssert(input.targetMemberId !== input.runtime.ownerMemberId, "conflict", "member already owns the workspace");
+  const currentOwnerGroup = input.runtime.policy.payload.groups.find((entry) => entry.groupId === input.runtime.ownerGroup.groupId);
+  protocolAssert(!!currentOwnerGroup, "integrity", "owner group is missing from policy");
+  const ownerGroup = await createWorkspaceGroupKeyEpoch({ groupId: currentOwnerGroup.groupId, keyEpoch: currentOwnerGroup.keyEpoch + 1 });
+  const policy = createWorkspacePolicySuccessor({ current: input.runtime.policy, signer: runtimeSigner(input.runtime), mutate: (draft) => {
+    for (const assignment of draft.assignments) {
+      if (assignment.scopeKind !== "workspace" || assignment.role !== "Owner") continue;
+      assignment.role = "Admin";
+      assignment.capabilities = [...WORKSPACE_ROLE_CAPABILITIES.Admin];
+    }
+    draft.assignments.push({ assignmentId: createWorkspaceMemberId(), subjectKind: "member", subjectId: input.targetMemberId, role: "Owner", capabilities: [...WORKSPACE_ROLE_CAPABILITIES.Owner], scopeKind: "workspace", scopeId: null });
+    const group = draft.groups.find((entry) => entry.groupId === ownerGroup.groupId)!;
+    group.memberIds = [...new Set([...(group.memberIds ?? []), input.targetMemberId])].sort();
+    group.keyEpoch = ownerGroup.keyEpoch;
+    group.hpkePublicKey = toBase64(ownerGroup.hpke.publicKey);
+  } });
+  const grants = await grantsForGroup(input.runtime, policy, ownerGroup);
+  return { ownerMemberId: input.targetMemberId, ownerGroup, policy, grants, groupKeys: [...input.runtime.groupKeys.filter((entry) => entry.groupId !== ownerGroup.groupId), ownerGroup] };
+}
+
+export async function grantsForGroup(runtime: PersonalWorkspaceRuntime, policy: WorkspaceGovernanceUpdate["policy"], group: WorkspaceGroupKeyEpoch): Promise<WorkspaceSignedDocument<"grant", WorkspaceGrantPayload>[]> {
   const policyGroup = policy.payload.groups.find((entry) => entry.groupId === group.groupId);
   protocolAssert(!!policyGroup, "integrity", "group is missing from policy");
   const policyHash = workspaceDocumentHash(policy);

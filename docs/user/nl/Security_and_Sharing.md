@@ -1,5 +1,9 @@
 # Beveiliging en delen
 
+## Beveiligingscentrum, hercodering en gepubliceerde slices
+
+Het dashboard volgt de mockups met herstel-, apparaat- en teamkaarten; een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.
+
 Laatst gecontroleerd: 2026-07-22
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.

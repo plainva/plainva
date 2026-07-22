@@ -1,6 +1,22 @@
 # Encrypted Workspace protocol (v1)
 
-Status: **normative v1 specification; P1–P7 implemented on 2026-07-22.**
+Status: **normative v1 specification; P1–P11 implementation surface completed on 2026-07-22; public release remains security-gated.**
+
+## P8 rotation and ownership transfer
+
+A revocation publishes a signed policy successor and rotates every group epoch known by the revoked subject. `future` mode stops there. `full` mode also stores a `WorkspaceRekeyJob` in local metadata. Each live non-directory object is identified by object ID, path, and baseline revision. The normal signed queue rewrites it under the new epochs. Completion is observed only when the current revision differs from the baseline; enqueuing and observation are idempotent and restart-safe.
+
+Ownership transfer is save-before-activate. Plainva creates a policy with exactly one Owner, rotates the owner group, creates target-device grants, and builds a replacement recovery package for the target member. The package must be saved before its dual-signed recovery anchor and then the owner policy are published. If the app stops after the anchor, the saved replacement package can recover and complete governance.
+
+## P9 published Vault Slices
+
+A publication is not a folder in the source workspace. Its object store is rooted at `.pvws/publications/<publication-id>/` and contains an independent encrypted coordinate system. Provider ACLs are defense in depth and never grant cryptographic capabilities.
+
+Sanitized Markdown is a one-way projection. Private or non-allowlisted frontmatter is removed; links to excluded targets become plain labels; excluded embeds are omitted. External URLs and included targets remain. Access profiles are `read`, `comment`, and `suggest`; suggestions stay signed proposals until an authorized source member accepts them.
+
+## P11 release gate
+
+The release gate requires automated workspace, fuzz, provider-fault, desktop E2E, and mobile-background evidence plus an independent cryptographic review, physical Android/iOS two-device runs, and internal Android/TestFlight build evidence. Local tests cannot synthesize external evidence. Any missing item or critical review finding keeps public release closed.
 
 This document defines the first Plainva encrypted-workspace wire protocol. It is
 the security boundary for personal and team encrypted vaults.

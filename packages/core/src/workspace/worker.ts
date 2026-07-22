@@ -49,6 +49,7 @@ import {
   WorkspaceRuntimeMeta,
   WorkspaceStateStore,
 } from "./state.js";
+import { resumeWorkspaceRekey } from "./rotation.js";
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { resolveWorkspacePolicyChain } from "./policy.js";
@@ -206,6 +207,7 @@ export class EncryptedWorkspaceWorker {
 
   async runCycle(signal?: AbortSignal): Promise<void> {
     await this.verifyBootstrap(signal);
+    await resumeWorkspaceRekey(this.state);
     // A prepared mutation has already consumed a device sequence and is an
     // immutable local branch. Finish it before pulling so an operation uploaded
     // immediately before a crash is not mistaken for an incoming remote edit.
@@ -213,6 +215,7 @@ export class EncryptedWorkspaceWorker {
     const changed = await this.pull(signal);
     if (changed.length) this.onFilesChanged?.(changed);
     await this.push(signal);
+    await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);
     await this.options.sideband?.();
     const meta = await this.requireMeta();

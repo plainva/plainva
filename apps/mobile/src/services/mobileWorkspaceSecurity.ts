@@ -1,10 +1,15 @@
 import {
   acceptWorkspacePairing,
+  approveWorkspacePairing,
+  applyWorkspaceGovernanceUpdate,
   createWorkspacePairingRequest,
   deserializePersonalWorkspaceRuntime,
   loadWorkspacePairingApproval,
   parseWorkspacePairingRequest,
   publishWorkspacePairingRequest,
+  publishWorkspacePairingApproval,
+  findWorkspacePairingRequest,
+  pairingFingerprint,
   publishWorkspaceGovernanceUpdate,
   publishWorkspaceRecoveryRotation,
   restoreWorkspaceFromRecoveryPackage,
@@ -94,6 +99,23 @@ export async function completeMobileWorkspacePairing(vaultId: string, store: Wor
   await persistMobileWorkspaceRuntime(vaultId, runtime);
   await secureCredentialStore.removeSecret(pendingKey(vaultId));
   return runtime;
+}
+
+export async function inspectMobileWorkspacePairing(store: WorkspaceObjectStore, runtime: PersonalWorkspaceRuntime, tokenOrCode: string) {
+  const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(store, tokenOrCode.trim());
+  if (!token) throw new Error("workspace-pairing-request-not-found");
+  const request = parseWorkspacePairingRequest(token);
+  if (request.payload.workspaceId !== runtime.workspaceId) throw new Error("workspace-pairing-request-mismatch");
+  return { token, deviceName: request.payload.device.displayName, platform: request.payload.device.platform, memberId: request.payload.memberId, fingerprint: pairingFingerprint(request), expiresAt: request.payload.expiresAt };
+}
+
+export async function approveMobileWorkspacePairing(vaultId: string, store: WorkspaceObjectStore, runtime: PersonalWorkspaceRuntime, token: string): Promise<void> {
+  const previousPolicy = runtime.policy;
+  const approval = await approveWorkspacePairing({ token, runtime });
+  await publishWorkspaceGovernanceUpdate(store, approval);
+  applyWorkspaceGovernanceUpdate(runtime, { policy: approval.policy, grants: approval.grants, groupKeys: runtime.groupKeys });
+  await publishWorkspacePairingApproval(store, { version: 1, genesis: runtime.genesis, previousPolicy, approval });
+  await persistMobileWorkspaceRuntime(vaultId, runtime);
 }
 
 export async function recoverMobileWorkspace(input: { vaultId: string; store: WorkspaceObjectStore; bytes: Uint8Array; code: string; deviceName: string }): Promise<PersonalWorkspaceRuntime> {

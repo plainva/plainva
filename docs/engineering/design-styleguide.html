@@ -138,6 +138,25 @@
   .pvbtn:focus-visible, .iconbtn:focus-visible, .field:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent-color) 60%, transparent); outline-offset: 1px; }
   .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: var(--control-md); height: var(--control-md); border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
   .iconbtn:hover { background: var(--state-hover); color: var(--text-main); }
+  .pv-security-hero { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding:var(--space-4); margin:var(--space-4) 0; border:1px solid var(--success-border); border-radius:var(--radius-lg); background:var(--success-bg); color:var(--success-text); }
+  .pv-security-hero p, .pv-security-summary-card p, .pv-security-admin-body p { margin:var(--space-1) 0 0; color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-3); }
+  .pv-security-summary-card { display:flex; align-items:flex-start; flex-direction:column; gap:var(--space-2); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); box-shadow:var(--shadow-1); }
+  .pv-security-summary-card button { margin-top:auto; }
+  .pv-security-admin { margin-top:var(--space-4); overflow:hidden; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
+  .pv-security-tabs { display:flex; gap:var(--space-1); overflow-x:auto; padding:var(--space-2); border-bottom:1px solid var(--border-color); }
+  .pv-security-tabs button { min-height:var(--control-lg); padding:0 var(--space-3); border:0; border-radius:var(--radius-md); background:transparent; color:var(--text-muted); font:inherit; }
+  .pv-security-tabs button[aria-selected="true"] { background:var(--accent-container); color:var(--on-accent-container); font-weight:600; }
+  .pv-security-admin-body { padding:var(--space-4); }
+  .pv-security-slice-wizard { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
+  .pv-security-steps { display:flex; gap:var(--space-2); flex-wrap:wrap; }
+  .pv-security-steps span { padding:var(--space-1) var(--space-2); border-radius:var(--radius-pill); color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-steps span[data-active="true"] { background:var(--accent-container); color:var(--on-accent-container); font-weight:600; }
+  .pv-security-choice-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-2); }
+  .pv-security-choice { display:flex; flex-direction:column; gap:var(--space-1); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); color:var(--text-main); text-align:left; }
+  .pv-security-choice span { color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-choice.is-active { border-color:var(--accent-color); background:var(--accent-container); color:var(--on-accent-container); }
+  .pv-security-choice.is-active span { color:inherit; opacity:.8; }
   .splitbtn { display: inline-flex; }
   .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
@@ -703,7 +722,25 @@
   </section>
 
   <section id="security-sharing">
-    <h2>Security &amp; Sharing · Encrypted Workspace</h2>
+    <h2 id="security-sharing">Security &amp; Sharing · Encrypted Workspace</h2>
+    <p class="lede">P8–P11 security-centre grammar: protected-state hero, three actionable summary cards, tabbed administration and a four-step Vault Slice wizard. Prerequisites redirect into a productive flow instead of leaving visible actions disabled.</p>
+    <div class="pv-security-hero">
+      <div><strong>Synchronisation geschützt</strong><p>End-to-end encrypted · last checkpoint verified</p></div>
+      <button class="pvbtn secondary">Technical details</button>
+    </div>
+    <div class="pv-security-summary-grid">
+      <article class="pv-security-summary-card"><strong>Recovery</strong><p>Recovery set saved and current.</p><button class="pvbtn secondary">Manage recovery</button></article>
+      <article class="pv-security-summary-card"><strong>Devices</strong><p>2 trusted devices.</p><button class="pvbtn secondary">Manage devices</button></article>
+      <article class="pv-security-summary-card"><strong>Team</strong><p>4 members · 2 Vault Slices.</p><button class="pvbtn primary">Team &amp; permissions</button></article>
+    </div>
+    <div class="pv-security-admin">
+      <div class="pv-security-tabs" role="tablist"><button aria-selected="true">Members</button><button>Groups</button><button>Vault Slices</button><button>Devices</button><button>Publications</button></div>
+      <div class="pv-security-admin-body"><strong>Vault Slices</strong><p>Master/detail selection with effective grants, publication mode and rekey status.</p></div>
+    </div>
+    <div class="pv-security-wizard pv-security-slice-wizard">
+      <div class="pv-security-steps"><span>Details</span><span data-active="true">Content</span><span>Permissions</span><span>Review</span></div>
+      <div class="pv-security-choice-grid"><button class="pv-security-choice is-active"><strong>Folder</strong><span>A folder and optional descendants</span></button><button class="pv-security-choice"><strong>Selection</strong><span>Explicit notes and attachments</span></button><button class="pv-security-choice"><strong>Dynamic</strong><span>Materialized rule result</span></button></div>
+    </div>
     <div class="card spec">
       <div class="schema"><span class="blk">Identität</span><span class="blk hi">Recovery-Datei + separater Code</span><span class="blk">Bestätigung</span><span class="gap">→</span><span class="blk hi">Verschlüsselte Migration</span></div>
       <ul class="tight">

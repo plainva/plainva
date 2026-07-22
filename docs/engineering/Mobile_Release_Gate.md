@@ -9,6 +9,9 @@ maintainer workspace per release.
 
 ## Product gates (maintainer, on real devices)
 
+- [ ] Security centre pass on physical Android and iPhone: overview, devices, team, slices, recovery, QR request/scan/fingerprint approval, background/pause/force-stop recovery, 44px targets, TalkBack, and VoiceOver.
+- [ ] Encrypted two-device pass on each platform: pair, edit offline, revoke, reject replay, run full rekey, resume after force-stop, and restore with a renewed recovery set.
+
 - [ ] Full feature pass on a physical Android device (fresh debug APK):
       home head, theme catalog incl. LCARS/Win95 pendants, note context
       sheet (properties/backlinks/outline/versions), draft recovery banner,

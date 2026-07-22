@@ -140,6 +140,33 @@ export interface WorkspaceRuntimeMeta {
   operationHeads: Record<string, { sequence: number; operationHash: string }>;
   needsPublication: boolean;
   pendingPublication: WorkspacePendingPublication | null;
+  /** Durable full-rekey cursor. Optional so pre-P8 local state remains readable. */
+  rekeyJob?: WorkspaceRekeyJob | null;
+}
+
+export type WorkspaceRekeyMode = "future" | "full";
+export type WorkspaceRekeyPhase = "queued" | "rewriting" | "complete" | "failed";
+
+export interface WorkspaceRekeyItem {
+  objectId: string;
+  path: string;
+  baselineRevisionId: string | null;
+  complete: boolean;
+}
+
+export interface WorkspaceRekeyJob {
+  jobId: string;
+  mode: WorkspaceRekeyMode;
+  subjectKind: "device" | "member" | "owner-transfer" | "manual";
+  subjectId: string;
+  phase: WorkspaceRekeyPhase;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  total: number;
+  completed: number;
+  items: WorkspaceRekeyItem[];
+  lastError: string | null;
 }
 
 export interface CommitWorkspaceMutation {

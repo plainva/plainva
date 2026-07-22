@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "@plainva/ui";
@@ -124,15 +124,17 @@ interface VaultContextType extends VaultState {
   }>;
   approveWorkspaceDevice: (tokenOrCode: string) => Promise<string>;
   inspectWorkspacePairingRequest: (tokenOrCode: string) => Promise<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string }>;
-  revokeWorkspaceDevice: (deviceId: string, reason: string) => Promise<void>;
-  revokeWorkspaceMember: (memberId: string, reason: string) => Promise<void>;
+  revokeWorkspaceDevice: (deviceId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
+  revokeWorkspaceMember: (memberId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
   inviteWorkspaceMember: (displayName: string, role: WorkspaceRole, scopeKind?: "workspace" | "slice" | "object", scopeId?: string | null) => Promise<string>;
   createWorkspaceGroup: (input: { name: string; memberIds: string[]; role: WorkspaceRole; scopeKind?: "workspace" | "slice" | "object"; scopeId?: string | null }) => Promise<string>;
-  createWorkspaceSlice: (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[] }) => Promise<string>;
+  createWorkspaceSlice: (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[]; publication?: { mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3"; propertyAllowlist?: string[] | null; privateProperties?: string[] } }) => Promise<string>;
   previewWorkspaceSlice: (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }) => Promise<Array<{ objectId: string; path: string }>>;
   restoreWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }) => Promise<void>;
   rotateWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string }) => Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }>;
   activateWorkspaceRecovery: (activation: RotatedWorkspaceRecovery["anchor"]) => Promise<void>;
+  prepareWorkspaceOwnerTransfer: (input: { targetMemberId: string; bytes: Uint8Array; recoveryCode: string }) => Promise<{ bytes: Uint8Array; recoveryCode: string; activation: { anchor: RotatedWorkspaceRecovery["anchor"]; update: WorkspaceGovernanceUpdate; ownerMemberId: string } }>;
+  activateWorkspaceOwnerTransfer: (activation: { anchor: RotatedWorkspaceRecovery["anchor"]; update: WorkspaceGovernanceUpdate; ownerMemberId: string }) => Promise<void>;
   updateWorkspaceQuarantine: (quarantineId: string, action: "retry" | "ignore" | "repaired") => Promise<void>;
   exportWorkspaceQuarantine: (quarantineId: string) => Promise<Uint8Array | null>;
   getWorkspaceCapabilities: (path: string) => Promise<WorkspaceCapability[] | null>;
@@ -1277,16 +1279,20 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return { token, deviceName: request.payload.device.displayName, platform: request.payload.device.platform, memberId: request.payload.memberId, fingerprint: pairingFingerprint(request), expiresAt: request.payload.expiresAt };
   };
 
-  const removeWorkspaceDevice = async (deviceId: string, reason: string): Promise<void> => {
-    const { runtime } = workspaceControlPlane();
+  const removeWorkspaceDevice = async (deviceId: string, reason: string, mode: WorkspaceRekeyMode = "future"): Promise<void> => {
+    const { runtime, workspaceState } = workspaceControlPlane();
     if (deviceId === runtime.device.publicIdentity.deviceId) throw new Error("workspace-cannot-revoke-current-device");
     await commitGovernance(await revokeWorkspaceDeviceAndRotate({ runtime, deviceId, reason }));
+    await startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "device", subjectId: deviceId });
+    state.syncWorker?.triggerImmediate();
   };
 
-  const removeWorkspaceMember = async (memberId: string, reason: string): Promise<void> => {
-    const { runtime } = workspaceControlPlane();
+  const removeWorkspaceMember = async (memberId: string, reason: string, mode: WorkspaceRekeyMode = "future"): Promise<void> => {
+    const { runtime, workspaceState } = workspaceControlPlane();
     if (memberId === runtime.memberId) throw new Error("workspace-cannot-revoke-current-member");
     await commitGovernance(await revokeWorkspaceMemberAndRotate({ runtime, memberId, reason }));
+    await startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "member", subjectId: memberId });
+    state.syncWorker?.triggerImmediate();
   };
 
   const addWorkspaceMember = async (displayName: string, role: WorkspaceRole, scopeKind: "workspace" | "slice" | "object" = "workspace", scopeId: string | null = null): Promise<string> => {
@@ -1303,7 +1309,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return result.groupId;
   };
 
-  const addWorkspaceSlice = async (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[] }): Promise<string> => {
+  const addWorkspaceSlice = async (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[]; publication?: { mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3"; propertyAllowlist?: string[] | null; privateProperties?: string[] } }): Promise<string> => {
     const { runtime } = workspaceControlPlane();
     const result = createWorkspaceSlice({ runtime, ...input });
     await commitGovernance({ policy: result.policy, grants: [], groupKeys: runtime.groupKeys });
@@ -1352,6 +1358,24 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const { runtime, store } = workspaceControlPlane();
     await publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation });
     state.syncWorker?.triggerImmediate();
+  };
+
+  const prepareWorkspaceOwnerTransfer = async (input: { targetMemberId: string; bytes: Uint8Array; recoveryCode: string }) => {
+    const { runtime, store } = workspaceControlPlane();
+    const transfer = await transferWorkspaceOwnership({ runtime, targetMemberId: input.targetMemberId });
+    const rotated = await rotateWorkspaceRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, runtime, store, replacement: { ownerMemberId: transfer.ownerMemberId, ownerGroup: transfer.ownerGroup, policy: transfer.policy, grants: [...runtime.grants, ...transfer.grants] } });
+    return { bytes: rotated.bytes, recoveryCode: rotated.recoveryCode, activation: { anchor: rotated.anchor, update: transfer, ownerMemberId: transfer.ownerMemberId } };
+  };
+
+  const activateWorkspaceOwnerTransfer = async (activation: { anchor: RotatedWorkspaceRecovery["anchor"]; update: WorkspaceGovernanceUpdate; ownerMemberId: string }): Promise<void> => {
+    const { runtime, store, vaultPath } = workspaceControlPlane();
+    await publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation.anchor });
+    await publishWorkspaceGovernanceUpdate(store, activation.update);
+    applyWorkspaceGovernanceUpdate(runtime, activation.update);
+    runtime.ownerMemberId = activation.ownerMemberId;
+    await updateWorkspaceRuntime(vaultPath, runtime);
+    state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
   };
 
   const updateWorkspaceQuarantine = async (quarantineId: string, action: "retry" | "ignore" | "repaired"): Promise<void> => {
@@ -1417,7 +1441,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

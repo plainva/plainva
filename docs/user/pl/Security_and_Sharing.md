@@ -1,5 +1,9 @@
 # Bezpieczeństwo i udostępnianie
 
+## Centrum bezpieczeństwa, ponowne szyfrowanie i publikowane slices
+
+Panel odpowiada makietom z kartami odzyskiwania, urządzeń i zespołu; akcja otwiera wymagany vault, połączenie, konfigurację lub odblokowanie. Cofnięcie dostępu może uruchomić wznawialne pełne szyfrowanie. Vault Slice tworzysz przez **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne są osobnym szyfrowanym workspace, a projekcja usuwa prywatne właściwości, wykluczone linki i osadzenia. Wydanie publiczne wymaga niezależnego audytu i testów Android/iOS na urządzeniach.
+
 Ostatni przegląd: 2026-07-22
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.

@@ -1,5 +1,9 @@
 # Seguridad y uso compartido
 
+## Centro de seguridad, recifrado y slices publicados
+
+El panel usa las tarjetas de recuperación, dispositivos y equipo de los mockups; si falta un requisito, una acción abre el vault, la conexión, la configuración o el desbloqueo. La revocación puede iniciar un recifrado completo reanudable. Crea un Vault Slice con **Detalles → Contenido → Permisos → Revisión**. Las publicaciones externas viven en un workspace cifrado separado; la proyección saneada elimina propiedades privadas, enlaces excluidos e incrustaciones. La publicación pública espera la revisión criptográfica independiente y pruebas reales en Android/iOS.
+
 Revisado: 2026-07-22
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.

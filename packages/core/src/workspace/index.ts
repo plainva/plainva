@@ -46,3 +46,6 @@ export * from "./state.js";
 export * from "./queueingVaultAdapter.js";
 export * from "./migration.js";
 export * from "./worker.js";
+export * from "./rotation.js";
+export * from "./publishedSlices.js";
+export * from "./securityGate.js";
