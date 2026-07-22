@@ -12,4 +12,18 @@ Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia c
 
 Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. Puoi rimuoverlo esplicitamente solo con stato **Protetto**; i file locali non vengono mai eliminati.
 
-Le modifiche offline restano in una coda durevole. Le eliminazioni richiedono tombstone firmati e le modifiche parallele vengono conservate come copie `.CONFLICT-…`. Altri dispositivi, ripristino, team e slice arriveranno nelle fasi successive.
+Le modifiche offline restano in una coda durevole. Le eliminazioni richiedono tombstone firmati e le modifiche parallele vengono conservate come copie `.CONFLICT-…`.
+
+## Dispositivi e recupero
+
+Un nuovo dispositivo mobile crea una richiesta QR/codice. Inserisci il codice breve su un desktop già approvato e confronta le impronte prima della conferma. Un dispositivo rimosso non può più firmare nuove modifiche. Se tutti i dispositivi sono persi, **Ripristina accesso** crea un nuovo dispositivo proprietario dal file `.pvrecovery` e dal codice separato, senza riscrivere i contenuti. **Rinnova recupero** ancora una nuova identità con doppia firma e invalida il vecchio set.
+
+## Membri, ruoli e slice
+
+Proprietari e amministratori possono invitare membri, creare gruppi e limitare un ruolo all’intero workspace, a uno slice o a un oggetto. Editor modifica, Commenter commenta, Reader legge soltanto e Contributor crea soltanto nel proprio ambito. Il controllo avviene prima della scrittura locale e prima della firma, anche per importazioni, ripristini, automazioni e azioni IA.
+
+Uno slice contiene una cartella, una selezione o una regola dinamica su percorso, tipo, tag e proprietà. Usa sempre **Anteprima** prima della pubblicazione. Gli oggetti non autorizzati non vengono materializzati né inseriti in ricerca, grafo o anteprime.
+
+## Commenti, versioni e quarantena
+
+Commenti e marcatori di risoluzione sono cifrati e firmati. **Cronologia versioni** legge le revisioni cifrate e ripristina una versione come nuova modifica firmata o copia. Un artefatto remoto non valido viene isolato in **Integrità e fork locali**: puoi riprovare, esportare il ciphertext, segnarlo riparato o ignorarlo. Non blocca il resto della sincronizzazione e l’assenza remota non equivale mai a eliminazione.

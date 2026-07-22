@@ -2,6 +2,7 @@ import {
   appendWorkspaceDocumentSignature,
   signWorkspaceDocument,
   WorkspaceCapability,
+  WorkspaceGenesisPayload,
   WorkspacePolicyPayload,
   WorkspaceSignedDocument,
   workspaceDocumentHash,
@@ -46,15 +47,20 @@ export interface PersonalWorkspaceBootstrap {
   device: WorkspaceDeviceIdentity;
   recovery: WorkspaceRecoveryIdentity;
   policy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
-  genesis: WorkspaceSignedDocument<"genesis">;
+  genesis: WorkspaceSignedDocument<"genesis", WorkspaceGenesisPayload>;
   grants: WorkspaceSignedDocument<"grant">[];
 }
 
 /** Secrets retained by an ordinary device after the recovery package is saved. */
 export interface PersonalWorkspaceRuntime {
   workspaceId: string;
+  /** Logical member represented by this device. */
+  memberId: string;
+  /** The immutable workspace owner member, retained for recovery operations. */
   ownerMemberId: string;
   ownerGroup: WorkspaceGroupKeyEpoch;
+  /** Every group epoch this device can currently decrypt. */
+  groupKeys: WorkspaceGroupKeyEpoch[];
   device: WorkspaceDeviceIdentity;
   policy: PersonalWorkspaceBootstrap["policy"];
   genesis: PersonalWorkspaceBootstrap["genesis"];
@@ -122,6 +128,7 @@ export async function createPersonalWorkspaceBootstrap(
     groups: [{
       groupId: ownerGroup.groupId,
       name: "Personal workspace",
+      memberIds: [ownerMemberId],
       keyEpoch: ownerGroup.keyEpoch,
       hpkePublicKey: toBase64(ownerGroup.hpke.publicKey),
     }],
@@ -219,8 +226,10 @@ export async function createPersonalWorkspaceBootstrap(
 export function personalWorkspaceRuntime(bootstrap: PersonalWorkspaceBootstrap): PersonalWorkspaceRuntime {
   return {
     workspaceId: bootstrap.workspaceId,
+    memberId: bootstrap.ownerMemberId,
     ownerMemberId: bootstrap.ownerMemberId,
     ownerGroup: bootstrap.ownerGroup,
+    groupKeys: [bootstrap.ownerGroup],
     device: bootstrap.device,
     policy: bootstrap.policy,
     genesis: bootstrap.genesis,

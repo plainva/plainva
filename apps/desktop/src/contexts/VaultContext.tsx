@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, type WorkspaceRuntimeMeta } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast } from "@plainva/ui";
@@ -10,7 +10,7 @@ import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep } from "../services/settingsProfile";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -110,7 +110,37 @@ interface VaultContextType extends VaultState {
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
   lockPersonalWorkspace: () => Promise<void>;
   removeRemotePlaintext: () => Promise<number>;
-  getWorkspaceDiagnostics: () => Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number }>;
+  getWorkspaceDiagnostics: () => Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number; quarantine: number; localForks: number }>;
+  getWorkspaceGovernance: () => Promise<{
+    memberId: string;
+    deviceId: string;
+    members: PersonalWorkspaceRuntime["policy"]["payload"]["members"];
+    devices: PersonalWorkspaceRuntime["policy"]["payload"]["devices"];
+    groups: PersonalWorkspaceRuntime["policy"]["payload"]["groups"];
+    assignments: PersonalWorkspaceRuntime["policy"]["payload"]["assignments"];
+    slices: PersonalWorkspaceRuntime["policy"]["payload"]["slices"];
+    quarantine: Awaited<ReturnType<SqlWorkspaceStateStore["listQuarantine"]>>;
+    localForks: Awaited<ReturnType<SqlWorkspaceStateStore["listLocalForks"]>>;
+  }>;
+  approveWorkspaceDevice: (tokenOrCode: string) => Promise<string>;
+  inspectWorkspacePairingRequest: (tokenOrCode: string) => Promise<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string }>;
+  revokeWorkspaceDevice: (deviceId: string, reason: string) => Promise<void>;
+  revokeWorkspaceMember: (memberId: string, reason: string) => Promise<void>;
+  inviteWorkspaceMember: (displayName: string, role: WorkspaceRole, scopeKind?: "workspace" | "slice" | "object", scopeId?: string | null) => Promise<string>;
+  createWorkspaceGroup: (input: { name: string; memberIds: string[]; role: WorkspaceRole; scopeKind?: "workspace" | "slice" | "object"; scopeId?: string | null }) => Promise<string>;
+  createWorkspaceSlice: (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[] }) => Promise<string>;
+  previewWorkspaceSlice: (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }) => Promise<Array<{ objectId: string; path: string }>>;
+  restoreWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }) => Promise<void>;
+  rotateWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string }) => Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }>;
+  activateWorkspaceRecovery: (activation: RotatedWorkspaceRecovery["anchor"]) => Promise<void>;
+  updateWorkspaceQuarantine: (quarantineId: string, action: "retry" | "ignore" | "repaired") => Promise<void>;
+  exportWorkspaceQuarantine: (quarantineId: string) => Promise<Uint8Array | null>;
+  getWorkspaceCapabilities: (path: string) => Promise<WorkspaceCapability[] | null>;
+  listWorkspaceComments: (path: string) => Promise<WorkspaceCommentRecord[]>;
+  postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null) => Promise<void>;
+  resolveWorkspaceComment: (path: string, commentId: string) => Promise<void>;
+  listWorkspaceRevisions: (path: string) => Promise<WorkspaceRevisionRecord[] | null>;
+  readWorkspaceRevision: (revisionId: string) => Promise<Uint8Array>;
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -267,6 +297,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const syncTargetRef = useRef<ISyncTarget | null>(null);
   const syncProviderRef = useRef<SyncProviderId | null>(null);
   const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
+  const workspaceRuntimeRef = useRef<PersonalWorkspaceRuntime | null>(null);
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
@@ -328,12 +359,50 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await getWorkspaceSecurityStatus(path);
+      const workspaceRuntime = workspaceSecurityStatus ? await loadWorkspaceRuntime(path) : null;
+      workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
       const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
       const workspaceMaterializedPaths = new Set<string>();
       workspaceStateRef.current = workspaceStateStore;
+      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, async (request) => {
+        if (!workspaceRuntime) return false;
+        const existing = await workspaceStateStore.getObjectByPath(request.path);
+        const objectId = existing?.objectId ?? createWorkspaceObjectId();
+        const policy = workspaceRuntime.policy.payload;
+        const access = (path: string, capability: WorkspaceCapability) => evaluateWorkspaceAccess(policy, {
+          memberId: workspaceRuntime.memberId,
+          deviceId: workspaceRuntime.device.publicIdentity.deviceId,
+          capability,
+          objectId,
+          sliceIds: workspaceSliceIdsForObject(policy, { objectId, path, contentKind: existing?.contentKind }),
+        });
+        const sourceDecision = access(request.path, request.capability);
+        if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
+        const targetDecision = access(request.newPath, request.capability);
+        if (!targetDecision.allowed) return targetDecision;
+        if (access(request.path, "content.read").allowed && !access(request.newPath, "content.read").allowed) {
+          return await appConfirm({
+            title: i18n.t("workspaceSecurity.moveAccessLossTitle"),
+            message: i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath }),
+            kind: "warning",
+            confirmLabel: i18n.t("workspaceSecurity.moveAnyway"),
+            cancelLabel: i18n.t("common.cancel"),
+          });
+        }
+        return targetDecision;
+      }, async (request) => {
+        const forkId = createWorkspaceObjectId();
+        const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
+        const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
+        if (await backupVaultAdapter.exists(request.path)) {
+          await backupVaultAdapter.createDir(".plainva/workspace/forks");
+          await backupVaultAdapter.writeBinaryFile(forkPath, await backupVaultAdapter.readBinaryFile(request.path));
+        }
+        await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
+      }) : null;
       const queueingVaultAdapter = workspaceStateStore
-        ? new WorkspaceQueueingVaultAdapter(backupVaultAdapter, workspaceStateStore)
+        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore)
         : new QueueingVaultAdapter(backupVaultAdapter, syncQueue);
 
       const syncRepo = new SyncStateRepository(dbAdapter);
@@ -362,9 +431,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
-      const enqueueLocalChange = (changedPath: string) => {
+      const enqueueLocalChange = async (changedPath: string) => {
         if (!hasSyncTarget || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
         if (workspaceMaterializedPaths.delete(changedPath)) return;
+        if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
           : syncQueue.queueWrite(changedPath);
@@ -385,18 +455,25 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         onExternalModification: (path) => {
           console.log(`VaultContext: External modification detected for ${path}`);
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-          enqueueLocalChange(path);
+          void enqueueLocalChange(path);
         },
         onNewLocalFile: (path) => {
           // During the initial index, defer to the first pull (3c). Runtime discoveries
           // (files created while running) enqueue normally.
           if (deferInitialEnqueue) return;
-          enqueueLocalChange(path);
+          void enqueueLocalChange(path);
         },
         onLocalFileDeleted: (path) => {
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
           if (workspaceMaterializedPaths.delete(path)) return;
           if (hasSyncTarget) {
+            if (permissionedWorkspaceAdapter) {
+              void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
+                if (!allowed) return;
+                return workspaceStateStore!.enqueue("delete", path).then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
+              }).catch((e) => console.error("[VaultContext] failed to authorize local delete", e));
+              return;
+            }
             // Propagate the deletion to the remote; sync_state is cleaned after the push.
             const queued = workspaceStateStore
               ? workspaceStateStore.enqueue("delete", path)
@@ -617,7 +694,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           const savedInterval = perVaultInterval ?? globalInterval;
           const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? DEFAULT_SYNC_INTERVAL_SECONDS) * 1000;
           if (workspaceSecurityStatus && workspaceStateStore) {
-            const runtime = await loadWorkspaceRuntime(path);
+            const runtime = workspaceRuntime;
             if (!runtime) {
               const lockedStatus: WorkspaceSecurityPublicStatus = { ...workspaceSecurityStatus, phase: "locked" };
               resolvedWorkspaceSecurityStatus = lockedStatus;
@@ -1135,19 +1212,212 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return removeLegacyRemotePlaintext(syncTargetRef.current);
   };
 
-  const getWorkspaceDiagnostics = async (): Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number }> => {
+  const getWorkspaceDiagnostics = async (): Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number; quarantine: number; localForks: number }> => {
     const workspaceState = workspaceStateRef.current;
-    const [meta, queuedMutations] = workspaceState
-      ? await Promise.all([workspaceState.loadMeta(), workspaceState.listQueue().then((entries) => entries.length)])
-      : [null, 0];
+    const [meta, queuedMutations, quarantine, localForks] = workspaceState
+      ? await Promise.all([workspaceState.loadMeta(), workspaceState.listQueue().then((entries) => entries.length), workspaceState.listQuarantine("pending").then((entries) => entries.length), workspaceState.listLocalForks().then((entries) => entries.length)])
+      : [null, 0, 0, 0];
     const legacyPlaintextPaths = syncTargetRef.current ? (await listLegacyRemotePlaintext(syncTargetRef.current)).length : 0;
-    return { meta, queuedMutations, legacyPlaintextPaths };
+    return { meta, queuedMutations, legacyPlaintextPaths, quarantine, localForks };
+  };
+
+  const workspaceControlPlane = () => {
+    const runtime = workspaceRuntimeRef.current;
+    const workspaceState = workspaceStateRef.current;
+    const target = syncTargetRef.current;
+    const provider = syncProviderRef.current;
+    if (!state.vaultPath || !runtime || !workspaceState || !target || !provider) throw new Error("workspace-unavailable-or-locked");
+    return { runtime, workspaceState, store: createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
+  };
+
+  const commitGovernance = async (update: WorkspaceGovernanceUpdate): Promise<void> => {
+    const { runtime, workspaceState, store, vaultPath } = workspaceControlPlane();
+    await publishWorkspaceGovernanceUpdate(store, update);
+    applyWorkspaceGovernanceUpdate(runtime, update);
+    await updateWorkspaceRuntime(vaultPath, runtime);
+    const meta = await workspaceState.loadMeta();
+    if (meta) { meta.policyHash = workspaceDocumentHash(update.policy); meta.needsPublication = true; await workspaceState.saveMeta(meta); }
+    state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+  };
+
+  const getWorkspaceGovernance = async () => {
+    const { runtime, workspaceState } = workspaceControlPlane();
+    return {
+      memberId: runtime.memberId,
+      deviceId: runtime.device.publicIdentity.deviceId,
+      members: runtime.policy.payload.members,
+      devices: runtime.policy.payload.devices,
+      groups: runtime.policy.payload.groups,
+      assignments: runtime.policy.payload.assignments,
+      slices: runtime.policy.payload.slices,
+      quarantine: await workspaceState.listQuarantine(),
+      localForks: await workspaceState.listLocalForks(),
+    };
+  };
+
+  const approveWorkspaceDevice = async (tokenOrCode: string): Promise<string> => {
+    const control = workspaceControlPlane();
+    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(control.store, tokenOrCode.trim());
+    if (!token) throw new Error("workspace-pairing-request-not-found");
+    const previousPolicy = control.runtime.policy;
+    const approval = await approveWorkspacePairing({ token, runtime: control.runtime });
+    const update: WorkspaceGovernanceUpdate = { policy: approval.policy, grants: approval.grants, groupKeys: control.runtime.groupKeys };
+    await commitGovernance(update);
+    await publishWorkspacePairingApproval(control.store, { version: 1, genesis: control.runtime.genesis, previousPolicy, approval });
+    return approval.request.payload.device.deviceId;
+  };
+
+  const inspectWorkspacePairingRequest = async (tokenOrCode: string) => {
+    const control = workspaceControlPlane();
+    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(control.store, tokenOrCode.trim());
+    if (!token) throw new Error("workspace-pairing-request-not-found");
+    const request = parseWorkspacePairingRequest(token);
+    if (request.payload.workspaceId !== control.runtime.workspaceId || request.payload.workspaceFingerprint !== workspaceDocumentHash(control.runtime.genesis)) throw new Error("workspace-pairing-request-mismatch");
+    return { token, deviceName: request.payload.device.displayName, platform: request.payload.device.platform, memberId: request.payload.memberId, fingerprint: pairingFingerprint(request), expiresAt: request.payload.expiresAt };
+  };
+
+  const removeWorkspaceDevice = async (deviceId: string, reason: string): Promise<void> => {
+    const { runtime } = workspaceControlPlane();
+    if (deviceId === runtime.device.publicIdentity.deviceId) throw new Error("workspace-cannot-revoke-current-device");
+    await commitGovernance(await revokeWorkspaceDeviceAndRotate({ runtime, deviceId, reason }));
+  };
+
+  const removeWorkspaceMember = async (memberId: string, reason: string): Promise<void> => {
+    const { runtime } = workspaceControlPlane();
+    if (memberId === runtime.memberId) throw new Error("workspace-cannot-revoke-current-member");
+    await commitGovernance(await revokeWorkspaceMemberAndRotate({ runtime, memberId, reason }));
+  };
+
+  const addWorkspaceMember = async (displayName: string, role: WorkspaceRole, scopeKind: "workspace" | "slice" | "object" = "workspace", scopeId: string | null = null): Promise<string> => {
+    const { runtime } = workspaceControlPlane();
+    const result = await inviteWorkspaceMember({ runtime, displayName, role, scopeKind, scopeId });
+    await commitGovernance(result);
+    return result.memberId;
+  };
+
+  const addWorkspaceGroup = async (input: { name: string; memberIds: string[]; role: WorkspaceRole; scopeKind?: "workspace" | "slice" | "object"; scopeId?: string | null }): Promise<string> => {
+    const { runtime } = workspaceControlPlane();
+    const result = await createWorkspaceGroup({ runtime, ...input });
+    await commitGovernance(result);
+    return result.groupId;
+  };
+
+  const addWorkspaceSlice = async (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[] }): Promise<string> => {
+    const { runtime } = workspaceControlPlane();
+    const result = createWorkspaceSlice({ runtime, ...input });
+    await commitGovernance({ policy: result.policy, grants: [], groupKeys: runtime.groupKeys });
+    return result.sliceId;
+  };
+
+  const previewSlice = async (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }): Promise<Array<{ objectId: string; path: string }>> => {
+    const { workspaceState } = workspaceControlPlane();
+    const objects = await workspaceState.listObjects();
+    const tagRows = state.dbAdapter ? await state.dbAdapter.query<{ path: string; tag: string }>(`SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id`) : [];
+    const propertyRows = state.dbAdapter ? await state.dbAdapter.query<{ path: string; key: string; value: string; type: string }>(`SELECT f.path AS path, p.key AS key, p.value AS value, p.type AS type FROM properties p JOIN files f ON f.id = p.file_id`) : [];
+    const tags = new Map<string, string[]>();
+    for (const row of tagRows) tags.set(row.path, [...(tags.get(row.path) ?? []), row.tag]);
+    const properties = new Map<string, Record<string, string | number | boolean | null>>();
+    for (const row of propertyRows) {
+      const values = properties.get(row.path) ?? {};
+      values[row.key] = row.type === "number" ? Number(row.value) : row.type === "boolean" ? row.value === "true" : row.value;
+      properties.set(row.path, values);
+    }
+    const previewObjects = objects.map((object) => ({ ...object, tags: tags.get(object.path) ?? [], properties: properties.get(object.path) ?? {} }));
+    const preview = previewWorkspaceSlice({ sliceId: createWorkspaceObjectId(), name: "Preview", kind: definition.kind, definition: createWorkspaceSliceDefinition(definition), materializedObjectIds: definition.kind === "selection" ? [...definition.objectIds].sort() : [] }, previewObjects);
+    const matched = new Set(preview.matchedObjectIds);
+    return objects.filter((object) => matched.has(object.objectId)).map(({ objectId, path }) => ({ objectId, path }));
+  };
+
+  const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
+    await state.syncWorker?.stopAndDrain();
+    const store = createProviderWorkspaceObjectStore(workspaceProviderName(syncProviderRef.current), syncTargetRef.current);
+    const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
+    await publishWorkspaceGovernanceUpdate(store, restored);
+    await persistWorkspaceRuntime({ vaultPath: state.vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
+    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
+    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: state.backupAdapter, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
+    await openVault(state.vaultPath);
+  };
+
+  const rotateWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string }): Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }> => {
+    const { runtime, store } = workspaceControlPlane();
+    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "recovery.manage" }).allowed) throw new Error("workspace-recovery-manage-not-permitted");
+    const rotated = await rotateWorkspaceRecoveryPackage({ ...input, runtime, store });
+    return { bytes: rotated.bytes, recoveryCode: rotated.recoveryCode, activation: rotated.anchor };
+  };
+
+  const activateWorkspaceRecovery = async (activation: RotatedWorkspaceRecovery["anchor"]): Promise<void> => {
+    const { runtime, store } = workspaceControlPlane();
+    await publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation });
+    state.syncWorker?.triggerImmediate();
+  };
+
+  const updateWorkspaceQuarantine = async (quarantineId: string, action: "retry" | "ignore" | "repaired"): Promise<void> => {
+    const { workspaceState } = workspaceControlPlane();
+    await workspaceState.setQuarantineStatus(quarantineId, action === "repaired" ? "repaired" : action === "ignore" ? "ignored" : "pending");
+    if (action === "retry") state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+  };
+
+  const exportWorkspaceQuarantine = async (quarantineId: string): Promise<Uint8Array | null> => {
+    const { workspaceState } = workspaceControlPlane();
+    return new WorkspaceQuarantineService(workspaceState, () => state.syncWorker?.triggerImmediate()).exportCiphertext(quarantineId);
+  };
+
+  const getWorkspaceCapabilities = async (path: string): Promise<WorkspaceCapability[] | null> => {
+    if (!state.workspaceSecurityStatus) return null;
+    const { runtime, workspaceState } = workspaceControlPlane();
+    const object = await workspaceState.getObjectByPath(path);
+    const objectId = object?.objectId ?? createWorkspaceObjectId();
+    const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId, path, contentKind: object?.contentKind });
+    return effectiveWorkspaceCapabilities(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, objectId, sliceIds });
+  };
+
+  const listWorkspaceComments = async (path: string): Promise<WorkspaceCommentRecord[]> => {
+    if (!state.workspaceSecurityStatus) return [];
+    const { workspaceState } = workspaceControlPlane();
+    const object = await workspaceState.getObjectByPath(path);
+    return object ? workspaceState.listComments(object.objectId) : [];
+  };
+
+  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null): Promise<void> => {
+    const { runtime, workspaceState, store } = workspaceControlPlane();
+    const object = await workspaceState.getObjectByPath(path);
+    if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
+    const meta = await workspaceState.loadMeta();
+    if (!meta) throw new Error("workspace-state-missing");
+    const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
+    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
+    const groupIds = workspaceRecipientGroupIds(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
+    const recipients = groupIds.map((groupId) => { const group = runtime.policy.payload.groups.find((entry) => entry.groupId === groupId)!; return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") }; });
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: meta.policyHash, sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash, targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId, body, parentCommentId, resolvedCommentId, recipients });
+    await publishWorkspaceComment(store, prepared);
+    await commitPublishedWorkspaceComment(workspaceState, prepared, meta);
+    state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+  };
+
+  const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId);
+  const resolveWorkspaceComment = (path: string, commentId: string) => postWorkspaceCommentRecord(path, "Resolved", null, commentId);
+
+  const listWorkspaceRevisions = async (path: string): Promise<WorkspaceRevisionRecord[] | null> => {
+    if (!state.workspaceSecurityStatus) return null;
+    const { workspaceState } = workspaceControlPlane();
+    const object = await workspaceState.getObjectByPath(path);
+    return object ? workspaceState.listRevisionsForObject(object.objectId) : [];
+  };
+
+  const readWorkspaceRevision = async (revisionId: string): Promise<Uint8Array> => {
+    const { runtime, workspaceState, store } = workspaceControlPlane();
+    return new WorkspaceRevisionHistoryService(store, workspaceState, runtime.groupKeys).read(revisionId);
   };
 
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

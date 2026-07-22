@@ -69,6 +69,14 @@ export interface WorkspaceGenesisPayload {
   initialPolicyHash: string;
 }
 
+export interface WorkspaceRecoveryAnchorPayload {
+  anchorVersion: number;
+  previousAnchorHash: string | null;
+  previousRecoveryId: string;
+  recovery: { recoveryId: string; signingPublicKey: string };
+  createdAt: string;
+}
+
 export type WorkspaceCapability =
   | "workspace.manage"
   | "members.invite"
@@ -108,6 +116,8 @@ export interface WorkspacePolicyDevice {
 export interface WorkspacePolicyGroup {
   groupId: string;
   name: string;
+  /** Explicit group roster (required for newly emitted policies). */
+  memberIds?: string[];
   keyEpoch: number;
   hpkePublicKey: string;
 }
@@ -336,9 +346,13 @@ function validatePolicy(payload: unknown): asserts payload is WorkspacePolicyPay
 
   const groups = asArray(value.groups, 10_000, "groups").map((entry) => asRecord(entry, "group"));
   for (const group of groups) {
-    assertExactKeys(group, ["groupId", "name", "keyEpoch", "hpkePublicKey"], "group");
+    const groupKeys = Object.keys(group).sort().join(",");
+    protocolAssert(groupKeys === "groupId,hpkePublicKey,keyEpoch,memberIds,name" || groupKeys === "groupId,hpkePublicKey,keyEpoch,name", "format", "group has unknown or missing fields");
     assertWorkspaceId(group.groupId as string, "group.groupId");
     assertDisplayName(group.name, "group.name");
+    const memberIds = (group.memberIds === undefined ? [] : asArray(group.memberIds, 10_000, "group.memberIds")) as string[];
+    for (const memberId of memberIds) assertWorkspaceId(memberId, "group.memberId");
+    assertSortedUnique(memberIds, (memberId) => memberId, "group.memberIds");
     assertSafeInteger(group.keyEpoch, 1, 0xffffffff, "group.keyEpoch");
     decodeBase64Exact(group.hpkePublicKey as string, 32, "group.hpkePublicKey");
   }
@@ -493,6 +507,21 @@ function validateHead(payload: unknown): void {
   assertOptionalHash(value.checkpointHash, "checkpointHash");
 }
 
+function validateRecoveryAnchor(payload: unknown): void {
+  const value = asRecord(payload, "recovery anchor payload");
+  assertExactKeys(value, ["anchorVersion", "previousAnchorHash", "previousRecoveryId", "recovery", "createdAt"], "recovery anchor payload");
+  assertSafeInteger(value.anchorVersion, 1, Number.MAX_SAFE_INTEGER, "anchorVersion");
+  assertOptionalHash(value.previousAnchorHash, "previousAnchorHash");
+  protocolAssert(value.anchorVersion === 1 ? value.previousAnchorHash === null : value.previousAnchorHash !== null, "integrity", "recovery anchor predecessor is inconsistent");
+  assertWorkspaceId(value.previousRecoveryId as string, "previousRecoveryId");
+  const recovery = asRecord(value.recovery, "recovery anchor identity");
+  assertExactKeys(recovery, ["recoveryId", "signingPublicKey"], "recovery anchor identity");
+  assertWorkspaceId(recovery.recoveryId as string, "recoveryId");
+  protocolAssert(recovery.recoveryId !== value.previousRecoveryId, "integrity", "recovery rotation must use a new identity");
+  decodeBase64Exact(recovery.signingPublicKey as string, 32, "recovery signing key");
+  assertTimestamp(value.createdAt, "createdAt");
+}
+
 export function validateWorkspaceDocumentPayload(kind: WorkspaceDocumentKind, payload: unknown): void {
   validateCanonicalValue(payload);
   switch (kind) {
@@ -502,6 +531,7 @@ export function validateWorkspaceDocumentPayload(kind: WorkspaceDocumentKind, pa
     case "operation": validateOperation(payload); break;
     case "catalog": validateCatalog(payload); break;
     case "checkpoint": validateCheckpoint(payload); break;
+    case "recovery": validateRecoveryAnchor(payload); break;
     case "head": validateHead(payload); break;
   }
 }
@@ -602,6 +632,12 @@ export function validateWorkspaceSignedDocument(document: WorkspaceSignedDocumen
   }
   if (document.kind === "checkpoint") {
     protocolAssert(document.signatures.length === 1, "integrity", "checkpoint requires exactly one device or recovery signature");
+  }
+  if (document.kind === "recovery") {
+    const payload = document.payload as WorkspaceRecoveryAnchorPayload;
+    protocolAssert(document.signatures.length === 2, "integrity", "recovery anchor requires old and new recovery signatures");
+    protocolAssert(document.signatures.some((entry) => entry.signerKind === "recovery" && entry.signerId === payload.previousRecoveryId), "integrity", "previous recovery signature is missing");
+    protocolAssert(document.signatures.some((entry) => entry.signerKind === "recovery" && entry.signerId === payload.recovery.recoveryId), "integrity", "new recovery signature is missing");
   }
 }
 

@@ -126,7 +126,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       device_id          TEXT NOT NULL,
       sequence           INTEGER NOT NULL,
       materialized_path  TEXT,
-      plaintext_sha256   TEXT
+      plaintext_sha256   TEXT,
+      created_at         TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_operation (
       operation_hash TEXT PRIMARY KEY,
@@ -150,10 +151,45 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       document_json   TEXT NOT NULL,
       published       INTEGER NOT NULL DEFAULT 0
     );`,
+    `CREATE TABLE IF NOT EXISTS workspace_comment (
+      comment_id        TEXT PRIMARY KEY,
+      target_object_id  TEXT NOT NULL,
+      target_revision_id TEXT NOT NULL,
+      parent_comment_id TEXT,
+      author_member_id  TEXT NOT NULL,
+      author_device_id  TEXT NOT NULL,
+      operation_hash    TEXT NOT NULL UNIQUE,
+      payload_hash      TEXT NOT NULL,
+      body              TEXT NOT NULL,
+      created_at        TEXT NOT NULL,
+      resolved_comment_id TEXT,
+      resolved_at       TEXT
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_quarantine (
+      quarantine_id    TEXT PRIMARY KEY,
+      artifact_kind    TEXT NOT NULL,
+      remote_key       TEXT NOT NULL,
+      artifact_base64  TEXT NOT NULL,
+      artifact_sha256  TEXT NOT NULL,
+      error_code       TEXT NOT NULL,
+      reason           TEXT NOT NULL,
+      first_seen_at    TEXT NOT NULL,
+      last_tried_at    TEXT NOT NULL,
+      status           TEXT NOT NULL DEFAULT 'pending'
+    );`,
+    `CREATE TABLE IF NOT EXISTS workspace_local_fork (
+      fork_id       TEXT PRIMARY KEY,
+      original_path TEXT NOT NULL,
+      fork_path     TEXT NOT NULL,
+      reason        TEXT NOT NULL,
+      created_at    TEXT NOT NULL
+    );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_queue_path ON workspace_queue(path, new_path);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_comment_target ON workspace_comment(target_object_id, created_at);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_quarantine_status ON workspace_quarantine(status, first_seen_at);`,
 
     // FTS5 Virtual Table for full-text search
     `CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(
@@ -263,6 +299,18 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   for (const query of schemaQueries) {
     await db.execute(query);
+  }
+
+  try {
+    await db.execute(`ALTER TABLE workspace_revision ADD COLUMN created_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z';`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    await db.execute(`ALTER TABLE workspace_comment ADD COLUMN resolved_comment_id TEXT;`);
+  } catch {
+    // Column might already exist
   }
 
   try {

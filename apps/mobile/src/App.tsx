@@ -43,6 +43,7 @@ import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { MoreScreen } from "./screens/MoreScreen";
 import { GraphScreen } from "./screens/GraphScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
+import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import {
@@ -602,6 +603,8 @@ export default function App() {
             <ContentAreaScreen onBack={pop} vault={vault} />
           ) : top.path === "backup" ? (
             <BackupAreaScreen onBack={pop} />
+          ) : top.path === "security" ? (
+            <SecurityAreaScreen onBack={pop} vault={vault} />
           ) : (
             <AboutAreaScreen onBack={pop} />
           )

@@ -2,7 +2,7 @@ import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { isTextFile } from "../sync/fileType.js";
 import type { SyncProgress, SyncStatus } from "../sync/SyncWorker.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
-import { createWorkspaceCatalog } from "./catalog.js";
+import { createWorkspaceCatalog, openWorkspaceCatalog, type WorkspaceCatalogPayload } from "./catalog.js";
 import {
   encodeWorkspaceDocument,
   parseWorkspaceDocument,
@@ -12,6 +12,7 @@ import {
   WorkspaceOperationName,
   WorkspaceOperationPayload,
   WorkspacePolicyPayload,
+  WorkspaceRecoveryAnchorPayload,
   WorkspaceSignedDocument,
   workspaceDocumentHash,
 } from "./documents.js";
@@ -30,6 +31,7 @@ import { WorkspaceObjectStore } from "./objectStore.js";
 import {
   openPvc1Chunk,
   openPvo1Frame,
+  parsePvo1Frame,
   sealChunkedPvo1,
   sealInlinePvo1,
   splitPvo1Chunks,
@@ -48,6 +50,14 @@ import {
   WorkspaceStateStore,
 } from "./state.js";
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
+import { evaluateWorkspaceAccess } from "./authorization.js";
+import { resolveWorkspacePolicyChain } from "./policy.js";
+import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceSliceObject } from "./slices.js";
+import { openWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
+import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
+import { parseMarkdownAst } from "../markdown-parser.js";
+import { extractLinksAndTags } from "../ast-scanner.js";
+import { extractFrontmatter } from "../metadata-extractor.js";
 
 const STAGING_ROOT = ".plainva/workspace/staging";
 const DEFAULT_INTERVAL_MS = 15_000;
@@ -66,6 +76,22 @@ function operationCapability(operation: WorkspaceOperationName): WorkspaceOperat
     case "delete": return "content.delete";
     case "comment": return "comment.create";
   }
+}
+
+function sliceObjectWithContent(objectId: string, path: string, contentKind: WorkspaceSliceObject["contentKind"], plaintext?: Uint8Array): WorkspaceSliceObject {
+  const object: WorkspaceSliceObject = { objectId, path, contentKind };
+  if (contentKind !== "text" || !plaintext) return object;
+  try {
+    const ast = parseMarkdownAst(new TextDecoder("utf-8", { fatal: true }).decode(plaintext), { preserveObsidianSyntax: true });
+    object.tags = [...new Set(extractLinksAndTags(ast).tags.map((tag) => tag.name))].sort();
+    const frontmatter = extractFrontmatter(ast);
+    if (frontmatter.success && frontmatter.data) {
+      object.properties = Object.fromEntries(Object.entries(frontmatter.data).filter((entry): entry is [string, string | number | boolean | null] => entry[1] === null || ["string", "number", "boolean"].includes(typeof entry[1])));
+    }
+  } catch {
+    // Invalid or unusually large markdown simply cannot match tag/property rules.
+  }
+  return object;
 }
 
 function mimeForPath(path: string, directory: boolean): string {
@@ -124,6 +150,7 @@ export class EncryptedWorkspaceWorker {
   public onStatusChange?: (status: SyncStatus, error?: string) => void;
   public onProgress?: (progress: SyncProgress | null) => void;
   public onFilesChanged?: (paths: string[]) => void;
+  private activePolicy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
 
   constructor(
     private readonly objectStore: WorkspaceObjectStore,
@@ -131,7 +158,7 @@ export class EncryptedWorkspaceWorker {
     private readonly vault: IVaultAdapter,
     private readonly runtime: PersonalWorkspaceRuntime,
     private readonly options: EncryptedWorkspaceWorkerOptions = {}
-  ) {}
+  ) { this.activePolicy = runtime.policy; }
 
   start(): void {
     if (this.running) return;
@@ -243,38 +270,121 @@ export class EncryptedWorkspaceWorker {
       if (entry.signerKind === "recovery" && entry.signerId === recovery.recoveryId) return decodeBase64Exact(recovery.signingPublicKey, 32, "recovery signing key");
       return null;
     }), "crypto", "remote genesis signature verification failed");
-    const payload = policy.payload as WorkspacePolicyPayload;
-    protocolAssert(verifyWorkspaceDocumentSignatures(policy, (entry) => {
+    const initial = policy as WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
+    const payload = initial.payload;
+    protocolAssert(verifyWorkspaceDocumentSignatures(initial, (entry) => {
       if (entry.signerKind === "recovery" && entry.signerId === recovery.recoveryId) return decodeBase64Exact(recovery.signingPublicKey, 32, "recovery signing key");
       const device = payload.devices.find((candidate) => candidate.deviceId === entry.signerId);
       return device ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null;
     }), "crypto", "remote policy signature verification failed");
-    return payload;
+    const infos = await listAll(this.objectStore, ".pvws/policies/", signal);
+    const candidates: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>[] = [];
+    const candidateBytes = new Map<string, { key: string; bytes: Uint8Array }>();
+    for (const info of infos) {
+      if (info.key.endsWith(`/${policyHash}.pvpol`)) continue;
+      const bytes = await this.objectStore.get(info.key, { signal });
+      if (!bytes) continue;
+      try {
+        const parsed = parseWorkspaceDocument(bytes);
+        protocolAssert(parsed.kind === "policy" && parsed.workspaceId === this.runtime.workspaceId, "integrity", "policy workspace binding mismatch");
+        const hash = workspaceDocumentHash(parsed);
+        protocolAssert(info.key.endsWith(`/${hash}.pvpol`) && sha256Hex(bytes) === hash, "integrity", "policy path hash mismatch");
+        candidates.push(parsed as WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>);
+        candidateBytes.set(hash, { key: info.key, bytes });
+      } catch (error) {
+        await this.quarantineArtifact("policy", info.key, bytes, error);
+      }
+    }
+    const recoveryKey = decodeBase64Exact(recovery.signingPublicKey, 32, "recovery signing key");
+    const anchorInfos = await listAll(this.objectStore, ".pvws/recovery/", signal);
+    const anchors: WorkspaceSignedDocument<"recovery", WorkspaceRecoveryAnchorPayload>[] = [];
+    for (const info of anchorInfos) {
+      const bytes = await this.objectStore.get(info.key, { signal });
+      if (!bytes) continue;
+      try {
+        const parsed = parseWorkspaceDocument(bytes);
+        protocolAssert(parsed.kind === "recovery" && parsed.workspaceId === this.runtime.workspaceId, "integrity", "recovery anchor workspace binding mismatch");
+        const hash = workspaceDocumentHash(parsed);
+        protocolAssert(info.key.endsWith(`-${hash}.pvrec`) && sha256Hex(bytes) === hash, "integrity", "recovery anchor path hash mismatch");
+        anchors.push(parsed as WorkspaceSignedDocument<"recovery", WorkspaceRecoveryAnchorPayload>);
+      } catch (error) {
+        await this.quarantineArtifact("recovery", info.key, bytes, error);
+      }
+    }
+    anchors.sort((left, right) => left.payload.anchorVersion - right.payload.anchorVersion);
+    validateWorkspaceRecoveryAnchorChain({ genesisRecoveryId: recovery.recoveryId, genesisRecoveryPublicKey: recoveryKey, anchors });
+    const recoveryKeys = new Map<string, Uint8Array>([[recovery.recoveryId, recoveryKey]]);
+    for (const anchor of anchors) recoveryKeys.set(anchor.payload.recovery.recoveryId, decodeBase64Exact(anchor.payload.recovery.signingPublicKey, 32, "recovery anchor key"));
+    const resolved = resolveWorkspacePolicyChain({ initial, candidates, recoveryPublicKeys: recoveryKeys });
+    for (const hash of resolved.ignoredHashes) {
+      const artifact = candidateBytes.get(hash);
+      if (artifact) await this.quarantineArtifact("policy", artifact.key, artifact.bytes, new WorkspaceProtocolError("authorization", "policy is not on the accepted successor chain"));
+    }
+    this.activePolicy = resolved.current;
+    this.runtime.policy = resolved.current;
+    const meta = await this.state.loadMeta();
+    if (meta && meta.policyHash !== workspaceDocumentHash(resolved.current)) {
+      meta.policyHash = workspaceDocumentHash(resolved.current);
+      meta.needsPublication = true;
+      await this.state.saveMeta(meta);
+    }
+    return resolved.current.payload;
+  }
+
+  private async quarantineArtifact(kind: Parameters<WorkspaceStateStore["saveQuarantine"]>[0]["artifactKind"], remoteKey: string, bytes: Uint8Array, error: unknown): Promise<void> {
+    const timestamp = nowIso();
+    const hash = sha256Hex(bytes);
+    await this.state.saveQuarantine({
+      quarantineId: sha256Hex(utf8Encode(`${kind}\0${remoteKey}\0${hash}`)),
+      artifactKind: kind,
+      remoteKey,
+      artifactBase64: toBase64(bytes),
+      artifactSha256: hash,
+      errorCode: error instanceof WorkspaceProtocolError ? error.code : "unknown",
+      reason: error instanceof Error ? error.message.slice(0, 512) : "workspace artifact validation failed",
+      firstSeenAt: timestamp,
+      lastTriedAt: timestamp,
+      status: "pending",
+    });
   }
 
   private async pull(signal?: AbortSignal): Promise<string[]> {
     const policy = await this.verifyBootstrap(signal);
     const meta = await this.requireMeta();
+    const visibleRefs = await this.loadVisibleCatalogRefs(policy, signal);
     const operationInfos = await listAll(this.objectStore, ".pvws/operations/", signal);
-    const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string }> = [];
+    const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }> = [];
     for (const info of operationInfos) {
       const bytes = await this.objectStore.get(info.key, { signal });
-      protocolAssert(bytes !== null, "conflict", "operation disappeared during pull");
-      const parsed = parseWorkspaceDocument(bytes);
-      protocolAssert(parsed.kind === "operation" && parsed.workspaceId === meta.workspaceId, "integrity", "operation workspace binding mismatch");
-      const document = parsed as WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>;
-      const hash = workspaceDocumentHash(document);
-      protocolAssert(info.key.endsWith(`-${hash}.pvop`), "integrity", "operation path hash mismatch");
-      const device = policy.devices.find((entry) => entry.deviceId === document.payload.deviceId && entry.memberId === document.payload.memberId && entry.state === "active");
-      protocolAssert(!!device, "authorization", "operation author is not an active policy device");
-      protocolAssert(document.payload.policyHash === meta.policyHash, "authorization", "operation uses an unaccepted policy");
-      protocolAssert(policy.assignments.some((entry) => entry.subjectKind === "member" && entry.subjectId === device.memberId && entry.scopeKind === "workspace" && entry.capabilities.includes(document.payload.capability)), "authorization", "operation capability is not granted");
-      protocolAssert(verifyWorkspaceDocumentSignatures(document, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null), "crypto", "operation signature verification failed");
-      operations.push({ document, hash });
+      if (!bytes) continue;
+      try {
+        const parsed = parseWorkspaceDocument(bytes);
+        protocolAssert(parsed.kind === "operation" && parsed.workspaceId === meta.workspaceId, "integrity", "operation workspace binding mismatch");
+        const document = parsed as WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>;
+        const hash = workspaceDocumentHash(document);
+        protocolAssert(info.key.endsWith(`-${hash}.pvop`), "integrity", "operation path hash mismatch");
+        const operationPolicy = document.payload.policyHash === workspaceDocumentHash(this.activePolicy) ? policy : null;
+        protocolAssert(!!operationPolicy, "authorization", "operation uses an unaccepted policy");
+        const device = operationPolicy.devices.find((entry) => entry.deviceId === document.payload.deviceId && entry.memberId === document.payload.memberId && entry.state === "active");
+        protocolAssert(!!device, "authorization", "operation author is not an active policy device");
+        const object = await this.state.getObjectById(document.payload.objectId);
+        // Existing objects can be authorized before object download. For a new
+        // object the canonical path (and therefore dynamic slice membership)
+        // is encrypted in PVO1, so the definitive check happens in
+        // applyIncoming after authenticated decryption.
+        if (object) {
+          const sliceIds = workspaceSliceIdsForObject(operationPolicy, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
+          protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: device.memberId, deviceId: device.deviceId, capability: document.payload.capability, objectId: document.payload.objectId, sliceIds }).allowed, "authorization", "operation capability is not granted");
+        }
+        protocolAssert(verifyWorkspaceDocumentSignatures(document, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null), "crypto", "operation signature verification failed");
+        operations.push({ document, hash, key: info.key, bytes });
+      } catch (error) {
+        await this.quarantineArtifact("operation", info.key, bytes, error);
+      }
     }
-    this.validateDeviceChains(operations);
+    const chained = await this.validateDeviceChains(operations);
 
-    const pending = operations.sort((left, right) => left.hash.localeCompare(right.hash));
+    const pending = chained.sort((left, right) => left.hash.localeCompare(right.hash));
     const changed: string[] = [];
     let progress = true;
     while (pending.length && progress) {
@@ -282,33 +392,95 @@ export class EncryptedWorkspaceWorker {
       for (let index = 0; index < pending.length;) {
         const entry = pending[index];
         if (await this.state.hasOperation(entry.hash)) { pending.splice(index, 1); progress = true; continue; }
+        const payloadHash = entry.document.payload.payloadHash;
+        if (entry.document.payload.operation !== "delete" && entry.document.payload.operation !== "comment" && payloadHash && !visibleRefs.has(`${entry.document.payload.objectId}:${entry.document.payload.revisionId}:${payloadHash}`)) {
+          // Catalogs are selective acceleration indexes, not authorization
+          // truth. A create-only contributor cannot decrypt a reader catalog,
+          // so its fresh object may appear in the operation stream first. The
+          // clear PVO1 envelope headers let intended readers discover that
+          // delta without exposing metadata or plaintext to other groups.
+          const objectBytes = await this.objectStore.get(`.pvws/objects/${entry.document.payload.objectId}/${payloadHash}.pvobj`, { signal });
+          if (!objectBytes) { index += 1; continue; }
+          try {
+            const frame = parsePvo1Frame(objectBytes);
+            const readable = frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch));
+            if (!readable) { pending.splice(index, 1); progress = true; continue; }
+          } catch (error) {
+            await this.quarantineArtifact("object", `.pvws/objects/${entry.document.payload.objectId}/${payloadHash}.pvobj`, objectBytes, error);
+            pending.splice(index, 1); progress = true; continue;
+          }
+        }
         const parentsKnown = await Promise.all(entry.document.payload.parentRevisionIds.map((parent) => this.state.getRevision(parent)));
         if (parentsKnown.some((parent) => !parent)) { index += 1; continue; }
-        const appliedPaths = await this.applyIncoming(entry.document, entry.hash, meta, signal);
-        changed.push(...appliedPaths);
+        try {
+          const appliedPaths = await this.applyIncoming(entry.document, entry.hash, meta, signal);
+          changed.push(...appliedPaths);
+        } catch (error) {
+          await this.quarantineArtifact("operation", entry.key, entry.bytes, error);
+        }
         pending.splice(index, 1);
         progress = true;
       }
     }
-    protocolAssert(pending.length === 0, "integrity", "operation graph contains missing revision parents");
+    for (const entry of pending) await this.quarantineArtifact("operation", entry.key, entry.bytes, new WorkspaceProtocolError("integrity", "operation graph contains missing revision parents"));
     await this.verifyRemoteHeads(meta, policy, signal);
     return changed;
   }
 
-  private validateDeviceChains(operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string }>): void {
-    const byDevice = new Map<string, Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string }>>();
+  private async validateDeviceChains<T extends { document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }>(operations: T[]): Promise<T[]> {
+    const byDevice = new Map<string, T[]>();
     for (const operation of operations) {
       const items = byDevice.get(operation.document.payload.deviceId) ?? [];
       items.push(operation);
       byDevice.set(operation.document.payload.deviceId, items);
     }
+    const valid: T[] = [];
     for (const items of byDevice.values()) {
       items.sort((left, right) => left.document.payload.sequence - right.document.payload.sequence);
+      let expectedHash: string | null = null;
+      let broken = false;
       for (let index = 0; index < items.length; index += 1) {
-        protocolAssert(items[index].document.payload.sequence === index + 1, "integrity", "device operation sequence has a gap");
-        protocolAssert(items[index].document.payload.previousDeviceOperationHash === (index === 0 ? null : items[index - 1].hash), "integrity", "device operation predecessor mismatch");
+        const item = items[index];
+        if (broken || item.document.payload.sequence !== index + 1 || item.document.payload.previousDeviceOperationHash !== expectedHash) {
+          broken = true;
+          await this.quarantineArtifact("operation", item.key, item.bytes, new WorkspaceProtocolError("integrity", "device operation chain has a gap or predecessor mismatch"));
+          continue;
+        }
+        valid.push(item);
+        expectedHash = item.hash;
       }
     }
+    return valid;
+  }
+
+  private async loadVisibleCatalogRefs(policy: WorkspacePolicyPayload, signal?: AbortSignal): Promise<Set<string>> {
+    const refs = new Set<string>();
+    for (const key of this.runtime.groupKeys) {
+      const infos = await listAll(this.objectStore, `.pvws/catalogs/${key.groupId}/${key.keyEpoch}/`, signal);
+      const valid: Array<{ version: number; body: ReturnType<typeof openWorkspaceCatalog> }> = [];
+      for (const info of infos) {
+        const bytes = await this.objectStore.get(info.key, { signal });
+        if (!bytes) continue;
+        try {
+          const parsed = parseWorkspaceDocument(bytes);
+          protocolAssert(parsed.kind === "catalog" && parsed.workspaceId === this.runtime.workspaceId, "integrity", "catalog workspace binding mismatch");
+          const document = parsed as WorkspaceSignedDocument<"catalog", WorkspaceCatalogPayload>;
+          const hash = workspaceDocumentHash(document);
+          protocolAssert(info.key.endsWith(`/${hash}.pvcat`), "integrity", "catalog path hash mismatch");
+          const signer = policy.devices.find((device) => device.deviceId === document.signatures[0]?.signerId && device.state === "active");
+          protocolAssert(!!signer && verifyWorkspaceDocumentSignatures(document, () => decodeBase64Exact(signer.signingPublicKey, 32, "catalog signer key")), "crypto", "catalog signature is invalid");
+          valid.push({ version: document.payload.catalogVersion, body: openWorkspaceCatalog(document, key.catalogKey) });
+        } catch (error) {
+          await this.quarantineArtifact("catalog", info.key, bytes, error);
+        }
+      }
+      // Concurrent publishers can legitimately create catalogs with the same
+      // version. Their signed operation DAG resolves freshness; catalogs are a
+      // visibility index, so union all decryptable branches and never infer a
+      // deletion from an absent reference.
+      for (const catalog of valid) for (const ref of catalog.body.objectRefs) refs.add(`${ref.objectId}:${ref.revisionId}:${ref.payloadHash}`);
+    }
+    return refs;
   }
 
   private async applyIncoming(
@@ -323,6 +495,10 @@ export class EncryptedWorkspaceWorker {
     meta.operationHeads[operation.deviceId] = incomingHead;
     meta.needsPublication = true;
     if (operation.operation === "delete") {
+      const deleteSlices = current
+        ? workspaceSliceIdsForObject(this.activePolicy.payload, { objectId: current.objectId, path: current.path, contentKind: current.contentKind })
+        : [];
+      protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "content.delete", objectId: operation.objectId, sliceIds: deleteSlices }).allowed, "authorization", "delete capability is not granted for the encrypted object");
       const setCurrent = !!current && !!current.currentRevisionId && operation.parentRevisionIds.includes(current.currentRevisionId);
       if (setCurrent && current) await this.materializeDelete(current, operationHash);
       const object: WorkspaceObjectRecord = current
@@ -336,7 +512,16 @@ export class EncryptedWorkspaceWorker {
     const objectKey = `.pvws/objects/${operation.objectId}/${operation.payloadHash}.pvobj`;
     const objectBytes = await this.objectStore.get(objectKey, { signal });
     protocolAssert(objectBytes !== null && sha256Hex(objectBytes) === operation.payloadHash, "integrity", "operation payload object is missing or changed");
-    const opened = await openPvo1Frame(objectBytes, [{ groupId: this.runtime.ownerGroup.groupId, keyEpoch: this.runtime.ownerGroup.keyEpoch, privateKey: this.runtime.ownerGroup.hpke.privateKey }]);
+    const frame = parsePvo1Frame(objectBytes);
+    const canRead = frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch));
+    if (!canRead) return [];
+    let opened: Awaited<ReturnType<typeof openPvo1Frame>>;
+    try {
+      opened = await openPvo1Frame(objectBytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
+    } catch (error) {
+      await this.quarantineArtifact("object", objectKey, objectBytes, error);
+      throw error;
+    }
     protocolAssert(opened.workspaceId === meta.workspaceId && opened.objectId === operation.objectId && opened.revisionId === operation.revisionId, "integrity", "PVO1 operation binding mismatch");
     let plaintext = opened.plaintext;
     if (!plaintext && opened.manifest) {
@@ -351,8 +536,21 @@ export class EncryptedWorkspaceWorker {
       plaintext = joinChunks(chunks);
     }
     protocolAssert(plaintext !== undefined, "integrity", "PVO1 payload did not yield plaintext");
+    if (operation.operation === "comment") {
+      const commentTarget = current ?? await this.state.getRevision(operation.parentRevisionIds[0] ?? "").then((revision) => revision ? this.state.getObjectById(revision.objectId) : null);
+      protocolAssert(!!commentTarget, "authorization", "comment target is not known");
+      const commentSlices = workspaceSliceIdsForObject(this.activePolicy.payload, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
+      protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
+      const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
+      await this.state.saveComment(workspaceCommentRecord(body, document, operationHash));
+      await this.state.recordObservedOperation(operationHash, toBase64(encodeWorkspaceDocument(document)), operation.deviceId, operation.sequence, meta);
+      return [];
+    }
     const targetPath = assertCanonicalVaultPath(opened.metadata.path);
     const isDirectory = opened.metadata.mime === "inode/directory";
+    const incomingSliceObject = sliceObjectWithContent(operation.objectId, targetPath, isDirectory ? "directory" : opened.metadata.contentKind, plaintext);
+    const targetSlices = workspaceSliceIdsForObject(this.activePolicy.payload, incomingSliceObject);
+    protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: operation.capability, objectId: operation.objectId, sliceIds: targetSlices }).allowed, "authorization", "operation capability is not granted for the encrypted object path");
     const fastForward = !current || (current.currentRevisionId !== null && operation.parentRevisionIds.includes(current.currentRevisionId));
     const pathOwner = await this.state.getObjectByPath(targetPath);
     const pathCollision = !!pathOwner && pathOwner.objectId !== operation.objectId && !pathOwner.deleted;
@@ -382,6 +580,7 @@ export class EncryptedWorkspaceWorker {
       sequence: operation.sequence,
       materializedPath,
       plaintextSha256: opened.metadata.plaintextSha256,
+      createdAt: operation.createdAt,
     };
     await this.state.recordIncoming({ object, revision, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
     return setCurrent && current && current.path !== materializedPath
@@ -487,9 +686,31 @@ export class EncryptedWorkspaceWorker {
     if (item.operation !== "delete" && !(await this.vault.exists(targetPath))) return null;
     const info = item.operation === "delete" ? null : await this.vault.getFileInfo(targetPath);
     const directory = item.operation === "mkdir" || info?.isDirectory === true;
+    const plaintext = item.operation === "delete" || directory ? new Uint8Array() : await this.vault.readBinaryFile(targetPath);
     const objectId = source?.objectId ?? createWorkspaceObjectId();
     const revisionId = item.operation === "delete" ? null : createWorkspaceRevisionId();
-    const plaintext = item.operation === "delete" || directory ? new Uint8Array() : await this.vault.readBinaryFile(targetPath);
+    const operationName: WorkspaceOperationName = item.operation === "write"
+      ? source ? "write" : "create"
+      : item.operation === "mkdir"
+        ? source ? "write" : "mkdir"
+        : item.operation === "rename" && !source
+          ? directory ? "mkdir" : "create"
+          : item.operation;
+    const policy = this.activePolicy.payload;
+    const accessObject: WorkspaceSliceObject = { ...sliceObjectWithContent(objectId, targetPath, directory ? "directory" : isTextFile(targetPath) ? "text" : "binary", plaintext), mime: mimeForPath(targetPath, directory) };
+    const sliceIds = workspaceSliceIdsForObject(policy, accessObject);
+    protocolAssert(evaluateWorkspaceAccess(policy, { memberId: meta.memberId, deviceId: meta.deviceId, capability: operationCapability(operationName), objectId, sliceIds }).allowed, "authorization", "local mutation is not permitted by the active workspace policy");
+    if (item.operation === "rename" && source) {
+      const sourceSliceIds = workspaceSliceIdsForObject(policy, { objectId, path: source.path, contentKind: source.contentKind });
+      protocolAssert(evaluateWorkspaceAccess(policy, { memberId: meta.memberId, deviceId: meta.deviceId, capability: "content.rename", objectId, sliceIds: sourceSliceIds }).allowed, "authorization", "source object cannot be renamed by the current member");
+    }
+    const recipientGroupIds = item.operation === "delete" ? [] : workspaceRecipientGroupIds(policy, accessObject);
+    const recipients = recipientGroupIds.map((groupId) => {
+      const group = policy.groups.find((entry) => entry.groupId === groupId);
+      protocolAssert(!!group, "integrity", "recipient group is missing from policy");
+      return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "recipient group public key") };
+    });
+    if (item.operation !== "delete") protocolAssert(recipients.length > 0, "authorization", "mutation would be unreadable because no recipient group has content.read");
     const createdAt = source?.createdAt ?? nowIso();
     const modifiedAt = nowIso();
     let objectLocalPath: string | null = null;
@@ -511,7 +732,7 @@ export class EncryptedWorkspaceWorker {
           workspaceId: meta.workspaceId,
           objectId,
           revisionId,
-          recipients: [{ groupId: this.runtime.ownerGroup.groupId, keyEpoch: this.runtime.ownerGroup.keyEpoch, publicKey: this.runtime.ownerGroup.hpke.publicKey }],
+          recipients,
           metadata,
           plaintext,
         });
@@ -520,7 +741,7 @@ export class EncryptedWorkspaceWorker {
           workspaceId: meta.workspaceId,
           objectId,
           revisionId,
-          recipients: [{ groupId: this.runtime.ownerGroup.groupId, keyEpoch: this.runtime.ownerGroup.keyEpoch, publicKey: this.runtime.ownerGroup.hpke.publicKey }],
+          recipients,
           metadata,
           chunks: splitPvo1Chunks(plaintext),
         });
@@ -539,13 +760,6 @@ export class EncryptedWorkspaceWorker {
       await this.vault.createDir(`${STAGING_ROOT}/${revisionId}`);
       await this.vault.writeBinaryFile(objectLocalPath, objectBytes);
     }
-    const operationName: WorkspaceOperationName = item.operation === "write"
-      ? source ? "write" : "create"
-      : item.operation === "mkdir"
-        ? source ? "write" : "mkdir"
-        : item.operation === "rename" && !source
-          ? directory ? "mkdir" : "create"
-          : item.operation;
     const sequence = meta.sequence + 1;
     const payload: WorkspaceOperationPayload = {
       operationId: createWorkspaceObjectId(),
@@ -591,6 +805,7 @@ export class EncryptedWorkspaceWorker {
       sequence,
       materializedPath: targetPath,
       plaintextSha256: sha256Hex(plaintext),
+      createdAt: modifiedAt,
     } : null;
     const prepared: PreparedWorkspaceMutation = {
       operationHash,
@@ -645,7 +860,8 @@ export class EncryptedWorkspaceWorker {
     if (!meta.pendingPublication) meta.pendingPublication = await this.preparePublication(meta);
     await this.state.saveMeta(meta);
     const publication = meta.pendingPublication;
-    await this.objectStore.putImmutable(publication.catalogRemoteKey, fromBase64(publication.catalogDocument), publication.catalogHash, { signal });
+    const catalogs = publication.catalogs ?? [{ groupId: meta.groupId, keyEpoch: meta.keyEpoch, version: publication.catalogVersion, hash: publication.catalogHash, document: publication.catalogDocument, remoteKey: publication.catalogRemoteKey }];
+    for (const catalog of catalogs) await this.objectStore.putImmutable(catalog.remoteKey, fromBase64(catalog.document), catalog.hash, { signal });
     await this.objectStore.putImmutable(publication.checkpointRemoteKey, fromBase64(publication.checkpointDocument), publication.checkpointHash, { signal });
     if (publication.headDocument && publication.headRemoteKey) {
       const headBytes = fromBase64(publication.headDocument);
@@ -658,6 +874,8 @@ export class EncryptedWorkspaceWorker {
     }
     meta.catalogVersion = publication.catalogVersion;
     meta.previousCatalogHash = publication.catalogHash;
+    meta.catalogHeads ??= {};
+    for (const catalog of catalogs) meta.catalogHeads[`${catalog.groupId}:${catalog.keyEpoch}`] = { version: catalog.version, hash: catalog.hash };
     meta.checkpointVersion = publication.checkpointVersion;
     meta.previousCheckpointHash = publication.checkpointHash;
     meta.pendingPublication = null;
@@ -666,23 +884,23 @@ export class EncryptedWorkspaceWorker {
   }
 
   private async preparePublication(meta: WorkspaceRuntimeMeta): Promise<WorkspacePendingPublication> {
-    const refs = (await this.state.listObjects())
+    const objects = (await this.state.listObjects())
       .filter((object) => object.currentRevisionId && object.payloadHash)
-      .map((object) => ({ objectId: object.objectId, revisionId: object.currentRevisionId!, payloadHash: object.payloadHash! }))
-      .sort((left, right) => `${left.objectId}:${left.revisionId}:${left.payloadHash}`.localeCompare(`${right.objectId}:${right.revisionId}:${right.payloadHash}`));
-    const catalogVersion = meta.catalogVersion + 1;
-    const catalog = createWorkspaceCatalog({
-      workspaceId: meta.workspaceId,
-      groupId: meta.groupId,
-      keyEpoch: meta.keyEpoch,
-      catalogVersion,
-      previousCatalogHash: meta.previousCatalogHash,
-      catalogKey: this.runtime.ownerGroup.catalogKey,
-      objectRefs: refs,
-      signer: deviceSigner(this.runtime),
-      signerPrivateKey: this.runtime.device.secrets.signing.privateKey,
-    });
-    const catalogHash = workspaceDocumentHash(catalog);
+      .sort((left, right) => left.objectId.localeCompare(right.objectId));
+    meta.catalogHeads ??= {};
+    const catalogs = this.runtime.groupKeys.map((groupKey) => {
+      const previous = meta.catalogHeads![`${groupKey.groupId}:${groupKey.keyEpoch}`];
+      const objectRefs = objects.filter((object) => workspaceRecipientGroupIds(this.activePolicy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind }).includes(groupKey.groupId))
+        .map((object) => ({ objectId: object.objectId, revisionId: object.currentRevisionId!, payloadHash: object.payloadHash! }))
+        .sort((left, right) => `${left.objectId}:${left.revisionId}:${left.payloadHash}`.localeCompare(`${right.objectId}:${right.revisionId}:${right.payloadHash}`));
+      const version = (previous?.version ?? 0) + 1;
+      const document = createWorkspaceCatalog({ workspaceId: meta.workspaceId, groupId: groupKey.groupId, keyEpoch: groupKey.keyEpoch, catalogVersion: version, previousCatalogHash: previous?.hash ?? null, catalogKey: groupKey.catalogKey, objectRefs, signer: deviceSigner(this.runtime), signerPrivateKey: this.runtime.device.secrets.signing.privateKey });
+      const hash = workspaceDocumentHash(document);
+      return { groupId: groupKey.groupId, keyEpoch: groupKey.keyEpoch, version, hash, document: toBase64(encodeWorkspaceDocument(document)), remoteKey: `.pvws/catalogs/${groupKey.groupId}/${groupKey.keyEpoch}/${hash}.pvcat` };
+    }).sort((a, b) => `${a.groupId}:${a.keyEpoch}`.localeCompare(`${b.groupId}:${b.keyEpoch}`));
+    protocolAssert(catalogs.length > 0, "integrity", "workspace has no catalog key");
+    const primary = catalogs.find((catalog) => catalog.groupId === meta.groupId && catalog.keyEpoch === meta.keyEpoch) ?? catalogs[0];
+    const refs = objects.map((object) => ({ objectId: object.objectId, revisionId: object.currentRevisionId!, payloadHash: object.payloadHash! }));
     const checkpointVersion = meta.checkpointVersion + 1;
     const operationHeads = Object.entries(meta.operationHeads)
       .map(([deviceId, value]) => ({ deviceId, sequence: value.sequence, operationHash: value.operationHash }))
@@ -708,9 +926,10 @@ export class EncryptedWorkspaceWorker {
       payload: { deviceId: meta.deviceId, sequence: ownHead.sequence, operationHash: ownHead.operationHash, checkpointHash },
     }, deviceSigner(this.runtime), this.runtime.device.secrets.signing.privateKey) : null;
     return {
-      catalogHash,
-      catalogDocument: toBase64(encodeWorkspaceDocument(catalog)),
-      catalogRemoteKey: `.pvws/catalogs/${meta.groupId}/${meta.keyEpoch}/${catalogHash}.pvcat`,
+      catalogHash: primary.hash,
+      catalogDocument: primary.document,
+      catalogRemoteKey: primary.remoteKey,
+      catalogs,
       checkpointHash,
       checkpointDocument: toBase64(encodeWorkspaceDocument(checkpoint)),
       checkpointRemoteKey: `.pvws/checkpoints/${checkpointHash}.pvcheck`,
@@ -718,45 +937,49 @@ export class EncryptedWorkspaceWorker {
       headRemoteKey: head ? `.pvws/heads/${meta.deviceId}.pvhead` : null,
       operationHash: ownHead?.operationHash ?? null,
       sequence: ownHead?.sequence ?? 0,
-      catalogVersion,
+      catalogVersion: primary.version,
       checkpointVersion,
     };
   }
 
   private async verifyRemoteHeads(meta: WorkspaceRuntimeMeta, policy: WorkspacePolicyPayload, signal?: AbortSignal): Promise<void> {
     const infos = await listAll(this.objectStore, ".pvws/heads/", signal);
-    const seen = new Set<string>();
     for (const info of infos) {
       const bytes = await this.objectStore.get(info.key, { signal });
-      protocolAssert(bytes !== null, "conflict", "workspace head disappeared during pull");
-      const parsed = parseWorkspaceDocument(bytes);
-      protocolAssert(parsed.kind === "head" && parsed.workspaceId === meta.workspaceId, "integrity", "workspace head binding mismatch");
-      const payload = parsed.payload as { deviceId: string; sequence: number; operationHash: string; checkpointHash: string | null };
-      const device = policy.devices.find((entry) => entry.deviceId === payload.deviceId);
-      protocolAssert(!!device && verifyWorkspaceDocumentSignatures(parsed, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "head signing key") : null), "crypto", "workspace head signature verification failed");
-      const observed = meta.operationHeads[payload.deviceId];
-      protocolAssert(!observed || payload.sequence >= observed.sequence, "rollback", "remote workspace head rolled back below the locally observed sequence");
-      protocolAssert(await this.state.hasOperation(payload.operationHash), "integrity", "workspace head references an unavailable operation");
-      if (payload.checkpointHash) {
-        const checkpointBytes = await this.objectStore.get(`.pvws/checkpoints/${payload.checkpointHash}.pvcheck`, { signal });
-        protocolAssert(checkpointBytes !== null && sha256Hex(checkpointBytes) === payload.checkpointHash, "integrity", "workspace head checkpoint is missing or changed");
-        const checkpoint = parseWorkspaceDocument(checkpointBytes);
-        protocolAssert(checkpoint.kind === "checkpoint" && verifyWorkspaceDocumentSignatures(checkpoint, (entry) => {
-          if (entry.signerKind === "device") {
-            const signerDevice = policy.devices.find((candidate) => candidate.deviceId === entry.signerId);
-            return signerDevice ? decodeBase64Exact(signerDevice.signingPublicKey, 32, "checkpoint signing key") : null;
+      if (!bytes) continue;
+      try {
+        const parsed = parseWorkspaceDocument(bytes);
+        protocolAssert(parsed.kind === "head" && parsed.workspaceId === meta.workspaceId, "integrity", "workspace head binding mismatch");
+        const payload = parsed.payload as { deviceId: string; sequence: number; operationHash: string; checkpointHash: string | null };
+        const device = policy.devices.find((entry) => entry.deviceId === payload.deviceId);
+        protocolAssert(!!device && verifyWorkspaceDocumentSignatures(parsed, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "head signing key") : null), "crypto", "workspace head signature verification failed");
+        const observed = meta.operationHeads[payload.deviceId];
+        protocolAssert(!observed || payload.sequence >= observed.sequence, "rollback", "remote workspace head rolled back below the locally observed sequence");
+        if (payload.checkpointHash) {
+          const checkpointKey = `.pvws/checkpoints/${payload.checkpointHash}.pvcheck`;
+          const checkpointBytes = await this.objectStore.get(checkpointKey, { signal });
+          protocolAssert(checkpointBytes !== null && sha256Hex(checkpointBytes) === payload.checkpointHash, "integrity", "workspace head checkpoint is missing or changed");
+          try {
+            const checkpoint = parseWorkspaceDocument(checkpointBytes);
+            protocolAssert(checkpoint.kind === "checkpoint" && verifyWorkspaceDocumentSignatures(checkpoint, (entry) => {
+              if (entry.signerKind === "device") {
+                const signerDevice = policy.devices.find((candidate) => candidate.deviceId === entry.signerId);
+                return signerDevice ? decodeBase64Exact(signerDevice.signingPublicKey, 32, "checkpoint signing key") : null;
+              }
+              return null;
+            }), "crypto", "workspace checkpoint signature verification failed");
+          } catch (error) {
+            await this.quarantineArtifact("checkpoint", checkpointKey, checkpointBytes, error);
+            throw error;
           }
-          return null;
-        }), "crypto", "workspace checkpoint signature verification failed");
-      }
-      meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
-      seen.add(payload.deviceId);
-    }
-    if (meta.phase === "active") {
-      for (const [deviceId, head] of Object.entries(meta.operationHeads)) {
-        if (head.sequence > 0) protocolAssert(seen.has(deviceId), "rollback", "previously observed workspace head is missing");
+        }
+        meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
+      } catch (error) {
+        await this.quarantineArtifact("head", info.key, bytes, error);
       }
     }
+    // Missing remote heads are not deletes. The last verified observation stays
+    // pinned locally and will be compared again if that device reappears.
     await this.state.saveMeta(meta);
   }
 }

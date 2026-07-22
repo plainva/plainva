@@ -5,8 +5,14 @@ import {
   S3SyncTarget,
   SyncEngine,
   SyncWorker,
+  EncryptedWorkspaceWorker,
+  createProviderWorkspaceObjectStore,
+  initializePersonalWorkspaceMigration,
+  parseWorkspaceDocument,
+  workspaceDocumentHash,
   WebDavSyncTarget,
   type ISyncTarget,
+  type WorkspaceObjectStore,
   type S3Credentials,
   type WebDavCredentials,
 } from "@plainva/core";
@@ -86,7 +92,19 @@ interface SyncState {
 
 let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [] };
 const listeners = new Set<() => void>();
-let worker: SyncWorker | null = null;
+type MobileSyncWorker = {
+  start(): void;
+  stop(): void;
+  stopAndDrain(): Promise<void>;
+  triggerImmediate(): void;
+  retryFailed(): void | Promise<void>;
+  noteUserInitiatedDeletion(paths: string[]): void;
+  fullResync?: () => Promise<void>;
+  onStatusChange?: SyncWorker["onStatusChange"];
+  onProgress?: SyncWorker["onProgress"];
+  onFilesChanged?: SyncWorker["onFilesChanged"];
+};
+let worker: MobileSyncWorker | null = null;
 
 /** Cascade deletion (plan Kaskadenloeschung): user-confirmed deletions must
  * not trip — or be resurrected by — the sync mass-deletion guard. */
@@ -276,7 +294,7 @@ export function syncNow(): void {
   // repeated failures must be revived by the user's explicit action — mobile
   // has no other button that would (2026-07-16). fullResync = reset stuck
   // queue ops + drop the cursor + immediate cycle.
-  void worker?.fullResync();
+  if (worker?.fullResync) void worker.fullResync(); else { worker?.retryFailed(); worker?.triggerImmediate(); }
 }
 
 let lastForegroundSyncAt = 0;
@@ -291,7 +309,7 @@ export function foregroundSync(): void {
   const now = Date.now();
   if (now - lastForegroundSyncAt < 60_000) return;
   lastForegroundSyncAt = now;
-  void worker.fullResync();
+  if (worker.fullResync) void worker.fullResync(); else { worker.retryFailed(); worker.triggerImmediate(); }
 }
 
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -395,6 +413,25 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
   }
 }
 
+function workspaceProvider(provider: MobileSyncProvider["provider"]) {
+  return provider === "drive" ? "google-drive" as const : provider;
+}
+
+export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
+  const provider = await getStoredProvider(vaultId);
+  if (!provider) throw new Error("sync connection required");
+  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), buildTarget(provider, credKeyFor(vaultId)));
+}
+
+export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ workspaceId: string; fingerprint: string } | null> {
+  const store = await getMobileWorkspaceObjectStore(vaultId);
+  const bytes = await store.get(".pvws/genesis.pvgen");
+  if (!bytes) return null;
+  const genesis = parseWorkspaceDocument(bytes);
+  if (genesis.kind !== "genesis") throw new Error("remote workspace genesis is invalid");
+  return { workspaceId: genesis.workspaceId, fingerprint: workspaceDocumentHash(genesis) };
+}
+
 /**
  * Lists remote folders under `path` for a NOT-yet-connected provider — feeds
  * the connect-time folder picker (#10). Builds a throwaway target from the
@@ -428,7 +465,31 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const rawTarget = buildTarget(p, credKeyFor(v.vaultId));
+  if (!v.workspaceRuntime) {
+    const remoteWorkspace = await createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget).get(".pvws/genesis.pvgen");
+    if (remoteWorkspace) {
+      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }) });
+      return;
+    }
+  }
   const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
+  if (v.workspaceRuntime && v.workspaceState) {
+    const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
+    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString() });
+    const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
+      intervalMs: 30_000,
+      sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
+    });
+    encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
+    encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
+    encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); window.dispatchEvent(new CustomEvent("m-vault-changed")); };
+    worker = encrypted;
+    setState({ status: "idle", message: null });
+    encrypted.start();
+    encrypted.triggerImmediate();
+    lastForegroundSyncAt = Date.now();
+    return;
+  }
   const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).

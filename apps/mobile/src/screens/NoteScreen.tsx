@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { EmptyState, markdownToPlainText } from "@plainva/ui";
+import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -67,7 +68,22 @@ export function NoteScreen({
   // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
   // flips into editing (and back), which also shows the keyboard toolbar.
   const [editing, setEditing] = useState(getMobileSettings().defaultView === "edit");
+  const [workspaceCapabilities, setWorkspaceCapabilities] = useState<WorkspaceCapability[] | null>(null);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
+  useEffect(() => {
+    let stale = false;
+    if (!vault.workspaceRuntime || !vault.workspaceState) { setWorkspaceCapabilities(null); return; }
+    void vault.workspaceState.getObjectByPath(path).then((object) => {
+      if (stale || !vault.workspaceRuntime) return;
+      const objectId = object?.objectId ?? createWorkspaceObjectId();
+      const sliceIds = workspaceSliceIdsForObject(vault.workspaceRuntime.policy.payload, { objectId, path, contentKind: object?.contentKind });
+      const capabilities = effectiveWorkspaceCapabilities(vault.workspaceRuntime.policy.payload, { memberId: vault.workspaceRuntime.memberId, deviceId: vault.workspaceRuntime.device.publicIdentity.deviceId, objectId, sliceIds });
+      setWorkspaceCapabilities(capabilities);
+      if (!capabilities.includes("content.write")) setEditing(false);
+    }).catch(() => { if (!stale) { setWorkspaceCapabilities([]); setEditing(false); } });
+    return () => { stale = true; };
+  }, [vault, path]);
+  const workspaceCanWrite = workspaceCapabilities === null || workspaceCapabilities.includes("content.write");
   useEffect(() => {
     let stale = false;
     void vaultOps
@@ -203,7 +219,7 @@ export function NoteScreen({
       )}
       {doc !== null && (
         <EditorHost
-          editable={editing}
+          editable={editing && workspaceCanWrite}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
           onOpenNote={onOpenNote}
@@ -211,10 +227,11 @@ export function NoteScreen({
           vault={vault}
         />
       )}
+      {!workspaceCanWrite && <div className="m-inline-notice">{workspaceCapabilities?.includes("comment.create") ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
       {doc === null && loadError && (
         <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
-      {!editing && (
+      {!editing && workspaceCanWrite && (
         <button aria-label={t("mobile.editNote")} className="pv-fab m-fab-float" onClick={() => setEditing(true)}>
           <Pencil size={22} />
         </button>

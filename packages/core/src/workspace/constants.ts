@@ -45,6 +45,7 @@ export type WorkspaceDocumentKind =
   | "operation"
   | "catalog"
   | "checkpoint"
+  | "recovery"
   | "head";
 
 export const DOCUMENT_MAX_BYTES: Readonly<Record<WorkspaceDocumentKind, number>> = {
@@ -54,5 +55,6 @@ export const DOCUMENT_MAX_BYTES: Readonly<Record<WorkspaceDocumentKind, number>>
   operation: 64 * 1024,
   catalog: 16 * 1024 * 1024,
   checkpoint: 4 * 1024 * 1024,
+  recovery: 64 * 1024,
   head: 16 * 1024,
 };

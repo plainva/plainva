@@ -16,7 +16,7 @@ export interface PersonalWorkspaceMigrationResult {
 function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: string): WorkspaceRuntimeMeta {
   return {
     workspaceId: runtime.workspaceId,
-    memberId: runtime.ownerMemberId,
+    memberId: runtime.memberId,
     deviceId: runtime.device.publicIdentity.deviceId,
     groupId: runtime.ownerGroup.groupId,
     keyEpoch: runtime.ownerGroup.keyEpoch,
@@ -27,6 +27,7 @@ function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: str
     previousOperationHash: null,
     catalogVersion: 0,
     previousCatalogHash: null,
+    catalogHeads: {},
     checkpointVersion: 0,
     previousCheckpointHash: null,
     remoteHeadEtag: null,

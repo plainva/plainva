@@ -4,6 +4,12 @@ import {
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
+  WorkspaceQueueingVaultAdapter,
+  PermissionedVaultAdapter,
+  SqlWorkspaceStateStore,
+  evaluateWorkspaceAccess,
+  workspaceSliceIdsForObject,
+  createWorkspaceObjectId,
   SyncQueue,
   SyncStateRepository,
   VaultIndexer,
@@ -11,6 +17,7 @@ import {
   type IDatabaseAdapter,
   type IVaultAdapter,
   type SearchResult,
+  type PersonalWorkspaceRuntime,
   type VaultFileInfo,
 } from "@plainva/core";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -43,6 +50,7 @@ import {
   wikiTargetToPath,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -65,6 +73,8 @@ export interface MobileVault {
   backup: BackupVaultAdapter | null;
   syncQueue: SyncQueue | null;
   syncRepo: SyncStateRepository | null;
+  workspaceRuntime: PersonalWorkspaceRuntime | null;
+  workspaceState: SqlWorkspaceStateStore | null;
   /** Raw index DB (also carries the pim_* tables) — the calendar/PIM runtime. */
   db: IDatabaseAdapter | null;
   indexer: VaultIndexer | null;
@@ -133,6 +143,15 @@ export async function switchVault(id: string): Promise<void> {
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
 }
 
+export async function reloadActiveMobileVault(): Promise<void> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  await noteSaver.flushAll();
+  await stopSyncAndDrain();
+  if (current) await current.dispose().catch(() => {});
+  bootPromise = null;
+  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+}
+
 /**
  * Deletes a connection vault: device-local container, index database,
  * credential slot and registry entry. The cloud storage is never touched.
@@ -176,6 +195,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   const isLocal = !entry.provider;
   const adapter = new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
   await adapter.initialize();
+  const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
+  const workspaceRuntime = workspaceStatus ? await loadMobileWorkspaceRuntime(entry.id) : null;
 
   // A vault seeded THIS boot is brand new — the onboarding may offer the
   // structure templates (package I); existing installs never get the offer.
@@ -192,10 +213,14 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let syncEnqueueEnabled = false;
   let deferInitialEnqueue = true;
   let queue: SyncQueue | null = null;
+  let workspaceState: SqlWorkspaceStateStore | null = null;
+  let permissioned: PermissionedVaultAdapter | null = null;
 
-  const enqueueLocal = (path: string) => {
-    if (!syncEnqueueEnabled || !queue || isInternal(path)) return;
-    void queue.queueWrite(path).catch(() => {});
+  const enqueueLocal = async (path: string) => {
+    if (!syncEnqueueEnabled || isInternal(path)) return;
+    if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
+    if (workspaceState) void workspaceState.enqueue("write", path).catch(() => {});
+    else if (queue) void queue.queueWrite(path).catch(() => {});
   };
 
   let files: IVaultAdapter;
@@ -225,7 +250,42 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       onBackupError: (p) => console.warn("[mobile] backup snapshot failed", p),
     });
     queue = new SyncQueue(db);
-    const queueing = new QueueingVaultAdapter(backup, queue);
+    workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
+    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, async (request) => {
+      if (!workspaceRuntime) return false;
+      const existing = await workspaceState!.getObjectByPath(request.path);
+      const objectId = existing?.objectId ?? createWorkspaceObjectId();
+      const policy = workspaceRuntime.policy.payload;
+      const access = (path: string, capability: Parameters<typeof evaluateWorkspaceAccess>[1]["capability"]) => evaluateWorkspaceAccess(policy, {
+        memberId: workspaceRuntime.memberId,
+        deviceId: workspaceRuntime.device.publicIdentity.deviceId,
+        capability,
+        objectId,
+        sliceIds: workspaceSliceIdsForObject(policy, { objectId, path, contentKind: existing?.contentKind }),
+      });
+      const sourceDecision = access(request.path, request.capability);
+      if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
+      const targetDecision = access(request.newPath, request.capability);
+      if (!targetDecision.allowed) return targetDecision;
+      if (access(request.path, "content.read").allowed && !access(request.newPath, "content.read").allowed) {
+        const { Dialog } = await import("@capacitor/dialog");
+        const answer = await Dialog.confirm({
+          title: i18n.t("workspaceSecurity.moveAccessLossTitle"),
+          message: i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath }),
+          okButtonTitle: i18n.t("workspaceSecurity.moveAnyway"),
+          cancelButtonTitle: i18n.t("common.cancel"),
+        });
+        return answer.value;
+      }
+      return targetDecision;
+    }, async (request) => {
+      const forkId = createWorkspaceObjectId();
+      const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
+      const forkPath = `.plainva/workspace/forks/${forkId}-${safeName}`;
+      if (await backup!.exists(request.path)) { await backup!.createDir(".plainva/workspace/forks"); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
+      await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
+    }) : null;
+    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : new QueueingVaultAdapter(backup, queue);
     syncRepo = new SyncStateRepository(db);
     files = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
@@ -233,16 +293,17 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
     indexer = new VaultIndexer(files, db, {
       onExternalModification: (path) => {
-        enqueueLocal(path);
+        void enqueueLocal(path);
         window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path } }));
       },
       onNewLocalFile: (path) => {
         if (deferInitialEnqueue) return;
-        enqueueLocal(path);
+        void enqueueLocal(path);
       },
       onLocalFileDeleted: (path) => {
-        if (!syncEnqueueEnabled || !queue || isInternal(path)) return;
-        void queue.queueDelete(path).catch(() => {});
+        if (!syncEnqueueEnabled || isInternal(path)) return;
+        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) return workspaceState!.enqueue("delete", path); }).catch(() => {}); }
+        else if (queue) void queue.queueDelete(path).catch(() => {});
       },
     });
     queryService = new VaultQueryService(db);
@@ -279,6 +340,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     backup,
     syncQueue: queue,
     syncRepo,
+    workspaceRuntime,
+    workspaceState,
     db,
     indexer,
     queryService,

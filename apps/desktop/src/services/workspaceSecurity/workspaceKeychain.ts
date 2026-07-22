@@ -4,17 +4,17 @@ import {
   aeadEncrypt,
   aeadNonce,
   canonicalJson,
+  deserializePersonalWorkspaceRuntime,
   deriveKek,
-  encodeWorkspaceDocument,
   fromBase64,
-  parseWorkspaceDocument,
+  serializePersonalWorkspaceRuntime,
   toBase64,
   utf8Decode,
   utf8Encode,
+  wipeBytes,
   type KdfParams,
   type PersonalWorkspaceRuntime,
-  type WorkspaceDeviceIdentity,
-  type WorkspaceGroupKeyEpoch,
+  type SerializedPersonalWorkspaceRuntime,
 } from "@plainva/core";
 import { credentialManager } from "../CredentialManager";
 import { getSettingsStore } from "../settingsStore";
@@ -32,32 +32,9 @@ export interface WorkspaceSecurityPublicStatus {
   lastError: string | null;
 }
 
-interface SerializedWorkspaceRuntime {
-  version: 1;
-  workspaceId: string;
-  ownerMemberId: string;
-  device: {
-    publicIdentity: WorkspaceDeviceIdentity["publicIdentity"];
-    signingPublicKey: string;
-    signingPrivateKey: string;
-    hpkePublicKey: string;
-    hpkePrivateKey: string;
-  };
-  ownerGroup: {
-    groupId: string;
-    keyEpoch: number;
-    hpkePublicKey: string;
-    hpkePrivateKey: string;
-    catalogKey: string;
-  };
-  genesis: string;
-  policy: string;
-  grants: string[];
-}
-
 interface NativeEnvelope {
   storage: "native";
-  runtime: SerializedWorkspaceRuntime;
+  runtime: SerializedPersonalWorkspaceRuntime;
 }
 
 interface PassphraseEnvelope {
@@ -71,6 +48,7 @@ interface PassphraseEnvelope {
 type StoredWorkspaceRuntime = NativeEnvelope | PassphraseEnvelope;
 
 const cache = new Map<string, PersonalWorkspaceRuntime>();
+const sessionKeks = new Map<string, Uint8Array>();
 const sessionLocked = new Set<string>();
 const b64Path = (path: string) => btoa(unescape(encodeURIComponent(path)));
 const secretKey = (vaultPath: string) => `workspace_v1_${b64Path(vaultPath)}`;
@@ -79,64 +57,6 @@ export const workspaceSecurityStatusKey = (vaultPath: string) => `workspaceSecur
 // module initialization creates a production-only chunk-cycle hazard.
 const FALLBACK_AAD_LABEL = "plainva/workspace/device-key-bundle/v1";
 const fallbackAad = () => utf8Encode(FALLBACK_AAD_LABEL);
-
-function serializeRuntime(runtime: PersonalWorkspaceRuntime): SerializedWorkspaceRuntime {
-  return {
-    version: 1,
-    workspaceId: runtime.workspaceId,
-    ownerMemberId: runtime.ownerMemberId,
-    device: {
-      publicIdentity: runtime.device.publicIdentity,
-      signingPublicKey: toBase64(runtime.device.secrets.signing.publicKey),
-      signingPrivateKey: toBase64(runtime.device.secrets.signing.privateKey),
-      hpkePublicKey: toBase64(runtime.device.secrets.hpke.publicKey),
-      hpkePrivateKey: toBase64(runtime.device.secrets.hpke.privateKey),
-    },
-    ownerGroup: {
-      groupId: runtime.ownerGroup.groupId,
-      keyEpoch: runtime.ownerGroup.keyEpoch,
-      hpkePublicKey: toBase64(runtime.ownerGroup.hpke.publicKey),
-      hpkePrivateKey: toBase64(runtime.ownerGroup.hpke.privateKey),
-      catalogKey: toBase64(runtime.ownerGroup.catalogKey),
-    },
-    genesis: toBase64(encodeWorkspaceDocument(runtime.genesis)),
-    policy: toBase64(encodeWorkspaceDocument(runtime.policy)),
-    grants: runtime.grants.map((grant) => toBase64(encodeWorkspaceDocument(grant))),
-  };
-}
-
-function deserializeRuntime(value: SerializedWorkspaceRuntime): PersonalWorkspaceRuntime {
-  if (value?.version !== 1) throw new Error("Unsupported encrypted-workspace key bundle");
-  const device: WorkspaceDeviceIdentity = {
-    publicIdentity: value.device.publicIdentity,
-    secrets: {
-      signing: { publicKey: fromBase64(value.device.signingPublicKey), privateKey: fromBase64(value.device.signingPrivateKey) },
-      hpke: { publicKey: fromBase64(value.device.hpkePublicKey), privateKey: fromBase64(value.device.hpkePrivateKey) },
-    },
-  };
-  const ownerGroup: WorkspaceGroupKeyEpoch = {
-    groupId: value.ownerGroup.groupId,
-    keyEpoch: value.ownerGroup.keyEpoch,
-    hpke: { publicKey: fromBase64(value.ownerGroup.hpkePublicKey), privateKey: fromBase64(value.ownerGroup.hpkePrivateKey) },
-    catalogKey: fromBase64(value.ownerGroup.catalogKey),
-  };
-  const genesis = parseWorkspaceDocument(fromBase64(value.genesis));
-  const policy = parseWorkspaceDocument(fromBase64(value.policy));
-  if (genesis.kind !== "genesis" || policy.kind !== "policy") throw new Error("Encrypted-workspace key bundle has invalid control documents");
-  return {
-    workspaceId: value.workspaceId,
-    ownerMemberId: value.ownerMemberId,
-    device,
-    ownerGroup,
-    genesis: genesis as PersonalWorkspaceRuntime["genesis"],
-    policy: policy as PersonalWorkspaceRuntime["policy"],
-    grants: value.grants.map((grant) => {
-      const parsed = parseWorkspaceDocument(fromBase64(grant));
-      if (parsed.kind !== "grant") throw new Error("Encrypted-workspace key bundle has an invalid grant");
-      return parsed as PersonalWorkspaceRuntime["grants"][number];
-    }),
-  };
-}
 
 export async function getWorkspaceSecurityStatus(vaultPath: string): Promise<WorkspaceSecurityPublicStatus | null> {
   return (await getSettingsStore()).get<WorkspaceSecurityPublicStatus>(workspaceSecurityStatusKey(vaultPath)).then((status) => status ?? null);
@@ -156,7 +76,7 @@ export async function persistWorkspaceRuntime(input: {
   recoveryConfirmedAt: string;
   fallbackPassphrase?: string;
 }): Promise<WorkspaceSecurityPublicStatus> {
-  const serialized = serializeRuntime(input.runtime);
+  const serialized = serializePersonalWorkspaceRuntime(input.runtime);
   const native = await credentialManager.checkKeychainStatus() === "native";
   let envelope: StoredWorkspaceRuntime;
   let keyStorage: WorkspaceKeyStorage;
@@ -168,6 +88,7 @@ export async function persistWorkspaceRuntime(input: {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const nonce = aeadNonce();
     const kek = await deriveKek(input.fallbackPassphrase, salt, DEFAULT_KDF_PARAMS);
+    sessionKeks.set(input.vaultPath, new Uint8Array(kek));
     envelope = {
       storage: "passphrase",
       params: DEFAULT_KDF_PARAMS,
@@ -200,7 +121,7 @@ export async function loadWorkspaceRuntime(vaultPath: string): Promise<PersonalW
   if (remembered) return remembered;
   const envelope = await credentialManager.readSecret<StoredWorkspaceRuntime>(secretKey(vaultPath));
   if (!envelope || envelope.storage !== "native") return null;
-  const runtime = deserializeRuntime(envelope.runtime);
+  const runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
   cache.set(vaultPath, runtime);
   return runtime;
 }
@@ -211,7 +132,7 @@ export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: str
   if (!envelope) throw new Error("workspace-key-bundle-missing");
   let runtime: PersonalWorkspaceRuntime;
   if (envelope.storage === "native") {
-    runtime = deserializeRuntime(envelope.runtime);
+    runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
   } else {
     if (!passphrase) throw new Error("workspace-passphrase-required");
     const kek = await deriveKek(passphrase, fromBase64(envelope.salt), envelope.params);
@@ -221,7 +142,8 @@ export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: str
     } catch {
       throw new Error("workspace-wrong-passphrase");
     }
-    runtime = deserializeRuntime(JSON.parse(utf8Decode(plaintext)) as SerializedWorkspaceRuntime);
+    runtime = deserializePersonalWorkspaceRuntime(JSON.parse(utf8Decode(plaintext)) as SerializedPersonalWorkspaceRuntime);
+    sessionKeks.set(vaultPath, new Uint8Array(kek));
   }
   cache.set(vaultPath, runtime);
   return runtime;
@@ -229,11 +151,34 @@ export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: str
 
 export function lockWorkspaceRuntime(vaultPath: string): void {
   cache.delete(vaultPath);
+  const kek = sessionKeks.get(vaultPath); if (kek) wipeBytes(kek);
+  sessionKeks.delete(vaultPath);
   sessionLocked.add(vaultPath);
+}
+
+/** Re-seals a changed policy/key set without making fallback users re-enter their passphrase. */
+export async function updateWorkspaceRuntime(vaultPath: string, runtime: PersonalWorkspaceRuntime): Promise<void> {
+  const envelope = await credentialManager.readSecret<StoredWorkspaceRuntime>(secretKey(vaultPath));
+  if (!envelope) throw new Error("workspace-key-bundle-missing");
+  const serialized = serializePersonalWorkspaceRuntime(runtime);
+  if (envelope.storage === "native") {
+    await credentialManager.writeSecret(secretKey(vaultPath), { storage: "native", runtime: serialized } satisfies NativeEnvelope);
+  } else {
+    const kek = sessionKeks.get(vaultPath);
+    if (!kek) throw new Error("workspace-passphrase-required");
+    const nonce = aeadNonce();
+    await credentialManager.writeSecret(secretKey(vaultPath), {
+      storage: "passphrase", params: envelope.params, salt: envelope.salt, nonce: toBase64(nonce),
+      ciphertext: toBase64(aeadEncrypt(kek, nonce, utf8Encode(canonicalJson(serialized)), fallbackAad())),
+    } satisfies PassphraseEnvelope);
+  }
+  cache.set(vaultPath, runtime);
 }
 
 export async function clearWorkspaceRuntime(vaultPath: string): Promise<void> {
   cache.delete(vaultPath);
+  const kek = sessionKeks.get(vaultPath); if (kek) wipeBytes(kek);
+  sessionKeks.delete(vaultPath);
   sessionLocked.delete(vaultPath);
   await credentialManager.removeSecret(secretKey(vaultPath));
   const store = await getSettingsStore();

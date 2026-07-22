@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, MessageSquare } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -81,13 +81,16 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
+  const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
+  const [commentDraft, setCommentDraft] = useState("");
   const [viewMode, setViewMode] = useState<EditorViewMode>(() => resolveViewModeForPath(activePath));
   // Remembers the last editing sub-mode (live/source) so Mod+E restores it when
   // toggling back out of reading mode (default: live preview).
@@ -112,6 +115,23 @@ export const Editor: React.FC<{
   useEffect(() => {
     setViewMode(resolveViewModeForPath(activePath));
   }, [activePath]);
+
+  useEffect(() => {
+    let active = true;
+    if (!activePath || !workspaceSecurityStatus) { setWorkspaceCapabilities(null); return; }
+    void getWorkspaceCapabilities(activePath).then((value) => { if (active) setWorkspaceCapabilities(value); }).catch(() => { if (active) setWorkspaceCapabilities([]); });
+    return () => { active = false; };
+  }, [activePath, getWorkspaceCapabilities, workspaceSecurityStatus]);
+  const workspaceReadOnly = workspaceCapabilities !== null && !workspaceCapabilities.includes("content.write");
+  const workspaceCanComment = workspaceCapabilities?.includes("comment.create") === true;
+  const workspaceCanReadComments = workspaceCapabilities?.includes("comment.read") === true;
+  useEffect(() => {
+    if (!activePath || !workspaceCanReadComments) { setWorkspaceComments([]); return; }
+    const refresh = () => void listWorkspaceComments(activePath).then(setWorkspaceComments).catch(() => setWorkspaceComments([]));
+    const listener = (event: Event) => { if ((event as CustomEvent<{ path: string }>).detail?.path === activePath) refresh(); };
+    refresh(); window.addEventListener("plainva-workspace-comments-changed", listener);
+    return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
+  }, [activePath, listWorkspaceComments, workspaceCanReadComments]);
 
   useEffect(() => {
     if (managedIndex && viewMode !== 'read') setViewMode('read');
@@ -1486,6 +1506,7 @@ export const Editor: React.FC<{
       deps: sessionDepsRef,
     });
     sessionRef.current = session;
+    session.setEditable(!workspaceReadOnly);
     // Seed the freshly created view with the current resolver set so unresolved
     // links style immediately instead of only after the next resolver bump.
     if (wikiResolverRef.current) session.view.dispatch({ effects: setWikiResolver.of(wikiResolverRef.current) });
@@ -1512,7 +1533,9 @@ export const Editor: React.FC<{
     // viewMode is handled by setMode below (the compartment swap keeps the
     // syntax tree); content is owned by the view while mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isReadMode, activePath, vaultPath, i18n.language]);
+  }, [isLoading, isReadMode, activePath, vaultPath, i18n.language, workspaceReadOnly]);
+
+  useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly); }, [workspaceReadOnly]);
 
   // Live <-> source switches swap ONE compartment — the parser state survives,
   // so nothing collapses or jumps.
@@ -1531,6 +1554,14 @@ export const Editor: React.FC<{
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {workspaceReadOnly && <div className="pv-banner pv-banner--info">{workspaceCanComment ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
+      {workspaceCanReadComments && <details className="pv-workspace-comments">
+        <summary><MessageSquare size={ICON.ui} /> {t("workspaceSecurity.comments", { defaultValue: "Comments" })} ({workspaceComments.length})</summary>
+        <div className="pv-workspace-comments__body">
+          {workspaceComments.map((comment) => <div key={comment.commentId} className={`pv-workspace-comment${comment.resolvedAt ? " is-resolved" : ""}`}><small>{comment.authorMemberId.slice(0, 8)} · {new Date(comment.createdAt).toLocaleString()}</small><span>{comment.body}</span>{comment.resolvedAt ? <small>{t("workspaceSecurity.resolved", { defaultValue: "Resolved" })}</small> : workspaceCanComment && <button onClick={() => void resolveWorkspaceComment(activePath, comment.commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error)))}>{t("workspaceSecurity.resolve", { defaultValue: "Resolve" })}</button>}</div>)}
+          {workspaceCanComment && <div className="pv-workspace-comment-compose"><input value={commentDraft} placeholder={t("workspaceSecurity.addComment", { defaultValue: "Add a comment…" })} onChange={(event) => setCommentDraft(event.target.value)} /><button disabled={!commentDraft.trim()} onClick={() => { const body = commentDraft.trim(); setCommentDraft(""); void postWorkspaceComment(activePath, body).catch((error) => { setCommentDraft(body); toast.error(error instanceof Error ? error.message : String(error)); }); }}>{t("workspaceSecurity.send", { defaultValue: "Send" })}</button></div>}
+        </div>
+      </details>}
       {!peek && (
       <div style={{ padding: "0.5rem 1rem", flexShrink: 0, borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-primary)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>

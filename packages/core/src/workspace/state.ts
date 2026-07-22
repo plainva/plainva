@@ -26,6 +26,46 @@ export interface WorkspaceRevisionRecord {
   sequence: number;
   materializedPath: string | null;
   plaintextSha256: string | null;
+  createdAt?: string;
+}
+
+export interface WorkspaceCommentRecord {
+  commentId: string;
+  targetObjectId: string;
+  targetRevisionId: string;
+  parentCommentId: string | null;
+  authorMemberId: string;
+  authorDeviceId: string;
+  operationHash: string;
+  payloadHash: string;
+  body: string;
+  createdAt: string;
+  /** Present only on an immutable resolution marker. */
+  resolvedCommentId: string | null;
+  resolvedAt: string | null;
+}
+
+export type WorkspaceQuarantineStatus = "pending" | "ignored" | "repaired";
+export interface WorkspaceQuarantineRecord {
+  quarantineId: string;
+  artifactKind: "policy" | "recovery" | "operation" | "object" | "catalog" | "checkpoint" | "head" | "grant";
+  remoteKey: string;
+  /** Original remote bytes. They are protocol ciphertext/control data, never opened plaintext. */
+  artifactBase64: string;
+  artifactSha256: string;
+  errorCode: string;
+  reason: string;
+  firstSeenAt: string;
+  lastTriedAt: string;
+  status: WorkspaceQuarantineStatus;
+}
+
+export interface WorkspaceLocalForkRecord {
+  forkId: string;
+  originalPath: string;
+  forkPath: string;
+  reason: "permission-denied" | "parallel-write" | "path-collision";
+  createdAt: string;
 }
 
 export interface WorkspaceStagedChunk {
@@ -60,6 +100,7 @@ export interface WorkspaceQueuedMutation {
 }
 
 export interface WorkspacePendingPublication {
+  catalogs?: Array<{ groupId: string; keyEpoch: number; version: number; hash: string; document: string; remoteKey: string }>;
   catalogHash: string;
   catalogDocument: string;
   catalogRemoteKey: string;
@@ -87,6 +128,7 @@ export interface WorkspaceRuntimeMeta {
   previousOperationHash: string | null;
   catalogVersion: number;
   previousCatalogHash: string | null;
+  catalogHeads?: Record<string, { version: number; hash: string }>;
   checkpointVersion: number;
   previousCheckpointHash: string | null;
   remoteHeadEtag: string | null;
@@ -116,6 +158,14 @@ export interface WorkspaceStateStore {
   getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null>;
   getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null>;
   getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null>;
+  listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]>;
+  listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]>;
+  saveComment(comment: WorkspaceCommentRecord): Promise<void>;
+  listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]>;
+  saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void>;
+  setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void>;
+  listLocalForks(): Promise<WorkspaceLocalForkRecord[]>;
+  saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void>;
   hasOperation(operationHash: string): Promise<boolean>;
   hasPendingForPath(path: string): Promise<boolean>;
   enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null): Promise<number>;
@@ -126,6 +176,7 @@ export interface WorkspaceStateStore {
   retryFailed(): Promise<void>;
   commitQueued(queueId: number, mutation: CommitWorkspaceMutation, meta: WorkspaceRuntimeMeta, absorbedQueueIds?: number[]): Promise<void>;
   recordIncoming(mutation: CommitWorkspaceMutation, setCurrent: boolean, meta: WorkspaceRuntimeMeta): Promise<void>;
+  recordObservedOperation(operationHash: string, operationDocument: string, deviceId: string, sequence: number, meta: WorkspaceRuntimeMeta): Promise<void>;
 }
 
 function clone<T>(value: T): T {
@@ -138,6 +189,9 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private readonly objects = new Map<string, WorkspaceObjectRecord>();
   private readonly revisions = new Map<string, WorkspaceRevisionRecord>();
   private readonly operations = new Map<string, CommitWorkspaceMutation>();
+  private readonly comments = new Map<string, WorkspaceCommentRecord>();
+  private readonly quarantine = new Map<string, WorkspaceQuarantineRecord>();
+  private readonly forks = new Map<string, WorkspaceLocalForkRecord>();
   private readonly queue: WorkspaceQueuedMutation[] = [];
   private nextQueueId = 1;
 
@@ -151,6 +205,31 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   }
   async getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null> { return clone(this.objects.get(objectId) ?? null); }
   async getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null> { return clone(this.revisions.get(revisionId) ?? null); }
+  async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
+    return [...this.revisions.values()].filter((entry) => entry.objectId === objectId).map(clone).sort((a, b) => b.sequence - a.sequence || a.revisionId.localeCompare(b.revisionId));
+  }
+  async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
+    return [...this.comments.values()].filter((entry) => entry.targetObjectId === targetObjectId && !entry.resolvedCommentId).map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
+  }
+  async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
+    this.comments.set(comment.commentId, clone(comment));
+    if (comment.resolvedCommentId) {
+      const target = this.comments.get(comment.resolvedCommentId);
+      if (target) target.resolvedAt = comment.createdAt;
+    } else {
+      const resolution = [...this.comments.values()].filter((entry) => entry.resolvedCommentId === comment.commentId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+      if (resolution) this.comments.get(comment.commentId)!.resolvedAt = resolution.createdAt;
+    }
+  }
+  async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {
+    return [...this.quarantine.values()].filter((entry) => !status || entry.status === status).map(clone).sort((a, b) => b.firstSeenAt.localeCompare(a.firstSeenAt));
+  }
+  async saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void> { this.quarantine.set(record.quarantineId, clone(record)); }
+  async setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void> {
+    const record = this.quarantine.get(quarantineId); if (record) record.status = status;
+  }
+  async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> { return [...this.forks.values()].map(clone).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> { this.forks.set(record.forkId, clone(record)); }
   async hasOperation(operationHash: string): Promise<boolean> { return this.operations.has(operationHash); }
   async hasPendingForPath(path: string): Promise<boolean> {
     return this.queue.some((entry) => entry.path === path || entry.newPath === path);
@@ -194,6 +273,10 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     this.commitMutation(mutation, setCurrent);
     this.meta = clone(meta);
   }
+  async recordObservedOperation(operationHash: string, operationDocument: string, deviceId: string, sequence: number, meta: WorkspaceRuntimeMeta): Promise<void> {
+    this.operations.set(operationHash, { operationHash, operationDocument, deviceId, sequence, object: {} as WorkspaceObjectRecord, revision: null });
+    this.meta = clone(meta);
+  }
   private commitMutation(mutation: CommitWorkspaceMutation, setCurrent: boolean): void {
     this.operations.set(mutation.operationHash, clone(mutation));
     if (mutation.revision) this.revisions.set(mutation.revision.revisionId, clone(mutation.revision));
@@ -223,6 +306,7 @@ interface RevisionRow {
   sequence: number;
   materialized_path: string | null;
   plaintext_sha256: string | null;
+  created_at?: string | null;
 }
 
 interface QueueRow {
@@ -234,6 +318,22 @@ interface QueueRow {
   retry_count: number;
   last_error: string | null;
   prepared_json: string | null;
+}
+
+interface CommentRow {
+  comment_id: string; target_object_id: string; target_revision_id: string; parent_comment_id: string | null;
+  author_member_id: string; author_device_id: string; operation_hash: string; payload_hash: string;
+  body: string; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
+}
+
+interface QuarantineRow {
+  quarantine_id: string; artifact_kind: WorkspaceQuarantineRecord["artifactKind"]; remote_key: string;
+  artifact_base64: string; artifact_sha256: string; error_code: string; reason: string; first_seen_at: string;
+  last_tried_at: string; status: WorkspaceQuarantineStatus;
+}
+
+interface ForkRow {
+  fork_id: string; original_path: string; fork_path: string; reason: WorkspaceLocalForkRecord["reason"]; created_at: string;
 }
 
 function objectFromRow(row: ObjectRow): WorkspaceObjectRecord {
@@ -261,6 +361,7 @@ function revisionFromRow(row: RevisionRow): WorkspaceRevisionRecord {
     sequence: row.sequence,
     materializedPath: row.materialized_path,
     plaintextSha256: row.plaintext_sha256,
+    createdAt: row.created_at ?? undefined,
   };
 }
 
@@ -279,9 +380,9 @@ function objectWrite(record: WorkspaceObjectRecord) {
 function revisionWrite(record: WorkspaceRevisionRecord) {
   return {
     sql: `INSERT OR IGNORE INTO workspace_revision
-      (revision_id,object_id,payload_hash,parent_revision_ids,operation_hash,device_id,sequence,materialized_path,plaintext_sha256)
-      VALUES (?,?,?,?,?,?,?,?,?)`,
-    params: [record.revisionId, record.objectId, record.payloadHash, JSON.stringify(record.parentRevisionIds), record.operationHash, record.deviceId, record.sequence, record.materializedPath, record.plaintextSha256],
+      (revision_id,object_id,payload_hash,parent_revision_ids,operation_hash,device_id,sequence,materialized_path,plaintext_sha256,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    params: [record.revisionId, record.objectId, record.payloadHash, JSON.stringify(record.parentRevisionIds), record.operationHash, record.deviceId, record.sequence, record.materializedPath, record.plaintextSha256, record.createdAt ?? new Date(0).toISOString()],
   };
 }
 
@@ -314,6 +415,33 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   async getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null> {
     const row = await this.db.queryOne<RevisionRow>(`SELECT * FROM workspace_revision WHERE revision_id = ? LIMIT 1`, [revisionId]);
     return row ? revisionFromRow(row) : null;
+  }
+  async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
+    return (await this.db.query<RevisionRow>(`SELECT * FROM workspace_revision WHERE object_id = ? ORDER BY sequence DESC, revision_id`, [objectId])).map(revisionFromRow);
+  }
+  async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
+    const rows = await this.db.query<CommentRow>(`SELECT * FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
+    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
+  }
+  async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
+    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
+    if (comment.resolvedCommentId) await this.db.execute(`UPDATE workspace_comment SET resolved_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
+    else await this.db.execute(`UPDATE workspace_comment SET resolved_at = (SELECT MAX(created_at) FROM workspace_comment WHERE resolved_comment_id = ?) WHERE comment_id = ? AND EXISTS (SELECT 1 FROM workspace_comment WHERE resolved_comment_id = ?)`, [comment.commentId, comment.commentId, comment.commentId]);
+  }
+  async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {
+    const rows = await this.db.query<QuarantineRow>(`SELECT * FROM workspace_quarantine ${status ? "WHERE status = ?" : ""} ORDER BY first_seen_at DESC`, status ? [status] : []);
+    return rows.map((row) => ({ quarantineId: row.quarantine_id, artifactKind: row.artifact_kind, remoteKey: row.remote_key, artifactBase64: row.artifact_base64, artifactSha256: row.artifact_sha256, errorCode: row.error_code, reason: row.reason, firstSeenAt: row.first_seen_at, lastTriedAt: row.last_tried_at, status: row.status }));
+  }
+  async saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void> {
+    await this.db.execute(`INSERT INTO workspace_quarantine (quarantine_id,artifact_kind,remote_key,artifact_base64,artifact_sha256,error_code,reason,first_seen_at,last_tried_at,status) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(quarantine_id) DO UPDATE SET last_tried_at=excluded.last_tried_at,error_code=excluded.error_code,reason=excluded.reason,status=CASE WHEN workspace_quarantine.status='ignored' THEN 'ignored' ELSE excluded.status END`, [record.quarantineId, record.artifactKind, record.remoteKey, record.artifactBase64, record.artifactSha256, record.errorCode, record.reason, record.firstSeenAt, record.lastTriedAt, record.status]);
+  }
+  async setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void> { await this.db.execute(`UPDATE workspace_quarantine SET status = ? WHERE quarantine_id = ?`, [status, quarantineId]); }
+  async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> {
+    const rows = await this.db.query<ForkRow>(`SELECT * FROM workspace_local_fork ORDER BY created_at DESC`);
+    return rows.map((row) => ({ forkId: row.fork_id, originalPath: row.original_path, forkPath: row.fork_path, reason: row.reason, createdAt: row.created_at }));
+  }
+  async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> {
+    await this.db.execute(`INSERT OR REPLACE INTO workspace_local_fork (fork_id,original_path,fork_path,reason,created_at) VALUES (?,?,?,?,?)`, [record.forkId, record.originalPath, record.forkPath, record.reason, record.createdAt]);
   }
   async hasOperation(operationHash: string): Promise<boolean> {
     return (await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM workspace_operation WHERE operation_hash = ?`, [operationHash]))?.n === 1;
@@ -362,6 +490,12 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async recordIncoming(mutation: CommitWorkspaceMutation, setCurrent: boolean, meta: WorkspaceRuntimeMeta): Promise<void> {
     await this.commitMutation(mutation, setCurrent, meta, []);
+  }
+  async recordObservedOperation(operationHash: string, operationDocument: string, deviceId: string, sequence: number, meta: WorkspaceRuntimeMeta): Promise<void> {
+    await runStatementsAtomic(this.db, [
+      { sql: `INSERT OR IGNORE INTO workspace_operation (operation_hash,device_id,sequence,document_json) VALUES (?,?,?,?)`, params: [operationHash, deviceId, sequence, operationDocument] },
+      { sql: `INSERT INTO workspace_meta (id,state_json) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json`, params: [JSON.stringify(meta)] },
+    ]);
   }
   private async commitMutation(
     mutation: CommitWorkspaceMutation,

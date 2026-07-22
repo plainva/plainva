@@ -44,6 +44,8 @@ export interface WorkspaceRecoveryPackagePayload {
   catalogKey: string;
   genesis: string;
   policy: string;
+  /** Signed recovery-anchor chain, omitted by legacy/initial packages. */
+  anchors?: string[];
   createdAt: string;
 }
 
@@ -91,7 +93,7 @@ function packageAad(workspaceId: string): Uint8Array {
  */
 export function createWorkspaceRecoveryPackage(
   bootstrap: PersonalWorkspaceBootstrap,
-  options: { packageKey?: Uint8Array; nonce?: Uint8Array; now?: string } = {}
+  options: { packageKey?: Uint8Array; nonce?: Uint8Array; now?: string; anchors?: string[] } = {}
 ): CreatedWorkspaceRecoveryPackage {
   const packageKey = options.packageKey ? new Uint8Array(options.packageKey) : randomBytes(RECOVERY_CODE_KEY_BYTES);
   const nonce = options.nonce ? new Uint8Array(options.nonce) : aeadNonce();
@@ -113,6 +115,7 @@ export function createWorkspaceRecoveryPackage(
     policy: toBase64(utf8Encode(canonicalJson(bootstrap.policy))),
     createdAt: options.now ?? new Date().toISOString(),
   };
+  if (options.anchors?.length) payload.anchors = [...options.anchors];
   const plaintext = utf8Encode(canonicalJson(payload));
   const file: WorkspaceRecoveryPackageFile = {
     format: "PWR1",
@@ -176,5 +179,6 @@ export function openWorkspaceRecoveryPackage(
   decodeBase64Exact(payload.groupHpkePublicKey, 32, "group HPKE public key");
   decodeBase64Exact(payload.groupHpkePrivateKey, 32, "group HPKE private key");
   decodeBase64Exact(payload.catalogKey, 32, "catalog key");
+  protocolAssert(payload.anchors === undefined || (Array.isArray(payload.anchors) && payload.anchors.length <= 1_000 && payload.anchors.every((anchor) => typeof anchor === "string" && anchor.length <= 256 * 1024)), "bounds", "recovery anchor chain is invalid");
   return payload;
 }

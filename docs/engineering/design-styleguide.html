@@ -703,12 +703,15 @@
   </section>
 
   <section id="security-sharing">
-    <h2>Security &amp; Sharing · Personal Workspace</h2>
+    <h2>Security &amp; Sharing · Encrypted Workspace</h2>
     <div class="card spec">
       <div class="schema"><span class="blk">Identität</span><span class="blk hi">Recovery-Datei + separater Code</span><span class="blk">Bestätigung</span><span class="gap">→</span><span class="blk hi">Verschlüsselte Migration</span></div>
       <ul class="tight">
-        <li>Quiet Cards für Status, Recovery, Gerät und Team; technische Fakten als zweispaltige Definitionen.</li>
-        <li>Aktivierung erst nach gespeichertem OS-Dateidialog und separater Checkbox. Der Recovery-Code liegt in einem auswählbaren, umbrechenden Code-Well.</li>
+        <li>Quiet Cards für Status, Recovery, Geräte, Mitglieder/Gruppen/Slices und Integrität; technische Fakten als zweispaltige Definitionen.</li>
+        <li>Aktivierung erst nach gespeichertem OS-Dateidialog und separater Checkbox. Auch Recovery-Erneuerung speichert/teilt zuerst, verankert danach und zeigt dann den neuen Code.</li>
+        <li>Pairing zeigt vor der Freigabe den Geräte-Fingerprint. Rollen + Geltungsbereich sind explizite Feld-Controls; Slices erhalten eine lokale Pfad-Vorschau.</li>
+        <li>Reader/Commenter: Banner + hart schreibgeschützter Editor; Kommentare als kompakter Seiten-Stack, verschlüsselte Historie im bestehenden Versionsmodal.</li>
+        <li>Quarantäne: Retry/Export/Repariert/Ignorieren als sekundäre Aktionen. Zugriffsverlust durch Verschieben verlangt einen App-Bestätigungsdialog.</li>
         <li>Alten Remote-Klartext entfernt nur ein bestätigter Danger-Flow nach erfolgreicher Migration.</li>
       </ul>
     </div>

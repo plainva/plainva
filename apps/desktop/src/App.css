@@ -185,6 +185,17 @@ button.pv-doc-header-icon:hover {
   opacity: 0.75;
 }
 
+.pv-workspace-comments { border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); padding: 0.35rem 0.75rem; }
+.pv-workspace-comments > summary { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-workspace-comments__body { display: grid; gap: 0.45rem; max-height: 12rem; overflow: auto; padding-top: 0.5rem; }
+.pv-workspace-comment { display: grid; gap: 0.15rem; padding: 0.45rem 0.55rem; border: 1px solid var(--border-color-light); border-radius: var(--radius-sm); background: var(--bg-primary); }
+.pv-workspace-comment small { color: var(--text-muted); }
+.pv-workspace-comment.is-resolved { opacity: 0.65; }
+.pv-workspace-comment > button { justify-self: start; border: 0; background: transparent; color: var(--accent-color); cursor: pointer; padding: 0; font: inherit; }
+.pv-workspace-comment-compose { display: flex; gap: 0.4rem; }
+.pv-workspace-comment-compose input { flex: 1; min-width: 0; }
+.pv-security-preview { display: grid; gap: 0.25rem; max-height: 12rem; overflow: auto; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
+
 /* Scrollbars are themed globally so EVERY scroll area follows the theme —
    including the CodeMirror scroller and the file tree, which never carried the
    old opt-in class. `.custom-scrollbar` stays in markup as a no-op alias.

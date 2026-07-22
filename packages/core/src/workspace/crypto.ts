@@ -45,6 +45,11 @@ export function workspaceDomain(
   return domain;
 }
 
+/** Domain-separated signing input for non-control handshake records. */
+export function createWorkspaceDocumentSignatureInput(kind: string, workspaceId: string, canonicalPayload: string): Uint8Array {
+  return utf8Encode(`plainva/workspace/${kind}/v1/${workspaceId}\0${canonicalPayload}`);
+}
+
 export function deriveWorkspaceSubkey(
   dataKey: Uint8Array,
   purpose: string,

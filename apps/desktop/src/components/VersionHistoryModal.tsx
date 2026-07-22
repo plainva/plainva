@@ -45,7 +45,8 @@ export const VersionHistoryModal: React.FC<{
   onRestored?: (restoredPath: string) => void;
 }> = ({ path, orphan = false, onClose, onRestored }) => {
   const { t, i18n } = useTranslation();
-  const { vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate } = useVault();
+  const { vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, listWorkspaceRevisions, readWorkspaceRevision } = useVault();
+  const workspaceHistory = workspaceSecurityStatus !== null;
 
   const basename = path.split(/[/\\]/).pop() || path;
   const isText = isTextLikePath(path);
@@ -78,9 +79,10 @@ export const VersionHistoryModal: React.FC<{
   // Load the version list once.
   useEffect(() => {
     let alive = true;
-    if (!service) return;
-    service
-      .listVersions(path)
+    if (!service && !workspaceHistory) return;
+    (workspaceHistory
+      ? listWorkspaceRevisions(path).then((list) => (list ?? []).map((revision) => ({ backupPath: `workspace:${revision.revisionId}`, timestamp: Date.parse(revision.createdAt ?? "1970-01-01T00:00:00.000Z"), size: 0 })))
+      : service!.listVersions(path))
       .then((list) => {
         if (!alive) return;
         setVersions(list);
@@ -90,7 +92,7 @@ export const VersionHistoryModal: React.FC<{
     return () => {
       alive = false;
     };
-  }, [service, path]);
+  }, [service, path, workspaceHistory, listWorkspaceRevisions]);
 
   // Current content for the diff (skipped for orphans/binaries).
   useEffect(() => {
@@ -111,15 +113,16 @@ export const VersionHistoryModal: React.FC<{
     let url: string | null = null;
     setVersionText(null);
     setImageUrl(null);
-    if (!service || !selected) return;
+    if ((!service && !workspaceHistory) || !selected) return;
+    const readBytes = () => workspaceHistory
+      ? readWorkspaceRevision(selected.backupPath.slice("workspace:".length))
+      : service!.readVersionBinary(selected.backupPath);
     if (isText) {
-      service
-        .readVersionText(selected.backupPath)
+      (workspaceHistory ? readBytes().then((bytes) => new TextDecoder("utf-8", { fatal: true }).decode(bytes)) : service!.readVersionText(selected.backupPath))
         .then((text) => alive && setVersionText(text.replace(/\r\n/g, "\n")))
         .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     } else if (isImage) {
-      service
-        .readVersionBinary(selected.backupPath)
+      readBytes()
         .then((bytes) => {
           if (!alive) return;
           url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: IMAGE_MIME[extOf(path)] || "application/octet-stream" }));
@@ -131,7 +134,7 @@ export const VersionHistoryModal: React.FC<{
       alive = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [service, selected, isText, isImage, path]);
+  }, [service, selected, isText, isImage, path, workspaceHistory, readWorkspaceRevision]);
 
   // Side-by-side diff: selected version (left) vs current content (right).
   useEffect(() => {
@@ -183,7 +186,7 @@ export const VersionHistoryModal: React.FC<{
   };
 
   const doRestore = async () => {
-    if (!service || !selected || !vaultAdapter) return;
+    if ((!service && !workspaceHistory) || !selected || !vaultAdapter) return;
     const ok = await appConfirm({
       title: t("versions.restoreConfirmTitle", { defaultValue: "Restore version" }),
       message: t("versions.restoreConfirmMsg", {
@@ -198,15 +201,17 @@ export const VersionHistoryModal: React.FC<{
     setError(null);
     try {
       if (!orphan) await requestSaveFlush(path);
-      await service.restoreVersion({
-        backupPath: selected.backupPath,
-        targetPath: path,
-        writeAdapter: vaultAdapter,
-        // Guaranteed pre-restore snapshot, independent of the snapshot
-        // interval. Runs via beforeWrite (after the snapshot is read): the
-        // forced backup's age rotation may prune the selected snapshot.
-        beforeWrite: orphan ? undefined : async () => { await backupAdapter?.forceBackup(path); },
-      });
+      if (workspaceHistory) {
+        const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
+        if (!orphan) await backupAdapter?.forceBackup(path);
+        if (isTextLikePath(path)) await vaultAdapter.writeTextFile(path, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        else await vaultAdapter.writeBinaryFile(path, bytes);
+      } else await service!.restoreVersion({
+          backupPath: selected.backupPath,
+          targetPath: path,
+          writeAdapter: vaultAdapter,
+          beforeWrite: orphan ? undefined : async () => { await backupAdapter?.forceBackup(path); },
+        });
       await finishRestore(path, selected.size);
       onRestored?.(path);
       onClose();
@@ -218,7 +223,7 @@ export const VersionHistoryModal: React.FC<{
   };
 
   const doRestoreAsCopy = async () => {
-    if (!service || !selected || !vaultAdapter) return;
+    if ((!service && !workspaceHistory) || !selected || !vaultAdapter) return;
     setBusy(true);
     setError(null);
     try {
@@ -233,7 +238,11 @@ export const VersionHistoryModal: React.FC<{
         candidate = `${dir}${stem} (Version ${stamp} ${n})${ext}`;
         n++;
       }
-      await service.restoreVersion({ backupPath: selected.backupPath, targetPath: candidate, writeAdapter: vaultAdapter });
+      if (workspaceHistory) {
+        const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
+        if (isTextLikePath(candidate)) await vaultAdapter.writeTextFile(candidate, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        else await vaultAdapter.writeBinaryFile(candidate, bytes);
+      } else await service!.restoreVersion({ backupPath: selected.backupPath, targetPath: candidate, writeAdapter: vaultAdapter });
       await finishRestore(candidate, selected.size);
       setNotice(t("versions.copyCreated", { defaultValue: "Copy created: {{path}}", path: candidate }));
     } catch (e) {

@@ -820,6 +820,14 @@ textarea {
   font-size: 0.9rem;
   text-align: left;
 }
+.m-inline-notice {
+  margin: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--m-radius-card);
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-size: var(--text-sm);
+}
 /* P6: base view switcher + cards/list renders */
 /* Segmented control (desktop parity): one pill-shaped tray, the active view a
    raised sub-pill on the base surface — not individually outlined chips. */

@@ -16,7 +16,7 @@ import { getActiveVaultEntry } from "./services/vaultRegistry";
 /** The catalog areas that have a mobile detail screen today. */
 const MOBILE_AREAS: Record<"app" | "vault", string[]> = {
   app: ["appearance", "editor", "about"],
-  vault: ["cloudAccounts", "sync", "content", "backup"],
+  vault: ["cloudAccounts", "sync", "security", "content", "backup"],
 };
 
 export function SettingsScreen({

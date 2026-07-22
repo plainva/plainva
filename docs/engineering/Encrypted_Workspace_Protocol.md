@@ -1,9 +1,9 @@
 # Encrypted Workspace protocol (v1)
 
-Status: **normative v1 specification; P1–P3 implemented on 2026-07-22.**
+Status: **normative v1 specification; P1–P7 implemented on 2026-07-22.**
 
 This document defines the first Plainva encrypted-workspace wire protocol. It is
-the security boundary for personal encrypted vaults and future team vaults.
+the security boundary for personal and team encrypted vaults.
 Plaintext vaults keep using ordinary Markdown and the existing sync engine. An
 encrypted workspace instead stores opaque, immutable protocol objects below
 `.pvws/`; user-visible paths never become provider object names.
@@ -17,8 +17,8 @@ The keywords **MUST**, **MUST NOT**, **SHOULD** and **MAY** are normative.
   policy documents.
 - Binary object magic: `PVO1`; chunk magic: `PVC1`.
 - Signed control documents use canonical UTF-8 JSON and `protocolVersion: 1`.
-- A personal encrypted workspace is a workspace with one member. Team features
-  add policies, groups and slices without replacing the object format.
+- A personal encrypted workspace is a workspace with one member. Team workspaces
+  use the same policies, groups and slices without replacing the object format.
 
 Version 1 protects content, paths, control-document integrity and authorisation
 against an untrusted storage provider and untrusted workspace writers. It does
@@ -192,7 +192,7 @@ Grant, operation, catalog and head documents require exactly one device
 signature; grant, operation and head signer IDs MUST equal their respective
 issuer/author/device payload ID. A checkpoint requires exactly one device or
 recovery signature. Policy signer-authority and chain acceptance are evaluated
-against the previously accepted policy in P5; framing never makes a signer
+against the previously accepted policy; framing never makes a signer
 authoritative by itself.
 
 ### 5.1 Document schemas
@@ -234,9 +234,10 @@ Payload fields:
 - `objectOverrides`: up to 100,000 explicit object grants;
 - `revocations`: up to 100,000 member/device revocation records.
 
-P1 validates the framing, identifiers, keys, ordering and bounds. Capability
-semantics and policy-chain acceptance are P5 responsibilities. Concurrent valid
-policy successors are never resolved by last-writer-wins.
+Framing, identifiers, keys, ordering and bounds are validated before capability
+semantics and policy-chain acceptance. Concurrent valid policy successors are
+never resolved by last-writer-wins; sync stops at the policy fork until an owner
+explicitly resolves or rejects it.
 
 #### Grant (`grants/<recipientDeviceId>/<hash>.pvgrant`, maximum 64 KiB)
 
@@ -390,6 +391,9 @@ releasing plaintext.
 .pvws/policies/<policyHash>.pvpol
 .pvws/policy-heads/<deviceId>.pvhead
 .pvws/grants/<recipientDeviceId>/<grantHash>.pvgrant
+.pvws/pairing/requests/<pairingId>-<hash>.pvpair
+.pvws/pairing/responses/<pairingId>-<hash>.pvpair
+.pvws/recovery/<anchorVersion>-<anchorHash>.pvrec
 .pvws/catalogs/<groupId>/<epoch>/<catalogHash>.pvcat
 .pvws/operations/<deviceId>/<sequence>-<operationHash>.pvop
 .pvws/heads/<deviceId>.pvhead
@@ -497,8 +501,9 @@ documents, PVO1/PVC1 and hardened parsers. P2 implements the opaque object-store
 contract and adapters over the five existing provider transports. P3 activates
 the personal single-owner workspace on Desktop, performs resumable migration,
 materialises plaintext locally and publishes signed operations/checkpoints.
-Pairing/recovery restore, team policy management, selective slices, quarantine
-and full revocation remain P4 and later work.
+P4–P7 add pairing/recovery, policy management, selective slices and resilient
+collaboration on top of those primitives. Real-provider, native-device and
+independent security review remain P11 release gates.
 
 ## 14. Implementation map
 
@@ -512,6 +517,14 @@ and full revocation remain P4 and later work.
   contract, deterministic fake, and WebDAV/Drive/S3/OneDrive/Dropbox adapters;
 - `packages/core/src/workspace/personal.ts` and `recoveryPackage.ts`: personal
   owner genesis/policy, device grants and two-piece PWR1/PVR1 recovery backup;
+- `packages/core/src/workspace/pairing.ts`, `recovery.ts`, `policy.ts` and
+  `governance.ts`: pairing handshakes, dual-signed recovery anchors, accepted
+  policy chains, roles, groups, revocation and key rotation;
+- `packages/core/src/workspace/authorization.ts` and `slices.ts`: the shared
+  default-deny evaluator, pre-disk permission adapter, slice matching, local
+  previews and exact PVO1 recipient derivation;
+- `packages/core/src/workspace/collaboration.ts`: encrypted comments, revision
+  reads and quarantine actions;
 - `packages/core/src/workspace/migration.ts`, `state.ts` and `worker.ts`:
   resumable inventory, durable SQLite queue/staging, verified pull/push,
   materialisation, catalogs, checkpoints, heads and crash adoption;
@@ -524,10 +537,11 @@ and full revocation remain P4 and later work.
   mutation harness.
 
 Real-account provider round trips and native-device crypto probes remain
-credential/device release gates. P3's deterministic suite covers a provisioned
+credential/device release gates. The deterministic suite covers a provisioned
 two-device round trip, parallel offline conflict preservation, migration with no
 remote plaintext paths, and kills between payload/operation upload and directly
-after head CAS.
+after head CAS, pairing, recovery replacement, scoped roles, slice recipients,
+encrypted comments, revision reads and isolated quarantine.
 
 ## 15. P3 personal-workspace lifecycle
 
@@ -553,3 +567,123 @@ is adopted only when its bytes match the reserved signed pointer. Incoming
 objects pass genesis, policy, signature, capability, chain, binding, AEAD and
 hash checks before materialisation. Remote absence is ignored; only a valid
 signed tombstone can delete, and local/parallel changes become conflict copies.
+
+## 16. P4 pairing and recovery lifecycle
+
+A joining device creates fresh Ed25519 and HPKE keys locally and publishes a
+short-lived, signed pairing request. The QR token and manual code identify the
+same request; an approver MUST display and compare the request fingerprint,
+workspace fingerprint, device name, member binding, platform and expiry before
+approval. Requests have strict schemas and expiries. Reuse is rejected by the
+accepted policy because a device ID can be added only once. An authorised
+`devices.approve` endpoint publishes a policy successor and HPKE grants only for
+groups to which the member belongs. The joining endpoint validates genesis,
+policy succession, approval signatures, grant recipient/policy bindings and
+expiry before persisting its runtime bundle.
+
+Device removal is a signed policy successor. Plainva rotates every group epoch
+whose old key the removed device could know, grants the replacement epochs only
+to remaining active devices and uses only new epochs for later revisions and
+catalogs. Member removal additionally revokes all member devices and removes the
+member from affected groups. Previously decrypted plaintext and historical keys
+cannot be recalled.
+
+All-device recovery opens the two-piece PWR1/PVR1 package, validates genesis,
+the latest accepted remote policy and the complete recovery-anchor chain, then
+creates a new owner device and optionally revokes every lost endpoint. It MUST
+NOT rewrite PVO1 content, logical object IDs, revision IDs or payload hashes.
+
+A recovery replacement creates a new recovery identity and a `recovery`
+document containing `anchorVersion`, `previousAnchorHash`,
+`previousRecoveryId`, the new public identity and `createdAt`. The old and new
+recovery identities MUST both sign the anchor. Activation writes the immutable
+anchor only after the replacement package has been durably saved or shared;
+cancelled save/share leaves the previous package active. Restore accepts only
+the recovery identity at the end of the continuous remote anchor chain.
+
+## 17. P5 policy and authorisation semantics
+
+The built-in roles are `Owner`, `Admin`, `Editor`, `Commenter`, `Reader` and
+`Contributor`. Owner alone has `recovery.manage`; Admin has the remaining
+workspace/device/member/group/slice and content capabilities; Editor may read,
+create, change, rename and delete content and use comments/history; Commenter
+may read content/history and create comments; Reader may only read
+content/comments/history; Contributor may only create new content. Policy
+assignments carry an explicit sorted capability set, so future clients do not
+derive authority from a display role alone.
+
+Assignments target a member or group and a `workspace`, `slice` or `object`
+scope. Object overrides are additive explicit grants. Evaluation is
+default-deny and first rejects inactive members and devices. The same evaluator
+is used by UI capability state, the `PermissionedVaultAdapter`, watcher/import/
+AI/restore paths, queue preparation and incoming worker verification. Rename
+requires authority for source and destination. If the destination is writable
+but would remove the actor's own read access, Desktop and Mobile require an
+explicit confirmation before touching disk. Denied out-of-process changes are
+preserved as local-only forks below `.plainva/workspace/forks/` and never signed
+or uploaded.
+
+Every policy successor references the complete previous policy hash and is
+signed by an endpoint with current management authority (or by the active
+recovery identity during restore). Chains reject rollback, missing links and
+unauthorised signers. Concurrent valid successors are treated as an explicit
+policy conflict; timestamps do not select a winner and content writes pause
+until the administrative branch is resolved.
+
+## 18. P6 slices, catalogs and selective pull
+
+Slices are policy records of one of these forms:
+
+- folder: one canonical path prefix;
+- selection: a sorted unique list of logical object IDs;
+- dynamic: one to 32 conjunctive rules over canonical path, MIME, content kind,
+  Markdown tags or scalar frontmatter properties.
+
+The management dialog computes a local preview before publishing the signed
+policy and stores the resulting materialised object-ID set. Dynamic rules are
+also evaluated against authenticated decrypted metadata/content when incoming
+objects are checked, so untrusted catalog claims do not grant scope. One object
+may belong to multiple slices and may have multiple recipient groups. Its PVO1
+envelope set is the exact union of groups with effective `content.read` for the
+workspace, matching slices or an object override.
+
+Each group epoch has an independent encrypted catalog. A client lists and opens
+only catalogs for epochs for which it holds keys, unions concurrent valid
+catalog branches and fetches only referenced revisions it can decrypt. A
+create-only contribution can carry readable envelopes for the intended reader
+groups without giving the contributor a catalog or decryption key. Missing
+catalog entries and incomplete provider listings are never deletions.
+
+Moves and renames are re-evaluated for both old and new slice intersections.
+Their new immutable revision is encrypted to the destination recipient set;
+removed recipients retain historical knowledge but receive no later group
+epoch or content revision.
+
+## 19. P7 collaboration, history and fault isolation
+
+Comments are canonical JSON bodies sealed as ordinary PVO1 objects with MIME
+`application/vnd.plainva.comment+json`. A signed `comment` operation binds the
+comment object, author/member/device, target object and target revision.
+Resolution is an append-only encrypted marker referencing the resolved comment;
+comment payloads are kept out of the visible vault filesystem. Content writes
+still require content capabilities, so a Commenter cannot edit a note.
+
+`parentRevisionIds` form the per-object revision DAG while
+`previousDeviceOperationHash` forms the per-device operation chain. Parallel
+valid heads are retained: one branch may remain at the canonical path and the
+others materialise as conflict copies for explicit user merging. A restore from
+history reads and verifies the encrypted historical PVO1/PVC1 payload and writes
+the selected bytes as a new authorised signed revision; history never rewinds
+the operation chain.
+
+Delete is represented only by an authorised signed tombstone whose parents bind
+known revisions. Provider absence, a missing catalog entry or an incomplete
+listing cannot delete local content. If local/pending work exists when a valid
+tombstone arrives, Plainva preserves it as a conflict copy.
+
+Malformed or unauthorised operations, objects, catalogs and recovery anchors are
+recorded individually with ciphertext, remote key, reason and status. The UI can
+retry, export, ignore or mark an item repaired. A broken device chain isolates
+that chain; independent valid devices and artifacts continue syncing. Control
+plane ambiguity that could change authority (for example a valid policy fork)
+still fails closed for the workspace rather than being guessed away.

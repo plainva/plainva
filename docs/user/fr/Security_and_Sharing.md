@@ -12,4 +12,18 @@ Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et st
 
 L’ancien contenu en clair reste à côté de `.pvws/` pendant la migration. Il ne peut être supprimé explicitement qu’à l’état **Protégé** ; les fichiers locaux ne sont jamais supprimés.
 
-Les modifications hors ligne restent dans une file durable. Les suppressions exigent des tombstones signés et les modifications parallèles sont conservées dans des copies `.CONFLICT-…`. Appareils supplémentaires, restauration, équipes et slices arriveront dans les phases suivantes.
+Les modifications hors ligne restent dans une file durable. Les suppressions exigent des tombstones signés et les modifications parallèles sont conservées dans des copies `.CONFLICT-…`.
+
+## Appareils et récupération
+
+Un nouvel appareil mobile crée une demande QR/code. Saisissez le code court sur un ordinateur déjà approuvé et comparez les empreintes avant validation. Un appareil retiré ne peut plus signer de nouvelles modifications. Si tous les appareils sont perdus, **Restaurer l’accès** crée un nouvel appareil propriétaire depuis le fichier `.pvrecovery` et son code séparé, sans réécrire le contenu. **Renouveler la récupération** ancre une nouvelle identité à double signature et invalide l’ancien jeu.
+
+## Membres, rôles et slices
+
+Les propriétaires et administrateurs peuvent inviter des membres, créer des groupes et limiter un rôle à tout l’espace, un slice ou un objet. Editor peut modifier, Commenter commenter, Reader seulement lire et Contributor seulement créer dans sa portée. Le contrôle s’applique avant l’écriture locale et avant la signature, y compris aux imports, restaurations, automatisations et actions IA.
+
+Un slice couvre un dossier, une sélection ou une règle dynamique sur chemin, type, tags et propriétés. Vérifiez toujours **Aperçu** avant publication. Les objets non autorisés ne sont ni matérialisés ni ajoutés à la recherche, au graphe ou aux aperçus.
+
+## Commentaires, versions et quarantaine
+
+Commentaires et marqueurs de résolution sont chiffrés et signés. **Historique des versions** lit les révisions chiffrées et restaure une version comme nouvelle modification signée ou copie. Un artefact distant invalide est isolé sous **Intégrité et forks locaux** : réessayez, exportez le ciphertext, marquez-le réparé ou ignorez-le. Il ne bloque pas le reste de la synchronisation et une absence distante ne vaut jamais suppression.

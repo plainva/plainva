@@ -38,9 +38,18 @@ operation queue/staging, verified local materialisation, checkpoints and a
 Desktop Security & Sharing center. Existing remote plaintext remains until the
 user removes it after successful migration.
 
+P4–P7 extend that same protocol rather than adding an ACL layer beside it.
+They provide signed device pairing, all-device recovery and recovery-key
+re-anchoring; default-deny roles and scoped capabilities at both the local disk
+boundary and remote worker; encrypted folder/selection/dynamic slices and
+selective catalogs; and encrypted comments, revision history, signed tombstones,
+conflict preservation and per-artifact quarantine. Device/member revocation
+rotates affected group epochs for future revisions. A recovery rotation becomes
+active only after the replacement package has been saved or shared.
+
 ## Consequences
 
-- Personal encryption and future team permissions share one protocol core.
+- Personal encryption and team permissions share one protocol core.
 - A provider or reader cannot forge a valid write, rename or delete.
 - Group membership and slices do not require distributing a global master key.
 - Remote filenames no longer reveal vault paths for encrypted workspaces.
