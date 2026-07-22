@@ -18,6 +18,8 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Notes/other.md': '# Other\n- [ ] review PR #dev',
     };
     const fs = (window as any).mockFs;
+    fs.__fts = {};
+    fs.__taskIndexWrites = 0;
     const noteRows = () =>
       Object.keys(fs)
         .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && !p.includes('/.plainva/'))
@@ -54,13 +56,21 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
         if (cmd === 'plugin:sql|load') return args.db;
-        if (cmd === 'plugin:sql|execute') return [0, 0];
+        if (cmd === 'plugin:sql|execute') {
+          const q = String(args.query || '');
+          if (q.includes('INSERT INTO fts_notes')) {
+            const [content, _title, path] = args.values || [];
+            fs.__fts[String(path)] = String(content);
+            fs.__taskIndexWrites++;
+          }
+          return [0, 0];
+        }
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
           if (q.includes('SELECT path, title, content FROM fts_notes')) {
             return noteRows()
               .filter((r) => r.mode !== 'attachment')
-              .map((r) => ({ path: r.path, title: r.title, content: fs['/test-vault/' + r.path] }));
+              .map((r) => ({ path: r.path, title: r.title, content: fs.__fts[r.path] ?? fs['/test-vault/' + r.path] }));
           }
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
           // listBases(): inline `LIKE '%.base'` — must precede the generic
@@ -186,12 +196,20 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
   await expect(recentRow.locator('svg.lucide-list-checks')).toBeVisible();
 
   // Toggle "buy milk" via its checkbox (the button just before the text button).
+  const indexWritesBefore = await page.evaluate(() => (window as any).mockFs.__taskIndexWrites);
   await page.getByRole('button', { name: /buy milk/ }).locator('xpath=preceding-sibling::button[1]').click();
 
   // It is written back to disk as [x].
   await expect
     .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']))
     .toContain('- [x] buy milk');
+
+  // The file-backed write is followed by a targeted FTS refresh before the
+  // overview re-queries. The completed row must not flash back into "Open".
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs.__taskIndexWrites)).toBeGreaterThan(indexWritesBefore);
+  await expect(page.getByRole('button', { name: /buy milk/ })).toHaveCount(0);
+  await page.waitForTimeout(250);
+  await expect(page.getByRole('button', { name: /buy milk/ })).toHaveCount(0);
 
   // It leaves the "open" filter; switching to "All" shows it again.
   await page.getByTestId('tasks-filter-all').click();

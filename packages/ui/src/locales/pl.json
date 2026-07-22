@@ -487,6 +487,8 @@
     "fmtCode": "Kod w wierszu",
     "fmtHighlight": "Wyróżnienie",
     "fmtLink": "Link",
+    "fmtMultilineLink": "Linki można tworzyć tylko w obrębie jednego wiersza.",
+    "blockFormatConflict": "Wiersz nie może być jednocześnie nagłówkiem i zadaniem. Użyj pogrubienia, aby wyróżnić tytuł zadania.",
     "tagCount": "{{count}}×",
     "atSecBases": "Bazy danych",
     "atNewBase": "Osadź nową bazę danych",
@@ -555,7 +557,12 @@
     "unknownError": "Wystąpił nieznany błąd.",
     "errorHint": "Częste przyczyny: chwilowy problem z siecią lub przekroczony czas oczekiwania — takie błędy zwykle ustępują same, a Plainva automatycznie ponawia próbę. Albo logowanie wygasło, albo zmieniły się dane dostępowe (np. w Google Drive) — wtedy można ponownie połączyć się w ustawieniach synchronizacji.",
     "conflictCopies": "Znalezione kopie konfliktów:",
-    "openSettings": "Otwórz ustawienia synchronizacji"
+    "openSettings": "Otwórz ustawienia synchronizacji",
+    "retryNow": "Spróbuj ponownie teraz",
+    "recovered": "Synchronizacja powiodła się przy kolejnej próbie.",
+    "retrying": "Plainva ponawia synchronizację…",
+    "authErrorHint": "Logowanie wygasło lub zostało unieważnione. Połącz ponownie w ustawieniach synchronizacji.",
+    "transientErrorHint": "Prawdopodobnie był to tymczasowy problem z siecią lub dostawcą. Plainva automatycznie ponawia takie błędy."
   },
   "sidebar": {
     "files": "Pliki",
@@ -1801,6 +1808,10 @@
     "editNote": "Edytuj",
     "doneEditing": "Gotowe",
     "editToolbar": "Formatowanie",
+    "photoSource": "Dodaj zdjęcie",
+    "takePhoto": "Zrób zdjęcie",
+    "choosePhoto": "Wybierz z biblioteki",
+    "photoInsertFailed": "Nie udało się dodać zdjęcia: {{error}}",
     "sheetOpen": "Otwórz",
     "renamePrompt": "Nowa nazwa",
     "deleteNote": "Usuń notatkę",

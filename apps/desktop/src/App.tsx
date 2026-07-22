@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { applyIndexChanges } from "./services/fileActions";
 import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
-import { useDisplaySyncStatus } from "./services/syncStatusStore";
+import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf } from "./services/okfConversion";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
 // paint the first frame, and each becomes its own chunk that only ever
@@ -230,6 +230,11 @@ function App() {
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [syncErrorSnapshot, setSyncErrorSnapshot] = useState<SyncErrorSnapshot | null>(null);
+  const openSyncError = useCallback(() => {
+    setSyncErrorSnapshot(captureSyncErrorSnapshot());
+    setShowErrorModal(true);
+  }, []);
   // Fill the dialog's conflict rows from the index whenever it opens (P3.11).
   useEffect(() => {
     if (!showErrorModal || !queryService) {
@@ -246,10 +251,10 @@ function App() {
   // The status bar's "Offline" button routes here: same error dialog as the
   // vault-switcher warning triangle.
   useEffect(() => {
-    const onShowSyncError = () => setShowErrorModal(true);
+    const onShowSyncError = () => openSyncError();
     window.addEventListener("plainva-show-sync-error", onShowSyncError);
     return () => window.removeEventListener("plainva-show-sync-error", onShowSyncError);
-  }, []);
+  }, [openSyncError]);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
@@ -281,17 +286,25 @@ function App() {
   // Collapsible sidebars (plan Designsprache P6/L1): toggled via title-bar
   // buttons and Mod+Alt+B / Mod+Alt+R (Mod+B stays bold in the editor).
   const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem("plainva-left-sidebar-collapsed") === "1");
-  const [rightCollapsed, setRightCollapsed] = useState(() => localStorage.getItem("plainva-right-sidebar-collapsed") === "1");
-  // Right-sidebar visibility is remembered PER VIEW KIND (hardening P7.2):
-  // the vault map defaults to collapsed (canvas wants the space), notes and
-  // bases keep their own last choice. The legacy global key is the fallback.
+  const [rightCollapsed, setRightCollapsed] = useState(() => {
+    const global = localStorage.getItem("plainva-right-sidebar-collapsed");
+    if (global !== null) return global === "1";
+    // One-time migration from the former per-view model: the note/editor
+    // preference is the only one with meaningful contextual content.
+    const legacyEditor = localStorage.getItem("plainva-right-collapsed-editor");
+    if (legacyEditor !== null) {
+      localStorage.setItem("plainva-right-sidebar-collapsed", legacyEditor);
+      return legacyEditor === "1";
+    }
+    return false;
+  });
+  // The user's sidebar choice is global. Full-surface/non-note tabs temporarily
+  // close it because their context panels have no useful active document; that
+  // temporary state must not overwrite what comes back for the next note.
   const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" =>
     p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
   const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail"): boolean => {
-    const v = localStorage.getItem(`plainva-right-collapsed-${kind}`);
-    if (v !== null) return v === "1";
-    // Canvas-like full-surface views want the space by default.
-    if (kind === "graph" || kind === "calendar" || kind === "mail") return true;
+    if (kind !== "editor") return true;
     return localStorage.getItem("plainva-right-sidebar-collapsed") === "1";
   };
   // Focus mode (P7.4): one command collapses BOTH sidebars; invoking it again
@@ -318,8 +331,7 @@ function App() {
     onRequestPick: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
   });
 
-  // Apply the remembered right-sidebar visibility of the newly active view
-  // kind (P7.2). Toggling stores per kind; this only APPLIES on kind change.
+  // Apply either the global note preference or a contextless temporary close.
   const activeTabKind = tabKindOf(activePath);
   useEffect(() => {
     setRightCollapsed(rightCollapsedFor(activeTabKind));
@@ -328,7 +340,7 @@ function App() {
   const toggleRightSidebar = useCallback(() => {
     setRightCollapsed((c) => {
       const next = !c;
-      localStorage.setItem(`plainva-right-collapsed-${activeTabKind}`, next ? "1" : "0");
+      if (activeTabKind === "editor") localStorage.setItem("plainva-right-sidebar-collapsed", next ? "1" : "0");
       return next;
     });
   }, [activeTabKind]);
@@ -1167,7 +1179,7 @@ function App() {
                 }}
               >
                 {syncWorker ? (
-                  <SyncSwitcherIcon syncWorker={syncWorker} onError={() => setShowErrorModal(true)} />
+                  <SyncSwitcherIcon syncWorker={syncWorker} onError={openSyncError} />
                 ) : (
                   <Folder size={ICON.ui} color="var(--accent-color)" />
                 )}
@@ -1566,9 +1578,11 @@ function App() {
       {showErrorModal && (
         <SyncErrorDialog
           dialogConflicts={dialogConflicts}
+          error={syncErrorSnapshot}
           onClose={() => setShowErrorModal(false)}
           onResolveConflict={(p) => { setShowErrorModal(false); setConflictResolveTarget(p); }}
           onOpenSettings={(provider) => { setShowErrorModal(false); setSettingsInitialProvider(provider); setShowSettings(true); }}
+          onRetry={() => syncWorker?.retryFailed()}
         />
       )}
     </div>
@@ -1612,17 +1626,25 @@ function SyncSwitcherIcon({ syncWorker, onError }: { syncWorker: VaultSyncWorker
  */
 function SyncErrorDialog({
   dialogConflicts,
+  error,
   onClose,
   onResolveConflict,
   onOpenSettings,
+  onRetry,
 }: {
   dialogConflicts: string[];
+  error: SyncErrorSnapshot | null;
   onClose: () => void;
   onResolveConflict: (path: string) => void;
   onOpenSettings: (provider: SyncProviderId | null) => void;
+  onRetry: () => void;
 }) {
   const { t } = useTranslation();
-  const { message, provider } = useDisplaySyncStatus();
+  const { status } = useDisplaySyncStatus();
+  const message = error?.message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." });
+  const authError = isSyncAuthenticationError(message);
+  const recovered = status === "idle";
+  const retrying = status === "syncing";
   return (
     <Modal
       onClose={onClose}
@@ -1632,15 +1654,24 @@ function SyncErrorDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
-          <Button variant="primary" onClick={() => onOpenSettings(provider)}>{t("sync.openSettings")}</Button>
+          {!recovered && (authError
+            ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>
+            : <Button variant="primary" onClick={onRetry}>{t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>)}
         </>
       }
     >
         <div style={{ padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
-          {message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." })}
+          {message}
         </div>
+        {(recovered || retrying) && (
+          <p style={{ margin: "0.85rem 0 0", color: recovered ? "var(--success-text)" : "var(--text-muted)", fontWeight: 600 }}>
+            {recovered
+              ? t("sync.recovered", { defaultValue: "Die Synchronisierung war beim erneuten Versuch erfolgreich." })
+              : t("sync.retrying", { defaultValue: "Plainva versucht die Synchronisierung erneut …" })}
+          </p>
+        )}
         <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
-          {t("sync.errorHint")}
+          {authError ? t("sync.authErrorHint", { defaultValue: "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her." }) : t("sync.transientErrorHint", { defaultValue: "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut." })}
         </p>
         {dialogConflicts.length > 0 && (
           <div style={{ marginTop: "0.85rem" }}>

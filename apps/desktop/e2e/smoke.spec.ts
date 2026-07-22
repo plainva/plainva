@@ -1068,16 +1068,46 @@ test('Create vault online: place -> template -> connect; the template scaffolds 
   await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });
 });
 
-test('Sync error dialog: deep-links into the sync settings (broken connection recovery)', async ({ page }) => {
+test('Sync error dialog: preserves a transient failure while a retry succeeds', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
-  // The status bar's "Offline" button (and the vault-switcher triangle) fire this
-  // event; a real sync failure is not reproducible against the mocked backend.
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set({
+      status: 'error',
+      message: 'Google Drive folder lookup failed (HTTP 503): backend unavailable',
+      provider: 'drive',
+    });
+  });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-show-sync-error')));
   await expect(page.getByRole('heading', { name: /Sync-Fehler|Sync Error/ })).toBeVisible();
-  // The dialog explains the common expired-sign-in cause next to the message.
-  await expect(page.getByText(/Sync-Einstellungen kannst Du die Verbindung|reconnect in the sync settings/)).toBeVisible();
+  await expect(page.getByText('Google Drive folder lookup failed (HTTP 503): backend unavailable')).toBeVisible();
+  await expect(page.getByText(/vorübergehendes Netzwerk- oder Providerproblem|temporary network or provider problem/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Jetzt erneut versuchen|Try again now/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Sync-Einstellungen öffnen|Open sync settings/ })).toHaveCount(0);
+
+  // A successful automatic retry changes the live state but never erases the
+  // failure that the user opened the dialog to inspect.
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set({ status: 'idle', message: null });
+  });
+  await expect(page.getByText('Google Drive folder lookup failed (HTTP 503): backend unavailable')).toBeVisible();
+  await expect(page.getByText(/beim erneuten Versuch erfolgreich|succeeded on the next attempt/)).toBeVisible();
+});
+
+test('Sync auth error dialog: deep-links into the provider settings', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set({ status: 'error', message: 'Google Drive HTTP 401: token expired', provider: 'drive' });
+  });
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-show-sync-error')));
+  await expect(page.getByRole('heading', { name: /Sync-Fehler|Sync Error/ })).toBeVisible();
+  await expect(page.getByText(/Anmeldung ist abgelaufen|sign-in expired/)).toBeVisible();
 
   // The primary action opens Settings (provider form preselected when one is
   // active) so the user can reconnect right away; the error dialog closes.

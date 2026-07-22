@@ -487,6 +487,8 @@
     "fmtCode": "インラインコード",
     "fmtHighlight": "ハイライト",
     "fmtLink": "リンク",
+    "fmtMultilineLink": "リンクは1行内でのみ作成できます。",
+    "blockFormatConflict": "1行を見出しとタスクの両方にはできません。タスク名を強調するには太字を使ってください。",
     "tagCount": "{{count}}回",
     "atSecBases": "データベース",
     "atNewBase": "新しいデータベースを埋め込む",
@@ -555,7 +557,12 @@
     "unknownError": "不明なエラーが発生しました。",
     "errorHint": "よくある原因: 一時的なネットワークの問題やタイムアウトです——このような問題は通常自然に解消し、Plainvaが自動的に再試行します。または、ログインの期限切れや認証情報の変更（Google Driveなど）です——その場合は、同期設定から再接続できます。",
     "conflictCopies": "検出された競合コピー：",
-    "openSettings": "同期設定を開く"
+    "openSettings": "同期設定を開く",
+    "retryNow": "今すぐ再試行",
+    "recovered": "再試行で同期に成功しました。",
+    "retrying": "Plainva が同期を再試行しています…",
+    "authErrorHint": "サインインの有効期限が切れたか取り消されました。同期設定で再接続してください。",
+    "transientErrorHint": "一時的なネットワークまたはプロバイダーの問題と思われます。Plainva は自動的に再試行します。"
   },
   "sidebar": {
     "files": "ファイル",
@@ -1783,6 +1790,10 @@
     "editNote": "編集",
     "doneEditing": "完了",
     "editToolbar": "書式",
+    "photoSource": "写真を追加",
+    "takePhoto": "写真を撮る",
+    "choosePhoto": "写真ライブラリから選ぶ",
+    "photoInsertFailed": "写真を追加できませんでした：{{error}}",
     "sheetOpen": "開く",
     "renamePrompt": "新しい名前",
     "deleteNote": "ノートを削除",

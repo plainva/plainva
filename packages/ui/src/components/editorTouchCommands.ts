@@ -12,32 +12,99 @@ import type { EditorView } from "@codemirror/view";
 
 export { undo, redo };
 
-/** Wraps (or unwraps) the selection with an inline marker like ** or ~~. */
+type TextChange = { from: number; to?: number; insert: string };
+
+/**
+ * Returns the offset where inline content starts. Markdown block markers are
+ * deliberately kept outside emphasis/code markers so a whole-line selection
+ * turns `- [ ] task` into `- [ ] **task**`, not `**- [ ] task**`.
+ */
+function inlineContentOffset(text: string): number {
+  const m = /^(\s*(?:>\s*)*)(?:(?:#{1,6}\s+)|(?:(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?))?/.exec(text);
+  return m?.[0].length ?? 0;
+}
+
+function markerMode(doc: string, from: number, to: number, marker: string): "outside" | "inside" | "none" {
+  const selected = doc.slice(from, to);
+  const before = doc.slice(Math.max(0, from - marker.length), from);
+  const after = doc.slice(to, Math.min(doc.length, to + marker.length));
+  // A single `*` must never peel one character off a surrounding `**` pair.
+  const boldClash = marker === "*" && (before.endsWith("**") || after.startsWith("**") || selected.startsWith("**"));
+  if (!boldClash && before === marker && after === marker) return "outside";
+  if (!boldClash && selected.length >= marker.length * 2 && selected.startsWith(marker) && selected.endsWith(marker)) return "inside";
+  return "none";
+}
+
+/** Wraps (or unwraps) each selected logical line with an inline marker. */
 export function toggleInlineMark(view: EditorView, marker: string): void {
   const { state } = view;
-  const changes = state.changeByRange((range) => {
-    const before = state.sliceDoc(Math.max(0, range.from - marker.length), range.from);
-    const after = state.sliceDoc(range.to, Math.min(state.doc.length, range.to + marker.length));
-    if (before === marker && after === marker) {
-      return {
-        changes: [
-          { from: range.from - marker.length, to: range.from, insert: "" },
-          { from: range.to, to: range.to + marker.length, insert: "" },
-        ],
-        range: EditorSelection.range(range.from - marker.length, range.to - marker.length),
-      };
+  const range = state.selection.main;
+  if (range.empty) {
+    view.dispatch({
+      changes: { from: range.from, insert: marker + marker },
+      selection: EditorSelection.cursor(range.from + marker.length),
+      userEvent: "input",
+    });
+    view.focus();
+    return;
+  }
+
+  const doc = state.doc.toString();
+  const endProbe = Math.max(range.from, range.to - 1);
+  const firstLine = state.doc.lineAt(range.from).number;
+  const lastLine = state.doc.lineAt(endProbe).number;
+  const segments: Array<{ from: number; to: number; mode: "outside" | "inside" | "none" }> = [];
+  for (let n = firstLine; n <= lastLine; n++) {
+    const line = state.doc.line(n);
+    let from = Math.max(range.from, line.from + inlineContentOffset(line.text));
+    let to = Math.min(range.to, line.to);
+    // Keep incidental whitespace outside the marker pair.
+    while (from < to && /\s/.test(doc[from])) from++;
+    while (to > from && /\s/.test(doc[to - 1])) to--;
+    if (from >= to) continue;
+    segments.push({ from, to, mode: markerMode(doc, from, to, marker) });
+  }
+  if (segments.length === 0) return;
+
+  const remove = segments.every((segment) => segment.mode !== "none");
+  const changes: TextChange[] = [];
+  for (const segment of segments) {
+    if (remove) {
+      if (segment.mode === "outside") {
+        changes.push(
+          { from: segment.from - marker.length, to: segment.from, insert: "" },
+          { from: segment.to, to: segment.to + marker.length, insert: "" },
+        );
+      } else if (segment.mode === "inside") {
+        changes.push(
+          { from: segment.from, to: segment.from + marker.length, insert: "" },
+          { from: segment.to - marker.length, to: segment.to, insert: "" },
+        );
+      }
+    } else if (segment.mode === "none") {
+      changes.push({ from: segment.from, insert: marker }, { from: segment.to, insert: marker });
     }
-    return {
-      changes: [
-        { from: range.from, insert: marker },
-        { from: range.to, insert: marker },
-      ],
-      range: EditorSelection.range(range.from + marker.length, range.to + marker.length),
-    };
-  });
-  view.dispatch(changes, { userEvent: "input" });
+  }
+  if (changes.length > 0) {
+    const changeSet = state.changes(changes);
+    view.dispatch({
+      changes: changeSet,
+      selection: EditorSelection.range(
+        changeSet.mapPos(range.anchor, range.anchor <= range.head ? 1 : -1),
+        changeSet.mapPos(range.head, range.head >= range.anchor ? -1 : 1),
+      ),
+      userEvent: "input",
+    });
+  }
   view.focus();
 }
+
+function notifyBlockConflict(view: EditorView): void {
+  window.dispatchEvent(new CustomEvent("plainva-editor-block-format-conflict", { detail: { view } }));
+}
+
+const isHeadingPrefix = (prefix: string) => /^#{1,6}\s$/.test(prefix);
+const isTaskPrefix = (prefix: string) => /^[-+*]\s\[[ xX]\]\s$/.test(prefix);
 
 const LINE_PREFIX = /^(\s*)((?:[-*+]\s\[[ xX]\]\s)|(?:[-*+]\s)|(?:>\s)|(?:#{1,6}\s))?/;
 
@@ -54,6 +121,7 @@ export function toggleLinePrefix(view: EditorView, prefix: string): void {
     }
   }
   const changes: { from: number; to: number; insert: string }[] = [];
+  let blocked = false;
   const sorted = [...lines].sort((a, b) => a - b);
   const allSet = sorted.every((n) => {
     const line = state.doc.line(n);
@@ -66,6 +134,10 @@ export function toggleLinePrefix(view: EditorView, prefix: string): void {
     const indent = m[1] ?? "";
     const current = m[2] ?? "";
     const next = allSet ? "" : prefix;
+    if (next && ((isHeadingPrefix(current) && isTaskPrefix(next)) || (isTaskPrefix(current) && isHeadingPrefix(next)))) {
+      blocked = true;
+      continue;
+    }
     if (current === next) continue;
     changes.push({
       from: line.from + indent.length,
@@ -74,6 +146,7 @@ export function toggleLinePrefix(view: EditorView, prefix: string): void {
     });
   }
   if (changes.length) view.dispatch({ changes, userEvent: "input" });
+  if (blocked) notifyBlockConflict(view);
   view.focus();
 }
 
@@ -81,6 +154,11 @@ export function toggleLinePrefix(view: EditorView, prefix: string): void {
 export function cycleHeading(view: EditorView): void {
   const { state } = view;
   const line = state.doc.lineAt(state.selection.main.head);
+  if (/^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX]\]\s/.test(line.text)) {
+    notifyBlockConflict(view);
+    view.focus();
+    return;
+  }
   const m = /^(#{1,6})\s/.exec(line.text);
   const level = m ? m[1].length : 0;
   const next = level >= 3 ? 0 : level + 1;
@@ -151,14 +229,20 @@ export function setHeadingLevel(view: EditorView, level: number): void {
   const { state } = view;
   const next = level <= 0 ? "" : "#".repeat(Math.min(6, level)) + " ";
   const changes: { from: number; to: number; insert: string }[] = [];
+  let blocked = false;
   for (const n of selectedLines(view)) {
     const line = state.doc.line(n);
+    if (next && /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX]\]\s/.test(line.text)) {
+      blocked = true;
+      continue;
+    }
     const m = /^#{1,6}\s/.exec(line.text);
     const cur = m ? m[0] : "";
     if (cur === next) continue;
     changes.push({ from: line.from, to: line.from + cur.length, insert: next });
   }
   if (changes.length) view.dispatch({ changes, userEvent: "input" });
+  if (blocked) notifyBlockConflict(view);
   view.focus();
 }
 
@@ -189,6 +273,11 @@ export function toggleTaskLine(view: EditorView): void {
   const line = state.doc.lineAt(state.selection.main.head);
   const indent = (/^\s*/.exec(line.text)![0]) || "";
   const rest = line.text.slice(indent.length);
+  if (/^#{1,6}\s/.test(rest)) {
+    notifyBlockConflict(view);
+    view.focus();
+    return;
+  }
   const markAt = line.from + indent.length + 2; // after "- "
   let change: { from: number; to: number; insert: string };
   if (/^[-*+] \[ \] /.test(rest)) {

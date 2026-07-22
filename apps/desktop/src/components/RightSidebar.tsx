@@ -189,7 +189,15 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     >
       {order.map((id) => {
         const m = meta[id];
-        const isOpen = open[id];
+        // Empty note-context sections close only EFFECTIVELY. Their persisted
+        // global preference remains untouched and returns as soon as the next
+        // note has content again (no "No properties for this file" panel).
+        const hasContent = id === "calendar"
+          || (id === "graph" && Boolean(activePath && /\.md$/i.test(activePath)))
+          || (id === "outline" && counts.outline > 0)
+          || (id === "backlinks" && counts.backlinks > 0)
+          || (id === "properties" && counts.properties > 0);
+        const isOpen = hasContent && open[id];
         const isOver = overId === id && dragId !== null && dragId !== id;
         return (
           <section
@@ -213,8 +221,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                 <GripVertical size={ICON.ui} />
               </span>
               <button
-                onClick={() => toggle(id)}
+                onClick={() => { if (hasContent) toggle(id); }}
                 aria-expanded={isOpen}
+                aria-disabled={!hasContent}
                 className="pv-side-section-header"
               >
                 <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />

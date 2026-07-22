@@ -1,6 +1,6 @@
 # Getting Started
 
-Last reviewed: 2026-07-20
+Last updated: 2026-07-22
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -79,3 +79,7 @@ The **Calendar** on the right is a day overview: **clicking** a date opens the [
 ## The graph
 
 Via **Ctrl/Cmd+Shift+G** (or the **Graph** section in the right sidebar) you see your vault as a map: folders as bubbles, notes as nodes, relations as labeled edges — including a cleanup mode and time travel. Details: [Graph](Graph.md).
+
+## Remembering the right sidebar
+
+Empty context sections such as **Outline**, **Backlinks**, and **Properties** collapse without overwriting their global preference. The whole right sidebar also remembers one global preference for notes; full-surface views without note context close it only temporarily.

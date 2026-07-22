@@ -88,7 +88,6 @@ export type NavKind =
   | "note"
   | "base"
   | "today"
-  | "calendar"
   | "pimcalendar"
   | "pimaccounts"
   | "databases"
@@ -147,6 +146,17 @@ export function navTop(state: NavState): NavEntry | undefined {
   if (state.overlay.length > 0) return state.overlay[state.overlay.length - 1];
   const stack = state.stacks[state.activeTab];
   return stack[stack.length - 1];
+}
+
+/** Current browse target, including a folder reached through the More overlay. */
+export function activeFolderPath(state: NavState): string {
+  const top = navTop(state);
+  return top?.kind === "folder" ? top.path : "";
+}
+
+/** Capture stays available at a tab root and in every nested folder. */
+export function showsCaptureFab(top?: NavEntry): boolean {
+  return !top || top.kind === "folder";
 }
 
 /**

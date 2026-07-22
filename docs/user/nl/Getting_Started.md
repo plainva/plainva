@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-20
+Laatst bijgewerkt: 2026-07-22
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -79,3 +79,7 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 ## De graaf
 
 Via **Ctrl/Cmd+Shift+G** (of de sectie **Graaf** in de rechterzijbalk) zie je je vault als een kaart: mappen als bubbels, notities als nodes, relaties als gelabelde edges — inclusief een opruimmodus en tijdreis. Details: [Graaf](Graph.md).
+
+## Geheugen van de rechterzijbalk
+
+Lege contextsecties zoals **Overzicht**, **Backlinks** en **Eigenschappen** sluiten zonder hun globale voorkeur te overschrijven. De hele rechterzijbalk onthoudt één globale voorkeur voor notities; weergaven zonder notitiecontext sluiten hem alleen tijdelijk.

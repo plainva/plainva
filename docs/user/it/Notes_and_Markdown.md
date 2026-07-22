@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-07-18
+Ultimo aggiornamento: 2026-07-22
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -136,3 +136,9 @@ Tutto resta Markdown standard con frontmatter standard. Obsidian apre i file com
 - [Database (.base)](Databases_Base.md) — le note come tabella, bacheca o calendario
 - [OKF](OKF.md) — cosa significano `type` e `okf_version`
 - [Ricerca](Search.md) e [Scorciatoie da tastiera](Keyboard_Shortcuts.md)
+
+## Formattare una selezione
+
+Quando una selezione include più righe, **grassetto**, *corsivo*, barrato, evidenziazione e codice in linea vengono applicati separatamente a ogni riga non vuota. I prefissi di elenco, citazione, titolo e attività restano fuori dai marcatori. I link restano su una riga perché un’etichetta multiriga non è Markdown portabile.
+
+Un titolo ATX e un’attività GFM sono tipi di blocco alternativi. Plainva non scrive combinazioni non valide. La formattazione in linea funziona in entrambi; usa `- [ ] **Attività importante**` per evidenziare il titolo.

@@ -36,7 +36,6 @@ import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { NoteScreen } from "./screens/NoteScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { TodayScreen } from "./screens/TodayScreen";
-import { CalendarScreen } from "./screens/CalendarScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
@@ -47,6 +46,7 @@ import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import {
+  activeFolderPath,
   backStep,
   barTabs,
   initialNavState,
@@ -55,6 +55,7 @@ import {
   pushCapturedNote,
   pushEntry,
   sanitizeTabSlots,
+  showsCaptureFab,
   tapTab,
   TAB_POOL,
   type NavEntry,
@@ -83,7 +84,7 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   today: { kind: "today", path: "" },
   tags: { kind: "tags", path: "" },
   bookmarks: { kind: "bookmarks", path: "" },
-  calendar: { kind: "calendar", path: "" },
+  calendar: { kind: "pimcalendar", path: "" },
   databases: { kind: "databases", path: "" },
   graph: { kind: "graphmap", path: "" },
 };
@@ -308,8 +309,7 @@ export default function App() {
 
   /** The folder the user is looking at (capture + new-folder context). */
   const browseFolder = () => {
-    const notesTop = nav.stacks.notes[nav.stacks.notes.length - 1];
-    return nav.activeTab === "notes" && notesTop?.kind === "folder" ? notesTop.path : "";
+    return activeFolderPath(nav);
   };
 
   const capture = () => {
@@ -676,8 +676,6 @@ export default function App() {
           />
         ) : top?.kind === "today" ? (
           <TodayScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "calendar" ? (
-          <CalendarScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenPim={() => push({ kind: "pimcalendar", path: "" })} vault={vault} />
         ) : top?.kind === "pimcalendar" ? (
           <PimCalendarScreen bump={bump} onBack={pop} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
         ) : top?.kind === "pimaccounts" ? (
@@ -694,6 +692,7 @@ export default function App() {
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenNote={openNote}
+            onOpenSettings={() => push({ kind: "settings", path: "" })}
             vault={vault}
           />
         ) : nav.activeTab === "notes" ? (
@@ -703,6 +702,7 @@ export default function App() {
             onOpenBase={openBase}
             onOpenFolder={(path) => push({ kind: "folder", path })}
             onOpenNote={openNote}
+            onOpenSettings={() => push({ kind: "settings", path: "" })}
             vault={vault}
           />
         ) : nav.activeTab === "today" ? (
@@ -718,7 +718,7 @@ export default function App() {
         ) : nav.activeTab === "bookmarks" ? (
           <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "calendar" ? (
-          <CalendarScreen bump={bump} onOpenDate={openDaily} onOpenPim={() => push({ kind: "pimcalendar", path: "" })} vault={vault} />
+          <PimCalendarScreen bump={bump} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
         ) : nav.activeTab === "graph" ? (
           <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : (
@@ -726,10 +726,9 @@ export default function App() {
         )}
       </div>
 
-      {/* Capture floats as a FAB above the bar (redesign P3: the bar's center
-          slot went to the fixed More tab). Only on tab roots — pushed screens
-          (note editor, bases with their own FAB) keep their surface clean. */}
-      {onboarded && !top && (
+      {/* Capture floats above the bar on tab roots and folder screens. Editors
+          and other pushed surfaces keep their own actions and stay uncluttered. */}
+      {onboarded && showsCaptureFab(top) && (
         <button
           aria-label={t("mobile.newNote")}
           className="pv-fab m-fab-float m-fab-float--above-tabs"

@@ -502,6 +502,8 @@
     "fmtCode": "Inline code",
     "fmtHighlight": "Highlight",
     "fmtLink": "Link",
+    "fmtMultilineLink": "Links can only be created within one line.",
+    "blockFormatConflict": "A line cannot be both a heading and a task. Use bold for a prominent task title.",
     "tagCount": "{{count}}×",
     "atSecBases": "Databases",
     "atNewBase": "Embed a new database",
@@ -570,7 +572,12 @@
     "unknownError": "Unknown error occurred.",
     "errorHint": "Common causes: a temporary network problem or a timeout — those usually clear up on their own, and Plainva retries automatically. Or the sign-in has expired or the credentials changed (e.g. with Google Drive) — then you can reconnect in the sync settings.",
     "conflictCopies": "Conflict copies found:",
-    "openSettings": "Open sync settings"
+    "openSettings": "Open sync settings",
+    "retryNow": "Try again now",
+    "recovered": "The synchronization succeeded on the next attempt.",
+    "retrying": "Plainva is trying the synchronization again…",
+    "authErrorHint": "The sign-in expired or was revoked. Reconnect in the sync settings.",
+    "transientErrorHint": "This was probably a temporary network or provider problem. Plainva retries such errors automatically."
   },
   "sidebar": {
     "files": "Files",
@@ -1804,6 +1811,10 @@
     "editNote": "Edit",
     "doneEditing": "Done",
     "editToolbar": "Formatting",
+    "photoSource": "Add photo",
+    "takePhoto": "Take photo",
+    "choosePhoto": "Choose from library",
+    "photoInsertFailed": "The photo could not be added: {{error}}",
     "sheetOpen": "Open",
     "renamePrompt": "New name",
     "deleteNote": "Delete note",

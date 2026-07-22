@@ -28,7 +28,9 @@ const listeners = new Set<() => void>();
 export interface SyncErrorEntry {
   ts: number;
   message: string;
+  provider: SyncProviderId | null;
 }
+export type SyncErrorSnapshot = SyncErrorEntry;
 const MAX_ERROR_HISTORY = 20;
 const errorHistory: SyncErrorEntry[] = [];
 
@@ -45,7 +47,7 @@ export const syncStatusStore = {
     snapshot = { ...snapshot, ...next };
     // Record each error TRANSITION (not every repeated error tick).
     if (snapshot.status === "error" && snapshot.message && snapshot.message !== (wasError || null)) {
-      errorHistory.push({ ts: Date.now(), message: snapshot.message });
+      errorHistory.push({ ts: Date.now(), message: snapshot.message, provider: snapshot.provider });
       if (errorHistory.length > MAX_ERROR_HISTORY) errorHistory.splice(0, errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", snapshot.message);
     }
@@ -53,6 +55,9 @@ export const syncStatusStore = {
   },
   getErrorHistory(): readonly SyncErrorEntry[] {
     return errorHistory;
+  },
+  getLatestError(): SyncErrorEntry | null {
+    return errorHistory[errorHistory.length - 1] ?? null;
   },
   reset() {
     // Also clear the error history: it is a global module-level list, so without
@@ -70,6 +75,22 @@ export const syncStatusStore = {
     };
   },
 };
+
+/** Captures the failed attempt before an automatic retry changes live status. */
+export function captureSyncErrorSnapshot(): SyncErrorSnapshot | null {
+  const current = syncStatusStore.get();
+  if (current.status === "error" && current.message) {
+    const latest = syncStatusStore.getLatestError();
+    if (latest?.message === current.message && latest.provider === current.provider) return latest;
+    return { ts: Date.now(), message: current.message, provider: current.provider };
+  }
+  return syncStatusStore.getLatestError();
+}
+
+/** Authentication failures are the only errors for which reconnect is useful. */
+export function isSyncAuthenticationError(message: string): boolean {
+  return /(?:\b401\b|unauthori[sz]ed|invalid[_ -]?grant|invalid[_ -]?token|token.*(?:expired|revoked)|refresh token|authentication|authentifizierung|anmeldung.*abgelaufen)/i.test(message);
+}
 
 export function useSyncStatus(): SyncStatusSnapshot {
   return useSyncExternalStore(syncStatusStore.subscribe, syncStatusStore.get);

@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-07-21
+Última actualización: 2026-07-22
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -98,3 +98,7 @@ Abre **Ajustes → Sincronización → Frase de contraseña de sincronización y
 La clave desbloqueada se guarda en caché en cada dispositivo. Activa **Requerir frase de contraseña en cada inicio** para volver a introducirla después de cada reinicio en su lugar, y usa **Bloquear** para eliminar la clave en caché de este dispositivo.
 
 **Sincronizar ajustes** transfiere los ajustes compartidos del vault y los metadatos de las cuentas; las rutas locales, el diseño y los datos de ejecución siguen siendo propios de cada dispositivo. **Sincronizar secretos de cuentas** es una opción independiente para contraseñas de aplicación y credenciales BYO permitidas; los tokens OAuth nunca se comparten. El estado de cifrado guía por **Preparación**, **Migración**, **Estricto**, **Descifrado** y **Rotación de clave**. Los dispositivos móviles pueden desbloquear el mismo vault cifrado con su frase de contraseña.
+
+## Errores y reintento automático
+
+El diálogo conserva el intento fallido exacto aunque un reintento automático ya haya cambiado el estado en vivo. Indica si el reintento está en curso o ha funcionado. Solo recomienda volver a conectar ante un error de autenticación; los errores de red, tiempo de espera y proveedor conservan sus detalles y se reintentan automáticamente.

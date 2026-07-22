@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-21
+Stan na: 2026-07-22
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -98,3 +98,7 @@ Otwórz **Ustawienia → Synchronizacja → Hasło synchronizacji i szyfrowanie*
 Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzeniu. Włącz **Wymagaj hasła przy każdym uruchomieniu**, aby zamiast tego wpisywać je ponownie po każdym restarcie, oraz użyj **Zablokuj**, aby usunąć zapamiętany klucz z tego urządzenia.
 
 **Synchronizuj ustawienia** przesyła wspólne ustawienia vaulta i metadane kont; lokalne ścieżki, układ i dane uruchomieniowe pozostają zależne od urządzenia. **Synchronizuj sekrety kont** to osobna opcja dla dozwolonych statycznych haseł aplikacji i danych BYO; tokeny OAuth nigdy nie są udostępniane. Stan szyfrowania prowadzi przez **Przygotowanie**, **Migrację**, **Tryb ścisły**, **Odszyfrowywanie** i **Rotację klucza**. Urządzenia mobilne mogą odblokować ten sam zaszyfrowany vault hasłem.
+
+## Błędy i automatyczne ponawianie
+
+Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna próba zmieniła już stan na żywo. Pokazuje, czy próba trwa lub się powiodła. Ponowne połączenie jest zalecane tylko przy błędzie uwierzytelniania; błędy sieci, limitu czasu i dostawcy zachowują szczegóły i są automatycznie ponawiane.

@@ -487,6 +487,8 @@
     "fmtCode": "Codice in linea",
     "fmtHighlight": "Evidenziazione",
     "fmtLink": "Link",
+    "fmtMultilineLink": "I link possono essere creati solo all'interno di una riga.",
+    "blockFormatConflict": "Una riga non può essere contemporaneamente titolo e attività. Usa il grassetto per evidenziare il titolo dell'attività.",
     "tagCount": "{{count}}×",
     "atSecBases": "Database",
     "atNewBase": "Incorpora un nuovo database",
@@ -555,7 +557,12 @@
     "unknownError": "Si è verificato un errore sconosciuto.",
     "errorHint": "Cause frequenti: un problema di rete temporaneo o un timeout — di solito si risolvono da soli, e Plainva riprova automaticamente. Oppure l'accesso è scaduto o le credenziali sono cambiate (ad es. con Google Drive) — in tal caso puoi riconnetterti nelle impostazioni di sincronizzazione.",
     "conflictCopies": "Copie di conflitto trovate:",
-    "openSettings": "Apri le impostazioni di sincronizzazione"
+    "openSettings": "Apri le impostazioni di sincronizzazione",
+    "retryNow": "Riprova ora",
+    "recovered": "La sincronizzazione è riuscita al tentativo successivo.",
+    "retrying": "Plainva sta riprovando la sincronizzazione…",
+    "authErrorHint": "L'accesso è scaduto o è stato revocato. Riconnettiti nelle impostazioni di sincronizzazione.",
+    "transientErrorHint": "Probabilmente si è verificato un problema temporaneo di rete o del provider. Plainva riprova automaticamente."
   },
   "sidebar": {
     "files": "File",
@@ -1795,6 +1802,10 @@
     "editNote": "Modifica",
     "doneEditing": "Fine",
     "editToolbar": "Formattazione",
+    "photoSource": "Aggiungi foto",
+    "takePhoto": "Scatta una foto",
+    "choosePhoto": "Scegli dalla libreria",
+    "photoInsertFailed": "Impossibile aggiungere la foto: {{error}}",
     "sheetOpen": "Apri",
     "renamePrompt": "Nuovo nome",
     "deleteNote": "Elimina nota",

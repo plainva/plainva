@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-07-18
+Stand: 2026-07-22
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -136,3 +136,9 @@ Alles bleibt Standard-Markdown mit Standard-Frontmatter. Obsidian öffnet die Da
 - [Datenbanken (.base)](Databases_Base.md) — Notizen als Tabelle, Board oder Kalender
 - [OKF](OKF.md) — was `type` und `okf_version` bedeuten
 - [Suche](Search.md) und [Tastenkürzel](Keyboard_Shortcuts.md)
+
+## Auswahl formatieren
+
+Erstreckt sich eine Auswahl über mehrere Zeilen, werden **Fett**, *Kursiv*, Durchgestrichen, Hervorhebung und Inline-Code getrennt auf jede nichtleere Zeile angewandt. Listen-, Zitat-, Überschriften- und Aufgabenpräfixe bleiben außerhalb der Inline-Markierungen. Links bleiben einzeilig, weil ein mehrzeiliger Linktext kein portables Markdown ist.
+
+Eine ATX-Überschrift und eine GFM-Aufgabe sind alternative Blocktypen. Plainva schreibt deshalb keine fehlerhafte Mischform. Inline-Formatierungen funktionieren in beiden Blöcken vollständig; nutze `- [ ] **Wichtige Aufgabe**` für einen hervorgehobenen Aufgabentitel.

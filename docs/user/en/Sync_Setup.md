@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last reviewed: 2026-07-21
+Last updated: 2026-07-22
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -98,3 +98,7 @@ Open **Settings → Synchronisation → Sync passphrase & encryption**:
 The unlocked key is cached on each device. Turn on **Require passphrase at every start** to re-enter it after each restart instead, and use **Lock** to remove the cached key from this device.
 
 **Sync settings** transfers the shared vault settings and account metadata; local paths, layout and runtime data stay device-specific. **Sync account secrets** is a separate opt-in for allowlisted static app passwords and BYO credentials—OAuth tokens are never shared. The encryption status leads through **Preparing**, **Migration**, **Strict**, **Decrypting** and **Key rotation**; a rotation only finishes after every remote file has been verified. Mobile devices can unlock the same encrypted vault with its passphrase.
+
+## Errors and automatic retries
+
+The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically.

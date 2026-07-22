@@ -1,6 +1,6 @@
 # Tasks
 
-Last reviewed: 2026-07-17
+Last updated: 2026-07-22
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -82,3 +82,7 @@ Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds
 - [Notes & Markdown](Notes_and_Markdown.md) — writing task lists in the editor
 - [Search](Search.md) — full-text search across the vault
 - [Databases (.base)](Databases_Base.md) — note-level databases
+
+## Completing a task from the overview
+
+Checking a task in the overview writes the checkbox to its source note and refreshes that note in the search index before querying the list again. The task leaves **Open** immediately and cannot reappear from a stale index.

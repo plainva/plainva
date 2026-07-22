@@ -8,6 +8,19 @@ import { isTextFile } from "./fileType.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 
+/** Never let an empty WebView/native rejection degrade into a blank dialog. */
+export function syncErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (error && typeof error === "object") {
+    const code = String((error as { code?: unknown }).code ?? "").trim();
+    const message = String((error as { message?: unknown }).message ?? "").trim();
+    if (code && message) return `${code}: ${message}`;
+    if (message || code) return message || code;
+  }
+  return "Sync failed without error details; Plainva will retry automatically.";
+}
+
 /**
  * Optional settings-sync hook. `run` is the profile/secrets sideband, executed
  * once per cycle after the file push (it transports `.plainva/sync/*` outside the
@@ -1253,7 +1266,7 @@ export class SyncWorker {
       this.cursor = undefined;
       console.error("[SyncWorker] cycle error:", error);
       this.onProgress?.(null);
-      this.setStatus("error", error instanceof Error ? error.message : String(error));
+      this.setStatus("error", syncErrorMessage(error));
     } finally {
       // Loss-proofing: report files already written this cycle even when the cycle
       // aborted (error, breaker or stop()) — their sync_state has already advanced,

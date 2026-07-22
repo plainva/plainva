@@ -43,6 +43,20 @@ describe("editor formatting shortcuts (keyboard rollout)", () => {
     expect(run("hi", { anchor: 0, head: 2 }, (v) => toggleInlineMark(v, "==")).text).toBe("==hi==");
   });
 
+  it("formats every selected Markdown line while preserving block prefixes", () => {
+    const source = "## Release\n- [ ] Ship it\n> quoted";
+    const wrapped = run(source, { anchor: 0, head: source.length }, (v) => toggleInlineMark(v, "**"));
+    expect(wrapped.text).toBe("## **Release**\n- [ ] **Ship it**\n> **quoted**");
+    const unwrapped = run(wrapped.text, { anchor: 0, head: wrapped.text.length }, (v) => toggleInlineMark(v, "**"));
+    expect(unwrapped.text).toBe(source);
+  });
+
+  it("fills only missing marks in a mixed multi-line selection", () => {
+    const source = "**already**\nplain";
+    expect(run(source, { anchor: 0, head: source.length }, (v) => toggleInlineMark(v, "**")).text)
+      .toBe("**already**\n**plain**");
+  });
+
   it("insert link wraps the selection and parks the caret inside the parens (Mod+K)", () => {
     const r = run("foo", { anchor: 0, head: 3 }, (v) => insertMarkdownLink(v));
     expect(r.text).toBe("[foo]()");
@@ -55,6 +69,7 @@ describe("editor formatting shortcuts (keyboard rollout)", () => {
     expect(atCursor("foo", 0, (v) => setHeadingLevel(v, 2)).text).toBe("## foo");
     expect(atCursor("## foo", 1, (v) => setHeadingLevel(v, 1)).text).toBe("# foo");
     expect(atCursor("### foo", 0, (v) => setHeadingLevel(v, 0)).text).toBe("foo");
+    expect(atCursor("- [ ] foo", 0, (v) => setHeadingLevel(v, 2)).text).toBe("- [ ] foo");
   });
 
   it("toggles the task checkbox on the current line (Mod+Enter)", () => {
@@ -63,5 +78,6 @@ describe("editor formatting shortcuts (keyboard rollout)", () => {
     expect(atCursor("- [x] foo", 0, (v) => toggleTaskLine(v)).text).toBe("- [ ] foo");
     // A bare bullet becomes a task without duplicating the marker.
     expect(atCursor("- foo", 0, (v) => toggleTaskLine(v)).text).toBe("- [ ] foo");
+    expect(atCursor("## foo", 0, (v) => toggleTaskLine(v)).text).toBe("## foo");
   });
 });

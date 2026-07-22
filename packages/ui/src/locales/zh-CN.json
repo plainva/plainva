@@ -487,6 +487,8 @@
     "fmtCode": "行内代码",
     "fmtHighlight": "高亮",
     "fmtLink": "链接",
+    "fmtMultilineLink": "链接只能在单行内创建。",
+    "blockFormatConflict": "同一行不能同时是标题和任务。请使用粗体突出任务标题。",
     "tagCount": "{{count}}×",
     "atSecBases": "数据库",
     "atNewBase": "嵌入新数据库",
@@ -555,7 +557,12 @@
     "unknownError": "发生未知错误。",
     "errorHint": "常见原因：临时性的网络问题或超时——这类问题通常会自行消失，Plainva 会自动重试。或者登录已过期，或凭据发生了变化（例如 Google Drive）——这时你可以在同步设置中重新连接。",
     "conflictCopies": "发现的冲突副本：",
-    "openSettings": "打开同步设置"
+    "openSettings": "打开同步设置",
+    "retryNow": "立即重试",
+    "recovered": "同步已在再次尝试时成功。",
+    "retrying": "Plainva 正在重新尝试同步…",
+    "authErrorHint": "登录已过期或被撤销。请在同步设置中重新连接。",
+    "transientErrorHint": "这可能是临时的网络或服务提供商问题。Plainva 会自动重试此类错误。"
   },
   "sidebar": {
     "files": "文件",
@@ -1783,6 +1790,10 @@
     "editNote": "编辑",
     "doneEditing": "完成",
     "editToolbar": "格式",
+    "photoSource": "添加照片",
+    "takePhoto": "拍摄照片",
+    "choosePhoto": "从照片库选择",
+    "photoInsertFailed": "无法添加照片：{{error}}",
     "sheetOpen": "打开",
     "renamePrompt": "新名称",
     "deleteNote": "删除笔记",

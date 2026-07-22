@@ -41,6 +41,8 @@
 	<string>Plainva uses the camera so you can take a photo and add it to a note.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Plainva accesses your photo library so you can add a picture to a note.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Plainva can save a photo when you add it to a note.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

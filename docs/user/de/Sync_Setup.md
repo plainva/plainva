@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-21
+Stand: 2026-07-22
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -98,3 +98,7 @@ Plainva kann verschlüsseln, was Deinen Rechner in Richtung Sync-Server verläss
 Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **Passphrase bei jedem Start verlangen** ein, um sie stattdessen nach jedem Neustart erneut einzugeben, und nutze **Sperren**, um den zwischengespeicherten Schlüssel auf diesem Gerät zu entfernen.
 
 **Einstellungen synchronisieren** überträgt die freigegebenen Vault-Einstellungen und Kontometadaten; lokale Pfade, Layout und Laufzeitdaten bleiben gerätebezogen. **Anmeldegeheimnisse synchronisieren** ist eine getrennte Option für erlaubte statische App-Passwörter und BYO-Zugangsdaten – OAuth-Tokens werden nie geteilt. Die Verschlüsselungsanzeige führt durch **Vorbereiten**, **Migration**, **Strikt**, **Entschlüsseln** und **Schlüsselwechsel**; ein Wechsel wird erst nach Prüfung aller Remote-Dateien abgeschlossen. Auf Mobilgeräten kann derselbe verschlüsselte Vault per Passphrase entsperrt werden.
+
+## Fehler und automatische Wiederholung
+
+Der Sync-Fehlerdialog bewahrt den genauen fehlgeschlagenen Versuch, auch wenn ein automatischer Retry den Live-Status bereits verändert hat. Er zeigt an, wenn der erneute Versuch läuft oder erfolgreich war. Eine neue Anmeldung wird nur bei einem Authentifizierungsfehler empfohlen; Netzwerk-, Timeout- und Providerfehler behalten ihre konkrete Ursache und werden automatisch erneut versucht.

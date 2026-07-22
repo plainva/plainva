@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-07-21
+Última revisão: 2026-07-22
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -40,3 +40,11 @@ Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha
 ## Compartilhamento e atalhos
 
 No Android e iOS, texto e URLs compartilhados viram uma nova nota na pasta de entrada; imagens e arquivos são importados como anexos (até 25 MB por arquivo). No Android, toque e segure o ícone para os atalhos adicionais **Nova nota** e **Hoje**. A página do vault permite ativar **Sincronizar configurações** e desbloquear ou bloquear com segurança um vault criptografado usando a senha.
+
+## Pastas, fotos e calendário
+
+O botão flutuante **Mais** continua disponível em pastas aninhadas e cada ação cria na pasta aberta. No cabeçalho, o **menu de três pontos** abre as configurações; novas pastas são criadas pelo botão **Mais**.
+
+O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo.
+
+**Calendário** abre diretamente o calendário do provedor conectado. As notas diárias permanecem em **Hoje**; a antiga tela mensal intermediária foi removida sem alterar dados existentes.

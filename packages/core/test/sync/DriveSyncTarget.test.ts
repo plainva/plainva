@@ -491,7 +491,31 @@ describe("DriveSyncTarget", () => {
 
     it("throws on a failed listing", async () => {
       const { target } = makeTarget(async () => res({ error: { message: "nope" } }, { status: 403 }));
-      await expect(target.listFolders("")).rejects.toThrow("Drive folder listing failed: 403");
+      await expect(target.listFolders("")).rejects.toThrow("Google Drive folder listing failed (HTTP 403): nope");
+    });
+  });
+
+  describe("actionable failures", () => {
+    it("uses an HTTP fallback when Drive returns no status text or API body", async () => {
+      const { target } = makeTarget(async () => res({}, { status: 503 }));
+      await expect(target.pull()).rejects.toThrow(
+        "Google Drive folder lookup failed (HTTP 503): no error details returned by Google Drive",
+      );
+    });
+
+    it("turns an empty AbortError into a readable timeout", async () => {
+      const fetchFn = vi.fn<FetchFn>(async () => Promise.reject({ name: "AbortError", message: "" }));
+      const target = new DriveSyncTarget(
+        { clientId: "cid", clientSecret: "secret", refreshToken: "rtok", accessToken: "atok" },
+        fetchFn,
+        1_000,
+      );
+      await expect(
+        (target as unknown as { request(method: string, url: string): Promise<Response> }).request(
+          "GET",
+          "https://example.test/timeout",
+        ),
+      ).rejects.toThrow("Google Drive request timed out after 1s");
     });
   });
 

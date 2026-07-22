@@ -487,6 +487,8 @@
     "fmtCode": "Código inline",
     "fmtHighlight": "Destaque",
     "fmtLink": "Link",
+    "fmtMultilineLink": "Links só podem ser criados dentro de uma linha.",
+    "blockFormatConflict": "Uma linha não pode ser título e tarefa ao mesmo tempo. Use negrito para destacar o título da tarefa.",
     "tagCount": "{{count}}×",
     "atSecBases": "Bancos de dados",
     "atNewBase": "Incorporar novo banco de dados",
@@ -555,7 +557,12 @@
     "unknownError": "Ocorreu um erro desconhecido.",
     "errorHint": "Causas comuns: um problema temporário de rede ou um tempo limite excedido — geralmente se resolvem sozinhos, e o Plainva tenta novamente de forma automática. Ou o login expirou, ou as credenciais mudaram (p. ex. no Google Drive) — nesse caso, você pode reconectar nas configurações de sincronização.",
     "conflictCopies": "Cópias de conflito encontradas:",
-    "openSettings": "Abrir configurações de sincronização"
+    "openSettings": "Abrir configurações de sincronização",
+    "retryNow": "Tentar novamente agora",
+    "recovered": "A sincronização foi concluída na nova tentativa.",
+    "retrying": "O Plainva está tentando sincronizar novamente…",
+    "authErrorHint": "O login expirou ou foi revogado. Reconecte nas configurações de sincronização.",
+    "transientErrorHint": "Provavelmente foi um problema temporário de rede ou do provedor. O Plainva tenta novamente automaticamente."
   },
   "sidebar": {
     "files": "Arquivos",
@@ -1795,6 +1802,10 @@
     "editNote": "Editar",
     "doneEditing": "Concluído",
     "editToolbar": "Formatação",
+    "photoSource": "Adicionar foto",
+    "takePhoto": "Tirar foto",
+    "choosePhoto": "Escolher da galeria",
+    "photoInsertFailed": "Não foi possível adicionar a foto: {{error}}",
     "sheetOpen": "Abrir",
     "renamePrompt": "Novo nome",
     "deleteNote": "Excluir nota",

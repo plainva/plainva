@@ -489,6 +489,8 @@
     "fmtCode": "Código en línea",
     "fmtHighlight": "Resaltado",
     "fmtLink": "Enlace",
+    "fmtMultilineLink": "Los enlaces solo se pueden crear dentro de una línea.",
+    "blockFormatConflict": "Una línea no puede ser a la vez un encabezado y una tarea. Usa negrita para destacar el título de una tarea.",
     "tagCount": "{{count}}×",
     "atSecBases": "Bases de datos",
     "atNewBase": "Incrustar una nueva base de datos",
@@ -557,7 +559,12 @@
     "unknownError": "Se produjo un error desconocido.",
     "errorHint": "Causas habituales: un problema de red temporal o un tiempo de espera agotado — suelen resolverse solos, y Plainva vuelve a intentarlo automáticamente. O la sesión ha caducado o las credenciales han cambiado (p. ej. con Google Drive) — entonces puedes volver a conectar en la configuración de sincronización.",
     "conflictCopies": "Copias de conflicto encontradas:",
-    "openSettings": "Abrir configuración de sincronización"
+    "openSettings": "Abrir configuración de sincronización",
+    "retryNow": "Reintentar ahora",
+    "recovered": "La sincronización se completó en el siguiente intento.",
+    "retrying": "Plainva está reintentando la sincronización…",
+    "authErrorHint": "El inicio de sesión caducó o fue revocado. Vuelve a conectar desde los ajustes de sincronización.",
+    "transientErrorHint": "Probablemente fue un problema temporal de red o del proveedor. Plainva reintenta estos errores automáticamente."
   },
   "sidebar": {
     "files": "Archivos",
@@ -1797,6 +1804,10 @@
     "editNote": "Editar",
     "doneEditing": "Listo",
     "editToolbar": "Formato",
+    "photoSource": "Añadir foto",
+    "takePhoto": "Hacer una foto",
+    "choosePhoto": "Elegir de la fototeca",
+    "photoInsertFailed": "No se pudo añadir la foto: {{error}}",
     "sheetOpen": "Abrir",
     "renamePrompt": "Nuevo nombre",
     "deleteNote": "Eliminar nota",

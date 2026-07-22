@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-07-17
+Dernière mise à jour : 2026-07-22
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -82,3 +82,7 @@ Les tâches sont des cases à cocher GFM (GitHub-Flavored Markdown) ordinaires. 
 - [Notes & Markdown](Notes_and_Markdown.md) — écrire des listes de tâches dans l'éditeur
 - [Recherche](Search.md) — recherche en texte intégral dans tout le vault
 - [Bases de données (.base)](Databases_Base.md) — bases de données au niveau des notes
+
+## Terminer depuis la vue d’ensemble
+
+Cocher une tâche dans la vue d’ensemble écrit la case dans la note source et actualise cette note dans l’index de recherche avant de relire la liste. La tâche quitte donc immédiatement **Ouvert** sans réapparaître depuis un ancien index.

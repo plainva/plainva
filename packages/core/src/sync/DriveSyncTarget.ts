@@ -70,6 +70,12 @@ async function errorReason(res: Response): Promise<string> {
   }
 }
 
+async function driveResponseError(operation: string, res: Response): Promise<Error> {
+  const reason = (await errorReason(res)).trim();
+  const detail = reason || res.statusText.trim() || "no error details returned by Google Drive";
+  return new Error(`Google Drive ${operation} failed (HTTP ${res.status}): ${detail}`);
+}
+
 /**
  * Google Drive implementation of {@link ISyncTarget} (phase 5.1 group A, A4).
  *
@@ -215,7 +221,7 @@ export class DriveSyncTarget implements ISyncTarget {
       "read" // token POST is idempotent for a non-rotating Google refresh token
     );
     if (!res.ok) {
-      throw new Error(`Drive token refresh failed: ${res.status} ${res.statusText}`);
+      throw await driveResponseError("token refresh", res);
     }
     const json = (await res.json()) as { access_token: string; expires_in?: number };
     this.accessToken = json.access_token;
@@ -261,7 +267,7 @@ export class DriveSyncTarget implements ISyncTarget {
       let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent("nextPageToken, files(name)")}&pageSize=1000`;
       if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
       const res = await this.authedFetch("GET", url);
-      if (!res.ok) throw new Error(`Drive folder listing failed: ${res.status} ${await errorReason(res)}`);
+      if (!res.ok) throw await driveResponseError("folder listing", res);
       const json = (await res.json()) as { files?: { name: string }[]; nextPageToken?: string };
       for (const f of json.files ?? []) names.push(f.name);
       pageToken = json.nextPageToken || undefined;
@@ -285,7 +291,7 @@ export class DriveSyncTarget implements ISyncTarget {
     const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
     const listUrl = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`;
     const res = await this.authedFetch("GET", listUrl);
-    if (!res.ok) throw new Error(`Drive folder lookup failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await driveResponseError("folder lookup", res);
     const json = (await res.json()) as { files: DriveFile[] };
     return json.files && json.files.length > 0 ? json.files[0].id : null;
   }
@@ -299,7 +305,7 @@ export class DriveSyncTarget implements ISyncTarget {
       body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }),
     });
     if (!createRes.ok)
-      throw new Error(`Drive folder create failed: ${createRes.status} ${createRes.statusText}`);
+      throw await driveResponseError("folder creation", createRes);
     const created = (await createRes.json()) as DriveFile;
     return created.id;
   }
@@ -394,7 +400,7 @@ export class DriveSyncTarget implements ISyncTarget {
     const q = `name='${name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
     const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)`;
     const res = await this.authedFetch("GET", url);
-    if (!res.ok) throw new Error(`Drive file lookup failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await driveResponseError("file lookup", res);
     const json = (await res.json()) as { files: DriveFile[] };
     if (json.files && json.files.length > 0) {
       this.cachePath(filePath, json.files[0].id);
@@ -437,7 +443,7 @@ export class DriveSyncTarget implements ISyncTarget {
           this.cachePath(op.file_path, f.id);
           return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
         }
-        if (res.status !== 404) throw new Error(`Drive update failed: ${res.status} ${res.statusText}`);
+        if (res.status !== 404) throw await driveResponseError("file update", res);
         // 404: the cached id is stale (file removed/moved on the remote). Drop it and fall
         // through to create a fresh file at this path.
         this.uncachePath(op.file_path);
@@ -453,7 +459,7 @@ export class DriveSyncTarget implements ISyncTarget {
         `${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,md5Checksum,modifiedTime`,
         { headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: body as any as BodyInit }
       );
-      if (!res.ok) throw new Error(`Drive create failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw await driveResponseError("file creation", res);
       const f = (await res.json()) as DriveFile;
       this.cachePath(op.file_path, f.id);
       return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
@@ -464,7 +470,7 @@ export class DriveSyncTarget implements ISyncTarget {
       if (!id) return;
       const res = await this.authedFetch("DELETE", `${DRIVE_API}/files/${id}`);
       if (!res.ok && res.status !== 404)
-        throw new Error(`Drive delete failed: ${res.status} ${res.statusText}`);
+        throw await driveResponseError("file deletion", res);
       this.uncachePath(op.file_path);
       return;
     }
@@ -491,7 +497,7 @@ export class DriveSyncTarget implements ISyncTarget {
         body: JSON.stringify(metadata),
       });
       if (!res.ok && res.status !== 404)
-        throw new Error(`Drive rename failed: ${res.status} ${res.statusText}`);
+        throw await driveResponseError("file rename", res);
       this.uncachePath(op.file_path);
       if (res.ok) {
         const f = (await res.json()) as DriveFile;
@@ -546,7 +552,7 @@ export class DriveSyncTarget implements ISyncTarget {
       });
       if (pageToken) params.set("pageToken", pageToken);
       const res = await this.authedFetch("GET", `${DRIVE_API}/files?${params.toString()}`);
-      if (!res.ok) throw new Error(`Drive list failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw await driveResponseError("folder listing", res);
       const json = (await res.json()) as { files: DriveFile[]; nextPageToken?: string };
       for (const f of json.files || []) {
         const path = prefix ? `${prefix}/${f.name}` : f.name;
@@ -595,7 +601,7 @@ export class DriveSyncTarget implements ISyncTarget {
           "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,md5Checksum,modifiedTime,mimeType,trashed,parents))",
       });
       const res = await this.authedFetch("GET", `${DRIVE_API}/changes?${params.toString()}`);
-      if (!res.ok) throw new Error(`Drive changes.list failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) throw await driveResponseError("changes listing", res);
       const json = (await res.json()) as {
         changes?: { fileId: string; removed?: boolean; file?: DriveFile }[];
         nextPageToken?: string;
@@ -717,7 +723,7 @@ export class DriveSyncTarget implements ISyncTarget {
       console.warn(`[Drive] skipping download of ${filePath}: 403 ${reason}`);
       return null;
     }
-    if (!res.ok) throw new Error(`Drive download failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await driveResponseError("download", res);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
   }
@@ -734,7 +740,7 @@ export class DriveSyncTarget implements ISyncTarget {
     if (!id) return null;
     const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=md5Checksum,modifiedTime`);
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`Drive metadata failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await driveResponseError("metadata lookup", res);
     const f = (await res.json()) as DriveFile;
     return f.md5Checksum || f.modifiedTime || null;
   }
@@ -743,7 +749,7 @@ export class DriveSyncTarget implements ISyncTarget {
   public async getStartCursor(): Promise<string> {
     const res = await this.authedFetch("GET", `${DRIVE_API}/changes/startPageToken`);
     if (!res.ok)
-      throw new Error(`Drive getStartPageToken failed: ${res.status} ${res.statusText}`);
+      throw await driveResponseError("start-page-token lookup", res);
     const json = (await res.json()) as { startPageToken: string };
     return json.startPageToken;
   }

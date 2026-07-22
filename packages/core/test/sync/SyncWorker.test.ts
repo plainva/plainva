@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths } from "../../src/sync/SyncWorker.js";
+import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, syncErrorMessage } from "../../src/sync/SyncWorker.js";
+
+describe("syncErrorMessage", () => {
+  it("normalizes empty native/WebView rejections", () => {
+    expect(syncErrorMessage(new Error(""))).toContain("without error details");
+    expect(syncErrorMessage({ code: "OS-NET-1", message: "offline" })).toBe("OS-NET-1: offline");
+    expect(syncErrorMessage("  timed out  ")).toBe("timed out");
+  });
+});
 
 describe("dropCoveredDeletePaths", () => {
   it("drops children covered by an ancestor and exact duplicates", () => {

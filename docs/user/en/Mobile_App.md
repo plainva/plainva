@@ -1,6 +1,6 @@
 # The mobile app
 
-Last reviewed: 2026-07-21
+Last updated: 2026-07-22
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -40,3 +40,11 @@ Snapshots (version history), a draft journal (after a crash the note offers your
 ## Sharing and shortcuts
 
 On Android and iOS, shared text and URLs become a new note in the inbox folder; shared images and files are imported as attachments (up to 25 MB per file). On Android, press and hold the app icon for the additional **New note** and **Today** shortcuts. The vault page lets you enable **Sync settings** and securely unlock or lock an encrypted vault with its passphrase.
+
+## Folders, photos, and calendar
+
+The floating **Plus** button remains available inside nested folders, and every quick-create action targets the folder currently open. The folder header uses the **three-dot menu** for Settings; folder creation lives in the **Plus** sheet.
+
+The editor photo button now offers **Take photo** or **Choose from library**, preserves the insertion position, and reports permission or file errors visibly.
+
+**Calendar** now opens the connected provider calendar directly. Daily notes remain in their own **Today** view; the former local month intermediary was removed without changing existing notes or calendar data.

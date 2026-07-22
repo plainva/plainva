@@ -2,7 +2,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { syncStatusStore, useDisplaySyncStatus } from "./syncStatusStore";
+import { captureSyncErrorSnapshot, isSyncAuthenticationError, syncStatusStore, useDisplaySyncStatus } from "./syncStatusStore";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -85,5 +85,19 @@ describe("useDisplaySyncStatus", () => {
     // Cycle end clears progress and returns to idle.
     act(() => { syncStatusStore.set({ status: "idle", progress: null }); });
     expect(shown()).toBe("idle:-/-");
+  });
+
+  it("keeps an immutable error snapshot after an automatic retry succeeds", () => {
+    syncStatusStore.set({ status: "error", message: "Google Drive request timed out after 30s", provider: "drive" });
+    const captured = captureSyncErrorSnapshot();
+    syncStatusStore.set({ status: "idle", message: null });
+    expect(captured).toMatchObject({ message: "Google Drive request timed out after 30s", provider: "drive" });
+    expect(captureSyncErrorSnapshot()).toEqual(captured);
+  });
+
+  it("distinguishes authentication failures from transient provider failures", () => {
+    expect(isSyncAuthenticationError("Drive token refresh failed: 401 invalid_grant")).toBe(true);
+    expect(isSyncAuthenticationError("Google Drive request timed out after 30s")).toBe(false);
+    expect(isSyncAuthenticationError("Google Drive list failed (HTTP 503): backendError")).toBe(false);
   });
 });

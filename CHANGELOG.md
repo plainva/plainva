@@ -7,6 +7,23 @@ reaches 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Multi-line selections now apply inline Markdown formatting per logical line,
+  preserving headings, quotes, list markers and task checkboxes. Headings and
+  tasks stay compatible block types instead of producing invalid hybrid syntax.
+- The right sidebar remembers one global note preference while empty contextual
+  sections and full-surface views close only temporarily.
+
+### Fixed
+
+- Checking a task in the Tasks overview now reindexes its source note before the
+  list refreshes, so a completed task no longer disappears briefly and returns.
+- Sync errors keep the original provider failure visible across automatic retries;
+  successful recovery is shown explicitly and reconnect is suggested only for
+  authentication failures. Google Drive HTTP failures now retain API details even
+  when the WebView supplies an empty status text.
+
 ## [0.4.1] — 2026-07-21
 
 Everything since 0.4.0 gathered up: all your cloud logins in one **Cloud accounts**

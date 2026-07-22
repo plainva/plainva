@@ -14,7 +14,7 @@ import {
   FileText,
   Folder,
   FolderInput,
-  FolderPlus,
+  Ellipsis,
   Pencil,
   Trash2,
   CheckSquare,
@@ -51,6 +51,7 @@ export function BrowseScreen({
   onOpenFolder,
   onOpenNote,
   onOpenBase,
+  onOpenSettings,
 }: {
   vault: MobileVault;
   folder: string;
@@ -59,6 +60,7 @@ export function BrowseScreen({
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
+  onOpenSettings?: () => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<
@@ -263,18 +265,6 @@ export function BrowseScreen({
     })();
   };
 
-  const createFolder = () => {
-    void (async () => {
-      const { value, cancelled } = await mPrompt({
-        title: t("mobile.newFolder"),
-        message: t("mobile.newFolderPrompt"),
-      });
-      const trimmed = value?.trim();
-      if (cancelled || !trimmed) return;
-      await vaultOps.createFolder(vault, folder ? `${folder}/${trimmed}` : trimmed);
-    })();
-  };
-
   const renameFolder = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
@@ -353,8 +343,8 @@ export function BrowseScreen({
           </button>
           <h1>{folder.split("/").pop()}</h1>
           <span className="m-headactions">
-            <button aria-label={t("mobile.newFolder")} className="m-iconbtn" onClick={createFolder}>
-              <FolderPlus size={22} />
+            <button aria-label={t("settings.title")} className="m-iconbtn" onClick={onOpenSettings}>
+              <Ellipsis size={22} />
             </button>
           </span>
         </header>

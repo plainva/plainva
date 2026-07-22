@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-07-17
+Stan na: 2026-07-22
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -82,3 +82,7 @@ Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie
 - [Notatki i Markdown](Notes_and_Markdown.md) — pisanie list zadań w edytorze
 - [Wyszukiwanie](Search.md) — wyszukiwanie pełnotekstowe w całym vaulcie
 - [Bazy danych (.base)](Databases_Base.md) — bazy danych na poziomie notatek
+
+## Oznaczanie w przeglądzie
+
+Zaznaczenie zadania w przeglądzie zapisuje pole w notatce źródłowej i odświeża tę notatkę w indeksie przed ponownym odczytem listy. Zadanie natychmiast znika z **Otwarte** i nie wraca z nieaktualnego indeksu.

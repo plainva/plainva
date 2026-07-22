@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-21
+Stan na: 2026-07-22
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -40,3 +40,11 @@ Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje 
 ## Udostępnianie i skróty
 
 Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką w folderze skrzynki; obrazy i pliki są importowane jako załączniki (do 25 MB na plik). Na Androidzie przytrzymaj ikonę aplikacji, aby użyć dodatkowych skrótów **Nowa notatka** i **Dzisiaj**. Strona vaulta pozwala włączyć **Synchronizuj ustawienia** oraz bezpiecznie odblokować lub zablokować zaszyfrowany vault hasłem.
+
+## Foldery, zdjęcia i kalendarz
+
+Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, a każda akcja tworzy w otwartym folderze. W nagłówku **menu z trzema kropkami** otwiera ustawienia; nowe foldery tworzy się przyciskiem **Plus**.
+
+Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku.
+
+**Kalendarz** otwiera bezpośrednio kalendarz połączonego dostawcy. Notatki dzienne pozostają w **Dzisiaj**; dawny lokalny widok miesiąca usunięto bez zmiany istniejących danych.

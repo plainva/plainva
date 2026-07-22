@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-07-17
+Última revisão: 2026-07-22
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -82,3 +82,7 @@ As tarefas são caixas de seleção comuns do GFM (GitHub-Flavored Markdown). O 
 - [Notas & Markdown](Notes_and_Markdown.md) — escrevendo listas de tarefas no editor
 - [Busca](Search.md) — busca de texto completo em todo o vault
 - [Bancos de Dados (.base)](Databases_Base.md) — bancos de dados no nível da nota
+
+## Concluir pela visão geral
+
+Marcar uma tarefa na visão geral grava a caixa na nota de origem e atualiza essa nota no índice antes de consultar a lista novamente. A tarefa sai de **Abertas** imediatamente e não reaparece de um índice antigo.

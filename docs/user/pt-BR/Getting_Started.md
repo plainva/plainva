@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-07-20
+Última revisão: 2026-07-22
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -79,3 +79,7 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 ## O grafo
 
 Por **Ctrl/Cmd+Shift+G** (ou a seção **Grafo** na barra lateral direita) você vê seu vault como um mapa: pastas como bolhas, notas como nós, relações como arestas rotuladas — incluindo um modo de limpeza e viagem no tempo. Detalhes: [Grafo](Graph.md).
+
+## Memória da barra lateral direita
+
+Seções contextuais vazias como **Estrutura**, **Backlinks** e **Propriedades** fecham sem substituir a preferência global. A barra lateral direita inteira também lembra uma preferência global para notas; telas sem contexto de nota a fecham apenas temporariamente.

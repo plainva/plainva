@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-20
+Stan na: 2026-07-22
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -79,3 +79,7 @@ Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą
 ## Graf
 
 Przez **Ctrl/Cmd+Shift+G** (lub sekcję **Graf** w prawym pasku bocznym) widzisz swój sejf jako mapę: foldery jako bąbelki, notatki jako węzły, relacje jako oznaczone etykietami krawędzie — łącznie z trybem porządkowania i podróżą w czasie. Szczegóły: [Graf](Graph.md).
+
+## Pamięć prawego panelu
+
+Puste sekcje kontekstowe, takie jak **Konspekt**, **Linki zwrotne** i **Właściwości**, zamykają się bez nadpisywania globalnej preferencji. Cały prawy panel pamięta jedną globalną preferencję dla notatek; widoki bez kontekstu notatki zamykają go tylko tymczasowo.

@@ -46,6 +46,7 @@ import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
+import { toggleInlineMark } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
@@ -906,6 +907,11 @@ export const Editor: React.FC<{
     if (sel.empty) return;
     const text = view.state.sliceDoc(sel.from, sel.to);
     if (action === "link") {
+      if (/\r?\n/.test(text)) {
+        toast.info(t("editor.fmtMultilineLink", { defaultValue: "Links können nur innerhalb einer Zeile erstellt werden." }));
+        view.focus();
+        return;
+      }
       const insert = `[${text}](url)`;
       const urlAt = sel.from + 1 + text.length + 2; // the "url" placeholder
       view.dispatch({ changes: { from: sel.from, to: sel.to, insert }, selection: { anchor: urlAt, head: urlAt + 3 }, userEvent: "input" });
@@ -913,34 +919,18 @@ export const Editor: React.FC<{
       return;
     }
     const marker = action === "bold" ? "**" : action === "italic" ? "*" : action === "strike" ? "~~" : action === "code" ? "`" : "==";
-    const m = marker.length;
-    const len = view.state.doc.length;
-    const before = view.state.sliceDoc(Math.max(0, sel.from - m), sel.from);
-    const after = view.state.sliceDoc(sel.to, Math.min(len, sel.to + m));
-    // Italic ("*") must not strip bold ("**") markers.
-    const boldClash = marker === "*" && (before.endsWith("**") || after.startsWith("**"));
-    // Toggle off: markers sit just outside the selection.
-    if (before === marker && after === marker && !boldClash) {
-      view.dispatch({
-        changes: [{ from: sel.from - m, to: sel.from }, { from: sel.to, to: sel.to + m }],
-        selection: { anchor: sel.from - m, head: sel.to - m },
-        userEvent: "input",
-      });
-      view.focus();
-      return;
-    }
-    // Toggle off: the selection itself includes the markers.
-    if (text.length >= 2 * m && text.startsWith(marker) && text.endsWith(marker) && !(marker === "*" && text.startsWith("**"))) {
-      const inner = text.slice(m, text.length - m);
-      view.dispatch({ changes: { from: sel.from, to: sel.to, insert: inner }, selection: { anchor: sel.from, head: sel.from + inner.length }, userEvent: "input" });
-      view.focus();
-      return;
-    }
-    // Toggle on: wrap, keeping the inner text selected.
-    const insert = marker + text + marker;
-    view.dispatch({ changes: { from: sel.from, to: sel.to, insert }, selection: { anchor: sel.from + m, head: sel.from + m + text.length }, userEvent: "input" });
-    view.focus();
+    toggleInlineMark(view, marker);
   };
+
+  useEffect(() => {
+    const onConflict = (event: Event) => {
+      const detail = (event as CustomEvent<{ view?: EditorView }>).detail;
+      if (detail?.view !== sessionRef.current?.view) return;
+      toast.info(t("editor.blockFormatConflict", { defaultValue: "Eine Zeile kann nicht gleichzeitig Überschrift und Aufgabe sein. Nutze Fett für einen hervorgehobenen Aufgabentitel." }));
+    };
+    window.addEventListener("plainva-editor-block-format-conflict", onConflict);
+    return () => window.removeEventListener("plainva-editor-block-format-conflict", onConflict);
+  }, [t]);
 
   // Resolve a wiki target (note title or path) and open it. Shared by the
   // wiki-link plugin and the rendered table-cell links (tableLinkHandlers).

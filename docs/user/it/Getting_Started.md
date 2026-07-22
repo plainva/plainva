@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-07-20
+Ultimo aggiornamento: 2026-07-22
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -79,3 +79,7 @@ Tramite **Ctrl/Cmd+Shift+G** (o la sezione **Grafo** nella barra laterale destra
 - [Note e Markdown](Notes_and_Markdown.md) — tutto sulla scrittura
 - [Scorciatoie da tastiera](Keyboard_Shortcuts.md)
 - [FAQ e risoluzione dei problemi](FAQ.md)
+
+## Memoria della barra laterale destra
+
+Le sezioni contestuali vuote come **Struttura**, **Backlink** e **Proprietà** si chiudono senza sovrascrivere la preferenza globale. L’intera barra laterale destra ricorda una preferenza globale per le note; le viste senza contesto nota la chiudono solo temporaneamente.

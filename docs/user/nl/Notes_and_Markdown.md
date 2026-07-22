@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-18
+Laatst bijgewerkt: 2026-07-22
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -136,3 +136,9 @@ Alles blijft standaard Markdown met standaard frontmatter. Obsidian opent de bes
 - [Databases (.base)](Databases_Base.md) — notities als tabel, bord of kalender
 - [OKF](OKF.md) — wat `type` en `okf_version` betekenen
 - [Zoeken](Search.md) en [Sneltoetsen](Keyboard_Shortcuts.md)
+
+## Een selectie opmaken
+
+Als een selectie meerdere regels omvat, worden **vet**, *cursief*, doorhalen, markeren en inline-code afzonderlijk op elke niet-lege regel toegepast. Voorvoegsels voor lijsten, citaten, koppen en taken blijven buiten de markeringen. Links blijven één regel omdat een meerregelig linklabel geen draagbare Markdown is.
+
+Een ATX-kop en een GFM-taak zijn alternatieve bloktypen. Plainva schrijft daarom geen ongeldige combinatie. Inline-opmaak werkt in beide; gebruik `- [ ] **Belangrijke taak**` voor een opvallende taaktitel.

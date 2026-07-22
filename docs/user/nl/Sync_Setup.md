@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-21
+Laatst bijgewerkt: 2026-07-22
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -98,3 +98,7 @@ Open **Instellingen → Synchronisatie → Sync-wachtwoordzin en versleuteling**
 De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwoordzin bij elke start vereisen** aan om deze in plaats daarvan na elke herstart opnieuw in te voeren, en gebruik **Vergrendelen** om de gecachete sleutel op dit apparaat te verwijderen.
 
 **Instellingen synchroniseren** draagt gedeelde vault-instellingen en accountmetadata over; lokale paden, indeling en runtimegegevens blijven apparaatspecifiek. **Accountgeheimen synchroniseren** is een afzonderlijke optie voor toegestane statische app-wachtwoorden en BYO-inloggegevens; OAuth-tokens worden nooit gedeeld. De versleutelingsstatus begeleidt **Voorbereiden**, **Migratie**, **Strikt**, **Ontsleutelen** en **Sleutelrotatie**. Mobiele apparaten kunnen dezelfde versleutelde vault met de wachtwoordzin ontgrendelen.
+
+## Fouten en automatisch opnieuw proberen
+
+Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieuwe poging de live-status al heeft gewijzigd. Het meldt of de poging loopt of is geslaagd. Opnieuw verbinden wordt alleen bij een authenticatiefout aangeraden; netwerk-, time-out- en providerfouten behouden hun details en worden automatisch opnieuw geprobeerd.

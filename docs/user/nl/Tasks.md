@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-07-17
+Laatst bijgewerkt: 2026-07-22
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -82,3 +82,7 @@ Taken zijn gewone GFM-selectievakjes (GitHub-Flavored Markdown). Plainva voegt n
 - [Notities & Markdown](Notes_and_Markdown.md) — takenlijsten schrijven in de editor
 - [Zoeken](Search.md) — volledige-tekstzoekfunctie over de hele vault
 - [Databases (.base)](Databases_Base.md) — databases op notitieniveau
+
+## Afvinken in het overzicht
+
+Een taak afvinken in het overzicht schrijft het vakje naar de bronnotitie en vernieuwt die notitie in de zoekindex voordat de lijst opnieuw wordt gelezen. De taak verdwijnt direct uit **Open** en komt niet terug uit een verouderde index.

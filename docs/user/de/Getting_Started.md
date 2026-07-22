@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-20
+Stand: 2026-07-22
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -79,3 +79,7 @@ Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum ö
 ## Der Graph
 
 Über **Strg/Cmd+Umschalt+G** (oder die Sektion **Graph** in der rechten Seitenleiste) siehst Du Dein Vault als Karte: Ordner als Blasen, Notizen als Knoten, Relationen als beschriftete Kanten — samt Aufräum-Modus und Zeitreise. Details: [Graph](Graph.md).
+
+## Globale Einstellung der rechten Seitenleiste
+
+Leere Kontextbereiche wie **Gliederung**, **Backlinks** und **Eigenschaften** klappen automatisch zu, ohne ihre globale Offen-/Geschlossen-Einstellung zu überschreiben. Auch die gesamte rechte Seitenleiste merkt sich für Notizen eine globale Einstellung; Vollflächenansichten ohne Notizkontext schließen sie nur vorübergehend.

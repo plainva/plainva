@@ -487,6 +487,8 @@
     "fmtCode": "Inline-code",
     "fmtHighlight": "Markering",
     "fmtLink": "Link",
+    "fmtMultilineLink": "Links kunnen alleen binnen één regel worden gemaakt.",
+    "blockFormatConflict": "Een regel kan niet tegelijk een kop en een taak zijn. Gebruik vet voor een opvallende taaktitel.",
     "tagCount": "{{count}}×",
     "atSecBases": "Databases",
     "atNewBase": "Nieuwe database insluiten",
@@ -555,7 +557,12 @@
     "unknownError": "Er is een onbekende fout opgetreden.",
     "errorHint": "Veelvoorkomende oorzaken: een tijdelijk netwerkprobleem of een time-out — dit lost zich meestal vanzelf op, en Plainva probeert het automatisch opnieuw. Of de aanmelding is verlopen of de toegangsgegevens zijn gewijzigd (bijv. bij Google Drive) — dan kun je in de sync-instellingen opnieuw verbinden.",
     "conflictCopies": "Gevonden conflictkopieën:",
-    "openSettings": "Sync-instellingen openen"
+    "openSettings": "Sync-instellingen openen",
+    "retryNow": "Nu opnieuw proberen",
+    "recovered": "De synchronisatie is bij de volgende poging geslaagd.",
+    "retrying": "Plainva probeert de synchronisatie opnieuw…",
+    "authErrorHint": "De aanmelding is verlopen of ingetrokken. Maak opnieuw verbinding via de synchronisatie-instellingen.",
+    "transientErrorHint": "Dit was waarschijnlijk een tijdelijk netwerk- of providerprobleem. Plainva probeert zulke fouten automatisch opnieuw."
   },
   "sidebar": {
     "files": "Bestanden",
@@ -1789,6 +1796,10 @@
     "editNote": "Bewerken",
     "doneEditing": "Klaar",
     "editToolbar": "Opmaak",
+    "photoSource": "Foto toevoegen",
+    "takePhoto": "Foto maken",
+    "choosePhoto": "Uit fotobibliotheek kiezen",
+    "photoInsertFailed": "De foto kon niet worden toegevoegd: {{error}}",
     "sheetOpen": "Openen",
     "renamePrompt": "Nieuwe naam",
     "deleteNote": "Notitie verwijderen",

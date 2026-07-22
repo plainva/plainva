@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-07-17
+Ultimo aggiornamento: 2026-07-22
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -82,3 +82,7 @@ Le attività sono normali caselle di controllo GFM (GitHub-Flavored Markdown). P
 - [Note e Markdown](Notes_and_Markdown.md) — scrivere elenchi di attività nell'editor
 - [Ricerca](Search.md) — ricerca full-text in tutto il vault
 - [Database (.base)](Databases_Base.md) — database a livello di nota
+
+## Completare dalla panoramica
+
+Spuntando un’attività nella panoramica, Plainva scrive la casella nella nota sorgente e aggiorna la nota nell’indice prima di rileggere l’elenco. L’attività lascia subito **Aperte** e non riappare da un indice obsoleto.

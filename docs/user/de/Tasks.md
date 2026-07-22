@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-07-17
+Stand: 2026-07-22
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -82,3 +82,7 @@ Aufgaben sind gewöhnliche GFM-Checkboxen (GitHub Flavored Markdown). Plainva f�
 - [Notizen & Markdown](Notes_and_Markdown.md) — Aufgabenlisten im Editor schreiben
 - [Suche](Search.md) — Volltextsuche über den Vault
 - [Datenbanken (.base)](Databases_Base.md) — Datenbanken auf Notiz-Ebene
+
+## Abhaken in der Übersicht
+
+Wenn Du eine Aufgabe in der Übersicht abhakst, schreibt Plainva den Haken in die Quellnotiz und aktualisiert diese Notiz im Suchindex, bevor die Liste erneut abgefragt wird. Die Aufgabe verschwindet dadurch sofort aus **Offen** und erscheint nicht aus einem veralteten Index erneut.

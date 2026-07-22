@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-07-17
+Última actualización: 2026-07-22
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -82,3 +82,7 @@ Las tareas son casillas GFM (GitHub-Flavored Markdown) normales. Plainva nunca a
 - [Notas y Markdown](Notes_and_Markdown.md) — escribir listas de tareas en el editor
 - [Buscar](Search.md) — búsqueda de texto completo en todo el vault
 - [Bases de datos (.base)](Databases_Base.md) — bases de datos a nivel de nota
+
+## Completar desde la vista general
+
+Al marcar una tarea en la vista general, Plainva escribe la casilla en la nota de origen y actualiza esa nota en el índice antes de consultar de nuevo la lista. La tarea sale de **Abiertas** inmediatamente y no reaparece desde un índice antiguo.

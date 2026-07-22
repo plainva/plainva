@@ -489,6 +489,8 @@
     "fmtCode": "Code en ligne",
     "fmtHighlight": "Surlignage",
     "fmtLink": "Lien",
+    "fmtMultilineLink": "Les liens ne peuvent être créés que sur une seule ligne.",
+    "blockFormatConflict": "Une ligne ne peut pas être à la fois un titre et une tâche. Utilisez le gras pour mettre le titre de la tâche en évidence.",
     "tagCount": "{{count}}×",
     "atSecBases": "Bases de données",
     "atNewBase": "Intégrer une nouvelle base de données",
@@ -557,7 +559,12 @@
     "unknownError": "Une erreur inconnue s'est produite.",
     "errorHint": "Causes fréquentes : un problème réseau temporaire ou un délai d'attente dépassé — ces erreurs disparaissent généralement d'elles-mêmes, et Plainva réessaie automatiquement. Ou bien la connexion a expiré, ou les identifiants ont changé (p. ex. avec Google Drive) — vous pouvez alors vous reconnecter dans les paramètres de synchronisation.",
     "conflictCopies": "Copies de conflit détectées :",
-    "openSettings": "Ouvrir les paramètres de synchronisation"
+    "openSettings": "Ouvrir les paramètres de synchronisation",
+    "retryNow": "Réessayer maintenant",
+    "recovered": "La synchronisation a réussi lors de la nouvelle tentative.",
+    "retrying": "Plainva réessaie la synchronisation…",
+    "authErrorHint": "La connexion a expiré ou a été révoquée. Reconnectez-vous dans les paramètres de synchronisation.",
+    "transientErrorHint": "Il s'agissait probablement d'un problème temporaire de réseau ou de fournisseur. Plainva réessaie automatiquement."
   },
   "sidebar": {
     "files": "Fichiers",
@@ -1797,6 +1804,10 @@
     "editNote": "Modifier",
     "doneEditing": "Terminé",
     "editToolbar": "Mise en forme",
+    "photoSource": "Ajouter une photo",
+    "takePhoto": "Prendre une photo",
+    "choosePhoto": "Choisir dans la photothèque",
+    "photoInsertFailed": "La photo n'a pas pu être ajoutée : {{error}}",
     "sheetOpen": "Ouvrir",
     "renamePrompt": "Nouveau nom",
     "deleteNote": "Supprimer la note",

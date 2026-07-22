@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-20
+Dernière mise à jour : 2026-07-22
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -79,3 +79,7 @@ Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ou
 ## Le graphe
 
 Via **Ctrl/Cmd+Shift+G** (ou la section **Graphe** dans la barre latérale droite), vous voyez votre coffre comme une carte : les dossiers sous forme de bulles, les notes sous forme de nœuds, les relations sous forme d'arêtes étiquetées — avec un mode de nettoyage et un voyage dans le temps. Détails : [Graphe](Graph.md).
+
+## Mémoire de la barre latérale droite
+
+Les sections contextuelles vides comme **Plan**, **Liens retour** et **Propriétés** se ferment automatiquement sans écraser leur préférence globale. La barre latérale droite mémorise aussi un seul choix global pour les notes ; les vues sans contexte de note ne la ferment que temporairement.

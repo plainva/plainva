@@ -498,6 +498,8 @@
     "fmtCode": "Inline-Code",
     "fmtHighlight": "Markierung",
     "fmtLink": "Link",
+    "fmtMultilineLink": "Links können nur innerhalb einer Zeile erstellt werden.",
+    "blockFormatConflict": "Eine Zeile kann nicht gleichzeitig Überschrift und Aufgabe sein. Nutze Fett für einen hervorgehobenen Aufgabentitel.",
     "tagCount": "{{count}}×",
     "atSecBases": "Datenbanken",
     "atNewBase": "Neue Datenbank einbetten",
@@ -570,7 +572,12 @@
     "unknownError": "Unbekannter Fehler aufgetreten.",
     "errorHint": "Häufige Ursachen: ein vorübergehendes Netzwerkproblem oder eine Zeitüberschreitung — solche Fehler verschwinden meist von selbst, Plainva versucht es automatisch erneut. Oder die Anmeldung ist abgelaufen bzw. die Zugangsdaten haben sich geändert (z. B. bei Google Drive) — dann kannst Du die Verbindung in den Sync-Einstellungen neu herstellen.",
     "conflictCopies": "Gefundene Konfliktkopien:",
-    "openSettings": "Sync-Einstellungen öffnen"
+    "openSettings": "Sync-Einstellungen öffnen",
+    "retryNow": "Jetzt erneut versuchen",
+    "recovered": "Die Synchronisierung war beim erneuten Versuch erfolgreich.",
+    "retrying": "Plainva versucht die Synchronisierung erneut…",
+    "authErrorHint": "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her.",
+    "transientErrorHint": "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut."
   },
   "sidebar": {
     "files": "Dateien",
@@ -1804,6 +1811,10 @@
     "editNote": "Bearbeiten",
     "doneEditing": "Fertig",
     "editToolbar": "Formatierung",
+    "photoSource": "Foto hinzufügen",
+    "takePhoto": "Foto aufnehmen",
+    "choosePhoto": "Aus Mediathek wählen",
+    "photoInsertFailed": "Das Foto konnte nicht hinzugefügt werden: {{error}}",
     "sheetOpen": "Öffnen",
     "renamePrompt": "Neuer Name",
     "deleteNote": "Notiz löschen",

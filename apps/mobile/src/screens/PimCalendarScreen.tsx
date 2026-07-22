@@ -27,8 +27,8 @@ import {
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
  * time-grid, with Day / 3-day / Agenda views over the same shared @plainva/ui
  * time-grid math. Tapping an event opens an action sheet (RSVP when invited).
- * No accounts -> an empty state pointing at Settings; the daily-note month
- * calendar stays a separate screen.
+ * No accounts -> an empty state pointing at Settings. Daily notes have their
+ * own Today screen, so this is the direct Calendar-tab destination.
  */
 
 type PimView = "day" | "3day" | "agenda";

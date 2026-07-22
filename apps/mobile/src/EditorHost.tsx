@@ -59,7 +59,8 @@ import {
   type EditorSessionDeps,
   type TemplateItem,
 } from "@plainva/ui";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Camera, MediaTypeSelection } from "@capacitor/camera";
+import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -74,7 +75,8 @@ import {
 } from "./services/vaultService";
 import { conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { syncSoon } from "./services/syncService";
-import { mPrompt } from "./services/mobileDialogs";
+import { mPrompt, mSelect } from "./services/mobileDialogs";
+import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -547,6 +549,16 @@ export function EditorHost({
     }
   }, [editable]);
 
+  useEffect(() => {
+    const onConflict = (event: Event) => {
+      const detail = (event as CustomEvent<{ view?: EditorSession["view"] }>).detail;
+      if (detail?.view !== sessionRef.current?.view) return;
+      toast.info(t("editor.blockFormatConflict", { defaultValue: "A line cannot be both a heading and a task. Use bold for a prominent task title." }));
+    };
+    window.addEventListener("plainva-editor-block-format-conflict", onConflict);
+    return () => window.removeEventListener("plainva-editor-block-format-conflict", onConflict);
+  }, [t]);
+
   // Block-handle events (R1.2): the shared plugin dispatches window events;
   // the desktop editor listens too, but only one shell is ever mounted.
   useEffect(() => {
@@ -655,33 +667,50 @@ export function EditorHost({
   // P2: camera/gallery photo lands as an attachment in the vault and embeds
   // at the cursor; the queueing chain syncs it like any other file.
   const insertPhoto = () => {
+    const insertAt = sessionRef.current?.view.state.selection.main.head;
+    if (insertAt === undefined) return;
     void (async () => {
-      let photo;
-      try {
-        photo = await Camera.getPhoto({
-          resultType: CameraResultType.Base64,
-          source: CameraSource.Prompt,
-          quality: 85,
-        });
-      } catch {
-        return; // user cancelled the picker
-      }
-      const b64 = photo.base64String;
-      if (!b64) return;
-      const bin = atob(b64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      const name = `Attachments/Foto-${stamp}.${photo.format || "jpeg"}`;
-      await vault.files.writeBinaryFile(name, bytes);
-      run((view) => {
-        const pos = view.state.selection.main.head;
-        view.dispatch({
-          changes: { from: pos, insert: `![[${name}]]` },
-          userEvent: "input",
-        });
+      const source = await mSelect({
+        title: t("mobile.photoSource", { defaultValue: "Add photo" }),
+        options: [
+          { value: "camera", label: t("mobile.takePhoto", { defaultValue: "Take photo" }) },
+          { value: "gallery", label: t("mobile.choosePhoto", { defaultValue: "Choose from library" }) },
+        ],
+        value: "camera",
       });
-      syncSoon();
+      if (!source) return;
+      try {
+        const photo = source === "camera"
+          ? await Camera.takePhoto({ quality: 85, includeMetadata: true })
+          : (await Camera.chooseFromGallery({
+              mediaType: MediaTypeSelection.Photo,
+              allowMultipleSelection: false,
+              includeMetadata: true,
+              quality: 85,
+            })).results[0];
+        if (!photo) return;
+        const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
+        const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
+        await vault.files.writeBinaryFile(name, bytes);
+        run((view) => {
+          const pos = Math.min(insertAt, view.state.doc.length);
+          const embed = `![[${name}]]`;
+          view.dispatch({
+            changes: { from: pos, insert: embed },
+            selection: { anchor: pos + embed.length },
+            userEvent: "input",
+          });
+          view.focus();
+        });
+        syncSoon();
+      } catch (error) {
+        if (isCameraCancellation(error)) return;
+        console.error("[EditorHost] inserting a photo failed", error);
+        toast.error(t("mobile.photoInsertFailed", {
+          defaultValue: "The photo could not be added: {{error}}",
+          error: cameraErrorMessage(error),
+        }));
+      }
     })();
   };
 

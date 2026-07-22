@@ -63,6 +63,22 @@ interface Props {
 
 type StatusFilter = "open" | "done" | "all";
 
+class TaskMutationGate {
+  value = 0;
+  active = 0;
+  begin() {
+    this.active += 1;
+    this.value += 1;
+  }
+  finish() {
+    this.active = Math.max(0, this.active - 1);
+    this.value += 1;
+  }
+  canCommit(version: number) {
+    return this.active === 0 && version === this.value;
+  }
+}
+
 /**
  * Vault-wide Tasks view (B4) — the file-based aggregation a `.base` cannot do
  * (it is row/note-based, not line-based). Every `- [ ]`/`- [x]` in the vault,
@@ -89,6 +105,10 @@ export function TasksView({ onOpenPath }: Props) {
   const [showHidden, setShowHidden] = useState(false);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
+  // A listTasks() call reads the FTS snapshot asynchronously. A checkbox write
+  // can finish while an older read is still in flight; that older result must
+  // never roll the optimistic state back to the pre-write checkbox value.
+  const [taskMutationGate] = useState(() => new TaskMutationGate());
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
@@ -123,6 +143,7 @@ export function TasksView({ onOpenPath }: Props) {
 
   useEffect(() => {
     let alive = true;
+    const versionAtStart = taskMutationGate.value;
     if (!queryService) {
       setTasks([]);
       setLoading(false);
@@ -132,13 +153,13 @@ export function TasksView({ onOpenPath }: Props) {
     queryService
       .listTasks()
       .then((rows) => {
-        if (alive) {
+        if (alive && taskMutationGate.canCommit(versionAtStart)) {
           setTasks(rows);
           setLoading(false);
         }
       })
       .catch(() => {
-        if (alive) {
+        if (alive && taskMutationGate.canCommit(versionAtStart)) {
           setTasks([]);
           setLoading(false);
         }
@@ -146,7 +167,7 @@ export function TasksView({ onOpenPath }: Props) {
     return () => {
       alive = false;
     };
-  }, [queryService, fileTreeVersion, refreshTick]);
+  }, [queryService, fileTreeVersion, refreshTick, taskMutationGate]);
 
   useEffect(() => {
     if (!vaultPath) return;
@@ -359,6 +380,7 @@ export function TasksView({ onOpenPath }: Props) {
   const toggle = useCallback(
     async (task: TaskRecord) => {
       if (!vaultAdapter) return;
+      taskMutationGate.begin();
       try {
         const fresh = await vaultAdapter.readTextFile(task.path);
         // Guard against a stale ordinal (the note changed since it was listed):
@@ -373,11 +395,31 @@ export function TasksView({ onOpenPath }: Props) {
         setTasks((prev) =>
           prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? { ...t2, done: !t2.done } : t2))
         );
-      } catch {
+      } catch (error) {
+        console.error("[TasksView] updating a checkbox task failed", task.path, error);
+        taskMutationGate.finish();
         setRefreshTick((x) => x + 1);
+        return;
       }
+      // The overview reads from fts_notes, not directly from the file. Await
+      // the targeted index update before publishing fileTreeVersion; doing
+      // this in the opposite order briefly resurrected completed tasks.
+      let reindexed = false;
+      try {
+        if (indexer) {
+          await applyIndexChanges(indexer, { added: [task.path] });
+          reindexed = true;
+        }
+      } catch (error) {
+        // The Markdown write already succeeded. Keep the truthful optimistic
+        // row instead of replacing it from a known-stale index snapshot.
+        console.error("[TasksView] reindexing a checkbox task failed", task.path, error);
+      } finally {
+        taskMutationGate.finish();
+      }
+      if (reindexed) triggerFileTreeUpdate([task.path]);
     },
-    [vaultAdapter]
+    [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate]
   );
 
   // Writes back to a task-database note (through the adapter's atomic + backup
@@ -756,4 +798,3 @@ export function TasksView({ onOpenPath }: Props) {
     </div>
   );
 }
-
