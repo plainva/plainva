@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, ICON, Modal, SettingCard, SettingCardNote, SettingRow, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, SettingCard, SettingCardNote, SettingRow, TextInput, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
-import { ChevronLeft, ChevronRight, KeyRound, Laptop, Layers, Share2, ShieldCheck, Users, UsersRound } from "lucide-react";
+import { ChevronRight, KeyRound, Laptop, ShieldCheck, Users } from "lucide-react";
 import { parseSliceForm, type Diagnostics, type Governance, type GovernanceForm } from "./securityForms";
 import { WorkspaceGovernanceDialog } from "./WorkspaceGovernanceDialog";
 import { WorkspaceSetupWizard } from "./WorkspaceSetupWizard";
@@ -17,24 +17,20 @@ interface SecuritySharingPageProps {
   selectedVault: string;
   isActiveVault: boolean;
   hasSyncConnection: boolean;
+  /** The active management area (IA v2, P1) — null = the overview (first
+   * level). Owned by the settings modal; the left-column SecurityNav sets it. */
+  securityArea?: SecurityAreaId | null;
+  onOpenSecurityArea?: (area: SecurityAreaId) => void;
 }
 
-type AdminArea = "members" | "groups" | "slices" | "devices" | "publications";
-const ADMIN_AREAS: readonly AdminArea[] = ["members", "groups", "slices", "devices", "publications"];
-const ADMIN_AREA_ICONS: Record<AdminArea, React.ComponentType<{ size?: number }>> = {
-  members: Users,
-  groups: UsersRound,
-  slices: Layers,
-  devices: Laptop,
-  publications: Share2,
-};
+type AdminArea = SecurityAreaId;
 
 function phaseLabel(t: ReturnType<typeof useTranslation>["t"], phase: string): string {
   return t(`workspaceSecurity.phase.${phase}`, { defaultValue: phase });
 }
 
 /** Desktop P3-P11 security centre for personal and team encrypted workspaces. */
-export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ selectedVault, isActiveVault, hasSyncConnection }) => {
+export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ selectedVault, isActiveVault, hasSyncConnection, securityArea, onOpenSecurityArea }) => {
   const { t } = useTranslation();
   const {
     workspaceSecurityStatus,
@@ -79,11 +75,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [slicePreview, setSlicePreview] = useState<Array<{ objectId: string; path: string }> | null>(null);
   const [pairPreview, setPairPreview] = useState<Awaited<ReturnType<typeof inspectWorkspacePairingRequest>> | null>(null);
   const [rotatedRecoveryCode, setRotatedRecoveryCode] = useState<string | null>(null);
-  // null = the Security overview (first level); a value opens that administration
-  // area as a SECOND-LEVEL page with a back button (mockup IA — the admin area is
-  // NOT stacked inline on the overview, which also kept the page from overrunning
-  // the settings modal).
-  const [adminTab, setAdminTab] = useState<AdminArea | null>(null);
+  // The security area is owned by the settings modal now (IA v2, P1): the left
+  // column (SecurityNav) selects it and drives this via the prop. null = the
+  // overview (first level); a value renders exactly that management area.
+  const area: AdminArea | null = securityArea ?? null;
   const [form, setForm] = useState<GovernanceForm>({ code: "", name: "", role: "Reader", members: "", scopeKind: "workspace", scopeId: "", sliceKind: "folder", definition: "", publicationMode: "private", publicationAccess: "read", publicationProvider: "google-drive", recoveryCode: "", deviceName: navigator.platform || "Desktop", recoveryFile: "", fallbackPassphrase: "" });
 
   const refreshDiagnostics = useCallback(async () => {
@@ -262,7 +257,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   return (
     <div>
       <AreaHead areaId="security" />
-      {adminTab === null && (<>
+      {area === null && (<>
       {!isActiveVault && <Banner kind="info" rounded>{t("workspaceSecurity.openVaultFirst")}</Banner>}
       {isActiveVault && !hasSyncConnection && <Banner kind="warning" rounded>{t("workspaceSecurity.connectionRequired")}</Banner>}
 
@@ -282,8 +277,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
 
       <div className="pv-security-summary-grid">
         <article className="pv-security-summary-card"><KeyRound size={ICON.touch} /><div><strong>{t("workspaceSecurity.recoveryCard")}</strong><span>{status?.recoveryConfirmedAt ? t("workspaceSecurity.recoverySaved") : t("workspaceSecurity.recoverySetupHint")}</span></div><Button variant="secondary" onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog(status ? "rotate" : "recovery"); }, !status)}>{status ? t("workspaceSecurity.renew", { defaultValue: "Renew" }) : t("workspaceSecurity.restore", { defaultValue: "Restore" })}<ChevronRight size={ICON.ui} /></Button></article>
-        <article className="pv-security-summary-card"><Laptop size={ICON.touch} /><div><strong>{t("workspaceSecurity.devicesCard")}</strong><span>{governance ? `${governance.devices.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.trusted", { defaultValue: "trusted" })}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="secondary" onClick={() => void requireWorkspace(() => setAdminTab("devices"))}>{t("workspaceSecurity.manage", { defaultValue: "Manage" })}<ChevronRight size={ICON.ui} /></Button></article>
-        <article className="pv-security-summary-card"><Users size={ICON.touch} /><div><strong>{t("workspaceSecurity.teamsCard")}</strong><span>{governance ? `${governance.members.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.members")} · ${governance.slices.length} ${t("workspaceSecurity.slices")}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="primary" onClick={() => void requireWorkspace(() => setAdminTab("members"))}>{t("workspaceSecurity.permissions", { defaultValue: "Permissions" })}<ChevronRight size={ICON.ui} /></Button></article>
+        <article className="pv-security-summary-card"><Laptop size={ICON.touch} /><div><strong>{t("workspaceSecurity.devicesCard")}</strong><span>{governance ? `${governance.devices.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.trusted", { defaultValue: "trusted" })}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="secondary" onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("devices"))}>{t("workspaceSecurity.manage", { defaultValue: "Manage" })}<ChevronRight size={ICON.ui} /></Button></article>
+        <article className="pv-security-summary-card"><Users size={ICON.touch} /><div><strong>{t("workspaceSecurity.teamsCard")}</strong><span>{governance ? `${governance.members.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.members")} · ${governance.slices.length} ${t("workspaceSecurity.slices")}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="primary" onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("members"))}>{t("workspaceSecurity.permissions", { defaultValue: "Permissions" })}<ChevronRight size={ICON.ui} /></Button></article>
       </div>
 
       <SettingCard label={t("workspaceSecurity.statusCard")}>
@@ -356,23 +351,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       </SettingCard>
       </>)}
 
-      {adminTab !== null && (<>
-      <button type="button" className="pv-navlink pv-security-back" onClick={() => setAdminTab(null)}>
-        <ChevronLeft size={ICON.ui} />{t("workspaceSecurity.backToOverview", { defaultValue: "Security & Sharing" })}
-      </button>
-      <section className="pv-security-admin">
-        <nav className="pv-security-nav" aria-label={t("workspaceSecurity.teamsCard")}>
-          {ADMIN_AREAS.map((area) => {
-            const Icon = ADMIN_AREA_ICONS[area];
-            return (
-              <button key={area} type="button" className={`pv-navlink${adminTab === area ? " is-active" : ""}`} aria-current={adminTab === area ? "page" : undefined} onClick={() => void requireWorkspace(() => setAdminTab(area))}>
-                <Icon size={ICON.ui} />{t(`workspaceSecurity.${area}`, { defaultValue: area[0].toUpperCase() + area.slice(1) })}
-              </button>
-            );
-          })}
-        </nav>
+      {area !== null && (
         <div className="pv-security-detail">
-          {adminTab === "members" && (
+          {area === "members" && (
             <SettingCard label={t("workspaceSecurity.members", { defaultValue: "Members" })}>
               <SettingRow label={t("workspaceSecurity.members", { defaultValue: "Members" })} desc={t("workspaceSecurity.membersDesc", { defaultValue: "People with encrypted access. Inviting reserves a place — pairing their device hands over the key." })}>
                 <span>{governance?.members.filter((member) => member.state === "active").length ?? 0}</span>
@@ -382,7 +363,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               {governance?.members.map((member) => <SettingRow key={member.memberId} label={member.displayName} desc={`${member.memberId.slice(0, 8)} · ${member.state}`}><span>{governance.assignments.filter((assignment) => (assignment.subjectKind === "member" && assignment.subjectId === member.memberId) || governance.groups.some((group) => group.groupId === assignment.subjectId && group.memberIds?.includes(member.memberId))).map((assignment) => `${assignment.role}/${assignment.scopeKind}`).join(", ") || "—"}</span>{member.state === "active" && member.memberId !== governance.memberId && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => setInviteFor({ memberId: member.memberId, displayName: member.displayName, role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === member.memberId)?.role })}>{t("workspaceSecurity.showInvite", { defaultValue: "Show invitation" })}</Button><Button variant="ghost" size="sm" disabled={busy} onClick={() => { setForm((current) => ({ ...current, scopeId: member.memberId })); setRotatedRecoveryCode(null); setDialog("owner"); }}>{t("workspaceSecurity.transferOwner", { defaultValue: "Transfer ownership" })}</Button><Button variant="danger-soft" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFutureQuestion", { defaultValue: "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten." }), kind: "danger", confirmLabel: t("workspaceSecurity.futureOnly", { defaultValue: "Future only" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; future keys rotated" })); })}>{t("workspaceSecurity.futureOnly", { defaultValue: "Future only" })}</Button><Button variant="danger" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFullQuestion", { defaultValue: "Access is removed immediately and all current encrypted content is queued for a resumable full rekey. Previously downloaded plaintext cannot be taken back." }), kind: "danger", confirmLabel: t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; full rekey started" })); })}>{t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" })}</Button></>}</SettingRow>)}
             </SettingCard>
           )}
-          {adminTab === "groups" && (
+          {area === "groups" && (
             <SettingCard label={t("workspaceSecurity.groups", { defaultValue: "Groups" })}>
               <SettingRow label={t("workspaceSecurity.groups", { defaultValue: "Groups" })} desc={t("workspaceSecurity.groupsDesc", { defaultValue: "Encryption groups and their effective role." })}>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("group"))}>{t("workspaceSecurity.addGroup", { defaultValue: "Add group" })}</Button>
@@ -390,7 +371,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               {governance?.groups.map((group) => <SettingRow key={group.groupId} label={group.name} desc={`${group.memberIds?.length ?? 0} · key epoch ${group.keyEpoch}`}><span>{governance.assignments.filter((assignment) => assignment.subjectKind === "group" && assignment.subjectId === group.groupId).map((assignment) => `${assignment.role}/${assignment.scopeKind}`).join(", ") || "—"}</span></SettingRow>)}
             </SettingCard>
           )}
-          {adminTab === "slices" && (
+          {area === "slices" && (
             <SettingCard label={t("workspaceSecurity.slices", { defaultValue: "Slices" })}>
               <SettingRow label={t("workspaceSecurity.slices", { defaultValue: "Slices" })} desc={t("workspaceSecurity.slicesDesc", { defaultValue: "Folder, explicit selection or dynamic rule." })}>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard(false))}>{t("workspaceSecurity.addSlice", { defaultValue: "Add slice" })}</Button>
@@ -398,7 +379,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               {governance?.slices.map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.kind} · ${slice.materializedObjectIds.length} objects${slice.publication ? ` · ${slice.publication.mode}/${slice.publication.access}` : ""}`}><code>{slice.definition.slice(0, 64)}</code></SettingRow>)}
             </SettingCard>
           )}
-          {adminTab === "devices" && (
+          {area === "devices" && (
             <SettingCard label={t("workspaceSecurity.devicesCard")}>
               <SettingRow label={t("workspaceSecurity.pairDevice", { defaultValue: "Approve device" })} desc={t("workspaceSecurity.pairHelp")}>
                 <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("pair"))}>{t("workspaceSecurity.approve", { defaultValue: "Enter code" })}</Button>
@@ -412,7 +393,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               ))}
             </SettingCard>
           )}
-          {adminTab === "publications" && (
+          {area === "publications" && (
             <SettingCard label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}>
               <Banner kind="info" rounded>{t("workspaceSecurity.publicationIsolation", { defaultValue: "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption." })}</Banner>
               <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} desc={t("workspaceSecurity.publishDesc", { defaultValue: "Choose exact or sanitized content, read/comment/suggestion access and a provider." })}>
@@ -422,10 +403,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             </SettingCard>
           )}
         </div>
-      </section>
-      </>)}
+      )}
 
-      {adminTab === null && (<>
+      {area === null && (<>
       {governance && (governance.quarantine.length > 0 || governance.localForks.length > 0) && (
         <SettingCard label={t("workspaceSecurity.integrityCard", { defaultValue: "Integrity & local forks" })}>
           {governance.quarantine.map((entry) => <SettingRow key={entry.quarantineId} label={`${entry.artifactKind} · ${entry.status}`} desc={`${entry.reason} · ${entry.remoteKey}`}><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "retry"), t("workspaceSecurity.retryQueued", { defaultValue: "Retry queued" }))}>{t("workspaceSecurity.retry")}</Button><Button variant="ghost" size="sm" onClick={() => void exportQuarantine(entry.quarantineId)}>{t("workspaceSecurity.export")}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "repaired"), t("workspaceSecurity.repaired", { defaultValue: "Marked as repaired" }))}>{t("workspaceSecurity.markRepaired", { defaultValue: "Repaired" })}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "ignore"), t("workspaceSecurity.ignored", { defaultValue: "Ignored" }))}>{t("workspaceSecurity.ignore", { defaultValue: "Ignore" })}</Button></SettingRow>)}

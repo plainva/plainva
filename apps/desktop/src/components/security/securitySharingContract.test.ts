@@ -17,19 +17,29 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).toContain("await openVault(selectedVault)");
   });
 
-  it("uses a master/detail administration surface, not a tablist (package B1/B2)", () => {
-    for (const className of ["pv-security-hero", "pv-security-summary-grid", "pv-security-summary-card", "pv-security-admin", "pv-security-nav", "pv-security-detail"]) expect(page).toContain(className);
-    // The old hand-built tablist is gone; each area renders its own detail.
+  it("moves the second-level area navigation into the settings left column (IA v2, P1)", () => {
+    // The overview (first level) keeps the hero, summary cards and area detail.
+    for (const className of ["pv-security-hero", "pv-security-summary-grid", "pv-security-summary-card", "pv-security-detail"]) expect(page).toContain(className);
+    // The old in-content admin rail / internal drill-in state is gone — the
+    // settings modal now owns the second-level navigation.
+    expect(page).not.toContain("pv-security-admin");
+    expect(page).not.toContain("pv-security-nav");
     expect(page).not.toContain("pv-security-tabs");
     expect(page).not.toContain('role="tablist"');
-    expect(page).toContain('["members", "groups", "slices", "devices", "publications"]');
-    // The administration area is a SECOND-LEVEL page (drill-in), not stacked
-    // inline on the overview: it renders only when an area is selected, with a
-    // back affordance (mockup IA + keeps the page inside the settings modal).
-    expect(page).toContain("adminTab !== null");
-    expect(page).toContain("adminTab === null");
-    expect(page).toContain("pv-security-back");
-    expect(page).toContain('t("workspaceSecurity.backToOverview"');
+    expect(page).not.toContain("adminTab");
+    // The active area is driven by the prop from the settings modal.
+    expect(page).toContain("securityArea");
+    expect(page).toContain("onOpenSecurityArea");
+    expect(page).toContain('area === "members"');
+    expect(page).toContain('area === "devices"');
+    // Second level: SecurityNav replaces the settings left column (SettingsNav).
+    const modal = readFileSync(new URL("../SettingsModal.tsx", import.meta.url), "utf8");
+    expect(modal).toContain("SecurityNav");
+    expect(modal).toContain("inSecurityLevel2");
+    const nav = readFileSync(new URL("../settings/SecurityNav.tsx", import.meta.url), "utf8");
+    expect(nav).toContain("SECURITY_AREA_GROUPS");
+    expect(nav).toContain("workspaceSecurity.overview");
+    // Member rotation depth (future vs full) still routes through the gateway.
     expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future")');
     expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full")');
     // Every picker is the themed Select primitive — no OS-rendered native <select>.

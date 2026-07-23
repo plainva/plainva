@@ -19,7 +19,7 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, type SettingsWorld, type CloudAccountRecord } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, hasCloudService, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "../services/mail/mailAccounts";
@@ -45,6 +45,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
+import { SecurityNav } from "./settings/SecurityNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
@@ -99,6 +100,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         : firstSettingsArea("vault").id
   );
   const [showVaultPicker, setShowVaultPicker] = useState(false);
+  // Security & Sharing second level (IA v2, P1): null = the overview (first
+  // level, normal SettingsNav); a value swaps the left column for SecurityNav
+  // and renders that management area. Any other nav click resets it to null.
+  const [securityArea, setSecurityArea] = useState<SecurityAreaId | null>(null);
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
@@ -618,6 +623,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // The section contract (GENERAL vs. vault path) is untouched — it still
   // decides which WORLD the content shows and keys every persistence handler.
   const openArea = (world: SettingsWorld, areaId: string) => {
+    setSecurityArea(null); // any nav click leaves the security second level
     if (world === "app") {
       setSection(GENERAL);
       setAppPage(areaId);
@@ -634,6 +640,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // while the APP world is visible, not the "open vault first" hints.
   const isActiveVault = selectedVault === vaultPath;
   const inAppWorld = section === GENERAL;
+  // Second level of Security & Sharing: the SecurityNav replaces the left column.
+  const inSecurityLevel2 = !inAppWorld && vaultPage === "security" && securityArea !== null;
 
   // Nav gating (mockup screen 6): a service area exists only while an account
   // carries the service. Sync additionally trusts the credential slots and
@@ -649,7 +657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   // Never strand the user on a hidden page (e.g. its last account was removed).
   useEffect(() => {
-    if (!inAppWorld && hiddenVaultAreas.includes(vaultPage)) setVaultPage("cloudAccounts");
+    if (!inAppWorld && hiddenVaultAreas.includes(vaultPage)) { setVaultPage("cloudAccounts"); setSecurityArea(null); }
   }, [inAppWorld, hiddenVaultAreas, vaultPage]);
 
   const zipStatusDesc =
@@ -671,19 +679,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         bodyClassName="pv-modal-body--flush"
       >
         <div style={{ display: "flex", flexDirection: "row", flex: 1, minHeight: 0 }}>
-          <SettingsNav
-            world={section === GENERAL ? "app" : "vault"}
-            page={section === GENERAL ? appPage : vaultPage}
-            onOpenArea={openArea}
-            vaultName={selectedVault ? basename(selectedVault) : null}
-            vaultPath={selectedVault || null}
-            vaultIsActive={selectedVault === vaultPath}
-            vaultHasSync={configuredVaults.has(selectedVault)}
-            canSwitchVault={vaults.length > 1}
-            onSwitchVault={() => setShowVaultPicker(true)}
-            onShowShortcuts={() => setShowShortcuts(true)}
-            hiddenAreaIds={hiddenVaultAreas}
-          />
+          {inSecurityLevel2 && securityArea ? (
+            <SecurityNav
+              area={securityArea}
+              onSelect={setSecurityArea}
+              onBack={() => setSecurityArea(null)}
+            />
+          ) : (
+            <SettingsNav
+              world={section === GENERAL ? "app" : "vault"}
+              page={section === GENERAL ? appPage : vaultPage}
+              onOpenArea={openArea}
+              vaultName={selectedVault ? basename(selectedVault) : null}
+              vaultPath={selectedVault || null}
+              vaultIsActive={selectedVault === vaultPath}
+              vaultHasSync={configuredVaults.has(selectedVault)}
+              canSwitchVault={vaults.length > 1}
+              onSwitchVault={() => setShowVaultPicker(true)}
+              onShowShortcuts={() => setShowShortcuts(true)}
+              hiddenAreaIds={hiddenVaultAreas}
+            />
+          )}
 
           {/* Right content: all pages stacked in one grid cell — the tallest
               page defines the (stable) window height, only the active one is
@@ -782,6 +798,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       selectedVault={selectedVault}
                       isActiveVault={isActiveVault}
                       hasSyncConnection={activeProvider !== "none"}
+                      securityArea={securityArea}
+                      onOpenSecurityArea={setSecurityArea}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
@@ -900,6 +918,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           onSelect={(v) => {
             setSelectedVault(v);
             setSection(v);
+            setSecurityArea(null);
           }}
           onClose={() => setShowVaultPicker(false)}
         />
