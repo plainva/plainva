@@ -11,6 +11,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep } from "../services/settingsProfile";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -124,6 +125,11 @@ interface VaultContextType extends VaultState {
   }>;
   approveWorkspaceDevice: (tokenOrCode: string) => Promise<string>;
   inspectWorkspacePairingRequest: (tokenOrCode: string) => Promise<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string }>;
+  detectJoinableWorkspace: () => Promise<{ workspaceId: string; fingerprint: string } | null>;
+  beginWorkspaceJoin: (invite: WorkspaceInvite, deviceName: string) => Promise<{ shortCode: string; fingerprint: string }>;
+  pollWorkspaceJoin: (fallbackPassphrase?: string) => Promise<boolean>;
+  getPendingWorkspaceJoin: () => Promise<{ shortCode: string; fingerprint: string } | null>;
+  cancelPendingWorkspaceJoin: () => Promise<void>;
   revokeWorkspaceDevice: (deviceId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
   revokeWorkspaceMember: (memberId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
   inviteWorkspaceMember: (displayName: string, role: WorkspaceRole, scopeKind?: "workspace" | "slice" | "object", scopeId?: string | null) => Promise<string>;
@@ -1311,6 +1317,39 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return approval.request.payload.device.deviceId;
   };
 
+  // Device-JOIN (pairing request) — the counterpart to approve (package C1). A
+  // joining device has a sync connection but no workspace runtime yet, so the
+  // object store is built directly from the raw target (no control plane).
+  const joinObjectStore = () => {
+    const target = syncTargetRef.current;
+    const provider = syncProviderRef.current;
+    if (!state.vaultPath || !target || !provider) throw new Error("workspace-no-connection");
+    return { store: createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
+  };
+
+  const detectJoinableWorkspace = async (): Promise<{ workspaceId: string; fingerprint: string } | null> => {
+    if (!syncTargetRef.current || !syncProviderRef.current || state.workspaceSecurityStatus) return null;
+    try { return await detectRemoteWorkspace(joinObjectStore().store); }
+    catch (error) { console.warn("[VaultContext] detectJoinableWorkspace failed", error); return null; }
+  };
+
+  const beginWorkspaceJoin = async (invite: WorkspaceInvite, deviceName: string): Promise<{ shortCode: string; fingerprint: string }> => {
+    const { store, vaultPath } = joinObjectStore();
+    const result = await beginWorkspaceJoinFlow({ vaultPath, store, invite, deviceName });
+    return { shortCode: result.shortCode, fingerprint: result.fingerprint };
+  };
+
+  const pollWorkspaceJoin = async (fallbackPassphrase?: string): Promise<boolean> => {
+    const { store, vaultPath } = joinObjectStore();
+    const runtime = await completeWorkspaceJoin({ vaultPath, store, fallbackPassphrase });
+    if (!runtime) return false;
+    await openVault(vaultPath);
+    return true;
+  };
+
+  const getPendingWorkspaceJoin = async () => (state.vaultPath ? hasPendingWorkspaceJoin(state.vaultPath) : null);
+  const cancelPendingWorkspaceJoin = async () => { if (state.vaultPath) await cancelWorkspaceJoin(state.vaultPath); };
+
   const inspectWorkspacePairingRequest = async (tokenOrCode: string) => {
     const control = workspaceControlPlane();
     const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(control.store, tokenOrCode.trim());
@@ -1482,7 +1521,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

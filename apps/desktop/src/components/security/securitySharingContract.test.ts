@@ -46,6 +46,20 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(wizard).toContain('t("workspaceSecurity.recoveryReady")');
   });
 
+  it("offers a desktop join flow and a copyable invitation artifact (package C1/C3/C4)", () => {
+    // The page detects a joinable remote workspace and opens the join dialog.
+    expect(page).toContain("detectJoinableWorkspace");
+    expect(page).toContain("WorkspaceJoinDialog");
+    // The invitation artifact is a copyable invite code + full member ID.
+    expect(page).toContain("encodeWorkspaceInvite");
+    expect(page).toContain('t("workspaceSecurity.memberIdFull"');
+    // The join dialog states the three-step invite -> pair -> active model.
+    const join = readFileSync(new URL("./WorkspaceJoinDialog.tsx", import.meta.url), "utf8");
+    expect(join).toContain("beginWorkspaceJoin");
+    expect(join).toContain("pollWorkspaceJoin");
+    expect(join).toContain("pv-security-model");
+  });
+
   it("provides mobile master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");
