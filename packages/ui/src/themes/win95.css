@@ -389,8 +389,7 @@
 /* Security centre uses the same beveled surface grammar as settings cards. */
 [data-theme-name="win95"] .pv-security-hero,
 [data-theme-name="win95"] .pv-security-summary-card,
-[data-theme-name="win95"] .pv-security-choice,
-[data-theme-name="win95"] .pv-security-admin { box-shadow: var(--shadow-1); }
+[data-theme-name="win95"] .pv-security-choice { box-shadow: var(--shadow-1); }
 
 /* Segmented controls: sunken silver tray, the active segment is a raised
    tile - "toolbar button" grammar. */

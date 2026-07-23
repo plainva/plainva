@@ -1648,25 +1648,27 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-security-summary-card > div { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: var(--space-1); }
 .pv-security-summary-card > div > span { color: var(--text-muted); font-size: var(--text-sm); }
 .pv-security-summary-card .pv-btn { margin-top: auto; }
-.pv-security-admin { margin-top: var(--space-4); }
-.pv-security-tabs { display: flex; gap: var(--space-1); overflow-x: auto; border-bottom: 1px solid var(--border-color); }
-.pv-security-tabs > button { min-height: var(--control-lg); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; white-space: nowrap; }
-.pv-security-tabs > button[aria-selected="true"] { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
-.pv-security-panel { display: none; padding-top: var(--space-3); }
-.pv-security-admin[data-tab="devices"] .pv-security-panel[data-panel~="devices"],
-.pv-security-admin[data-tab="members"] .pv-security-panel[data-panel~="members"],
-.pv-security-admin[data-tab="groups"] .pv-security-panel[data-panel~="groups"],
-.pv-security-admin[data-tab="slices"] .pv-security-panel[data-panel~="slices"],
-.pv-security-admin[data-tab="publications"] .pv-security-panel[data-panel~="publications"] { display: block; }
+/* Team administration is a master/detail surface (plan Security & Sharing UX,
+   package B1): a .pv-navlink rail selects ONE area, the detail renders only
+   that area — members, groups and Vault Slices are no longer merged into one
+   panel. Narrow screens stack the rail above the detail (horizontal scroll). */
+.pv-security-admin { margin-top: var(--space-4); display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.pv-security-nav { display: flex; flex-direction: column; gap: var(--space-1); }
+.pv-security-detail { min-width: 0; }
 .pv-security-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pv-security-slice-wizard { display: grid; gap: var(--space-3); }
 .pv-security-choice { display: flex; min-height: var(--control-lg); flex-direction: column; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-container); color: var(--text-main); text-align: left; cursor: pointer; }
 .pv-security-choice span { color: var(--text-muted); font-size: var(--text-sm); }
 .pv-security-choice.is-active { border-color: var(--accent-color); background: var(--accent-container); color: var(--on-accent-container); }
 .pv-security-choice.is-active span { color: inherit; opacity: 0.8; }
+.pv-security-progress { height: 6px; margin: var(--space-2) 0; overflow: hidden; background: var(--bg-secondary); border-radius: var(--radius-xs); }
+.pv-security-progress-bar { height: 100%; background: var(--accent-color); border-radius: var(--radius-xs); transition: width var(--dur-1) var(--ease-1); }
+.pv-security-progress-label { font-size: var(--text-sm); color: var(--text-muted); }
 @media (max-width: 760px) {
   .pv-security-hero { align-items: flex-start; flex-wrap: wrap; }
   .pv-security-summary-grid, .pv-security-choice-grid { grid-template-columns: 1fr; }
+  .pv-security-admin { grid-template-columns: 1fr; }
+  .pv-security-nav { flex-direction: row; overflow-x: auto; }
   .pv-security-task-head { align-items: stretch; flex-direction: column; }
   .pv-security-task-head .pv-btn { align-self: flex-start; }
   .pv-security-challenge-grid { grid-template-columns: 1fr; }

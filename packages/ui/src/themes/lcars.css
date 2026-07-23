@@ -607,11 +607,11 @@
   --graph-edge-curvature: 0.22;
 }
 
-/* Security centre uses stronger Okuda outlines and pill tabs. */
+/* Security centre uses stronger Okuda outlines. The master/detail rail is the
+   shared .pv-navlink, already themed generically. */
 [data-theme-name="lcars"] .pv-security-hero,
 [data-theme-name="lcars"] .pv-security-summary-card,
 [data-theme-name="lcars"] .pv-security-choice { border-width: 2px; }
-[data-theme-name="lcars"] .pv-security-tabs > button { border-radius: var(--radius-pill); }
 
 /* Segmented controls: hollow Okuda pills, the active one fills solid. */
 [data-theme-name="lcars"] .pv-segmented {
