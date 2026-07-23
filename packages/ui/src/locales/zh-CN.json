@@ -2300,7 +2300,7 @@
     "transferOwner":"Transfer ownership","ownerTransferRequirements":"Choose the new owner and current recovery file.","ownerTransferDone":"Ownership and recovery were transferred. Give file and code through separate secure channels.","ownerTransferWarning":"The new file is saved before anchor and owner policy activate. You become Admin; the target becomes the only Owner.","newOwner":"New owner",
     "futureOnly":"Future only","fullRekey":"Full rekey","revokeFutureQuestion":"Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase":{"preparing":"准备中","migrating":"加密中","active":"已保护","locked":"已锁定","error":"需要处理"},
-    "lockedMessage":"此设备上的加密工作区已锁定。","device":"此设备","nativeKeychain":"密钥由操作系统密钥链保护。","passphraseProtected":"密钥由本地口令保护。","lock":"锁定","unlock":"解锁","unlockTitle":"解锁加密工作区","unlockFailed":"无法解锁，请检查口令。","passphrase":"口令",
+    "lockedMessage":"此设备上的加密工作区已锁定。","reconcileProgress":"正在准备加密工作区…","device":"此设备","nativeKeychain":"密钥由操作系统密钥链保护。","passphraseProtected":"密钥由本地口令保护。","lock":"锁定","unlock":"解锁","unlockTitle":"解锁加密工作区","unlockFailed":"无法解锁，请检查口令。","passphrase":"口令",
     "details":"技术详情","showDetails":"显示详情","hideDetails":"隐藏详情","fingerprint":"指纹","workspaceId":"工作区ID","progress":"迁移进度","lastSync":"上次成功同步","queued":"待加密","legacyPlaintext":"旧明文对象","refresh":"刷新",
     "recoveryCard":"恢复","recoveryPackage":"恢复包","recoveryProtected":"已在设置时保存并确认。","recoverySetupHint":"设置时会创建恢复包。","recoverySaved":"已外部保存","recoverySeparation":"请将.pvrecovery文件和恢复代码分开保管。两者都不含云凭据。",
     "devicesCard":"设备","currentDevice":"当前设备","devicesP4":"添加、配对和撤销其他设备将在P4提供。","teamsCard":"人员与权限","teamsComing":"团队共享","teamsP4":"角色、群组、邀请和共享slice将在P4及后续阶段提供。","manageTeams":"管理",

@@ -585,6 +585,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .query<{ n: number }>(`SELECT COUNT(*) AS n FROM files`)
         .then((r) => (r[0]?.n ?? 0))
         .catch(() => 0);
+      // Warm index ⇒ the notes are already on screen, so the encrypted-workspace
+      // reconcile sweep (A2) can run in the background instead of blocking open.
+      const deferWorkspaceReconcile = indexedCount > 0;
 
       if (indexedCount > 0) {
         reportInitialProgress = false; // background reconcile: no loading bar
@@ -707,42 +710,79 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 throw new Error("The stored workspace key bundle does not match this vault.");
               }
               const objectStore = createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
-              await initializePersonalWorkspaceMigration({
-                store: objectStore,
-                state: workspaceStateStore,
-                vault: backupVaultAdapter,
-                runtime,
-                recoveryConfirmedAt: workspaceSecurityStatus.recoveryConfirmedAt,
-              });
-              const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
-              syncWorker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
-                intervalMs,
-                sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
-              });
-              syncWorker.onStatusChange = (status, errorMsg) => {
-                syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
-                void workspaceStateStore.loadMeta().then(async (meta) => {
-                  if (!meta) return;
-                  const publicStatus: WorkspaceSecurityPublicStatus = {
-                    ...workspaceSecurityStatus,
-                    phase: status === "error" ? "error" : meta.phase,
-                    lastError: errorMsg || meta.lastError,
-                  };
-                  await saveWorkspaceSecurityStatus(path, publicStatus);
-                  setState((s) => s.vaultPath === path ? { ...s, workspaceSecurityStatus: publicStatus } : s);
+              const activeSecurityStatus = workspaceSecurityStatus;
+              // The open-time reconcile sweep (A1 mtime-skip) is O(changed files),
+              // but on a network mount the listDir alone can be slow. When the
+              // index is WARM the notes are already on screen (they come from the
+              // DB), so run the sweep + worker start in the BACKGROUND (A2) — like
+              // the warm full-index pass right above. A COLD open still blocks with
+              // a determinate splash bar so the encrypted setup shows progress.
+              const startEncryptedWorkspace = async (): Promise<EncryptedWorkspaceWorker | null> => {
+                const { perfMeasure } = await import("../services/perfMetrics");
+                await perfMeasure("encrypted workspace reconcile (open)", () =>
+                  initializePersonalWorkspaceMigration({
+                    store: objectStore,
+                    state: workspaceStateStore,
+                    vault: backupVaultAdapter,
+                    runtime,
+                    recoveryConfirmedAt: activeSecurityStatus.recoveryConfirmedAt,
+                    signal: currentAbortSignal,
+                    onProgress: deferWorkspaceReconcile
+                      ? undefined
+                      : (done, total) => setState((s) => s.loadingPath === path
+                        ? { ...s, loadingProgress: { current: done, total, message: i18n.t("workspaceSecurity.reconcileProgress") } }
+                        : s),
+                  }));
+                if (currentAbortSignal.aborted) return null;
+                const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
+                const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
+                  intervalMs,
+                  sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
                 });
-              };
-              syncWorker.onProgress = (progress) => syncStatusStore.set({ progress });
-              syncWorker.onFilesChanged = (paths) => {
-                for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
-                indexQueue.enqueue(paths);
-                for (const changedPath of paths) {
-                  if (!changedPath.includes(".CONFLICT")) {
-                    window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: changedPath } }));
+                worker.onStatusChange = (status, errorMsg) => {
+                  syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+                  void workspaceStateStore.loadMeta().then(async (meta) => {
+                    if (!meta) return;
+                    const publicStatus: WorkspaceSecurityPublicStatus = {
+                      ...activeSecurityStatus,
+                      phase: status === "error" ? "error" : meta.phase,
+                      lastError: errorMsg || meta.lastError,
+                    };
+                    await saveWorkspaceSecurityStatus(path, publicStatus);
+                    setState((s) => s.vaultPath === path ? { ...s, workspaceSecurityStatus: publicStatus } : s);
+                  });
+                };
+                worker.onProgress = (progress) => syncStatusStore.set({ progress });
+                worker.onFilesChanged = (paths) => {
+                  for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
+                  indexQueue.enqueue(paths);
+                  for (const changedPath of paths) {
+                    if (!changedPath.includes(".CONFLICT")) {
+                      window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: changedPath } }));
+                    }
                   }
-                }
+                };
+                if (currentAbortSignal.aborted) return null;
+                worker.start();
+                return worker;
               };
-              syncWorker.start();
+              if (deferWorkspaceReconcile) {
+                void startEncryptedWorkspace()
+                  .then((worker) => {
+                    if (!worker || currentAbortSignal.aborted) { void worker?.stopAndDrain(); return; }
+                    setState((s) => (s.vaultPath === path ? { ...s, syncWorker: worker } : s));
+                  })
+                  .catch(async (e) => {
+                    console.error("[VaultContext] background encrypted workspace start failed", e);
+                    const message = e instanceof Error ? e.message : String(e);
+                    const errored = { ...activeSecurityStatus, phase: "error" as const, lastError: message.slice(0, 1000) };
+                    await saveWorkspaceSecurityStatus(path, errored).catch(() => undefined);
+                    syncStatusStore.set({ status: "error", message, provider: syncProvider });
+                    setState((s) => (s.vaultPath === path ? { ...s, workspaceSecurityStatus: errored } : s));
+                  });
+              } else {
+                syncWorker = await startEncryptedWorkspace();
+              }
             }
           } else {
             const engine = new SyncEngine(syncQueue, target, vaultAdapter, syncRepo);

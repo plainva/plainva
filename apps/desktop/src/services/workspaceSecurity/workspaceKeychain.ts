@@ -5,7 +5,6 @@ import {
   aeadNonce,
   canonicalJson,
   deserializePersonalWorkspaceRuntime,
-  deriveKek,
   fromBase64,
   serializePersonalWorkspaceRuntime,
   toBase64,
@@ -18,6 +17,7 @@ import {
 } from "@plainva/core";
 import { credentialManager } from "../CredentialManager";
 import { getSettingsStore } from "../settingsStore";
+import { deriveKekOffThread } from "./deriveKekOffThread";
 
 export type WorkspaceKeyStorage = "native" | "passphrase";
 
@@ -87,7 +87,7 @@ export async function persistWorkspaceRuntime(input: {
     if (!input.fallbackPassphrase || input.fallbackPassphrase.length < 10) throw new Error("workspace-fallback-passphrase-required");
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const nonce = aeadNonce();
-    const kek = await deriveKek(input.fallbackPassphrase, salt, DEFAULT_KDF_PARAMS);
+    const kek = await deriveKekOffThread(input.fallbackPassphrase, salt, DEFAULT_KDF_PARAMS);
     sessionKeks.set(input.vaultPath, new Uint8Array(kek));
     envelope = {
       storage: "passphrase",
@@ -135,7 +135,7 @@ export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: str
     runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
   } else {
     if (!passphrase) throw new Error("workspace-passphrase-required");
-    const kek = await deriveKek(passphrase, fromBase64(envelope.salt), envelope.params);
+    const kek = await deriveKekOffThread(passphrase, fromBase64(envelope.salt), envelope.params);
     let plaintext: Uint8Array;
     try {
       plaintext = aeadDecrypt(kek, fromBase64(envelope.nonce), fromBase64(envelope.ciphertext), fallbackAad());

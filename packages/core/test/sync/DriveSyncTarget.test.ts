@@ -501,7 +501,10 @@ describe("DriveSyncTarget", () => {
       await expect(target.pull()).rejects.toThrow(
         "Google Drive folder lookup failed (HTTP 503): no error details returned by Google Drive",
       );
-    });
+      // A 503 is retriable, so this exercises the full httpRetry backoff chain
+      // whose wall-clock sums close to the 5s default — give it headroom so the
+      // test does not flake at the timeout boundary under parallel CI load.
+    }, 20000);
 
     it("turns an empty AbortError into a readable timeout", async () => {
       const fetchFn = vi.fn<FetchFn>(async () => Promise.reject({ name: "AbortError", message: "" }));

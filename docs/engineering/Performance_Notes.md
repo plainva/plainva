@@ -15,6 +15,8 @@ This document records WHAT is measured against (budgets from an internal plannin
 | Sync cycle (100 changed files) | < 30 s |
 | RAM desktop (idle) | < 200 MB |
 | Desktop bundle | < 20-30 MB |
+| Encrypted-workspace open reconcile, 5.000 files, nothing changed offline | < 1 s (probe cache: no file reads) |
+| Encrypted-workspace passphrase unlock (KDF) | UI stays responsive (KDF off the main thread) |
 
 ## Generating test vaults
 
@@ -114,6 +116,35 @@ Native follow-up (needs the built app — not runnable in the harness):
   truly atomic needs a pinned cross-invoke transaction handle (begin/exec/query/
   commit on ONE held connection), a larger, separate native change.
 
+## Encrypted workspace open reconcile (Security & Sharing package A, 2026-07-23)
+
+`initializePersonalWorkspaceMigration` runs on every open of an
+Encrypted-Workspace vault. It used to full-read + SHA-256 **every** file
+sequentially on each open (O(vault size), warm or cold). Package A:
+
+- **mtime probe cache (A1)**: a local-only `workspace_local_probe` table
+  (`path, mtime, size, plaintext_sha256`) lets an unchanged file skip the read
+  entirely — same treatment as `VaultIndexer.indexVaultFull`'s mtime map. Files
+  with mtime 0 (some network mounts) still fall back to hashing. Per-run bulk
+  lookups (`listObjects`, `listQueuedPaths`, `listLocalProbes`) replace the
+  per-file `getObjectByPath`/`hasPendingForPath` round-trips.
+- **background reconcile (A2)**: on a warm index the notes are already on screen
+  (they come from the SQLite index), so the sweep + worker start run in the
+  background; a cold open still blocks with a determinate splash bar
+  (`workspaceSecurity.reconcileProgress`).
+- **no double sweep (A3, effective)**: `unlock`/`activate`/`lock` still rebuild
+  the adapter stack via `openVault()` (the stacks differ per state), but the
+  reconcile that reload triggers is now free of re-reads (probe cache) and runs
+  in the background (A2), so the "unlock pays the sweep twice" cost is gone.
+- **KDF off the main thread (A4)**: `deriveKekOffThread` runs scrypt in a Web
+  Worker (`kdf.worker.ts`); a passphrase unlock no longer freezes the WebView.
+  Only the passphrase-fallback path derives a key on open — a native OS keychain
+  derives nothing.
+
+Telemetry marker: `perfMeasure("encrypted workspace reconcile (open)")` (visible
+in Settings → About & Diagnostics → performance metrics). Fill the native table
+below with real numbers on the maintainer sighting.
+
 ## Native measurements (maintainer, to be added)
 
 | Measurement point | 1k | 5k | 20k | Date/Build |
@@ -123,6 +154,8 @@ Native follow-up (needs the built app — not runnable in the harness):
 | No-op sync tick | | | | |
 | File switch (sidebar open) | | | | |
 | Search (typing -> result) | | | | |
+| Encrypted-workspace open reconcile (warm, unchanged) | | | | |
+| Encrypted-workspace passphrase unlock (KDF) | | | | |
 
 Open follow-up candidates after measurement: SyncQueue pinned-transaction atomicity (see "Cold-index bulk batch" — the cold index's bulk batch is delivered; the read-interleaved queue ops still ride the JS mutex), base view virtualization (from ~1-2k rows), graph layout chunking/worker (>2-3k visible nodes), FTS contentless (index DB size).
 
