@@ -112,6 +112,10 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");
+    // P4: groups and publications are visible read-only on mobile (managed on desktop).
+    expect(mobile).toContain("runtime.policy.payload.groups.map");
+    expect(mobile).toContain("slice.publication");
+    expect(mobile).toContain("workspaceSecurity.mobileManageOnDesktop");
   });
 
   it("mobile joins an encrypted workspace by pasting the invitation code, not a raw member id", () => {

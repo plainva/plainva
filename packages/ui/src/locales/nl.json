@@ -2305,6 +2305,7 @@
     "mailCaptureGroup": "Vastleggen & privacy"
   },
   "workspaceSecurity": {
+    "mobileManageOnDesktop": "Beheren in de desktop-app.",
     "manageAccess": "Apparaten en herstel", "manageAccessDesc": "Koppel een ander apparaat · bewaar het herstelpakket", "manageSharing": "Delen met anderen", "manageSharingDesc": "Leden, groepen, slices, publicaties", "encryptionCard": "Versleuteling", "cloudDisconnect": "Verbinding met de versleutelde cloud verwijderen", "cloudDisconnectDesc": "Verwijdert alleen dit apparaat. De cloud blijft versleuteld — andere apparaten en leden houden toegang.", "cloudDisconnectAction": "Verbreken …", "recoveryStatus": "Huidige status", "recoveryWorkflow": "Herstelproces", "addDevice": "Nog een apparaat toevoegen", "addDeviceDesc": "Koppelt een tweede eigen apparaat — maakt geen nieuw lid aan.", "addDeviceHint": "Plak deze code op je andere apparaat (Beveiliging en delen → deelnemen) en keur die hier goed. Je andere apparaten blijven behouden.",
     "overview": "Overzicht", "groupAccess": "Jouw toegang", "groupSharing": "Delen",
     "publicationCreated": "Versleutelde publicatie geconfigureerd",

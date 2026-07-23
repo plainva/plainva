@@ -2312,6 +2312,7 @@
     "mailCaptureGroup": "Cattura e privacy"
   },
   "workspaceSecurity": {
+    "mobileManageOnDesktop": "Gestisci nell'app desktop.",
     "manageAccess": "Dispositivi e ripristino", "manageAccessDesc": "Associa un altro dispositivo · salva il pacchetto di ripristino", "manageSharing": "Condividi con altri", "manageSharingDesc": "Membri, gruppi, slice, pubblicazioni", "encryptionCard": "Crittografia", "cloudDisconnect": "Rimuovi la connessione al cloud crittografato", "cloudDisconnectDesc": "Disconnette solo questo dispositivo. Il cloud resta crittografato: gli altri dispositivi e membri mantengono l'accesso.", "cloudDisconnectAction": "Disconnetti …", "recoveryStatus": "Stato attuale", "recoveryWorkflow": "Flusso di ripristino", "addDevice": "Aggiungi un altro dispositivo", "addDeviceDesc": "Associa un secondo dispositivo tuo, senza creare un nuovo membro.", "addDeviceHint": "Incolla questo codice sull'altro dispositivo (Sicurezza e condivisione → unisciti), poi approvalo qui. Gli altri dispositivi restano.",
     "overview": "Panoramica", "groupAccess": "Il tuo accesso", "groupSharing": "Condivisione",
     "publicationCreated": "Pubblicazione cifrata configurata",
