@@ -2,11 +2,11 @@
 
 ## Security Center, rekeying, and published slices
 
-The dashboard now follows the recovery/device/team cards and the tabbed administration shown in the product mockups. Visible actions stay usable: Plainva opens the selected vault, connection setup, workspace setup, or unlock flow when a prerequisite is missing. Removing a device or member can start a durable full rekey; its object-by-object progress survives pause, crash, and restart. A future-only rotation changes only subsequent writes.
+**Security & Sharing** has two levels. The **overview** (first level) shows the protection status, **Finish migration** when plaintext leftovers remain, **Remove the connection to the encrypted cloud**, and two cards that open the second level — **Devices & recovery** and **Share with others**. On the second level the area navigation replaces the settings left column, grouped into **Your access** (Devices, Recovery) and **Sharing** (Members, Groups, Slices, Publications); **‹ Overview** returns to the first level. Visible actions stay usable: Plainva opens the selected vault, connection setup, workspace setup, or unlock flow when a prerequisite is missing. Removing a device or member can start a durable full rekey; its object-by-object progress survives pause, crash, and restart. A future-only rotation changes only subsequent writes.
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. External publications use a separate encrypted workspace namespace. Sanitized projections remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds. Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions are additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-07-22
+Last reviewed: 2026-07-23
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -24,7 +24,9 @@ Offline changes stay in a durable queue. Every change is signed; remote deletion
 
 ## Devices and recovery
 
-A new mobile device creates a QR/manual-code request. Enter its short code on an already approved desktop and compare the fingerprint on both devices before approval. A removed device cannot sign new valid changes. If every device is lost, choose **Restore access** and open the `.pvrecovery` file with its separately stored code; Plainva creates a new owner device, can revoke the lost devices, and does not rewrite content objects. **Renew recovery** replaces the old recovery set through a dual-signed anchor chain. Store the new file and code separately again; the old set is invalid afterwards.
+To add **your own** second device, open **Devices & recovery → Devices → Add another device**: Plainva shows an invitation code bound to your own membership — it does **not** create a new member. Paste it on the second device (**Security & Sharing → join**) and approve it on a device that is already in; compare the fingerprint on both devices first. To bring in another person instead, use **Share with others → Members → Invite a person** (see below). A removed device cannot sign new valid changes.
+
+Recovery lives under **Devices & recovery → Recovery**, split into **Current status** (is a recovery package saved, and the workspace fingerprint) and the **Recovery workflow**. If every device is lost, choose **Restore access** there and open the `.pvrecovery` file with its separately stored code; Plainva creates a new owner device, can revoke the lost devices, and does not rewrite content objects. **Renew recovery** replaces the old recovery set through a dual-signed anchor chain. Store the new file and code separately again; the old set is invalid afterwards.
 
 ## Members, roles, and vault slices
 
@@ -43,12 +45,12 @@ Malformed remote artifacts are isolated under **Integrity & local forks**. You c
 When you no longer need an encrypted vault, decommission it in Plainva **before** you delete the cloud folder. The order matters: the fail-closed guard keeps sync stopped if the cloud copy disappears while Plainva still expects the connection to be encrypted — this protects you from an attacker stripping the encryption to force plain text.
 
 1. Open **Settings → your vault → Security & Sharing**.
-2. In the recovery card, choose **Decommission workspace**. Plainva clears the local keys and workspace data on this device and reopens the vault as a normal vault.
+2. On the overview, in the **Encryption** card, choose **Remove the connection to the encrypted cloud**. Plainva clears the local keys and workspace data on this device and reopens the vault as a normal vault. (This is device-local; a global "lift encryption" that also rewrites the cloud copy back to plain text is a separate action added later.)
 3. Only now delete the cloud folder (the `.pvws/` objects) at your provider if you want it gone. Plainva does not delete the encrypted cloud objects for you.
 
 If you already deleted the cloud copy and sync now fails with a "workspace is missing" or "manifest is missing" error, the fix is the same reset, offered where the error appears:
 
-- For an encrypted **workspace**, open **Security & Sharing**. The status shows an error with a recovery note; choose **Decommission workspace** to reset the workspace on this device so sync works again.
+- For an encrypted **workspace**, open **Security & Sharing**. The status shows an error with a recovery note; in the **Encryption** card choose **Remove the connection to the encrypted cloud** to reset the workspace on this device so sync works again.
 - For a content-encrypted **sync connection**, click the sync status to open the sync-error dialog and choose **Reset encryption**. This button only appears when the remote encryption data is missing or invalid.
 
 Both actions are explicit and confirmed. Plainva never silently downgrades an encrypted connection to plain text, and neither action deletes any local files. If the cloud still holds encrypted content you actually want, cancel instead — resetting would resume plain-text sync.

@@ -2,9 +2,9 @@
 
 ## Centro sicurezza, ricifratura e slice pubblicati
 
-La schermata segue i mockup con stato e schede recupero, dispositivi e team; un’azione apre il vault, la connessione, la configurazione o lo sblocco necessario. La revoca può avviare una ricifratura completa ripristinabile. Crea un Vault Slice con **Dettagli → Contenuto → Permessi → Revisione**. Le pubblicazioni esterne vivono in un workspace cifrato separato; la proiezione ripulita rimuove proprietà private, link esclusi e incorporamenti. La pubblicazione pubblica attende revisione crittografica indipendente e prove reali Android/iOS.
+**Sicurezza e condivisione** ha due livelli. La **Panoramica** (primo livello) mostra lo stato di protezione, **Completa migrazione** quando restano residui in chiaro, **Rimuovi la connessione al cloud crittografato** e due schede che aprono il secondo livello — **Dispositivi e ripristino** e **Condividi con altri**. Nel secondo livello la navigazione per aree sostituisce la colonna sinistra delle impostazioni, raggruppata in **Il tuo accesso** (Dispositivi, ripristino) e **Condivisione** (Membri, gruppi, slice, pubblicazioni); **‹ Panoramica** torna al primo livello. Le azioni visibili restano disponibili: un’azione apre il vault, la connessione, la configurazione o lo sblocco necessario. La revoca può avviare una ricifratura completa ripristinabile. Crea un Vault Slice con **Dettagli → Contenuto → Permessi → Revisione**. Le pubblicazioni esterne vivono in un workspace cifrato separato; la proiezione ripulita rimuove proprietà private, link esclusi e incorporamenti. La pubblicazione pubblica attende revisione crittografica indipendente e prove reali Android/iOS.
 
-Ultima verifica: 2026-07-22
+Ultima verifica: 2026-07-23
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
 
@@ -20,7 +20,9 @@ Le modifiche offline restano in una coda durevole. Le eliminazioni richiedono to
 
 ## Dispositivi e recupero
 
-Un nuovo dispositivo mobile crea una richiesta QR/codice. Inserisci il codice breve su un desktop già approvato e confronta le impronte prima della conferma. Un dispositivo rimosso non può più firmare nuove modifiche. Se tutti i dispositivi sono persi, **Ripristina accesso** crea un nuovo dispositivo proprietario dal file `.pvrecovery` e dal codice separato, senza riscrivere i contenuti. **Rinnova recupero** ancora una nuova identità con doppia firma e invalida il vecchio set.
+Per aggiungere il **tuo** secondo dispositivo, apri **Dispositivi e ripristino → Dispositivi → Aggiungi un altro dispositivo**: Plainva mostra un codice di invito legato alla tua stessa iscrizione — **non** crea un nuovo membro. Incollalo sul secondo dispositivo (**Sicurezza e condivisione → unisciti**) e approvalo su un dispositivo già presente; confronta prima l’impronta su entrambi i dispositivi. Per aggiungere invece un’altra persona, usa **Condividi con altri → Membri → Invita una persona** (vedi sotto). Un dispositivo rimosso non può firmare nuove modifiche valide.
+
+Il ripristino si trova in **Dispositivi e ripristino → Ripristino**, suddiviso in **Stato attuale** (se è salvato un pacchetto di ripristino e l’impronta del workspace) e il **Flusso di ripristino**. Se perdi tutti i dispositivi, scegli lì **Ripristina accesso** e apri il file `.pvrecovery` con il codice conservato separatamente; Plainva crea un nuovo dispositivo proprietario, può revocare i dispositivi persi e non riscrive gli oggetti di contenuto. **Rinnova recupero** sostituisce il vecchio set di ripristino tramite una catena di ancoraggio con doppia firma. Conserva di nuovo il nuovo file e il codice separatamente; il vecchio set è poi non valido.
 
 ## Membri, ruoli e slice
 
@@ -37,12 +39,12 @@ Commenti e marcatori di risoluzione sono cifrati e firmati. **Cronologia version
 Quando non ti serve più un vault cifrato, dismettilo in Plainva **prima** di eliminare la cartella cloud. L’ordine conta: la protezione fail-closed mantiene la sincronizzazione ferma se la copia cloud sparisce mentre Plainva si aspetta ancora una connessione cifrata — questo ti protegge da un aggressore che tolga la cifratura per forzare il testo in chiaro.
 
 1. Apri **Impostazioni → vault → Security & Sharing**.
-2. Nella scheda di recupero, scegli **Dismetti l’area di lavoro**. Plainva cancella le chiavi locali e i dati del workspace su questo dispositivo e riapre il vault come un vault normale.
+2. Nella panoramica, nella scheda **Crittografia**, scegli **Rimuovi la connessione al cloud crittografato**. Plainva cancella le chiavi locali e i dati del workspace su questo dispositivo e riapre il vault come un vault normale. (Questa è un’operazione locale del dispositivo; un’azione globale di «annullare la crittografia» che riscrive anche la copia nel cloud in testo in chiaro è un’azione separata aggiunta in seguito.)
 3. Solo a questo punto elimina la cartella cloud (gli oggetti `.pvws/`) presso il tuo provider se vuoi liberartene. Plainva non elimina per te gli oggetti cifrati nel cloud.
 
 Se hai già eliminato la copia cloud e la sincronizzazione ora fallisce con un errore «area di lavoro mancante» o «manifest mancante», la soluzione è lo stesso ripristino, offerto dove compare l’errore:
 
-- Per un **workspace** cifrato, apri **Security & Sharing**. Lo stato mostra un errore con una nota di recupero; scegli **Dismetti l’area di lavoro** per reimpostare il workspace su questo dispositivo così che la sincronizzazione torni a funzionare.
+- Per un **workspace** cifrato, apri **Security & Sharing**. Lo stato mostra un errore con una nota di recupero; nella scheda **Crittografia** scegli **Rimuovi la connessione al cloud crittografato** per reimpostare il workspace su questo dispositivo così che la sincronizzazione torni a funzionare.
 - Per una **connessione di sincronizzazione** con contenuto cifrato, fai clic sullo stato di sincronizzazione per aprire la finestra di errore e scegli **Reimposta crittografia**. Questo pulsante compare solo quando i dati di cifratura remoti mancano o non sono validi.
 
 Entrambe le azioni sono esplicite e confermate. Plainva non declassa mai in silenzio una connessione cifrata a testo in chiaro, e nessuna delle due azioni elimina file locali. Se il cloud contiene ancora contenuti cifrati che vuoi davvero, annulla invece — reimpostare riprenderebbe la sincronizzazione in chiaro.

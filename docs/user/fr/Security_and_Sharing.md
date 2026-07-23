@@ -2,9 +2,9 @@
 
 ## Centre de sécurité, rechiffrement et slices publiés
 
-Le tableau reprend les cartes récupération, appareils et équipe des maquettes ; une action ouvre le vault, la connexion, la configuration ou le déverrouillage requis. Une révocation peut lancer un rechiffrement complet reprenable. Créez un Vault Slice via **Détails → Contenu → Autorisations → Vérification**. Les publications externes occupent un workspace chiffré séparé ; la projection nettoyée retire propriétés privées, liens exclus et inclusions. La diffusion publique attend l’audit crypto indépendant et les essais Android/iOS réels.
+**Sécurité et partage** comporte deux niveaux. L’**Aperçu** (premier niveau) affiche l’état de protection, **Terminer la migration** lorsqu’il reste du texte en clair, **Supprimer la connexion au cloud chiffré**, et deux cartes qui ouvrent le second niveau — **Appareils et récupération** et **Partager avec d’autres**. Au second niveau, la navigation par zones remplace la colonne de gauche des paramètres, regroupée en **Votre accès** (Appareils, récupération) et **Partage** (Membres, groupes, slices, publications) ; **‹ Aperçu** revient au premier niveau. Les actions visibles restent disponibles : une action ouvre le vault, la connexion, la configuration ou le déverrouillage requis. Une révocation peut lancer un rechiffrement complet reprenable. Créez un Vault Slice via **Détails → Contenu → Autorisations → Vérification**. Les publications externes occupent un workspace chiffré séparé ; la projection nettoyée retire propriétés privées, liens exclus et inclusions. La diffusion publique attend l’audit crypto indépendant et les essais Android/iOS réels.
 
-Dernière vérification : 2026-07-22
+Dernière vérification : 2026-07-23
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
@@ -20,7 +20,9 @@ Les modifications hors ligne restent dans une file durable. Les suppressions exi
 
 ## Appareils et récupération
 
-Un nouvel appareil mobile crée une demande QR/code. Saisissez le code court sur un ordinateur déjà approuvé et comparez les empreintes avant validation. Un appareil retiré ne peut plus signer de nouvelles modifications. Si tous les appareils sont perdus, **Restaurer l’accès** crée un nouvel appareil propriétaire depuis le fichier `.pvrecovery` et son code séparé, sans réécrire le contenu. **Renouveler la récupération** ancre une nouvelle identité à double signature et invalide l’ancien jeu.
+Pour ajouter **votre propre** deuxième appareil, ouvrez **Appareils et récupération → Appareils → Ajouter un autre appareil** : Plainva affiche un code d’invitation lié à votre propre appartenance — il ne crée **pas** de nouveau membre. Collez-le sur le deuxième appareil (**Sécurité et partage → rejoindre**) et approuvez-le sur un appareil déjà membre ; comparez d’abord l’empreinte sur les deux appareils. Pour intégrer plutôt une autre personne, utilisez **Partager avec d’autres → Membres → Inviter une personne** (voir ci-dessous). Un appareil retiré ne peut plus signer de nouvelles modifications valides.
+
+La récupération se trouve sous **Appareils et récupération → Récupération**, répartie entre **État actuel** (un paquet de récupération est-il enregistré, et l’empreinte de l’espace) et le **Processus de récupération**. Si tous les appareils sont perdus, choisissez-y **Restaurer l’accès** et ouvrez le fichier `.pvrecovery` avec son code conservé séparément ; Plainva crée un nouvel appareil propriétaire, peut révoquer les appareils perdus et ne réécrit pas les objets de contenu. **Renouveler la récupération** remplace l’ancien jeu de récupération via une chaîne d’ancrage à double signature. Conservez de nouveau le nouveau fichier et le code séparément ; l’ancien jeu est ensuite invalide.
 
 ## Membres, rôles et slices
 
@@ -37,12 +39,12 @@ Commentaires et marqueurs de résolution sont chiffrés et signés. **Historique
 Lorsque vous n’avez plus besoin d’un vault chiffré, mettez-le hors service dans Plainva **avant** de supprimer le dossier cloud. L’ordre compte : la protection fail-closed maintient la synchronisation arrêtée si la copie cloud disparaît alors que Plainva attend encore une connexion chiffrée — cela vous protège d’un attaquant qui retirerait le chiffrement pour forcer le texte en clair.
 
 1. Ouvrez **Paramètres → votre vault → Security & Sharing**.
-2. Dans la carte de récupération, choisissez **Mettre l’espace de travail hors service**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal.
+2. Dans l’aperçu, dans la carte **Chiffrement**, choisissez **Supprimer la connexion au cloud chiffré**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal. (Ceci est local à l’appareil ; une action globale de « lever le chiffrement » qui réécrit aussi la copie cloud en texte clair est une action distincte ajoutée plus tard.)
 3. Ce n’est qu’ensuite que vous supprimez le dossier cloud (les objets `.pvws/`) chez votre fournisseur si vous voulez vous en débarrasser. Plainva ne supprime pas pour vous les objets chiffrés du cloud.
 
 Si vous avez déjà supprimé la copie cloud et que la synchronisation échoue désormais avec une erreur « espace de travail manquant » ou « manifeste manquant », la solution est la même réinitialisation, proposée là où l’erreur apparaît :
 
-- Pour un **workspace** chiffré, ouvrez **Security & Sharing**. Le statut affiche une erreur avec une note de récupération ; choisissez **Mettre l’espace de travail hors service** pour réinitialiser le workspace sur cet appareil afin que la synchronisation refonctionne.
+- Pour un **workspace** chiffré, ouvrez **Security & Sharing**. Le statut affiche une erreur avec une note de récupération ; dans la carte **Chiffrement**, choisissez **Supprimer la connexion au cloud chiffré** pour réinitialiser le workspace sur cet appareil afin que la synchronisation refonctionne.
 - Pour une **connexion de synchronisation** à contenu chiffré, cliquez sur le statut de synchronisation pour ouvrir la boîte de dialogue d’erreur et choisissez **Réinitialiser le chiffrement**. Ce bouton n’apparaît que lorsque les données de chiffrement distantes sont manquantes ou invalides.
 
 Les deux actions sont explicites et confirmées. Plainva ne rétrograde jamais silencieusement une connexion chiffrée en texte clair, et aucune des deux actions ne supprime de fichiers locaux. Si le cloud contient encore du contenu chiffré que vous voulez réellement, annulez plutôt — réinitialiser reprendrait la synchronisation en clair.

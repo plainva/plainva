@@ -2,11 +2,11 @@
 
 ## Sicherheitszentrale, Neuverschlüsselung und veröffentlichte Slices
 
-Das Dashboard entspricht jetzt den Mockups mit Statusbereich, Karten für Wiederherstellung/Geräte/Team und einer Verwaltung mit Tabs. Sichtbare Aktionen bleiben benutzbar: Fehlt eine Voraussetzung, öffnet Plainva den ausgewählten Vault, die Verbindungsverwaltung, die Einrichtung oder die Entsperrung. Beim Entfernen eines Geräts oder Mitglieds kann eine dauerhafte vollständige Neuverschlüsselung starten; ihr Fortschritt überlebt Pause, Absturz und Neustart. Die schnelle Rotation betrifft nur künftige Schreibvorgänge.
+**Sicherheit & Freigaben** hat zwei Ebenen. Die **Übersicht** (erste Ebene) zeigt den Schutzstatus, **Migration abschließen** (wenn noch Klartext-Reste bestehen), **Verbindung zur verschlüsselten Cloud entfernen** und zwei Karten, die die zweite Ebene öffnen — **Geräte & Wiederherstellung** und **Mit anderen teilen**. Auf der zweiten Ebene ersetzt die Bereichs-Navigation die linke Einstellungs-Spalte, gruppiert in **Dein Zugang** (Geräte, Wiederherstellung) und **Teilen** (Mitglieder, Gruppen, Slices, Veröffentlichungen); **‹ Übersicht** führt zurück. Sichtbare Aktionen bleiben benutzbar: Fehlt eine Voraussetzung, öffnet Plainva den ausgewählten Vault, die Verbindungsverwaltung, die Einrichtung oder die Entsperrung. Beim Entfernen eines Geräts oder Mitglieds kann eine dauerhafte vollständige Neuverschlüsselung starten; ihr Fortschritt überlebt Pause, Absturz und Neustart. Die schnelle Rotation betrifft nur künftige Schreibvorgänge.
 
 Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. Externe Veröffentlichungen verwenden einen getrennten verschlüsselten Workspace-Namensraum. Bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg. Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
 
-Zuletzt geprüft: 2026-07-22
+Zuletzt geprüft: 2026-07-23
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
@@ -24,7 +24,9 @@ Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signi
 
 ## Geräte und Wiederherstellung
 
-Ein neues Gerät erstellt mobil eine QR-/Code-Anfrage. Gib den Kurzcode am bereits freigegebenen Desktop ein und vergleiche den Fingerprint auf beiden Geräten, bevor Du bestätigst. Entfernte Geräte können keine neuen gültigen Änderungen mehr signieren. Sind alle Geräte verloren, wähle **Zugriff wiederherstellen** und öffne die `.pvrecovery`-Datei mit ihrem getrennten Code; Plainva erstellt ein neues Owner-Gerät, kann die alten Geräte sperren und schreibt dabei keine Inhaltsobjekte um. Mit **Recovery erneuern** ersetzt eine doppelt signierte Ankerkette das alte Recovery-Set. Speichere die neue Datei und den neuen Code wieder getrennt; das alte Set ist danach ungültig.
+Um **Dein eigenes** Zweitgerät hinzuzufügen, öffne **Geräte & Wiederherstellung → Geräte → Weiteres Gerät hinzufügen**: Plainva zeigt einen Einladungscode, der an Deine eigene Mitgliedschaft gebunden ist — er legt **kein** neues Mitglied an. Füge ihn auf dem Zweitgerät ein (**Sicherheit & Freigaben → beitreten**) und genehmige ihn auf einem bereits verbundenen Gerät; vergleiche zuerst den Fingerprint auf beiden Geräten. Um stattdessen eine andere Person aufzunehmen, nutze **Mit anderen teilen → Mitglieder → Person einladen** (siehe unten). Entfernte Geräte können keine neuen gültigen Änderungen mehr signieren.
+
+Die Wiederherstellung liegt unter **Geräte & Wiederherstellung → Wiederherstellung**, getrennt in **Aktueller Status** (ist ein Recovery-Paket gesichert, plus der Workspace-Fingerprint) und den **Wiederherstellungs-Workflow**. Sind alle Geräte verloren, wähle dort **Zugriff wiederherstellen** und öffne die `.pvrecovery`-Datei mit ihrem getrennten Code; Plainva erstellt ein neues Owner-Gerät, kann die alten Geräte sperren und schreibt dabei keine Inhaltsobjekte um. Mit **Recovery erneuern** ersetzt eine doppelt signierte Ankerkette das alte Recovery-Set. Speichere die neue Datei und den neuen Code wieder getrennt; das alte Set ist danach ungültig.
 
 ## Mitglieder, Rollen und Vault Slices
 
@@ -43,12 +45,12 @@ Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**
 Wenn Du einen verschlüsselten Vault nicht mehr brauchst, lege ihn in Plainva still, **bevor** Du den Cloud-Ordner löschst. Die Reihenfolge ist wichtig: Der fail-closed-Schutz hält den Sync gestoppt, wenn die Cloud-Kopie verschwindet, während Plainva die Verbindung noch als verschlüsselt erwartet — das schützt Dich davor, dass jemand die Verschlüsselung abstreift, um Klartext zu erzwingen.
 
 1. Öffne **Einstellungen → Dein Vault → Security & Sharing**.
-2. Wähle in der Wiederherstellungs-Karte **Workspace stilllegen**. Plainva löscht die lokalen Schlüssel und Workspace-Daten auf diesem Gerät und öffnet den Vault als normalen Vault neu.
+2. Wähle auf der Übersicht in der **Verschlüsselung**-Karte **Verbindung zur verschlüsselten Cloud entfernen**. Plainva löscht die lokalen Schlüssel und Workspace-Daten auf diesem Gerät und öffnet den Vault als normalen Vault neu. (Das ist geräte-lokal; ein globales „Verschlüsselung aufheben", das auch die Cloud-Kopie wieder zu Klartext macht, ist eine spätere, eigene Aktion.)
 3. Lösche erst jetzt den Cloud-Ordner (die `.pvws/`-Objekte) bei Deinem Anbieter, falls Du ihn loswerden willst. Plainva löscht die verschlüsselten Cloud-Objekte nicht für Dich.
 
 Hast Du die Cloud-Kopie schon gelöscht und der Sync bricht jetzt mit „Workspace fehlt" oder „Manifest fehlt" ab, ist die Lösung derselbe Reset — dort angeboten, wo der Fehler erscheint:
 
-- Bei einem verschlüsselten **Workspace** öffnest Du **Security & Sharing**. Der Status zeigt einen Fehler mit einem Hinweis; wähle **Workspace stilllegen**, um den Workspace auf diesem Gerät zurückzusetzen, damit der Sync wieder läuft.
+- Bei einem verschlüsselten **Workspace** öffnest Du **Sicherheit & Freigaben**. Der Status zeigt einen Fehler mit einem Hinweis; wähle in der **Verschlüsselung**-Karte **Verbindung zur verschlüsselten Cloud entfernen**, um den Workspace auf diesem Gerät zurückzusetzen, damit der Sync wieder läuft.
 - Bei einer inhalts-verschlüsselten **Sync-Verbindung** klickst Du auf den Sync-Status, öffnest den Sync-Fehler-Dialog und wählst **Verschlüsselung zurücksetzen**. Dieser Knopf erscheint nur, wenn die Verschlüsselungsdaten in der Cloud fehlen oder ungültig sind.
 
 Beide Aktionen sind ausdrücklich und werden bestätigt. Plainva stuft eine verschlüsselte Verbindung nie still auf Klartext herab, und keine der Aktionen löscht lokale Dateien. Trägt die Cloud noch verschlüsselte Inhalte, die Du wirklich willst, brich stattdessen ab — ein Reset würde den Klartext-Sync wieder aufnehmen.
