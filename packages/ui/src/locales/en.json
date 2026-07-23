@@ -579,7 +579,11 @@
     "recovered": "The synchronization succeeded on the next attempt.",
     "retrying": "Plainva is trying the synchronization again…",
     "authErrorHint": "The sign-in expired or was revoked. Reconnect in the sync settings.",
-    "transientErrorHint": "This was probably a temporary network or provider problem. Plainva retries such errors automatically."
+    "transientErrorHint": "This was probably a temporary network or provider problem. Plainva retries such errors automatically.",
+    "resetEncryptionTitle": "Reset encryption for this connection?",
+    "resetEncryptionConfirm": "Plainva will forget that this connection was encrypted and sync as plain text again. Only do this if the encrypted vault was removed on purpose. If the cloud still holds encrypted content, cancel here.",
+    "resetEncryptionAction": "Reset encryption",
+    "encryptionErrorHint": "This connection was known to be encrypted, but the encryption data is missing from the cloud (for example because the encrypted vault was deleted). Sync stops to protect your data. If you removed the vault on purpose, reset the encryption for this connection."
   },
   "sidebar": {
     "files": "Files",

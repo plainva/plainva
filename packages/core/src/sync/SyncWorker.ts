@@ -8,6 +8,18 @@ import { isTextFile } from "./fileType.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 
+/** Fatal protocol reasons kept for the recovery UI (settings-sync plan §3.5). */
+export type SyncErrorReason = FatalSyncProtocolError["reason"];
+
+/**
+ * The structured reason of a fatal protocol error, or undefined for ordinary
+ * failures. The desktop uses it to offer a connection-specific encryption reset
+ * in the sync-error dialog (Stilllegen P2) — ordinary failures get no button.
+ */
+export function syncErrorReason(error: unknown): SyncErrorReason | undefined {
+  return error instanceof FatalSyncProtocolError ? error.reason : undefined;
+}
+
 /** Never let an empty WebView/native rejection degrade into a blank dialog. */
 export function syncErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
@@ -262,7 +274,7 @@ export class SyncWorker {
   private isRunning = false;
   private isSyncing = false;
   private pendingSyncRequest = false;
-  public onStatusChange?: (status: SyncStatus, error?: string) => void;
+  public onStatusChange?: (status: SyncStatus, error?: string, reason?: SyncErrorReason) => void;
   /**
    * Fired for local files changed by the running cycle (pulled writes, conflict
    * files or mirrored deletions). The desktop wires this to a re-index + file-tree
@@ -378,14 +390,14 @@ export class SyncWorker {
     this.settingsSyncRunner = runner;
   }
 
-  private setStatus(status: SyncStatus, error?: string) {
+  private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason) {
     if (this.currentStatus !== status) {
       this.currentStatus = status;
       if (this.onStatusChange) {
-        this.onStatusChange(status, error);
+        this.onStatusChange(status, error, reason);
       }
     } else if (status === "error" && this.onStatusChange) {
-      this.onStatusChange(status, error);
+      this.onStatusChange(status, error, reason);
     }
   }
 
@@ -1266,7 +1278,7 @@ export class SyncWorker {
       this.cursor = undefined;
       console.error("[SyncWorker] cycle error:", error);
       this.onProgress?.(null);
-      this.setStatus("error", syncErrorMessage(error));
+      this.setStatus("error", syncErrorMessage(error), syncErrorReason(error));
     } finally {
       // Loss-proofing: report files already written this cycle even when the cycle
       // aborted (error, breaker or stop()) — their sync_state has already advanced,

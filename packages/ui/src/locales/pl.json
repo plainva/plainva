@@ -564,7 +564,11 @@
     "recovered": "Synchronizacja powiodła się przy kolejnej próbie.",
     "retrying": "Plainva ponawia synchronizację…",
     "authErrorHint": "Logowanie wygasło lub zostało unieważnione. Połącz ponownie w ustawieniach synchronizacji.",
-    "transientErrorHint": "Prawdopodobnie był to tymczasowy problem z siecią lub dostawcą. Plainva automatycznie ponawia takie błędy."
+    "transientErrorHint": "Prawdopodobnie był to tymczasowy problem z siecią lub dostawcą. Plainva automatycznie ponawia takie błędy.",
+    "resetEncryptionTitle": "Zresetować szyfrowanie tego połączenia?",
+    "resetEncryptionConfirm": "Plainva przestanie pamiętać, że to połączenie było zaszyfrowane, i znów zsynchronizuje jako zwykły tekst. Użyj tego tylko, jeśli zaszyfrowany sejf usunięto celowo. Jeśli chmura wciąż zawiera zaszyfrowane treści, anuluj tutaj.",
+    "resetEncryptionAction": "Zresetuj szyfrowanie",
+    "encryptionErrorHint": "To połączenie było oznaczone jako zaszyfrowane, ale w chmurze brakuje danych szyfrowania (na przykład dlatego, że zaszyfrowany sejf został usunięty). Synchronizacja zatrzymuje się, aby chronić Twoje dane. Jeśli sejf usunięto celowo, zresetuj szyfrowanie tego połączenia."
   },
   "sidebar": {
     "files": "Pliki",

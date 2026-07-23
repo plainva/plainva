@@ -566,7 +566,11 @@
     "recovered": "La sincronización se completó en el siguiente intento.",
     "retrying": "Plainva está reintentando la sincronización…",
     "authErrorHint": "El inicio de sesión caducó o fue revocado. Vuelve a conectar desde los ajustes de sincronización.",
-    "transientErrorHint": "Probablemente fue un problema temporal de red o del proveedor. Plainva reintenta estos errores automáticamente."
+    "transientErrorHint": "Probablemente fue un problema temporal de red o del proveedor. Plainva reintenta estos errores automáticamente.",
+    "resetEncryptionTitle": "¿Restablecer el cifrado de esta conexión?",
+    "resetEncryptionConfirm": "Plainva olvidará que esta conexión estaba cifrada y volverá a sincronizar en texto plano. Hazlo solo si el vault cifrado se eliminó a propósito. Si la nube todavía contiene contenido cifrado, cancela aquí.",
+    "resetEncryptionAction": "Restablecer cifrado",
+    "encryptionErrorHint": "Esta conexión constaba como cifrada, pero faltan los datos de cifrado en la nube (por ejemplo, porque se eliminó el vault cifrado). La sincronización se detiene para proteger tus datos. Si eliminaste el vault a propósito, restablece el cifrado de esta conexión."
   },
   "sidebar": {
     "files": "Archivos",

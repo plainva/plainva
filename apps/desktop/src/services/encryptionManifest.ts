@@ -44,6 +44,19 @@ export async function saveConnectionState(state: ConnectionE2EState): Promise<vo
   await s.save();
 }
 
+/**
+ * Drops this device's known E2E state for a connection. Used by the vault
+ * teardown ("forget app data"): the pin is keyed by the connection fingerprint,
+ * not the vault path, so the per-vault suffix sweep never reaches it. Removing
+ * it means re-connecting the same provider+folder starts fresh (trust-on-first-
+ * use) instead of reanimating a stale `knownEncrypted:true` that fails closed.
+ */
+export async function clearConnectionState(connectionId: string): Promise<void> {
+  const s = await getSettingsStore();
+  await s.delete(stateKey(connectionId));
+  await s.save();
+}
+
 /** Reads the raw remote manifest text, or null when absent. */
 export async function readRemoteManifest(target: ISyncTarget): Promise<string | null> {
   const bytes = await target.download(ENCRYPTION_MANIFEST_PATH);

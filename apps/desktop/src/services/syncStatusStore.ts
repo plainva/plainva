@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { logDiagnostic } from "@plainva/ui";
 
@@ -17,9 +17,15 @@ export interface SyncStatusSnapshot {
   provider: SyncProviderId | null;
   /** Coarse progress of the current cycle (WP6); null = no active progress. */
   progress: SyncProgress | null;
+  /**
+   * Fatal-protocol reason of the current error, if any (Stilllegen P2). Lets the
+   * sync-error dialog offer a connection-specific encryption reset for a bricked
+   * content-E2E connection; undefined for ordinary (retryable) failures.
+   */
+  reason?: SyncErrorReason;
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined };
 
 let snapshot: SyncStatusSnapshot = IDLE;
 const listeners = new Set<() => void>();
@@ -29,6 +35,7 @@ export interface SyncErrorEntry {
   ts: number;
   message: string;
   provider: SyncProviderId | null;
+  reason?: SyncErrorReason;
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
 const MAX_ERROR_HISTORY = 20;
@@ -47,7 +54,7 @@ export const syncStatusStore = {
     snapshot = { ...snapshot, ...next };
     // Record each error TRANSITION (not every repeated error tick).
     if (snapshot.status === "error" && snapshot.message && snapshot.message !== (wasError || null)) {
-      errorHistory.push({ ts: Date.now(), message: snapshot.message, provider: snapshot.provider });
+      errorHistory.push({ ts: Date.now(), message: snapshot.message, provider: snapshot.provider, reason: snapshot.reason });
       if (errorHistory.length > MAX_ERROR_HISTORY) errorHistory.splice(0, errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", snapshot.message);
     }
@@ -82,7 +89,7 @@ export function captureSyncErrorSnapshot(): SyncErrorSnapshot | null {
   if (current.status === "error" && current.message) {
     const latest = syncStatusStore.getLatestError();
     if (latest?.message === current.message && latest.provider === current.provider) return latest;
-    return { ts: Date.now(), message: current.message, provider: current.provider };
+    return { ts: Date.now(), message: current.message, provider: current.provider, reason: current.reason };
   }
   return syncStatusStore.getLatestError();
 }

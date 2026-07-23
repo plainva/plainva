@@ -69,7 +69,7 @@ import "./App.css";
 function App() {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime } = useVault();
+  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, resetConnectionEncryption } = useVault();
 
   // Ribbon gating (cloud-accounts split, mockup screen 6): the calendar/mail
   // actions exist only while an account carries the service. The registry is
@@ -1583,6 +1583,7 @@ function App() {
           onResolveConflict={(p) => { setShowErrorModal(false); setConflictResolveTarget(p); }}
           onOpenSettings={(provider) => { setShowErrorModal(false); setSettingsInitialProvider(provider); setShowSettings(true); }}
           onRetry={() => syncWorker?.retryFailed()}
+          onResetEncryption={resetConnectionEncryption}
         />
       )}
     </div>
@@ -1631,6 +1632,7 @@ function SyncErrorDialog({
   onResolveConflict,
   onOpenSettings,
   onRetry,
+  onResetEncryption,
 }: {
   dialogConflicts: string[];
   error: SyncErrorSnapshot | null;
@@ -1638,6 +1640,7 @@ function SyncErrorDialog({
   onResolveConflict: (path: string) => void;
   onOpenSettings: (provider: SyncProviderId | null) => void;
   onRetry: () => void;
+  onResetEncryption: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   const { status } = useDisplaySyncStatus();
@@ -1645,6 +1648,22 @@ function SyncErrorDialog({
   const authError = isSyncAuthenticationError(message);
   const recovered = status === "idle";
   const retrying = status === "syncing";
+  // A bricked content-E2E connection (missing/invalid remote manifest but a
+  // pinned "known encrypted" flag) can only be un-bricked by an explicit,
+  // confirmed reset — the fail-closed guard never downgrades on its own
+  // (Stilllegen P2). Ordinary failures never show this.
+  const encryptionBricked = error?.reason === "manifest-invalid" || error?.reason === "encrypted-without-key";
+  const handleResetEncryption = async () => {
+    const ok = await appConfirm({
+      title: t("sync.resetEncryptionTitle", { defaultValue: "Verschlüsselung zurücksetzen?" }),
+      message: t("sync.resetEncryptionConfirm", { defaultValue: "Plainva merkt sich nicht mehr, dass diese Verbindung verschlüsselt war, und synchronisiert wieder als Klartext. Nur nutzen, wenn der verschlüsselte Vault absichtlich entfernt wurde. Trägt die Cloud noch verschlüsselte Inhalte, brich hier ab." }),
+      kind: "danger",
+      confirmLabel: t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" }),
+    });
+    if (!ok) return;
+    await onResetEncryption();
+    onClose();
+  };
   return (
     <Modal
       onClose={onClose}
@@ -1654,7 +1673,10 @@ function SyncErrorDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
-          {!recovered && (authError
+          {!recovered && encryptionBricked && (
+            <Button variant="danger-soft" onClick={handleResetEncryption}>{t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" })}</Button>
+          )}
+          {!recovered && !encryptionBricked && (authError
             ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>
             : <Button variant="primary" onClick={onRetry}>{t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>)}
         </>
@@ -1671,7 +1693,11 @@ function SyncErrorDialog({
           </p>
         )}
         <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
-          {authError ? t("sync.authErrorHint", { defaultValue: "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her." }) : t("sync.transientErrorHint", { defaultValue: "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut." })}
+          {encryptionBricked
+            ? t("sync.encryptionErrorHint", { defaultValue: "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück." })
+            : authError
+              ? t("sync.authErrorHint", { defaultValue: "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her." })
+              : t("sync.transientErrorHint", { defaultValue: "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut." })}
         </p>
         {dialogConflicts.length > 0 && (
           <div style={{ marginTop: "0.85rem" }}>

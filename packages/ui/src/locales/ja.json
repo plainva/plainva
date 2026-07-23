@@ -564,7 +564,11 @@
     "recovered": "再試行で同期に成功しました。",
     "retrying": "Plainva が同期を再試行しています…",
     "authErrorHint": "サインインの有効期限が切れたか取り消されました。同期設定で再接続してください。",
-    "transientErrorHint": "一時的なネットワークまたはプロバイダーの問題と思われます。Plainva は自動的に再試行します。"
+    "transientErrorHint": "一時的なネットワークまたはプロバイダーの問題と思われます。Plainva は自動的に再試行します。",
+    "resetEncryptionTitle": "この接続の暗号化をリセットしますか？",
+    "resetEncryptionConfirm": "Plainva はこの接続が暗号化されていたことを忘れ、再び平文で同期します。暗号化された Vault を意図的に削除した場合のみ実行してください。クラウドにまだ暗号化されたコンテンツがある場合は、ここで中止してください。",
+    "resetEncryptionAction": "暗号化をリセット",
+    "encryptionErrorHint": "この接続は暗号化されているはずでしたが、クラウドに暗号化データがありません（暗号化された Vault が削除されたなど）。データ保護のため同期を停止しました。意図的に Vault を削除した場合は、この接続の暗号化をリセットしてください。"
   },
   "sidebar": {
     "files": "ファイル",

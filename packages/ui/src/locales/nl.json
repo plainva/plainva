@@ -564,7 +564,11 @@
     "recovered": "De synchronisatie is bij de volgende poging geslaagd.",
     "retrying": "Plainva probeert de synchronisatie opnieuw…",
     "authErrorHint": "De aanmelding is verlopen of ingetrokken. Maak opnieuw verbinding via de synchronisatie-instellingen.",
-    "transientErrorHint": "Dit was waarschijnlijk een tijdelijk netwerk- of providerprobleem. Plainva probeert zulke fouten automatisch opnieuw."
+    "transientErrorHint": "Dit was waarschijnlijk een tijdelijk netwerk- of providerprobleem. Plainva probeert zulke fouten automatisch opnieuw.",
+    "resetEncryptionTitle": "Versleuteling voor deze verbinding opnieuw instellen?",
+    "resetEncryptionConfirm": "Plainva onthoudt niet meer dat deze verbinding versleuteld was en synchroniseert weer als platte tekst. Doe dit alleen als de versleutelde kluis met opzet is verwijderd. Als de cloud nog versleutelde inhoud bevat, annuleer hier.",
+    "resetEncryptionAction": "Versleuteling opnieuw instellen",
+    "encryptionErrorHint": "Deze verbinding stond bekend als versleuteld, maar de versleutelingsgegevens ontbreken in de cloud (bijvoorbeeld omdat de versleutelde kluis is verwijderd). De synchronisatie stopt om je gegevens te beschermen. Heb je de kluis met opzet verwijderd, stel dan de versleuteling voor deze verbinding opnieuw in."
   },
   "sidebar": {
     "files": "Bestanden",

@@ -103,6 +103,22 @@ export async function forgetVaultData(
     await removeVaultDrafts(vaultPath);
   });
 
+  // Content-E2E connection pin (`e2eState_<b64(connectionId)>`): keyed by the
+  // connection fingerprint (provider + remote root), NOT the vault path, so the
+  // suffix sweep below misses it. Derive the connection id from the still-present
+  // cloud-account records and drop the pin — otherwise re-connecting the same
+  // provider+folder reanimates `knownEncrypted:true` and the fail-closed guard
+  // bricks the sync (maintainer teardown bug, 2026-07-22). Must run BEFORE the
+  // settings sweep, which deletes the cloud-account records it reads.
+  await attempt("encryption-state", async () => {
+    const { getActiveConnectionId } = await import("./settingsProfile");
+    const connectionId = await getActiveConnectionId(vaultPath);
+    if (connectionId) {
+      const { clearConnectionState } = await import("./encryptionManifest");
+      await clearConnectionState(connectionId);
+    }
+  });
+
   // Every per-vault settings key — matched by the shared `_<b64(path)>`
   // suffix so future per-vault keys are covered without a registry.
   await attempt("settings", async () => {

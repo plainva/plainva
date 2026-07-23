@@ -32,7 +32,8 @@ import {
   LOCAL_VAULT_ID,
   type VaultEntry,
 } from "./vaultRegistry";
-import { purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
+import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
+import { clearMobileSyncState } from "./mobileSettingsSync";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
 import { getMobileSettings } from "./mobileSettings";
@@ -167,6 +168,12 @@ export async function deleteVault(id: string): Promise<void> {
     /* container may not exist (never synced) */
   }
   await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
+  // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
+  // provider secret is purged (the connection id is derived from it), so
+  // re-connecting the same cloud folder never reanimates the fail-closed guard.
+  await getStoredProvider(id)
+    .then((provider) => clearMobileSyncState(id, provider))
+    .catch(() => {});
   await purgeCredentials(id).catch(() => {});
   await removeVault(id);
 }

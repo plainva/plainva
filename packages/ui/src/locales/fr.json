@@ -566,7 +566,11 @@
     "recovered": "La synchronisation a réussi lors de la nouvelle tentative.",
     "retrying": "Plainva réessaie la synchronisation…",
     "authErrorHint": "La connexion a expiré ou a été révoquée. Reconnectez-vous dans les paramètres de synchronisation.",
-    "transientErrorHint": "Il s'agissait probablement d'un problème temporaire de réseau ou de fournisseur. Plainva réessaie automatiquement."
+    "transientErrorHint": "Il s'agissait probablement d'un problème temporaire de réseau ou de fournisseur. Plainva réessaie automatiquement.",
+    "resetEncryptionTitle": "Réinitialiser le chiffrement de cette connexion ?",
+    "resetEncryptionConfirm": "Plainva oubliera que cette connexion était chiffrée et resynchronisera en texte clair. À utiliser uniquement si le coffre chiffré a été supprimé volontairement. Si le cloud contient encore du contenu chiffré, annulez ici.",
+    "resetEncryptionAction": "Réinitialiser le chiffrement",
+    "encryptionErrorHint": "Cette connexion était connue comme chiffrée, mais les données de chiffrement sont absentes du cloud (par exemple parce que le coffre chiffré a été supprimé). La synchronisation s’arrête pour protéger vos données. Si vous avez supprimé le coffre volontairement, réinitialisez le chiffrement de cette connexion."
   },
   "sidebar": {
     "files": "Fichiers",

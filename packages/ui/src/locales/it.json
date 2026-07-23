@@ -564,7 +564,11 @@
     "recovered": "La sincronizzazione è riuscita al tentativo successivo.",
     "retrying": "Plainva sta riprovando la sincronizzazione…",
     "authErrorHint": "L'accesso è scaduto o è stato revocato. Riconnettiti nelle impostazioni di sincronizzazione.",
-    "transientErrorHint": "Probabilmente si è verificato un problema temporaneo di rete o del provider. Plainva riprova automaticamente."
+    "transientErrorHint": "Probabilmente si è verificato un problema temporaneo di rete o del provider. Plainva riprova automaticamente.",
+    "resetEncryptionTitle": "Reimpostare la crittografia di questa connessione?",
+    "resetEncryptionConfirm": "Plainva dimenticherà che questa connessione era crittografata e sincronizzerà di nuovo in testo normale. Fallo solo se il vault crittografato è stato rimosso di proposito. Se il cloud contiene ancora contenuti crittografati, annulla qui.",
+    "resetEncryptionAction": "Reimposta crittografia",
+    "encryptionErrorHint": "Questa connessione risultava crittografata, ma i dati di crittografia mancano nel cloud (ad esempio perché il vault crittografato è stato eliminato). La sincronizzazione si ferma per proteggere i tuoi dati. Se hai rimosso il vault di proposito, reimposta la crittografia per questa connessione."
   },
   "sidebar": {
     "files": "File",

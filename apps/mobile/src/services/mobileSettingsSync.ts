@@ -79,6 +79,28 @@ export async function isMobileSettingsSyncEnabled(vaultId: string): Promise<bool
   return (await (await settingsStore()).get<boolean>(enabledKey(vaultId))) === true;
 }
 
+/**
+ * Teardown for a deleted connection vault: drops the connection E2E pin
+ * (`e2eStateMobile_<connectionId>`, keyed by provider + remote root, not the
+ * vault id) plus the vault-scoped settings-sync state, so re-connecting the
+ * same cloud folder starts fresh instead of reanimating the fail-closed guard.
+ * The connection id is derived from the vault's stored provider; passing null
+ * (no provider recorded) still clears the vault-scoped keys.
+ */
+export async function clearMobileSyncState(vaultId: string, provider: MobileSyncProvider | null): Promise<void> {
+  const store = await settingsStore();
+  if (provider) {
+    const connectionId = connectionFingerprint(provider.provider, remoteRoot(provider));
+    await store.delete(stateKey(connectionId));
+  }
+  await store.delete(enabledKey(vaultId));
+  await store.delete(unknownKey(vaultId));
+  await store.save();
+  // Drops the in-memory keyring and the `mkcache_mobile_<vaultId>` credential
+  // secret (a credential-store entry, not a settings key).
+  await lockMobileEncryption(vaultId);
+}
+
 export async function setMobileSettingsSyncEnabled(vaultId: string, enabled: boolean): Promise<void> {
   const store = await settingsStore();
   await store.set(enabledKey(vaultId), enabled);

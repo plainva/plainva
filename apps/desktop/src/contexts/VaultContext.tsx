@@ -8,7 +8,8 @@ import { toast } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
-import { buildSettingsSyncStep } from "../services/settingsProfile";
+import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settingsProfile";
+import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
@@ -111,6 +112,13 @@ interface VaultContextType extends VaultState {
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
   lockPersonalWorkspace: () => Promise<void>;
   removeRemotePlaintext: () => Promise<number>;
+  /**
+   * Reset content-E2E for the active sync connection (Stilllegen P2): un-brick a
+   * connection whose remote `encryption.json` is missing or invalid by dropping
+   * this device's `knownEncrypted` pin and retrying the sync. Explicit, confirmed
+   * user action — the fail-closed guard is otherwise never weakened.
+   */
+  resetConnectionEncryption: () => Promise<void>;
   getWorkspaceDiagnostics: () => Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number; quarantine: number; localForks: number }>;
   getWorkspaceGovernance: () => Promise<{
     memberId: string;
@@ -800,10 +808,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
             syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
-            syncWorker.onStatusChange = (status, errorMsg) => {
+            syncWorker.onStatusChange = (status, errorMsg, reason) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
-              // every poll cycle and must not re-render the whole app.
-              syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+              // every poll cycle and must not re-render the whole app. `reason`
+              // (a fatal-protocol kind) rides along so the error dialog can offer
+              // a connection-specific encryption reset (Stilllegen P2).
+              syncStatusStore.set({ status, message: errorMsg || null, reason, ...(status !== "syncing" ? { progress: null } : {}) });
             };
             syncWorker.onProgress = (progress) => {
               // Coarse cycle progress for the status bar (WP6); throttled in core.
@@ -1518,10 +1528,22 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return new WorkspaceRevisionHistoryService(store, workspaceState, runtime.groupKeys).read(revisionId);
   };
 
+  const resetConnectionEncryption = async (): Promise<void> => {
+    // Un-brick a content-E2E connection whose remote manifest is gone/invalid:
+    // drop the local `knownEncrypted` pin (fail-closed -> trust-on-first-use)
+    // and kick a resync. The remote A3 magic-byte guard still blocks a plaintext
+    // push into a remote that actually carries sealed content.
+    if (!state.vaultPath) return;
+    const connectionId = await getActiveConnectionId(state.vaultPath);
+    if (!connectionId) return;
+    await saveConnectionState({ connectionId, knownEncrypted: false });
+    state.syncWorker?.triggerImmediate();
+  };
+
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

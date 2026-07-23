@@ -564,7 +564,11 @@
     "recovered": "A sincronização foi concluída na nova tentativa.",
     "retrying": "O Plainva está tentando sincronizar novamente…",
     "authErrorHint": "O login expirou ou foi revogado. Reconecte nas configurações de sincronização.",
-    "transientErrorHint": "Provavelmente foi um problema temporário de rede ou do provedor. O Plainva tenta novamente automaticamente."
+    "transientErrorHint": "Provavelmente foi um problema temporário de rede ou do provedor. O Plainva tenta novamente automaticamente.",
+    "resetEncryptionTitle": "Redefinir a criptografia desta conexão?",
+    "resetEncryptionConfirm": "O Plainva vai esquecer que esta conexão era criptografada e voltará a sincronizar em texto simples. Faça isso apenas se o vault criptografado foi removido de propósito. Se a nuvem ainda tiver conteúdo criptografado, cancele aqui.",
+    "resetEncryptionAction": "Redefinir criptografia",
+    "encryptionErrorHint": "Esta conexão constava como criptografada, mas os dados de criptografia estão ausentes na nuvem (por exemplo, porque o vault criptografado foi excluído). A sincronização para para proteger seus dados. Se você removeu o vault de propósito, redefina a criptografia desta conexão."
   },
   "sidebar": {
     "files": "Arquivos",

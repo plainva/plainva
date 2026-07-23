@@ -564,7 +564,11 @@
     "recovered": "同步已在再次尝试时成功。",
     "retrying": "Plainva 正在重新尝试同步…",
     "authErrorHint": "登录已过期或被撤销。请在同步设置中重新连接。",
-    "transientErrorHint": "这可能是临时的网络或服务提供商问题。Plainva 会自动重试此类错误。"
+    "transientErrorHint": "这可能是临时的网络或服务提供商问题。Plainva 会自动重试此类错误。",
+    "resetEncryptionTitle": "重置此连接的加密？",
+    "resetEncryptionConfirm": "Plainva 将不再记住此连接曾被加密，并重新以明文同步。仅在有意删除加密仓库时使用。如果云端仍包含加密内容，请在此取消。",
+    "resetEncryptionAction": "重置加密",
+    "encryptionErrorHint": "此连接原本标记为已加密，但云端缺少加密数据（例如加密仓库已被删除）。为保护数据，同步已停止。如果你有意删除了该仓库，请重置此连接的加密。"
   },
   "sidebar": {
     "files": "文件",

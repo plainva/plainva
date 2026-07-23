@@ -579,7 +579,11 @@
     "recovered": "Die Synchronisierung war beim erneuten Versuch erfolgreich.",
     "retrying": "Plainva versucht die Synchronisierung erneut…",
     "authErrorHint": "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her.",
-    "transientErrorHint": "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut."
+    "transientErrorHint": "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut.",
+    "resetEncryptionTitle": "Verschlüsselung zurücksetzen?",
+    "resetEncryptionConfirm": "Plainva merkt sich nicht mehr, dass diese Verbindung verschlüsselt war, und synchronisiert wieder als Klartext. Nur nutzen, wenn der verschlüsselte Vault absichtlich entfernt wurde. Trägt die Cloud noch verschlüsselte Inhalte, brich hier ab.",
+    "resetEncryptionAction": "Verschlüsselung zurücksetzen",
+    "encryptionErrorHint": "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück."
   },
   "sidebar": {
     "files": "Dateien",

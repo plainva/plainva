@@ -1,11 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, syncErrorMessage } from "../../src/sync/SyncWorker.js";
+import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, syncErrorMessage, syncErrorReason } from "../../src/sync/SyncWorker.js";
+import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 
 describe("syncErrorMessage", () => {
   it("normalizes empty native/WebView rejections", () => {
     expect(syncErrorMessage(new Error(""))).toContain("without error details");
     expect(syncErrorMessage({ code: "OS-NET-1", message: "offline" })).toBe("OS-NET-1: offline");
     expect(syncErrorMessage("  timed out  ")).toBe("timed out");
+  });
+});
+
+describe("syncErrorReason", () => {
+  it("surfaces the fatal protocol reason, undefined for ordinary failures", () => {
+    // The desktop uses this to offer a connection-specific encryption reset in
+    // the sync-error dialog (Stilllegen P2) — only for fatal protocol errors.
+    expect(syncErrorReason(new FatalSyncProtocolError("manifest-invalid", "x"))).toBe("manifest-invalid");
+    expect(syncErrorReason(new FatalSyncProtocolError("encrypted-without-key", "x"))).toBe("encrypted-without-key");
+    expect(syncErrorReason(new Error("network down"))).toBeUndefined();
+    expect(syncErrorReason("timed out")).toBeUndefined();
   });
 });
 
