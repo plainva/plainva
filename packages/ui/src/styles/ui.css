@@ -1655,6 +1655,9 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-security-admin { margin-top: var(--space-4); display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
 .pv-security-nav { display: flex; flex-direction: column; gap: var(--space-1); }
 .pv-security-detail { min-width: 0; }
+/* Back affordance atop the second-level administration page (reuses the themed
+   .pv-navlink; layout-only, so no separate theme override is needed). */
+.pv-security-back { width: auto; align-self: flex-start; margin-bottom: var(--space-3); font-weight: 600; }
 .pv-security-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pv-security-slice-wizard { display: grid; gap: var(--space-3); }
 .pv-security-choice { display: flex; min-height: var(--control-lg); flex-direction: column; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--surface-container); color: var(--text-main); text-align: left; cursor: pointer; }

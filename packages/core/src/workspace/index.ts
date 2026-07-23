@@ -37,6 +37,7 @@ export * from "./runtimeCodec.js";
 export * from "./authorization.js";
 export * from "./policy.js";
 export * from "./pairing.js";
+export * from "./invite.js";
 export * from "./slices.js";
 export * from "./collaboration.js";
 export * from "./governance.js";

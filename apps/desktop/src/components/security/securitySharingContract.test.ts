@@ -23,6 +23,13 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).not.toContain("pv-security-tabs");
     expect(page).not.toContain('role="tablist"');
     expect(page).toContain('["members", "groups", "slices", "devices", "publications"]');
+    // The administration area is a SECOND-LEVEL page (drill-in), not stacked
+    // inline on the overview: it renders only when an area is selected, with a
+    // back affordance (mockup IA + keeps the page inside the settings modal).
+    expect(page).toContain("adminTab !== null");
+    expect(page).toContain("adminTab === null");
+    expect(page).toContain("pv-security-back");
+    expect(page).toContain('t("workspaceSecurity.backToOverview"');
     expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future")');
     expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full")');
     // Every picker is the themed Select primitive — no OS-rendered native <select>.
@@ -73,5 +80,15 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");
+  });
+
+  it("mobile joins an encrypted workspace by pasting the invitation code, not a raw member id", () => {
+    // The join flow decodes the same PVINVITE1 code the desktop shows — the old
+    // "type a member id" field (which surfaced an id no desktop screen exposes)
+    // is gone.
+    expect(mobile).toContain("decodeWorkspaceInvite");
+    expect(mobile).toContain("inviteCode");
+    expect(mobile).not.toContain("setMemberId");
+    expect(mobile).not.toContain('t("workspaceSecurity.memberId"');
   });
 });

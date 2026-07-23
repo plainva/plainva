@@ -1,6 +1,8 @@
 import {
   acceptWorkspacePairing,
   createWorkspacePairingRequest,
+  decodeWorkspaceInvite,
+  encodeWorkspaceInvite,
   loadWorkspacePairingApproval,
   parseWorkspacePairingRequest,
   parseWorkspaceDocument,
@@ -10,10 +12,15 @@ import {
   fromBase64,
   type CreatedWorkspacePairingRequest,
   type PersonalWorkspaceRuntime,
+  type WorkspaceInvite,
   type WorkspaceObjectStore,
 } from "@plainva/core";
 import { credentialManager } from "../CredentialManager";
 import { persistWorkspaceRuntime } from "./workspaceKeychain";
+
+// The invite codec now lives in @plainva/core so desktop AND mobile share it
+// (mobile joins by pasting the same code). Re-exported here for existing callers.
+export { decodeWorkspaceInvite, encodeWorkspaceInvite, type WorkspaceInvite };
 
 /**
  * Desktop device-join (pairing REQUEST) flow — the counterpart to the existing
@@ -44,31 +51,6 @@ export async function detectRemoteWorkspace(store: WorkspaceObjectStore): Promis
   const genesis = parseWorkspaceDocument(bytes);
   if (genesis.kind !== "genesis") return null;
   return { workspaceId: genesis.workspaceId, fingerprint: workspaceDocumentHash(genesis) };
-}
-
-/** Parsed shape of the copyable invite code the owner hands to the joiner. */
-export interface WorkspaceInvite {
-  memberId: string;
-  workspaceId: string;
-  fingerprint: string;
-  role?: string;
-}
-
-const INVITE_PREFIX = "PVINVITE1.";
-
-export function encodeWorkspaceInvite(invite: WorkspaceInvite): string {
-  return INVITE_PREFIX + toBase64(new TextEncoder().encode(JSON.stringify(invite)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-export function decodeWorkspaceInvite(code: string): WorkspaceInvite {
-  const trimmed = code.trim();
-  if (!trimmed.startsWith(INVITE_PREFIX)) throw new Error("invite-code-invalid");
-  const b64 = trimmed.slice(INVITE_PREFIX.length).replace(/-/g, "+").replace(/_/g, "/");
-  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-  const invite = JSON.parse(new TextDecoder().decode(fromBase64(padded))) as WorkspaceInvite;
-  if (!invite.memberId || !invite.workspaceId || !invite.fingerprint) throw new Error("invite-code-invalid");
-  return invite;
 }
 
 /** Creates + publishes a pairing request and persists the pending device keys

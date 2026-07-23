@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { ChevronLeft, Copy, QrCode, RefreshCw, ShieldCheck } from "lucide-react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { TextInput, toast } from "@plainva/ui";
+import { decodeWorkspaceInvite } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
@@ -13,7 +14,7 @@ type DetectorCtor = new (options: { formats: string[] }) => { detect(source: Ima
 export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<MobileWorkspaceStatus | null>(null);
-  const [memberId, setMemberId] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [deviceName, setDeviceName] = useState(() => navigator.platform || "Mobile");
   const [request, setRequest] = useState<{ token: string; shortCode: string; fingerprint: string } | null>(null);
   const [recoveryBytes, setRecoveryBytes] = useState<Uint8Array | null>(null);
@@ -30,14 +31,21 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
   }, [vault.vaultId, vault.workspaceState]);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const startPairing = async (token?: string) => {
+  const startPairing = async () => {
     setBusy(true);
     try {
-      if (token) { await navigator.clipboard.writeText(token); toast.info(t("workspaceSecurity.qrCopied", { defaultValue: "QR token copied" })); return; }
       const info = await getMobileRemoteWorkspaceInfo(vault.vaultId);
       if (!info) throw new Error(t("workspaceSecurity.noRemoteWorkspace", { defaultValue: "No encrypted workspace was found on this connection." }));
-      if (!memberId.trim()) throw new Error(t("workspaceSecurity.memberIdRequired", { defaultValue: "Enter the member ID created by an administrator." }));
-      const created = await beginMobileWorkspacePairing({ vaultId: vault.vaultId, store: await getMobileWorkspaceObjectStore(vault.vaultId), workspaceId: info.workspaceId, fingerprint: info.fingerprint, memberId: memberId.trim(), deviceName: deviceName.trim() });
+      // Paste the invitation code an admin created on their device (Security &
+      // Sharing → Members → Show invitation) — it carries the member id reserved
+      // for this device, so nobody has to find/type a raw member id.
+      let invite;
+      try { invite = decodeWorkspaceInvite(inviteCode); }
+      catch { throw new Error(t("workspaceSecurity.inviteInvalid", { defaultValue: "That is not a valid invitation code. Copy it from Security & Sharing on the inviting device." })); }
+      if (invite.workspaceId !== info.workspaceId || invite.fingerprint !== info.fingerprint) {
+        throw new Error(t("workspaceSecurity.inviteMismatch", { defaultValue: "This invitation is for a different workspace than the one synced here." }));
+      }
+      const created = await beginMobileWorkspacePairing({ vaultId: vault.vaultId, store: await getMobileWorkspaceObjectStore(vault.vaultId), workspaceId: info.workspaceId, fingerprint: info.fingerprint, memberId: invite.memberId, deviceName: deviceName.trim() });
       setRequest(created); await refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
@@ -156,11 +164,12 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
       <button className="m-row" disabled={busy} onClick={() => void lockMobileWorkspace(vault.vaultId).then(refresh)}><span>{t("workspaceSecurity.lock")}</span></button>
       </>}
     </> : status?.phase === "locked" ? null : <>
-      <p className="m-sectionlabel">{t("workspaceSecurity.pairDevice", { defaultValue: "Pair this device" })}</p>
-      <label className="m-field"><span>{t("workspaceSecurity.memberId", { defaultValue: "Member ID" })}</span><TextInput value={memberId} onChange={(event) => setMemberId(event.target.value)} /></label>
+      <p className="m-sectionlabel">{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</p>
+      <div className="m-row m-row--static"><span><small>{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</small></span></div>
+      <label className="m-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
-      <button className="m-row" disabled={busy} onClick={() => void startPairing()}><QrCode className="m-accent" size={18} /><span>{t("workspaceSecurity.createPairing", { defaultValue: "Create QR/manual request" })}</span></button>
-      {request && <><div className="m-row m-row--static"><span><strong>{request.shortCode}</strong><small>{request.fingerprint}</small></span><button className="m-iconbtn" onClick={() => void navigator.clipboard.writeText(request.token)}><Copy size={18} /></button></div><button className="m-row" disabled={busy} onClick={() => void complete()}><RefreshCw className="m-accent" size={18} /><span>{t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}</span></button></>}
+      <button className="m-row" disabled={busy || !inviteCode.trim()} onClick={() => void startPairing()}><QrCode className="m-accent" size={18} /><span>{t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}</span></button>
+      {request && <><div className="m-row m-row--static"><span><strong>{request.shortCode}</strong><small>{t("workspaceSecurity.joinPending", { defaultValue: "Share this code with the approver, then wait for approval." })}</small><small>{request.fingerprint}</small></span><button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(request.token)}><Copy size={18} /></button></div><button className="m-row" disabled={busy} onClick={() => void complete()}><RefreshCw className="m-accent" size={18} /><span>{t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}</span></button></>}
       <p className="m-sectionlabel">{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</p>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><input accept=".pvrecovery" type="file" onChange={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>

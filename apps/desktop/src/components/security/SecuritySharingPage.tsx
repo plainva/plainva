@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
-import { ChevronRight, KeyRound, Laptop, Layers, Share2, ShieldCheck, Users, UsersRound } from "lucide-react";
+import { ChevronLeft, ChevronRight, KeyRound, Laptop, Layers, Share2, ShieldCheck, Users, UsersRound } from "lucide-react";
 import { parseSliceForm, type Diagnostics, type Governance, type GovernanceForm } from "./securityForms";
 import { WorkspaceGovernanceDialog } from "./WorkspaceGovernanceDialog";
 import { WorkspaceSetupWizard } from "./WorkspaceSetupWizard";
@@ -79,7 +79,11 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [slicePreview, setSlicePreview] = useState<Array<{ objectId: string; path: string }> | null>(null);
   const [pairPreview, setPairPreview] = useState<Awaited<ReturnType<typeof inspectWorkspacePairingRequest>> | null>(null);
   const [rotatedRecoveryCode, setRotatedRecoveryCode] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<"members" | "groups" | "slices" | "devices" | "publications">("members");
+  // null = the Security overview (first level); a value opens that administration
+  // area as a SECOND-LEVEL page with a back button (mockup IA — the admin area is
+  // NOT stacked inline on the overview, which also kept the page from overrunning
+  // the settings modal).
+  const [adminTab, setAdminTab] = useState<AdminArea | null>(null);
   const [form, setForm] = useState<GovernanceForm>({ code: "", name: "", role: "Reader", members: "", scopeKind: "workspace", scopeId: "", sliceKind: "folder", definition: "", publicationMode: "private", publicationAccess: "read", publicationProvider: "google-drive", recoveryCode: "", deviceName: navigator.platform || "Desktop", recoveryFile: "", fallbackPassphrase: "" });
 
   const refreshDiagnostics = useCallback(async () => {
@@ -258,6 +262,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   return (
     <div>
       <AreaHead areaId="security" />
+      {adminTab === null && (<>
       {!isActiveVault && <Banner kind="info" rounded>{t("workspaceSecurity.openVaultFirst")}</Banner>}
       {isActiveVault && !hasSyncConnection && <Banner kind="warning" rounded>{t("workspaceSecurity.connectionRequired")}</Banner>}
 
@@ -349,7 +354,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           </>
         )}
       </SettingCard>
+      </>)}
 
+      {adminTab !== null && (<>
+      <button type="button" className="pv-navlink pv-security-back" onClick={() => setAdminTab(null)}>
+        <ChevronLeft size={ICON.ui} />{t("workspaceSecurity.backToOverview", { defaultValue: "Security & Sharing" })}
+      </button>
       <section className="pv-security-admin">
         <nav className="pv-security-nav" aria-label={t("workspaceSecurity.teamsCard")}>
           {ADMIN_AREAS.map((area) => {
@@ -413,7 +423,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           )}
         </div>
       </section>
+      </>)}
 
+      {adminTab === null && (<>
       {governance && (governance.quarantine.length > 0 || governance.localForks.length > 0) && (
         <SettingCard label={t("workspaceSecurity.integrityCard", { defaultValue: "Integrity & local forks" })}>
           {governance.quarantine.map((entry) => <SettingRow key={entry.quarantineId} label={`${entry.artifactKind} · ${entry.status}`} desc={`${entry.reason} · ${entry.remoteKey}`}><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "retry"), t("workspaceSecurity.retryQueued", { defaultValue: "Retry queued" }))}>{t("workspaceSecurity.retry")}</Button><Button variant="ghost" size="sm" onClick={() => void exportQuarantine(entry.quarantineId)}>{t("workspaceSecurity.export")}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "repaired"), t("workspaceSecurity.repaired", { defaultValue: "Marked as repaired" }))}>{t("workspaceSecurity.markRepaired", { defaultValue: "Repaired" })}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "ignore"), t("workspaceSecurity.ignored", { defaultValue: "Ignored" }))}>{t("workspaceSecurity.ignore", { defaultValue: "Ignore" })}</Button></SettingRow>)}
@@ -429,6 +441,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           </SettingRow>
         </SettingCard>
       )}
+      </>)}
 
       {showSetup && (
         <WorkspaceSetupWizard
