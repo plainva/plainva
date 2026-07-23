@@ -194,6 +194,14 @@ export interface CommitWorkspaceMutation {
 export interface WorkspaceStateStore {
   loadMeta(): Promise<WorkspaceRuntimeMeta | null>;
   saveMeta(meta: WorkspaceRuntimeMeta): Promise<void>;
+  /**
+   * Drops ALL local workspace state (meta, objects, revisions, operations,
+   * comments, quarantine, forks, probes, queue). Used to decommission a
+   * workspace on this device (Stilllegen P4): without it, re-enabling a workspace
+   * on the same vault would trip `requireMeta`'s "belongs to another workspace"
+   * guard on the stale meta. Does NOT touch remote objects or the vault files.
+   */
+  clearWorkspaceState(): Promise<void>;
   listObjects(includeDeleted?: boolean): Promise<WorkspaceObjectRecord[]>;
   getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null>;
   getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null>;
@@ -243,6 +251,18 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
 
   async loadMeta(): Promise<WorkspaceRuntimeMeta | null> { return this.meta ? clone(this.meta) : null; }
   async saveMeta(meta: WorkspaceRuntimeMeta): Promise<void> { this.meta = clone(meta); }
+  async clearWorkspaceState(): Promise<void> {
+    this.meta = null;
+    this.objects.clear();
+    this.revisions.clear();
+    this.operations.clear();
+    this.comments.clear();
+    this.quarantine.clear();
+    this.forks.clear();
+    this.probes.clear();
+    this.queue.length = 0;
+    this.nextQueueId = 1;
+  }
   async listObjects(includeDeleted = false): Promise<WorkspaceObjectRecord[]> {
     return [...this.objects.values()].filter((value) => includeDeleted || !value.deleted).map(clone).sort((a, b) => a.path.localeCompare(b.path));
   }
@@ -454,6 +474,23 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     await this.db.execute(
       `INSERT INTO workspace_meta (id,state_json) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json`,
       [JSON.stringify(meta)]
+    );
+  }
+  async clearWorkspaceState(): Promise<void> {
+    await runStatementsAtomic(
+      this.db,
+      [
+        "workspace_meta",
+        "workspace_object",
+        "workspace_revision",
+        "workspace_operation",
+        "workspace_comment",
+        "workspace_quarantine",
+        "workspace_local_fork",
+        "workspace_local_probe",
+        "workspace_queue",
+        "workspace_checkpoint",
+      ].map((table) => ({ sql: `DELETE FROM ${table}`, params: [] }))
     );
   }
   async listObjects(includeDeleted = false): Promise<WorkspaceObjectRecord[]> {

@@ -60,6 +60,14 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(join).toContain("pv-security-model");
   });
 
+  it("offers a confirmed workspace decommission + orphan recovery (Stilllegen P4)", () => {
+    expect(page).toContain("decommissionWorkspace");
+    expect(page).toContain('data-testid="workspace-decommission"');
+    expect(page).toContain('t("workspaceSecurity.orphanRecovery"');
+    // The decommission goes through the danger confirm, never silently.
+    expect(page).toContain('kind: "danger"');
+  });
+
   it("provides mobile master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");

@@ -31,3 +31,20 @@ Um slice contém uma pasta, uma seleção ou uma regra dinâmica por caminho, ti
 ## Comentários, versões e quarentena
 
 Comentários e marcadores de resolução são criptografados e assinados. **Histórico de versões** lê revisões criptografadas e restaura uma versão como nova alteração assinada ou cópia. Um artefato remoto inválido é isolado em **Integridade e forks locais**: tente novamente, exporte o ciphertext, marque como reparado ou ignore. Ele não bloqueia o restante da sincronização e ausência remota nunca significa exclusão.
+
+## Remover corretamente um vault cifrado
+
+Quando você não precisar mais de um vault cifrado, desative-o no Plainva **antes** de excluir a pasta na nuvem. A ordem importa: a proteção fail-closed mantém a sincronização parada se a cópia na nuvem desaparecer enquanto o Plainva ainda espera que a conexão esteja cifrada — isso protege você de um invasor que remova a cifragem para forçar texto simples.
+
+1. Abra **Configurações → vault → Security & Sharing**.
+2. No cartão de recuperação, escolha **Desativar o espaço de trabalho**. O Plainva apaga as chaves locais e os dados do workspace neste dispositivo e reabre o vault como um vault normal.
+3. Só então exclua a pasta na nuvem (os objetos `.pvws/`) no seu provedor, se quiser se livrar dela. O Plainva não exclui por você os objetos cifrados da nuvem.
+
+Se você já excluiu a cópia na nuvem e a sincronização agora falha com um erro "workspace ausente" ou "manifesto ausente", a correção é o mesmo redefinir, oferecido onde o erro aparece:
+
+- Para um **workspace** cifrado, abra **Security & Sharing**. O status mostra um erro com uma nota de recuperação; escolha **Desativar o espaço de trabalho** para redefinir o workspace neste dispositivo e a sincronização voltar a funcionar.
+- Para uma **conexão de sincronização** com conteúdo cifrado, clique no status de sincronização para abrir a caixa de diálogo de erro e escolha **Redefinir criptografia**. Esse botão só aparece quando os dados de criptografia remotos estão ausentes ou inválidos.
+
+Ambas as ações são explícitas e confirmadas. O Plainva nunca rebaixa silenciosamente uma conexão cifrada para texto simples, e nenhuma das ações exclui arquivos locais. Se a nuvem ainda contiver conteúdo cifrado que você realmente quer, cancele em vez disso — redefinir retomaria a sincronização em texto simples.
+
+Remover um vault com **Esquecer os dados do aplicativo** (Splash → remover um vault → esquecer também os dados do aplicativo) também limpa esses marcadores de criptografia, de modo que um vault removido assim não deixa nada que possa bloquear uma reconexão posterior.

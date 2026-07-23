@@ -43,6 +43,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     unlockPersonalWorkspace,
     lockPersonalWorkspace,
     removeRemotePlaintext,
+    decommissionWorkspace,
     getWorkspaceDiagnostics,
     getWorkspaceGovernance,
     inspectWorkspacePairingRequest,
@@ -157,6 +158,24 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     } catch (error) {
       console.error("[SecuritySharingPage] plaintext cleanup failed", error);
       toast.error(t("workspaceSecurity.cleanupFailed"));
+    } finally { setBusy(false); }
+  };
+
+  const decommission = async () => {
+    const ok = await appConfirm({
+      title: t("workspaceSecurity.decommissionTitle"),
+      message: t("workspaceSecurity.decommissionConfirm"),
+      kind: "danger",
+      confirmLabel: t("workspaceSecurity.decommissionAction"),
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await decommissionWorkspace();
+      toast.info(t("workspaceSecurity.decommissionDone"));
+    } catch (error) {
+      console.error("[SecuritySharingPage] workspace decommission failed", error);
+      toast.error(t("workspaceSecurity.decommissionFailed"));
     } finally { setBusy(false); }
   };
 
@@ -283,6 +302,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               )}
             </SettingRow>
             {status.lastError && <Banner kind="error" rounded>{status.lastError}</Banner>}
+            {status.phase === "error" && (
+              <Banner kind="warning" rounded>{t("workspaceSecurity.orphanRecovery", { defaultValue: "If the encrypted workspace was deleted or damaged in the cloud, sync stays stopped to protect your data. Decommission the workspace on this device below to reset it." })}</Banner>
+            )}
             <SettingRow label={t("workspaceSecurity.details")}>
               <Button variant="secondary" size="sm" onClick={() => { setShowDetails((value) => !value); void refreshDiagnostics(); }}>
                 {showDetails ? t("workspaceSecurity.hideDetails") : t("workspaceSecurity.showDetails")}
@@ -318,6 +340,14 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog("rotate"); })}>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</Button>
         </SettingRow>
         <SettingCardNote>{t("workspaceSecurity.recoverySeparation")}</SettingCardNote>
+        {status && (
+          <>
+            <SettingRow label={t("workspaceSecurity.decommission", { defaultValue: "Decommission workspace" })} desc={t("workspaceSecurity.decommissionDesc", { defaultValue: "Remove the encrypted workspace from this device. Do this BEFORE deleting the vault in the cloud." })}>
+              <Button variant="danger" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.decommissionAction", { defaultValue: "Decommission" })}</Button>
+            </SettingRow>
+            <SettingCardNote>{t("workspaceSecurity.decommissionNote", { defaultValue: "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards." })}</SettingCardNote>
+          </>
+        )}
       </SettingCard>
 
       <section className="pv-security-admin">

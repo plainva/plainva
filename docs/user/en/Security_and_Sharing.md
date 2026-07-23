@@ -37,3 +37,20 @@ A slice can contain a folder, an explicit object selection, or a dynamic rule ov
 Commenters get a read-only editor with a comment area. Comments and resolution markers are encrypted and signed workspace objects themselves. **Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.
 
 Malformed remote artifacts are isolated under **Integrity & local forks**. You can retry them, export their ciphertext, mark an externally repaired artifact as repaired, or deliberately ignore it. One malformed file does not stop valid synchronization, and remote absence alone is never interpreted as deletion. A local program’s unauthorized change is retained as a private fork copy.
+
+## Removing an encrypted vault the right way
+
+When you no longer need an encrypted vault, decommission it in Plainva **before** you delete the cloud folder. The order matters: the fail-closed guard keeps sync stopped if the cloud copy disappears while Plainva still expects the connection to be encrypted — this protects you from an attacker stripping the encryption to force plain text.
+
+1. Open **Settings → your vault → Security & Sharing**.
+2. In the recovery card, choose **Decommission workspace**. Plainva clears the local keys and workspace data on this device and reopens the vault as a normal vault.
+3. Only now delete the cloud folder (the `.pvws/` objects) at your provider if you want it gone. Plainva does not delete the encrypted cloud objects for you.
+
+If you already deleted the cloud copy and sync now fails with a "workspace is missing" or "manifest is missing" error, the fix is the same reset, offered where the error appears:
+
+- For an encrypted **workspace**, open **Security & Sharing**. The status shows an error with a recovery note; choose **Decommission workspace** to reset the workspace on this device so sync works again.
+- For a content-encrypted **sync connection**, click the sync status to open the sync-error dialog and choose **Reset encryption**. This button only appears when the remote encryption data is missing or invalid.
+
+Both actions are explicit and confirmed. Plainva never silently downgrades an encrypted connection to plain text, and neither action deletes any local files. If the cloud still holds encrypted content you actually want, cancel instead — resetting would resume plain-text sync.
+
+Removing a vault with **Forget app data** (Splash → remove a vault → also forget app data) clears these encryption markers too, so a vault removed that way leaves nothing behind that could block a later re-connection.

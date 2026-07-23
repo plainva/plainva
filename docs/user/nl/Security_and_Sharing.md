@@ -31,3 +31,20 @@ Een slice bevat een map, een selectie of een dynamische regel op pad, type, tags
 ## Opmerkingen, versies en quarantaine
 
 Opmerkingen en oplossingsmarkeringen zijn versleuteld en ondertekend. **Versiegeschiedenis** leest versleutelde revisies en herstelt een versie als nieuwe ondertekende wijziging of kopie. Een ongeldig extern artefact wordt geïsoleerd onder **Integriteit en lokale forks**: probeer opnieuw, exporteer ciphertext, markeer gerepareerd of negeer. Het blokkeert de overige synchronisatie niet en externe afwezigheid betekent nooit verwijdering.
+
+## Een versleutelde vault correct verwijderen
+
+Wanneer je een versleutelde vault niet meer nodig hebt, stel je hem in Plainva buiten gebruik **voordat** je de cloudmap verwijdert. De volgorde is belangrijk: de fail-closed-bescherming houdt de synchronisatie gestopt als de cloudkopie verdwijnt terwijl Plainva de verbinding nog als versleuteld verwacht — dat beschermt je tegen een aanvaller die de versleuteling weghaalt om platte tekst af te dwingen.
+
+1. Open **Instellingen → je vault → Security & Sharing**.
+2. Kies in de herstelkaart **Werkruimte buiten gebruik stellen**. Plainva wist de lokale sleutels en workspacegegevens op dit apparaat en heropent de vault als een gewone vault.
+3. Pas daarna verwijder je de cloudmap (de `.pvws/`-objecten) bij je provider als je die weg wilt hebben. Plainva verwijdert de versleutelde cloudobjecten niet voor je.
+
+Als je de cloudkopie al hebt verwijderd en de synchronisatie nu faalt met een fout "workspace ontbreekt" of "manifest ontbreekt", is de oplossing dezelfde reset, aangeboden waar de fout verschijnt:
+
+- Voor een versleutelde **workspace** open je **Security & Sharing**. De status toont een fout met een herstelnotitie; kies **Werkruimte buiten gebruik stellen** om de workspace op dit apparaat te resetten zodat de synchronisatie weer werkt.
+- Voor een inhoud-versleutelde **synchronisatieverbinding** klik je op de synchronisatiestatus om het foutdialoogvenster te openen en kies je **Versleuteling opnieuw instellen**. Deze knop verschijnt alleen wanneer de externe versleutelingsgegevens ontbreken of ongeldig zijn.
+
+Beide acties zijn expliciet en worden bevestigd. Plainva zet een versleutelde verbinding nooit stilzwijgend terug naar platte tekst, en geen van beide acties verwijdert lokale bestanden. Als de cloud nog versleutelde inhoud bevat die je echt wilt, annuleer dan juist — resetten zou de synchronisatie in platte tekst hervatten.
+
+Een vault verwijderen met **App-gegevens vergeten** (Splash → een vault verwijderen → ook app-gegevens vergeten) wist ook deze versleutelingsmarkeringen, zodat een zo verwijderde vault niets achterlaat dat een latere herverbinding kan blokkeren.

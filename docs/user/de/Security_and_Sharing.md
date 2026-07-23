@@ -37,3 +37,20 @@ Ein Slice kann einen Ordner, eine explizite Objektauswahl oder eine dynamische R
 Commenter sehen einen schreibgeschützten Editor mit Kommentarbereich. Kommentare und Erledigt-Markierungen sind selbst verschlüsselte, signierte Workspace-Objekte. **Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.
 
 Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten.
+
+## Einen verschlüsselten Vault richtig entfernen
+
+Wenn Du einen verschlüsselten Vault nicht mehr brauchst, lege ihn in Plainva still, **bevor** Du den Cloud-Ordner löschst. Die Reihenfolge ist wichtig: Der fail-closed-Schutz hält den Sync gestoppt, wenn die Cloud-Kopie verschwindet, während Plainva die Verbindung noch als verschlüsselt erwartet — das schützt Dich davor, dass jemand die Verschlüsselung abstreift, um Klartext zu erzwingen.
+
+1. Öffne **Einstellungen → Dein Vault → Security & Sharing**.
+2. Wähle in der Wiederherstellungs-Karte **Workspace stilllegen**. Plainva löscht die lokalen Schlüssel und Workspace-Daten auf diesem Gerät und öffnet den Vault als normalen Vault neu.
+3. Lösche erst jetzt den Cloud-Ordner (die `.pvws/`-Objekte) bei Deinem Anbieter, falls Du ihn loswerden willst. Plainva löscht die verschlüsselten Cloud-Objekte nicht für Dich.
+
+Hast Du die Cloud-Kopie schon gelöscht und der Sync bricht jetzt mit „Workspace fehlt" oder „Manifest fehlt" ab, ist die Lösung derselbe Reset — dort angeboten, wo der Fehler erscheint:
+
+- Bei einem verschlüsselten **Workspace** öffnest Du **Security & Sharing**. Der Status zeigt einen Fehler mit einem Hinweis; wähle **Workspace stilllegen**, um den Workspace auf diesem Gerät zurückzusetzen, damit der Sync wieder läuft.
+- Bei einer inhalts-verschlüsselten **Sync-Verbindung** klickst Du auf den Sync-Status, öffnest den Sync-Fehler-Dialog und wählst **Verschlüsselung zurücksetzen**. Dieser Knopf erscheint nur, wenn die Verschlüsselungsdaten in der Cloud fehlen oder ungültig sind.
+
+Beide Aktionen sind ausdrücklich und werden bestätigt. Plainva stuft eine verschlüsselte Verbindung nie still auf Klartext herab, und keine der Aktionen löscht lokale Dateien. Trägt die Cloud noch verschlüsselte Inhalte, die Du wirklich willst, brich stattdessen ab — ein Reset würde den Klartext-Sync wieder aufnehmen.
+
+Ein Vault, den Du über **App-Daten vergessen** entfernst (Splash → Vault entfernen → auch App-Daten vergessen), räumt diese Verschlüsselungs-Merker ebenfalls ab; so bleibt von einem so entfernten Vault nichts zurück, das eine spätere Neu-Verbindung blockieren könnte.

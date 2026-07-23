@@ -220,6 +220,31 @@ describe("personal encrypted workspace P3", () => {
     expect((await state.listQueue()).length).toBe(0);
   });
 
+  it("clearWorkspaceState drops all local workspace state for decommissioning (Stilllegen P4)", async () => {
+    const { first } = await setupRuntime();
+    const vault = new MemoryVault();
+    await vault.writeTextFile("Projects/Secret name.md", "# secret\n");
+    const state = new MemoryWorkspaceStateStore();
+    const store = new FakeWorkspaceObjectStore();
+    await initialise(vault, state, store, first);
+    await new EncryptedWorkspaceWorker(store, state, vault, first).runCycle();
+    // Precondition: the store carries meta + objects after a real cycle.
+    expect(await state.loadMeta()).not.toBeNull();
+    expect((await state.listObjects()).length).toBeGreaterThan(0);
+
+    await state.clearWorkspaceState();
+
+    expect(await state.loadMeta()).toBeNull();
+    expect(await state.listObjects()).toEqual([]);
+    expect(await state.listQueue()).toEqual([]);
+    expect(await state.listLocalProbes()).toEqual([]);
+    expect(await state.listLocalForks()).toEqual([]);
+    // Re-enabling a workspace on the same store no longer trips the stale-meta
+    // guard: a fresh migration builds clean meta again.
+    await initialise(vault, state, store, first);
+    expect((await state.loadMeta())?.workspaceId).toBe(first.workspaceId);
+  });
+
   it("reports queue-building progress over the vault inventory so setup can show a bar (2026-07-22)", async () => {
     const { first } = await setupRuntime();
     const vault = new MemoryVault();

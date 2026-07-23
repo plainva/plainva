@@ -31,3 +31,20 @@ Un slice couvre un dossier, une sélection ou une règle dynamique sur chemin, t
 ## Commentaires, versions et quarantaine
 
 Commentaires et marqueurs de résolution sont chiffrés et signés. **Historique des versions** lit les révisions chiffrées et restaure une version comme nouvelle modification signée ou copie. Un artefact distant invalide est isolé sous **Intégrité et forks locaux** : réessayez, exportez le ciphertext, marquez-le réparé ou ignorez-le. Il ne bloque pas le reste de la synchronisation et une absence distante ne vaut jamais suppression.
+
+## Supprimer correctement un vault chiffré
+
+Lorsque vous n’avez plus besoin d’un vault chiffré, mettez-le hors service dans Plainva **avant** de supprimer le dossier cloud. L’ordre compte : la protection fail-closed maintient la synchronisation arrêtée si la copie cloud disparaît alors que Plainva attend encore une connexion chiffrée — cela vous protège d’un attaquant qui retirerait le chiffrement pour forcer le texte en clair.
+
+1. Ouvrez **Paramètres → votre vault → Security & Sharing**.
+2. Dans la carte de récupération, choisissez **Mettre l’espace de travail hors service**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal.
+3. Ce n’est qu’ensuite que vous supprimez le dossier cloud (les objets `.pvws/`) chez votre fournisseur si vous voulez vous en débarrasser. Plainva ne supprime pas pour vous les objets chiffrés du cloud.
+
+Si vous avez déjà supprimé la copie cloud et que la synchronisation échoue désormais avec une erreur « espace de travail manquant » ou « manifeste manquant », la solution est la même réinitialisation, proposée là où l’erreur apparaît :
+
+- Pour un **workspace** chiffré, ouvrez **Security & Sharing**. Le statut affiche une erreur avec une note de récupération ; choisissez **Mettre l’espace de travail hors service** pour réinitialiser le workspace sur cet appareil afin que la synchronisation refonctionne.
+- Pour une **connexion de synchronisation** à contenu chiffré, cliquez sur le statut de synchronisation pour ouvrir la boîte de dialogue d’erreur et choisissez **Réinitialiser le chiffrement**. Ce bouton n’apparaît que lorsque les données de chiffrement distantes sont manquantes ou invalides.
+
+Les deux actions sont explicites et confirmées. Plainva ne rétrograde jamais silencieusement une connexion chiffrée en texte clair, et aucune des deux actions ne supprime de fichiers locaux. Si le cloud contient encore du contenu chiffré que vous voulez réellement, annulez plutôt — réinitialiser reprendrait la synchronisation en clair.
+
+Supprimer un vault avec **Oublier les données d’application** (Splash → retirer un vault → oublier aussi les données d’application) efface aussi ces marqueurs de chiffrement, de sorte qu’un vault retiré ainsi ne laisse rien qui pourrait bloquer une reconnexion ultérieure.

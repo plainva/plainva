@@ -31,3 +31,20 @@ Slice obejmuje folder, wybór lub regułę dynamiczną po ścieżce, typie, taga
 ## Komentarze, wersje i kwarantanna
 
 Komentarze i znaczniki rozwiązania są szyfrowane i podpisane. **Historia wersji** czyta szyfrowane rewizje i przywraca wersję jako nową podpisaną zmianę lub kopię. Nieprawidłowy artefakt zdalny trafia do **Integralność i lokalne forki**: ponów, wyeksportuj ciphertext, oznacz naprawiony lub zignoruj. Nie blokuje pozostałej synchronizacji, a zdalny brak nigdy nie oznacza usunięcia.
+
+## Prawidłowe usuwanie zaszyfrowanego vaulta
+
+Gdy nie potrzebujesz już zaszyfrowanego vaulta, wycofaj go w Plainva **zanim** usuniesz folder w chmurze. Kolejność ma znaczenie: zabezpieczenie fail-closed utrzymuje synchronizację zatrzymaną, jeśli kopia w chmurze zniknie, gdy Plainva wciąż oczekuje zaszyfrowanego połączenia — chroni Cię to przed napastnikiem, który zdejmuje szyfrowanie, aby wymusić tekst jawny.
+
+1. Otwórz **Ustawienia → vault → Security & Sharing**.
+2. Na karcie odzyskiwania wybierz **Wycofaj obszar roboczy**. Plainva usuwa lokalne klucze i dane workspace na tym urządzeniu i ponownie otwiera vault jako zwykły vault.
+3. Dopiero teraz usuń folder w chmurze (obiekty `.pvws/`) u swojego dostawcy, jeśli chcesz się go pozbyć. Plainva nie usuwa za Ciebie zaszyfrowanych obiektów w chmurze.
+
+Jeśli kopię w chmurze już usunięto i synchronizacja kończy się teraz błędem "brak workspace" lub "brak manifestu", rozwiązaniem jest ten sam reset, oferowany tam, gdzie pojawia się błąd:
+
+- W przypadku zaszyfrowanego **workspace** otwórz **Security & Sharing**. Status pokazuje błąd z notatką o odzyskiwaniu; wybierz **Wycofaj obszar roboczy**, aby zresetować workspace na tym urządzeniu i przywrócić działanie synchronizacji.
+- W przypadku **połączenia synchronizacji** z szyfrowaną treścią kliknij status synchronizacji, aby otworzyć okno błędu synchronizacji, i wybierz **Zresetuj szyfrowanie**. Ten przycisk pojawia się tylko wtedy, gdy zdalne dane szyfrowania są brakujące lub nieprawidłowe.
+
+Obie akcje są jawne i potwierdzane. Plainva nigdy po cichu nie obniża zaszyfrowanego połączenia do tekstu jawnego i żadna z akcji nie usuwa plików lokalnych. Jeśli w chmurze wciąż znajduje się zaszyfrowana treść, której naprawdę chcesz, zamiast tego anuluj — reset wznowiłby synchronizację w tekście jawnym.
+
+Usunięcie vaulta za pomocą **Zapomnij dane aplikacji** (Splash → usuń vault → zapomnij także dane aplikacji) czyści również te znaczniki szyfrowania, więc vault usunięty w ten sposób nie pozostawia niczego, co mogłoby zablokować późniejsze ponowne połączenie.
