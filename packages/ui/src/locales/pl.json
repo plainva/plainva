@@ -2319,6 +2319,7 @@
     "mailCaptureGroup": "Zapisywanie i prywatność"
   },
   "workspaceSecurity": {
+    "manageAccess": "Urządzenia i odzyskiwanie", "manageAccessDesc": "Sparuj inne urządzenie · zapisz pakiet odzyskiwania", "manageSharing": "Udostępnij innym", "manageSharingDesc": "Członkowie, grupy, wycinki, publikacje", "encryptionCard": "Szyfrowanie", "cloudDisconnect": "Usuń połączenie z zaszyfrowaną chmurą", "cloudDisconnectDesc": "Odłącza tylko to urządzenie. Chmura pozostaje zaszyfrowana — inne urządzenia i członkowie zachowują dostęp.", "cloudDisconnectAction": "Odłącz …", "recoveryStatus": "Bieżący stan", "recoveryWorkflow": "Proces odzyskiwania", "addDevice": "Dodaj kolejne urządzenie", "addDeviceDesc": "Paruje drugie Twoje urządzenie — nie tworzy nowego członka.", "addDeviceHint": "Wklej ten kod na drugim urządzeniu (Bezpieczeństwo i udostępnianie → dołącz), a następnie zatwierdź go tutaj. Pozostałe urządzenia zostają.",
     "overview": "Przegląd", "groupAccess": "Twój dostęp", "groupSharing": "Udostępnianie",
     "publicationCreated": "Skonfigurowano szyfrowaną publikację",
     "statusCard":"Stan ochrony","currentStatus":"Szyfrowany workspace","workspaceProtected":"Zdalna zawartość jest przechowywana jako szyfrowane obiekty z podpisanymi zmianami.","notConfigured":"Jeszcze nie skonfigurowano.","setup":"Skonfiguruj szyfrowanie","connectionRequired":"Najpierw połącz ten vault z dostawcą chmury.","openVaultFirst":"Otwórz ten vault, aby zarządzać zabezpieczeniami.",

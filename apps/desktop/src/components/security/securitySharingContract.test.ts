@@ -48,6 +48,28 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(dialog).toContain("providerOptions()");
   });
 
+  it("overview shows entry cards + encryption disconnect; recovery is a split area; add-device does not create a member (P2/P3)", () => {
+    // Two named entry cards replace the three navigating summary cards.
+    expect(page).toContain("workspaceSecurity.manageAccess");
+    expect(page).toContain("workspaceSecurity.manageSharing");
+    // The device-local disconnect stays on the overview (relabelled, danger-soft).
+    expect(page).toContain("workspaceSecurity.cloudDisconnect");
+    // Recovery is its own second-level area, split into status vs workflow.
+    expect(page).toContain('area === "recovery"');
+    expect(page).toContain("workspaceSecurity.recoveryStatus");
+    expect(page).toContain("workspaceSecurity.recoveryWorkflow");
+    // "Add another device" reuses the invitation bound to the OWN member id and
+    // never creates a new member.
+    expect(page).toContain("workspaceSecurity.addDevice");
+    expect(page).toContain("self: true");
+    expect(page).toContain("memberId: governance.memberId");
+    // "Show invitation" is available on the own member row too (self flag).
+    expect(page).toContain("self: member.memberId === governance.memberId");
+    // Inviting a NEW person opens the code dialog automatically (E5).
+    expect(page).toContain("const submitInvite = async");
+    expect(page).toContain("setInviteFor({ memberId, displayName: form.name");
+  });
+
   it("keeps the four-step slice wizard with content-type cards", () => {
     for (const className of ["pv-security-slice-wizard", "pv-security-choice-grid"]) expect(dialog).toContain(className);
     expect(dialog).toContain('["details", "content", "permissions", "review"]');

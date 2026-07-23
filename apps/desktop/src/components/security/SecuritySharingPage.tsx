@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
-import { ChevronRight, KeyRound, Laptop, ShieldCheck, Users } from "lucide-react";
+import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
 import { parseSliceForm, type Diagnostics, type Governance, type GovernanceForm } from "./securityForms";
 import { WorkspaceGovernanceDialog } from "./WorkspaceGovernanceDialog";
 import { WorkspaceSetupWizard } from "./WorkspaceSetupWizard";
@@ -63,7 +63,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const status = isActiveVault ? workspaceSecurityStatus : null;
   const [joinable, setJoinable] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
-  const [inviteFor, setInviteFor] = useState<{ memberId: string; displayName: string; role?: string } | null>(null);
+  const [inviteFor, setInviteFor] = useState<{ memberId: string; displayName: string; role?: string; self?: boolean } | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -178,9 +178,31 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     } finally { setBusy(false); }
   };
 
+  /** Invite a NEW member, then jump straight to their invitation code (E5). */
+  const submitInvite = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const memberId = await inviteWorkspaceMember(
+        form.name,
+        form.role as "Owner" | "Admin" | "Editor" | "Commenter" | "Reader" | "Contributor",
+        form.scopeKind as "workspace" | "slice" | "object",
+        form.scopeKind === "workspace" ? null : form.scopeId,
+      );
+      setDialog(null);
+      await refreshGovernance();
+      await refreshDiagnostics();
+      setInviteFor({ memberId, displayName: form.name, role: form.role });
+    } catch (error) {
+      console.error("[SecuritySharingPage] invite failed", error);
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submitGovernanceDialog = (): Promise<void> => {
     if (dialog === "pair") return pairPreview ? runGovernance(() => approveWorkspaceDevice(pairPreview.token), t("workspaceSecurity.deviceApproved", { defaultValue: "Device approved" })) : inspectPairing();
-    if (dialog === "invite") return runGovernance(() => inviteWorkspaceMember(form.name, form.role as "Owner" | "Admin" | "Editor" | "Commenter" | "Reader" | "Contributor", form.scopeKind as "workspace" | "slice" | "object", form.scopeKind === "workspace" ? null : form.scopeId), t("workspaceSecurity.memberInvited", { defaultValue: "Member created; pair their device next." }));
+    if (dialog === "invite") return submitInvite();
     if (dialog === "group") return runGovernance(() => createWorkspaceGroup({ name: form.name, memberIds: form.members.split(",").map((value) => value.trim()).filter(Boolean), role: form.role as "Owner" | "Admin" | "Editor" | "Commenter" | "Reader" | "Contributor", scopeKind: form.scopeKind as "workspace" | "slice" | "object", scopeId: form.scopeKind === "workspace" ? null : form.scopeId }), t("workspaceSecurity.groupCreated", { defaultValue: "Group created" }));
     if (dialog === "slice") return runGovernance(async () => {
       const definition = parseSliceForm(form);
@@ -275,10 +297,20 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       </section>
       {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetected", { defaultValue: "This vault is protected by an encrypted workspace. If you were invited, join it here — pairing this device hands over the key." })}</Banner>}
 
-      <div className="pv-security-summary-grid">
-        <article className="pv-security-summary-card"><KeyRound size={ICON.touch} /><div><strong>{t("workspaceSecurity.recoveryCard")}</strong><span>{status?.recoveryConfirmedAt ? t("workspaceSecurity.recoverySaved") : t("workspaceSecurity.recoverySetupHint")}</span></div><Button variant="secondary" onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog(status ? "rotate" : "recovery"); }, !status)}>{status ? t("workspaceSecurity.renew", { defaultValue: "Renew" }) : t("workspaceSecurity.restore", { defaultValue: "Restore" })}<ChevronRight size={ICON.ui} /></Button></article>
-        <article className="pv-security-summary-card"><Laptop size={ICON.touch} /><div><strong>{t("workspaceSecurity.devicesCard")}</strong><span>{governance ? `${governance.devices.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.trusted", { defaultValue: "trusted" })}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="secondary" onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("devices"))}>{t("workspaceSecurity.manage", { defaultValue: "Manage" })}<ChevronRight size={ICON.ui} /></Button></article>
-        <article className="pv-security-summary-card"><Users size={ICON.touch} /><div><strong>{t("workspaceSecurity.teamsCard")}</strong><span>{governance ? `${governance.members.filter((entry) => entry.state === "active").length} ${t("workspaceSecurity.members")} · ${governance.slices.length} ${t("workspaceSecurity.slices")}` : t("workspaceSecurity.unlockToManage", { defaultValue: "Open to manage" })}</span></div><Button variant="primary" onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("members"))}>{t("workspaceSecurity.permissions", { defaultValue: "Permissions" })}<ChevronRight size={ICON.ui} /></Button></article>
+      {/* Two named entry cards (IA v2, P2) open the second level: "your access"
+          (devices + recovery) and "sharing" (members, groups, slices,
+          publications). They replace the three navigating summary cards. */}
+      <div className="pv-security-summary-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <button type="button" className="pv-security-summary-card" style={{ flexDirection: "row", alignItems: "center", textAlign: "left", cursor: "pointer" }} onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("devices"))}>
+          <Laptop size={ICON.touch} aria-hidden />
+          <div><strong>{t("workspaceSecurity.manageAccess")}</strong><span>{t("workspaceSecurity.manageAccessDesc")}</span></div>
+          <ChevronRight size={ICON.ui} aria-hidden />
+        </button>
+        <button type="button" className="pv-security-summary-card" style={{ flexDirection: "row", alignItems: "center", textAlign: "left", cursor: "pointer" }} onClick={() => void requireWorkspace(() => onOpenSecurityArea?.("members"))}>
+          <Users size={ICON.touch} aria-hidden />
+          <div><strong>{t("workspaceSecurity.manageSharing")}</strong><span>{t("workspaceSecurity.manageSharingDesc")}</span></div>
+          <ChevronRight size={ICON.ui} aria-hidden />
+        </button>
       </div>
 
       <SettingCard label={t("workspaceSecurity.statusCard")}>
@@ -328,31 +360,46 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         )}
       </SettingCard>
 
-      <SettingCard label={t("workspaceSecurity.recoveryCard")}>
-        <SettingRow label={t("workspaceSecurity.recoveryPackage")} desc={status ? t("workspaceSecurity.recoveryProtected") : t("workspaceSecurity.recoverySetupHint")}>
-          <span>{status?.recoveryConfirmedAt ? t("workspaceSecurity.recoverySaved") : "—"}</span>
-        </SettingRow>
-        <SettingRow label={t("workspaceSecurity.restore", { defaultValue: "Restore access" })} desc={t("workspaceSecurity.restoreDesc", { defaultValue: "Use the recovery file and its separate code when all devices are unavailable." })}>
-          <Button variant="danger-soft" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("recovery"), true)}>{t("workspaceSecurity.restore", { defaultValue: "Restore" })}</Button>
-        </SettingRow>
-        <SettingCardNote>{t("workspaceSecurity.restoreVsJoin", { defaultValue: "Restore is a last resort: it creates a new owner device and revokes all other devices. To add a second or returning device normally, use the join flow — it keeps the other devices." })}</SettingCardNote>
-        <SettingRow label={t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })} desc={t("workspaceSecurity.rotateRecoveryDesc", { defaultValue: "Invalidate the old recovery identity by creating and anchoring a new two-piece recovery set." })}>
-          <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog("rotate"); })}>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</Button>
-        </SettingRow>
-        <SettingCardNote>{t("workspaceSecurity.recoverySeparation")}</SettingCardNote>
-        {status && (
-          <>
-            <SettingRow label={t("workspaceSecurity.decommission", { defaultValue: "Decommission workspace" })} desc={t("workspaceSecurity.decommissionDesc", { defaultValue: "Remove the encrypted workspace from this device. Do this BEFORE deleting the vault in the cloud." })}>
-              <Button variant="danger" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.decommissionAction", { defaultValue: "Decommission" })}</Button>
-            </SettingRow>
-            <SettingCardNote>{t("workspaceSecurity.decommissionNote", { defaultValue: "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards." })}</SettingCardNote>
-          </>
-        )}
-      </SettingCard>
+      {/* Recovery restore/renew moved to its own second-level area (P2); the
+          overview keeps only the device-local "disconnect" action (E8). The
+          global "lift encryption" action lands in its own package (new .pvws
+          delete path) — see the plan E8. */}
+      {status && (
+        <SettingCard label={t("workspaceSecurity.encryptionCard", { defaultValue: "Encryption" })}>
+          <SettingRow label={t("workspaceSecurity.cloudDisconnect")} desc={t("workspaceSecurity.cloudDisconnectDesc")}>
+            <Button variant="danger-soft" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.cloudDisconnectAction")}</Button>
+          </SettingRow>
+          <SettingCardNote>{t("workspaceSecurity.decommissionNote", { defaultValue: "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards." })}</SettingCardNote>
+        </SettingCard>
+      )}
       </>)}
 
       {area !== null && (
         <div className="pv-security-detail">
+          {area === "recovery" && (
+            <>
+              <SettingCard label={t("workspaceSecurity.recoveryStatus", { defaultValue: "Current status" })}>
+                <SettingRow label={t("workspaceSecurity.recoveryPackage")} desc={status ? t("workspaceSecurity.recoveryProtected") : t("workspaceSecurity.recoverySetupHint")}>
+                  <span>{status?.recoveryConfirmedAt ? t("workspaceSecurity.recoverySaved") : "—"}</span>
+                </SettingRow>
+                {status && (
+                  <SettingRow label={t("workspaceSecurity.fingerprint")}>
+                    <code className="pv-security-code">{status.fingerprint}</code>
+                  </SettingRow>
+                )}
+              </SettingCard>
+              <SettingCard label={t("workspaceSecurity.recoveryWorkflow", { defaultValue: "Recovery workflow" })}>
+                <SettingRow label={t("workspaceSecurity.restore", { defaultValue: "Restore access" })} desc={t("workspaceSecurity.restoreDesc", { defaultValue: "Use the recovery file and its separate code when all devices are unavailable." })}>
+                  <Button variant="danger-soft" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("recovery"), true)}>{t("workspaceSecurity.restore", { defaultValue: "Restore" })}</Button>
+                </SettingRow>
+                <SettingRow label={t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })} desc={t("workspaceSecurity.rotateRecoveryDesc", { defaultValue: "Invalidate the old recovery identity by creating and anchoring a new two-piece recovery set." })}>
+                  <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => { setRotatedRecoveryCode(null); setDialog("rotate"); })}>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</Button>
+                </SettingRow>
+                <SettingCardNote>{t("workspaceSecurity.restoreVsJoin", { defaultValue: "Restore is a last resort: it creates a new owner device and revokes all other devices. To add a second or returning device normally, use the join flow — it keeps the other devices." })}</SettingCardNote>
+                <SettingCardNote>{t("workspaceSecurity.recoverySeparation")}</SettingCardNote>
+              </SettingCard>
+            </>
+          )}
           {area === "members" && (
             <SettingCard label={t("workspaceSecurity.members", { defaultValue: "Members" })}>
               <SettingRow label={t("workspaceSecurity.members", { defaultValue: "Members" })} desc={t("workspaceSecurity.membersDesc", { defaultValue: "People with encrypted access. Inviting reserves a place — pairing their device hands over the key." })}>
@@ -360,7 +407,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("invite"))}>{t("workspaceSecurity.invite", { defaultValue: "Invite" })}</Button>
               </SettingRow>
               <Banner kind="info" rounded>{t("workspaceSecurity.membersModel", { defaultValue: "Inviting reserves a place. The invited person opens Security & Sharing on their device, pastes the invitation code and requests to join; an existing device approves it, which hands over the key." })}</Banner>
-              {governance?.members.map((member) => <SettingRow key={member.memberId} label={member.displayName} desc={`${member.memberId.slice(0, 8)} · ${member.state}`}><span>{governance.assignments.filter((assignment) => (assignment.subjectKind === "member" && assignment.subjectId === member.memberId) || governance.groups.some((group) => group.groupId === assignment.subjectId && group.memberIds?.includes(member.memberId))).map((assignment) => `${assignment.role}/${assignment.scopeKind}`).join(", ") || "—"}</span>{member.state === "active" && member.memberId !== governance.memberId && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => setInviteFor({ memberId: member.memberId, displayName: member.displayName, role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === member.memberId)?.role })}>{t("workspaceSecurity.showInvite", { defaultValue: "Show invitation" })}</Button><Button variant="ghost" size="sm" disabled={busy} onClick={() => { setForm((current) => ({ ...current, scopeId: member.memberId })); setRotatedRecoveryCode(null); setDialog("owner"); }}>{t("workspaceSecurity.transferOwner", { defaultValue: "Transfer ownership" })}</Button><Button variant="danger-soft" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFutureQuestion", { defaultValue: "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten." }), kind: "danger", confirmLabel: t("workspaceSecurity.futureOnly", { defaultValue: "Future only" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; future keys rotated" })); })}>{t("workspaceSecurity.futureOnly", { defaultValue: "Future only" })}</Button><Button variant="danger" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFullQuestion", { defaultValue: "Access is removed immediately and all current encrypted content is queued for a resumable full rekey. Previously downloaded plaintext cannot be taken back." }), kind: "danger", confirmLabel: t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; full rekey started" })); })}>{t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" })}</Button></>}</SettingRow>)}
+              {governance?.members.map((member) => <SettingRow key={member.memberId} label={member.displayName} desc={`${member.memberId.slice(0, 8)} · ${member.state}`}><span>{governance.assignments.filter((assignment) => (assignment.subjectKind === "member" && assignment.subjectId === member.memberId) || governance.groups.some((group) => group.groupId === assignment.subjectId && group.memberIds?.includes(member.memberId))).map((assignment) => `${assignment.role}/${assignment.scopeKind}`).join(", ") || "—"}</span>{member.state === "active" && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => setInviteFor({ memberId: member.memberId, displayName: member.displayName, role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === member.memberId)?.role, self: member.memberId === governance.memberId })}>{t("workspaceSecurity.showInvite", { defaultValue: "Show invitation" })}</Button>{member.memberId !== governance.memberId && <><Button variant="ghost" size="sm" disabled={busy} onClick={() => { setForm((current) => ({ ...current, scopeId: member.memberId })); setRotatedRecoveryCode(null); setDialog("owner"); }}>{t("workspaceSecurity.transferOwner", { defaultValue: "Transfer ownership" })}</Button><Button variant="danger-soft" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFutureQuestion", { defaultValue: "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten." }), kind: "danger", confirmLabel: t("workspaceSecurity.futureOnly", { defaultValue: "Future only" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; future keys rotated" })); })}>{t("workspaceSecurity.futureOnly", { defaultValue: "Future only" })}</Button><Button variant="danger" size="sm" disabled={busy} onClick={() => void appConfirm({ title: t("workspaceSecurity.revokeMember", { defaultValue: "Remove member?" }), message: t("workspaceSecurity.revokeFullQuestion", { defaultValue: "Access is removed immediately and all current encrypted content is queued for a resumable full rekey. Previously downloaded plaintext cannot be taken back." }), kind: "danger", confirmLabel: t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" }) }).then((ok) => { if (ok) return runGovernance(() => revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full"), t("workspaceSecurity.memberRevoked", { defaultValue: "Member removed; full rekey started" })); })}>{t("workspaceSecurity.fullRekey", { defaultValue: "Full rekey" })}</Button></>}</>}</SettingRow>)}
             </SettingCard>
           )}
           {area === "groups" && (
@@ -381,6 +428,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           )}
           {area === "devices" && (
             <SettingCard label={t("workspaceSecurity.devicesCard")}>
+              <SettingRow label={t("workspaceSecurity.addDevice")} desc={t("workspaceSecurity.addDeviceDesc")}>
+                <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => { if (governance) setInviteFor({ memberId: governance.memberId, displayName: governance.members.find((m) => m.memberId === governance.memberId)?.displayName ?? t("workspaceSecurity.thisDevice", { defaultValue: "This device" }), role: governance.assignments.find((a) => a.subjectKind === "member" && a.subjectId === governance.memberId)?.role, self: true }); })}>{t("workspaceSecurity.addDevice")}</Button>
+              </SettingRow>
               <SettingRow label={t("workspaceSecurity.pairDevice", { defaultValue: "Approve device" })} desc={t("workspaceSecurity.pairHelp")}>
                 <Button variant="secondary" disabled={busy} onClick={() => void requireWorkspace(() => setDialog("pair"))}>{t("workspaceSecurity.approve", { defaultValue: "Enter code" })}</Button>
               </SettingRow>
@@ -465,11 +515,11 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       )}
       {showJoin && <WorkspaceJoinDialog onClose={() => setShowJoin(false)} />}
       {inviteFor && status && (
-        <Modal title={t("workspaceSecurity.inviteArtifactTitle", { defaultValue: "Invitation for {{name}}", name: inviteFor.displayName })} onClose={() => setInviteFor(null)} size="md">
+        <Modal title={inviteFor.self ? t("workspaceSecurity.addDevice") : t("workspaceSecurity.inviteArtifactTitle", { defaultValue: "Invitation for {{name}}", name: inviteFor.displayName })} onClose={() => setInviteFor(null)} size="md">
           <div className="pv-security-wizard">
-            <Banner kind="info" rounded>{t("workspaceSecurity.inviteArtifactHint", { defaultValue: "Send this code to the invited person through a secure channel. On their device they open Security & Sharing, paste it and request to join; approving their device here hands over the key." })}</Banner>
+            <Banner kind="info" rounded>{inviteFor.self ? t("workspaceSecurity.addDeviceHint") : t("workspaceSecurity.inviteArtifactHint", { defaultValue: "Send this code to the invited person through a secure channel. On their device they open Security & Sharing, paste it and request to join; approving their device here hands over the key." })}</Banner>
             <div className="pv-security-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><code className="pv-security-code">{encodeWorkspaceInvite({ memberId: inviteFor.memberId, workspaceId: status.workspaceId, fingerprint: status.fingerprint, role: inviteFor.role })}</code></div>
-            <div className="pv-security-field"><span>{t("workspaceSecurity.memberIdFull", { defaultValue: "Member ID" })}</span><code className="pv-security-code">{inviteFor.memberId}</code></div>
+            {!inviteFor.self && <div className="pv-security-field"><span>{t("workspaceSecurity.memberIdFull", { defaultValue: "Member ID" })}</span><code className="pv-security-code">{inviteFor.memberId}</code></div>}
             <div className="pv-security-actions">
               <Button variant="ghost" onClick={() => setInviteFor(null)}>{t("common.close", { defaultValue: "Close" })}</Button>
               <Button variant="primary" onClick={() => void navigator.clipboard.writeText(encodeWorkspaceInvite({ memberId: inviteFor.memberId, workspaceId: status.workspaceId, fingerprint: status.fingerprint, role: inviteFor.role })).then(() => toast.info(t("workspaceSecurity.copied")))}>{t("workspaceSecurity.copyInvite", { defaultValue: "Copy invitation" })}</Button>

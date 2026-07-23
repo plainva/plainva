@@ -2314,6 +2314,7 @@
     "mailCaptureGroup": "Captura y privacidad"
   },
   "workspaceSecurity": {
+    "manageAccess": "Dispositivos y recuperación", "manageAccessDesc": "Vincular otro dispositivo · guardar el paquete de recuperación", "manageSharing": "Compartir con otros", "manageSharingDesc": "Miembros, grupos, slices, publicaciones", "encryptionCard": "Cifrado", "cloudDisconnect": "Quitar la conexión con la nube cifrada", "cloudDisconnectDesc": "Solo desconecta este dispositivo. La nube sigue cifrada: otros dispositivos y miembros mantienen el acceso.", "cloudDisconnectAction": "Desconectar …", "recoveryStatus": "Estado actual", "recoveryWorkflow": "Flujo de recuperación", "addDevice": "Añadir otro dispositivo", "addDeviceDesc": "Vincula un segundo dispositivo tuyo, sin crear un nuevo miembro.", "addDeviceHint": "Pega este código en tu otro dispositivo (Seguridad y uso compartido → unirse) y apruébalo aquí. Tus otros dispositivos se mantienen.",
     "overview": "Resumen", "groupAccess": "Tu acceso", "groupSharing": "Compartir",
     "publicationCreated": "Publicación cifrada configurada",
     "statusCard":"Estado de protección","currentStatus":"Espacio de trabajo cifrado","workspaceProtected":"El contenido remoto se guarda como objetos cifrados con cambios firmados.","notConfigured":"Aún no configurado.","setup":"Configurar cifrado","connectionRequired":"Conecta este vault a un proveedor de nube antes de activar la sincronización cifrada.","openVaultFirst":"Abre este vault para administrar su seguridad.",

@@ -2298,6 +2298,7 @@
     "mailCaptureGroup": "归档与隐私"
   },
   "workspaceSecurity": {
+    "manageAccess": "设备与恢复", "manageAccessDesc": "配对另一台设备 · 保存恢复包", "manageSharing": "与他人共享", "manageSharingDesc": "成员、群组、切片、发布", "encryptionCard": "加密", "cloudDisconnect": "移除与加密云的连接", "cloudDisconnectDesc": "仅断开此设备。云端仍保持加密——其他设备和成员仍可访问。", "cloudDisconnectAction": "断开连接 …", "recoveryStatus": "当前状态", "recoveryWorkflow": "恢复流程", "addDevice": "添加另一台设备", "addDeviceDesc": "配对你自己的第二台设备——不会创建新成员。", "addDeviceHint": "在你的另一台设备上粘贴此代码（安全与共享 → 加入），然后在此处批准。你的其他设备将保留。",
     "overview": "概览", "groupAccess": "你的访问", "groupSharing": "共享",
     "publicationCreated": "已配置加密发布",
     "statusCard":"保护状态","currentStatus":"加密工作区","workspaceProtected":"远程内容以加密对象保存，所有更改均带签名。","notConfigured":"尚未配置。","setup":"设置加密","connectionRequired":"启用加密同步前，请先将此仓库连接到云服务。","openVaultFirst":"请打开此仓库以管理安全设置。",
