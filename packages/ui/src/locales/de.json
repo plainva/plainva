@@ -28,7 +28,7 @@
     "statusNone": "Keine Sync-Passphrase gesetzt. Setze eine, um Konten-Zugangsdaten verschlüsselt zwischen Deinen Geräten zu synchronisieren.",
     "statusLocked": "Verschlüsselung ist eingerichtet, aber auf diesem Gerät gesperrt. Gib die Passphrase ein, um sie zu entsperren.",
     "statusUnlocked": "Verschlüsselung ist aktiv — synchronisierte Einstellungen reisen verschlüsselt.",
-    "passphraseRow": "Sync-Passphrase",
+    "scopeNote": "Dies verschlüsselt die App-Einstellungen und Zugangsdaten, die zwischen Deinen Geräten synchronisiert werden — nicht die Notizen und Dateien des Vaults. Um den Vault-Inhalt zu verschlüsseln, nutze „Sicherheit & Freigaben“.", "passphraseRow": "Sync-Passphrase",
     "passphraseRowDesc": "Schützt die verschlüsselten Einstellungen und Konten-Zugangsdaten, die mit diesem Vault reisen.",
     "setPassphrase": "Passphrase setzen",
     "enterPassphrase": "Passphrase eingeben",

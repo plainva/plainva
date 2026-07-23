@@ -26,7 +26,7 @@
     "statusNone": "尚未设置同步密码短语。设置一个，即可在你的设备之间以加密方式同步账户凭据。",
     "statusLocked": "加密已配置，但在此设备上处于锁定状态。输入密码短语即可解锁。",
     "statusUnlocked": "加密已启用——同步的设置以加密形式传输。",
-    "passphraseRow": "同步密码短语",
+    "scopeNote":"这会加密在设备间同步的应用设置和账户凭据，而非工作区的笔记与文件。要加密工作区内容，请使用“安全与共享”。","passphraseRow": "同步密码短语",
     "passphraseRowDesc": "保护随此仓库一同传输的加密设置和账户凭据。",
     "setPassphrase": "设置密码短语",
     "enterPassphrase": "输入密码短语",

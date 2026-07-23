@@ -26,7 +26,7 @@
     "statusNone": "Nie ustawiono frazy hasłowej synchronizacji. Ustaw ją, aby synchronizować dane logowania kont w postaci zaszyfrowanej między Twoimi urządzeniami.",
     "statusLocked": "Szyfrowanie jest skonfigurowane, ale zablokowane na tym urządzeniu. Wprowadź frazę hasłową, aby je odblokować.",
     "statusUnlocked": "Szyfrowanie jest aktywne — zsynchronizowane ustawienia podróżują zaszyfrowane.",
-    "passphraseRow": "Fraza hasłowa synchronizacji",
+    "scopeNote":"To szyfruje ustawienia aplikacji i dane logowania synchronizowane między urządzeniami — nie notatki i pliki vaulta. Aby zaszyfrować treść vaulta, użyj Bezpieczeństwa i udostępniania.","passphraseRow": "Fraza hasłowa synchronizacji",
     "passphraseRowDesc": "Chroni zaszyfrowane ustawienia i dane logowania kont, które podróżują z tym vaultem.",
     "setPassphrase": "Ustaw frazę hasłową",
     "enterPassphrase": "Wprowadź frazę hasłową",

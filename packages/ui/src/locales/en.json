@@ -28,7 +28,7 @@
     "statusNone": "No sync passphrase set. Set one to sync account credentials encrypted between your devices.",
     "statusLocked": "Encryption is set up but locked on this device. Enter the passphrase to unlock it.",
     "statusUnlocked": "Encryption is active — synced settings travel encrypted.",
-    "passphraseRow": "Sync passphrase",
+    "scopeNote": "This encrypts the app settings and account credentials that sync between your devices — not the vault’s notes and files. To encrypt the vault content, use Security & Sharing.", "passphraseRow": "Sync passphrase",
     "passphraseRowDesc": "Protects the encrypted settings and account credentials that travel with this vault.",
     "setPassphrase": "Set passphrase",
     "enterPassphrase": "Enter passphrase",

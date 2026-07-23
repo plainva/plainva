@@ -284,6 +284,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
 
       {connected && p.isActiveVault && backupAdapter && (
         <SettingCard label={t("encryption.cardLabel")}>
+          <SettingCardNote>{t("encryption.scopeNote", { defaultValue: "This encrypts the app settings and account credentials that sync between your devices — not the vault's notes and files. To encrypt the vault content, use Security & Sharing." })}</SettingCardNote>
           <SettingCardNote>
             {encState === "unlocked"
               ? t("encryption.statusUnlocked")

@@ -26,7 +26,7 @@
     "statusNone": "Geen synchronisatiewachtwoordzin ingesteld. Stel er een in om accountinloggegevens versleuteld tussen je apparaten te synchroniseren.",
     "statusLocked": "Versleuteling is ingesteld, maar vergrendeld op dit apparaat. Voer de wachtwoordzin in om te ontgrendelen.",
     "statusUnlocked": "Versleuteling is actief — gesynchroniseerde instellingen reizen versleuteld.",
-    "passphraseRow": "Synchronisatiewachtwoordzin",
+    "scopeNote":"Dit versleutelt de app-instellingen en inloggegevens die tussen je apparaten synchroniseren — niet de notities en bestanden van de vault. Gebruik Beveiliging en delen om de vault-inhoud te versleutelen.","passphraseRow": "Synchronisatiewachtwoordzin",
     "passphraseRowDesc": "Beschermt de versleutelde instellingen en accountinloggegevens die met deze vault meereizen.",
     "setPassphrase": "Wachtwoordzin instellen",
     "enterPassphrase": "Wachtwoordzin invoeren",

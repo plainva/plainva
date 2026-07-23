@@ -28,7 +28,7 @@
     "statusNone": "Aucune phrase secrète de synchronisation n'est définie. Définissez-en une pour synchroniser les identifiants de compte de façon chiffrée entre vos appareils.",
     "statusLocked": "Le chiffrement est configuré, mais verrouillé sur cet appareil. Saisissez la phrase secrète pour le déverrouiller.",
     "statusUnlocked": "Le chiffrement est actif — les paramètres synchronisés circulent chiffrés.",
-    "passphraseRow": "Phrase secrète de synchronisation",
+    "scopeNote":"Ceci chiffre les réglages de l’app et les identifiants synchronisés entre vos appareils, pas les notes ni les fichiers du coffre. Pour chiffrer le contenu, utilisez Sécurité et partage.","passphraseRow": "Phrase secrète de synchronisation",
     "passphraseRowDesc": "Protège les paramètres chiffrés et les identifiants de compte qui circulent avec ce vault.",
     "setPassphrase": "Définir une phrase secrète",
     "enterPassphrase": "Saisir la phrase secrète",

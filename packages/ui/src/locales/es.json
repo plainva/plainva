@@ -28,7 +28,7 @@
     "statusNone": "No hay ninguna frase de contraseña de sincronización configurada. Configura una para sincronizar las credenciales de las cuentas cifradas entre tus dispositivos.",
     "statusLocked": "El cifrado está configurado, pero bloqueado en este dispositivo. Introduce la frase de contraseña para desbloquearlo.",
     "statusUnlocked": "El cifrado está activo — la configuración sincronizada viaja cifrada.",
-    "passphraseRow": "Frase de contraseña de sincronización",
+    "scopeNote":"Esto cifra los ajustes de la app y las credenciales que se sincronizan entre tus dispositivos, no las notas ni los archivos del vault. Para cifrar el contenido del vault, usa Seguridad y uso compartido.","passphraseRow": "Frase de contraseña de sincronización",
     "passphraseRowDesc": "Protege la configuración cifrada y las credenciales de las cuentas que viajan con este vault.",
     "setPassphrase": "Establecer frase de contraseña",
     "enterPassphrase": "Introducir frase de contraseña",

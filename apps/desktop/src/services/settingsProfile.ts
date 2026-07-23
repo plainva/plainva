@@ -20,7 +20,6 @@ import {
   SettingsSyncStep,
   SecretsSyncStep,
   KeyfileSyncStep,
-  EncryptingSyncTarget,
   sealBlob,
   openBlob,
   evaluateManifestGuard,
@@ -565,44 +564,6 @@ function safeParseManifest(text: string) {
   } catch {
     return null;
   }
-}
-
-/**
- * Wraps a sync target in the content-E2E decorator when THIS connection has an
- * active encryption manifest AND the master key is unlocked, so remote content
- * is ciphertext (the local vault always stays plaintext). A locked device stays
- * inert until the protocol guard requests an unlock. Once a key is cached,
- * malformed or unauthenticated manifests fail closed instead of silently starting
- * a plaintext worker. A connection without a manifest remains plaintext.
- */
-export async function wrapEncryptedTargetIfActive(
-  vaultPath: string,
-  target: ISyncTarget
-): Promise<ISyncTarget> {
-  const mk = await loadCachedMasterKey(vaultPath);
-    if (!mk) return target; // locked or no encryption on this device
-    const connectionId = await getActiveConnectionId(vaultPath);
-    if (!connectionId) return target;
-    const manifestText = await readRemoteManifest(target);
-    if (!manifestText) return target; // plaintext connection (no manifest)
-    const known = await loadConnectionState(connectionId);
-    const keys = await loadCachedMasterKeys(vaultPath);
-    // With an unlocked key, violations deliberately propagate: a raw worker
-    // must never start after a failed manifest read or verification.
-    const decision = evaluateManifestGuard({ manifestText, known, masterKey: mk, masterKeys: keys, guardVersion: GUARD_VERSION });
-    if (decision.mode === "strict" || decision.mode === "mixed") {
-      const shape = safeParseManifest(manifestText);
-      const writeKey = shape?.state === "rotating" && shape.newKeyId
-        ? keys.get(shape.newKeyId)
-        : mk;
-      return new EncryptingSyncTarget(target, {
-        writeKey,
-        readKeys: keys,
-        encryptWrites: shape?.state !== "decrypting",
-        isStrict: () => decision.mode === "strict",
-      });
-    }
-    return target;
 }
 
 /**

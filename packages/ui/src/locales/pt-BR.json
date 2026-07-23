@@ -26,7 +26,7 @@
     "statusNone": "Nenhuma frase secreta de sincronização definida. Defina uma para sincronizar as credenciais de conta de forma criptografada entre seus dispositivos.",
     "statusLocked": "A criptografia está configurada, mas bloqueada neste dispositivo. Digite a frase secreta para desbloqueá-la.",
     "statusUnlocked": "A criptografia está ativa — as configurações sincronizadas trafegam criptografadas.",
-    "passphraseRow": "Frase secreta de sincronização",
+    "scopeNote":"Isto criptografa as configurações do app e as credenciais que sincronizam entre seus dispositivos — não as notas e arquivos do vault. Para criptografar o conteúdo, use Segurança e compartilhamento.","passphraseRow": "Frase secreta de sincronização",
     "passphraseRowDesc": "Protege as configurações criptografadas e as credenciais de conta que trafegam com este vault.",
     "setPassphrase": "Definir frase secreta",
     "enterPassphrase": "Digitar frase secreta",
