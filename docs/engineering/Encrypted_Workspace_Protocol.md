@@ -617,6 +617,30 @@ anchor only after the replacement package has been durably saved or shared;
 cancelled save/share leaves the previous package active. Restore accepts only
 the recovery identity at the end of the continuous remote anchor chain.
 
+An invitation code (`PVINVITE1.` followed by base64url of the reserved member
+id, workspace id and fingerprint) lets an owner hand a joining device its member
+binding without surfacing a raw member id. It grants nothing on its own — an
+existing device must still approve the pairing — but it should travel over a
+channel the two people trust. Both the invitation code and a joining device's
+pairing-request token are rendered as QR codes generated entirely on-device
+(offline encoder, no network), and a device reads a code with the platform
+`BarcodeDetector` plus a bundled pure-JS fallback (jsQR) where that API is
+absent. A QR carries the same bytes as the copyable text, so the
+fingerprint-comparison requirement above is unchanged: the QR is a transport
+convenience, never an authority.
+
+Removing an encrypted vault is device-local. Decommissioning clears the local
+keys and workspace runtime and reopens the vault as ordinary files; the
+fail-closed guard offers the same reset where a missing or invalid remote
+manifest would otherwise wedge sync. Plainva does not delete the immutable
+`.pvws/` objects for the user — the object store is put-only, so removing the
+cloud copy is a manual provider action. A global "lift encryption" that
+re-uploads local plaintext and removes the remote `.pvws/` is intentionally out
+of scope here: it needs a provider-delete capability the object store does not
+expose and real-cloud verification, and is tracked as a separate, destructive
+follow-up. No teardown or reset ever silently downgrades an encrypted connection
+to plaintext; each is explicit and confirmed.
+
 ## 17. P5 policy and authorisation semantics
 
 The built-in roles are `Owner`, `Admin`, `Editor`, `Commenter`, `Reader` and
