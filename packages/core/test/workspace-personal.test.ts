@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createPersonalWorkspaceBootstrap,
   createWorkspaceDeviceIdentity,
@@ -378,5 +378,48 @@ describe("personal encrypted workspace P3", () => {
     expect(conflicts2).toHaveLength(1);
     expect(await vault1.readTextFile(conflicts1[0].path)).toBe("device two");
     expect(await vault2.readTextFile(conflicts2[0].path)).toBe("device one");
+  });
+
+  it("skips re-reading unchanged files on the open-time reconcile via the mtime probe cache (A1 2026-07-22)", async () => {
+    const { first } = await setupRuntime();
+    const store = new FakeWorkspaceObjectStore();
+    const vault = new MemoryVault();
+    const state = new MemoryWorkspaceStateStore();
+    await vault.writeTextFile("keep.md", "unchanged forever");
+    await initialise(vault, state, store, first);
+    await new EncryptedWorkspaceWorker(store, state, vault, first).runCycle();
+
+    // Second sweep: the object now exists but no probe was recorded yet, so the
+    // file is hashed exactly once and a probe is written for it.
+    const readSpy = vi.spyOn(vault, "readBinaryFile");
+    const second = await initialise(vault, state, store, first);
+    expect(second.queued).toBe(0);
+    expect(second.alreadyCompleted).toBe(1);
+    expect(readSpy.mock.calls.filter(([p]) => p === "keep.md")).toHaveLength(1);
+    expect((await state.listLocalProbes()).map((probe) => probe.path)).toContain("keep.md");
+
+    // Third sweep: the probe matches the (unchanged) stat, so the file is NOT read.
+    readSpy.mockClear();
+    const third = await initialise(vault, state, store, first);
+    expect(third.alreadyCompleted).toBe(1);
+    expect(readSpy.mock.calls.filter(([p]) => p === "keep.md")).toHaveLength(0);
+
+    readSpy.mockRestore();
+  });
+
+  it("drops stale probes for files that disappeared while closed", async () => {
+    const { first } = await setupRuntime();
+    const store = new FakeWorkspaceObjectStore();
+    const vault = new MemoryVault();
+    const state = new MemoryWorkspaceStateStore();
+    await vault.writeTextFile("gone.md", "here for now");
+    await initialise(vault, state, store, first);
+    await new EncryptedWorkspaceWorker(store, state, vault, first).runCycle();
+    await initialise(vault, state, store, first); // records the probe
+    expect((await state.listLocalProbes()).map((probe) => probe.path)).toContain("gone.md");
+
+    await vault.deleteItem("gone.md");
+    await initialise(vault, state, store, first);
+    expect((await state.listLocalProbes()).map((probe) => probe.path)).not.toContain("gone.md");
   });
 });

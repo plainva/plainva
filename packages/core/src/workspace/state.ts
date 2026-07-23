@@ -68,6 +68,19 @@ export interface WorkspaceLocalForkRecord {
   createdAt: string;
 }
 
+/**
+ * Sweep-owned probe cache entry: "the local file at `path` had plaintext hash
+ * `plaintextSha256` when its stat read (mtime, size)". Lets the open-time
+ * reconcile sweep skip re-reading unchanged files. Purely local bookkeeping —
+ * never uploaded, never signed; a stale entry only costs one extra hash.
+ */
+export interface WorkspaceLocalProbe {
+  path: string;
+  mtime: number;
+  size: number;
+  plaintextSha256: string;
+}
+
 export interface WorkspaceStagedChunk {
   localPath: string;
   remoteKey: string;
@@ -193,8 +206,13 @@ export interface WorkspaceStateStore {
   setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void>;
   listLocalForks(): Promise<WorkspaceLocalForkRecord[]>;
   saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void>;
+  listLocalProbes(): Promise<WorkspaceLocalProbe[]>;
+  upsertLocalProbes(probes: WorkspaceLocalProbe[]): Promise<void>;
+  deleteLocalProbes(paths: string[]): Promise<void>;
   hasOperation(operationHash: string): Promise<boolean>;
   hasPendingForPath(path: string): Promise<boolean>;
+  /** Every path referenced by a queued mutation (path + rename target), for bulk pending checks. */
+  listQueuedPaths(): Promise<string[]>;
   enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null): Promise<number>;
   listQueue(limit?: number): Promise<WorkspaceQueuedMutation[]>;
   reservePrepared(queueId: number, prepared: PreparedWorkspaceMutation, meta: WorkspaceRuntimeMeta): Promise<void>;
@@ -219,6 +237,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private readonly comments = new Map<string, WorkspaceCommentRecord>();
   private readonly quarantine = new Map<string, WorkspaceQuarantineRecord>();
   private readonly forks = new Map<string, WorkspaceLocalForkRecord>();
+  private readonly probes = new Map<string, WorkspaceLocalProbe>();
   private readonly queue: WorkspaceQueuedMutation[] = [];
   private nextQueueId = 1;
 
@@ -257,9 +276,19 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> { return [...this.forks.values()].map(clone).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> { this.forks.set(record.forkId, clone(record)); }
+  async listLocalProbes(): Promise<WorkspaceLocalProbe[]> { return [...this.probes.values()].map(clone).sort((a, b) => a.path.localeCompare(b.path)); }
+  async upsertLocalProbes(probes: WorkspaceLocalProbe[]): Promise<void> {
+    for (const probe of probes) this.probes.set(probe.path, clone(probe));
+  }
+  async deleteLocalProbes(paths: string[]): Promise<void> {
+    for (const path of paths) this.probes.delete(path);
+  }
   async hasOperation(operationHash: string): Promise<boolean> { return this.operations.has(operationHash); }
   async hasPendingForPath(path: string): Promise<boolean> {
     return this.queue.some((entry) => entry.path === path || entry.newPath === path);
+  }
+  async listQueuedPaths(): Promise<string[]> {
+    return this.queue.flatMap((entry) => (entry.newPath ? [entry.path, entry.newPath] : [entry.path]));
   }
   async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
     const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null };
@@ -470,11 +499,40 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> {
     await this.db.execute(`INSERT OR REPLACE INTO workspace_local_fork (fork_id,original_path,fork_path,reason,created_at) VALUES (?,?,?,?,?)`, [record.forkId, record.originalPath, record.forkPath, record.reason, record.createdAt]);
   }
+  async listLocalProbes(): Promise<WorkspaceLocalProbe[]> {
+    const rows = await this.db.query<{ path: string; mtime: number; size: number; plaintext_sha256: string }>(`SELECT * FROM workspace_local_probe ORDER BY path`);
+    return rows.map((row) => ({ path: row.path, mtime: row.mtime, size: row.size, plaintextSha256: row.plaintext_sha256 }));
+  }
+  async upsertLocalProbes(probes: WorkspaceLocalProbe[]): Promise<void> {
+    // Chunked multi-row upserts: the sweep may refresh thousands of probes in
+    // one pass and a statement per row would pay one IPC round-trip each.
+    const CHUNK = 200;
+    for (let start = 0; start < probes.length; start += CHUNK) {
+      const chunk = probes.slice(start, start + CHUNK);
+      const values = chunk.map(() => "(?,?,?,?)").join(",");
+      await this.db.execute(
+        `INSERT INTO workspace_local_probe (path,mtime,size,plaintext_sha256) VALUES ${values}
+         ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime,size=excluded.size,plaintext_sha256=excluded.plaintext_sha256`,
+        chunk.flatMap((probe) => [probe.path, probe.mtime, probe.size, probe.plaintextSha256])
+      );
+    }
+  }
+  async deleteLocalProbes(paths: string[]): Promise<void> {
+    const CHUNK = 400;
+    for (let start = 0; start < paths.length; start += CHUNK) {
+      const chunk = paths.slice(start, start + CHUNK);
+      await this.db.execute(`DELETE FROM workspace_local_probe WHERE path IN (${chunk.map(() => "?").join(",")})`, chunk);
+    }
+  }
   async hasOperation(operationHash: string): Promise<boolean> {
     return (await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM workspace_operation WHERE operation_hash = ?`, [operationHash]))?.n === 1;
   }
   async hasPendingForPath(path: string): Promise<boolean> {
     return ((await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM workspace_queue WHERE path = ? OR new_path = ?`, [path, path]))?.n ?? 0) > 0;
+  }
+  async listQueuedPaths(): Promise<string[]> {
+    const rows = await this.db.query<{ path: string; new_path: string | null }>(`SELECT path, new_path FROM workspace_queue`);
+    return rows.flatMap((row) => (row.new_path ? [row.path, row.new_path] : [row.path]));
   }
   async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
     await this.db.execute(`INSERT INTO workspace_queue (operation,path,new_path,queued_at) VALUES (?,?,?,?)`, [operation, path, newPath, Date.now()]);

@@ -5,7 +5,7 @@ import { WorkspaceObjectStore } from "./objectStore.js";
 import { PersonalWorkspaceRuntime } from "./personal.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
 import { WorkspaceProtocolError, protocolAssert } from "./errors.js";
-import { WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
+import { WorkspaceLocalProbe, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 
 export interface PersonalWorkspaceMigrationResult {
   total: number;
@@ -98,16 +98,39 @@ export async function initializePersonalWorkspaceMigration(input: {
   const progressStep = Math.max(1, Math.ceil(inventory.length / 100));
   input.onProgress?.(0, inventory.length);
   const localPaths = new Set(inventory.map((entry) => entry.path));
+  // Per-RUN lookups instead of per-file round-trips (the indexer's bulk-pass
+  // treatment): one object map, one pending-path set, one probe map.
+  const objectsByPath = new Map((await input.state.listObjects(true)).map((object) => [object.path, object]));
+  const pendingPaths = new Set(await input.state.listQueuedPaths());
+  const probesByPath = new Map((await input.state.listLocalProbes()).map((probe) => [probe.path, probe]));
+  const probeUpserts: WorkspaceLocalProbe[] = [];
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     processed += 1;
     if (processed === inventory.length || processed % progressStep === 0) input.onProgress?.(processed, inventory.length);
-    const existing = await input.state.getObjectByPath(entry.path);
-    if (await input.state.hasPendingForPath(entry.path)) { queued += 1; continue; }
+    const existing = objectsByPath.get(entry.path);
+    if (pendingPaths.has(entry.path)) { queued += 1; continue; }
     if (existing && !existing.deleted) {
-      const unchanged = entry.isDirectory
-        ? existing.contentKind === "directory"
-        : existing.contentKind !== "directory" && existing.plaintextSha256 === sha256Hex(await input.vault.readBinaryFile(entry.path));
+      let unchanged: boolean;
+      if (entry.isDirectory) {
+        unchanged = existing.contentKind === "directory";
+      } else if (existing.contentKind === "directory") {
+        unchanged = false;
+      } else {
+        // mtime skip: a probe that still matches the stat (mtime AND size, and a
+        // real mtime — network mounts may report 0) carries the plaintext hash,
+        // so unchanged files cost no read. Anything else falls back to hashing
+        // once and refreshes the probe for the next open.
+        const probe = probesByPath.get(entry.path);
+        let sha: string;
+        if (probe && entry.mtime > 0 && probe.mtime === entry.mtime && probe.size === entry.size) {
+          sha = probe.plaintextSha256;
+        } else {
+          sha = sha256Hex(await input.vault.readBinaryFile(entry.path));
+          probeUpserts.push({ path: entry.path, mtime: entry.mtime, size: entry.size, plaintextSha256: sha });
+        }
+        unchanged = existing.plaintextSha256 === sha;
+      }
       if (unchanged) { completed += 1; continue; }
     }
     await input.state.enqueue(entry.isDirectory ? "mkdir" : "write", entry.path);
@@ -116,13 +139,16 @@ export async function initializePersonalWorkspaceMigration(input: {
   // The watcher cannot observe changes made while Plainva was closed. Reconcile
   // the durable object map against the startup inventory so offline edits and
   // deletions enter the same signed queue before the first pull.
-  const missingObjects = (await input.state.listObjects()).filter((object) => !localPaths.has(object.path));
+  const missingObjects = [...objectsByPath.values()].filter((object) => !object.deleted && !localPaths.has(object.path));
   for (const object of missingObjects) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
-    if (await input.state.hasPendingForPath(object.path)) { queued += 1; continue; }
+    if (pendingPaths.has(object.path)) { queued += 1; continue; }
     await input.state.enqueue("delete", object.path);
     queued += 1;
   }
+  const staleProbes = [...probesByPath.keys()].filter((path) => !localPaths.has(path));
+  if (probeUpserts.length) await input.state.upsertLocalProbes(probeUpserts);
+  if (staleProbes.length) await input.state.deleteLocalProbes(staleProbes);
   meta.migrationTotal = inventory.length + missingObjects.length;
   meta.migrationCompleted = completed;
   meta.migrationInventoryComplete = true;

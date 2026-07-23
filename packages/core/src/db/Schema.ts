@@ -184,6 +184,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       reason        TEXT NOT NULL,
       created_at    TEXT NOT NULL
     );`,
+    // Sweep-owned probe cache: "the local file at path had this plaintext hash
+    // at (mtime, size)". Purely local bookkeeping so the open-time reconcile
+    // sweep can skip re-reading unchanged files; never part of the protocol.
+    `CREATE TABLE IF NOT EXISTS workspace_local_probe (
+      path             TEXT PRIMARY KEY,
+      mtime            INTEGER NOT NULL,
+      size             INTEGER NOT NULL,
+      plaintext_sha256 TEXT NOT NULL
+    );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
