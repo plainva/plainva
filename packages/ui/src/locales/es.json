@@ -2314,6 +2314,7 @@
     "mailCaptureGroup": "Captura y privacidad"
   },
   "workspaceSecurity": {
+    "qrScanning": "Apunta la cámara al código QR", "qrCameraFailed": "Cámara no disponible: pega el código en su lugar.",
     "liftEncryption": "Quitar el cifrado", "liftEncryptionDesc": "Vuelve a convertir este vault en un vault en la nube normal y sin cifrar: tus notas se suben a la misma nube como archivos de texto plano.", "liftEncryptionAction": "Quitar el cifrado …", "liftEncryptionConfirm": "Tus notas se subirán a la nube como archivos de texto plano sin cifrar, y este vault dejará de estar cifrado. Los archivos locales no se modifican y no se borra nada. La copia cifrada antigua permanece en la nube hasta que borres esa carpeta tú mismo.", "liftEncryptionDone": "Cifrado eliminado. Tus notas se están subiendo a la nube como archivos de texto plano. Borra la antigua carpeta cifrada .pvws/ en tu proveedor cuando termine la subida.", "liftEncryptionFailed": "No se pudo quitar el cifrado.",
     "inviteQrCaption": "O escanea este código con la app de Plainva en tu otro dispositivo", "scanInvite": "Escanear invitación", "pairingQrCaption": "Quien apruebe puede escanear este código en lugar de escribirlo.",
     "mobileManageOnDesktop": "Gestionar en la app de escritorio.",

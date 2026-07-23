@@ -139,10 +139,16 @@ describe("P8-P11 security-centre interaction contract", () => {
     // Mobile: scan an invitation into the code field, and show the pairing
     // request as a QR the approver can scan. Both scans use the shared decoder
     // (native BarcodeDetector + jsQR fallback), so no native barcode plugin.
-    expect(mobile).toContain("decodeQrFromDataUrl");
-    expect(mobile).toContain("const scanInvite = async");
+    // Mobile scans invitations LIVE (camera preview, no photo capture) via the
+    // shared QrScanner; both scans decode frames through decodeQrFromVideo
+    // (native BarcodeDetector + jsQR fallback for iOS).
+    expect(mobile).toContain("QrScanner");
+    expect(mobile).toContain('setScan("invite")');
     expect(mobile).toContain("workspaceSecurity.scanInvite");
     expect(mobile).toContain("<QrImage value={request.token}");
+    const scanner = readFileSync(new URL("../../../../mobile/src/components/QrScanner.tsx", import.meta.url), "utf8");
+    expect(scanner).toContain("navigator.mediaDevices.getUserMedia");
+    expect(scanner).toContain("decodeQrFromVideo");
     const scan = readFileSync(new URL("../../../../mobile/src/services/qrScan.ts", import.meta.url), "utf8");
     expect(scan).toContain('import jsQR from "jsqr"');
     expect(scan).toContain("BarcodeDetector");

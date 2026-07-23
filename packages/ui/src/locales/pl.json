@@ -2319,6 +2319,7 @@
     "mailCaptureGroup": "Zapisywanie i prywatność"
   },
   "workspaceSecurity": {
+    "qrScanning": "Skieruj aparat na kod QR", "qrCameraFailed": "Aparat niedostępny — zamiast tego wklej kod.",
     "liftEncryption": "Zdejmij szyfrowanie", "liftEncryptionDesc": "Przywraca ten sejf do zwykłego, nieszyfrowanego sejfu w chmurze: Twoje notatki są przesyłane do tej samej chmury jako pliki tekstem jawnym.", "liftEncryptionAction": "Zdejmij szyfrowanie …", "liftEncryptionConfirm": "Twoje notatki zostaną przesłane do chmury jako niezaszyfrowane pliki tekstem jawnym, a ten sejf przestanie być szyfrowany. Pliki lokalne nie są zmieniane i nic nie jest usuwane. Stara zaszyfrowana kopia pozostaje w chmurze, dopóki sam nie usuniesz tego folderu.", "liftEncryptionDone": "Szyfrowanie zdjęte. Twoje notatki są przesyłane do chmury jako pliki tekstem jawnym. Usuń stary zaszyfrowany folder .pvws/ u swojego dostawcy, gdy przesyłanie się zakończy.", "liftEncryptionFailed": "Nie udało się zdjąć szyfrowania.",
     "inviteQrCaption": "Albo zeskanuj ten kod aplikacją Plainva na drugim urządzeniu", "scanInvite": "Zeskanuj zaproszenie", "pairingQrCaption": "Osoba zatwierdzająca może zeskanować ten kod zamiast go wpisywać.",
     "mobileManageOnDesktop": "Zarządzaj w aplikacji na komputer.",

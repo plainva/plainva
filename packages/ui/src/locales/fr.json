@@ -2314,6 +2314,7 @@
     "mailCaptureGroup": "Capture et confidentialité"
   },
   "workspaceSecurity": {
+    "qrScanning": "Dirigez l'appareil photo vers le code QR", "qrCameraFailed": "Appareil photo indisponible — collez le code à la place.",
     "liftEncryption": "Supprimer le chiffrement", "liftEncryptionDesc": "Reconvertit ce coffre en coffre cloud normal et non chiffré : vos notes sont téléversées dans le même cloud sous forme de fichiers en clair.", "liftEncryptionAction": "Supprimer le chiffrement …", "liftEncryptionConfirm": "Vos notes seront téléversées dans le cloud sous forme de fichiers en clair non chiffrés, et ce coffre ne sera plus chiffré. Les fichiers locaux ne sont pas modifiés et rien n'est supprimé. L'ancienne copie chiffrée reste dans le cloud jusqu'à ce que vous supprimiez ce dossier vous-même.", "liftEncryptionDone": "Chiffrement supprimé. Vos notes sont en cours de téléversement dans le cloud sous forme de fichiers en clair. Supprimez l'ancien dossier chiffré .pvws/ chez votre fournisseur une fois le téléversement terminé.", "liftEncryptionFailed": "Impossible de supprimer le chiffrement.",
     "inviteQrCaption": "Ou scannez ce code avec l'application Plainva sur votre autre appareil", "scanInvite": "Scanner l'invitation", "pairingQrCaption": "La personne qui approuve peut scanner ce code au lieu de le saisir.",
     "mobileManageOnDesktop": "Gérer dans l'application de bureau.",

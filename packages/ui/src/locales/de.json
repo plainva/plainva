@@ -2330,6 +2330,7 @@
     "mailCaptureGroup": "Ablage & Datenschutz"
   },
   "workspaceSecurity": {
+    "qrScanning": "Richte die Kamera auf den QR-Code", "qrCameraFailed": "Kamera nicht verfügbar — füge den Code stattdessen ein.",
     "liftEncryption": "Verschlüsselung aufheben", "liftEncryptionDesc": "Macht diesen Vault wieder zu einem normalen, unverschlüsselten Cloud-Vault: Deine Notizen werden als Klartext-Dateien in dieselbe Cloud geladen.", "liftEncryptionAction": "Verschlüsselung aufheben …", "liftEncryptionConfirm": "Deine Notizen werden als unverschlüsselte Klartext-Dateien in die Cloud geladen, und dieser Vault ist danach nicht mehr verschlüsselt. Lokale Dateien werden nicht verändert und nichts wird gelöscht. Die alte verschlüsselte Kopie bleibt in der Cloud, bis Du den Ordner selbst löschst.", "liftEncryptionDone": "Verschlüsselung aufgehoben. Deine Notizen werden jetzt als Klartext in die Cloud geladen. Lösche den alten verschlüsselten .pvws/-Ordner bei Deinem Anbieter, sobald der Upload fertig ist.", "liftEncryptionFailed": "Verschlüsselung konnte nicht aufgehoben werden.",
     "inviteQrCaption": "Oder scanne diesen Code mit der Plainva-App auf Deinem anderen Gerät", "scanInvite": "Einladung scannen", "pairingQrCaption": "Die genehmigende Person kann diesen Code scannen, statt ihn abzutippen.",
     "mobileManageOnDesktop": "Auf dem Desktop verwalten.",

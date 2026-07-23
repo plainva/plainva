@@ -2305,6 +2305,7 @@
     "mailCaptureGroup": "Vastleggen & privacy"
   },
   "workspaceSecurity": {
+    "qrScanning": "Richt de camera op de QR-code", "qrCameraFailed": "Camera niet beschikbaar — plak in plaats daarvan de code.",
     "liftEncryption": "Versleuteling opheffen", "liftEncryptionDesc": "Maakt van deze kluis weer een normale, niet-versleutelde cloudkluis: je notities worden als platte bestanden naar dezelfde cloud geüpload.", "liftEncryptionAction": "Versleuteling opheffen …", "liftEncryptionConfirm": "Je notities worden als platte, niet-versleutelde bestanden naar de cloud geüpload en deze kluis is daarna niet meer versleuteld. Lokale bestanden worden niet gewijzigd en er wordt niets verwijderd. De oude versleutelde kopie blijft in de cloud staan totdat je die map zelf verwijdert.", "liftEncryptionDone": "Versleuteling opgeheven. Je notities worden nu als platte bestanden naar de cloud geüpload. Verwijder de oude versleutelde map .pvws/ bij je provider zodra de upload klaar is.", "liftEncryptionFailed": "Kon de versleuteling niet opheffen.",
     "inviteQrCaption": "Of scan deze code met de Plainva-app op je andere apparaat", "scanInvite": "Uitnodiging scannen", "pairingQrCaption": "De goedkeurder kan deze code scannen in plaats van hem te typen.",
     "mobileManageOnDesktop": "Beheren in de desktop-app.",

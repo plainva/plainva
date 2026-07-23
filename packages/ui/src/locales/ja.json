@@ -2298,6 +2298,7 @@
     "mailCaptureGroup": "取り込みとプライバシー"
   },
   "workspaceSecurity": {
+    "qrScanning": "カメラを QR コードに向けてください", "qrCameraFailed": "カメラを使用できません — 代わりにコードを貼り付けてください。",
     "liftEncryption": "暗号化を解除", "liftEncryptionDesc": "この保管庫を通常の暗号化されていないクラウド保管庫に戻します。ノートは平文ファイルとして同じクラウドにアップロードされます。", "liftEncryptionAction": "暗号化を解除 …", "liftEncryptionConfirm": "ノートは暗号化されていない平文ファイルとしてクラウドにアップロードされ、この保管庫は暗号化されなくなります。ローカルファイルは変更されず、何も削除されません。古い暗号化されたコピーは、自分でそのフォルダーを削除するまでクラウドに残ります。", "liftEncryptionDone": "暗号化を解除しました。ノートは平文ファイルとしてクラウドにアップロードされています。アップロードが完了したら、プロバイダーの古い暗号化された .pvws/ フォルダーを削除してください。", "liftEncryptionFailed": "暗号化を解除できませんでした。",
     "inviteQrCaption": "または、別のデバイスの Plainva アプリでこのコードをスキャンします", "scanInvite": "招待をスキャン", "pairingQrCaption": "承認者は、このコードを入力する代わりにスキャンできます。",
     "mobileManageOnDesktop": "デスクトップアプリで管理します。",

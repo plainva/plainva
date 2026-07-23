@@ -2389,3 +2389,46 @@ textarea {
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* Live QR scanner overlay (theme-neutral camera viewfinder; --qr-* are the
+   theme-invariant black/white already used by the QR image). */
+.m-qr-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-m-overlay);
+  background: var(--qr-dark);
+  display: flex;
+  flex-direction: column;
+}
+.m-qr-video {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.m-qr-frame {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 66vw;
+  height: 66vw;
+  max-width: 320px;
+  max-height: 320px;
+  border: 2px solid var(--qr-light);
+  border-radius: var(--radius-lg);
+}
+.m-qr-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--overlay-bg);
+  color: var(--qr-light);
+  font-size: var(--text-md);
+}
+.m-qr-bar .m-iconbtn { color: var(--qr-light); }

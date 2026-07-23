@@ -2330,6 +2330,7 @@
     "mailCaptureGroup": "Capture & privacy"
   },
   "workspaceSecurity": {
+    "qrScanning": "Point the camera at the QR code", "qrCameraFailed": "Camera unavailable — paste the code instead.",
     "liftEncryption": "Lift encryption", "liftEncryptionDesc": "Turns this vault back into a normal, unencrypted cloud vault: your notes are uploaded to the same cloud as plain files.", "liftEncryptionAction": "Lift encryption …", "liftEncryptionConfirm": "Your notes will be uploaded to the cloud as plain, unencrypted files, and this vault stops being encrypted. Local files are not changed and nothing is deleted. The old encrypted copy stays in the cloud until you delete that folder yourself.", "liftEncryptionDone": "Encryption lifted. Your notes are uploading to the cloud as plain files. Delete the old encrypted .pvws/ folder at your provider once the upload has finished.", "liftEncryptionFailed": "Could not lift encryption.",
     "inviteQrCaption": "Or scan this code with the Plainva app on your other device", "scanInvite": "Scan invitation", "pairingQrCaption": "The approver can scan this code instead of typing it.",
     "mobileManageOnDesktop": "Manage on the desktop app.",

@@ -2298,6 +2298,7 @@
     "mailCaptureGroup": "归档与隐私"
   },
   "workspaceSecurity": {
+    "qrScanning": "将摄像头对准二维码", "qrCameraFailed": "摄像头不可用——请改为粘贴代码。",
     "liftEncryption": "取消加密", "liftEncryptionDesc": "将此保管库恢复为普通的未加密云保管库：你的笔记会以明文文件形式上传到同一云端。", "liftEncryptionAction": "取消加密 …", "liftEncryptionConfirm": "你的笔记将以未加密的明文文件上传到云端，此保管库将不再加密。本地文件不会被更改，也不会删除任何内容。旧的加密副本会留在云端，直到你自己删除该文件夹。", "liftEncryptionDone": "加密已取消。你的笔记正以明文文件形式上传到云端。上传完成后，请在你的提供商处删除旧的加密 .pvws/ 文件夹。", "liftEncryptionFailed": "无法取消加密。",
     "inviteQrCaption": "或使用另一台设备上的 Plainva 应用扫描此码", "scanInvite": "扫描邀请", "pairingQrCaption": "批准者可以扫描此码，无需手动输入。",
     "mobileManageOnDesktop": "在桌面应用中管理。",
