@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { ChevronLeft, Copy, QrCode, RefreshCw, ShieldCheck } from "lucide-react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { TextInput, toast } from "@plainva/ui";
+import { QrImage, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
+import { decodeQrFromDataUrl } from "../services/qrScan";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
-
-type DetectorCtor = new (options: { formats: string[] }) => { detect(source: ImageBitmapSource): Promise<Array<{ rawValue: string }>> };
 
 export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
@@ -65,16 +64,22 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
   const scanQr = async () => {
     setBusy(true);
     try {
-      const Detector = (globalThis as typeof globalThis & { BarcodeDetector?: DetectorCtor }).BarcodeDetector;
-      if (!Detector) throw new Error(t("workspaceSecurity.qrUnsupported", { defaultValue: "QR recognition is unavailable on this device; use the manual code." }));
       const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 85 });
-      const blob = await (await fetch(photo.dataUrl!)).blob();
-      const image = await createImageBitmap(blob);
-      const result = await new Detector({ formats: ["qr_code"] }).detect(image);
-      const value = result[0]?.rawValue;
+      const value = photo.dataUrl ? await decodeQrFromDataUrl(photo.dataUrl) : null;
       if (!value) throw new Error(t("workspaceSecurity.qrNotFound", { defaultValue: "No QR code was recognized." }));
       if (!vault.workspaceRuntime) throw new Error(t("workspaceSecurity.unlockToApprove", { defaultValue: "Unlock an existing workspace device to approve this request." }));
       setPairPreview(await inspectMobileWorkspacePairing(await getMobileWorkspaceObjectStore(vault.vaultId), vault.workspaceRuntime, value));
+    } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  };
+
+  const scanInvite = async () => {
+    setBusy(true);
+    try {
+      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 85 });
+      const value = photo.dataUrl ? await decodeQrFromDataUrl(photo.dataUrl) : null;
+      if (!value) throw new Error(t("workspaceSecurity.qrNotFound", { defaultValue: "No QR code was recognized." }));
+      setInviteCode(value.trim());
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
@@ -167,9 +172,10 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
       <p className="m-sectionlabel">{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</p>
       <div className="m-row m-row--static"><span><small>{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</small></span></div>
       <label className="m-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></label>
+      <button className="m-row" disabled={busy} onClick={() => void scanInvite()}><QrCode className="m-accent" size={18} /><span>{t("workspaceSecurity.scanInvite", { defaultValue: "Scan invitation" })}</span></button>
       <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
       <button className="m-row" disabled={busy || !inviteCode.trim()} onClick={() => void startPairing()}><QrCode className="m-accent" size={18} /><span>{t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}</span></button>
-      {request && <><div className="m-row m-row--static"><span><strong>{request.shortCode}</strong><small>{t("workspaceSecurity.joinPending", { defaultValue: "Share this code with the approver, then wait for approval." })}</small><small>{request.fingerprint}</small></span><button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(request.token)}><Copy size={18} /></button></div><button className="m-row" disabled={busy} onClick={() => void complete()}><RefreshCw className="m-accent" size={18} /><span>{t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}</span></button></>}
+      {request && <><div className="m-row m-row--static"><span><strong>{request.shortCode}</strong><small>{t("workspaceSecurity.joinPending", { defaultValue: "Share this code with the approver, then wait for approval." })}</small><small>{request.fingerprint}</small></span><button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(request.token)}><Copy size={18} /></button></div><div className="m-row m-row--static"><span><small>{t("workspaceSecurity.pairingQrCaption", { defaultValue: "The approver can scan this code instead of typing it." })}</small></span></div><div className="m-row m-row--static"><QrImage value={request.token} size={180} label={t("workspaceSecurity.pairingQrCaption", { defaultValue: "Pairing request code" })} /></div><button className="m-row" disabled={busy} onClick={() => void complete()}><RefreshCw className="m-accent" size={18} /><span>{t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}</span></button></>}
       <p className="m-sectionlabel">{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</p>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><input accept=".pvrecovery" type="file" onChange={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>

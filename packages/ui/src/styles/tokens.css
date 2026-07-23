@@ -19,6 +19,12 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  /* QR codes render dark-on-light in EVERY theme so any camera reads them —
+     this is scannable DATA, not chrome, so it is never overridden on the
+     data-theme-name axis (invitation + device-pairing codes). */
+  --qr-dark: #000000;
+  --qr-light: #ffffff;
+
   /* Typography scale (chrome only; document content stays 16px/1.6). */
   --text-xs: 0.6875rem; /* 11px — micro labels, badges, section headers */
   --text-sm: 0.75rem;   /* 12px — secondary text, hints, status bar */

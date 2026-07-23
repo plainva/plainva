@@ -2298,6 +2298,7 @@
     "mailCaptureGroup": "归档与隐私"
   },
   "workspaceSecurity": {
+    "inviteQrCaption": "或使用另一台设备上的 Plainva 应用扫描此码", "scanInvite": "扫描邀请", "pairingQrCaption": "批准者可以扫描此码，无需手动输入。",
     "mobileManageOnDesktop": "在桌面应用中管理。",
     "manageAccess": "设备与恢复", "manageAccessDesc": "配对另一台设备 · 保存恢复包", "manageSharing": "与他人共享", "manageSharingDesc": "成员、群组、切片、发布", "encryptionCard": "加密", "cloudDisconnect": "移除与加密云的连接", "cloudDisconnectDesc": "仅断开此设备。云端仍保持加密——其他设备和成员仍可访问。", "cloudDisconnectAction": "断开连接 …", "recoveryStatus": "当前状态", "recoveryWorkflow": "恢复流程", "addDevice": "添加另一台设备", "addDeviceDesc": "配对你自己的第二台设备——不会创建新成员。", "addDeviceHint": "在你的另一台设备上粘贴此代码（安全与共享 → 加入），然后在此处批准。你的其他设备将保留。",
     "overview": "概览", "groupAccess": "你的访问", "groupSharing": "共享",

@@ -2319,6 +2319,7 @@
     "mailCaptureGroup": "Zapisywanie i prywatność"
   },
   "workspaceSecurity": {
+    "inviteQrCaption": "Albo zeskanuj ten kod aplikacją Plainva na drugim urządzeniu", "scanInvite": "Zeskanuj zaproszenie", "pairingQrCaption": "Osoba zatwierdzająca może zeskanować ten kod zamiast go wpisywać.",
     "mobileManageOnDesktop": "Zarządzaj w aplikacji na komputer.",
     "manageAccess": "Urządzenia i odzyskiwanie", "manageAccessDesc": "Sparuj inne urządzenie · zapisz pakiet odzyskiwania", "manageSharing": "Udostępnij innym", "manageSharingDesc": "Członkowie, grupy, wycinki, publikacje", "encryptionCard": "Szyfrowanie", "cloudDisconnect": "Usuń połączenie z zaszyfrowaną chmurą", "cloudDisconnectDesc": "Odłącza tylko to urządzenie. Chmura pozostaje zaszyfrowana — inne urządzenia i członkowie zachowują dostęp.", "cloudDisconnectAction": "Odłącz …", "recoveryStatus": "Bieżący stan", "recoveryWorkflow": "Proces odzyskiwania", "addDevice": "Dodaj kolejne urządzenie", "addDeviceDesc": "Paruje drugie Twoje urządzenie — nie tworzy nowego członka.", "addDeviceHint": "Wklej ten kod na drugim urządzeniu (Bezpieczeństwo i udostępnianie → dołącz), a następnie zatwierdź go tutaj. Pozostałe urządzenia zostają.",
     "overview": "Przegląd", "groupAccess": "Twój dostęp", "groupSharing": "Udostępnianie",

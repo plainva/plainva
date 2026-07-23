@@ -118,6 +118,23 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain("workspaceSecurity.mobileManageOnDesktop");
   });
 
+  it("renders real QR codes for the invitation and the mobile pairing request (P6)", () => {
+    // Desktop invitation modal shows the code AND a scannable QR of the same code.
+    expect(page).toContain("QrImage");
+    expect(page).toContain("<QrImage value={inviteCode}");
+    expect(page).toContain("workspaceSecurity.inviteQrCaption");
+    // Mobile: scan an invitation into the code field, and show the pairing
+    // request as a QR the approver can scan. Both scans use the shared decoder
+    // (native BarcodeDetector + jsQR fallback), so no native barcode plugin.
+    expect(mobile).toContain("decodeQrFromDataUrl");
+    expect(mobile).toContain("const scanInvite = async");
+    expect(mobile).toContain("workspaceSecurity.scanInvite");
+    expect(mobile).toContain("<QrImage value={request.token}");
+    const scan = readFileSync(new URL("../../../../mobile/src/services/qrScan.ts", import.meta.url), "utf8");
+    expect(scan).toContain('import jsQR from "jsqr"');
+    expect(scan).toContain("BarcodeDetector");
+  });
+
   it("mobile joins an encrypted workspace by pasting the invitation code, not a raw member id", () => {
     // The join flow decodes the same PVINVITE1 code the desktop shows — the old
     // "type a member id" field (which surfaced an id no desktop screen exposes)
