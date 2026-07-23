@@ -40,6 +40,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     lockPersonalWorkspace,
     removeRemotePlaintext,
     decommissionWorkspace,
+    liftWorkspaceEncryption,
     getWorkspaceDiagnostics,
     getWorkspaceGovernance,
     inspectWorkspacePairingRequest,
@@ -175,6 +176,24 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     } catch (error) {
       console.error("[SecuritySharingPage] workspace decommission failed", error);
       toast.error(t("workspaceSecurity.decommissionFailed"));
+    } finally { setBusy(false); }
+  };
+
+  const lift = async () => {
+    const ok = await appConfirm({
+      title: t("workspaceSecurity.liftEncryption"),
+      message: t("workspaceSecurity.liftEncryptionConfirm"),
+      kind: "danger",
+      confirmLabel: t("workspaceSecurity.liftEncryptionAction"),
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await liftWorkspaceEncryption();
+      toast.info(t("workspaceSecurity.liftEncryptionDone"));
+    } catch (error) {
+      console.error("[SecuritySharingPage] lift encryption failed", error);
+      toast.error(t("workspaceSecurity.liftEncryptionFailed"));
     } finally { setBusy(false); }
   };
 
@@ -368,6 +387,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         <SettingCard label={t("workspaceSecurity.encryptionCard", { defaultValue: "Encryption" })}>
           <SettingRow label={t("workspaceSecurity.cloudDisconnect")} desc={t("workspaceSecurity.cloudDisconnectDesc")}>
             <Button variant="danger-soft" disabled={busy} onClick={() => void decommission()} data-testid="workspace-decommission">{t("workspaceSecurity.cloudDisconnectAction")}</Button>
+          </SettingRow>
+          <SettingRow label={t("workspaceSecurity.liftEncryption", { defaultValue: "Lift encryption" })} desc={t("workspaceSecurity.liftEncryptionDesc", { defaultValue: "Turns this vault back into a normal, unencrypted cloud vault: your notes are uploaded to the same cloud as plain files." })}>
+            <Button variant="danger-soft" disabled={busy} onClick={() => void lift()} data-testid="workspace-lift-encryption">{t("workspaceSecurity.liftEncryptionAction", { defaultValue: "Lift encryption …" })}</Button>
           </SettingRow>
           <SettingCardNote>{t("workspaceSecurity.decommissionNote", { defaultValue: "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards." })}</SettingCardNote>
         </SettingCard>

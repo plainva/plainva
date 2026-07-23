@@ -42,6 +42,8 @@ Gdy nie potrzebujesz już zaszyfrowanego vaulta, wycofaj go w Plainva **zanim** 
 2. W przeglądzie, na karcie **Szyfrowanie**, wybierz **Usuń połączenie z zaszyfrowaną chmurą**. Plainva usuwa lokalne klucze i dane workspace na tym urządzeniu i ponownie otwiera vault jako zwykły vault. (Jest to działanie lokalne dla urządzenia; globalne "zniesienie szyfrowania", które przepisuje także kopię w chmurze z powrotem na tekst jawny, to osobne działanie dodane później.)
 3. Dopiero teraz usuń folder w chmurze (obiekty `.pvws/`) u swojego dostawcy, jeśli chcesz się go pozbyć. Plainva nie usuwa za Ciebie zaszyfrowanych obiektów w chmurze.
 
+Aby zamiast tego **całkowicie zdjąć szyfrowanie i zachować vault w chmurze jako zwykłe pliki**, wybierz **Zdejmij szyfrowanie** na tej samej karcie **Szyfrowanie**: Plainva ponownie otwiera vault jako zwykły vault w chmurze i ponownie przesyła wszystkie Twoje notatki do tej samej chmury jako pliki tekstem jawnym, a następnie przestaje szyfrować. Pliki lokalne nigdy nie są zmieniane i nic nie jest usuwane; stary zaszyfrowany folder `.pvws/` pozostaje, dopóki nie usuniesz go u swojego dostawcy (Plainva nie może usunąć za Ciebie tych niezmiennych obiektów). Najpierw potwierdź ostrzeżenie — notatki opuszczają zaszyfrowany magazyn jako tekst jawny.
+
 Jeśli kopię w chmurze już usunięto i synchronizacja kończy się teraz błędem "brak workspace" lub "brak manifestu", rozwiązaniem jest ten sam reset, oferowany tam, gdzie pojawia się błąd:
 
 - W przypadku zaszyfrowanego **workspace** otwórz **Security & Sharing**. Status pokazuje błąd z notatką o odzyskiwaniu; na karcie **Szyfrowanie** wybierz **Usuń połączenie z zaszyfrowaną chmurą**, aby zresetować workspace na tym urządzeniu i przywrócić działanie synchronizacji.

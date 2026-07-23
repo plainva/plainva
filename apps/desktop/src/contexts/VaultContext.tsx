@@ -128,6 +128,15 @@ interface VaultContextType extends VaultState {
    * cloud folder afterwards. Explicit, confirmed action.
    */
   decommissionWorkspace: () => Promise<void>;
+  /**
+   * Lift encryption entirely (E8): the same teardown as
+   * `decommissionWorkspace`, but reopen as a NEW plaintext connection so EVERY
+   * local file is re-uploaded to the same cloud as plain text (not only
+   * local-only files). The immutable `.pvws/` objects are NOT deleted — the user
+   * removes the cloud folder afterwards. Local files are untouched and the
+   * upload never deletes anything. Explicit, confirmed action.
+   */
+  liftWorkspaceEncryption: () => Promise<void>;
   getWorkspaceDiagnostics: () => Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number; quarantine: number; localForks: number }>;
   getWorkspaceGovernance: () => Promise<{
     memberId: string;
@@ -1564,10 +1573,26 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await openVault(path);
   };
 
+  const liftWorkspaceEncryption = async (): Promise<void> => {
+    const path = state.vaultPath;
+    if (!path) return;
+    // Same teardown as decommission, but reopen with isNewConnection=true so the
+    // plaintext worker enqueues EVERY local file (enqueueAllLocalFiles, gated on
+    // the now-null workspaceStateStore) and uploads it to the same cloud folder
+    // as plain text — not just local-only files. The `.pvws/` objects are
+    // immutable and stay; the user deletes the cloud folder afterwards. This is
+    // additive: local files are untouched and no upload deletes anything.
+    await state.syncWorker?.stopAndDrain().catch(() => undefined);
+    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
+    lockWorkspaceRuntime(path);
+    await clearWorkspaceRuntime(path);
+    await loadVault(path, true);
+  };
+
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

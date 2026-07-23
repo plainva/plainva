@@ -107,6 +107,19 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).toContain('kind: "danger"');
   });
 
+  it("offers a full lift-encryption action that re-uploads plaintext and leaves .pvws for manual deletion (E8)", () => {
+    // A distinct overview action next to the device-local disconnect.
+    expect(page).toContain("liftWorkspaceEncryption");
+    expect(page).toContain('data-testid="workspace-lift-encryption"');
+    expect(page).toContain("workspaceSecurity.liftEncryption");
+    // It tears down like decommission but reopens with a NEW plaintext
+    // connection so EVERY local file is re-uploaded (enqueueAllLocalFiles);
+    // the immutable .pvws objects stay and are removed by the user.
+    const ctx = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
+    expect(ctx).toContain("const liftWorkspaceEncryption");
+    expect(ctx).toContain("loadVault(path, true)");
+  });
+
   it("provides mobile master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");

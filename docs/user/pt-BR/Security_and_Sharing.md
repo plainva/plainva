@@ -42,6 +42,8 @@ Quando você não precisar mais de um vault cifrado, desative-o no Plainva **ant
 2. Na visão geral, no cartão **Criptografia**, escolha **Remover a conexão com a nuvem criptografada**. O Plainva apaga as chaves locais e os dados do workspace neste dispositivo e reabre o vault como um vault normal. (Isto é local do dispositivo; uma ação global de "anular a criptografia" que também reescreve a cópia na nuvem de volta para texto simples é uma ação separada adicionada depois.)
 3. Só então exclua a pasta na nuvem (os objetos `.pvws/`) no seu provedor, se quiser se livrar dela. O Plainva não exclui por você os objetos cifrados da nuvem.
 
+Para, em vez disso, **encerrar a criptografia por completo e manter o vault na nuvem como arquivos comuns**, escolha **Remover a criptografia** no mesmo cartão **Criptografia**: o Plainva reabre o vault como um vault de nuvem normal e reenvia todas as suas notas para a mesma nuvem como arquivos de texto simples e, então, para de criptografar. Os arquivos locais nunca são alterados e nada é excluído; a antiga pasta criptografada `.pvws/` permanece até você excluí-la no seu provedor (o Plainva não pode remover por você esses objetos imutáveis). Confirme primeiro o aviso de perigo — as notas saem do armazenamento criptografado como texto simples.
+
 Se você já excluiu a cópia na nuvem e a sincronização agora falha com um erro "workspace ausente" ou "manifesto ausente", a correção é o mesmo redefinir, oferecido onde o erro aparece:
 
 - Para um **workspace** cifrado, abra **Security & Sharing**. O status mostra um erro com uma nota de recuperação; no cartão **Criptografia** escolha **Remover a conexão com a nuvem criptografada** para redefinir o workspace neste dispositivo e a sincronização voltar a funcionar.

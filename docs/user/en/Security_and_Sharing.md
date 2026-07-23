@@ -48,6 +48,8 @@ When you no longer need an encrypted vault, decommission it in Plainva **before*
 2. On the overview, in the **Encryption** card, choose **Remove the connection to the encrypted cloud**. Plainva clears the local keys and workspace data on this device and reopens the vault as a normal vault. (This is device-local; a global "lift encryption" that also rewrites the cloud copy back to plain text is a separate action added later.)
 3. Only now delete the cloud folder (the `.pvws/` objects) at your provider if you want it gone. Plainva does not delete the encrypted cloud objects for you.
 
+To instead **end encryption entirely and keep the vault in the cloud as ordinary files**, choose **Lift encryption** in the same **Encryption** card: Plainva reopens the vault as a normal cloud vault and re-uploads all of your notes to the same cloud as plain files, then stops encrypting. Local files are never changed and nothing is deleted; the old encrypted `.pvws/` folder stays until you delete it at your provider (Plainva cannot remove those immutable objects for you). Confirm the danger prompt first — the notes leave the encrypted store as plain text.
+
 If you already deleted the cloud copy and sync now fails with a "workspace is missing" or "manifest is missing" error, the fix is the same reset, offered where the error appears:
 
 - For an encrypted **workspace**, open **Security & Sharing**. The status shows an error with a recovery note; in the **Encryption** card choose **Remove the connection to the encrypted cloud** to reset the workspace on this device so sync works again.
