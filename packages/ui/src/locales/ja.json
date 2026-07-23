@@ -2300,7 +2300,7 @@
   "workspaceSecurity": {
     "inviteQrCaption": "または、別のデバイスの Plainva アプリでこのコードをスキャンします", "scanInvite": "招待をスキャン", "pairingQrCaption": "承認者は、このコードを入力する代わりにスキャンできます。",
     "mobileManageOnDesktop": "デスクトップアプリで管理します。",
-    "manageAccess": "デバイスと復旧", "manageAccessDesc": "別のデバイスをペアリング・復旧パッケージを保存", "manageSharing": "他の人と共有", "manageSharingDesc": "メンバー、グループ、スライス、公開", "encryptionCard": "暗号化", "cloudDisconnect": "暗号化されたクラウドへの接続を解除", "cloudDisconnectDesc": "このデバイスのみを切断します。クラウドは暗号化されたままで、他のデバイスやメンバーはアクセスを保持します。", "cloudDisconnectAction": "切断 …", "recoveryStatus": "現在の状態", "recoveryWorkflow": "復旧の手順", "addDevice": "別のデバイスを追加", "addDeviceDesc": "自分の2台目のデバイスをペアリングします。新しいメンバーは作成しません。", "addDeviceHint": "このコードをもう一方のデバイスに貼り付け（セキュリティと共有 → 参加）、ここで承認してください。他のデバイスはそのまま残ります。",
+    "manageAccess": "デバイスと復旧", "manageAccessDesc": "別のデバイスをペアリング・復旧パッケージを保存", "manageSharing": "他の人と共有", "manageSharingDesc": "メンバー、グループ、スライス、公開", "encryptionCard": "暗号化", "cloudDisconnect": "暗号化されたクラウドへの接続を解除", "cloudDisconnectDesc": "このデバイスのみを切断します。クラウドは暗号化されたままで、他のデバイスやメンバーはアクセスを保持します。", "cloudDisconnectAction": "切断 …", "recoveryStatus": "現在の状態", "recoveryWorkflow": "復旧の手順", "addDevice": "別のデバイスを追加", "addDeviceDesc": "自分の2台目のデバイスをペアリングします。", "addDeviceHint": "このコードをもう一方のデバイスに貼り付け（セキュリティと共有 → 参加）、ここで承認してください。他のデバイスはそのまま残ります。",
     "overview": "概要", "groupAccess": "自分のアクセス", "groupSharing": "共有",
     "publicationCreated": "暗号化された公開を設定しました",
     "statusCard":"保護状態","currentStatus":"暗号化ワークスペース","workspaceProtected":"リモートの内容は、署名付き変更を持つ暗号化オブジェクトとして保存されます。","notConfigured":"未設定です。","setup":"暗号化を設定","connectionRequired":"暗号化同期を有効にする前に、この保管庫をクラウドへ接続してください。","openVaultFirst":"セキュリティを管理するには、この保管庫を開いてください。",
