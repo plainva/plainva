@@ -9,6 +9,49 @@ export interface NotionPagePayload {
   isDatabase?: boolean;
 }
 
+interface NotionWorkspaceItem {
+  id: string;
+  title: string;
+  type: 'page' | 'database';
+  parentId?: string;
+  parentType?: string;
+  properties?: Record<string, any>;
+}
+
+function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<string, NotionWorkspaceItem>): string {
+  if (!Array.isArray(richTextArray) || richTextArray.length === 0) return '';
+
+  return richTextArray.map((t: any) => {
+    let plain = t.plain_text || '';
+
+    if (t.type === 'mention' && t.mention?.type === 'page' && t.mention.page?.id) {
+      const pageId = t.mention.page.id;
+      const targetItem = itemMap?.get(pageId);
+      const title = targetItem ? targetItem.title : plain || 'Notion-Seite';
+      return `[[${title}]]`;
+    }
+
+    if (t.href) {
+      if (t.href.startsWith('http://') || t.href.startsWith('https://')) {
+        plain = `[${plain}](${t.href})`;
+      } else if (t.href.startsWith('/')) {
+        const targetId = t.href.split('/').pop()?.split('#')[0] || '';
+        const targetItem = itemMap?.get(targetId);
+        if (targetItem) plain = `[[${targetItem.title}]]`;
+      }
+    }
+
+    if (t.annotations) {
+      if (t.annotations.code) plain = `\`${plain}\``;
+      if (t.annotations.bold) plain = `**${plain}**`;
+      if (t.annotations.italic) plain = `*${plain}*`;
+      if (t.annotations.strikethrough) plain = `~~${plain}~~`;
+    }
+
+    return plain;
+  }).join('');
+}
+
 export class NotionFileImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_file';
   readonly name = 'Notion (ZIP & Export)';
@@ -109,10 +152,14 @@ export class NotionFileImporter implements ImportSource {
 
         if (isDb) {
           importedDatabases++;
-          const dbPath = targetPath.endsWith('.csv') ? targetPath.replace(/\.csv$/, '.base') : `${targetPath}.base`;
-          try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
-          await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: page.title, properties: [] }, null, 2));
-          items.push({ path: dbPath, status: 'imported' });
+          const baseFilePath = targetPath.endsWith('.csv') ? targetPath.replace(/\.csv$/, '.base') : `${targetPath}.base`;
+          const baseConfig = {
+            filters: { and: [{ field: 'file.folder', operator: 'includes', value: page.title }] },
+            columns: {},
+            views: [{ type: 'table', name: 'Tabelle', order: ['file.name'] }],
+          };
+          await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
+          items.push({ path: baseFilePath, status: 'imported' });
         } else {
           importedNotes++;
           const content = page.markdownContent.startsWith('#') ? page.markdownContent : `# ${page.title}\n\n${page.markdownContent}`;
@@ -154,20 +201,11 @@ export class NotionFileImporter implements ImportSource {
   }
 }
 
-interface NotionWorkspaceItem {
-  id: string;
-  title: string;
-  type: 'page' | 'database';
-  parentId?: string;
-  parentType?: string;
-  properties?: Record<string, any>;
-}
-
 export class NotionApiImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_api';
   readonly name = 'Notion (API Sync / Integration Token)';
   readonly family: ImportFamily = 'api';
-  readonly description = 'Synchronisiert Notion Notizen, verschachtelte Ordnerstrukturen & Datenbank-Schemas inkl. Einträgen per Integration Token.';
+  readonly description = 'Synchronisiert Notion Notizen, verschachtelte Ordnerstrukturen & Datenbank-Schemas (.base JSON) per Integration Token.';
 
   private extractToken(input: any): string {
     if (Array.isArray(input) && input[0]?.notionToken) return input[0].notionToken;
@@ -263,8 +301,7 @@ export class NotionApiImporter implements ImportSource {
       const parentDb = itemMap.get(item.parentId)!;
       const safeDbTitle = parentDb.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
       const parentDir = this.buildFolderPath(item.parentId, itemMap);
-      const dbFolderName = `${safeDbTitle}/${safeDbTitle}.base`;
-      return parentDir ? `${parentDir}/${dbFolderName}` : dbFolderName;
+      return parentDir ? `${parentDir}/${safeDbTitle}` : safeDbTitle;
     }
 
     return '';
@@ -304,7 +341,12 @@ export class NotionApiImporter implements ImportSource {
     }
   }
 
-  private async fetchPageBlocksToMarkdown(pageId: string, token: string, fetchFn: typeof fetch): Promise<string> {
+  private async fetchPageBlocksToMarkdown(
+    pageId: string,
+    token: string,
+    fetchFn: typeof fetch,
+    itemMap?: Map<string, NotionWorkspaceItem>
+  ): Promise<string> {
     try {
       const res = await fetchFn(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, {
         headers: {
@@ -324,7 +366,7 @@ export class NotionApiImporter implements ImportSource {
 
         let text = '';
         if (Array.isArray(info.rich_text)) {
-          text = info.rich_text.map((t: any) => t.plain_text).join('');
+          text = convertNotionRichTextToMarkdown(info.rich_text, itemMap);
         }
 
         switch (type) {
@@ -336,6 +378,29 @@ export class NotionApiImporter implements ImportSource {
           case 'to_do': if (text) lines.push(info.checked ? `- [x] ${text}` : `- [ ] ${text}`); break;
           case 'quote': if (text) lines.push(`> ${text}`); break;
           case 'code': if (text) lines.push(`\`\`\`\n${text}\n\`\`\``); break;
+          case 'callout': if (text) lines.push(`> [!NOTE]\n> ${text}`); break;
+          case 'toggle': if (text) lines.push(`> ${text}`); break;
+          case 'child_page': {
+            const childTitle = info.title || 'Seite';
+            lines.push(`📄 [[${childTitle}]]`);
+            break;
+          }
+          case 'child_database': {
+            const dbTitle = info.title || 'Datenbank';
+            lines.push(`📊 [[${dbTitle}.base]]`);
+            break;
+          }
+          case 'link_to_page': {
+            const targetId = info.page_id || info.database_id;
+            const targetObj = itemMap?.get(targetId);
+            if (targetObj) lines.push(`🔗 [[${targetObj.title}]]`);
+            break;
+          }
+          case 'bookmark': {
+            if (info.url) lines.push(`🔖 [${info.url}](${info.url})`);
+            break;
+          }
+          case 'divider': lines.push('---'); break;
           case 'paragraph': if (text) lines.push(text); break;
           default: if (text) lines.push(text); break;
         }
@@ -419,39 +484,38 @@ export class NotionApiImporter implements ImportSource {
       if (item.type === 'database') {
         importedDatabases++;
         const dbFolderPath = currentFolder ? `${currentFolder}/${safeTitle}` : safeTitle;
-        const dbPath = `${dbFolderPath}/${safeTitle}.base`;
+        const baseFilePath = `${dbFolderPath}.base`;
 
         if (opts.vaultAdapter) {
           try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch {}
-          try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
 
           const dbDetails = await this.fetchDatabaseDetails(item.id, token, fetchFn);
-          const schemaProperties: Array<{ id: string; name: string; type: string; options?: string[] }> = [];
+          const columnsConfig: Record<string, { input: string; options?: string[] }> = {};
+          const columnOrder: string[] = ['file.name'];
 
           if (dbDetails.properties) {
             for (const [propName, propObj] of Object.entries(dbDetails.properties as Record<string, any>)) {
               const pType = propObj.type;
-              let schemaType = 'text';
-              let options: string[] | undefined;
+              columnOrder.push(propName);
 
               if (pType === 'select' && propObj.select?.options) {
-                schemaType = 'select';
-                options = propObj.select.options.map((o: any) => o.name);
+                columnsConfig[propName] = { input: 'select', options: propObj.select.options.map((o: any) => o.name) };
               } else if (pType === 'multi_select' && propObj.multi_select?.options) {
-                schemaType = 'multi_select';
-                options = propObj.multi_select.options.map((o: any) => o.name);
-              } else if (pType === 'date') schemaType = 'date';
-              else if (pType === 'number') schemaType = 'number';
-              else if (pType === 'checkbox') schemaType = 'checkbox';
-              else if (pType === 'url') schemaType = 'url';
-              else if (pType === 'email') schemaType = 'email';
-              else if (pType === 'relation') schemaType = 'relation';
-
-              schemaProperties.push({ id: propName, name: propName, type: schemaType, options });
+                columnsConfig[propName] = { input: 'multi_select', options: propObj.multi_select.options.map((o: any) => o.name) };
+              } else if (pType === 'date') columnsConfig[propName] = { input: 'date' };
+              else if (pType === 'number') columnsConfig[propName] = { input: 'number' };
+              else if (pType === 'checkbox') columnsConfig[propName] = { input: 'checkbox' };
+              else if (pType === 'relation') columnsConfig[propName] = { input: 'relation' };
             }
           }
 
-          await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: safeTitle, properties: schemaProperties }, null, 2));
+          const baseConfig = {
+            filters: { and: [{ field: 'file.folder', operator: 'includes', value: safeTitle }] },
+            columns: columnsConfig,
+            views: [{ type: 'table', name: 'Tabelle', order: columnOrder }],
+          };
+
+          await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
 
           const dbRows = await this.fetchDatabaseRows(item.id, token, fetchFn);
           for (const row of dbRows) {
@@ -488,7 +552,7 @@ export class NotionApiImporter implements ImportSource {
             }
 
             const safeRowTitle = rowTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
-            const rowBody = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn);
+            const rowBody = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn, itemMap);
 
             let rowMdContent = '';
             if (Object.keys(rowFrontmatter).length > 0) {
@@ -496,17 +560,17 @@ export class NotionApiImporter implements ImportSource {
             }
             rowMdContent += `# ${rowTitle}\n\n${rowBody || '*Keine Textinhalte in dieser Zeile vorhanden.*'}\n`;
 
-            await opts.vaultAdapter.writeTextFile(`${dbPath}/${safeRowTitle}.md`, rowMdContent);
+            await opts.vaultAdapter.writeTextFile(`${dbFolderPath}/${safeRowTitle}.md`, rowMdContent);
             importedNotes++;
           }
         }
 
-        reportItems.push({ path: dbPath, status: 'imported' });
+        reportItems.push({ path: baseFilePath, status: 'imported' });
       } else {
         importedNotes++;
         const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
         const notePath = currentFolder ? `${currentFolder}/${safeNoteTitle}` : safeNoteTitle;
-        const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn);
+        const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn, itemMap);
         const fullContent = `# ${item.title}\n\n${bodyMd || '*Keine Textinhalte in dieser Notion-Seite vorhanden.*'}\n`;
 
         if (opts.vaultAdapter) {
