@@ -75,12 +75,18 @@
     "newNote": "Nouvelle note",
     "newFolder": "Nouveau dossier",
     "showInExplorer": "Afficher dans le gestionnaire de fichiers",
+    "show": "Afficher",
     "loading": "Chargement...",
     "confirm": "Confirmer",
     "ok": "OK",
     "dismiss": "Masquer"
   },
+  "import": {
+    "contextAction": "Importer depuis une autre application...",
+    "openWizard": "Importer depuis une autre application..."
+  },
   "settings": {
+    "showWhatsNew": "Afficher à nouveau les nouveautés (v0.4.6)",
     "groupLinks": "Liens",
     "askBeforeCreateLink": "Demander avant de créer des liens vides",
     "askBeforeCreateLinkDesc": "Normalement, un clic sur un lien vers une note qui n'existe pas encore la crée aussitôt. Avec cette option, une confirmation vous est demandée au préalable.",

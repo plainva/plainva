@@ -73,12 +73,18 @@
     "newNote": "新規ノート",
     "newFolder": "新規フォルダー",
     "showInExplorer": "ファイルマネージャーで表示",
+    "show": "表示",
     "loading": "読み込み中...",
     "confirm": "確認",
     "ok": "OK",
     "dismiss": "閉じる"
   },
+  "import": {
+    "contextAction": "他のアプリからインポート...",
+    "openWizard": "他のアプリからインポート..."
+  },
   "settings": {
+    "showWhatsNew": "リリースハイライト (v0.4.6) を再表示",
     "groupLinks": "リンク",
     "askBeforeCreateLink": "空のリンクを作成する前に確認する",
     "askBeforeCreateLinkDesc": "まだ存在しないノートへのリンクをクリックすると、通常はそのノートがすぐに作成されます。このオプションを有効にすると、作成前に確認を求められます。",

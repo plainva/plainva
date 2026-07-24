@@ -43,6 +43,9 @@ import { RightSidebar } from "./components/RightSidebar";
 import { DropdownMenu } from "./components/DropdownMenu";
 import { PaneTabStrip } from "./components/PaneTabStrip";
 import { TabContextMenu } from "./components/TabContextMenu";
+import { ImportWizardModal } from "./components/import/ImportWizardModal";
+import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
+import { FirstRunModal } from "./components/onboarding/FirstRunModal";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
@@ -255,6 +258,19 @@ function App() {
     window.addEventListener("plainva-show-sync-error", onShowSyncError);
     return () => window.removeEventListener("plainva-show-sync-error", onShowSyncError);
   }, [openSyncError]);
+  const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showFirstRun, setShowFirstRun] = useState(false);
+  useEffect(() => {
+    const onOpenImport = () => setShowImportWizard(true);
+    const onShowWhatsNew = () => setShowWhatsNew(true);
+    window.addEventListener("plainva-open-import-wizard", onOpenImport);
+    window.addEventListener("plainva-show-whats-new", onShowWhatsNew);
+    return () => {
+      window.removeEventListener("plainva-open-import-wizard", onOpenImport);
+      window.removeEventListener("plainva-show-whats-new", onShowWhatsNew);
+    };
+  }, []);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
@@ -1442,6 +1458,7 @@ function App() {
             renameActive: renameActiveNote,
             closeActiveTab,
             reopenClosedTab,
+            openImport: () => setShowImportWizard(true),
             toggleTheme: () => { void toggleLightDark(); },
             themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
             openSettings: () => setShowSettings(true),
@@ -1586,6 +1603,9 @@ function App() {
           onResetEncryption={resetConnectionEncryption}
         />
       )}
+      {showImportWizard && <ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} />}
+      {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
+      {showFirstRun && <FirstRunModal onClose={() => setShowFirstRun(false)} />}
     </div>
   );
 }

@@ -73,12 +73,18 @@
     "newNote": "Nieuwe notitie",
     "newFolder": "Nieuwe map",
     "showInExplorer": "Tonen in bestandsbeheer",
+    "show": "Tonen",
     "loading": "Laden...",
     "confirm": "Bevestigen",
     "ok": "OK",
-    "dismiss": "Verbergen"
+    "dismiss": "Sluiten"
+  },
+  "import": {
+    "contextAction": "Importeren uit een andere app...",
+    "openWizard": "Importeren uit een andere app..."
   },
   "settings": {
+    "showWhatsNew": "Release-highlights (v0.4.6) opnieuw tonen",
     "groupLinks": "Links",
     "askBeforeCreateLink": "Vragen voordat lege links worden aangemaakt",
     "askBeforeCreateLinkDesc": "Klikken op een link naar een notitie die nog niet bestaat, maakt deze normaal gesproken meteen aan. Met deze optie wordt eerst gevraagd.",

@@ -72,13 +72,19 @@
     "rename": "Rinomina",
     "newNote": "Nuova nota",
     "newFolder": "Nuova cartella",
-    "showInExplorer": "Mostra in Esplora file",
+    "showInExplorer": "Mostra nel gestore file",
+    "show": "Mostra",
     "loading": "Caricamento...",
     "confirm": "Conferma",
     "ok": "OK",
-    "dismiss": "Ignora"
+    "dismiss": "Chiudi"
+  },
+  "import": {
+    "contextAction": "Importa da un'altra app...",
+    "openWizard": "Importa da un'altra app..."
   },
   "settings": {
+    "showWhatsNew": "Mostra di nuovo le novità (v0.4.6)",
     "groupLinks": "Link",
     "askBeforeCreateLink": "Chiedi prima di creare link vuoti",
     "askBeforeCreateLinkDesc": "Cliccare su un link a una nota che non esiste ancora di norma la crea subito. Con questa opzione, viene chiesta conferma prima.",

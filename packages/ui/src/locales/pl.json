@@ -73,12 +73,18 @@
     "newNote": "Nowa notatka",
     "newFolder": "Nowy folder",
     "showInExplorer": "Pokaż w menedżerze plików",
+    "show": "Pokaż",
     "loading": "Ładowanie...",
     "confirm": "Potwierdź",
     "ok": "OK",
     "dismiss": "Ukryj"
   },
+  "import": {
+    "contextAction": "Importuj z innej aplikacji...",
+    "openWizard": "Importuj z innej aplikacji..."
+  },
   "settings": {
+    "showWhatsNew": "Pokaż ponownie nowości (v0.4.6)",
     "groupLinks": "Linki",
     "askBeforeCreateLink": "Pytaj przed utworzeniem pustych linków",
     "askBeforeCreateLinkDesc": "Kliknięcie linku do notatki, która jeszcze nie istnieje, zwykle tworzy ją od razu. Przy tej opcji najpierw pojawia się pytanie.",

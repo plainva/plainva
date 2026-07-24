@@ -73,12 +73,18 @@
     "newNote": "新建笔记",
     "newFolder": "新建文件夹",
     "showInExplorer": "在文件管理器中显示",
+    "show": "显示",
     "loading": "加载中…",
     "confirm": "确认",
     "ok": "确定",
     "dismiss": "关闭提示"
   },
+  "import": {
+    "contextAction": "从其他应用导入...",
+    "openWizard": "从其他应用导入..."
+  },
   "settings": {
+    "showWhatsNew": "再次显示版本亮点 (v0.4.6)",
     "groupLinks": "链接",
     "askBeforeCreateLink": "创建空链接前先询问",
     "askBeforeCreateLinkDesc": "点击指向尚不存在的笔记的链接，通常会立即创建该笔记。启用此选项后，会先询问你。",

@@ -88,12 +88,18 @@
     "newNote": "Neue Notiz",
     "newFolder": "Neuer Ordner",
     "showInExplorer": "Im Dateimanager zeigen",
+    "show": "Anzeigen",
     "loading": "Laden...",
     "confirm": "Bestätigen",
     "ok": "OK",
     "dismiss": "Ausblenden"
   },
+  "import": {
+    "contextAction": "Aus anderer App importieren...",
+    "openWizard": "Aus anderer App importieren..."
+  },
   "settings": {
+    "showWhatsNew": "Release-Highlights (v0.4.6) erneut anzeigen",
     "groupLinks": "Links",
     "askBeforeCreateLink": "Vor dem Anlegen leerer Links fragen",
     "askBeforeCreateLinkDesc": "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt.",

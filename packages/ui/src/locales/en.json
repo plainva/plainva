@@ -88,12 +88,18 @@
     "newNote": "New Note",
     "newFolder": "New folder",
     "showInExplorer": "Show in File Manager",
+    "show": "Show",
     "loading": "Loading...",
     "confirm": "Confirm",
     "ok": "OK",
     "dismiss": "Dismiss"
   },
+  "import": {
+    "contextAction": "Import from another app...",
+    "openWizard": "Import from another app..."
+  },
   "settings": {
+    "showWhatsNew": "Show release highlights (v0.4.6) again",
     "groupLinks": "Links",
     "askBeforeCreateLink": "Ask before creating empty links",
     "askBeforeCreateLinkDesc": "Clicking a link to a note that doesn't exist yet normally creates it right away. With this option, you're asked first.",

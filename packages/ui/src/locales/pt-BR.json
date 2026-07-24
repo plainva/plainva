@@ -73,12 +73,18 @@
     "newNote": "Nova nota",
     "newFolder": "Nova pasta",
     "showInExplorer": "Mostrar no gerenciador de arquivos",
+    "show": "Mostrar",
     "loading": "Carregando...",
     "confirm": "Confirmar",
     "ok": "OK",
     "dismiss": "Dispensar"
   },
+  "import": {
+    "contextAction": "Importar de outro aplicativo...",
+    "openWizard": "Importar de outro aplicativo..."
+  },
   "settings": {
+    "showWhatsNew": "Mostrar destaques da versão (v0.4.6) novamente",
     "groupLinks": "Links",
     "askBeforeCreateLink": "Perguntar antes de criar links vazios",
     "askBeforeCreateLinkDesc": "Clicar em um link para uma nota que ainda não existe normalmente a cria imediatamente. Com esta opção, você é perguntado antes.",

@@ -71,16 +71,22 @@
     "cancel": "Cancelar",
     "close": "Cerrar",
     "delete": "Eliminar",
+    "showInExplorer": "Mostrar en gestor de archivos",
+    "show": "Mostrar",
     "rename": "Renombrar",
     "newNote": "Nueva nota",
     "newFolder": "Nueva carpeta",
-    "showInExplorer": "Mostrar en el administrador de archivos",
     "loading": "Cargando...",
     "confirm": "Confirmar",
-    "ok": "OK",
+    "ok": "Aceptar",
     "dismiss": "Descartar"
   },
+  "import": {
+    "contextAction": "Importar de otra aplicación...",
+    "openWizard": "Importar de otra aplicación..."
+  },
   "settings": {
+    "showWhatsNew": "Mostrar novedades (v0.4.6) de nuevo",
     "groupLinks": "Enlaces",
     "askBeforeCreateLink": "Preguntar antes de crear enlaces vacíos",
     "askBeforeCreateLinkDesc": "Al hacer clic en un enlace a una nota que aún no existe, normalmente se crea de inmediato. Con esta opción, primero se te pregunta.",

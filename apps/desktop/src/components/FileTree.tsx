@@ -11,7 +11,7 @@ import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
   FilePlus, FolderPlus, ExternalLink, Columns2, Rows2, Pencil, Copy, Bookmark,
-  History, ClipboardCopy, Trash2, RefreshCw, ArchiveRestore, ListTree, Check, XCircle,
+  History, ClipboardCopy, Trash2, RefreshCw, ArchiveRestore, ListTree, Check, XCircle, Download,
 } from "lucide-react";
 import { buildNewNoteContent, getConfiguredNoteType } from "../services/newNote";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
@@ -1419,6 +1419,7 @@ export const FileTree: React.FC<{
                   <MenuItem icon={<FilePlus size={ICON.ui} />} onSelect={() => createNewItem("file", contextMenu.path)}>{t("fileTree.newNoteHere")}</MenuItem>
                   <MenuItem icon={<FolderPlus size={ICON.ui} />} onSelect={() => createNewItem("folder", contextMenu.path)}>{t("fileTree.newFolderHere")}</MenuItem>
                   <MenuItem icon={<Database size={ICON.ui} />} onSelect={() => createNewItem("base", contextMenu.path)}>{t("fileTree.newBaseHere", "Neue Datenbank (.base)")}</MenuItem>
+                  <MenuItem icon={<Download size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}>{t("import.contextAction", "Aus anderer App importieren...")}</MenuItem>
                   <MenuSeparator />
                   <MenuLabel>{contextMenu.path === "" ? t("fileTree.groupVault", "Vault") : t("fileTree.groupFolder", "Ordner")}</MenuLabel>
                   <MenuItem icon={<ListTree size={ICON.ui} />} onSelect={() => handleGenerateIndex(contextMenu.path)}>{t("indexMd.contextAction")}</MenuItem>
