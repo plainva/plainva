@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { ensureSyntaxTree } from "@codemirror/language";
 import { isListMarkerLine, listIndentStyle, listDepthAt } from "@plainva/ui";
 
 describe("isListMarkerLine", () => {
@@ -39,7 +40,15 @@ describe("listIndentStyle", () => {
 });
 
 describe("listDepthAt", () => {
-  const stateFor = (doc: string) => EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
+  const stateFor = (doc: string) => {
+    const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
+    // Lezer parses markdown asynchronously; under full-suite parallel load the
+    // background parse can trail the deeper list lines, so listDepthAt would read
+    // an incomplete tree and report 0. Force a complete parse up front to keep the
+    // depth assertions deterministic (mirrors editorSession.test.ts).
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state;
+  };
   // First non-whitespace position of a 1-based line number.
   const firstNonWs = (state: EditorState, lineNo: number) => {
     const line = state.doc.line(lineNo);
