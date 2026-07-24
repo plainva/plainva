@@ -306,10 +306,10 @@ export function GraphScreen({
             <button aria-label={t("graph.zoomFit")} className="m-zoomer" onClick={() => sceneRef.current?.zoomToFit(30)}>
               ⤢
             </button>
-            <button aria-label="+" className="m-zoomer" onClick={() => zoomBy(1.3)}>
+            <button aria-label={t("graph.zoomIn", { defaultValue: "Vergrößern" })} className="m-zoomer" onClick={() => zoomBy(1.3)}>
               ＋
             </button>
-            <button aria-label="−" className="m-zoomer" onClick={() => zoomBy(1 / 1.3)}>
+            <button aria-label={t("graph.zoomOut", { defaultValue: "Verkleinern" })} className="m-zoomer" onClick={() => zoomBy(1 / 1.3)}>
               −
             </button>
           </div>

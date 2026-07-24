@@ -19,6 +19,8 @@ import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } 
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { Keyboard } from "@capacitor/keyboard";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { BaseScreen } from "./screens/base/BaseScreen";
@@ -196,6 +198,27 @@ export default function App() {
     window.addEventListener("m-settings-changed", onSettings);
     return () => window.removeEventListener("m-settings-changed", onSettings);
   }, [vault]);
+
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  // Soft keyboard auto-hide listener: hides bottom nav & FAB when typing
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "web") return;
+    let showHandle: { remove: () => Promise<void> } | undefined;
+    let hideHandle: { remove: () => Promise<void> } | undefined;
+
+    void Keyboard.addListener("keyboardWillShow", () => setIsKeyboardOpen(true)).then((h) => {
+      showHandle = h;
+    });
+    void Keyboard.addListener("keyboardWillHide", () => setIsKeyboardOpen(false)).then((h) => {
+      hideHandle = h;
+    });
+
+    return () => {
+      if (showHandle) void showHandle.remove();
+      if (hideHandle) void hideHandle.remove();
+    };
+  }, []);
 
   // Connect-time folder pick (#10): the OAuth redirect fires this event once it
   // holds a token; the picker browses the cloud folders and finishConnect then
@@ -536,7 +559,7 @@ export default function App() {
   const activeDef = TAB_POOL.find((p) => p.id === nav.activeTab)!;
 
   return (
-    <div className="m-app">
+    <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}`}>
       {runPendingIntents}
       {!onboarded && (
         <div className="m-onboarding">

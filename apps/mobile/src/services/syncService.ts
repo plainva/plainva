@@ -11,6 +11,7 @@ import {
   parseWorkspaceDocument,
   workspaceDocumentHash,
   WebDavSyncTarget,
+  probeRemoteGenesis,
   type ISyncTarget,
   type WorkspaceObjectStore,
   type S3Credentials,
@@ -478,13 +479,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     // error as a recoverable sync-error status and its fail-closed sealed-blob
     // guard still protects note content. Only a SUCCESSFUL probe that returns a
     // genesis refuses to sync.
-    let remoteWorkspace: Uint8Array | null = null;
-    try {
-      remoteWorkspace = await createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget).get(".pvws/genesis.pvgen");
-    } catch (e) {
-      console.warn("[sync] workspace genesis probe failed; starting the regular worker", e);
+    const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
+    const probe = await probeRemoteGenesis(() => objectStore.get(".pvws/genesis.pvgen"));
+    if (probe.probeError) {
+      console.warn("[sync] workspace genesis probe failed; starting the regular worker", probe.probeError);
     }
-    if (remoteWorkspace) {
+    if (probe.encryptedGenesisFound) {
       setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }) });
       return;
     }

@@ -146,7 +146,7 @@ export function AddVaultScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={20} />
         </button>
         <h1>{createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")}</h1>

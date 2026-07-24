@@ -143,7 +143,7 @@ export function NoteScreen({
   return (
     <div className="m-page m-page--note">
       <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
           <ChevronLeft size={22} />
         </button>
         <h1>{title}</h1>

@@ -31,7 +31,7 @@ export function BookmarksScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
             <ChevronLeft size={22} />
           </button>
           <h1>{t("mobile.bookmarks")}</h1>

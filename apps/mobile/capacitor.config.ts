@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { KeyboardResize } from "@capacitor/keyboard";
 
 // appId is free to change until the FIRST store upload (M5) — after that it
 // is permanent on both stores.
@@ -14,7 +15,7 @@ const config: CapacitorConfig = {
     // editor toolbar behind it; "native" shrinks the WebView frame like
     // Android's adjustResize, so bottom-fixed UI rises above the keyboard.
     Keyboard: {
-      resize: "native",
+      resize: KeyboardResize.Native,
     },
   },
 };

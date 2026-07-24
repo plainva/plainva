@@ -103,7 +103,7 @@ textarea {
      padding keeps the last rows scrollable clear of it. No top padding: the
      sticky .m-header (below) sits flush under the status bar and is its scrim
      (package B, Punkt 10). */
-  padding: 0 16px calc(64px + env(safe-area-inset-bottom));
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(64px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .m-page--note {
@@ -126,7 +126,7 @@ textarea {
   align-items: center;
   gap: 4px;
   min-height: 64px;
-  padding: calc(6px + env(safe-area-inset-top)) 8px 6px;
+  padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
   background: var(--m-surface);
   /* The bars sit above the scrolling content (position+z-index so a shadow
      paints over the page). The top bar raises ON SCROLL only (B4, M3 scroll
@@ -772,12 +772,26 @@ textarea {
   width: 100%;
   background: var(--m-surface);
   border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0;
-  padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
+  padding: 6px max(12px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   max-height: 78vh;
   overflow-y: auto;
   animation: m-sheet-up var(--dur-3) var(--ease-spatial);
   transition: transform var(--dur-2) var(--ease-spatial);
 }
+@media (orientation: landscape) {
+  .m-sheet {
+    max-height: 88vh;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+}
+
+/* Soft keyboard active state: hide bottom navigation bar and capture FAB */
+.m-app.is-keyboard-open .m-tabbar,
+.m-app.is-keyboard-open .m-fab-float {
+  display: none !important;
+}
+
 @keyframes m-sheet-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
@@ -2044,8 +2058,8 @@ textarea {
 }
 .m-zoomer {
   border: none;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   background: var(--m-surface);
   color: var(--text-main);
@@ -2247,8 +2261,8 @@ textarea {
   color: var(--text-muted);
 }
 .m-editor .cm-panel.cm-search [name="close"] {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   font-size: 1.4rem;
   color: var(--text-muted);
 }
