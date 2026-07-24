@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Modal, Button, Select, ICON } from '@plainva/ui';
-import { Download, Folder, AlertTriangle, Info, CheckCircle2, FileText, Database } from 'lucide-react';
+import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database } from 'lucide-react';
 import { defaultImportRegistry, unpackZipArchive, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
 import { useVault } from '../../contexts/VaultContext';
 
@@ -38,7 +38,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       case 'notion_file':
         return 'Wähle Deinen Notion ZIP-Export oder entpackten Ordner mit Markdown/CSV-Dateien aus.';
       case 'notion_api':
-        return 'Gib Deinen Notion Integration Token ein, um Notizen & Datenbanken direkt per API zu laden.';
+        return 'Gib Deinen Notion Integration Token ein, um freigegebene Notizen & Datenbanken direkt per API zu laden.';
       case 'evernote':
         return 'Wähle Deine in Evernote exportierten .enex Dateien aus (Notizbuch -> Exportieren als ENEX).';
       case 'google_keep':
@@ -215,6 +215,34 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 'var(--text-ui, 13px)',
+    fontWeight: 600,
+    color: 'var(--text-main)',
+    marginBottom: 'var(--space-2, 8px)',
+  };
+
+  const hintStyle: React.CSSProperties = {
+    fontSize: 'var(--text-sm, 12px)',
+    color: 'var(--text-muted)',
+    marginTop: 'var(--space-2, 8px)',
+    lineHeight: '1.5',
+    margin: 'var(--space-2, 8px) 0 0 0',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: '34px',
+    padding: '0 var(--space-3, 12px)',
+    fontSize: 'var(--text-ui, 13px)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-color)',
+    background: 'var(--bg-card)',
+    color: 'var(--text-main)',
+    boxSizing: 'border-box',
+  };
+
   return (
     <Modal
       onClose={onClose}
@@ -251,16 +279,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       {errorMsg && (
         <div style={{
-          padding: 'var(--pv-space-3)',
+          padding: 'var(--space-3) var(--space-4)',
           background: 'var(--error-bg)',
           border: '1px solid var(--error-text)',
           borderRadius: 'var(--radius-md)',
           color: 'var(--error-text)',
-          fontSize: 'var(--pv-font-size-sm)',
-          marginBottom: 'var(--pv-space-4)',
+          fontSize: 'var(--text-sm, 12px)',
+          marginBottom: 'var(--space-5, 20px)',
           display: 'flex',
           alignItems: 'center',
-          gap: 'var(--pv-space-2)'
+          gap: 'var(--space-3)',
         }}>
           <AlertTriangle size={ICON.ui} style={{ flexShrink: 0 }} />
           <span>{errorMsg}</span>
@@ -268,9 +296,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       )}
 
       {step === 'select' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pv-space-4)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5, 20px)', padding: 'var(--space-2) 0' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+            <label style={labelStyle}>
               1. Quell-App auswählen
             </label>
             <Select<ImportSourceId>
@@ -284,42 +312,38 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               ariaLabel="Quell-App auswählen"
               options={sources.map((s) => ({ value: s.id, label: s.name }))}
             />
-            <p style={{
-              fontSize: 'var(--pv-font-size-xs, 12px)',
-              color: 'var(--pv-text-muted, var(--text-muted))',
-              marginTop: 'var(--pv-space-2)',
-              marginBottom: 0,
-              lineHeight: '1.4'
-            }}>
+            <p style={hintStyle}>
               {getSourceHint(selectedSourceId)}
             </p>
           </div>
 
           {selectedSourceId === 'notion_api' ? (
             <div>
-              <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+              <label style={labelStyle}>
                 2. Notion Integration Token
               </label>
               <input
                 type="password"
-                className="pv-field"
                 value={notionToken}
                 onChange={(e) => setNotionToken(e.target.value)}
-                style={{ width: '100%', padding: 'var(--pv-space-2) var(--pv-space-3)' }}
+                style={inputStyle}
                 placeholder="secret_..."
               />
+              <p style={hintStyle}>
+                Erstelle unter <code>notion.so/my-integrations</code> den Token. Klicke in Notion auf Deiner Seite oben rechts auf <strong>„...“ &rarr; „Verbindungen“ („Connections“)</strong> und füge Deine Verbindung hinzu.
+              </p>
             </div>
           ) : (
             <div>
-              <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+              <label style={labelStyle}>
                 2. Dateien oder Ordner auswählen
               </label>
-              <div style={{ display: 'flex', gap: 'var(--pv-space-3)', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
                 <Button variant="secondary" onClick={handleSelectFilesNative}>
                   <Folder size={ICON.ui} style={{ marginRight: '6px' }} />
                   Dateien / Ordner wählen...
                 </Button>
-                <span style={{ fontSize: 'var(--pv-font-size-sm)', color: 'var(--pv-text-muted)' }}>
+                <span style={{ fontSize: 'var(--text-sm, 12px)', color: 'var(--text-muted)' }}>
                   {selectedFolderPath
                     ? `Ordner: ${selectedFolderPath}`
                     : selectedFiles.length > 0
@@ -331,15 +355,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           )}
 
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+            <label style={labelStyle}>
               3. Ziel-Unterordner im Vault
             </label>
             <input
               type="text"
-              className="pv-field"
               value={subfolder}
               onChange={(e) => setSubfolder(e.target.value)}
-              style={{ width: '100%', padding: 'var(--pv-space-2) var(--pv-space-3)' }}
+              style={inputStyle}
               placeholder="z.B. Import Keep"
             />
           </div>
@@ -347,9 +370,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       )}
 
       {step === 'analyzing' && (
-        <div style={{ textAlign: 'center', padding: 'var(--pv-space-6) 0' }}>
-          <h3 style={{ marginBottom: 'var(--pv-space-2)' }}>Analysiere Import-Dateien...</h3>
-          <p style={{ color: 'var(--pv-text-muted)', fontSize: 'var(--pv-font-size-sm)' }}>
+        <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
+          <h3 style={{ marginBottom: 'var(--space-2)' }}>Analysiere Import-Dateien...</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
             Dateistruktur, Notizen & Anhänge werden gescannt.
           </p>
         </div>
@@ -357,30 +380,48 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       {step === 'preview' && plan && (
         <div>
-          <h3 style={{ marginBottom: 'var(--pv-space-3)' }}>Import-Vorschau: {plan.sourceName}</h3>
+          <h3 style={{ marginBottom: 'var(--space-4)' }}>Import-Vorschau: {plan.sourceName}</h3>
+
+          {plan.warnings && plan.warnings.length > 0 && (
+            <div style={{
+              padding: 'var(--space-3) var(--space-4)',
+              background: 'var(--warning-bg)',
+              border: '1px solid var(--warning-text)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--warning-text)',
+              fontSize: 'var(--text-sm)',
+              marginBottom: 'var(--space-4)',
+              lineHeight: '1.5'
+            }}>
+              {plan.warnings.map((w, idx) => (
+                <div key={idx}>⚠️ {w}</div>
+              ))}
+            </div>
+          )}
+
           <div style={{
-            background: 'var(--pv-color-bg-subtle, var(--bg-card))',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-md)',
-            padding: 'var(--pv-space-4)',
+            padding: 'var(--space-4)',
             lineHeight: '1.8',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--pv-space-2)'
+            gap: 'var(--space-3)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pv-space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <FileText size={ICON.ui} />
               <span><strong>Notizen:</strong> {plan.totalNotes}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pv-space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Folder size={ICON.ui} />
               <span><strong>Anhänge:</strong> {plan.totalAttachments}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pv-space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Database size={ICON.ui} />
               <span><strong>Datenbanken (.base):</strong> {plan.totalDatabases}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pv-space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Folder size={ICON.ui} />
               <span><strong>Zielordner:</strong> <code>{targetVaultPath ? `${targetVaultPath}/${subfolder}` : subfolder}</code></span>
             </div>
@@ -389,14 +430,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       )}
 
       {step === 'importing' && (
-        <div style={{ textAlign: 'center', padding: 'var(--pv-space-6) 0' }}>
-          <h3 style={{ marginBottom: 'var(--pv-space-3)' }}>Import läuft... {progressPct}%</h3>
+        <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
+          <h3 style={{ marginBottom: 'var(--space-4)' }}>Import läuft... {progressPct}%</h3>
           <div style={{
             height: '8px',
             background: 'var(--border-color)',
             borderRadius: 'var(--radius-xs)',
             overflow: 'hidden',
-            margin: 'var(--pv-space-4) 0'
+            margin: 'var(--space-4) 0'
           }}>
             <div style={{
               height: '100%',
@@ -405,25 +446,25 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               transition: 'width var(--transition-fast)'
             }} />
           </div>
-          <p style={{ color: 'var(--pv-text-muted)', fontSize: 'var(--pv-font-size-sm)' }}>{statusMsg}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{statusMsg}</p>
         </div>
       )}
 
       {step === 'report' && report && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pv-space-2)', marginBottom: 'var(--pv-space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
             <CheckCircle2 size={ICON.head} style={{ color: 'var(--accent-color)' }} />
             <h3 style={{ margin: 0 }}>Import erfolgreich abgeschlossen!</h3>
           </div>
-          <p style={{ color: 'var(--pv-text-muted)', marginBottom: 'var(--pv-space-4)' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-5)' }}>
             Insgesamt wurden <strong>{report.importedNotesCount} Notizen</strong> und <strong>{report.importedAttachmentsCount} Anhänge</strong> importiert.
           </p>
           <div style={{
-            background: 'var(--pv-color-bg-subtle, var(--bg-card))',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-md)',
-            padding: 'var(--pv-space-3)',
-            fontSize: 'var(--pv-font-size-xs)'
+            padding: 'var(--space-4)',
+            fontSize: 'var(--text-sm)'
           }}>
             Ausführlicher Bericht abgelegt unter: <code>{report.reportPath}</code>
           </div>

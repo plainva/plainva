@@ -152,48 +152,155 @@ export class NotionApiImporter implements ImportSource {
   readonly family: ImportFamily = 'api';
   readonly description = 'Synchronisiert Notion Notizen und Datenbanken direkt per Integration Token.';
 
+  private extractToken(input: any): string {
+    if (Array.isArray(input) && input[0]?.notionToken) return input[0].notionToken;
+    if (typeof input === 'object' && input !== null && input.notionToken) return input.notionToken;
+    return '';
+  }
+
+  private async fetchNotionWorkspace(token: string): Promise<Array<{ title: string; id: string; type: string }>> {
+    if (!token) return [];
+    try {
+      const res = await fetch('https://api.notion.com/v1/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token.trim()}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ page_size: 100 }),
+      });
+      if (!res.ok) {
+        console.warn('[NotionAPI] search failed', res.status, res.statusText);
+        return [];
+      }
+      const data = await res.json();
+      if (!Array.isArray(data.results)) return [];
+
+      const results: Array<{ title: string; id: string; type: string }> = [];
+      for (const item of data.results) {
+        const id = item.id;
+        const type = item.object; // 'page' or 'database'
+        let title = 'Unbenannte Notion-Seite';
+
+        if (item.properties) {
+          for (const key of Object.keys(item.properties)) {
+            const prop = item.properties[key];
+            if (prop?.type === 'title' && Array.isArray(prop.title) && prop.title[0]?.plain_text) {
+              title = prop.title[0].plain_text;
+              break;
+            }
+          }
+        }
+        if (item.title && Array.isArray(item.title) && item.title[0]?.plain_text) {
+          title = item.title[0].plain_text;
+        }
+
+        results.push({ id, title, type });
+      }
+      return results;
+    } catch (e) {
+      console.warn('[NotionAPI] fetch error', e);
+      return [];
+    }
+  }
+
   async detect(input: any): Promise<boolean> {
-    return typeof input === 'object' && input !== null && typeof input.notionToken === 'string';
+    return !!this.extractToken(input);
   }
 
   async analyze(input: any, _opts: ImportOptions): Promise<ImportPlan> {
-    const hasToken = typeof input === 'object' && input !== null && !!input.notionToken;
+    const token = this.extractToken(input);
+    const items = await this.fetchNotionWorkspace(token);
+
+    const notes = items.filter(i => i.type === 'page').length;
+    const databases = items.filter(i => i.type === 'database').length;
+
+    const warnings: string[] = [];
+    if (!token) {
+      warnings.push('Kein Integration Token angegeben.');
+    } else if (items.length === 0) {
+      warnings.push('Keine freigegebenen Notion-Seiten gefunden. WICHTIG: Gehe in Notion auf Deine Seiten -> klicke oben rechts auf "..." -> "Connections" ("Verbindungen") und füge Deine Verbindung hinzu!');
+    }
+
     return {
       sourceId: this.id,
       sourceName: this.name,
-      totalNotes: hasToken ? 1 : 0,
+      totalNotes: notes || (token ? 1 : 0),
       totalAttachments: 0,
-      totalDatabases: hasToken ? 1 : 0,
+      totalDatabases: databases,
       totalChecklists: 0,
-      warnings: hasToken ? [] : ['Kein gültiger Notion Integration Token angegeben.'],
-      requiredSpaceBytes: 1024,
-      estimatedDurationSec: 2,
+      warnings,
+      requiredSpaceBytes: Math.max(1024, items.length * 2048),
+      estimatedDurationSec: Math.max(2, Math.ceil(items.length / 10)),
     };
   }
 
   async run(
-    _input: any,
+    input: any,
     opts: ImportOptions,
     onProgress?: (percent: number, statusMessage: string) => void
   ): Promise<ImportReport> {
     const startTime = Date.now();
+    const token = this.extractToken(input);
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
     if (opts.vaultAdapter && prefix) {
       try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
     }
 
-    if (onProgress) onProgress(50, 'Verbinde mit Notion API...');
+    if (onProgress) onProgress(30, 'Verbinde mit Notion API...');
+    const items = await this.fetchNotionWorkspace(token);
 
-    const notePath = `${prefix}Notion_Workspace_Import.md`;
-    const sampleContent = `# Notion API Import\n\n- Integration Token konfiguriert.\n- Workspace Notizen erfolgreich verbunden.\n`;
+    const reportItems: ImportReport['items'] = [];
+    let importedNotes = 0;
+    let importedDatabases = 0;
 
-    if (opts.vaultAdapter) {
-      await opts.vaultAdapter.writeTextFile(notePath, sampleContent);
+    if (items.length === 0) {
+      const notePath = `${prefix}Notion_Workspace_Import.md`;
+      const sampleContent = `# Notion API Import\n\n- Integration Token konfiguriert.\n- Aus Sicherheitsgründen erfordert Notion die explizite Freigabe pro Seite: Klicke in Notion auf "..." -> "Connections" ("Verbindungen") -> füge Deine Verbindung hinzu.\n`;
+      if (opts.vaultAdapter) {
+        await opts.vaultAdapter.writeTextFile(notePath, sampleContent);
+      }
+      reportItems.push({ path: notePath, status: 'imported' });
+      importedNotes = 1;
+    } else {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+
+        if (item.type === 'database') {
+          importedDatabases++;
+          const dbPath = `${prefix}${safeTitle}/${safeTitle}.base`;
+          if (opts.vaultAdapter) {
+            try { await opts.vaultAdapter.createFolder(`${prefix}${safeTitle}`); } catch {}
+            try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
+            await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: safeTitle, properties: [] }, null, 2));
+          }
+          reportItems.push({ path: dbPath, status: 'imported' });
+        } else {
+          importedNotes++;
+          const notePath = `${prefix}${safeTitle}.md`;
+          const content = `# ${item.title}\n\n- Importiert aus Notion API (ID: ${item.id})\n`;
+          if (opts.vaultAdapter) {
+            await opts.vaultAdapter.writeTextFile(notePath, content);
+          }
+          reportItems.push({ path: notePath, status: 'imported' });
+        }
+
+        if (onProgress) {
+          onProgress(Math.round(((i + 1) / items.length) * 100), `Lade Notion ${safeTitle}...`);
+        }
+      }
     }
 
+    const durationMs = Date.now() - startTime;
     const reportPath = `${prefix}Import-Bericht.md`;
-    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n- Notion API Verbindung hergestellt.\n- 1 Notiz importiert.`;
+    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n` +
+      `- **Datum:** ${new Date().toISOString()}\n` +
+      `- **Importierte Notizen:** ${importedNotes}\n` +
+      `- **Importierte Datenbanken (.base):** ${importedDatabases}\n\n` +
+      reportItems.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
 
     if (opts.vaultAdapter) {
       await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
@@ -203,16 +310,15 @@ export class NotionApiImporter implements ImportSource {
       sourceId: this.id,
       sourceName: this.name,
       startedAt: new Date(startTime).toISOString(),
-      durationMs: Date.now() - startTime,
-      importedNotesCount: 1,
+      durationMs,
+      importedNotesCount: importedNotes,
       importedAttachmentsCount: 0,
-      importedDatabasesCount: 0,
+      importedDatabasesCount: importedDatabases,
       reportPath,
-      items: [{ path: notePath, status: 'imported' }],
+      items: reportItems,
       summaryMarkdown,
     };
   }
 }
 
 export { NotionFileImporter as NotionImporter };
-
