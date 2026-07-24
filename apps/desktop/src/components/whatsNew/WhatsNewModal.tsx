@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@plainva/ui';
-import { getLatestWhatsNew } from '../../services/whatsNew.js';
+import { getLatestWhatsNew } from '../../services/whatsNew';
 
 interface WhatsNewModalProps {
   onClose: () => void;
@@ -27,7 +27,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
 
         <div className="pv-modal-footer">
           {latest.blogUrl && (
-            <Button variant="outline" onClick={() => window.open(latest.blogUrl, '_blank')}>
+            <Button variant="secondary" onClick={() => window.open(latest.blogUrl, '_blank')}>
               Blogpost lesen
             </Button>
           )}

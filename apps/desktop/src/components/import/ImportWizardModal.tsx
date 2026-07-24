@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Select, Field } from '@plainva/ui';
-import { defaultImportRegistry, ImportPlan, ImportReport, ImportSourceId } from '@plainva/core';
+import { Button, Select } from '@plainva/ui';
+import { defaultImportRegistry, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
 
 interface ImportWizardModalProps {
   targetVaultPath: string;
@@ -23,7 +23,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     const source = defaultImportRegistry.get(selectedSourceId);
     if (!source) return;
 
-    // Simulated payload analysis for UI workflow
     const mockPlan = await source.analyze([], { targetVaultPath, targetSubfolder: subfolder });
     setPlan(mockPlan);
     setStep('preview');
@@ -34,7 +33,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     const source = defaultImportRegistry.get(selectedSourceId);
     if (!source) return;
 
-    const mockReport = await source.run([], { targetVaultPath, targetSubfolder: subfolder }, (pct, msg) => {
+    const mockReport = await source.run([], { targetVaultPath, targetSubfolder: subfolder }, (pct: number, msg: string) => {
       setProgressPct(pct);
       setStatusMsg(msg);
     });
@@ -54,15 +53,22 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         <div className="pv-modal-body">
           {step === 'select' && (
             <div>
-              <Field label="Quell-App auswählen">
-                <Select
+              <div style={{ marginBottom: 'var(--pv-space-4)' }}>
+                <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+                  Quell-App auswählen
+                </label>
+                <Select<ImportSourceId>
                   value={selectedSourceId}
-                  onChange={(e) => setSelectedSourceId(e.target.value as ImportSourceId)}
-                  options={sources.map(s => ({ value: s.id, label: `${s.name} (${s.description})` }))}
+                  onChange={(val) => setSelectedSourceId(val)}
+                  ariaLabel="Quell-App auswählen"
+                  options={sources.map((s) => ({ value: s.id, label: `${s.name} (${s.description})` }))}
                 />
-              </Field>
+              </div>
 
-              <Field label="Ziel-Unterordner im Vault">
+              <div style={{ marginBottom: 'var(--pv-space-4)' }}>
+                <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+                  Ziel-Unterordner im Vault
+                </label>
                 <input
                   type="text"
                   className="pv-field"
@@ -70,7 +76,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                   onChange={(e) => setSubfolder(e.target.value)}
                   style={{ width: '100%' }}
                 />
-              </Field>
+              </div>
             </div>
           )}
 
@@ -103,13 +109,13 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         <div className="pv-modal-footer">
           {step === 'select' && (
             <>
-              <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+              <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
               <Button variant="primary" onClick={handleAnalyze}>Weiter zur Analyse</Button>
             </>
           )}
           {step === 'preview' && (
             <>
-              <Button variant="outline" onClick={() => setStep('select')}>Zurück</Button>
+              <Button variant="secondary" onClick={() => setStep('select')}>Zurück</Button>
               <Button variant="primary" onClick={handleRunImport}>Import jetzt starten</Button>
             </>
           )}

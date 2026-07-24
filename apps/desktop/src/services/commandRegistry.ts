@@ -66,12 +66,12 @@ export interface CommandDeps {
   /** Reopens the last closed tab (Mod+Shift+T). */
   reopenClosedTab: () => void;
   /** Opens the PKM Import Wizard dialog. */
-  openImport: () => void;
+  openImport?: () => void;
 }
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
   return [
-    { id: "import-pkm", titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run: d.openImport },
+    { id: "import-pkm", titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run: () => d.openImport?.() },
     { id: "new-note", titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N", run: () => d.newItem("file") },
     { id: "new-folder", titleKey: "common.newFolder", titleDefault: "Neuer Ordner", run: () => d.newItem("folder") },
     { id: "new-base", titleKey: "fileTree.newBaseHere", titleDefault: "Neue Datenbank (.base)", run: () => d.newItem("base") },

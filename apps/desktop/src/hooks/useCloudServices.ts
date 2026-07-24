@@ -13,7 +13,7 @@ export interface CloudServicesState {
  */
 export function useCloudServices(
   vaultPath: string | null,
-  pimRuntime: unknown
+  pimRuntime: any
 ): CloudServicesState {
   const [cloudServices, setCloudServices] = useState<CloudServicesState>({
     calendar: false,
