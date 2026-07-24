@@ -28,6 +28,7 @@ function resolveDatabaseTitle(
   rawTitle: string | undefined,
   databaseId: string | undefined,
   currentPageTitle: string,
+  currentSectionHeading: string,
   itemMap?: Map<string, NotionWorkspaceItem>
 ): string {
   if (databaseId && itemMap?.has(normId(databaseId))) {
@@ -36,6 +37,7 @@ function resolveDatabaseTitle(
   if (blockId && itemMap?.has(normId(blockId))) {
     return itemMap.get(normId(blockId))!.title;
   }
+
   if (rawTitle && itemMap) {
     const cleanRaw = rawTitle.trim().toLowerCase();
     for (const item of itemMap.values()) {
@@ -44,6 +46,19 @@ function resolveDatabaseTitle(
       }
     }
   }
+
+  if (currentSectionHeading && itemMap) {
+    const cleanHeading = currentSectionHeading.trim().toLowerCase();
+    for (const item of itemMap.values()) {
+      if (item.type === 'database') {
+        const cleanDb = item.title.trim().toLowerCase();
+        if (cleanDb.includes(cleanHeading) || cleanHeading.includes(cleanDb.replace(/^alle\s+/, ''))) {
+          return item.title;
+        }
+      }
+    }
+  }
+
   if (currentPageTitle && itemMap) {
     const cleanPage = currentPageTitle.trim().toLowerCase();
     for (const item of itemMap.values()) {
@@ -55,6 +70,7 @@ function resolveDatabaseTitle(
       }
     }
   }
+
   return rawTitle && rawTitle.toLowerCase() !== 'untitled' ? rawTitle : (currentPageTitle ? `${currentPageTitle}_Datenbank` : 'Datenbank');
 }
 
@@ -293,7 +309,10 @@ export class NotionFileImporter implements ImportSource {
           const baseConfig = {
             filters: { and: [`file.folder == "${page.title}"`] },
             columns: {},
-            views: [{ type: 'table', name: 'Tabelle', order: ['file.name'] }],
+            views: [
+              { type: 'table', name: 'Tabelle', order: ['file.name'] },
+              { type: 'list', name: 'Liste', order: ['file.name'] },
+            ],
           };
           await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
         }
@@ -527,6 +546,8 @@ export class NotionApiImporter implements ImportSource {
       if (!Array.isArray(data.results)) return '';
 
       const lines: string[] = [];
+      let currentSectionHeading = '';
+
       for (const block of data.results) {
         const type = block.type;
         const info = (block as any)[type];
@@ -538,9 +559,24 @@ export class NotionApiImporter implements ImportSource {
         }
 
         switch (type) {
-          case 'heading_1': if (text) lines.push(`# ${text}`); break;
-          case 'heading_2': if (text) lines.push(`## ${text}`); break;
-          case 'heading_3': if (text) lines.push(`### ${text}`); break;
+          case 'heading_1':
+            if (text) {
+              currentSectionHeading = text;
+              lines.push(`# ${text}`);
+            }
+            break;
+          case 'heading_2':
+            if (text) {
+              currentSectionHeading = text;
+              lines.push(`## ${text}`);
+            }
+            break;
+          case 'heading_3':
+            if (text) {
+              currentSectionHeading = text;
+              lines.push(`### ${text}`);
+            }
+            break;
           case 'bulleted_list_item': if (text) lines.push(`- ${text}`); break;
           case 'numbered_list_item': if (text) lines.push(`1. ${text}`); break;
           case 'to_do': if (text) lines.push(info.checked ? `- [x] ${text}` : `- [ ] ${text}`); break;
@@ -554,9 +590,9 @@ export class NotionApiImporter implements ImportSource {
             break;
           }
           case 'child_database': {
-            const resolvedTitle = resolveDatabaseTitle(block.id, info.title, undefined, currentPageTitle, itemMap);
+            const resolvedTitle = resolveDatabaseTitle(block.id, info.title, undefined, currentPageTitle, currentSectionHeading, itemMap);
             const safeDbTitle = resolvedTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
-            lines.push(`📊 [[${safeDbTitle}.base]]`);
+            lines.push(`![[${safeDbTitle}.base]]`);
             break;
           }
           case 'link_to_page': {
@@ -567,14 +603,14 @@ export class NotionApiImporter implements ImportSource {
 
             if (targetObj) {
               if (targetObj.type === 'database') {
-                lines.push(`📊 [[${targetObj.title}.base]]`);
+                lines.push(`![[${targetObj.title}.base]]`);
               } else {
                 lines.push(`🔗 [[${targetObj.title}]]`);
               }
             } else if (rawTargetId) {
-              const resolvedTitle = resolveDatabaseTitle(block.id, undefined, rawTargetId, currentPageTitle, itemMap);
+              const resolvedTitle = resolveDatabaseTitle(block.id, undefined, rawTargetId, currentPageTitle, currentSectionHeading, itemMap);
               const safeDbTitle = resolvedTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
-              lines.push(`📊 [[${safeDbTitle}.base]]`);
+              lines.push(`![[${safeDbTitle}.base]]`);
             }
             break;
           }
@@ -707,10 +743,20 @@ export class NotionApiImporter implements ImportSource {
           const columnsConfig: Record<string, { input: string; options?: string[] }> = {};
           const columnOrder: string[] = ['file.name'];
 
+          let boardProp: string | undefined;
+          let dateProp: string | undefined;
+
           if (dbDetails.properties) {
             for (const [propName, propObj] of Object.entries(dbDetails.properties as Record<string, any>)) {
               const pType = propObj.type;
               columnOrder.push(propName);
+
+              if (!boardProp && (pType === 'status' || pType === 'select')) {
+                boardProp = propName;
+              }
+              if (!dateProp && pType === 'date') {
+                dateProp = propName;
+              }
 
               if ((pType === 'select' || pType === 'status') && (propObj.select?.options || propObj.status?.options)) {
                 const rawOptions = propObj.select?.options || propObj.status?.options || [];
@@ -727,10 +773,21 @@ export class NotionApiImporter implements ImportSource {
             }
           }
 
+          const viewsConfig: any[] = [
+            { type: 'table', name: 'Tabelle', order: columnOrder },
+          ];
+          if (boardProp) {
+            viewsConfig.push({ type: 'board', name: 'Board', groupBy: boardProp });
+          }
+          if (dateProp) {
+            viewsConfig.push({ type: 'calendar', name: 'Kalender', dateField: dateProp });
+          }
+          viewsConfig.push({ type: 'list', name: 'Liste', order: ['file.name'] });
+
           const baseConfig = {
             filters: { and: [`file.folder == "${dbFolderPath}"`] },
             columns: columnsConfig,
-            views: [{ type: 'table', name: 'Tabelle', order: columnOrder }],
+            views: viewsConfig,
           };
 
           await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
