@@ -135,7 +135,7 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
           }
         }
         if (relLinks.length > 0) {
-          return relLinks.length === 1 ? relLinks[0] : relLinks;
+          return relLinks;
         }
       }
       return undefined;
@@ -513,17 +513,29 @@ export class NotionApiImporter implements ImportSource {
           }
           case 'child_database': {
             let dbTitle = info.title;
-            if (!dbTitle && itemMap?.has(block.id)) {
-              dbTitle = itemMap.get(block.id)!.title;
+            if (!dbTitle || dbTitle.toLowerCase() === 'untitled') {
+              if (itemMap?.has(block.id)) {
+                dbTitle = itemMap.get(block.id)!.title;
+              }
             }
             dbTitle = (dbTitle || 'Datenbank').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
             lines.push(`📊 [[${dbTitle}.base]]`);
             break;
           }
           case 'link_to_page': {
-            const targetId = info.page_id || info.database_id;
+            const linkType = info.type || (info.database_id ? 'database_id' : 'page_id');
+            const targetId = info.page_id || info.database_id || info[linkType];
             const targetObj = itemMap?.get(targetId);
-            if (targetObj) lines.push(`🔗 [[${targetObj.title}]]`);
+
+            if (targetObj) {
+              if (targetObj.type === 'database') {
+                lines.push(`📊 [[${targetObj.title}.base]]`);
+              } else {
+                lines.push(`🔗 [[${targetObj.title}]]`);
+              }
+            } else if (targetId) {
+              lines.push(`🔗 [[${targetId}]]`);
+            }
             break;
           }
           case 'bookmark': {
