@@ -20,15 +20,40 @@ export class SimplenoteImporter implements ImportSource {
   readonly family: ImportFamily = 'json';
   readonly description = 'Importiert Notizen und Tags aus dem Simplenote JSON-Export.';
 
-  async detect(input: any): Promise<boolean> {
-    if (typeof input === 'object' && input !== null) {
-      return Array.isArray(input.activeNotes) || Array.isArray(input.trashedNotes);
+  private parseInput(input: any): SimplenoteExportNote[] {
+    if (typeof input === 'object' && input !== null && Array.isArray(input.activeNotes)) {
+      return input.activeNotes;
     }
-    return false;
+    if (Array.isArray(input)) {
+      const notes: SimplenoteExportNote[] = [];
+      for (const item of input) {
+        if (typeof item === 'object' && item !== null) {
+          if (item.content && item.id) {
+            notes.push(item as SimplenoteExportNote);
+          } else if (typeof item.content === 'string') {
+            try {
+              const parsed = JSON.parse(item.content);
+              if (parsed && Array.isArray(parsed.activeNotes)) {
+                notes.push(...parsed.activeNotes);
+              }
+            } catch {
+              // Ignore non-json
+            }
+          }
+        }
+      }
+      return notes;
+    }
+    return [];
   }
 
-  async analyze(input: SimplenoteExportPayload, _opts: ImportOptions): Promise<ImportPlan> {
-    const active = Array.isArray(input.activeNotes) ? input.activeNotes : [];
+  async detect(input: any): Promise<boolean> {
+    const notes = this.parseInput(input);
+    return notes.length > 0;
+  }
+
+  async analyze(input: any, _opts: ImportOptions): Promise<ImportPlan> {
+    const active = this.parseInput(input);
     const totalBytes = active.reduce((acc, n) => acc + (n.content ? n.content.length : 0), 0);
 
     return {
@@ -38,23 +63,31 @@ export class SimplenoteImporter implements ImportSource {
       totalAttachments: 0,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: [],
+      warnings: active.length === 0 ? ['Keine gültigen Simplenote Notizen in der JSON-Auswahl gefunden.'] : [],
       requiredSpaceBytes: totalBytes,
       estimatedDurationSec: Math.max(1, Math.ceil(active.length / 50)),
     };
   }
 
   async run(
-    input: SimplenoteExportPayload,
+    input: any,
     opts: ImportOptions,
     onProgress?: (percent: number, statusMessage: string) => void
   ): Promise<ImportReport> {
     const startTime = Date.now();
-    const active = Array.isArray(input.activeNotes) ? input.activeNotes : [];
+    const active = this.parseInput(input);
     const items: ImportReport['items'] = [];
     let importedNotes = 0;
 
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
+
+    if (opts.vaultAdapter && prefix) {
+      try {
+        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
+      } catch {
+        // Folder exists
+      }
+    }
 
     for (let i = 0; i < active.length; i++) {
       const note = active[i];
@@ -62,6 +95,16 @@ export class SimplenoteImporter implements ImportSource {
       const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Notiz_${note.id}`;
       const safeTitle = (rawTitle || 'Unbenannte Notiz').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
       const targetPath = `${prefix}${safeTitle}.md`;
+
+      let mdContent = note.content || '';
+      if (Array.isArray(note.tags) && note.tags.length > 0) {
+        const tagsHeader = `---\ntags:\n${note.tags.map(t => `  - ${t}`).join('\n')}\n---\n\n`;
+        mdContent = tagsHeader + mdContent;
+      }
+
+      if (opts.vaultAdapter) {
+        await opts.vaultAdapter.writeTextFile(targetPath, mdContent);
+      }
 
       importedNotes++;
       items.push({
@@ -81,6 +124,10 @@ export class SimplenoteImporter implements ImportSource {
       `- **Datum:** ${new Date().toISOString()}\n` +
       `- **Importierte Notizen:** ${importedNotes}\n\n` +
       items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
+
+    if (opts.vaultAdapter) {
+      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
+    }
 
     return {
       sourceId: this.id,

@@ -44,6 +44,8 @@ export interface ImportOptions {
   preserveTimestamps?: boolean;
   /** Attachment folder name, defaults to "Attachments" */
   attachmentsFolder?: string;
+  /** Optional active IVaultAdapter instance to write files directly to disk */
+  vaultAdapter?: any;
 }
 
 export interface ImportPlan {

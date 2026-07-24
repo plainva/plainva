@@ -280,13 +280,13 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
         <SettingRow label={t("settings.showCompatWarning")}>
           <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={(e) => p.onShowCompatibilityWarning(e.target.checked)} />
         </SettingRow>
-        <SettingRow label={t("settings.showWhatsNew", "Release-Highlights (v0.4.6) erneut anzeigen")}>
-          <button className="pv-btn pv-btn--sm" onClick={() => {
+        <SettingRow label={t("settings.showWhatsNew", "Release-Highlights erneut anzeigen")}>
+          <Button variant="secondary" size="sm" onClick={() => {
             p.onShowWhatsNew?.();
             window.dispatchEvent(new CustomEvent("plainva-show-whats-new"));
           }}>
             {t("common.show", "Anzeigen")}
-          </button>
+          </Button>
         </SettingRow>
       </SettingCard>
     </div>

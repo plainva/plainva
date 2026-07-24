@@ -21,7 +21,7 @@ export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
       '📱 Live-QR-Scan & Mobile App Optimierungen',
       '🔒 Robuste Vault-Isolation & Verschlüsselung',
     ],
-    blogUrl: 'https://plainva.com/de/blog/release-0-4-6',
+    blogUrl: 'https://plainva.com/blog',
   },
 ];
 

@@ -21,8 +21,8 @@ export class GenericMarkdownImporter implements ImportSource {
 
   async analyze(input: MarkdownInputFile[], _opts: ImportOptions): Promise<ImportPlan> {
     const files = Array.isArray(input) ? input : [];
-    const notes = files.filter(f => f.relativePath.endsWith('.md'));
-    const attachments = files.filter(f => !f.relativePath.endsWith('.md'));
+    const notes = files.filter(f => typeof f.relativePath === 'string' && f.relativePath.endsWith('.md'));
+    const attachments = files.filter(f => typeof f.relativePath === 'string' && !f.relativePath.endsWith('.md'));
     const totalBytes = files.reduce((acc, f) => acc + (f.content ? f.content.length : 0), 0);
 
     return {
@@ -32,7 +32,7 @@ export class GenericMarkdownImporter implements ImportSource {
       totalAttachments: attachments.length,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: [],
+      warnings: files.length === 0 ? ['Keine Markdown-Dateien in der Auswahl gefunden.'] : [],
       requiredSpaceBytes: totalBytes,
       estimatedDurationSec: Math.max(1, Math.ceil(notes.length / 50)),
     };
@@ -51,10 +51,29 @@ export class GenericMarkdownImporter implements ImportSource {
 
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
+    if (opts.vaultAdapter && prefix) {
+      try {
+        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
+      } catch {
+        // Ignore if exists
+      }
+    }
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file || !file.relativePath) continue;
+
       const targetPath = `${prefix}${file.relativePath}`;
       const isMd = file.relativePath.endsWith('.md');
+
+      if (opts.vaultAdapter && file.content !== undefined) {
+        // Create subdirectories if nested
+        if (targetPath.includes('/')) {
+          const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
+          try { await opts.vaultAdapter.createFolder(folderPart); } catch {}
+        }
+        await opts.vaultAdapter.writeTextFile(targetPath, file.content);
+      }
 
       if (isMd) importedNotes++;
       else importedAttachments++;
@@ -80,6 +99,10 @@ export class GenericMarkdownImporter implements ImportSource {
       `- **Importierte Anhänge:** ${importedAttachments}\n\n` +
       `## Importierte Dateien\n\n` +
       items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
+
+    if (opts.vaultAdapter) {
+      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
+    }
 
     return {
       sourceId: this.id,

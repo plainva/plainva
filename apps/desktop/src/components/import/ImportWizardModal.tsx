@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal, Button, Select } from '@plainva/ui';
 import { defaultImportRegistry, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
+import { useVault } from '../../contexts/VaultContext';
 
 interface ImportWizardModalProps {
   targetVaultPath: string;
@@ -11,11 +12,15 @@ interface SelectedFileItem {
   name: string;
   path?: string;
   file?: File;
+  content?: string;
 }
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaultPath, onClose }) => {
+  const { vaultAdapter, triggerFileTreeUpdate } = useVault();
+
   const [selectedSourceId, setSelectedSourceId] = useState<ImportSourceId>('generic_markdown');
   const [subfolder, setSubfolder] = useState<string>('Import Notizen');
+  const [notionToken, setNotionToken] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedFileItem[]>([]);
   const [selectedFolderPath, setSelectedFolderPath] = useState<string>('');
   const [step, setStep] = useState<'select' | 'analyzing' | 'preview' | 'importing' | 'report'>('select');
@@ -31,19 +36,20 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const getSourceHint = (id: ImportSourceId): string => {
     switch (id) {
       case 'notion_file':
+        return 'Wähle Deinen Notion ZIP-Export oder entpackten Ordner mit Markdown/CSV-Dateien aus.';
       case 'notion_api':
-        return 'Exportiere Deine Notion-Workspace unter Einstellungen -> Exportieren als HTML/Markdown (ZIP).';
+        return 'Gib Deinen Notion Integration Token ein, um Notizen & Datenbanken direkt per API zu laden.';
       case 'evernote':
         return 'Wähle Deine in Evernote exportierten .enex Dateien aus (Notizbuch -> Exportieren als ENEX).';
       case 'google_keep':
-        return 'Exportiere Deine Keep-Notizen über Google Takeout (JSON-Format) und wähle die entpackten Dateien/Ordner aus.';
+        return 'Wähle die .json Notizdateien aus Deinem Google Takeout Export aus.';
       case 'logseq':
         return 'Wähle Deinen Logseq Graph-Ordner (enthält /journals und /pages).';
       case 'simplenote':
-        return 'Exportiere Deine Notizen in Simplenote als JSON-Datei und wähle die .json Datei aus.';
+        return 'Wähle die .json Export-Datei aus Simplenote aus.';
       case 'generic_markdown':
       default:
-        return 'Wähle einen Ordner oder ZIP-Archiv mit Markdown-Dateien (.md) und Bildern/Anhängen aus.';
+        return 'Wähle einen Ordner oder Dateien mit Markdown (.md) und Anhängen aus.';
     }
   };
 
@@ -68,7 +74,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         setSelectedFiles(pathsList.map((p: string) => ({ name: p.split(/[/\\]/).pop() || p, path: p })));
       }
     } catch {
-      // Fallback for Web / Dev mode without Tauri native dialogs
       fileInputRef.current?.click();
     }
   };
@@ -89,7 +94,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       case 'simplenote':
         return [{ name: 'JSON / Takeout', extensions: ['json', 'zip'] }];
       case 'notion_file':
-      case 'notion_api':
         return [{ name: 'Notion Export', extensions: ['zip', 'md', 'csv'] }];
       case 'generic_markdown':
       default:
@@ -97,9 +101,42 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
   };
 
-  const handleAnalyze = async () => {
+  const loadInputPayload = async (): Promise<any> => {
+    if (selectedSourceId === 'notion_api') {
+      return { notionToken, pages: [] };
+    }
+
     if (selectedFiles.length === 0 && !selectedFolderPath) {
+      return [];
+    }
+
+    const payload: Array<{ relativePath: string; content: string; contentXml?: string }> = [];
+
+    for (const f of selectedFiles) {
+      let content = '';
+      if (f.file) {
+        content = await f.file.text();
+      } else if (f.path) {
+        try {
+          const { readTextFile } = await import('@tauri-apps/plugin-fs');
+          content = await readTextFile(f.path);
+        } catch {
+          content = '';
+        }
+      }
+      payload.push({ relativePath: f.name, content, contentXml: content });
+    }
+
+    return payload;
+  };
+
+  const handleAnalyze = async () => {
+    if (selectedSourceId !== 'notion_api' && selectedFiles.length === 0 && !selectedFolderPath) {
       setErrorMsg('Bitte wähle zuerst mindestens eine Datei oder einen Quell-Ordner aus.');
+      return;
+    }
+    if (selectedSourceId === 'notion_api' && !notionToken.trim()) {
+      setErrorMsg('Bitte gib Deinen Notion Integration Token ein.');
       return;
     }
 
@@ -110,20 +147,11 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const source = defaultImportRegistry.get(selectedSourceId);
       if (!source) throw new Error('Unbekannter Importer');
 
-      let inputPayload: any[] = [];
-      if (selectedFiles.length > 0 && selectedFiles[0].file) {
-        const readProms = selectedFiles.map(async (f) => {
-          const text = f.file ? await f.file.text() : '';
-          return { relativePath: f.name, content: text, contentXml: text };
-        });
-        inputPayload = await Promise.all(readProms);
-      } else if (selectedFiles.length > 0 && selectedFiles[0].path) {
-        inputPayload = selectedFiles.map(f => ({ relativePath: f.name, path: f.path, content: '' }));
-      }
-
+      const inputPayload = await loadInputPayload();
       const analyzedPlan = await source.analyze(inputPayload, {
         targetVaultPath,
         targetSubfolder: subfolder,
+        vaultAdapter,
       });
 
       setPlan(analyzedPlan);
@@ -144,26 +172,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const source = defaultImportRegistry.get(selectedSourceId);
       if (!source) throw new Error('Unbekannter Importer');
 
-      let inputPayload: any[] = [];
-      if (selectedFiles.length > 0 && selectedFiles[0].file) {
-        const readProms = selectedFiles.map(async (f) => {
-          const text = f.file ? await f.file.text() : '';
-          return { relativePath: f.name, content: text, contentXml: text };
-        });
-        inputPayload = await Promise.all(readProms);
-      } else if (selectedFiles.length > 0 && selectedFiles[0].path) {
-        inputPayload = selectedFiles.map(f => ({ relativePath: f.name, path: f.path, content: '' }));
-      }
-
+      const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
         inputPayload,
-        { targetVaultPath, targetSubfolder: subfolder },
+        { targetVaultPath, targetSubfolder: subfolder, vaultAdapter },
         (pct: number, msg: string) => {
           setProgressPct(pct);
           setStatusMsg(msg);
         }
       );
 
+      triggerFileTreeUpdate();
       setReport(executedReport);
       setStep('report');
     } catch (e) {
@@ -209,10 +228,10 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       {errorMsg && (
         <div style={{
           padding: 'var(--pv-space-3)',
-          background: 'var(--pv-color-danger-subtle, rgba(239, 68, 68, 0.1))',
-          border: '1px solid var(--pv-color-danger, #ef4444)',
-          borderRadius: 'var(--pv-radius-md, 6px)',
-          color: 'var(--pv-color-danger, #ef4444)',
+          background: 'var(--error-bg)',
+          border: '1px solid var(--error-text)',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--error-text)',
           fontSize: 'var(--pv-font-size-sm)',
           marginBottom: 'var(--pv-space-4)',
         }}>
@@ -235,30 +254,46 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 setErrorMsg('');
               }}
               ariaLabel="Quell-App auswählen"
-              options={sources.map((s) => ({ value: s.id, label: `${s.name} (${s.family.toUpperCase()})` }))}
+              options={sources.map((s) => ({ value: s.id, label: s.name }))}
             />
             <p style={{ fontSize: 'var(--pv-font-size-xs)', color: 'var(--pv-text-muted)', marginTop: 'var(--pv-space-2)' }}>
               ℹ️ {getSourceHint(selectedSourceId)}
             </p>
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
-              2. Dateien oder Ordner auswählen
-            </label>
-            <div style={{ display: 'flex', gap: 'var(--pv-space-3)', alignItems: 'center' }}>
-              <Button variant="secondary" onClick={handleSelectFilesNative}>
-                📁 Dateien / Ordner wählen...
-              </Button>
-              <span style={{ fontSize: 'var(--pv-font-size-sm)', color: 'var(--pv-text-muted)' }}>
-                {selectedFolderPath
-                  ? `Ordner: ${selectedFolderPath}`
-                  : selectedFiles.length > 0
-                    ? `${selectedFiles.length} Datei(en) ausgewählt (${selectedFiles.map(f => f.name).join(', ')})`
-                    : 'Noch keine Dateien gewählt'}
-              </span>
+          {selectedSourceId === 'notion_api' ? (
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+                2. Notion Integration Token
+              </label>
+              <input
+                type="password"
+                className="pv-field"
+                value={notionToken}
+                onChange={(e) => setNotionToken(e.target.value)}
+                style={{ width: '100%', padding: 'var(--pv-space-2) var(--pv-space-3)' }}
+                placeholder="secret_..."
+              />
             </div>
-          </div>
+          ) : (
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
+                2. Dateien oder Ordner auswählen
+              </label>
+              <div style={{ display: 'flex', gap: 'var(--pv-space-3)', alignItems: 'center' }}>
+                <Button variant="secondary" onClick={handleSelectFilesNative}>
+                  📁 Dateien / Ordner wählen...
+                </Button>
+                <span style={{ fontSize: 'var(--pv-font-size-sm)', color: 'var(--pv-text-muted)' }}>
+                  {selectedFolderPath
+                    ? `Ordner: ${selectedFolderPath}`
+                    : selectedFiles.length > 0
+                      ? `${selectedFiles.length} Datei(en) ausgewählt (${selectedFiles.map(f => f.name).join(', ')})`
+                      : 'Noch keine Dateien gewählt'}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div>
             <label style={{ display: 'block', marginBottom: 'var(--pv-space-2)', fontWeight: 600 }}>
@@ -289,15 +324,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
         <div>
           <h3 style={{ marginBottom: 'var(--pv-space-3)' }}>Import-Vorschau: {plan.sourceName}</h3>
           <div style={{
-            background: 'var(--pv-color-bg-subtle, rgba(0,0,0,0.03))',
-            borderRadius: 'var(--pv-radius-md, 6px)',
+            background: 'var(--pv-color-bg-subtle, var(--bg-card))',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
             padding: 'var(--pv-space-4)',
             lineHeight: '1.8'
           }}>
             <div>📝 <strong>Notizen:</strong> {plan.totalNotes}</div>
             <div>📎 <strong>Anhänge:</strong> {plan.totalAttachments}</div>
             <div>📊 <strong>Datenbanken (.base):</strong> {plan.totalDatabases}</div>
-            <div>📁 <strong>Zielordner:</strong> <code>{targetVaultPath}/{subfolder}</code></div>
+            <div>📁 <strong>Zielordner:</strong> <code>{targetVaultPath ? `${targetVaultPath}/${subfolder}` : subfolder}</code></div>
           </div>
         </div>
       )}
@@ -307,16 +343,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           <h3 style={{ marginBottom: 'var(--pv-space-3)' }}>⏳ Import läuft... {progressPct}%</h3>
           <div style={{
             height: '8px',
-            background: 'var(--pv-color-bg-subtle, #eee)',
-            borderRadius: '4px',
+            background: 'var(--border-color)',
+            borderRadius: 'var(--radius-xs)',
             overflow: 'hidden',
             margin: 'var(--pv-space-4) 0'
           }}>
             <div style={{
               height: '100%',
               width: `${progressPct}%`,
-              background: 'var(--pv-color-primary, #0d9488)',
-              transition: 'width 0.3s ease'
+              background: 'var(--accent-color)',
+              transition: 'width var(--transition-fast)'
             }} />
           </div>
           <p style={{ color: 'var(--pv-text-muted)', fontSize: 'var(--pv-font-size-sm)' }}>{statusMsg}</p>
@@ -325,15 +361,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       {step === 'report' && report && (
         <div>
-          <h3 style={{ marginBottom: 'var(--pv-space-3)', color: 'var(--pv-color-success, #10b981)' }}>
+          <h3 style={{ marginBottom: 'var(--pv-space-3)', color: 'var(--accent-color)' }}>
             ✅ Import erfolgreich abgeschlossen!
           </h3>
           <p style={{ color: 'var(--pv-text-muted)', marginBottom: 'var(--pv-space-4)' }}>
             Insgesamt wurden <strong>{report.importedNotesCount} Notizen</strong> und <strong>{report.importedAttachmentsCount} Anhänge</strong> importiert.
           </p>
           <div style={{
-            background: 'var(--pv-color-bg-subtle, rgba(0,0,0,0.03))',
-            borderRadius: 'var(--pv-radius-md, 6px)',
+            background: 'var(--pv-color-bg-subtle, var(--bg-card))',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
             padding: 'var(--pv-space-3)',
             fontSize: 'var(--pv-font-size-xs)'
           }}>

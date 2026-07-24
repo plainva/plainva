@@ -13,14 +13,14 @@ export class LogseqImporter implements ImportSource {
 
   async detect(input: any): Promise<boolean> {
     if (Array.isArray(input)) {
-      return input.some((f: any) => typeof f.relativePath === 'string' && (f.relativePath.startsWith('journals/') || f.relativePath.startsWith('pages/')));
+      return input.some((f: any) => typeof f.relativePath === 'string' && (f.relativePath.startsWith('journals/') || f.relativePath.startsWith('pages/') || f.relativePath.endsWith('.md')));
     }
     return false;
   }
 
   async analyze(input: LogseqFile[], _opts: ImportOptions): Promise<ImportPlan> {
     const files = Array.isArray(input) ? input : [];
-    const notes = files.filter(f => f.relativePath.endsWith('.md') || f.relativePath.endsWith('.org'));
+    const notes = files.filter(f => typeof f.relativePath === 'string' && (f.relativePath.endsWith('.md') || f.relativePath.endsWith('.org')));
 
     return {
       sourceId: this.id,
@@ -29,7 +29,7 @@ export class LogseqImporter implements ImportSource {
       totalAttachments: files.length - notes.length,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: [],
+      warnings: notes.length === 0 ? ['Keine Logseq Markdown/Org Dateien in der Auswahl gefunden.'] : [],
       requiredSpaceBytes: files.reduce((acc, f) => acc + (f.content?.length || 0), 0),
       estimatedDurationSec: Math.max(1, Math.ceil(notes.length / 50)),
     };
@@ -48,10 +48,28 @@ export class LogseqImporter implements ImportSource {
 
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
+    if (opts.vaultAdapter && prefix) {
+      try {
+        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
+      } catch {
+        // Folder exists
+      }
+    }
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file || !file.relativePath) continue;
+
       const targetPath = `${prefix}${file.relativePath}`;
       const isNote = file.relativePath.endsWith('.md') || file.relativePath.endsWith('.org');
+
+      if (opts.vaultAdapter && file.content !== undefined) {
+        if (targetPath.includes('/')) {
+          const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
+          try { await opts.vaultAdapter.createFolder(folderPart); } catch {}
+        }
+        await opts.vaultAdapter.writeTextFile(targetPath, file.content);
+      }
 
       if (isNote) importedNotes++;
       else importedAttachments++;
@@ -74,6 +92,10 @@ export class LogseqImporter implements ImportSource {
       `- **Importierte Notizen:** ${importedNotes}\n` +
       `- **Importierte Anhänge:** ${importedAttachments}\n\n` +
       items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
+
+    if (opts.vaultAdapter) {
+      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
+    }
 
     return {
       sourceId: this.id,
