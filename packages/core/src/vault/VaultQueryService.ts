@@ -695,24 +695,32 @@ export class VaultQueryService {
     const params: any[] = [];
 
     // 1. Process filters
-    const parseFilter = (filter: string): string | null => {
-      if (typeof filter !== "string") return null;
-      
-      const folderMatch = filter.match(/file\.folder\s*==\s*"([^"]+)"/);
-      if (folderMatch) {
-        let folder = folderMatch[1];
-        if (folder === "/") return "1=1";
-        if (!folder.endsWith("/")) folder += "/";
-        params.push(`${folder}%`);
-        return `f.path LIKE ?`;
-      }
-      
-      const tagMatch = filter.match(/file\.hasTag\("([^"]+)"\)/);
-      if (tagMatch) {
-        let tag = tagMatch[1];
-        if (tag.startsWith("#")) tag = tag.substring(1);
-        params.push(tag);
-        return `EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND t.tag = ?)`;
+    const parseFilter = (filter: any): string | null => {
+      if (typeof filter === "string") {
+        const folderMatch = filter.match(/file\.folder\s*==\s*"([^"]+)"/);
+        if (folderMatch) {
+          let folder = folderMatch[1];
+          if (folder === "/") return "1=1";
+          if (!folder.endsWith("/")) folder += "/";
+          params.push(`${folder}%`);
+          return `f.path LIKE ?`;
+        }
+        
+        const tagMatch = filter.match(/file\.hasTag\("([^"]+)"\)/);
+        if (tagMatch) {
+          let tag = tagMatch[1];
+          if (tag.startsWith("#")) tag = tag.substring(1);
+          params.push(tag);
+          return `EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND t.tag = ?)`;
+        }
+      } else if (typeof filter === "object" && filter !== null) {
+        if (filter.field === 'file.folder' && filter.value) {
+          let folder = String(filter.value);
+          if (folder === "/") return "1=1";
+          if (!folder.endsWith("/")) folder += "/";
+          params.push(`%${folder}%`);
+          return `f.path LIKE ?`;
+        }
       }
       
       return null;
@@ -730,7 +738,7 @@ export class VaultQueryService {
     {
       const andClauses: string[] = [];
       for (const filter of andList) {
-        const clause = typeof filter === "string" ? parseFilter(filter) : null;
+        const clause = parseFilter(filter);
         if (clause) andClauses.push(clause);
         else residualAnd.push(filter);
       }

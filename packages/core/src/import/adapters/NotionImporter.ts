@@ -18,6 +18,11 @@ interface NotionWorkspaceItem {
   properties?: Record<string, any>;
 }
 
+function normId(id: string): string {
+  if (!id) return '';
+  return id.replace(/-/g, '').toLowerCase();
+}
+
 function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<string, NotionWorkspaceItem>): string {
   if (!Array.isArray(richTextArray) || richTextArray.length === 0) return '';
 
@@ -25,7 +30,7 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
     let plain = t.plain_text || '';
 
     if (t.type === 'mention' && t.mention?.type === 'page' && t.mention.page?.id) {
-      const pageId = t.mention.page.id;
+      const pageId = normId(t.mention.page.id);
       const targetItem = itemMap?.get(pageId);
       const title = targetItem ? targetItem.title : plain || 'Notion-Seite';
       return `[[${title}]]`;
@@ -35,7 +40,8 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
       if (t.href.startsWith('http://') || t.href.startsWith('https://')) {
         plain = `[${plain}](${t.href})`;
       } else if (t.href.startsWith('/')) {
-        const targetId = t.href.split('/').pop()?.split('#')[0] || '';
+        const rawTargetId = t.href.split('/').pop()?.split('#')[0] || '';
+        const targetId = normId(rawTargetId);
         const targetItem = itemMap?.get(targetId);
         if (targetItem) plain = `[[${targetItem.title}]]`;
       }
@@ -129,7 +135,7 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
       if (Array.isArray(pVal.relation) && pVal.relation.length > 0) {
         const relLinks: string[] = [];
         for (const rItem of pVal.relation) {
-          const targetObj = itemMap?.get(rItem.id);
+          const targetObj = itemMap?.get(normId(rItem.id));
           if (targetObj && targetObj.title) {
             relLinks.push(`[[${targetObj.title}]]`);
           }
@@ -250,7 +256,7 @@ export class NotionFileImporter implements ImportSource {
             try { await opts.vaultAdapter.createFolder(folderPart); } catch { /* ignore existing dir */ }
           }
           const baseConfig = {
-            filters: { and: [{ field: 'file.folder', operator: 'includes', value: page.title }] },
+            filters: { and: [`file.folder == "${page.title}"`] },
             columns: {},
             views: [{ type: 'table', name: 'Tabelle', order: ['file.name'] }],
           };
@@ -399,18 +405,18 @@ export class NotionApiImporter implements ImportSource {
   }
 
   private buildFolderPath(itemId: string, itemMap: Map<string, NotionWorkspaceItem>): string {
-    const item = itemMap.get(itemId);
+    const item = itemMap.get(normId(itemId));
     if (!item || !item.parentId || !item.parentType) return '';
 
-    if (item.parentType === 'page_id' && itemMap.has(item.parentId)) {
-      const parentObj = itemMap.get(item.parentId)!;
+    if (item.parentType === 'page_id' && itemMap.has(normId(item.parentId))) {
+      const parentObj = itemMap.get(normId(item.parentId))!;
       const safeParentTitle = parentObj.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
       const parentDir = this.buildFolderPath(item.parentId, itemMap);
       return parentDir ? `${parentDir}/${safeParentTitle}` : safeParentTitle;
     }
 
-    if (item.parentType === 'database_id' && itemMap.has(item.parentId)) {
-      const parentDb = itemMap.get(item.parentId)!;
+    if (item.parentType === 'database_id' && itemMap.has(normId(item.parentId))) {
+      const parentDb = itemMap.get(normId(item.parentId))!;
       const safeDbTitle = parentDb.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
       const parentDir = this.buildFolderPath(item.parentId, itemMap);
       return parentDir ? `${parentDir}/${safeDbTitle}` : safeDbTitle;
@@ -513,9 +519,10 @@ export class NotionApiImporter implements ImportSource {
           }
           case 'child_database': {
             let dbTitle = info.title;
+            const nid = normId(block.id);
             if (!dbTitle || dbTitle.toLowerCase() === 'untitled') {
-              if (itemMap?.has(block.id)) {
-                dbTitle = itemMap.get(block.id)!.title;
+              if (itemMap?.has(nid)) {
+                dbTitle = itemMap.get(nid)!.title;
               }
             }
             dbTitle = (dbTitle || 'Datenbank').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
@@ -524,7 +531,8 @@ export class NotionApiImporter implements ImportSource {
           }
           case 'link_to_page': {
             const linkType = info.type || (info.database_id ? 'database_id' : 'page_id');
-            const targetId = info.page_id || info.database_id || info[linkType];
+            const rawTargetId = info.page_id || info.database_id || info[linkType];
+            const targetId = normId(rawTargetId);
             const targetObj = itemMap?.get(targetId);
 
             if (targetObj) {
@@ -533,8 +541,8 @@ export class NotionApiImporter implements ImportSource {
               } else {
                 lines.push(`🔗 [[${targetObj.title}]]`);
               }
-            } else if (targetId) {
-              lines.push(`🔗 [[${targetId}]]`);
+            } else if (rawTargetId) {
+              lines.push(`🔗 [[${rawTargetId}]]`);
             }
             break;
           }
@@ -606,7 +614,7 @@ export class NotionApiImporter implements ImportSource {
 
     const itemMap = new Map<string, NotionWorkspaceItem>();
     for (const item of items) {
-      itemMap.set(item.id, item);
+      itemMap.set(normId(item.id), item);
     }
 
     // PASS 1: Pre-fetch all database rows and register every row ID -> title in itemMap
@@ -629,7 +637,7 @@ export class NotionApiImporter implements ImportSource {
             }
           }
           if (!rowTitle) rowTitle = `Eintrag_${row.id.slice(0, 6)}`;
-          itemMap.set(row.id, {
+          itemMap.set(normId(row.id), {
             id: row.id,
             title: rowTitle,
             type: 'page',
@@ -688,7 +696,7 @@ export class NotionApiImporter implements ImportSource {
           }
 
           const baseConfig = {
-            filters: { and: [{ field: 'file.folder', operator: 'includes', value: safeTitle }] },
+            filters: { and: [`file.folder == "${dbFolderPath}"`] },
             columns: columnsConfig,
             views: [{ type: 'table', name: 'Tabelle', order: columnOrder }],
           };
