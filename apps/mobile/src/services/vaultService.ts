@@ -36,7 +36,7 @@ import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from 
 import { clearMobileSyncState } from "./mobileSettingsSync";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
-import { getMobileSettings } from "./mobileSettings";
+import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   applyTemplatePlaceholders,
@@ -139,6 +139,10 @@ export async function switchVault(id: string): Promise<void> {
   // writing must finish before dispose() closes the per-vault database.
   await stopSyncAndDrain();
   await setActiveVault(id);
+  // Swap the per-vault settings slice (folders, backup retention) to the new
+  // vault BEFORE the next boot reads the backup policy / screens re-read
+  // getMobileSettings() on the event below (package A vault isolation).
+  await reloadMobileSettingsForActiveVault();
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));

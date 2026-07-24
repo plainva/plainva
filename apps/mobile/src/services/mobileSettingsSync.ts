@@ -22,7 +22,7 @@ import {
 } from "@plainva/core";
 import { getPlatformServices, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
+import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 
@@ -148,7 +148,7 @@ export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none"
 function profilePort(vaultId: string) {
   return {
     async exportValues(): Promise<Record<string, unknown>> {
-      const s = getMobileSettings();
+      const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
       return {
         ...unknown,
@@ -161,7 +161,7 @@ function profilePort(vaultId: string) {
       };
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
-      const patch: Record<string, unknown> = {};
+      const patch: Partial<VaultSettings> = {};
       if (typeof values.dailyNotesFolder === "string" && !values.dailyNotesFolder.startsWith("/")) patch.dailyFolder = values.dailyNotesFolder;
       if (typeof values.dailyNoteTemplate === "string" && !values.dailyNoteTemplate.startsWith("/")) patch.dailyTemplate = values.dailyNoteTemplate;
       if (typeof values.templateFolder === "string" && !values.templateFolder.startsWith("/")) patch.templateFolder = values.templateFolder;
@@ -173,7 +173,7 @@ function profilePort(vaultId: string) {
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
       await store.save();
-      await updateMobileSettings(patch);
+      await applyVaultSettings(vaultId, patch);
     },
   };
 }

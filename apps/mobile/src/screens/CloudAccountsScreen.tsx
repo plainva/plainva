@@ -3,17 +3,17 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
 import { familyOfCalDavUrl } from "@plainva/ui";
-import { listVaults, type VaultEntry } from "../services/vaultRegistry";
+import { getActiveVaultEntry, type VaultEntry } from "../services/vaultRegistry";
 import { listPimAccounts } from "../services/pim/pimService";
 
 /**
- * Mobile Cloud-Konten overview (cloud-accounts plan, P4): ONE list of every
- * cloud sign-in this device carries — DERIVED from the existing stores, like
- * the desktop registry. Files connections are vault containers (the mobile
- * isolation model), so each provider vault appears as an account row that
- * leads into its vault detail; the active vault's calendar accounts lead into
- * the existing PIM accounts screen. Mail does not exist on mobile yet, so no
- * mail rows appear (mockup rule: only chosen services are visible).
+ * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
+ * cloud accounts (package A / E1) — DERIVED from the existing stores, like the
+ * desktop per-vault registry. The active vault's files connection appears as
+ * an account row leading into its vault detail; its calendar accounts lead
+ * into the existing PIM accounts screen. Device-wide vault switching lives in
+ * the Vaults screen, not here. Mail does not exist on mobile yet, so no mail
+ * rows appear (mockup rule: only chosen services are visible).
  */
 
 /** Desktop AccountMark's family → chip-pair mapping, mirrored as m- classes. */
@@ -89,8 +89,11 @@ export function CloudAccountsScreen({
   const [pimAccounts, setPimAccounts] = useState<PimAccountRow[]>([]);
 
   const reload = useCallback(() => {
-    void listVaults()
-      .then((vs) => setFileVaults(vs.filter((v) => !!v.provider)))
+    // Only the ACTIVE vault's cloud connection (package A / E1) — device-wide
+    // switching lives in the Vaults screen. Symmetric with the calendar rows
+    // below (active-vault only) and the desktop per-vault registry.
+    void getActiveVaultEntry()
+      .then((entry) => setFileVaults(entry.provider ? [entry] : []))
       .catch(() => setFileVaults([]));
     void listPimAccounts()
       .then(setPimAccounts)
