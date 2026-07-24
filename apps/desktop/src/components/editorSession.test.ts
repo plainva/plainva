@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 vi.mock("../services/CredentialManager", () => ({ credentialManager: {} }));
 
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
+import { EditorView } from "@codemirror/view";
 import { undoDepth } from "@codemirror/commands";
 import type { i18n as I18nInstance } from "i18next";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
@@ -133,6 +134,28 @@ describe("editorSession", () => {
     expect(content.getAttribute("autocorrect")).toBe("off");
     expect(content.getAttribute("autocapitalize")).toBe("off");
     expect(session.view.dom.querySelector(".cm-selectionLayer")).not.toBeNull();
+  });
+
+  it("touch read mode stays selectable without a keyboard, edit restores input (C, 2026-07-24)", () => {
+    const { session } = makeSession("live", DOC, false, true);
+    const content = session.view.contentDOM;
+    // Read: contenteditable ON (native selection) but read-only + inputmode
+    // "none" — nothing editable and the virtual keyboard stays down.
+    expect(session.view.state.facet(EditorView.editable)).toBe(true);
+    expect(session.view.state.readOnly).toBe(true);
+    expect(content.getAttribute("inputmode")).toBe("none");
+    // Edit restores input: still editable, writable, keyboard back.
+    session.setEditable(true);
+    expect(session.view.state.facet(EditorView.editable)).toBe(true);
+    expect(session.view.state.readOnly).toBe(false);
+    expect(content.getAttribute("inputmode")).not.toBe("none");
+  });
+
+  it("off-touch read mode flips the editable facet directly (desktop unchanged)", () => {
+    const { session } = makeSession("live", DOC, false, false);
+    expect(session.view.state.facet(EditorView.editable)).toBe(false);
+    expect(session.view.state.readOnly).toBe(true);
+    expect(session.view.contentDOM.getAttribute("inputmode")).not.toBe("none");
   });
 
   it("keeps the parsed syntax tree across a live→source→live switch", () => {

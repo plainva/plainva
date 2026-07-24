@@ -145,10 +145,15 @@ export interface EditorSessionConfig {
   headerAddActions?: boolean;
   deps: { readonly current: EditorSessionDeps };
   /**
-   * Read-only sessions (mobile read-first mode) start with `editable: false`.
-   * This drives CodeMirror's own `EditorView.editable` facet — flipping the
-   * raw contenteditable attribute is NOT enough, CM rewrites it on the next
-   * update and the keyboard comes back (mobile finding, 2026-07-11).
+   * Start read-only (mobile read-first mode). Drives CodeMirror's own facets,
+   * never the raw contenteditable attribute (CM rewrites that on the next
+   * update and the keyboard comes back — mobile finding, 2026-07-11).
+   *
+   * On the touch profile read mode keeps contenteditable ON so the WebView
+   * paints a native, extendable text selection (copy from read mode), but sets
+   * `EditorState.readOnly` + `inputmode="none"` — nothing is editable and the
+   * virtual keyboard stays down. Off-touch it flips `EditorView.editable`
+   * directly (desktop read is a separate MarkdownReader, not this session).
    */
   editable?: boolean;
   /**
@@ -195,10 +200,17 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
   const editableComp = new Compartment();
-  const editableExtensions = (on: boolean): Extension => [
-    EditorView.editable.of(on),
-    EditorState.readOnly.of(!on),
-  ];
+  // Touch read mode keeps the contentDOM editable (so the WebView paints a
+  // native, extendable selection) but read-only + inputmode="none" — no edits,
+  // no virtual keyboard. Off-touch flips EditorView.editable directly.
+  const editableExtensions = (on: boolean): Extension =>
+    cfg.touchInput
+      ? [
+          EditorView.editable.of(true),
+          EditorState.readOnly.of(!on),
+          EditorView.contentAttributes.of(on ? {} : { inputmode: "none" }),
+        ]
+      : [EditorView.editable.of(on), EditorState.readOnly.of(!on)];
 
   // Stable container for the embed widgets. `vaultContext` is a getter so a
   // widget built later sees the CURRENT services (the old host handed the

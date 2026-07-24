@@ -1,6 +1,7 @@
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { listBlocks, blockAt, type DocBlock } from "./blockModel";
+import { isEditorInteractive } from "./editorInteractive";
 
 // Notion-style block handles (#7). A "⠿" grip is shown just left of each block —
 // anchored to the TEXT COLUMN (not a far-left gutter), so it stays next to the
@@ -14,8 +15,10 @@ import { listBlocks, blockAt, type DocBlock } from "./blockModel";
 // touch — the previous mouse-only listeners left the grips purely decorative
 // on mobile (finding 2026-07-11, R1.2).
 //
-// Handles only exist while the editor is user-editable (EditorView.editable):
-// the mobile read-first mode keeps the reading surface calm (E3).
+// Handles only exist while the editor is genuinely editable — contenteditable
+// AND not read-only (isEditorInteractive). The touch read mode keeps
+// contenteditable ON for native selection but sets readOnly, so no grips there
+// (reading surface calm, E3).
 
 const GRIP_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">' +
@@ -117,7 +120,7 @@ class BlockHandlesView {
     this.layer = document.createElement("div");
     this.layer.className = "cm-block-handle-layer";
     this.layer.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;pointer-events:none;z-index:var(--z-popover);";
-    if (!view.state.facet(EditorView.editable)) this.layer.style.display = "none";
+    if (!isEditorInteractive(view.state)) this.layer.style.display = "none";
     view.dom.appendChild(this.layer);
     view.scrollDOM.addEventListener("scroll", this.onScroll, { passive: true });
     this.schedule();
@@ -128,20 +131,19 @@ class BlockHandlesView {
   update(u: ViewUpdate) {
     // Also re-measure on async parse progress: listBlocks() reads the syntax
     // tree, so grips computed from a stale tree would sit at pre-reflow
-    // positions until the next edit/scroll (Jitter, P5). An editable-facet
+    // positions until the next edit/scroll (Jitter, P5). An interactivity
     // flip (mobile read/edit toggle) shows/hides the grips — the layer hides
     // immediately, the re-measure refreshes positions.
-    const editableChanged =
-      u.state.facet(EditorView.editable) !== u.startState.facet(EditorView.editable);
-    if (editableChanged) {
-      this.layer.style.display = u.state.facet(EditorView.editable) ? "" : "none";
+    const interactiveChanged = isEditorInteractive(u.state) !== isEditorInteractive(u.startState);
+    if (interactiveChanged) {
+      this.layer.style.display = isEditorInteractive(u.state) ? "" : "none";
     }
     if (
       u.docChanged ||
       u.viewportChanged ||
       u.geometryChanged ||
       syntaxTree(u.startState) !== syntaxTree(u.state) ||
-      editableChanged
+      interactiveChanged
     ) {
       this.schedule();
     }
@@ -157,7 +159,7 @@ class BlockHandlesView {
   private measure(): HandlePos[] {
     const view = this.view;
     // Read-only sessions (mobile read-first) show no grips at all (E3).
-    if (!view.state.facet(EditorView.editable)) return [];
+    if (!isEditorInteractive(view.state)) return [];
     let blocks: DocBlock[];
     try { blocks = listBlocks(view.state); } catch { return []; }
     const { from: vpFrom, to: vpTo } = view.viewport;

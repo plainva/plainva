@@ -4,6 +4,7 @@ import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
 import { isWikiTargetResolved } from "../lib/wikiResolver";
+import { isEditorInteractive } from "./editorInteractive";
 import i18n from "../i18n";
 
 // Resolver set of existing wiki targets (lowercased titles + paths), pushed in
@@ -132,13 +133,13 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
         // with the old line-level check, links never unfolded under the
         // keyboard caret (maintainer report 2026-07-06). Scans only the
         // visible ranges; same convention as the markdown decoration plugin.
-        const editableNow = update.state.facet(EditorView.editable);
+        const interactiveNow = isEditorInteractive(update.state);
         // Also rebuild when the resolver set arrives/changes so unresolved links
         // (re)style after the index loads or a target note gets created.
         const resolverChanged = update.startState.field(wikiResolverField, false) !== update.state.field(wikiResolverField, false);
         const needsRebuild = update.docChanged || update.viewportChanged || resolverChanged
-          || (update.selectionSet && hideSyntax && editableNow)
-          || update.startState.facet(EditorView.editable) !== editableNow;
+          || (update.selectionSet && hideSyntax && interactiveNow)
+          || isEditorInteractive(update.startState) !== interactiveNow;
         if (needsRebuild) {
           this.decorations = this.buildDecorations(update.view);
         }
@@ -147,10 +148,10 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
       buildDecorations(view: EditorView) {
         const builder = new RangeSetBuilder<Decoration>();
         const selection = view.state.selection;
-        // Reveal raw link syntax at the selection only while editable. On mobile
-        // the live preview is also read mode (editable off): selecting a link
-        // there keeps it rendered instead of popping [[...]] (maintainer).
-        const editable = view.state.facet(EditorView.editable);
+        // Reveal raw link syntax at the selection only while editing. On mobile
+        // the live preview is also read mode (editable but read-only): selecting
+        // a link there keeps it rendered instead of popping [[...]] (maintainer).
+        const editable = isEditorInteractive(view.state);
         // Resolver set (existing targets); a wiki link missing from it renders
         // "unresolved" (Obsidian parity). null until the index has loaded.
         const resolver = view.state.field(wikiResolverField, false) ?? null;
@@ -351,7 +352,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
       },
       touchend: (event, view) => {
         // Edit mode: a tap places the cursor; only the read-only view navigates.
-        if (view.state.facet(EditorView.editable)) return false;
+        if (isEditorInteractive(view.state)) return false;
         const start = touchTapStart.get(view);
         touchTapStart.delete(view);
         const end = event.changedTouches[0];
@@ -379,7 +380,7 @@ export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) =
       // primary handlers were unreachable for this tap (no recent pointer
       // event); lastLinkNav guards the same-target re-fire on top of that.
       click: (event, view) => {
-        if (view.state.facet(EditorView.editable)) return false;
+        if (isEditorInteractive(view.state)) return false;
         const seen = lastPointerEvent.get(view);
         if (seen !== undefined && event.timeStamp - seen < 1500) return false; // normal pipeline handled this tap
         if (openLinkFromEl(event.target, view, false, onOpenPath, event.timeStamp)

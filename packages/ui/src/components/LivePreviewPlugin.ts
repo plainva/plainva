@@ -5,6 +5,7 @@ import { parseCalloutMarker, calloutColorKey, calloutColor, calloutIconPath } fr
 import { parseMarkdownTable, serializeTable, setCell, type TableModel, type TableAlign } from "./tableModel";
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
+import { isEditorInteractive } from "./editorInteractive";
 import i18n from "../i18n";
 
 const HIDE = Decoration.replace({});
@@ -291,7 +292,7 @@ class TableWidget extends WidgetType {
         if (e.button !== 0) return; // left button only; right opens the menu
         // Read-only (mobile read mode): a cell tap must not open the editor —
         // the cell's own links (they stopPropagation) still handle their taps.
-        if (!view.state.facet(EditorView.editable)) return;
+        if (!isEditorInteractive(view.state)) return;
         e.preventDefault();
         e.stopPropagation();
         openCellEditor(cell, kind, rowIndex, colIndex);
@@ -430,14 +431,15 @@ export function markdownDecorationPlugin(isLive: boolean) {
           || syntaxTree(update.startState) !== syntaxTree(update.state);
         // Live mode reveals only the span under the cursor, so any caret move
         // (even within a line) must rebuild the decorations — but only while the
-        // editor is EDITABLE. On mobile the live preview is also the read mode
-        // (editable off); a selection there must not pop raw syntax, so no rebuild.
-        const editableNow = update.state.facet(EditorView.editable);
-        if (!needsRebuild && update.selectionSet && isLive && editableNow) {
+        // editor is genuinely EDITING. On mobile the live preview is also the
+        // read mode (editable but read-only); a selection there must not pop raw
+        // syntax, so no rebuild.
+        const interactiveNow = isEditorInteractive(update.state);
+        if (!needsRebuild && update.selectionSet && isLive && interactiveNow) {
           needsRebuild = true;
         }
-        // Toggling read <-> edit (editable) must rebuild so the reveal follows.
-        if (update.startState.facet(EditorView.editable) !== editableNow) {
+        // Toggling read <-> edit must rebuild so the reveal follows.
+        if (isEditorInteractive(update.startState) !== interactiveNow) {
           needsRebuild = true;
         }
         if (needsRebuild) {
@@ -451,10 +453,10 @@ export function markdownDecorationPlugin(isLive: boolean) {
           const tree = syntaxTree(state);
 
           // Lines that contain the cursor/selection — in live mode we keep their
-          // raw markdown visible so the user can edit it, but ONLY when editable.
-          // On mobile the live preview is also the read mode (editable off):
-          // selecting text there must keep the rendered form, not the raw markers.
-          const revealRaw = isLive && state.facet(EditorView.editable);
+          // raw markdown visible so the user can edit it, but ONLY while editing.
+          // On mobile the live preview is also the read mode (editable but
+          // read-only): selecting text there keeps the rendered form, not raw markers.
+          const revealRaw = isLive && isEditorInteractive(state);
           const activeLines = revealRaw ? activeLineSet(state) : new Set<number>();
           // True when the selection touches [from, to] — used for "notion" token
           // reveal; also gated on editable so read-mode selection reveals nothing.
