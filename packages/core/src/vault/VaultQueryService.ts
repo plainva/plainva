@@ -811,8 +811,8 @@ export class VaultQueryService {
     for (const row of rows) {
       const props = propsByFileId[row.id] || {};
       const fileData: Record<string, any> = {
-        "file.name": row.title || row.path.split(/[/\\]/).pop()?.replace(/\.md$/i, ''),
-        "file.path": row.path,
+        "file.name": row.title || (row.path ? row.path.split(/[/\\]/).pop()?.replace(/\.md$/i, '') : ""),
+        "file.path": row.path || "",
         "file.mtime": row.mtime_local,
         "file.size": row.size_bytes,
         ...props
