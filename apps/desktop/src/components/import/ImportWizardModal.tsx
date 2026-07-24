@@ -284,17 +284,15 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               ariaLabel="Quell-App auswählen"
               options={sources.map((s) => ({ value: s.id, label: s.name }))}
             />
-            <div style={{
-              fontSize: 'var(--pv-font-size-xs)',
-              color: 'var(--pv-text-muted)',
+            <p style={{
+              fontSize: 'var(--pv-font-size-xs, 12px)',
+              color: 'var(--pv-text-muted, var(--text-muted))',
               marginTop: 'var(--pv-space-2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--pv-space-2)'
+              marginBottom: 0,
+              lineHeight: '1.4'
             }}>
-              <Info size={ICON.ui} style={{ flexShrink: 0 }} />
-              <span>{getSourceHint(selectedSourceId)}</span>
-            </div>
+              {getSourceHint(selectedSourceId)}
+            </p>
           </div>
 
           {selectedSourceId === 'notion_api' ? (
