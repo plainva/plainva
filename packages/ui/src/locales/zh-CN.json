@@ -2123,6 +2123,7 @@
     "rsvpSent": "回复已发送",
     "today": "今天",
     "noAccountsMobile": "尚未连接任何日历账户。",
+    "perDeviceHint": "登录按设备分别进行：出于安全考虑，凭据不会同步——请在每台设备上分别登录一次。",
     "connectAccount": "连接账户",
     "connectGoogle": "连接 Google",
     "connectMicrosoft": "连接 Microsoft",

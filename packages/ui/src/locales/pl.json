@@ -2141,6 +2141,7 @@
     "rsvpSent": "Odpowiedź wysłana",
     "today": "Dziś",
     "noAccountsMobile": "Nie połączono jeszcze żadnych kont kalendarza.",
+    "perDeviceHint": "Logowania obowiązują osobno dla każdego urządzenia: ze względów bezpieczeństwa dane logowania nie są synchronizowane — zaloguj się raz na każdym urządzeniu.",
     "connectAccount": "Połącz konto",
     "connectGoogle": "Połącz z Google",
     "connectMicrosoft": "Połącz z Microsoft",

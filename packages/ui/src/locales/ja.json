@@ -2123,6 +2123,7 @@
     "rsvpSent": "返答を送信しました",
     "today": "今日",
     "noAccountsMobile": "まだカレンダーアカウントが接続されていません。",
+    "perDeviceHint": "サインインはデバイスごとです。安全のため認証情報は同期されません。各デバイスで一度サインインしてください。",
     "connectAccount": "アカウントを接続",
     "connectGoogle": "Google と連携",
     "connectMicrosoft": "Microsoft と連携",

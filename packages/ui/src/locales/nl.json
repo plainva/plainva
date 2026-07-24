@@ -2129,6 +2129,7 @@
     "rsvpSent": "Reactie verzonden",
     "today": "Vandaag",
     "noAccountsMobile": "Nog geen agenda-accounts verbonden.",
+    "perDeviceHint": "Aanmeldingen gelden per apparaat: uit veiligheidsoverwegingen worden inloggegevens nooit gesynchroniseerd — meld je op elk apparaat één keer aan.",
     "connectAccount": "Account verbinden",
     "connectGoogle": "Verbinden met Google",
     "connectMicrosoft": "Verbinden met Microsoft",

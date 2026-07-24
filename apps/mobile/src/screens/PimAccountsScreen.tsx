@@ -14,11 +14,11 @@ import {
 import { beginPimOAuth } from "../services/pim/pimOAuth";
 
 /**
- * Mobile PIM calendar accounts (calendar-mobile branch). CalDAV connects with
- * an app-password on-device (the first device-testable path — no OAuth); its
- * calendars auto-sync (default selected). Google/Microsoft need native OAuth
- * roundtrips (prepared in pimAuth/pimService, wired when the sync OAuth flow is
- * extended) — shown as a hint here, not a broken button.
+ * Mobile PIM calendar accounts. All three providers connect on-device: CalDAV
+ * with an app password, Google (BYO client id) and Microsoft (central app id)
+ * via the system-browser OAuth flow (beginPimOAuth → handlePimOAuthRedirect).
+ * Credentials live in the per-vault SecureStore and are never synced, so every
+ * device signs in once (package D — the per-device hint below).
  */
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
@@ -132,6 +132,9 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
       </header>
 
       <div className="m-sync">
+        {/* Per-device sign-in (package D): app settings sync, but credentials
+            never do — this answers "settings synced yet no calendar login". */}
+        <p className="m-hint">{t("pim.perDeviceHint")}</p>
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (

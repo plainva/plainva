@@ -2129,6 +2129,7 @@
     "rsvpSent": "Response sent",
     "today": "Today",
     "noAccountsMobile": "No calendar account connected yet.",
+    "perDeviceHint": "Sign-ins are per device: for security, credentials are never synced — sign in once on each device.",
     "connectAccount": "Connect account",
     "connectGoogle": "Connect with Google",
     "connectMicrosoft": "Connect with Microsoft",

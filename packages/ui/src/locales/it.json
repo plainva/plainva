@@ -2135,6 +2135,7 @@
     "rsvpSent": "Risposta inviata",
     "today": "Oggi",
     "noAccountsMobile": "Nessun account calendario collegato.",
+    "perDeviceHint": "Gli accessi sono per dispositivo: per sicurezza le credenziali non vengono mai sincronizzate — accedi una volta su ogni dispositivo.",
     "connectAccount": "Collega account",
     "connectGoogle": "Connetti con Google",
     "connectMicrosoft": "Connetti con Microsoft",

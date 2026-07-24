@@ -618,7 +618,9 @@ export default function App() {
                   ? push({ kind: "cloudaccounts", path: "" })
                   : id === "sync"
                     ? push({ kind: "vault", path: vault.vaultId })
-                    : push({ kind: "settingsArea", path: id })
+                    : id === "pim"
+                      ? push({ kind: "pimaccounts", path: "" })
+                      : push({ kind: "settingsArea", path: id })
             }
             onOpenVaults={() => push({ kind: "vaults", path: "" })}
           />

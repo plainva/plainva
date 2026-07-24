@@ -2129,6 +2129,7 @@
     "rsvpSent": "Antwort gesendet",
     "today": "Heute",
     "noAccountsMobile": "Noch kein Kalenderkonto verbunden.",
+    "perDeviceHint": "Anmeldungen gelten pro Gerät: Aus Sicherheitsgründen werden Zugangsdaten nicht synchronisiert — melde Dich auf jedem Gerät einmal an.",
     "connectAccount": "Konto verbinden",
     "connectGoogle": "Mit Google verbinden",
     "connectMicrosoft": "Mit Microsoft verbinden",
