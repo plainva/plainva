@@ -58,8 +58,8 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
   const type = pVal.type;
   switch (type) {
     case 'title':
-      if (Array.isArray(pVal.title) && pVal.title[0]?.plain_text) {
-        return pVal.title[0].plain_text;
+      if (Array.isArray(pVal.title) && pVal.title.length > 0) {
+        return pVal.title.map((t: any) => t.plain_text || '').join('');
       }
       return undefined;
     case 'select':
@@ -82,7 +82,11 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
       }
       return undefined;
     case 'date':
-      return pVal.date?.start ?? undefined;
+      if (!pVal.date) return undefined;
+      if (pVal.date.start && pVal.date.end) {
+        return `${pVal.date.start} -> ${pVal.date.end}`;
+      }
+      return pVal.date.start ?? undefined;
     case 'number':
       return pVal.number ?? undefined;
     case 'checkbox':
@@ -93,6 +97,12 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
       return pVal.email ?? undefined;
     case 'phone_number':
       return pVal.phone_number ?? undefined;
+    case 'unique_id':
+      if (pVal.unique_id) {
+        const pfx = pVal.unique_id.prefix ? `${pVal.unique_id.prefix}-` : '';
+        return `${pfx}${pVal.unique_id.number}`;
+      }
+      return undefined;
     case 'files':
       if (Array.isArray(pVal.files)) {
         return pVal.files.map((f: any) => f.name || f.file?.url || f.external?.url).filter(Boolean).join(', ');
@@ -101,14 +111,14 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
     case 'formula': {
       const f = pVal.formula;
       if (!f) return undefined;
-      return f.string ?? f.number ?? f.boolean ?? f.date?.start ?? undefined;
+      return f.string ?? f.number ?? f.boolean ?? (f.date?.start ? (f.date.end ? `${f.date.start} -> ${f.date.end}` : f.date.start) : undefined);
     }
     case 'rollup': {
       const r = pVal.rollup;
       if (!r) return undefined;
       if (r.number !== undefined) return r.number;
       if (r.string !== undefined) return r.string;
-      if (r.date?.start) return r.date.start;
+      if (r.date?.start) return r.date.end ? `${r.date.start} -> ${r.date.end}` : r.date.start;
       if (Array.isArray(r.array)) {
         const extracted = r.array.map((item: any) => extractNotionPropertyValue(item, itemMap)).filter(Boolean);
         return extracted.join(', ');
@@ -120,20 +130,20 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
         const relLinks: string[] = [];
         for (const rItem of pVal.relation) {
           const targetObj = itemMap?.get(rItem.id);
-          if (targetObj) {
+          if (targetObj && targetObj.title) {
             relLinks.push(`[[${targetObj.title}]]`);
-          } else {
-            relLinks.push(`[[${rItem.id}]]`);
           }
         }
-        return relLinks.length === 1 ? relLinks[0] : relLinks;
+        if (relLinks.length > 0) {
+          return relLinks.length === 1 ? relLinks[0] : relLinks;
+        }
       }
       return undefined;
     }
     case 'created_time': return pVal.created_time ?? undefined;
-    case 'created_by': return pVal.created_by?.name ?? undefined;
+    case 'created_by': return pVal.created_by?.name || pVal.created_by?.id || undefined;
     case 'last_edited_time': return pVal.last_edited_time ?? undefined;
-    case 'last_edited_by': return pVal.last_edited_by?.name ?? undefined;
+    case 'last_edited_by': return pVal.last_edited_by?.name || pVal.last_edited_by?.id || undefined;
     default:
       return undefined;
   }
@@ -350,14 +360,14 @@ export class NotionApiImporter implements ImportSource {
           if (item.properties) {
             for (const key of Object.keys(item.properties)) {
               const prop = item.properties[key];
-              if (prop?.type === 'title' && Array.isArray(prop.title) && prop.title[0]?.plain_text) {
-                title = prop.title[0].plain_text;
-                break;
+              if (prop?.type === 'title' && Array.isArray(prop.title) && prop.title.length > 0) {
+                title = prop.title.map((t: any) => t.plain_text || '').join('');
+                if (title) break;
               }
             }
           }
-          if (!title && item.title && Array.isArray(item.title) && item.title[0]?.plain_text) {
-            title = item.title[0].plain_text;
+          if (!title && item.title && Array.isArray(item.title) && item.title.length > 0) {
+            title = item.title.map((t: any) => t.plain_text || '').join('');
           }
 
           let parentId: string | undefined;
@@ -502,7 +512,11 @@ export class NotionApiImporter implements ImportSource {
             break;
           }
           case 'child_database': {
-            const dbTitle = info.title || 'Datenbank';
+            let dbTitle = info.title;
+            if (!dbTitle && itemMap?.has(block.id)) {
+              dbTitle = itemMap.get(block.id)!.title;
+            }
+            dbTitle = (dbTitle || 'Datenbank').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
             lines.push(`📊 [[${dbTitle}.base]]`);
             break;
           }
@@ -583,6 +597,38 @@ export class NotionApiImporter implements ImportSource {
       itemMap.set(item.id, item);
     }
 
+    // PASS 1: Pre-fetch all database rows and register every row ID -> title in itemMap
+    const cachedDbRows = new Map<string, any[]>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type === 'database') {
+        if (onProgress) onProgress(15 + Math.round((i / items.length) * 20), `Indiziere Datenbank ${item.title}...`);
+        const dbRows = await this.fetchDatabaseRows(item.id, token, fetchFn);
+        cachedDbRows.set(item.id, dbRows);
+
+        for (const row of dbRows) {
+          let rowTitle = '';
+          if (row.properties) {
+            for (const [_pKey, pVal] of Object.entries(row.properties as Record<string, any>)) {
+              if (pVal.type === 'title' && Array.isArray(pVal.title) && pVal.title.length > 0) {
+                rowTitle = pVal.title.map((t: any) => t.plain_text || '').join('');
+                if (rowTitle) break;
+              }
+            }
+          }
+          if (!rowTitle) rowTitle = `Eintrag_${row.id.slice(0, 6)}`;
+          itemMap.set(row.id, {
+            id: row.id,
+            title: rowTitle,
+            type: 'page',
+            parentId: item.id,
+            parentType: 'database_id',
+          });
+        }
+      }
+    }
+
+    // PASS 2: Execution & Writing files
     const reportItems: ImportReport['items'] = [];
     let importedNotes = 0;
     let importedDatabases = 0;
@@ -637,15 +683,16 @@ export class NotionApiImporter implements ImportSource {
 
           await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
 
-          const dbRows = await this.fetchDatabaseRows(item.id, token, fetchFn);
+          const dbRows = cachedDbRows.get(item.id) || await this.fetchDatabaseRows(item.id, token, fetchFn);
           for (const row of dbRows) {
             let rowTitle = 'Eintrag';
             const rowFrontmatter: Record<string, any> = {};
 
             if (row.properties) {
               for (const [pKey, pVal] of Object.entries(row.properties as Record<string, any>)) {
-                if (pVal.type === 'title' && Array.isArray(pVal.title) && pVal.title[0]?.plain_text) {
-                  rowTitle = pVal.title[0].plain_text;
+                if (pVal.type === 'title' && Array.isArray(pVal.title) && pVal.title.length > 0) {
+                  const tStr = pVal.title.map((t: any) => t.plain_text || '').join('');
+                  if (tStr) rowTitle = tStr;
                 } else {
                   const val = extractNotionPropertyValue(pVal, itemMap);
                   if (val !== undefined) {
@@ -684,7 +731,7 @@ export class NotionApiImporter implements ImportSource {
       }
 
       if (onProgress) {
-        onProgress(Math.round(((i + 1) / items.length) * 100), `Importiere ${safeTitle}...`);
+        onProgress(35 + Math.round(((i + 1) / items.length) * 65), `Importiere ${safeTitle}...`);
       }
     }
 
