@@ -445,6 +445,7 @@ export class NotionApiImporter implements ImportSource {
               else if (pType === 'checkbox') schemaType = 'checkbox';
               else if (pType === 'url') schemaType = 'url';
               else if (pType === 'email') schemaType = 'email';
+              else if (pType === 'relation') schemaType = 'relation';
 
               schemaProperties.push({ id: propName, name: propName, type: schemaType, options });
             }
@@ -471,6 +472,17 @@ export class NotionApiImporter implements ImportSource {
                   rowFrontmatter[pKey] = pVal.checkbox;
                 } else if (pVal.type === 'number') {
                   rowFrontmatter[pKey] = pVal.number;
+                } else if (pVal.type === 'relation' && Array.isArray(pVal.relation)) {
+                  const relLinks: string[] = [];
+                  for (const rItem of pVal.relation) {
+                    const targetObj = itemMap.get(rItem.id);
+                    if (targetObj) {
+                      relLinks.push(`[[${targetObj.title}]]`);
+                    }
+                  }
+                  if (relLinks.length > 0) {
+                    rowFrontmatter[pKey] = relLinks;
+                  }
                 }
               }
             }
