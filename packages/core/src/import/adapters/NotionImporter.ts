@@ -52,6 +52,93 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
   }).join('');
 }
 
+function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorkspaceItem>): any {
+  if (!pVal || typeof pVal !== 'object') return undefined;
+
+  const type = pVal.type;
+  switch (type) {
+    case 'title':
+      if (Array.isArray(pVal.title) && pVal.title[0]?.plain_text) {
+        return pVal.title[0].plain_text;
+      }
+      return undefined;
+    case 'select':
+      return pVal.select?.name ?? undefined;
+    case 'status':
+      return pVal.status?.name ?? undefined;
+    case 'multi_select':
+      if (Array.isArray(pVal.multi_select)) {
+        return pVal.multi_select.map((m: any) => m.name).filter(Boolean);
+      }
+      return undefined;
+    case 'people':
+      if (Array.isArray(pVal.people)) {
+        return pVal.people.map((p: any) => p.name || p.id).filter(Boolean).join(', ');
+      }
+      return undefined;
+    case 'rich_text':
+      if (Array.isArray(pVal.rich_text)) {
+        return convertNotionRichTextToMarkdown(pVal.rich_text, itemMap);
+      }
+      return undefined;
+    case 'date':
+      return pVal.date?.start ?? undefined;
+    case 'number':
+      return pVal.number ?? undefined;
+    case 'checkbox':
+      return pVal.checkbox ?? false;
+    case 'url':
+      return pVal.url ?? undefined;
+    case 'email':
+      return pVal.email ?? undefined;
+    case 'phone_number':
+      return pVal.phone_number ?? undefined;
+    case 'files':
+      if (Array.isArray(pVal.files)) {
+        return pVal.files.map((f: any) => f.name || f.file?.url || f.external?.url).filter(Boolean).join(', ');
+      }
+      return undefined;
+    case 'formula': {
+      const f = pVal.formula;
+      if (!f) return undefined;
+      return f.string ?? f.number ?? f.boolean ?? f.date?.start ?? undefined;
+    }
+    case 'rollup': {
+      const r = pVal.rollup;
+      if (!r) return undefined;
+      if (r.number !== undefined) return r.number;
+      if (r.string !== undefined) return r.string;
+      if (r.date?.start) return r.date.start;
+      if (Array.isArray(r.array)) {
+        const extracted = r.array.map((item: any) => extractNotionPropertyValue(item, itemMap)).filter(Boolean);
+        return extracted.join(', ');
+      }
+      return undefined;
+    }
+    case 'relation': {
+      if (Array.isArray(pVal.relation) && pVal.relation.length > 0) {
+        const relLinks: string[] = [];
+        for (const rItem of pVal.relation) {
+          const targetObj = itemMap?.get(rItem.id);
+          if (targetObj) {
+            relLinks.push(`[[${targetObj.title}]]`);
+          } else {
+            relLinks.push(`[[${rItem.id}]]`);
+          }
+        }
+        return relLinks.length === 1 ? relLinks[0] : relLinks;
+      }
+      return undefined;
+    }
+    case 'created_time': return pVal.created_time ?? undefined;
+    case 'created_by': return pVal.created_by?.name ?? undefined;
+    case 'last_edited_time': return pVal.last_edited_time ?? undefined;
+    case 'last_edited_by': return pVal.last_edited_by?.name ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 export class NotionFileImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_file';
   readonly name = 'Notion (ZIP & Export)';
@@ -217,72 +304,82 @@ export class NotionApiImporter implements ImportSource {
     if (!token) return { items: [], error: 'Kein Integration Token angegeben.' };
 
     const fetchFn = opts?.httpFetch || globalThis.fetch;
+    const results: NotionWorkspaceItem[] = [];
+    let hasMore = true;
+    let startCursor: string | undefined;
 
     try {
-      const res = await fetchFn('https://api.notion.com/v1/search', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.trim()}`,
-          'Notion-Version': '2022-06-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ page_size: 100 }),
-      });
+      while (hasMore) {
+        const bodyPayload: Record<string, any> = { page_size: 100 };
+        if (startCursor) bodyPayload.start_cursor = startCursor;
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn('[NotionAPI] search failed:', res.status, res.statusText, errText);
-        let errorMsg = `Notion API HTTP ${res.status}: ${res.statusText}`;
-        try {
-          const errJson = JSON.parse(errText);
-          if (errJson?.message) errorMsg = `Notion API: ${errJson.message}`;
-        } catch {}
-        return { items: [], error: errorMsg };
-      }
+        const res = await fetchFn('https://api.notion.com/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bodyPayload),
+        });
 
-      const data = await res.json();
-      if (!Array.isArray(data.results)) return { items: [] };
+        if (!res.ok) {
+          const errText = await res.text();
+          console.warn('[NotionAPI] search failed:', res.status, res.statusText, errText);
+          let errorMsg = `Notion API HTTP ${res.status}: ${res.statusText}`;
+          try {
+            const errJson = JSON.parse(errText);
+            if (errJson?.message) errorMsg = `Notion API: ${errJson.message}`;
+          } catch {}
+          return { items: results, error: errorMsg };
+        }
 
-      const results: NotionWorkspaceItem[] = [];
-      for (const item of data.results) {
-        const id = item.id;
-        const type: 'page' | 'database' = item.object === 'database' ? 'database' : 'page';
-        let title = '';
+        const data = await res.json();
+        if (!Array.isArray(data.results)) break;
 
-        if (item.properties) {
-          for (const key of Object.keys(item.properties)) {
-            const prop = item.properties[key];
-            if (prop?.type === 'title' && Array.isArray(prop.title) && prop.title[0]?.plain_text) {
-              title = prop.title[0].plain_text;
-              break;
+        for (const item of data.results) {
+          const id = item.id;
+          const type: 'page' | 'database' = item.object === 'database' ? 'database' : 'page';
+          let title = '';
+
+          if (item.properties) {
+            for (const key of Object.keys(item.properties)) {
+              const prop = item.properties[key];
+              if (prop?.type === 'title' && Array.isArray(prop.title) && prop.title[0]?.plain_text) {
+                title = prop.title[0].plain_text;
+                break;
+              }
             }
           }
-        }
-        if (!title && item.title && Array.isArray(item.title) && item.title[0]?.plain_text) {
-          title = item.title[0].plain_text;
+          if (!title && item.title && Array.isArray(item.title) && item.title[0]?.plain_text) {
+            title = item.title[0].plain_text;
+          }
+
+          let parentId: string | undefined;
+          let parentType: string | undefined;
+          if (item.parent && typeof item.parent.type === 'string') {
+            parentType = item.parent.type;
+            parentId = (item.parent as any)[parentType as string];
+          }
+
+          results.push({
+            id,
+            title: title || `Notion_${type}_${id.slice(0, 6)}`,
+            type,
+            parentId,
+            parentType,
+            properties: item.properties,
+          });
         }
 
-        let parentId: string | undefined;
-        let parentType: string | undefined;
-        if (item.parent && typeof item.parent.type === 'string') {
-          parentType = item.parent.type;
-          parentId = (item.parent as any)[parentType as string];
-        }
-
-        results.push({
-          id,
-          title: title || `Notion_${type}_${id.slice(0, 6)}`,
-          type,
-          parentId,
-          parentType,
-          properties: item.properties,
-        });
+        hasMore = !!data.has_more;
+        startCursor = data.next_cursor || undefined;
       }
 
       return { items: results };
     } catch (e) {
       console.warn('[NotionAPI] fetch exception:', e);
-      return { items: [], error: 'Netzwerkfehler beim Aufruf der Notion API: ' + (e instanceof Error ? e.message : String(e)) };
+      return { items: results, error: 'Netzwerkfehler beim Aufruf der Notion API: ' + (e instanceof Error ? e.message : String(e)) };
     }
   }
 
@@ -323,21 +420,35 @@ export class NotionApiImporter implements ImportSource {
   }
 
   private async fetchDatabaseRows(dbId: string, token: string, fetchFn: typeof fetch): Promise<any[]> {
+    const allRows: any[] = [];
+    let hasMore = true;
+    let startCursor: string | undefined;
+
     try {
-      const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}/query`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.trim()}`,
-          'Notion-Version': '2022-06-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ page_size: 100 }),
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data.results) ? data.results : [];
+      while (hasMore) {
+        const bodyPayload: Record<string, any> = { page_size: 100 };
+        if (startCursor) bodyPayload.start_cursor = startCursor;
+
+        const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}/query`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        if (Array.isArray(data.results)) {
+          allRows.push(...data.results);
+        }
+        hasMore = !!data.has_more;
+        startCursor = data.next_cursor || undefined;
+      }
+      return allRows;
     } catch {
-      return [];
+      return allRows;
     }
   }
 
@@ -498,14 +609,18 @@ export class NotionApiImporter implements ImportSource {
               const pType = propObj.type;
               columnOrder.push(propName);
 
-              if (pType === 'select' && propObj.select?.options) {
-                columnsConfig[propName] = { input: 'select', options: propObj.select.options.map((o: any) => o.name) };
+              if ((pType === 'select' || pType === 'status') && (propObj.select?.options || propObj.status?.options)) {
+                const rawOptions = propObj.select?.options || propObj.status?.options || [];
+                columnsConfig[propName] = { input: 'select', options: rawOptions.map((o: any) => o.name) };
               } else if (pType === 'multi_select' && propObj.multi_select?.options) {
                 columnsConfig[propName] = { input: 'multi_select', options: propObj.multi_select.options.map((o: any) => o.name) };
               } else if (pType === 'date') columnsConfig[propName] = { input: 'date' };
               else if (pType === 'number') columnsConfig[propName] = { input: 'number' };
               else if (pType === 'checkbox') columnsConfig[propName] = { input: 'checkbox' };
               else if (pType === 'relation') columnsConfig[propName] = { input: 'relation' };
+              else if (pType === 'url') columnsConfig[propName] = { input: 'url' };
+              else if (pType === 'email') columnsConfig[propName] = { input: 'email' };
+              else columnsConfig[propName] = { input: 'text' };
             }
           }
 
@@ -526,26 +641,10 @@ export class NotionApiImporter implements ImportSource {
               for (const [pKey, pVal] of Object.entries(row.properties as Record<string, any>)) {
                 if (pVal.type === 'title' && Array.isArray(pVal.title) && pVal.title[0]?.plain_text) {
                   rowTitle = pVal.title[0].plain_text;
-                } else if (pVal.type === 'select' && pVal.select?.name) {
-                  rowFrontmatter[pKey] = pVal.select.name;
-                } else if (pVal.type === 'multi_select' && Array.isArray(pVal.multi_select)) {
-                  rowFrontmatter[pKey] = pVal.multi_select.map((m: any) => m.name);
-                } else if (pVal.type === 'date' && pVal.date?.start) {
-                  rowFrontmatter[pKey] = pVal.date.start;
-                } else if (pVal.type === 'checkbox') {
-                  rowFrontmatter[pKey] = pVal.checkbox;
-                } else if (pVal.type === 'number') {
-                  rowFrontmatter[pKey] = pVal.number;
-                } else if (pVal.type === 'relation' && Array.isArray(pVal.relation)) {
-                  const relLinks: string[] = [];
-                  for (const rItem of pVal.relation) {
-                    const targetObj = itemMap.get(rItem.id);
-                    if (targetObj) {
-                      relLinks.push(`[[${targetObj.title}]]`);
-                    }
-                  }
-                  if (relLinks.length > 0) {
-                    rowFrontmatter[pKey] = relLinks;
+                } else {
+                  const val = extractNotionPropertyValue(pVal, itemMap);
+                  if (val !== undefined) {
+                    rowFrontmatter[pKey] = val;
                   }
                 }
               }
