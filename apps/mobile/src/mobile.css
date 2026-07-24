@@ -1145,6 +1145,61 @@ textarea {
 }
 .m-security-approval { display: grid; gap: var(--space-2); }
 
+/* Package F — Security & Sharing: readable pairing, feedback, on-ramp. */
+/* Stacked info cell: short code / instruction / fingerprint each on their own
+   line instead of running together in one inline span (Punkt 15). */
+.m-linestack { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-linestack small { color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+
+/* Per-action spinner in busy buttons (Punkt 14 — not just disabled). */
+.m-actionspin {
+  width: 1em; height: 1em; flex-shrink: 0;
+  border-radius: var(--m-radius-pill);
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  animation: m-ptr-rotate var(--m-spin-dur) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .m-actionspin { animation: none; } }
+
+/* On-ramp for the join state (Punkt 12): status + 2 steps + desktop note. */
+.m-onramp { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-3); }
+.m-onramp-status {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3);
+  background: var(--accent-container); color: var(--on-accent-container);
+  border-radius: var(--m-radius-card);
+}
+.m-onramp-status p { margin: 0; }
+.m-onramp-status .m-onramp-sub { font-size: var(--text-sm); opacity: 0.85; }
+.m-onramp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.m-onramp-steps li { display: flex; gap: var(--space-3); align-items: flex-start; }
+.m-onramp-steps p { margin: 0; }
+.m-onramp-steps .m-step-sub { color: var(--text-muted); font-size: var(--text-sm); }
+.m-step-num {
+  flex-shrink: 0; width: var(--touch-sm); height: var(--touch-sm);
+  display: grid; place-items: center;
+  border-radius: var(--m-radius-pill); font-weight: 600;
+  background: var(--surface-container); color: var(--text-muted);
+}
+.m-onramp-steps li.done .m-step-num { background: var(--accent-container); color: var(--on-accent-container); }
+.m-onramp-steps li.now .m-step-num { background: var(--accent-color); color: var(--accent-on); }
+
+/* Pairing request card (Punkt 15): big centered QR + one grouped code + copy. */
+.m-pairing { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) 0; }
+.m-pairing-qr { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.m-pairing-qr .m-onramp-sub { color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+.m-codefield { display: flex; flex-direction: column; gap: 6px; }
+.m-codefield-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.m-codefield-row { display: flex; align-items: center; gap: var(--space-2); }
+.m-code {
+  flex: 1; min-width: 0;
+  font-family: var(--font-mono); font-size: var(--text-md); letter-spacing: 0.06em;
+  word-break: break-all; -webkit-user-select: text; user-select: text;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-container); border-radius: var(--m-radius-chip);
+}
+.m-filepick { align-self: flex-start; }
+
 /* ---- Base views (R4): board, timeline, cell editing, config sheet ---- */
 
 .m-board {

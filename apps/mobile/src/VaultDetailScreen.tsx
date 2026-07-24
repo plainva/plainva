@@ -160,6 +160,14 @@ export function VaultDetailScreen({
           </div>
         )}
         {isActive && status.message && <p className="m-sync-error">{status.message}</p>}
+        {isActive && status.errorKind === "pair-required" && (
+          <button
+            className="m-btn m-btn--tonal"
+            onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}
+          >
+            {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
+          </button>
+        )}
         {isActive && status.lastSyncAt !== null && (
           <p className="m-hint">
             {t("mobile.lastSync", {

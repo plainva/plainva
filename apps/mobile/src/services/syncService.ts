@@ -83,6 +83,9 @@ export type MobileSyncStatus = "off" | "idle" | "syncing" | "error";
 interface SyncState {
   status: MobileSyncStatus;
   message: string | null;
+  /** Set only on the encrypted-workspace "pair/recover this device" error so the
+   *  UI can offer a deep-link into Security & Sharing (package F2). */
+  errorKind?: "pair-required";
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
   lastSyncAt: number | null;
   /** Cycle progress while syncing (package I: the desktop status-bar x/y). */
@@ -113,7 +116,7 @@ export function notifyUserInitiatedDeletion(paths: string[]): void {
   worker?.noteUserInitiatedDeletion(paths);
 }
 
-function setState(next: { status: MobileSyncStatus; message: string | null }): void {
+function setState(next: { status: MobileSyncStatus; message: string | null; errorKind?: "pair-required" }): void {
   const finished = state.status === "syncing" && next.status === "idle";
   const errorHistory =
     next.status === "error" && next.message && next.message !== state.message
@@ -485,14 +488,18 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       console.warn("[sync] workspace genesis probe failed; starting the regular worker", probe.probeError);
     }
     if (probe.encryptedGenesisFound) {
-      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }) });
+      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }), errorKind: "pair-required" });
       return;
     }
   }
   const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
   if (v.workspaceRuntime && v.workspaceState) {
     const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
-    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString() });
+    // Encrypting/indexing the local vault at join time can take minutes on a
+    // large vault; surface it as determinate sync progress instead of a silent
+    // freeze (package F1, Punkt 14).
+    setState({ status: "syncing", message: null });
+    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
       intervalMs: 30_000,
       sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },

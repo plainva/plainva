@@ -304,6 +304,15 @@ export default function App() {
     };
   }, []);
 
+  // Deep-link from the encrypted-workspace sync error into Security & Sharing
+  // (package F2): the error surfaces on the vault detail; this jumps straight to
+  // the pairing/recovery screen so the "connect → join here" path is obvious.
+  useEffect(() => {
+    const openSecurity = () => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" }));
+    window.addEventListener("m-open-security", openSecurity);
+    return () => window.removeEventListener("m-open-security", openSecurity);
+  }, []);
+
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);
