@@ -222,7 +222,7 @@ export class NotionFileImporter implements ImportSource {
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
     if (opts.vaultAdapter && prefix) {
-      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
+      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch { /* ignore existing dir */ }
     }
 
     for (let i = 0; i < pages.length; i++) {
@@ -231,28 +231,33 @@ export class NotionFileImporter implements ImportSource {
       const targetPath = `${prefix}${rel}`;
       const isDb = !!page.isDatabase;
 
-      if (opts.vaultAdapter) {
-        if (targetPath.includes('/')) {
-          const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
-          try { await opts.vaultAdapter.createFolder(folderPart); } catch {}
-        }
-
-        if (isDb) {
-          importedDatabases++;
-          const baseFilePath = targetPath.endsWith('.csv') ? targetPath.replace(/\.csv$/, '.base') : `${targetPath}.base`;
+      if (isDb) {
+        importedDatabases++;
+        const baseFilePath = targetPath.endsWith('.csv') ? targetPath.replace(/\.csv$/, '.base') : `${targetPath}.base`;
+        if (opts.vaultAdapter) {
+          if (targetPath.includes('/')) {
+            const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
+            try { await opts.vaultAdapter.createFolder(folderPart); } catch { /* ignore existing dir */ }
+          }
           const baseConfig = {
             filters: { and: [{ field: 'file.folder', operator: 'includes', value: page.title }] },
             columns: {},
             views: [{ type: 'table', name: 'Tabelle', order: ['file.name'] }],
           };
           await opts.vaultAdapter.writeTextFile(baseFilePath, JSON.stringify(baseConfig, null, 2));
-          items.push({ path: baseFilePath, status: 'imported' });
-        } else {
-          importedNotes++;
+        }
+        items.push({ path: baseFilePath, status: 'imported' });
+      } else {
+        importedNotes++;
+        if (opts.vaultAdapter) {
+          if (targetPath.includes('/')) {
+            const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
+            try { await opts.vaultAdapter.createFolder(folderPart); } catch { /* ignore existing dir */ }
+          }
           const content = page.markdownContent.startsWith('#') ? page.markdownContent : `# ${page.title}\n\n${page.markdownContent}`;
           await opts.vaultAdapter.writeTextFile(targetPath, content);
-          items.push({ path: targetPath, status: 'imported' });
         }
+        items.push({ path: targetPath, status: 'imported' });
       }
 
       if (onProgress && pages.length > 0) {
@@ -330,7 +335,7 @@ export class NotionApiImporter implements ImportSource {
           try {
             const errJson = JSON.parse(errText);
             if (errJson?.message) errorMsg = `Notion API: ${errJson.message}`;
-          } catch {}
+          } catch { /* ignore JSON parse error */ }
           return { items: results, error: errorMsg };
         }
 
@@ -566,7 +571,7 @@ export class NotionApiImporter implements ImportSource {
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
     if (opts.vaultAdapter && prefix) {
-      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
+      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch { /* ignore existing dir */ }
     }
 
     if (onProgress) onProgress(10, 'Lade Notion Workspace-Struktur...');
@@ -589,7 +594,7 @@ export class NotionApiImporter implements ImportSource {
       const currentFolder = folderRelPath ? `${prefix}${folderRelPath}` : prefix.replace(/\/$/, '');
 
       if (opts.vaultAdapter && currentFolder) {
-        try { await opts.vaultAdapter.createFolder(currentFolder); } catch {}
+        try { await opts.vaultAdapter.createFolder(currentFolder); } catch { /* ignore existing dir */ }
       }
 
       if (item.type === 'database') {
@@ -598,7 +603,7 @@ export class NotionApiImporter implements ImportSource {
         const baseFilePath = `${dbFolderPath}.base`;
 
         if (opts.vaultAdapter) {
-          try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch {}
+          try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch { /* ignore existing dir */ }
 
           const dbDetails = await this.fetchDatabaseDetails(item.id, token, fetchFn);
           const columnsConfig: Record<string, { input: string; options?: string[] }> = {};

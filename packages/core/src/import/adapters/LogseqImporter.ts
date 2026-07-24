@@ -66,7 +66,7 @@ export class LogseqImporter implements ImportSource {
       if (opts.vaultAdapter && file.content !== undefined) {
         if (targetPath.includes('/')) {
           const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
-          try { await opts.vaultAdapter.createFolder(folderPart); } catch {}
+          try { await opts.vaultAdapter.createFolder(folderPart); } catch { /* ignore existing dir */ }
         }
         await opts.vaultAdapter.writeTextFile(targetPath, file.content);
       }

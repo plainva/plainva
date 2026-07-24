@@ -174,7 +174,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       try {
         const tauriHttp = await import('@tauri-apps/plugin-http');
         if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
-      } catch {}
+      } catch { /* ignore non-tauri env */ }
 
       const inputPayload = await loadInputPayload();
       const analyzedPlan = await source.analyze(inputPayload, {
@@ -206,7 +206,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       try {
         const tauriHttp = await import('@tauri-apps/plugin-http');
         if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
-      } catch {}
+      } catch { /* ignore non-tauri env */ }
 
       const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
