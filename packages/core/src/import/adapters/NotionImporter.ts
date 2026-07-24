@@ -3,6 +3,7 @@ import { ImportFamily, ImportOptions, ImportPlan, ImportReport, ImportSource, Im
 export interface NotionPagePayload {
   id: string;
   title: string;
+  relativePath?: string;
   markdownContent: string;
   properties?: Record<string, any>;
   isDatabase?: boolean;
@@ -12,7 +13,14 @@ export class NotionFileImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_file';
   readonly name = 'Notion (ZIP & Export)';
   readonly family: ImportFamily = 'markdown';
-  readonly description = 'Importiert Notion Workspaces, Seiten und Datenbanken aus ZIP-Archiven oder Export-Ordnern.';
+  readonly description = 'Importiert Notion Workspaces, Seiten, Ordnerstrukturen und Datenbanken aus ZIP-Archiven oder Export-Ordnern.';
+
+  private cleanNotionPath(relPath: string): string {
+    return relPath
+      .split('/')
+      .map(part => part.replace(/ [a-f0-9]{32}/gi, '').trim())
+      .join('/');
+  }
 
   private parsePages(input: any): NotionPagePayload[] {
     if (Array.isArray(input?.pages)) return input.pages;
@@ -24,16 +32,23 @@ export class NotionFileImporter implements ImportSource {
       if (typeof item === 'object' && item !== null) {
         if (item.title && item.markdownContent !== undefined) {
           pages.push(item as NotionPagePayload);
-        } else if (typeof item.relativePath === 'string' && (item.relativePath.endsWith('.md') || item.relativePath.endsWith('.html') || item.relativePath.endsWith('.csv'))) {
-          const rawName = item.relativePath.split(/[/\\]/).pop() || `Page_${i + 1}`;
-          const title = rawName.replace(/\.(md|html|csv)$/i, '').replace(/ [a-f0-9]{32}$/i, '');
-          const isDb = item.relativePath.endsWith('.csv');
-          pages.push({
-            id: `notion_${i + 1}`,
-            title,
-            markdownContent: item.content || `# ${title}`,
-            isDatabase: isDb,
-          });
+        } else if (typeof item.relativePath === 'string') {
+          const isMd = item.relativePath.endsWith('.md');
+          const isHtml = item.relativePath.endsWith('.html');
+          const isCsv = item.relativePath.endsWith('.csv');
+
+          if (isMd || isHtml || isCsv) {
+            const cleanedPath = this.cleanNotionPath(item.relativePath);
+            const rawName = cleanedPath.split(/[/\\]/).pop() || `Page_${i + 1}`;
+            const title = rawName.replace(/\.(md|html|csv)$/i, '');
+            pages.push({
+              id: `notion_${i + 1}`,
+              title,
+              relativePath: cleanedPath,
+              markdownContent: item.content || `# ${title}`,
+              isDatabase: isCsv,
+            });
+          }
         }
       }
     }
@@ -77,44 +92,37 @@ export class NotionFileImporter implements ImportSource {
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
     if (opts.vaultAdapter && prefix) {
-      try {
-        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
-      } catch {
-        // Folder exists
-      }
+      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
     }
 
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
-      const safeTitle = (page.title || `Notion_${page.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+      const rel = page.relativePath || `${page.title}.md`;
+      const targetPath = `${prefix}${rel}`;
       const isDb = !!page.isDatabase;
 
-      if (isDb) {
-        importedDatabases++;
-        const dbFolderPath = `${prefix}${safeTitle}`;
-        const dbPath = `${dbFolderPath}/${safeTitle}.base`;
+      if (opts.vaultAdapter) {
+        if (targetPath.includes('/')) {
+          const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
+          try { await opts.vaultAdapter.createFolder(folderPart); } catch {}
+        }
 
-        if (opts.vaultAdapter) {
-          try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch {}
+        if (isDb) {
+          importedDatabases++;
+          const dbPath = targetPath.endsWith('.csv') ? targetPath.replace(/\.csv$/, '.base') : `${targetPath}.base`;
           try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
-          await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: safeTitle, properties: [] }, null, 2));
+          await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: page.title, properties: [] }, null, 2));
+          items.push({ path: dbPath, status: 'imported' });
+        } else {
+          importedNotes++;
+          const content = page.markdownContent.startsWith('#') ? page.markdownContent : `# ${page.title}\n\n${page.markdownContent}`;
+          await opts.vaultAdapter.writeTextFile(targetPath, content);
+          items.push({ path: targetPath, status: 'imported' });
         }
-
-        items.push({ path: dbPath, status: 'imported' });
-      } else {
-        importedNotes++;
-        const notePath = `${prefix}${safeTitle}.md`;
-        const content = page.markdownContent.startsWith('#') ? page.markdownContent : `# ${safeTitle}\n\n${page.markdownContent}`;
-
-        if (opts.vaultAdapter) {
-          await opts.vaultAdapter.writeTextFile(notePath, content);
-        }
-
-        items.push({ path: notePath, status: 'imported' });
       }
 
       if (onProgress && pages.length > 0) {
-        onProgress(Math.round(((i + 1) / pages.length) * 100), `Importiere Notion ${safeTitle}...`);
+        onProgress(Math.round(((i + 1) / pages.length) * 100), `Importiere Notion ${page.title}...`);
       }
     }
 
@@ -146,11 +154,20 @@ export class NotionFileImporter implements ImportSource {
   }
 }
 
+interface NotionWorkspaceItem {
+  id: string;
+  title: string;
+  type: 'page' | 'database';
+  parentId?: string;
+  parentType?: string;
+  properties?: Record<string, any>;
+}
+
 export class NotionApiImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_api';
   readonly name = 'Notion (API Sync / Integration Token)';
   readonly family: ImportFamily = 'api';
-  readonly description = 'Synchronisiert Notion Notizen und Datenbanken direkt per Integration Token.';
+  readonly description = 'Synchronisiert Notion Notizen, verschachtelte Ordnerstrukturen & Datenbank-Schemas inkl. Einträgen per Integration Token.';
 
   private extractToken(input: any): string {
     if (Array.isArray(input) && input[0]?.notionToken) return input[0].notionToken;
@@ -158,7 +175,7 @@ export class NotionApiImporter implements ImportSource {
     return '';
   }
 
-  private async fetchNotionWorkspace(token: string, opts?: ImportOptions): Promise<{ items: Array<{ title: string; id: string; type: string }>; error?: string }> {
+  private async fetchNotionWorkspace(token: string, opts?: ImportOptions): Promise<{ items: NotionWorkspaceItem[]; error?: string }> {
     if (!token) return { items: [], error: 'Kein Integration Token angegeben.' };
 
     const fetchFn = opts?.httpFetch || globalThis.fetch;
@@ -188,10 +205,10 @@ export class NotionApiImporter implements ImportSource {
       const data = await res.json();
       if (!Array.isArray(data.results)) return { items: [] };
 
-      const results: Array<{ title: string; id: string; type: string }> = [];
+      const results: NotionWorkspaceItem[] = [];
       for (const item of data.results) {
         const id = item.id;
-        const type = item.object; // 'page' or 'database'
+        const type: 'page' | 'database' = item.object === 'database' ? 'database' : 'page';
         let title = '';
 
         if (item.properties) {
@@ -207,13 +224,83 @@ export class NotionApiImporter implements ImportSource {
           title = item.title[0].plain_text;
         }
 
-        results.push({ id, title: title || `Notion_${type}_${id.slice(0, 6)}`, type });
+        let parentId: string | undefined;
+        let parentType: string | undefined;
+        if (item.parent && typeof item.parent.type === 'string') {
+          parentType = item.parent.type;
+          parentId = (item.parent as any)[parentType as string];
+        }
+
+        results.push({
+          id,
+          title: title || `Notion_${type}_${id.slice(0, 6)}`,
+          type,
+          parentId,
+          parentType,
+          properties: item.properties,
+        });
       }
 
       return { items: results };
     } catch (e) {
       console.warn('[NotionAPI] fetch exception:', e);
       return { items: [], error: 'Netzwerkfehler beim Aufruf der Notion API: ' + (e instanceof Error ? e.message : String(e)) };
+    }
+  }
+
+  private buildFolderPath(itemId: string, itemMap: Map<string, NotionWorkspaceItem>): string {
+    const item = itemMap.get(itemId);
+    if (!item || !item.parentId || !item.parentType) return '';
+
+    if (item.parentType === 'page_id' && itemMap.has(item.parentId)) {
+      const parentObj = itemMap.get(item.parentId)!;
+      const safeParentTitle = parentObj.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
+      const parentDir = this.buildFolderPath(item.parentId, itemMap);
+      return parentDir ? `${parentDir}/${safeParentTitle}` : safeParentTitle;
+    }
+
+    if (item.parentType === 'database_id' && itemMap.has(item.parentId)) {
+      const parentDb = itemMap.get(item.parentId)!;
+      const safeDbTitle = parentDb.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
+      const parentDir = this.buildFolderPath(item.parentId, itemMap);
+      const dbFolderName = `${safeDbTitle}/${safeDbTitle}.base`;
+      return parentDir ? `${parentDir}/${dbFolderName}` : dbFolderName;
+    }
+
+    return '';
+  }
+
+  private async fetchDatabaseDetails(dbId: string, token: string, fetchFn: typeof fetch): Promise<Record<string, any>> {
+    try {
+      const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}`, {
+        headers: {
+          'Authorization': `Bearer ${token.trim()}`,
+          'Notion-Version': '2022-06-28',
+        },
+      });
+      if (!res.ok) return {};
+      return await res.json();
+    } catch {
+      return {};
+    }
+  }
+
+  private async fetchDatabaseRows(dbId: string, token: string, fetchFn: typeof fetch): Promise<any[]> {
+    try {
+      const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}/query`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token.trim()}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ page_size: 100 }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.results) ? data.results : [];
+    } catch {
+      return [];
     }
   }
 
@@ -232,22 +319,25 @@ export class NotionApiImporter implements ImportSource {
       const lines: string[] = [];
       for (const block of data.results) {
         const type = block.type;
-        const info = block[type];
-        if (!info || !Array.isArray(info.rich_text)) continue;
+        const info = (block as any)[type];
+        if (!info) continue;
 
-        const text = info.rich_text.map((t: any) => t.plain_text).join('');
-        if (!text) continue;
+        let text = '';
+        if (Array.isArray(info.rich_text)) {
+          text = info.rich_text.map((t: any) => t.plain_text).join('');
+        }
 
         switch (type) {
-          case 'heading_1': lines.push(`# ${text}`); break;
-          case 'heading_2': lines.push(`## ${text}`); break;
-          case 'heading_3': lines.push(`### ${text}`); break;
-          case 'bulleted_list_item': lines.push(`- ${text}`); break;
-          case 'numbered_list_item': lines.push(`1. ${text}`); break;
-          case 'to_do': lines.push(info.checked ? `- [x] ${text}` : `- [ ] ${text}`); break;
-          case 'quote': lines.push(`> ${text}`); break;
-          case 'code': lines.push(`\`\`\`\n${text}\n\`\`\``); break;
-          default: lines.push(text); break;
+          case 'heading_1': if (text) lines.push(`# ${text}`); break;
+          case 'heading_2': if (text) lines.push(`## ${text}`); break;
+          case 'heading_3': if (text) lines.push(`### ${text}`); break;
+          case 'bulleted_list_item': if (text) lines.push(`- ${text}`); break;
+          case 'numbered_list_item': if (text) lines.push(`1. ${text}`); break;
+          case 'to_do': if (text) lines.push(info.checked ? `- [x] ${text}` : `- [ ] ${text}`); break;
+          case 'quote': if (text) lines.push(`> ${text}`); break;
+          case 'code': if (text) lines.push(`\`\`\`\n${text}\n\`\`\``); break;
+          case 'paragraph': if (text) lines.push(text); break;
+          default: if (text) lines.push(text); break;
         }
       }
       return lines.join('\n\n');
@@ -285,7 +375,7 @@ export class NotionApiImporter implements ImportSource {
       totalChecklists: 0,
       warnings,
       requiredSpaceBytes: Math.max(1024, res.items.length * 2048),
-      estimatedDurationSec: Math.max(1, Math.ceil(res.items.length / 10)),
+      estimatedDurationSec: Math.max(1, Math.ceil(res.items.length / 5)),
     };
   }
 
@@ -296,59 +386,125 @@ export class NotionApiImporter implements ImportSource {
   ): Promise<ImportReport> {
     const startTime = Date.now();
     const token = this.extractToken(input);
+    const fetchFn = opts?.httpFetch || globalThis.fetch;
     const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
 
     if (opts.vaultAdapter && prefix) {
       try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
     }
 
-    if (onProgress) onProgress(15, 'Verbinde mit Notion API...');
+    if (onProgress) onProgress(10, 'Lade Notion Workspace-Struktur...');
     const res = await this.fetchNotionWorkspace(token, opts);
     const items = res.items;
 
-    const fetchFn = opts?.httpFetch || globalThis.fetch;
+    const itemMap = new Map<string, NotionWorkspaceItem>();
+    for (const item of items) {
+      itemMap.set(item.id, item);
+    }
+
     const reportItems: ImportReport['items'] = [];
     let importedNotes = 0;
     let importedDatabases = 0;
 
-    if (items.length === 0) {
-      const notePath = `${prefix}Notion_Workspace_Import.md`;
-      const sampleContent = `# Notion API Import\n\n- Integration Token konfiguriert.\n- ${res.error || 'Aus Sicherheitsgründen erfordert Notion die explizite Freigabe pro Seite: Klicke in Notion auf "..." -> "Connections" ("Verbindungen") -> füge Deine Verbindung hinzu.'}\n`;
-      if (opts.vaultAdapter) {
-        await opts.vaultAdapter.writeTextFile(notePath, sampleContent);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+      const folderRelPath = this.buildFolderPath(item.id, itemMap);
+      const currentFolder = folderRelPath ? `${prefix}${folderRelPath}` : prefix.replace(/\/$/, '');
+
+      if (opts.vaultAdapter && currentFolder) {
+        try { await opts.vaultAdapter.createFolder(currentFolder); } catch {}
       }
-      reportItems.push({ path: notePath, status: 'imported' });
-      importedNotes = 1;
-    } else {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 
-        if (item.type === 'database') {
-          importedDatabases++;
-          const dbFolderPath = `${prefix}${safeTitle}`;
-          const dbPath = `${dbFolderPath}/${safeTitle}.base`;
-          if (opts.vaultAdapter) {
-            try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch {}
-            try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
-            await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: safeTitle, properties: [] }, null, 2));
-          }
-          reportItems.push({ path: dbPath, status: 'imported' });
-        } else {
-          importedNotes++;
-          const notePath = `${prefix}${safeTitle}.md`;
-          const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn);
-          const fullContent = `# ${item.title}\n\n${bodyMd || '*Keine Textinhalte in dieser Notion-Seite vorhanden.*'}\n`;
+      if (item.type === 'database') {
+        importedDatabases++;
+        const dbFolderPath = currentFolder ? `${currentFolder}/${safeTitle}` : safeTitle;
+        const dbPath = `${dbFolderPath}/${safeTitle}.base`;
 
-          if (opts.vaultAdapter) {
-            await opts.vaultAdapter.writeTextFile(notePath, fullContent);
+        if (opts.vaultAdapter) {
+          try { await opts.vaultAdapter.createFolder(dbFolderPath); } catch {}
+          try { await opts.vaultAdapter.createFolder(dbPath); } catch {}
+
+          const dbDetails = await this.fetchDatabaseDetails(item.id, token, fetchFn);
+          const schemaProperties: Array<{ id: string; name: string; type: string; options?: string[] }> = [];
+
+          if (dbDetails.properties) {
+            for (const [propName, propObj] of Object.entries(dbDetails.properties as Record<string, any>)) {
+              const pType = propObj.type;
+              let schemaType = 'text';
+              let options: string[] | undefined;
+
+              if (pType === 'select' && propObj.select?.options) {
+                schemaType = 'select';
+                options = propObj.select.options.map((o: any) => o.name);
+              } else if (pType === 'multi_select' && propObj.multi_select?.options) {
+                schemaType = 'multi_select';
+                options = propObj.multi_select.options.map((o: any) => o.name);
+              } else if (pType === 'date') schemaType = 'date';
+              else if (pType === 'number') schemaType = 'number';
+              else if (pType === 'checkbox') schemaType = 'checkbox';
+              else if (pType === 'url') schemaType = 'url';
+              else if (pType === 'email') schemaType = 'email';
+
+              schemaProperties.push({ id: propName, name: propName, type: schemaType, options });
+            }
           }
-          reportItems.push({ path: notePath, status: 'imported' });
+
+          await opts.vaultAdapter.writeTextFile(`${dbPath}/schema.json`, JSON.stringify({ name: safeTitle, properties: schemaProperties }, null, 2));
+
+          const dbRows = await this.fetchDatabaseRows(item.id, token, fetchFn);
+          for (const row of dbRows) {
+            let rowTitle = 'Eintrag';
+            const rowFrontmatter: Record<string, any> = {};
+
+            if (row.properties) {
+              for (const [pKey, pVal] of Object.entries(row.properties as Record<string, any>)) {
+                if (pVal.type === 'title' && Array.isArray(pVal.title) && pVal.title[0]?.plain_text) {
+                  rowTitle = pVal.title[0].plain_text;
+                } else if (pVal.type === 'select' && pVal.select?.name) {
+                  rowFrontmatter[pKey] = pVal.select.name;
+                } else if (pVal.type === 'multi_select' && Array.isArray(pVal.multi_select)) {
+                  rowFrontmatter[pKey] = pVal.multi_select.map((m: any) => m.name);
+                } else if (pVal.type === 'date' && pVal.date?.start) {
+                  rowFrontmatter[pKey] = pVal.date.start;
+                } else if (pVal.type === 'checkbox') {
+                  rowFrontmatter[pKey] = pVal.checkbox;
+                } else if (pVal.type === 'number') {
+                  rowFrontmatter[pKey] = pVal.number;
+                }
+              }
+            }
+
+            const safeRowTitle = rowTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
+            const rowBody = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn);
+
+            let rowMdContent = '';
+            if (Object.keys(rowFrontmatter).length > 0) {
+              rowMdContent += `---\n${Object.entries(rowFrontmatter).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join('\n')}\n---\n\n`;
+            }
+            rowMdContent += `# ${rowTitle}\n\n${rowBody || '*Keine Textinhalte in dieser Zeile vorhanden.*'}\n`;
+
+            await opts.vaultAdapter.writeTextFile(`${dbPath}/${safeRowTitle}.md`, rowMdContent);
+            importedNotes++;
+          }
         }
 
-        if (onProgress) {
-          onProgress(Math.round(((i + 1) / items.length) * 100), `Lade Notion ${safeTitle}...`);
+        reportItems.push({ path: dbPath, status: 'imported' });
+      } else {
+        importedNotes++;
+        const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
+        const notePath = currentFolder ? `${currentFolder}/${safeNoteTitle}` : safeNoteTitle;
+        const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn);
+        const fullContent = `# ${item.title}\n\n${bodyMd || '*Keine Textinhalte in dieser Notion-Seite vorhanden.*'}\n`;
+
+        if (opts.vaultAdapter) {
+          await opts.vaultAdapter.writeTextFile(notePath, fullContent);
         }
+        reportItems.push({ path: notePath, status: 'imported' });
+      }
+
+      if (onProgress) {
+        onProgress(Math.round(((i + 1) / items.length) * 100), `Importiere ${safeTitle}...`);
       }
     }
 
@@ -356,7 +512,7 @@ export class NotionApiImporter implements ImportSource {
     const reportPath = `${prefix}Import-Bericht.md`;
     const summaryMarkdown = `# Import-Bericht (${this.name})\n\n` +
       `- **Datum:** ${new Date().toISOString()}\n` +
-      `- **Importierte Notizen:** ${importedNotes}\n` +
+      `- **Importierte Notizen & Einträge:** ${importedNotes}\n` +
       `- **Importierte Datenbanken (.base):** ${importedDatabases}\n\n` +
       reportItems.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
 
