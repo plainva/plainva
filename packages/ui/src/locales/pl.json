@@ -2741,10 +2741,10 @@
   "whatsNew": {
     "title": "Co nowego w Plainva",
     "subtitle": "Najważniejsze zmiany",
-    "highlight1": "⚡ Silnik importu PKM: bezpośredni import z Notion, Evernote, Google Keep, Logseq i Simplenote",
-    "highlight2": "🎨 Język projektowania 2.0: 100% zgodności i 14 motywów",
-    "highlight3": "📱 Skanowanie QR na żywo i optymalizacje mobilne",
-    "highlight4": "🔒 Solidna izolacja i szyfrowanie skarbców",
+    "highlight1": "Silnik importu PKM: bezpośredni import z Notion, Evernote, Google Keep, Logseq i Simplenote",
+    "highlight2": "Język projektowania 2.0: 100% zgodności i 14 motywów",
+    "highlight3": "Skanowanie QR na żywo i optymalizacje mobilne",
+    "highlight4": "Solidna izolacja i szyfrowanie skarbców",
     "readBlog": "Przeczytaj wpis na blogu",
     "understand": "Zrozumiano"
   }

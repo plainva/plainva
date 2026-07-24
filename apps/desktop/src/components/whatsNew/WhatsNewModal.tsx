@@ -31,7 +31,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   return (
     <Modal
       onClose={onClose}
-      title={`✨ ${t('whatsNew.title', "Was gibt's Neues in Plainva")}`}
+      title={t('whatsNew.title', "Was gibt's Neues in Plainva")}
       size="md"
       footer={
         <>

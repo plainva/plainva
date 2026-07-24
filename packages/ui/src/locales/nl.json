@@ -2711,10 +2711,10 @@
   "whatsNew": {
     "title": "Wat is er nieuw in Plainva",
     "subtitle": "Hoogtepunten van de release",
-    "highlight1": "⚡ PKM-importengine: rechtstreeks importeren uit Notion, Evernote, Google Keep, Logseq & Simplenote",
-    "highlight2": "🎨 Ontwerptaal 2.0: 100% tokenstrikt heid & 14 volledige thema's",
-    "highlight3": "📱 Live QR-scan & mobiele app-optimalisaties",
-    "highlight4": "🔒 Robuuste vault-isolatie & versleuteling",
+    "highlight1": "PKM-importengine: rechtstreeks importeren uit Notion, Evernote, Google Keep, Logseq & Simplenote",
+    "highlight2": "Ontwerptaal 2.0: 100% tokenstrikt heid & 14 volledige thema's",
+    "highlight3": "Live QR-scan & mobiele app-optimalisaties",
+    "highlight4": "Robuuste vault-isolatie & versleuteling",
     "readBlog": "Lees blogbericht",
     "understand": "Begrepen"
   }

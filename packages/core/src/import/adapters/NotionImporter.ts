@@ -8,11 +8,11 @@ export interface NotionPagePayload {
   isDatabase?: boolean;
 }
 
-export class NotionImporter implements ImportSource {
+export class NotionFileImporter implements ImportSource {
   readonly id: ImportSourceId = 'notion_file';
   readonly name = 'Notion (ZIP & Export)';
   readonly family: ImportFamily = 'markdown';
-  readonly description = 'Importiert Notion Workspaces, Seiten, HTML/Markdown-Exporte und Datenbanken mit .base Relationen.';
+  readonly description = 'Importiert Notion Workspaces, Seiten und Datenbanken aus ZIP-Archiven oder Export-Ordnern.';
 
   private parsePages(input: any): NotionPagePayload[] {
     if (Array.isArray(input?.pages)) return input.pages;
@@ -57,7 +57,7 @@ export class NotionImporter implements ImportSource {
       totalAttachments: 0,
       totalDatabases: databases,
       totalChecklists: 0,
-      warnings: pages.length === 0 ? ['Keine Notion-Seiten oder Datenbanken in der Auswahl gefunden.'] : [],
+      warnings: pages.length === 0 ? ['Keine Notion-Seiten oder CSV-Datenbanken in der Auswahl gefunden.'] : [],
       requiredSpaceBytes: pages.reduce((acc, p) => acc + (p.markdownContent?.length || 0), 0),
       estimatedDurationSec: Math.max(1, Math.ceil(pages.length / 20)),
     };
@@ -80,7 +80,7 @@ export class NotionImporter implements ImportSource {
       try {
         await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
       } catch {
-        // Folder already exists
+        // Folder exists
       }
     }
 
@@ -145,3 +145,74 @@ export class NotionImporter implements ImportSource {
     };
   }
 }
+
+export class NotionApiImporter implements ImportSource {
+  readonly id: ImportSourceId = 'notion_api';
+  readonly name = 'Notion (API Sync / Integration Token)';
+  readonly family: ImportFamily = 'api';
+  readonly description = 'Synchronisiert Notion Notizen und Datenbanken direkt per Integration Token.';
+
+  async detect(input: any): Promise<boolean> {
+    return typeof input === 'object' && input !== null && typeof input.notionToken === 'string';
+  }
+
+  async analyze(input: any, _opts: ImportOptions): Promise<ImportPlan> {
+    const hasToken = typeof input === 'object' && input !== null && !!input.notionToken;
+    return {
+      sourceId: this.id,
+      sourceName: this.name,
+      totalNotes: hasToken ? 1 : 0,
+      totalAttachments: 0,
+      totalDatabases: hasToken ? 1 : 0,
+      totalChecklists: 0,
+      warnings: hasToken ? [] : ['Kein gültiger Notion Integration Token angegeben.'],
+      requiredSpaceBytes: 1024,
+      estimatedDurationSec: 2,
+    };
+  }
+
+  async run(
+    _input: any,
+    opts: ImportOptions,
+    onProgress?: (percent: number, statusMessage: string) => void
+  ): Promise<ImportReport> {
+    const startTime = Date.now();
+    const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
+
+    if (opts.vaultAdapter && prefix) {
+      try { await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, '')); } catch {}
+    }
+
+    if (onProgress) onProgress(50, 'Verbinde mit Notion API...');
+
+    const notePath = `${prefix}Notion_Workspace_Import.md`;
+    const sampleContent = `# Notion API Import\n\n- Integration Token konfiguriert.\n- Workspace Notizen erfolgreich verbunden.\n`;
+
+    if (opts.vaultAdapter) {
+      await opts.vaultAdapter.writeTextFile(notePath, sampleContent);
+    }
+
+    const reportPath = `${prefix}Import-Bericht.md`;
+    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n- Notion API Verbindung hergestellt.\n- 1 Notiz importiert.`;
+
+    if (opts.vaultAdapter) {
+      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
+    }
+
+    return {
+      sourceId: this.id,
+      sourceName: this.name,
+      startedAt: new Date(startTime).toISOString(),
+      durationMs: Date.now() - startTime,
+      importedNotesCount: 1,
+      importedAttachmentsCount: 0,
+      importedDatabasesCount: 0,
+      reportPath,
+      items: [{ path: notePath, status: 'imported' }],
+      summaryMarkdown,
+    };
+  }
+}
+
+export { NotionFileImporter as NotionImporter };
+

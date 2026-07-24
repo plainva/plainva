@@ -2696,10 +2696,10 @@
   "whatsNew": {
     "title": "Plainva の新機能",
     "subtitle": "リリースハイライト",
-    "highlight1": "⚡ PKM インポートエンジン: Notion、Evernote、Google Keep、Logseq、Simplenote から直接インポート",
-    "highlight2": "🎨 デザイン言語 2.0: 100% トークン準拠＆14 種類のテーマ",
-    "highlight3": "📱 ライブ QR スキャンとモバイルアプリの最適化",
-    "highlight4": "🔒 堅牢な Vault 独立性と暗号化",
+    "highlight1": "PKM インポートエンジン: Notion、Evernote、Google Keep、Logseq、Simplenote から直接インポート",
+    "highlight2": "デザイン言語 2.0: 100% トークン準拠＆14 種類のテーマ",
+    "highlight3": "ライブ QR スキャンとモバイルアプリの最適化",
+    "highlight4": "堅牢な Vault 独立性と暗号化",
     "readBlog": "ブログ記事を読む",
     "understand": "了解"
   }

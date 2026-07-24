@@ -2696,10 +2696,10 @@
   "whatsNew": {
     "title": "Plainva 新功能",
     "subtitle": "版本亮点",
-    "highlight1": "⚡ PKM 导入引擎：直接从 Notion、Evernote、Google Keep、Logseq 和 Simplenote 导入",
-    "highlight2": "🎨 设计语言 2.0：100% 令牌规范与 14 种完整主题",
-    "highlight3": "📱 实时二维码扫描与移动应用优化",
-    "highlight4": "🔒 稳固的 Vault 隔离与加密",
+    "highlight1": "PKM 导入引擎：直接从 Notion、Evernote、Google Keep、Logseq 和 Simplenote 导入",
+    "highlight2": "设计语言 2.0：100% 令牌规范与 14 种完整主题",
+    "highlight3": "实时二维码扫描与移动应用优化",
+    "highlight4": "稳固的 Vault 隔离与加密",
     "readBlog": "阅读博客文章",
     "understand": "知道了"
   }

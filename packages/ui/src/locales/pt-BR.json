@@ -2726,10 +2726,10 @@
   "whatsNew": {
     "title": "Novidades no Plainva",
     "subtitle": "Destaques da versão",
-    "highlight1": "⚡ Motor de importação PKM: importe do Notion, Evernote, Google Keep, Logseq e Simplenote",
-    "highlight2": "🎨 Linguagem de design 2.0: 100% de rigor e 14 temas",
-    "highlight3": "📱 Escaneamento de QR em tempo real e otimizações móveis",
-    "highlight4": "🔒 Isolamento e criptografia de cofre robustos",
+    "highlight1": "Motor de importação PKM: importe do Notion, Evernote, Google Keep, Logseq e Simplenote",
+    "highlight2": "Linguagem de design 2.0: 100% de rigor e 14 temas",
+    "highlight3": "Escaneamento de QR em tempo real e otimizações móveis",
+    "highlight4": "Isolamento e criptografia de cofre robustos",
     "readBlog": "Ler publicação do blog",
     "understand": "Entendido"
   }

@@ -2711,10 +2711,10 @@
   "whatsNew": {
     "title": "Was gibt's Neues in Plainva",
     "subtitle": "Release-Highlights",
-    "highlight1": "⚡ PKM-Import Engine: Direkter Import aus Notion, Evernote, Google Keep, Logseq & Simplenote",
-    "highlight2": "🎨 Design Language 2.0: 100% Token-Striktheit & 14 vollständige Themes (inkl. LCARS & Win95)",
-    "highlight3": "📱 Live-QR-Scan & Mobile App Optimierungen",
-    "highlight4": "🔒 Robuste Vault-Isolation & Verschlüsselung",
+    "highlight1": "PKM-Import Engine: Direkter Import aus Notion, Evernote, Google Keep, Logseq & Simplenote",
+    "highlight2": "Design Language 2.0: 100% Token-Striktheit & 14 vollständige Themes (inkl. LCARS & Win95)",
+    "highlight3": "Live-QR-Scan & Mobile App Optimierungen",
+    "highlight4": "Robuste Vault-Isolation & Verschlüsselung",
     "readBlog": "Blogpost lesen",
     "understand": "Verstanden"
   }
