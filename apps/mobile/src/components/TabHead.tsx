@@ -18,7 +18,8 @@ export function TabHead({
   onSettings,
 }: {
   title: string;
-  onSearch: () => void;
+  /** Omitted on screens with their own search (e.g. the graph tab, package E). */
+  onSearch?: () => void;
   onSettings: () => void;
 }) {
   const { t } = useTranslation();
@@ -33,10 +34,12 @@ export function TabHead({
           </button>
         </span>
       </div>
-      <button className="m-searchpill" onClick={onSearch}>
-        <Search size={17} />
-        <span>{t("mobile.searchHint")}</span>
-      </button>
+      {onSearch && (
+        <button className="m-searchpill" onClick={onSearch}>
+          <Search size={17} />
+          <span>{t("mobile.searchHint")}</span>
+        </button>
+      )}
     </div>
   );
 }

@@ -562,7 +562,10 @@ export default function App() {
       {!top && (
         <TabHead
           onSettings={() => push({ kind: "settings", path: "" })}
-          onSearch={() => push({ kind: "search", path: "" })}
+          // The graph tab carries its own live map-filter search field; the
+          // shell's full-text search pill would be a confusing second search
+          // bar there, so it is omitted on that tab (package E, Punkt 7).
+          onSearch={nav.activeTab === "graph" ? undefined : () => push({ kind: "search", path: "" })}
           title={nav.activeTab === "notes" ? vaultName : t(activeDef.labelKey)}
         />
       )}

@@ -16,7 +16,7 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./s
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
-import { toast } from "@plainva/ui";
+import { Switch, toast } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -176,21 +176,18 @@ export function VaultDetailScreen({
             <p className="m-sectionlabel">{t("settingsSync.cardLabel")}</p>
             <div className="m-row m-row--static">
               <span>{t("settingsSync.toggleLabel")}</span>
-              <button
-                className={settingsSyncOn ? "m-btn m-btn--filled" : "m-btn m-btn--tonal"}
+              <Switch
+                checked={settingsSyncOn}
                 disabled={busy}
-                aria-pressed={settingsSyncOn}
-                onClick={() => {
+                label={t("settingsSync.toggleLabel")}
+                onChange={(next) => {
                   setBusy(true);
-                  const next = !settingsSyncOn;
                   void setMobileSettingsSyncEnabled(vaultId, next)
                     .then(() => restartSync(activeVault))
                     .then(() => setSettingsSyncOn(next))
                     .finally(() => setBusy(false));
                 }}
-              >
-                {settingsSyncOn ? t("common.on") : t("common.off")}
-              </button>
+              />
             </div>
             <p className="m-hint">{t("settingsSync.toggleDesc")}</p>
             {encryption === "locked" && (
