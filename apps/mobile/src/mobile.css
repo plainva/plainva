@@ -100,8 +100,10 @@ textarea {
   overflow-y: auto;
   /* The FAB overhangs the navigation bar by 26px into this scroll area
      (maintainer finding on iOS: content collided with ＋) — the bottom
-     padding keeps the last rows scrollable clear of it. */
-  padding: 4px 16px calc(64px + env(safe-area-inset-bottom));
+     padding keeps the last rows scrollable clear of it. No top padding: the
+     sticky .m-header (below) sits flush under the status bar and is its scrim
+     (package B, Punkt 10). */
+  padding: 0 16px calc(64px + env(safe-area-inset-bottom));
 }
 
 .m-page--note {
@@ -133,6 +135,16 @@ textarea {
   z-index: 1;
   box-shadow: var(--shadow-1);
   margin: 0 -16px;
+}
+
+/* Pushed-screen headers pin to the top so content scrolls UNDER them instead
+   of behind the transparent, edge-to-edge OS status bar (package B, Punkt 10).
+   The header already bleeds full-width with a surface background + the
+   safe-area top inset, so pinned it doubles as the status-bar scrim. The
+   tab-root .m-topbar keeps its scroll-elevation behavior and is not pinned. */
+.m-header {
+  position: sticky;
+  top: 0;
 }
 
 .m-topbar {
@@ -311,7 +323,9 @@ textarea {
   align-items: stretch;
   justify-content: space-around;
   background: var(--m-surface-container);
-  padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
+  /* Fold the system nav-bar inset into a tight bar instead of stacking extra
+     chrome padding on top of it (package B, Punkt 9 — the excess gap). */
+  padding: 4px 4px calc(2px + env(safe-area-inset-bottom));
 }
 
 .m-tab {

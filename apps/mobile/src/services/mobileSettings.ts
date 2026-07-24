@@ -138,11 +138,14 @@ async function migrateToPerVault(store: Store, oldBlob: Partial<MobileSettings> 
 }
 
 /** Native status bar icon/text color must track the RESOLVED app theme, not the
- *  system. Style.Light = light content (for a dark background); Style.Dark = dark
- *  content (for a light background). No-op on web. */
+ *  system (Android + iOS). Per @capacitor/status-bar, Style.Dark = LIGHT (white)
+ *  content for a dark background; Style.Light = DARK (black) content for a light
+ *  background. So a dark app theme wants Style.Dark and a light theme Style.Light
+ *  — the previous mapping was inverted, leaving the bar unreadable in both modes
+ *  (package B, maintainer 2026-07-24). No-op on web. */
 function syncNativeStatusBar(mode: "light" | "dark"): void {
   if (Capacitor.getPlatform() === "web") return;
-  void StatusBar.setStyle({ style: mode === "dark" ? Style.Light : Style.Dark }).catch(() => {});
+  void StatusBar.setStyle({ style: mode === "dark" ? Style.Dark : Style.Light }).catch(() => {});
 }
 
 function applyTheme(): void {
