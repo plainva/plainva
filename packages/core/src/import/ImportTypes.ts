@@ -46,6 +46,8 @@ export interface ImportOptions {
   attachmentsFolder?: string;
   /** Optional active IVaultAdapter instance to write files directly to disk */
   vaultAdapter?: any;
+  /** Optional custom fetch function (e.g. Tauri plugin-http fetch) to bypass webview CORS */
+  httpFetch?: typeof fetch;
 }
 
 export interface ImportPlan {

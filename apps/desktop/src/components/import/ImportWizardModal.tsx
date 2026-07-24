@@ -170,11 +170,18 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const source = defaultImportRegistry.get(selectedSourceId);
       if (!source) throw new Error('Unbekannter Importer');
 
+      let httpFetch: typeof fetch = globalThis.fetch;
+      try {
+        const tauriHttp = await import('@tauri-apps/plugin-http');
+        if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
+      } catch {}
+
       const inputPayload = await loadInputPayload();
       const analyzedPlan = await source.analyze(inputPayload, {
         targetVaultPath,
         targetSubfolder: subfolder,
         vaultAdapter,
+        httpFetch,
       });
 
       setPlan(analyzedPlan);
@@ -195,10 +202,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const source = defaultImportRegistry.get(selectedSourceId);
       if (!source) throw new Error('Unbekannter Importer');
 
+      let httpFetch: typeof fetch = globalThis.fetch;
+      try {
+        const tauriHttp = await import('@tauri-apps/plugin-http');
+        if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
+      } catch {}
+
       const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
         inputPayload,
-        { targetVaultPath, targetSubfolder: subfolder, vaultAdapter },
+        { targetVaultPath, targetSubfolder: subfolder, vaultAdapter, httpFetch },
         (pct: number, msg: string) => {
           setProgressPct(pct);
           setStatusMsg(msg);
