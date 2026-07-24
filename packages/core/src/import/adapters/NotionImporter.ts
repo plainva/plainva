@@ -23,6 +23,41 @@ function normId(id: string): string {
   return id.replace(/-/g, '').toLowerCase();
 }
 
+function resolveDatabaseTitle(
+  blockId: string,
+  rawTitle: string | undefined,
+  databaseId: string | undefined,
+  currentPageTitle: string,
+  itemMap?: Map<string, NotionWorkspaceItem>
+): string {
+  if (databaseId && itemMap?.has(normId(databaseId))) {
+    return itemMap.get(normId(databaseId))!.title;
+  }
+  if (blockId && itemMap?.has(normId(blockId))) {
+    return itemMap.get(normId(blockId))!.title;
+  }
+  if (rawTitle && itemMap) {
+    const cleanRaw = rawTitle.trim().toLowerCase();
+    for (const item of itemMap.values()) {
+      if (item.type === 'database' && item.title.trim().toLowerCase() === cleanRaw) {
+        return item.title;
+      }
+    }
+  }
+  if (currentPageTitle && itemMap) {
+    const cleanPage = currentPageTitle.trim().toLowerCase();
+    for (const item of itemMap.values()) {
+      if (item.type === 'database') {
+        const cleanDb = item.title.trim().toLowerCase();
+        if (cleanDb.includes(cleanPage) || cleanPage.includes(cleanDb.replace(/^alle\s+/, ''))) {
+          return item.title;
+        }
+      }
+    }
+  }
+  return rawTitle && rawTitle.toLowerCase() !== 'untitled' ? rawTitle : (currentPageTitle ? `${currentPageTitle}_Datenbank` : 'Datenbank');
+}
+
 function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<string, NotionWorkspaceItem>): string {
   if (!Array.isArray(richTextArray) || richTextArray.length === 0) return '';
 
@@ -477,7 +512,8 @@ export class NotionApiImporter implements ImportSource {
     pageId: string,
     token: string,
     fetchFn: typeof fetch,
-    itemMap?: Map<string, NotionWorkspaceItem>
+    itemMap?: Map<string, NotionWorkspaceItem>,
+    currentPageTitle: string = ''
   ): Promise<string> {
     try {
       const res = await fetchFn(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, {
@@ -518,15 +554,9 @@ export class NotionApiImporter implements ImportSource {
             break;
           }
           case 'child_database': {
-            let dbTitle = info.title;
-            const nid = normId(block.id);
-            if (!dbTitle || dbTitle.toLowerCase() === 'untitled') {
-              if (itemMap?.has(nid)) {
-                dbTitle = itemMap.get(nid)!.title;
-              }
-            }
-            dbTitle = (dbTitle || 'Datenbank').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
-            lines.push(`📊 [[${dbTitle}.base]]`);
+            const resolvedTitle = resolveDatabaseTitle(block.id, info.title, undefined, currentPageTitle, itemMap);
+            const safeDbTitle = resolvedTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
+            lines.push(`📊 [[${safeDbTitle}.base]]`);
             break;
           }
           case 'link_to_page': {
@@ -542,7 +572,9 @@ export class NotionApiImporter implements ImportSource {
                 lines.push(`🔗 [[${targetObj.title}]]`);
               }
             } else if (rawTargetId) {
-              lines.push(`🔗 [[${rawTargetId}]]`);
+              const resolvedTitle = resolveDatabaseTitle(block.id, undefined, rawTargetId, currentPageTitle, itemMap);
+              const safeDbTitle = resolvedTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
+              lines.push(`📊 [[${safeDbTitle}.base]]`);
             }
             break;
           }
@@ -723,7 +755,7 @@ export class NotionApiImporter implements ImportSource {
             }
 
             const safeRowTitle = rowTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
-            const rowBody = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn, itemMap);
+            const rowBody = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn, itemMap, rowTitle);
 
             let rowMdContent = '';
             if (Object.keys(rowFrontmatter).length > 0) {
@@ -741,7 +773,7 @@ export class NotionApiImporter implements ImportSource {
         importedNotes++;
         const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
         const notePath = currentFolder ? `${currentFolder}/${safeNoteTitle}` : safeNoteTitle;
-        const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn, itemMap);
+        const bodyMd = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn, itemMap, item.title);
         const fullContent = `# ${item.title}\n\n${bodyMd || '*Keine Textinhalte in dieser Notion-Seite vorhanden.*'}\n`;
 
         if (opts.vaultAdapter) {
