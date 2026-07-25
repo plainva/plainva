@@ -8,7 +8,7 @@ Dernière vérification : 2026-07-25
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
-Sur mobile, la section indique d'abord l'état réel de ce vault : **Sur cet appareil uniquement** sans connexion cloud, **Cette connexion n'est pas chiffrée** pour un vault cloud ordinaire (le chiffrement est possible — configurez-le dans Plainva sur ordinateur, cet appareil rejoint ensuite ici), ou les étapes d'adhésion dès que la connexion porte un espace de travail chiffré.
+Sur mobile, la section indique d'abord l'état réel de ce vault : **Sur cet appareil uniquement** sans connexion cloud, **Cette connexion n'est pas chiffrée** pour un vault cloud ordinaire — **Configurer le chiffrement** y déroule les mêmes trois étapes que sur ordinateur (identité → fichier de récupération et code → activation avec une progression reprenable) — ou les étapes d'adhésion dès que la connexion porte un espace de travail chiffré.
 
 ## Configuration
 

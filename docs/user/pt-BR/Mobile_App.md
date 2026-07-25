@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-07-22
+Última revisão: 2026-07-25
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -32,6 +32,8 @@ Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte 
 ## Sincronização
 
 Em **Configurações** (⋮), **Vault ativo** leva ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida: a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada pela primeira sincronização. No primeiro início do app, a opção (**"Conectar um cofre na nuvem"**) oferece a mesma escolha entre um vault existente e um novo vault na nuvem. Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).
+
+**Configurações** → **Segurança e compartilhamento** informa o que a conexão realmente é — e, em um vault de nuvem comum, configura o espaço de trabalho criptografado direto no telefone (identidade → arquivo de recuperação e código → ativação). Sem conexão de nuvem não há nada para criptografar, e a área diz isso.
 
 ## Rede de segurança
 

@@ -8,7 +8,7 @@ Ultima verifica: 2026-07-25
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
 
-Su mobile la sezione indica prima lo stato reale di questo vault: **Solo su questo dispositivo** senza connessione cloud, **Questa connessione non è crittografata** per un normale vault cloud (la crittografia è possibile: configurala in Plainva sul desktop, poi questo dispositivo entra da qui), oppure i passaggi di accesso appena la connessione contiene un'area di lavoro crittografata.
+Su mobile la sezione indica prima lo stato reale di questo vault: **Solo su questo dispositivo** senza connessione cloud, **Questa connessione non è crittografata** per un normale vault cloud — **Configura la crittografia** esegue lì gli stessi tre passaggi del desktop (identità → file di ripristino e codice → attivazione con avanzamento riprendibile) — oppure i passaggi di accesso appena la connessione contiene un'area di lavoro crittografata.
 
 ## Configurazione
 

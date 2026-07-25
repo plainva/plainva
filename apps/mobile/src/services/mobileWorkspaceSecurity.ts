@@ -2,8 +2,13 @@ import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
   applyWorkspaceGovernanceUpdate,
+  createPersonalWorkspaceBootstrap,
   createWorkspacePairingRequest,
+  createWorkspaceRecoveryPackage,
   deserializePersonalWorkspaceRuntime,
+  initializePersonalWorkspaceMigration,
+  personalWorkspaceRuntime,
+  workspaceDocumentHash,
   loadWorkspacePairingApproval,
   parseWorkspacePairingRequest,
   publishWorkspacePairingRequest,
@@ -18,8 +23,10 @@ import {
   toBase64,
   fromBase64,
   type CreatedWorkspacePairingRequest,
+  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
   type WorkspaceObjectStore,
+  type WorkspaceStateStore,
 } from "@plainva/core";
 import { Preferences } from "@capacitor/preferences";
 import { Capacitor } from "@capacitor/core";
@@ -44,6 +51,11 @@ interface StoredPendingPairing {
   hpkePublicKey: string;
 }
 
+/** Written into genesis + policy: the oldest Plainva that may open this
+ *  workspace. Kept identical to the desktop wizard so a workspace created on
+ *  the phone stays joinable from a desktop of the same generation. */
+const MINIMUM_CLIENT_VERSION = "0.4.1";
+
 const runtimeKey = (vaultId: string) => `workspace_runtime_mobile_${vaultId}`;
 const pendingKey = (vaultId: string) => `workspace_pairing_mobile_${vaultId}`;
 const statusKey = (vaultId: string) => `workspace_status_mobile_${vaultId}`;
@@ -57,7 +69,9 @@ export async function getMobileWorkspaceStatus(vaultId: string): Promise<MobileW
 
 async function saveStatus(vaultId: string, status: MobileWorkspaceStatus): Promise<void> {
   await Preferences.set({ key: statusKey(vaultId), value: JSON.stringify(status) });
-  window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+  // The screens listen for this; guarded so the service also works where no DOM
+  // exists (tests, and any future worker context).
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }
 
 export async function loadMobileWorkspaceRuntime(vaultId: string): Promise<PersonalWorkspaceRuntime | null> {
@@ -72,6 +86,112 @@ export async function persistMobileWorkspaceRuntime(vaultId: string, runtime: Pe
   await secureCredentialStore.writeSecret(runtimeKey(vaultId), serializePersonalWorkspaceRuntime(runtime));
   cache.set(vaultId, runtime); locked.delete(vaultId);
   await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: runtime.genesis ? (await import("@plainva/core")).workspaceDocumentHash(runtime.genesis) : "", deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
+}
+
+/* ---------------------------------------------------------------------------
+ * First setup on the phone (2026-07-25). The desktop twin lives in
+ * services/workspaceSecurity/workspaceLifecycle.ts and this mirrors it 1:1 on
+ * the same core primitives: prepare (keys + recovery package, kept in memory
+ * ONLY), then activate (persist to the keystore, publish, start the resumable
+ * encryption sweep). Nothing is written anywhere until the user confirmed the
+ * recovery backup, so an abandoned wizard leaves no trace.
+ * No fallback-passphrase branch: the Android/iOS keystore is always available
+ * (secureCredentialStore), unlike a headless Linux desktop.
+ * ------------------------------------------------------------------------- */
+
+interface MobileWorkspaceDraft {
+  vaultId: string;
+  runtime: PersonalWorkspaceRuntime;
+  fingerprint: string;
+  recoveryConfirmedAt: string;
+  expiresAt: number;
+}
+
+export interface PreparedMobileWorkspace {
+  draftId: string;
+  recoveryPackage: Uint8Array;
+  recoveryCode: string;
+  fingerprint: string;
+}
+
+const drafts = new Map<string, MobileWorkspaceDraft>();
+const DRAFT_TTL_MS = 30 * 60 * 1000;
+
+/** Zeroes the private keys of a draft that never became a workspace. */
+function destroyDraft(draft: MobileWorkspaceDraft): void {
+  draft.runtime.device.secrets.signing.privateKey.fill(0);
+  draft.runtime.device.secrets.hpke.privateKey.fill(0);
+  draft.runtime.ownerGroup.hpke.privateKey.fill(0);
+  draft.runtime.ownerGroup.catalogKey.fill(0);
+}
+
+export function discardPreparedMobileWorkspace(draftId: string): void {
+  const draft = drafts.get(draftId);
+  if (!draft) return;
+  drafts.delete(draftId);
+  destroyDraft(draft);
+}
+
+export async function prepareMobileWorkspace(input: { vaultId: string; ownerDisplayName: string; deviceDisplayName: string }): Promise<PreparedMobileWorkspace> {
+  for (const [draftId, draft] of drafts) {
+    if (draft.vaultId === input.vaultId || draft.expiresAt <= Date.now()) discardPreparedMobileWorkspace(draftId);
+  }
+  const bootstrap = await createPersonalWorkspaceBootstrap({
+    ownerDisplayName: input.ownerDisplayName.trim(),
+    deviceDisplayName: input.deviceDisplayName.trim(),
+    platform: Capacitor.getPlatform() === "ios" ? "ios" : "android",
+    minimumClientVersion: MINIMUM_CLIENT_VERSION,
+  });
+  const recoveryConfirmedAt = new Date().toISOString();
+  const recovery = createWorkspaceRecoveryPackage(bootstrap, { now: recoveryConfirmedAt });
+  const fingerprint = workspaceDocumentHash(bootstrap.genesis);
+  const draftId = crypto.randomUUID();
+  drafts.set(draftId, { vaultId: input.vaultId, runtime: personalWorkspaceRuntime(bootstrap), fingerprint, recoveryConfirmedAt, expiresAt: Date.now() + DRAFT_TTL_MS });
+  return { draftId, recoveryPackage: recovery.bytes, recoveryCode: recovery.recoveryCode, fingerprint };
+}
+
+/**
+ * Point of no return: persists the device keys, publishes genesis + owner
+ * policy and encrypts the local files into `.pvws/`. The sweep is resumable —
+ * the sync worker runs the same call at every start, so an interrupted first
+ * pass continues instead of restarting.
+ */
+export async function activatePreparedMobileWorkspace(input: {
+  vaultId: string;
+  draftId: string;
+  store: WorkspaceObjectStore;
+  vault: IVaultAdapter;
+  state: WorkspaceStateStore;
+  onProgress?: (done: number, total: number) => void;
+}): Promise<{ runtime: PersonalWorkspaceRuntime; queued: number; total: number }> {
+  const draft = drafts.get(input.draftId);
+  if (!draft || draft.vaultId !== input.vaultId || draft.expiresAt <= Date.now()) {
+    if (draft) discardPreparedMobileWorkspace(input.draftId);
+    throw new Error("workspace-draft-expired");
+  }
+  await persistMobileWorkspaceRuntime(input.vaultId, draft.runtime);
+  try {
+    const migration = await initializePersonalWorkspaceMigration({
+      store: input.store,
+      state: input.state,
+      vault: input.vault,
+      runtime: draft.runtime,
+      recoveryConfirmedAt: draft.recoveryConfirmedAt,
+      onProgress: input.onProgress,
+    });
+    drafts.delete(input.draftId);
+    return { runtime: draft.runtime, queued: migration.queued, total: migration.total };
+  } catch (error) {
+    await saveStatus(input.vaultId, {
+      version: 1,
+      workspaceId: draft.runtime.workspaceId,
+      fingerprint: draft.fingerprint,
+      deviceName: draft.runtime.device.publicIdentity.displayName,
+      phase: "error",
+      lastError: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export async function beginMobileWorkspacePairing(input: { vaultId: string; store: WorkspaceObjectStore; workspaceId: string; fingerprint: string; memberId: string; deviceName: string }): Promise<{ token: string; shortCode: string; fingerprint: string }> {

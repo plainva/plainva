@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-07-22
+Última actualización: 2026-07-25
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -32,6 +32,8 @@ Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: co
 ## Sincronización
 
 En los **Ajustes** (⋮), **Vault activo** lleva a la gestión de vaults; ahí conectas el almacenamiento en la nube (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar una bóveda en la nube** trae al dispositivo un vault en la nube ya existente; **Crear un vault** pregunta primero **En este dispositivo** o **En un servicio en línea** y después por la estructura inicial (vacía o una plantilla como PARA) — en la ruta en línea sigue el proceso de conexión: la carpeta de destino en la nube se puede crear nueva ahí mismo mediante **Nueva carpeta**, y la estructura se sube en la primera sincronización. El primer inicio («Conectar una bóveda en la nube») ofrece la misma elección entre un vault existente y uno nuevo en la nube. Cada conexión obtiene su propia bóveda separada en el dispositivo. La página de la bóveda muestra el estado, el progreso, las transferencias pendientes y ofrece **Exportar el vault** (ZIP a través del menú para compartir).
+
+**Ajustes** → **Seguridad y compartir** indica qué es realmente la conexión y, en un vault de nube normal, configura el espacio de trabajo cifrado directamente en el teléfono (identidad → archivo de recuperación y código → activación). Sin conexión de nube no hay nada que cifrar, y la sección lo dice.
 
 ## Red de seguridad
 

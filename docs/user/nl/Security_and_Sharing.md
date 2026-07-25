@@ -8,7 +8,7 @@ Laatst gecontroleerd: 2026-07-25
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
 
-Op mobiel noemt het onderdeel eerst de werkelijke staat van deze kluis: **Alleen op dit apparaat** zonder cloudverbinding, **Deze verbinding is niet versleuteld** bij een gewone cloudkluis (versleuteling is mogelijk — stel die in Plainva op de desktop in, daarna sluit dit apparaat zich hier aan), of de stappen om lid te worden zodra de verbinding een versleutelde werkruimte bevat.
+Op mobiel noemt het onderdeel eerst de werkelijke staat van deze kluis: **Alleen op dit apparaat** zonder cloudverbinding, **Deze verbinding is niet versleuteld** bij een gewone cloudkluis — **Versleuteling instellen** doorloopt daar dezelfde drie stappen als op de desktop (identiteit → herstelbestand en code → activering met hervatbare voortgang) — of de stappen om lid te worden zodra de verbinding een versleutelde werkruimte bevat.
 
 ## Instellen
 

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-22
+Last updated: 2026-07-25
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -32,6 +32,8 @@ Manage accounts from the gear icon in the event calendar: connect **CalDAV** on 
 ## Sync
 
 In the **Settings** (⋮), **Active vault** leads to the vault management; there you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault onto the device; **Create a vault** first asks **On this device** or **With an online service** and then for the starter structure (empty or a template like PARA) — on the online path the connection follows, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded by the first sync. The first launch ("Connect to cloud") offers the same choice between an existing and a new cloud vault. Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).
+
+**Settings** → **Security & Sharing** names what the connection actually is — and for a plain cloud vault it sets up the encrypted workspace right on the phone (identity → recovery file and code → activation). Without a cloud connection there is nothing to encrypt, and the area says so.
 
 ## Safety net
 

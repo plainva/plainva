@@ -8,7 +8,7 @@ Ostatni przegląd: 2026-07-25
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
 
-Na telefonie sekcja najpierw podaje rzeczywisty stan tego sejfu: **Tylko na tym urządzeniu** bez połączenia z chmurą, **To połączenie nie jest zaszyfrowane** przy zwykłym sejfie w chmurze (szyfrowanie jest możliwe — skonfiguruj je w Plainva na komputerze, a potem to urządzenie dołączy tutaj) albo kroki dołączania, gdy w połączeniu znajduje się zaszyfrowany obszar roboczy.
+Na telefonie sekcja najpierw podaje rzeczywisty stan tego sejfu: **Tylko na tym urządzeniu** bez połączenia z chmurą, **To połączenie nie jest zaszyfrowane** przy zwykłym sejfie w chmurze — **Skonfiguruj szyfrowanie** przeprowadza tam te same trzy kroki co na komputerze (tożsamość → plik odzyskiwania i kod → aktywacja z wznawialnym postępem) — albo kroki dołączania, gdy w połączeniu znajduje się zaszyfrowany obszar roboczy.
 
 ## Konfiguracja
 

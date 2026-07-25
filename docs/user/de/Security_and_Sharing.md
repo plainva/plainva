@@ -10,7 +10,7 @@ Zuletzt geprüft: 2026-07-25
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
-Mobil nennt der Bereich zuerst den tatsächlichen Zustand dieses Vaults: **Nur auf diesem Gerät** ohne Cloud-Verbindung, **Diese Verbindung ist nicht verschlüsselt** bei einem normalen Cloud-Vault (eine Verschlüsselung ist möglich — richte sie in Plainva am Desktop ein, danach tritt dieses Gerät hier bei), oder die Beitritts-Schritte, sobald auf der Verbindung ein verschlüsselter Workspace liegt.
+Mobil nennt der Bereich zuerst den tatsächlichen Zustand dieses Vaults: **Nur auf diesem Gerät** ohne Cloud-Verbindung, **Diese Verbindung ist nicht verschlüsselt** bei einem normalen Cloud-Vault — **Verschlüsselung einrichten** führt dort die gleichen drei Schritte wie am Desktop aus (Identität → Wiederherstellungsdatei und Code → Aktivierung mit fortsetzbarem Fortschritt) — oder die Beitritts-Schritte, sobald auf der Verbindung ein verschlüsselter Workspace liegt.
 
 ## Erste Einrichtung
 

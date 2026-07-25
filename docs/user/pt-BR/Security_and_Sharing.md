@@ -8,7 +8,7 @@
 
 Plainva mantém o vault como arquivos legíveis no dispositivo e armazena a cópia na nuvem como objetos criptografados opacos. Depois de conectar uma conta, abra **Configurações → vault → Segurança e compartilhamento**.
 
-No celular, a área informa primeiro o estado real deste vault: **Somente neste dispositivo** sem conexão de nuvem, **Esta conexão não é criptografada** em um vault de nuvem comum (a criptografia é possível — configure-a no Plainva no computador e este dispositivo entra aqui), ou as etapas de entrada assim que a conexão tiver um espaço de trabalho criptografado.
+No celular, a área informa primeiro o estado real deste vault: **Somente neste dispositivo** sem conexão de nuvem, **Esta conexão não é criptografada** em um vault de nuvem comum — **Configurar a criptografia** executa ali as mesmas três etapas do computador (identidade → arquivo de recuperação e código → ativação com progresso retomável) — ou as etapas de entrada assim que a conexão tiver um espaço de trabalho criptografado.
 
 ## Configuração
 

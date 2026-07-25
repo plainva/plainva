@@ -10,7 +10,7 @@ Last reviewed: 2026-07-25
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
-On mobile the area first names what this vault really is: **On this device only** without a cloud connection, **This connection is not encrypted** for an ordinary cloud vault (encryption is possible — set it up in Plainva on desktop, then this device joins right here), or the join steps as soon as the connection carries an encrypted workspace.
+On mobile the area first names what this vault really is: **On this device only** without a cloud connection, **This connection is not encrypted** for an ordinary cloud vault — **Set up encryption** there runs the same three steps as on the desktop (identity → recovery file and code → activation with a resumable progress bar) — or the join steps as soon as the connection carries an encrypted workspace.
 
 ## First setup
 

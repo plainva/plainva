@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-07-22
+Stand: 2026-07-25
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -32,6 +32,8 @@ Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** ver
 ## Synchronisation
 
 In den **Einstellungen** (⋮) führt **Aktiver Vault** zur Vault-Verwaltung; dort verbindest Du Cloud-Speicher (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Mit Cloud verbinden** holt einen bestehenden Cloud-Vault aufs Gerät; **Neuen Vault erstellen** fragt zuerst **Auf diesem Gerät** oder **Bei einem Online-Dienst** und danach die Startstruktur (leer oder eine Vorlage wie PARA) — beim Online-Weg folgt das Verbinden, der Ziel-Ordner in der Cloud lässt sich im Auswahl-Blatt über **Neuer Ordner** frisch anlegen, und die Struktur wird beim ersten Sync hochgeladen. Dieselbe Wahl zwischen bestehendem und neuem Cloud-Vault bietet auch der erste Start („Mit Cloud verbinden"). Jede Verbindung bekommt einen eigenen, getrennten Vault auf dem Gerät. Die Vault-Seite zeigt Status, Fortschritt, ausstehende Übertragungen und bietet **Vault exportieren** (ZIP über das Teilen-Menü).
+
+**Einstellungen** → **Sicherheit & Freigaben** benennt, was die Verbindung tatsächlich ist — und richtet bei einem normalen Cloud-Vault den verschlüsselten Workspace direkt auf dem Telefon ein (Identität → Wiederherstellungsdatei und Code → Aktivierung). Ohne Cloud-Verbindung gibt es nichts zu verschlüsseln; der Bereich sagt das auch so.
 
 ## Sicherheitsnetz
 

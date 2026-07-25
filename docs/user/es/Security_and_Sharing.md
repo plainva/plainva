@@ -8,7 +8,7 @@ Revisado: 2026-07-25
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
 
-En el móvil, la sección indica primero el estado real de este vault: **Solo en este dispositivo** sin conexión de nube, **Esta conexión no está cifrada** en un vault de nube normal (el cifrado es posible: configúralo en Plainva en el escritorio y este dispositivo se une aquí), o los pasos para unirse en cuanto la conexión contiene un espacio de trabajo cifrado.
+En el móvil, la sección indica primero el estado real de este vault: **Solo en este dispositivo** sin conexión de nube, **Esta conexión no está cifrada** en un vault de nube normal — **Configurar el cifrado** ejecuta ahí los mismos tres pasos que en el escritorio (identidad → archivo de recuperación y código → activación con progreso reanudable) — o los pasos para unirse en cuanto la conexión contiene un espacio de trabajo cifrado.
 
 ## Configuración
 

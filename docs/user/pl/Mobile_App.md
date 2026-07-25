@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-22
+Stan na: 2026-07-25
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -32,6 +32,8 @@ Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **Ca
 ## Synchronizacja
 
 W **Ustawieniach** (⋮) **Aktywny vault** prowadzi do zarządzania vaultami; tam łączysz się z magazynem w chmurze (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Połącz sejf w chmurze** pobiera na urządzenie istniejący sejf w chmurze; **Utwórz vault** pyta najpierw **Na tym urządzeniu** czy **W usłudze online**, a potem o strukturę początkową (pustą lub szablon, np. PARA) — przy ścieżce online następuje połączenie, docelowy folder w chmurze można od razu utworzyć przez **Nowy folder** w arkuszu wyboru, a struktura zostaje przesłana podczas pierwszej synchronizacji. Ten sam wybór między istniejącym a nowym sejfem w chmurze oferuje też pierwsze uruchomienie („Połącz sejf w chmurze”). Każde połączenie otrzymuje własny, osobny sejf na urządzeniu. Strona sejfu pokazuje status, postęp, oczekujące transfery i oferuje **Eksportuj sejf** (ZIP przez arkusz udostępniania).
+
+**Ustawienia** → **Bezpieczeństwo i udostępnianie** podaje, czym połączenie naprawdę jest — a przy zwykłym sejfie w chmurze konfiguruje zaszyfrowany obszar roboczy wprost na telefonie (tożsamość → plik odzyskiwania i kod → aktywacja). Bez połączenia z chmurą nie ma czego szyfrować i sekcja to mówi.
 
 ## Sieć bezpieczeństwa
 
