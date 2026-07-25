@@ -1,4 +1,13 @@
-import { ImportFamily, ImportOptions, ImportPlan, ImportReport, ImportSource, ImportSourceId } from '../ImportTypes.js';
+import {
+  DEFAULT_IMPORT_LABELS,
+  ImportFamily,
+  ImportOptions,
+  ImportPlan,
+  ImportReport,
+  ImportSource,
+  ImportSourceId,
+} from '../ImportTypes.js';
+import { ImportWriter } from '../ImportWriter.js';
 
 export interface SimplenoteExportNote {
   id: string;
@@ -18,7 +27,7 @@ export class SimplenoteImporter implements ImportSource {
   readonly id: ImportSourceId = 'simplenote';
   readonly name = 'Simplenote JSON';
   readonly family: ImportFamily = 'json';
-  readonly description = 'Importiert Notizen und Tags aus dem Simplenote JSON-Export.';
+  readonly description = 'Imports notes and tags from a Simplenote JSON export.';
 
   private parseInput(input: any): SimplenoteExportNote[] {
     if (typeof input === 'object' && input !== null && Array.isArray(input.activeNotes)) {
@@ -47,14 +56,41 @@ export class SimplenoteImporter implements ImportSource {
     return [];
   }
 
+  /** Counts notes in the export's trash — reported, never imported. */
+  private countTrashed(input: any): number {
+    if (typeof input === 'object' && input !== null && Array.isArray(input.trashedNotes)) {
+      return input.trashedNotes.length;
+    }
+    if (Array.isArray(input)) {
+      let total = 0;
+      for (const item of input) {
+        if (typeof item?.content === 'string') {
+          try {
+            const parsed = JSON.parse(item.content);
+            if (parsed && Array.isArray(parsed.trashedNotes)) total += parsed.trashedNotes.length;
+          } catch {
+            // Ignore non-json
+          }
+        }
+      }
+      return total;
+    }
+    return 0;
+  }
+
   async detect(input: any): Promise<boolean> {
     const notes = this.parseInput(input);
     return notes.length > 0;
   }
 
-  async analyze(input: any, _opts: ImportOptions): Promise<ImportPlan> {
+  async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const active = this.parseInput(input);
     const totalBytes = active.reduce((acc, n) => acc + (n.content ? n.content.length : 0), 0);
+
+    const warnings: string[] = [];
+    if (active.length === 0) warnings.push('No valid Simplenote notes found in the JSON selection.');
+    if (this.countTrashed(input) > 0) warnings.push(labels.limitSimplenoteTrashed);
 
     return {
       sourceId: this.id,
@@ -63,7 +99,7 @@ export class SimplenoteImporter implements ImportSource {
       totalAttachments: 0,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: active.length === 0 ? ['Keine gültigen Simplenote Notizen in der JSON-Auswahl gefunden.'] : [],
+      warnings,
       requiredSpaceBytes: totalBytes,
       estimatedDurationSec: Math.max(1, Math.ceil(active.length / 50)),
     };
@@ -75,26 +111,20 @@ export class SimplenoteImporter implements ImportSource {
     onProgress?: (percent: number, statusMessage: string) => void
   ): Promise<ImportReport> {
     const startTime = Date.now();
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const active = this.parseInput(input);
-    const items: ImportReport['items'] = [];
-    let importedNotes = 0;
+    const writer = new ImportWriter(opts, labels);
 
-    const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
+    await writer.ensureRoot();
 
-    if (opts.vaultAdapter && prefix) {
-      try {
-        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
-      } catch {
-        // Folder exists
-      }
-    }
+    const trashed = this.countTrashed(input);
+    if (trashed > 0) writer.noteLimitation(`${labels.limitSimplenoteTrashed} (${trashed})`);
 
     for (let i = 0; i < active.length; i++) {
       const note = active[i];
       const lines = (note.content || '').split('\n');
-      const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Notiz_${note.id}`;
-      const safeTitle = (rawTitle || 'Unbenannte Notiz').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
-      const targetPath = `${prefix}${safeTitle}.md`;
+      const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Note_${note.id}`;
+      const safeTitle = (rawTitle || 'Untitled note').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 
       let mdContent = note.content || '';
       if (Array.isArray(note.tags) && note.tags.length > 0) {
@@ -102,44 +132,13 @@ export class SimplenoteImporter implements ImportSource {
         mdContent = tagsHeader + mdContent;
       }
 
-      if (opts.vaultAdapter) {
-        await opts.vaultAdapter.writeTextFile(targetPath, mdContent);
-      }
-
-      importedNotes++;
-      items.push({
-        path: targetPath,
-        status: 'imported',
-      });
+      await writer.writeNote(`${safeTitle}.md`, mdContent);
 
       if (onProgress && active.length > 0) {
-        onProgress(Math.round(((i + 1) / active.length) * 100), `Importiere ${safeTitle}...`);
+        onProgress(Math.round(((i + 1) / active.length) * 100), `Importing ${safeTitle}...`);
       }
     }
 
-    const durationMs = Date.now() - startTime;
-    const reportPath = `${prefix}Import-Bericht.md`;
-
-    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n` +
-      `- **Datum:** ${new Date().toISOString()}\n` +
-      `- **Importierte Notizen:** ${importedNotes}\n\n` +
-      items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
-
-    if (opts.vaultAdapter) {
-      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
-    }
-
-    return {
-      sourceId: this.id,
-      sourceName: this.name,
-      startedAt: new Date(startTime).toISOString(),
-      durationMs,
-      importedNotesCount: importedNotes,
-      importedAttachmentsCount: 0,
-      importedDatabasesCount: 0,
-      reportPath,
-      items,
-      summaryMarkdown,
-    };
+    return writer.finish(this, startTime);
   }
 }

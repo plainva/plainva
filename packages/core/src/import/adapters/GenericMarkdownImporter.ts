@@ -1,4 +1,13 @@
-import { ImportFamily, ImportOptions, ImportPlan, ImportReport, ImportSource, ImportSourceId } from '../ImportTypes.js';
+import {
+  DEFAULT_IMPORT_LABELS,
+  ImportFamily,
+  ImportOptions,
+  ImportPlan,
+  ImportReport,
+  ImportSource,
+  ImportSourceId,
+} from '../ImportTypes.js';
+import { ImportWriter } from '../ImportWriter.js';
 
 export interface MarkdownInputFile {
   relativePath: string;
@@ -8,9 +17,9 @@ export interface MarkdownInputFile {
 
 export class GenericMarkdownImporter implements ImportSource {
   readonly id: ImportSourceId = 'generic_markdown';
-  readonly name = 'Markdown Ordner / ZIP';
+  readonly name = 'Markdown folder / ZIP';
   readonly family: ImportFamily = 'markdown';
-  readonly description = 'Importiert generische Markdown-Dateien und Ordnerstrukturen.';
+  readonly description = 'Imports plain Markdown files and folder structures.';
 
   async detect(input: any): Promise<boolean> {
     if (Array.isArray(input)) {
@@ -19,11 +28,16 @@ export class GenericMarkdownImporter implements ImportSource {
     return false;
   }
 
-  async analyze(input: MarkdownInputFile[], _opts: ImportOptions): Promise<ImportPlan> {
+  async analyze(input: MarkdownInputFile[], opts: ImportOptions): Promise<ImportPlan> {
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const files = Array.isArray(input) ? input : [];
     const notes = files.filter(f => typeof f.relativePath === 'string' && f.relativePath.endsWith('.md'));
     const attachments = files.filter(f => typeof f.relativePath === 'string' && !f.relativePath.endsWith('.md'));
     const totalBytes = files.reduce((acc, f) => acc + (f.content ? f.content.length : 0), 0);
+
+    const warnings: string[] = [];
+    if (files.length === 0) warnings.push('No Markdown files found in the selection.');
+    warnings.push(labels.limitBinaryFilesInZip);
 
     return {
       sourceId: this.id,
@@ -32,7 +46,7 @@ export class GenericMarkdownImporter implements ImportSource {
       totalAttachments: attachments.length,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: files.length === 0 ? ['Keine Markdown-Dateien in der Auswahl gefunden.'] : [],
+      warnings,
       requiredSpaceBytes: totalBytes,
       estimatedDurationSec: Math.max(1, Math.ceil(notes.length / 50)),
     };
@@ -44,77 +58,29 @@ export class GenericMarkdownImporter implements ImportSource {
     onProgress?: (percent: number, statusMessage: string) => void
   ): Promise<ImportReport> {
     const startTime = Date.now();
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const files = Array.isArray(input) ? input : [];
-    const items: ImportReport['items'] = [];
-    let importedNotes = 0;
-    let importedAttachments = 0;
+    const writer = new ImportWriter(opts, labels);
 
-    const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
-
-    if (opts.vaultAdapter && prefix) {
-      try {
-        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
-      } catch {
-        // Ignore if exists
-      }
-    }
+    await writer.ensureRoot();
+    writer.noteLimitation(labels.limitBinaryFilesInZip);
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file || !file.relativePath) continue;
 
-      const targetPath = `${prefix}${file.relativePath}`;
       const isMd = file.relativePath.endsWith('.md');
-
-      if (opts.vaultAdapter && file.content !== undefined) {
-        // Create subdirectories if nested
-        if (targetPath.includes('/')) {
-          const folderPart = targetPath.substring(0, targetPath.lastIndexOf('/'));
-          try { await opts.vaultAdapter.createFolder(folderPart); } catch { /* ignore existing dir */ }
-        }
-        await opts.vaultAdapter.writeTextFile(targetPath, file.content);
+      if (isMd) {
+        await writer.writeNote(file.relativePath, file.content ?? '');
+      } else {
+        await writer.writeFile(file.relativePath, file.content ?? '');
       }
-
-      if (isMd) importedNotes++;
-      else importedAttachments++;
-
-      items.push({
-        path: targetPath,
-        status: 'imported',
-      });
 
       if (onProgress && files.length > 0) {
-        const pct = Math.round(((i + 1) / files.length) * 100);
-        onProgress(pct, `Importiere ${file.relativePath}...`);
+        onProgress(Math.round(((i + 1) / files.length) * 100), `Importing ${file.relativePath}...`);
       }
     }
 
-    const durationMs = Date.now() - startTime;
-    const reportPath = `${prefix}Import-Bericht.md`;
-
-    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n` +
-      `- **Datum:** ${new Date().toISOString()}\n` +
-      `- **Dauer:** ${Math.round(durationMs / 1000)}s\n` +
-      `- **Importierte Notizen:** ${importedNotes}\n` +
-      `- **Importierte Anhänge:** ${importedAttachments}\n\n` +
-      `## Importierte Dateien\n\n` +
-      items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
-
-    if (opts.vaultAdapter) {
-      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
-    }
-
-    return {
-      sourceId: this.id,
-      sourceName: this.name,
-      startedAt: new Date(startTime).toISOString(),
-      durationMs,
-      importedNotesCount: importedNotes,
-      importedAttachmentsCount: importedAttachments,
-      importedDatabasesCount: 0,
-      reportPath,
-      items,
-      summaryMarkdown,
-    };
+    return writer.finish(this, startTime);
   }
 }

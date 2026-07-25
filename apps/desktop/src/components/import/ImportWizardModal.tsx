@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Modal, Button, Select, ICON } from '@plainva/ui';
+import { Modal, Button, Select, ICON, serializeBaseConfig } from '@plainva/ui';
+import { useTranslation } from 'react-i18next';
 import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database } from 'lucide-react';
 import { defaultImportRegistry, unpackZipArchive, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
 import { useVault } from '../../contexts/VaultContext';
+import { buildImportLabels } from './importLabels';
 
 interface ImportWizardModalProps {
   targetVaultPath: string;
@@ -17,9 +19,10 @@ interface SelectedFileItem {
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaultPath, onClose }) => {
   const { vaultAdapter, triggerFileTreeUpdate } = useVault();
+  const { t } = useTranslation();
 
   const [selectedSourceId, setSelectedSourceId] = useState<ImportSourceId>('generic_markdown');
-  const [subfolder, setSubfolder] = useState<string>('Import Notizen');
+  const [subfolder, setSubfolder] = useState<string>(t('import.defaultSubfolder'));
   const [notionToken, setNotionToken] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedFileItem[]>([]);
   const [selectedFolderPath, setSelectedFolderPath] = useState<string>('');
@@ -33,25 +36,12 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sources = defaultImportRegistry.list();
 
-  const getSourceHint = (id: ImportSourceId): string => {
-    switch (id) {
-      case 'notion_file':
-        return 'Wähle Deinen Notion ZIP-Export oder entpackten Ordner mit Markdown/CSV-Dateien aus.';
-      case 'notion_api':
-        return 'Gib Deinen Notion Integration Token ein, um freigegebene Notizen & Datenbanken direkt per API zu laden.';
-      case 'evernote':
-        return 'Wähle Deine in Evernote exportierten .enex Dateien aus (Notizbuch -> Exportieren als ENEX).';
-      case 'google_keep':
-        return 'Wähle den Google Takeout ZIP-Export oder die entpackten .json Dateien aus.';
-      case 'logseq':
-        return 'Wähle Deinen Logseq Graph-Ordner (enthält /journals und /pages).';
-      case 'simplenote':
-        return 'Wähle die .json Export-Datei aus Simplenote aus.';
-      case 'generic_markdown':
-      default:
-        return 'Wähle einen Ordner oder Dateien mit Markdown (.md) und Anhängen aus.';
-    }
-  };
+  /** Translated source name; falls back to the importer's own English name. */
+  const sourceName = (id: ImportSourceId, fallback: string): string =>
+    t(`import.sources.${id}`, { defaultValue: fallback }) as string;
+
+  const getSourceHint = (id: ImportSourceId): string =>
+    t(`import.hints.${id}`, { defaultValue: t('import.hints.generic_markdown') }) as string;
 
   const handleSelectFilesNative = async () => {
     setErrorMsg('');
@@ -89,12 +79,12 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const getFiltersForSource = (id: ImportSourceId) => {
     switch (id) {
       case 'evernote':
-        return [{ name: 'Evernote Export', extensions: ['enex', 'zip'] }];
+        return [{ name: 'Evernote', extensions: ['enex', 'zip'] }];
       case 'google_keep':
       case 'simplenote':
-        return [{ name: 'JSON / Takeout', extensions: ['json', 'zip'] }];
+        return [{ name: 'JSON', extensions: ['json', 'zip'] }];
       case 'notion_file':
-        return [{ name: 'Notion Export', extensions: ['zip', 'md', 'csv'] }];
+        return [{ name: 'Notion', extensions: ['zip', 'md', 'csv'] }];
       case 'generic_markdown':
       default:
         return [{ name: 'Markdown / ZIP', extensions: ['md', 'markdown', 'zip', 'txt'] }];
@@ -153,13 +143,38 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     return payload;
   };
 
+  /**
+   * Options shared by analyze and run.
+   *
+   * `serializeBase` hands the core the app's canonical `.base` writer so an
+   * imported database is byte-identical to one created in Plainva.
+   */
+  const buildOptions = (httpFetch: typeof fetch) => ({
+    targetVaultPath,
+    targetSubfolder: subfolder,
+    vaultAdapter,
+    httpFetch,
+    labels: buildImportLabels(t),
+    serializeBase: (config: any) => serializeBaseConfig(config),
+  });
+
+  const resolveHttpFetch = async (): Promise<typeof fetch> => {
+    try {
+      const tauriHttp = await import('@tauri-apps/plugin-http');
+      if (typeof tauriHttp.fetch === 'function') return tauriHttp.fetch as typeof fetch;
+    } catch {
+      // Not running under Tauri — the plain fetch is fine in the browser shell.
+    }
+    return globalThis.fetch;
+  };
+
   const handleAnalyze = async () => {
     if (selectedSourceId !== 'notion_api' && selectedFiles.length === 0 && !selectedFolderPath) {
-      setErrorMsg('Bitte wähle zuerst mindestens eine Datei oder einen Quell-Ordner aus.');
+      setErrorMsg(t('import.errNoFiles'));
       return;
     }
     if (selectedSourceId === 'notion_api' && !notionToken.trim()) {
-      setErrorMsg('Bitte gib Deinen Notion Integration Token ein.');
+      setErrorMsg(t('import.errNoToken'));
       return;
     }
 
@@ -168,27 +183,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
     try {
       const source = defaultImportRegistry.get(selectedSourceId);
-      if (!source) throw new Error('Unbekannter Importer');
+      if (!source) throw new Error(t('import.errUnknownImporter'));
 
-      let httpFetch: typeof fetch = globalThis.fetch;
-      try {
-        const tauriHttp = await import('@tauri-apps/plugin-http');
-        if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
-      } catch { /* ignore non-tauri env */ }
-
+      const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
-      const analyzedPlan = await source.analyze(inputPayload, {
-        targetVaultPath,
-        targetSubfolder: subfolder,
-        vaultAdapter,
-        httpFetch,
-      });
+      const analyzedPlan = await source.analyze(inputPayload, buildOptions(httpFetch));
 
       setPlan(analyzedPlan);
       setStep('preview');
     } catch (e) {
       console.error('Import analyse failed', e);
-      setErrorMsg('Fehler bei der Analyse der Dateien: ' + (e instanceof Error ? e.message : String(e)));
+      setErrorMsg(`${t('import.errAnalyze')} ${e instanceof Error ? e.message : String(e)}`);
       setStep('select');
     }
   };
@@ -196,22 +201,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const handleRunImport = async () => {
     setStep('importing');
     setProgressPct(10);
-    setStatusMsg('Bereite Notizen vor...');
+    setStatusMsg(t('import.preparing'));
 
     try {
       const source = defaultImportRegistry.get(selectedSourceId);
-      if (!source) throw new Error('Unbekannter Importer');
+      if (!source) throw new Error(t('import.errUnknownImporter'));
 
-      let httpFetch: typeof fetch = globalThis.fetch;
-      try {
-        const tauriHttp = await import('@tauri-apps/plugin-http');
-        if (typeof tauriHttp.fetch === 'function') httpFetch = tauriHttp.fetch;
-      } catch { /* ignore non-tauri env */ }
-
+      const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
         inputPayload,
-        { targetVaultPath, targetSubfolder: subfolder, vaultAdapter, httpFetch },
+        buildOptions(httpFetch),
         (pct: number, msg: string) => {
           setProgressPct(pct);
           setStatusMsg(msg);
@@ -223,32 +223,31 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       setStep('report');
     } catch (e) {
       console.error('Import execution failed', e);
-      setErrorMsg('Fehler beim Ausführen des Imports: ' + (e instanceof Error ? e.message : String(e)));
+      setErrorMsg(`${t('import.errRun')} ${e instanceof Error ? e.message : String(e)}`);
       setStep('preview');
     }
   };
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontSize: 'var(--text-ui, 13px)',
+    fontSize: 'var(--text-ui)',
     fontWeight: 600,
     color: 'var(--text-main)',
-    marginBottom: 'var(--space-2, 8px)',
+    marginBottom: 'var(--space-2)',
   };
 
   const hintStyle: React.CSSProperties = {
-    fontSize: 'var(--text-sm, 12px)',
+    fontSize: 'var(--text-sm)',
     color: 'var(--text-muted)',
-    marginTop: 'var(--space-2, 8px)',
     lineHeight: '1.5',
-    margin: 'var(--space-2, 8px) 0 0 0',
+    margin: 'var(--space-2) 0 0 0',
   };
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    height: '34px',
-    padding: '0 var(--space-3, 12px)',
-    fontSize: 'var(--text-ui, 13px)',
+    height: 'var(--control-md)',
+    padding: '0 var(--space-3)',
+    fontSize: 'var(--text-ui)',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border-color)',
     background: 'var(--bg-card)',
@@ -256,28 +255,30 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     boxSizing: 'border-box',
   };
 
+  const incompleteCount = report ? report.degradedCount + report.skippedCount : 0;
+
   return (
     <Modal
       onClose={onClose}
-      title="Aus anderer App importieren"
+      title={t('import.title')}
       icon={<Download size={ICON.head} style={{ color: 'var(--accent-color)' }} />}
       size="md"
       footer={
         <>
           {step === 'select' && (
             <>
-              <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
-              <Button variant="primary" onClick={handleAnalyze}>Weiter zur Analyse</Button>
+              <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleAnalyze}>{t('import.next')}</Button>
             </>
           )}
           {step === 'preview' && (
             <>
-              <Button variant="secondary" onClick={() => setStep('select')}>Zurück</Button>
-              <Button variant="primary" onClick={handleRunImport}>Import jetzt starten</Button>
+              <Button variant="ghost" onClick={() => setStep('select')}>{t('import.back')}</Button>
+              <Button variant="primary" onClick={handleRunImport}>{t('import.start')}</Button>
             </>
           )}
           {step === 'report' && (
-            <Button variant="primary" onClick={onClose}>Schließen</Button>
+            <Button variant="primary" onClick={onClose}>{t('common.close')}</Button>
           )}
         </>
       }
@@ -297,8 +298,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           border: '1px solid var(--error-text)',
           borderRadius: 'var(--radius-md)',
           color: 'var(--error-text)',
-          fontSize: 'var(--text-sm, 12px)',
-          marginBottom: 'var(--space-5, 20px)',
+          fontSize: 'var(--text-sm)',
+          marginBottom: 'var(--space-5)',
           display: 'flex',
           alignItems: 'center',
           gap: 'var(--space-3)',
@@ -309,11 +310,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       )}
 
       {step === 'select' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5, 20px)', padding: 'var(--space-2) 0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', padding: 'var(--space-2) 0' }}>
           <div>
-            <label style={labelStyle}>
-              1. Quell-App auswählen
-            </label>
+            <label style={labelStyle}>{t('import.step1')}</label>
             <Select<ImportSourceId>
               value={selectedSourceId}
               onChange={(val) => {
@@ -322,19 +321,15 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 setSelectedFolderPath('');
                 setErrorMsg('');
               }}
-              ariaLabel="Quell-App auswählen"
-              options={sources.map((s) => ({ value: s.id, label: s.name }))}
+              ariaLabel={t('import.step1')}
+              options={sources.map((s) => ({ value: s.id, label: sourceName(s.id, s.name) }))}
             />
-            <p style={hintStyle}>
-              {getSourceHint(selectedSourceId)}
-            </p>
+            <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>
           </div>
 
           {selectedSourceId === 'notion_api' ? (
             <div>
-              <label style={labelStyle}>
-                2. Notion Integration Token
-              </label>
+              <label style={labelStyle}>{t('import.step2Token')}</label>
               <input
                 type="password"
                 value={notionToken}
@@ -342,58 +337,53 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 style={inputStyle}
                 placeholder="secret_..."
               />
-              <p style={hintStyle}>
-                Erstelle unter <code>notion.so/my-integrations</code> den Token. Klicke in Notion auf Deiner Seite oben rechts auf <strong>„...“ &rarr; „Verbindungen“ („Connections“)</strong> und füge Deine Verbindung hinzu.
-              </p>
+              <p style={hintStyle}>{t('import.tokenHint')}</p>
             </div>
           ) : (
             <div>
-              <label style={labelStyle}>
-                2. Dateien oder Ordner auswählen
-              </label>
+              <label style={labelStyle}>{t('import.step2Files')}</label>
               <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
                 <Button variant="secondary" onClick={handleSelectFilesNative}>
-                  <Folder size={ICON.ui} style={{ marginRight: '6px' }} />
-                  Dateien / Ordner wählen...
+                  <Folder size={ICON.ui} style={{ marginRight: 'var(--space-2)' }} />
+                  {t('import.chooseFiles')}
                 </Button>
-                <span style={{ fontSize: 'var(--text-sm, 12px)', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
                   {selectedFolderPath
-                    ? `Ordner: ${selectedFolderPath}`
+                    ? t('import.chosenFolder', { path: selectedFolderPath })
                     : selectedFiles.length > 0
-                      ? `${selectedFiles.length} Datei(en) ausgewählt (${selectedFiles.map(f => f.name).join(', ')})`
-                      : 'Noch keine Dateien gewählt'}
+                      ? t('import.chosenFiles', { count: selectedFiles.length })
+                      : t('import.noFilesChosen')}
                 </span>
               </div>
             </div>
           )}
 
           <div>
-            <label style={labelStyle}>
-              3. Ziel-Unterordner im Vault
-            </label>
+            <label style={labelStyle}>{t('import.step3')}</label>
             <input
               type="text"
               value={subfolder}
               onChange={(e) => setSubfolder(e.target.value)}
               style={inputStyle}
-              placeholder="z.B. Import Keep"
+              placeholder={t('import.defaultSubfolder')}
             />
+            <p style={hintStyle}>{t('import.step3Hint')}</p>
           </div>
         </div>
       )}
 
       {step === 'analyzing' && (
         <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
-          <h3 style={{ marginBottom: 'var(--space-2)' }}>Analysiere Import-Dateien...</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
-            Dateistruktur, Notizen & Anhänge werden gescannt.
-          </p>
+          <h3 style={{ marginBottom: 'var(--space-2)' }}>{t('import.analyzingTitle')}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{t('import.analyzingBody')}</p>
         </div>
       )}
 
       {step === 'preview' && plan && (
         <div>
-          <h3 style={{ marginBottom: 'var(--space-4)' }}>Import-Vorschau: {plan.sourceName}</h3>
+          <h3 style={{ marginBottom: 'var(--space-4)' }}>
+            {t('import.previewTitle', { source: sourceName(plan.sourceId, plan.sourceName) })}
+          </h3>
 
           {plan.warnings && plan.warnings.length > 0 && (
             <div style={{
@@ -404,10 +394,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               color: 'var(--warning-text)',
               fontSize: 'var(--text-sm)',
               marginBottom: 'var(--space-4)',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-2)',
             }}>
               {plan.warnings.map((w, idx) => (
-                <div key={idx}>⚠️ {w}</div>
+                <div key={idx} style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                  <AlertTriangle size={ICON.meta} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>{w}</span>
+                </div>
               ))}
             </div>
           )}
@@ -424,29 +420,27 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <FileText size={ICON.ui} />
-              <span><strong>Notizen:</strong> {plan.totalNotes}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <Folder size={ICON.ui} />
-              <span><strong>Anhänge:</strong> {plan.totalAttachments}</span>
+              <span><strong>{t('import.statNotes')}:</strong> {plan.totalNotes}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Database size={ICON.ui} />
-              <span><strong>Datenbanken (.base):</strong> {plan.totalDatabases}</span>
+              <span><strong>{t('import.statDatabases')}:</strong> {plan.totalDatabases}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Folder size={ICON.ui} />
-              <span><strong>Zielordner:</strong> <code>{targetVaultPath ? `${targetVaultPath}/${subfolder}` : subfolder}</code></span>
+              <span><strong>{t('import.statTarget')}:</strong> <code>{targetVaultPath ? `${targetVaultPath}/${subfolder}` : subfolder}</code></span>
             </div>
           </div>
+
+          <p style={hintStyle}>{t('import.neverOverwrites')}</p>
         </div>
       )}
 
       {step === 'importing' && (
         <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
-          <h3 style={{ marginBottom: 'var(--space-4)' }}>Import läuft... {progressPct}%</h3>
+          <h3 style={{ marginBottom: 'var(--space-4)' }}>{t('import.importingTitle', { percent: progressPct })}</h3>
           <div style={{
-            height: '8px',
+            height: 'var(--space-2)',
             background: 'var(--border-color)',
             borderRadius: 'var(--radius-xs)',
             overflow: 'hidden',
@@ -456,7 +450,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               height: '100%',
               width: `${progressPct}%`,
               background: 'var(--accent-color)',
-              transition: 'width var(--transition-fast)'
+              transition: 'width var(--dur-progress)'
             }} />
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{statusMsg}</p>
@@ -466,12 +460,39 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       {step === 'report' && report && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-            <CheckCircle2 size={ICON.head} style={{ color: 'var(--accent-color)' }} />
-            <h3 style={{ margin: 0 }}>Import erfolgreich abgeschlossen!</h3>
+            {incompleteCount > 0
+              ? <AlertTriangle size={ICON.head} style={{ color: 'var(--warning-text)' }} />
+              : <CheckCircle2 size={ICON.head} style={{ color: 'var(--accent-color)' }} />}
+            <h3 style={{ margin: 0 }}>
+              {incompleteCount > 0 ? t('import.reportTitlePartial') : t('import.reportTitleDone')}
+            </h3>
           </div>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-5)' }}>
-            Insgesamt wurden <strong>{report.importedNotesCount} Notizen</strong> und <strong>{report.importedAttachmentsCount} Anhänge</strong> importiert.
+
+          <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>
+            {t('import.reportSummary', {
+              notes: report.importedNotesCount,
+              databases: report.importedDatabasesCount,
+            })}
           </p>
+
+          {incompleteCount > 0 && (
+            <div style={{
+              padding: 'var(--space-3) var(--space-4)',
+              background: 'var(--warning-bg)',
+              border: '1px solid var(--warning-text)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--warning-text)',
+              fontSize: 'var(--text-sm)',
+              marginBottom: 'var(--space-4)',
+              lineHeight: '1.5',
+            }}>
+              {t('import.reportIncomplete', {
+                degraded: report.degradedCount,
+                skipped: report.skippedCount,
+              })}
+            </div>
+          )}
+
           <div style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
@@ -479,7 +500,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
             padding: 'var(--space-4)',
             fontSize: 'var(--text-sm)'
           }}>
-            Ausführlicher Bericht abgelegt unter: <code>{report.reportPath}</code>
+            {t('import.reportPath')} <code>{report.reportPath}</code>
           </div>
         </div>
       )}

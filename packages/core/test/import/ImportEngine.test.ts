@@ -42,7 +42,7 @@ describe('PKM Import Engine', () => {
     const report = await importer.run(input, { targetVaultPath: '/tmp/vault', targetSubfolder: 'Imported' });
     expect(report.importedNotesCount).toBe(1);
     expect(report.importedAttachmentsCount).toBe(1);
-    expect(report.summaryMarkdown).toContain('# Import-Bericht');
+    expect(report.summaryMarkdown).toContain('# Import report');
   });
 
   it('runs GoogleKeepImporter and parses notes', async () => {

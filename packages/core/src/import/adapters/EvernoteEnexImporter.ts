@@ -1,4 +1,13 @@
-import { ImportFamily, ImportOptions, ImportPlan, ImportReport, ImportSource, ImportSourceId } from '../ImportTypes.js';
+import {
+  DEFAULT_IMPORT_LABELS,
+  ImportFamily,
+  ImportOptions,
+  ImportPlan,
+  ImportReport,
+  ImportSource,
+  ImportSourceId,
+} from '../ImportTypes.js';
+import { ImportWriter } from '../ImportWriter.js';
 
 export interface EnexNote {
   title: string;
@@ -6,6 +15,8 @@ export interface EnexNote {
   created?: string;
   updated?: string;
   tags?: string[];
+  /** Number of `<resource>` blocks on the note. Counted, never imported. */
+  resourceCount?: number;
   resources?: Array<{
     mime: string;
     dataBase64: string;
@@ -17,7 +28,7 @@ export class EvernoteEnexImporter implements ImportSource {
   readonly id: ImportSourceId = 'evernote';
   readonly name = 'Evernote (ENEX)';
   readonly family: ImportFamily = 'xml';
-  readonly description = 'Importiert Notizen, Checklisten (<en-todo>) und Anhänge aus Evernote ENEX XML-Exporten.';
+  readonly description = 'Imports notes, checklists (<en-todo>) and tags from Evernote ENEX exports.';
 
   private parseInput(input: any): EnexNote[] {
     if (Array.isArray(input)) {
@@ -56,18 +67,41 @@ export class EvernoteEnexImporter implements ImportSource {
         tags.push(tm[1].trim());
       }
 
-      notes.push({ title, contentXml, tags });
+      // Attachments live in <resource> blocks as base64. We do not decode or
+      // write them, so count them here to report the loss instead of hiding it.
+      const resourceCount = (block.match(/<resource>/gi) || []).length;
+
+      const created = block.match(/<created>([\s\S]*?)<\/created>/i)?.[1]?.trim();
+      const updated = block.match(/<updated>([\s\S]*?)<\/updated>/i)?.[1]?.trim();
+
+      notes.push({ title, contentXml, tags, resourceCount, created, updated });
     }
     return notes;
+  }
+
+  /** Converts an ENEX timestamp (`20260725T101530Z`) into an ISO date. */
+  private toIsoDate(stamp?: string): string | undefined {
+    if (!stamp) return undefined;
+    const m = stamp.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
+    if (!m) return undefined;
+    return `${m[1]}-${m[2]}-${m[3]}`;
   }
 
   private convertEnexToMarkdown(note: EnexNote): string {
     const lines: string[] = [];
 
-    if (note.tags && note.tags.length > 0) {
+    const created = this.toIsoDate(note.created);
+    const updated = this.toIsoDate(note.updated);
+    const hasTags = note.tags && note.tags.length > 0;
+
+    if (hasTags || created || updated) {
       lines.push('---');
-      lines.push('tags:');
-      note.tags.forEach(t => lines.push(`  - ${t.replace(/\s+/g, '_')}`));
+      if (hasTags) {
+        lines.push('tags:');
+        note.tags!.forEach(t => lines.push(`  - ${t.replace(/\s+/g, '_')}`));
+      }
+      if (created) lines.push(`created: ${created}`);
+      if (updated) lines.push(`updated: ${updated}`);
       lines.push('---');
       lines.push('');
     }
@@ -92,21 +126,27 @@ export class EvernoteEnexImporter implements ImportSource {
     return notes.length > 0;
   }
 
-  async analyze(input: any, _opts: ImportOptions): Promise<ImportPlan> {
+  async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const notes = this.parseInput(input);
     let attachmentsCount = 0;
     for (const n of notes) {
-      if (Array.isArray(n.resources)) attachmentsCount += n.resources.length;
+      attachmentsCount += n.resourceCount ?? (Array.isArray(n.resources) ? n.resources.length : 0);
     }
+
+    const warnings: string[] = [];
+    if (notes.length === 0) warnings.push('No Evernote notes found in the ENEX selection.');
+    if (attachmentsCount > 0) warnings.push(`${labels.limitEvernoteAttachments} (${attachmentsCount})`);
 
     return {
       sourceId: this.id,
       sourceName: this.name,
+      // Attachments are counted so the preview is honest, but none are written.
       totalNotes: notes.length,
-      totalAttachments: attachmentsCount,
+      totalAttachments: 0,
       totalDatabases: 0,
       totalChecklists: 0,
-      warnings: notes.length === 0 ? ['Keine Evernote Notizen im ENEX-Format gefunden.'] : [],
+      warnings,
       requiredSpaceBytes: notes.length * 2048,
       estimatedDurationSec: Math.max(1, Math.ceil(notes.length / 30)),
     };
@@ -118,71 +158,33 @@ export class EvernoteEnexImporter implements ImportSource {
     onProgress?: (percent: number, statusMessage: string) => void
   ): Promise<ImportReport> {
     const startTime = Date.now();
+    const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const notes = this.parseInput(input);
-    const items: ImportReport['items'] = [];
-    let importedNotes = 0;
-    let importedAttachments = 0;
+    const writer = new ImportWriter(opts, labels);
 
-    const prefix = opts.targetSubfolder ? `${opts.targetSubfolder}/` : '';
+    await writer.ensureRoot();
 
-    if (opts.vaultAdapter && prefix) {
-      try {
-        await opts.vaultAdapter.createFolder(prefix.replace(/\/$/, ''));
-      } catch {
-        // Folder exists
-      }
-    }
+    let droppedTotal = 0;
 
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       const safeTitle = (note.title || `Evernote_${i + 1}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
-      const targetPath = `${prefix}${safeTitle}.md`;
-
       const mdContent = this.convertEnexToMarkdown(note);
 
-      if (opts.vaultAdapter) {
-        await opts.vaultAdapter.writeTextFile(targetPath, mdContent);
-      }
+      const dropped = note.resourceCount ?? (Array.isArray(note.resources) ? note.resources.length : 0);
+      droppedTotal += dropped;
 
-      importedNotes++;
-      if (Array.isArray(note.resources)) {
-        importedAttachments += note.resources.length;
-      }
-
-      items.push({
-        path: targetPath,
-        status: 'imported',
+      await writer.writeNote(`${safeTitle}.md`, mdContent, {
+        details: dropped > 0 ? `${labels.limitEvernoteAttachments} (${dropped})` : undefined,
       });
 
       if (onProgress && notes.length > 0) {
-        onProgress(Math.round(((i + 1) / notes.length) * 100), `Importiere Evernote Notiz ${safeTitle}...`);
+        onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Evernote note ${safeTitle}...`);
       }
     }
 
-    const durationMs = Date.now() - startTime;
-    const reportPath = `${prefix}Import-Bericht.md`;
+    if (droppedTotal > 0) writer.noteLimitation(`${labels.limitEvernoteAttachments} (${droppedTotal})`);
 
-    const summaryMarkdown = `# Import-Bericht (${this.name})\n\n` +
-      `- **Datum:** ${new Date().toISOString()}\n` +
-      `- **Importierte Notizen:** ${importedNotes}\n` +
-      `- **Importierte Anhänge:** ${importedAttachments}\n\n` +
-      items.map(item => `- [${item.status.toUpperCase()}] ${item.path}`).join('\n');
-
-    if (opts.vaultAdapter) {
-      await opts.vaultAdapter.writeTextFile(reportPath, summaryMarkdown);
-    }
-
-    return {
-      sourceId: this.id,
-      sourceName: this.name,
-      startedAt: new Date(startTime).toISOString(),
-      durationMs,
-      importedNotesCount: importedNotes,
-      importedAttachmentsCount: importedAttachments,
-      importedDatabasesCount: 0,
-      reportPath,
-      items,
-      summaryMarkdown,
-    };
+    return writer.finish(this, startTime);
   }
 }
