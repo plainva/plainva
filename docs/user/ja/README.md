@@ -13,6 +13,7 @@ Plainvaは、Markdownベースの保管庫エディターです。あなたの�
 | [はじめに](Getting_Started.md) | 保管庫の作成・オープン、インターフェース、エディターモード、タブと分割表示 |
 | [ノートとMarkdown](Notes_and_Markdown.md) | Markdownファイルの仕組み: 書き方、書式設定、プロパティ（Frontmatter）、アイコン、リンク、テンプレート、画像 |
 | [データベース (.base)](Databases_Base.md) | ノートをデータベースとして表示する——ビュー、フィルター、プロパティ、リレーション、新規エントリの作成（Notionに似ていますが、ファイルベースです） |
+| [他のアプリからインポート](Import.md) | Notion、Evernote、Google Keep、Simplenote、Logseq、Markdownフォルダーからノートを取り込む——そして各インポートが取り込めないもの |
 | [OKF](OKF.md) | Open Knowledge Format: `type`、`okf_version`、index.md管理、そして任意の保管庫変換機能 |
 | [ファイル形式リファレンス](File_Format_Reference.md) | すべての保管庫ファイルの正確なディスク上の形式——ノートや`.base`ファイルを直接編集するツール、スクリプト、AIのために |
 | [自動化とスクリプト](Automation_and_Scripts.md) | プラグインなしでPlainvaを拡張する: スクリプト、CLIツール、AIエージェントが保管庫を安全に読み書きする方法 |

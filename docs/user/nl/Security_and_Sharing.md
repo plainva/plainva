@@ -1,5 +1,7 @@
 # Beveiliging en delen
 
+> **Experimenteel — nog niet onafhankelijk beoordeeld.** Versleutelde workspaces worden als preview uitgeleverd. Het cryptografische ontwerp is nog niet door een onafhankelijke beoordelaar geauditeerd, en het bewijs met twee apparaten op echte Android- en iOS-hardware wordt nog verzameld. Probeer het gerust, maar houd een back-up van alles wat je niet kwijt mag raken, en vertrouw er nog niet op voor materiaal dat echt beschermd moet zijn.
+
 ## Beveiligingscentrum, hercodering en gepubliceerde slices
 
 **Beveiliging en delen** heeft twee niveaus. Het **Overzicht** (eerste niveau) toont de beschermingsstatus, **Migratie afronden** wanneer er nog platte tekst overblijft, **Verbinding met de versleutelde cloud verwijderen**, en twee kaarten die het tweede niveau openen — **Apparaten en herstel** en **Delen met anderen**. Op het tweede niveau vervangt de gebiedsnavigatie de linkerkolom met instellingen, gegroepeerd in **Jouw toegang** (Apparaten, herstel) en **Delen** (Leden, groepen, slices, publicaties); **‹ Overzicht** keert terug naar het eerste niveau. Zichtbare acties blijven bruikbaar: een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.

@@ -11,6 +11,7 @@ Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-
 | [Erste Schritte](Getting_Started.md) | Vault öffnen oder anlegen, die Oberfläche, Editor-Modi, Tabs und Split |
 | [Notizen & Markdown](Notes_and_Markdown.md) | Wie Markdown-Dateien funktionieren: Schreiben, Formatieren, Eigenschaften (Frontmatter), Icons, Links, Vorlagen, Bilder |
 | [Datenbanken (.base)](Databases_Base.md) | Notizen als Datenbank ansehen — Ansichten, Filter, Eigenschaften, Relationen, neue Einträge (ähnlich Notion, aber dateibasiert) |
+| [Aus einer anderen App importieren](Import.md) | Notizen aus Notion, Evernote, Google Keep, Simplenote, Logseq oder einem Markdown-Ordner übernehmen — und was jeder Import nicht mitnehmen kann |
 | [OKF](OKF.md) | Das Open Knowledge Format: `type`, `okf_version`, index.md-Verwaltung und die optionale Vault-Konvertierung |
 | [Dateiformat-Referenz](File_Format_Reference.md) | Das genaue Dateiformat jeder Vault-Datei — für Werkzeuge, Skripte oder eine KI, die Notizen und `.base`-Dateien direkt bearbeitet |
 | [Automatisierung & Skripte](Automation_and_Scripts.md) | Plainva ohne Plugins erweitern: wie Skripte, CLI-Werkzeuge und KI-Agenten einen Vault sicher lesen und schreiben |

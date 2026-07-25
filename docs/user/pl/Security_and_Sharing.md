@@ -1,5 +1,7 @@
 # Bezpieczeństwo i udostępnianie
 
+> **Eksperymentalne — jeszcze nie zweryfikowane niezależnie.** Zaszyfrowane workspace'y są udostępniane jako wersja zapoznawcza. Projekt kryptograficzny nie został jeszcze poddany niezależnemu audytowi, a testy na dwóch urządzeniach na prawdziwym sprzęcie z Androidem i iOS wciąż trwają. Wypróbuj tę funkcję, ale zachowaj kopię zapasową wszystkiego, czego nie możesz stracić, i nie polegaj na niej jeszcze w przypadku materiałów, które naprawdę muszą być chronione.
+
 ## Centrum bezpieczeństwa, ponowne szyfrowanie i publikowane slices
 
 **Bezpieczeństwo i udostępnianie** ma dwa poziomy. **Przegląd** (pierwszy poziom) pokazuje stan ochrony, **Zakończ migrację**, gdy pozostają resztki tekstu jawnego, **Usuń połączenie z zaszyfrowaną chmurą** oraz dwie karty otwierające drugi poziom — **Urządzenia i odzyskiwanie** i **Udostępnij innym**. Na drugim poziomie nawigacja po obszarach zastępuje lewą kolumnę ustawień, pogrupowana w **Twój dostęp** (Urządzenia, odzyskiwanie) i **Udostępnianie** (Członkowie, grupy, wycinki, publikacje); **‹ Przegląd** wraca do pierwszego poziomu. Widoczne akcje pozostają dostępne: akcja otwiera wymagany vault, połączenie, konfigurację lub odblokowanie. Cofnięcie dostępu może uruchomić wznawialne pełne szyfrowanie. Vault Slice tworzysz przez **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne są osobnym szyfrowanym workspace, a projekcja usuwa prywatne właściwości, wykluczone linki i osadzenia. Wydanie publiczne wymaga niezależnego audytu i testów Android/iOS na urządzeniach.

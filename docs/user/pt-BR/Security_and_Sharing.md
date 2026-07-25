@@ -1,5 +1,7 @@
 # Segurança e compartilhamento
 
+> **Experimental — ainda sem revisão independente.** Workspaces criptografados são lançados como uma prévia. O design ainda não passou por uma revisão criptográfica independente, e evidências de dois dispositivos em hardware Android e iOS reais ainda estão sendo coletadas. Experimente, mas mantenha um backup de tudo que você não pode perder, e não confie nele para material que você precisa proteger.
+
 ## Central de segurança, recifragem e slices publicados
 
 **Segurança e compartilhamento** tem dois níveis. A **Visão geral** (primeiro nível) mostra o status de proteção, **Concluir migração** quando restam sobras de texto simples, **Remover a conexão com a nuvem criptografada** e dois cartões que abrem o segundo nível — **Dispositivos e recuperação** e **Compartilhar com outros**. No segundo nível, a navegação por áreas substitui a coluna esquerda de configurações, agrupada em **Seu acesso** (Dispositivos, recuperação) e **Compartilhamento** (Membros, grupos, slices, publicações); **‹ Visão geral** volta ao primeiro nível. As ações visíveis continuam disponíveis: uma ação abre o vault, conexão, configuração ou desbloqueio necessário. A revogação pode iniciar recifragem completa retomável. Crie um Vault Slice por **Detalhes → Conteúdo → Permissões → Revisão**. Publicações externas ficam num workspace criptografado separado; a projeção higienizada remove propriedades privadas, links excluídos e incorporações. A liberação pública exige revisão criptográfica independente e testes reais Android/iOS.

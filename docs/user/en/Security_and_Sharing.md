@@ -1,5 +1,7 @@
 # Security & Sharing
 
+> **Experimental — not yet independently reviewed.** Encrypted workspaces ship as a preview. The cryptographic design has not been audited by an independent reviewer, and two-device evidence on real Android and iOS hardware is still being collected. Try it, but keep a backup of anything you cannot lose, and do not rely on it for material you must protect.
+
 ## Security Center, rekeying, and published slices
 
 **Security & Sharing** has two levels. The **overview** (first level) shows the protection status, **Finish migration** when plaintext leftovers remain, **Remove the connection to the encrypted cloud**, and two cards that open the second level — **Devices & recovery** and **Share with others**. On the second level the area navigation replaces the settings left column, grouped into **Your access** (Devices, Recovery) and **Sharing** (Members, Groups, Slices, Publications); **‹ Overview** returns to the first level. Visible actions stay usable: Plainva opens the selected vault, connection setup, workspace setup, or unlock flow when a prerequisite is missing. Removing a device or member can start a durable full rekey; its object-by-object progress survives pause, crash, and restart. A future-only rotation changes only subsequent writes.

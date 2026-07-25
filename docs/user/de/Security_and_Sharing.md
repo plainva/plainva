@@ -1,5 +1,7 @@
 # Sicherheit & Freigaben
 
+> **Experimentell — noch nicht unabhängig geprüft.** Verschlüsselte Workspaces sind eine Vorschau. Das kryptografische Design wurde noch nicht von unabhängiger Seite auditiert, und die Zwei-Geräte-Abnahme auf echter Android- und iOS-Hardware läuft noch. Probier es aus, aber halte von allem, was Du nicht verlieren darfst, eine Sicherung — und verlass Dich noch nicht darauf für Material, das wirklich geschützt sein muss.
+
 ## Sicherheitszentrale, Neuverschlüsselung und veröffentlichte Slices
 
 **Sicherheit & Freigaben** hat zwei Ebenen. Die **Übersicht** (erste Ebene) zeigt den Schutzstatus, **Migration abschließen** (wenn noch Klartext-Reste bestehen), **Verbindung zur verschlüsselten Cloud entfernen** und zwei Karten, die die zweite Ebene öffnen — **Geräte & Wiederherstellung** und **Mit anderen teilen**. Auf der zweiten Ebene ersetzt die Bereichs-Navigation die linke Einstellungs-Spalte, gruppiert in **Dein Zugang** (Geräte, Wiederherstellung) und **Teilen** (Mitglieder, Gruppen, Slices, Veröffentlichungen); **‹ Übersicht** führt zurück. Sichtbare Aktionen bleiben benutzbar: Fehlt eine Voraussetzung, öffnet Plainva den ausgewählten Vault, die Verbindungsverwaltung, die Einrichtung oder die Entsperrung. Beim Entfernen eines Geräts oder Mitglieds kann eine dauerhafte vollständige Neuverschlüsselung starten; ihr Fortschritt überlebt Pause, Absturz und Neustart. Die schnelle Rotation betrifft nur künftige Schreibvorgänge.
