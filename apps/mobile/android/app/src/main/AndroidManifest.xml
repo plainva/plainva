@@ -68,4 +68,14 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Live QR scanning (encrypted-workspace pairing) runs through
+         getUserMedia in the WebView. Capacitor's WebChromeClient requests
+         CAMERA when the page asks for a video stream, but Android denies a
+         permission the app never declares — so the scanner failed instantly
+         with "camera unavailable" while @capacitor/camera's photo capture kept
+         working (it goes through an IMAGE_CAPTURE intent, no permission
+         needed). Optional feature: phones without a camera stay installable. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

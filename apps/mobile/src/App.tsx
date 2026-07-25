@@ -641,7 +641,7 @@ export default function App() {
           ) : top.path === "backup" ? (
             <BackupAreaScreen onBack={pop} />
           ) : top.path === "security" ? (
-            <SecurityAreaScreen onBack={pop} vault={vault} />
+            <SecurityAreaScreen onBack={pop} onConnectCloud={() => push({ kind: "cloudaccounts", path: "" })} vault={vault} />
           ) : (
             <AboutAreaScreen onBack={pop} />
           )

@@ -4,9 +4,11 @@
 
 **Sicurezza e condivisione** ha due livelli. La **Panoramica** (primo livello) mostra lo stato di protezione, **Completa migrazione** quando restano residui in chiaro, **Rimuovi la connessione al cloud crittografato** e due schede che aprono il secondo livello — **Dispositivi e ripristino** e **Condividi con altri**. Nel secondo livello la navigazione per aree sostituisce la colonna sinistra delle impostazioni, raggruppata in **Il tuo accesso** (Dispositivi, ripristino) e **Condivisione** (Membri, gruppi, slice, pubblicazioni); **‹ Panoramica** torna al primo livello. Le azioni visibili restano disponibili: un’azione apre il vault, la connessione, la configurazione o lo sblocco necessario. La revoca può avviare una ricifratura completa ripristinabile. Crea un Vault Slice con **Dettagli → Contenuto → Permessi → Revisione**. Le pubblicazioni esterne vivono in un workspace cifrato separato; la proiezione ripulita rimuove proprietà private, link esclusi e incorporamenti. La pubblicazione pubblica attende revisione crittografica indipendente e prove reali Android/iOS.
 
-Ultima verifica: 2026-07-23
+Ultima verifica: 2026-07-25
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
+
+Su mobile la sezione indica prima lo stato reale di questo vault: **Solo su questo dispositivo** senza connessione cloud, **Questa connessione non è crittografata** per un normale vault cloud (la crittografia è possibile: configurala in Plainva sul desktop, poi questo dispositivo entra da qui), oppure i passaggi di accesso appena la connessione contiene un'area di lavoro crittografata.
 
 ## Configurazione
 

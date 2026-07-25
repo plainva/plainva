@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Check, ChevronLeft, Copy, QrCode, RefreshCw, ShieldCheck, Upload } from "lucide-react";
+import { Check, ChevronLeft, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { QrImage, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore } from "../services/syncService";
+import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
@@ -28,7 +28,24 @@ function FilePickButton({ chooseLabel, fileName, disabled, onPick }: {
   </>;
 }
 
-export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
+/**
+ * What this vault's sync connection actually is — the screen must never claim
+ * encryption that is not there (maintainer 2026-07-25). Mirrors the desktop's
+ * `detectJoinableWorkspace` gate: a remote `.pvws/genesis.pvgen` makes a
+ * connection an encrypted workspace, everything else is a plain cloud vault.
+ */
+type ConnectionState =
+  | { kind: "checking" }
+  /** No provider at all — encryption has no remote to protect. */
+  | { kind: "local" }
+  /** Cloud connected, remote carries NO workspace: encryption is possible. */
+  | { kind: "plain" }
+  /** Cloud connected and encrypted: this device can join. */
+  | { kind: "encrypted"; workspaceId: string; fingerprint: string }
+  /** Probe failed (offline / expired sign-in) — stay honest, offer a recheck. */
+  | { kind: "unknown" };
+
+export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: MobileVault; onBack: () => void; onConnectCloud?: () => void }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<MobileWorkspaceStatus | null>(null);
   const [inviteCode, setInviteCode] = useState("");
@@ -47,11 +64,27 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
   const [pairPreview, setPairPreview] = useState<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string } | null>(null);
   const [scan, setScan] = useState<"invite" | "approve" | null>(null);
 
+  const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
+
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
   }, [vault.vaultId, vault.workspaceState]);
   useEffect(() => { void refresh(); }, [refresh]);
+
+  /** One remote probe decides what this screen may claim. */
+  const probeConnection = useCallback(async () => {
+    setConnection({ kind: "checking" });
+    const provider = await getStoredProvider(vault.vaultId);
+    if (!provider) { setConnection({ kind: "local" }); return; }
+    try {
+      const info = await getMobileRemoteWorkspaceInfo(vault.vaultId);
+      setConnection(info ? { kind: "encrypted", ...info } : { kind: "plain" });
+    } catch {
+      setConnection({ kind: "unknown" });
+    }
+  }, [vault.vaultId]);
+  useEffect(() => { void probeConnection(); }, [probeConnection]);
 
   const startPairing = async () => {
     setBusyAction("pair");
@@ -159,10 +192,20 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
   };
 
   const runtime = status?.phase === "locked" ? null : vault.workspaceRuntime;
+  /** Status row text for a device that has NOT joined a workspace. */
+  const connectionLabel = () =>
+    connection.kind === "checking" ? t("workspaceSecurity.stateChecking", { defaultValue: "Checking this connection …" })
+      : connection.kind === "local" ? t("workspaceSecurity.stateLocalTitle", { defaultValue: "On this device only" })
+        : connection.kind === "plain" ? t("workspaceSecurity.statePlainTitle", { defaultValue: "This connection is not encrypted" })
+          : connection.kind === "unknown" ? t("workspaceSecurity.stateUnknownTitle", { defaultValue: "Encryption status unknown" })
+            : t("workspaceSecurity.notConfigured");
+  const ConnectionIcon = connection.kind === "local" ? Smartphone : connection.kind === "plain" ? ShieldOff : ShieldCheck;
   return <div className="m-page">
     <header className="m-header"><button aria-label={t("common.back", { defaultValue: "Back" })} className="m-iconbtn" onClick={onBack}><ChevronLeft size={20} /></button><h1>{t("settings.sectionSecurity")}</h1></header>
     <p className="m-sectionlabel">{t("workspaceSecurity.currentStatus")}</p>
-    <div className="m-row m-row--static"><ShieldCheck className="m-accent" size={18} /><span>{status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}</span></div>
+    {/* The state card below IS the status for a device that has not joined a
+        plain/local vault — only the joined and joinable cases add this row. */}
+    {(status || connection.kind === "encrypted") && <div className="m-row m-row--static">{status ? <ShieldCheck className="m-accent" size={18} /> : <ConnectionIcon size={18} />}<span>{status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}</span></div>}
     {runtime && <div className="m-security-tabs" role="tablist" aria-label={t("settings.sectionSecurity")}>{(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => <button role="tab" aria-selected={area === value} key={value} onClick={() => setArea(value)}>{t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) })}</button>)}</div>}
     {status?.phase === "locked" && <button className="m-row" disabled={busy} onClick={() => void unlock()}>{busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.unlock")}</span></button>}
     {runtime ? <>
@@ -190,9 +233,11 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
       {renewedRecoveryCode && <div className="m-row m-row--static"><span className="m-linestack"><strong>{renewedRecoveryCode}</strong><small>{t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}</small></span><button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}><Copy size={18} /></button></div>}
       <button className="m-row" disabled={busy} onClick={() => void lock()}>{busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.lock")}</span></button>
       </>}
-    </> : status?.phase === "locked" ? null : <>
+    </> : status?.phase === "locked" ? null : connection.kind === "encrypted" ? <>
       {/* On-ramp (F2, Punkt 12): make the "connect → join here" order obvious,
-          and state that creating a new workspace is a desktop action (E4). */}
+          and state that creating a new workspace is a desktop action (E4).
+          Only reachable once the remote probe FOUND an encrypted workspace —
+          otherwise the branch below explains the real state instead. */}
       <div className="m-onramp">
         <div className="m-onramp-status">
           <ShieldCheck size={20} style={{ flexShrink: 0 }} />
@@ -233,6 +278,29 @@ export function SecurityAreaScreen({ vault, onBack }: { vault: MobileVault; onBa
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
       <button className="m-row" disabled={busy || !recoveryBytes || !recoveryCode} onClick={() => void recover()}>{busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.restore", { defaultValue: "Restore access" })}</span></button>
+    </> : <>
+      {/* No encrypted workspace on this vault: say what IS true and what is
+          possible — never the on-ramp's "this vault is end-to-end encrypted"
+          (maintainer 2026-07-25). Joining/recovery need a remote workspace, so
+          both forms stay hidden here; the recheck picks up a workspace that
+          was just created on the desktop. */}
+      <div className="m-onramp">
+        <div className="m-onramp-status m-onramp-status--neutral">
+          <ConnectionIcon size={20} style={{ flexShrink: 0 }} />
+          <div>
+            <p>{connectionLabel()}</p>
+            <p className="m-onramp-sub">{
+              connection.kind === "local" ? t("workspaceSecurity.stateLocalBody", { defaultValue: "Encryption protects notes on their way into the cloud. This vault has no cloud connection, so there is nothing to encrypt — the notes stay in the app's private storage on this device." })
+                : connection.kind === "plain" ? t("workspaceSecurity.statePlainBody", { defaultValue: "Your notes sync to the cloud as ordinary Markdown files. Encryption is possible for this connection." })
+                  : connection.kind === "unknown" ? t("workspaceSecurity.stateUnknownBody", { defaultValue: "Could not check this connection (offline, or the sign-in expired). The encryption status stays unknown until the next check." })
+                    : t("workspaceSecurity.stateCheckingBody", { defaultValue: "Looking for an encrypted workspace on this cloud connection." })
+            }</p>
+          </div>
+        </div>
+        {connection.kind === "plain" && <p className="m-hint">{t("workspaceSecurity.createOnDesktop", { defaultValue: "New encrypted workspaces are created in Plainva on desktop." })}</p>}
+        {connection.kind === "local" && onConnectCloud && <button className="m-btn m-btn--filled m-onramp-action" onClick={onConnectCloud}><Cloud size={16} /> {t("mobile.vaultAdd")}</button>}
+        {(connection.kind === "plain" || connection.kind === "unknown") && <button className="m-btn m-onramp-action" onClick={() => void probeConnection()}><RefreshCw size={16} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</button>}
+      </div>
     </>}
     {quarantine.length > 0 && <><p className="m-sectionlabel">{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</p>{quarantine.map((entry) => <div className="m-row m-row--static" key={entry.quarantineId}><span className="m-linestack">{entry.artifactKind}<small>{entry.reason} · {entry.status}</small></span></div>)}</>}
     {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}

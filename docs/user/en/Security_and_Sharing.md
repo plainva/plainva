@@ -6,9 +6,11 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. External publications use a separate encrypted workspace namespace. Sanitized projections remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds. Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions are additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-07-23
+Last reviewed: 2026-07-25
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
+
+On mobile the area first names what this vault really is: **On this device only** without a cloud connection, **This connection is not encrypted** for an ordinary cloud vault (encryption is possible — set it up in Plainva on desktop, then this device joins right here), or the join steps as soon as the connection carries an encrypted workspace.
 
 ## First setup
 

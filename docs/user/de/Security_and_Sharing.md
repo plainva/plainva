@@ -6,9 +6,11 @@
 
 Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. Externe Veröffentlichungen verwenden einen getrennten verschlüsselten Workspace-Namensraum. Bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg. Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
 
-Zuletzt geprüft: 2026-07-23
+Zuletzt geprüft: 2026-07-25
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
+
+Mobil nennt der Bereich zuerst den tatsächlichen Zustand dieses Vaults: **Nur auf diesem Gerät** ohne Cloud-Verbindung, **Diese Verbindung ist nicht verschlüsselt** bei einem normalen Cloud-Vault (eine Verschlüsselung ist möglich — richte sie in Plainva am Desktop ein, danach tritt dieses Gerät hier bei), oder die Beitritts-Schritte, sobald auf der Verbindung ein verschlüsselter Workspace liegt.
 
 ## Erste Einrichtung
 

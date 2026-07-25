@@ -143,23 +143,26 @@ export function PimCalendarScreen({
   }, [view, rangeStart, days, todayIso]);
 
   return (
-    <div className="m-screen m-page--basegraph" style={{ display: "flex", flexDirection: "column" }}>
-      <header className="m-header">
-        {onBack && (
+    <div className="m-page m-page--pimcal">
+      {/* Pushed from "More": the back header. On the Calendar TAB the shell's
+          large app bar is the only top bar (see .m-pimbar). */}
+      {onBack && (
+        <header className="m-header">
           <button type="button" className="m-iconbtn" onClick={onBack} aria-label={t("common.back", { defaultValue: "Zurück" })}>
             <ChevronLeft size={20} />
           </button>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-          <button type="button" className="m-iconbtn" onClick={() => navPeriod(-1)} aria-label={t("pim.prevPeriod", { defaultValue: "Zurück" })}>
-            <ChevronLeft size={18} />
-          </button>
-          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0, textAlign: "center" }}>{periodTitle()}</span>
-          <button type="button" className="m-iconbtn" onClick={() => navPeriod(1)} aria-label={t("pim.nextPeriod", { defaultValue: "Weiter" })}>
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        <button type="button" className="m-iconbtn" onClick={() => setAnchor(new Date())} aria-label={t("pim.today", { defaultValue: "Heute" })} style={{ fontSize: "var(--text-xs)", fontWeight: 600, width: "auto", padding: "0 8px" }}>
+          <h1>{t("mobile.tabCalendar", { defaultValue: "Kalender" })}</h1>
+        </header>
+      )}
+      <div className="m-pimbar">
+        <button type="button" className="m-iconbtn" onClick={() => navPeriod(-1)} aria-label={t("pim.prevPeriod", { defaultValue: "Zurück" })}>
+          <ChevronLeft size={18} />
+        </button>
+        <span className="m-pimbar-title">{periodTitle()}</span>
+        <button type="button" className="m-iconbtn" onClick={() => navPeriod(1)} aria-label={t("pim.nextPeriod", { defaultValue: "Weiter" })}>
+          <ChevronRight size={18} />
+        </button>
+        <button type="button" className="m-iconbtn m-pimbar-today" onClick={() => setAnchor(new Date())} aria-label={t("pim.today", { defaultValue: "Heute" })}>
           {t("pim.today", { defaultValue: "Heute" })}
         </button>
         <button type="button" className="m-iconbtn" onClick={() => pimSyncNow()} aria-label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}>
@@ -170,10 +173,10 @@ export function PimCalendarScreen({
             <CalendarCog size={18} />
           </button>
         )}
-      </header>
+      </div>
 
       {/* View segment */}
-      <div className="m-viewpills" role="tablist" style={{ padding: "6px 10px" }}>
+      <div className="m-viewpills" role="tablist">
         {(["day", "3day", "agenda"] as PimView[]).map((v) => (
           <button
             key={v}

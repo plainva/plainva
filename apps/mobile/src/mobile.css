@@ -1169,6 +1169,9 @@ textarea {
   background: var(--accent-container); color: var(--on-accent-container);
   border-radius: var(--m-radius-card);
 }
+/* Not-encrypted / local-only states: the same card, but NEUTRAL — the accent
+   pair reads as "protected" and must stay reserved for a real workspace. */
+.m-onramp-status--neutral { background: var(--surface-container); color: var(--text-main); }
 .m-onramp-status p { margin: 0; }
 .m-onramp-status .m-onramp-sub { font-size: var(--text-sm); opacity: 0.85; }
 .m-onramp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -1199,6 +1202,8 @@ textarea {
   background: var(--surface-container); border-radius: var(--m-radius-chip);
 }
 .m-filepick { align-self: flex-start; }
+/* Single action under an on-ramp/status card (connect cloud, recheck). */
+.m-onramp-action { align-self: flex-start; }
 
 /* ---- Base views (R4): board, timeline, cell editing, config sheet ---- */
 
@@ -1708,11 +1713,41 @@ textarea {
 /* .base graph view (package F): the page becomes a non-scrolling flex column
    so the canvas fills exactly the space left under the header/view pills — no
    100dvh magic number, no page scroll to see it all. PTR is off here. */
-.m-page--basegraph {
+/* The PIM calendar is the same shape: the time grid must fill exactly what is
+   left under the toolbar and view pills. */
+.m-page--basegraph,
+.m-page--pimcal {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 0;
+}
+/* Calendar toolbar (period nav + today/sync/settings). NOT an .m-header: on the
+   Calendar TAB the shell's .m-appbar already sits above, and a second bar would
+   add the status-bar inset a second time (that was the phantom gap on Android)
+   and bleed 16px past the page inset (the settings icon touched the screen
+   edge) — maintainer 2026-07-25. Horizontal inset comes from .m-page. */
+.m-pimbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--touch-sm);
+  padding: 4px 0;
+}
+.m-pimbar-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-pimbar .m-pimbar-today {
+  width: auto;
+  padding: 0 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 .m-basegraph {
   flex: 1;
@@ -2513,3 +2548,16 @@ textarea {
   font-size: var(--text-md);
 }
 .m-qr-bar .m-iconbtn { color: var(--qr-light); }
+/* Camera unavailable (permission denied / no camera): fills the space the
+   video would take, so no WebView media placeholder shows through. */
+.m-qr-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--qr-light);
+  text-align: center;
+}

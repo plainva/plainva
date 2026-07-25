@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { CameraOff, X } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { useTranslation } from "react-i18next";
 import { decodeQrFromVideo } from "../services/qrScan";
@@ -61,10 +61,22 @@ export function QrScanner({ onDecode, onClose }: { onDecode: (value: string) => 
 
   return (
     <div className="m-qr-scanner">
-      <video ref={videoRef} className="m-qr-video" playsInline muted />
-      <div className="m-qr-frame" />
+      {/* On failure the <video> stays UNMOUNTED: an Android WebView paints its
+          play-button placeholder over a stream-less video, which read as a
+          broken screen (maintainer 2026-07-25). Show the reason instead. */}
+      {error ? (
+        <div className="m-qr-fallback">
+          <CameraOff size={28} />
+          <p>{error}</p>
+        </div>
+      ) : (
+        <>
+          <video ref={videoRef} className="m-qr-video" playsInline muted />
+          <div className="m-qr-frame" />
+        </>
+      )}
       <div className="m-qr-bar">
-        <span>{error ?? t("workspaceSecurity.qrScanning", { defaultValue: "Point the camera at the QR code" })}</span>
+        <span>{error ? null : t("workspaceSecurity.qrScanning", { defaultValue: "Point the camera at the QR code" })}</span>
         <button className="m-iconbtn" aria-label={t("common.cancel", { defaultValue: "Cancel" })} onClick={onClose}><X size={20} /></button>
       </div>
     </div>

@@ -4,9 +4,11 @@
 
 **Beveiliging en delen** heeft twee niveaus. Het **Overzicht** (eerste niveau) toont de beschermingsstatus, **Migratie afronden** wanneer er nog platte tekst overblijft, **Verbinding met de versleutelde cloud verwijderen**, en twee kaarten die het tweede niveau openen — **Apparaten en herstel** en **Delen met anderen**. Op het tweede niveau vervangt de gebiedsnavigatie de linkerkolom met instellingen, gegroepeerd in **Jouw toegang** (Apparaten, herstel) en **Delen** (Leden, groepen, slices, publicaties); **‹ Overzicht** keert terug naar het eerste niveau. Zichtbare acties blijven bruikbaar: een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.
 
-Laatst gecontroleerd: 2026-07-23
+Laatst gecontroleerd: 2026-07-25
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
+
+Op mobiel noemt het onderdeel eerst de werkelijke staat van deze kluis: **Alleen op dit apparaat** zonder cloudverbinding, **Deze verbinding is niet versleuteld** bij een gewone cloudkluis (versleuteling is mogelijk — stel die in Plainva op de desktop in, daarna sluit dit apparaat zich hier aan), of de stappen om lid te worden zodra de verbinding een versleutelde werkruimte bevat.
 
 ## Instellen
 

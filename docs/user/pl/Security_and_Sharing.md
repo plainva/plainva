@@ -4,9 +4,11 @@
 
 **Bezpieczeństwo i udostępnianie** ma dwa poziomy. **Przegląd** (pierwszy poziom) pokazuje stan ochrony, **Zakończ migrację**, gdy pozostają resztki tekstu jawnego, **Usuń połączenie z zaszyfrowaną chmurą** oraz dwie karty otwierające drugi poziom — **Urządzenia i odzyskiwanie** i **Udostępnij innym**. Na drugim poziomie nawigacja po obszarach zastępuje lewą kolumnę ustawień, pogrupowana w **Twój dostęp** (Urządzenia, odzyskiwanie) i **Udostępnianie** (Członkowie, grupy, wycinki, publikacje); **‹ Przegląd** wraca do pierwszego poziomu. Widoczne akcje pozostają dostępne: akcja otwiera wymagany vault, połączenie, konfigurację lub odblokowanie. Cofnięcie dostępu może uruchomić wznawialne pełne szyfrowanie. Vault Slice tworzysz przez **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne są osobnym szyfrowanym workspace, a projekcja usuwa prywatne właściwości, wykluczone linki i osadzenia. Wydanie publiczne wymaga niezależnego audytu i testów Android/iOS na urządzeniach.
 
-Ostatni przegląd: 2026-07-23
+Ostatni przegląd: 2026-07-25
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
+
+Na telefonie sekcja najpierw podaje rzeczywisty stan tego sejfu: **Tylko na tym urządzeniu** bez połączenia z chmurą, **To połączenie nie jest zaszyfrowane** przy zwykłym sejfie w chmurze (szyfrowanie jest możliwe — skonfiguruj je w Plainva na komputerze, a potem to urządzenie dołączy tutaj) albo kroki dołączania, gdy w połączeniu znajduje się zaszyfrowany obszar roboczy.
 
 ## Konfiguracja
 

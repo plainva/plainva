@@ -4,9 +4,11 @@
 
 **Seguridad y uso compartido** tiene dos niveles. El **Resumen** (primer nivel) muestra el estado de protección, **Finalizar migración** cuando quedan restos de texto sin cifrar, **Quitar la conexión con la nube cifrada**, y dos tarjetas que abren el segundo nivel — **Dispositivos y recuperación** y **Compartir con otros**. En el segundo nivel, la navegación por áreas reemplaza la columna izquierda de ajustes, agrupada en **Tu acceso** (Dispositivos, recuperación) y **Compartir** (Miembros, grupos, slices, publicaciones); **‹ Resumen** vuelve al primer nivel. Las acciones visibles siguen disponibles: si falta un requisito, una acción abre el vault, la conexión, la configuración o el desbloqueo. La revocación puede iniciar un recifrado completo reanudable. Crea un Vault Slice con **Detalles → Contenido → Permisos → Revisión**. Las publicaciones externas viven en un workspace cifrado separado; la proyección saneada elimina propiedades privadas, enlaces excluidos e incrustaciones. La publicación pública espera la revisión criptográfica independiente y pruebas reales en Android/iOS.
 
-Revisado: 2026-07-23
+Revisado: 2026-07-25
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
+
+En el móvil, la sección indica primero el estado real de este vault: **Solo en este dispositivo** sin conexión de nube, **Esta conexión no está cifrada** en un vault de nube normal (el cifrado es posible: configúralo en Plainva en el escritorio y este dispositivo se une aquí), o los pasos para unirse en cuanto la conexión contiene un espacio de trabajo cifrado.
 
 ## Configuración
 
