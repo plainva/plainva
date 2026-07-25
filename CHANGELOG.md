@@ -7,6 +7,50 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-25
+
+The biggest release so far. It adds a way **in** — import your notes from Notion,
+Evernote, Google Keep, Simplenote, Logseq or a Markdown folder — and a first,
+**experimental** take on **encrypted workspaces** you can share across devices.
+Deleting finally understands connections, calendar and email got the interaction
+polish they were missing, and the mobile app can set up encryption on its own.
+Still plain Markdown, still your files: existing vaults and `.base` files are
+untouched.
+
+### Added
+
+- **Import from another app.** An import wizard (command palette, or right-click
+  a folder in the file tree) brings notes into the vault you have open, in a
+  subfolder you name. Six sources: **Notion**, **Evernote (ENEX)**, **Google Keep
+  (Takeout)**, **Simplenote**, **Logseq** and any **Markdown folder or ZIP**.
+  Nothing in the vault is ever overwritten — a colliding name is numbered instead.
+  Every run writes an import report listing what came across, what arrived
+  incompletely, and what the importer cannot carry over at all.
+- **Notion in depth.** With an integration token Plainva walks the workspace:
+  page hierarchy becomes folders, **databases become `.base` files** with one note
+  per row, **relations become wiki links**, and 21 property types are mapped.
+  Inline databases render as live `![[…]]` embeds, and table/board/calendar/list
+  views are generated from the schema. A file-based path (ZIP export) works
+  offline; it brings pages across, but not database contents.
+- **Encrypted workspaces (experimental).** A vault can become an end-to-end
+  encrypted workspace shared across your devices: QR pairing, a printed recovery
+  code, device revocation, key rotation, published slices, and clean teardown
+  ("lift encryption" re-uploads plaintext to the same cloud folder).
+  **Not yet independently reviewed** — treat it as a preview and keep backups.
+- **Settings sync (opt-in).** Per-vault settings — daily notes, templates, task
+  database, backup retention — travel between your devices through a sideband
+  file in the vault. No credentials and no device-specific paths are included.
+- **Delete with its connections.** Deleting a note or a `.base` shows what hangs
+  off it — assigned items, database entries, linked databases — and lets you
+  decide group by group, with per-item control. Shared and multi-database entries
+  are excluded by default, and references in surviving notes are cleaned up.
+- **Calendar and email interaction.** Right-click menus on events (edit, colour,
+  RSVP, block in other calendars, delete), right-click and **multi-select** in the
+  mail list with bulk actions, an unread filter, and a **live-preview Markdown
+  editor** for mail bodies and event descriptions.
+- **Release highlights.** After an update, Plainva shows what changed; newcomers
+  get a short welcome instead. Both can be reopened from Settings.
+
 ### Changed
 
 - Multi-line selections now apply inline Markdown formatting per logical line,
@@ -14,6 +58,11 @@ reaches 1.0.
   tasks stay compatible block types instead of producing invalid hybrid syntax.
 - The right sidebar remembers one global note preference while empty contextual
   sections and full-surface views close only temporarily.
+- Opening an encrypted vault no longer blocks on re-hashing every file; an mtime
+  probe cache skips files that have not changed.
+- Mobile: per-vault isolation for folder and backup settings, readable system
+  bars with edge-to-edge layout, safe-area insets, automatic keyboard handling,
+  larger touch targets and translated accessibility labels.
 
 ### Fixed
 
@@ -23,6 +72,16 @@ reaches 1.0.
   successful recovery is shown explicitly and reconnect is suggested only for
   authentication failures. Google Drive HTTP failures now retain API details even
   when the WebView supplies an empty status text.
+- Deleting a folder or file that is already gone remotely counts as success, so a
+  stale row can be cleared from the tree.
+- Unresolved `[[links]]` show a single dashed underline instead of two overlapping
+  ones.
+- The encryption area now reports the real state of a vault (local, unencrypted
+  cloud, encrypted, or unknown) instead of claiming every vault is encrypted.
+- Android: the camera permission was missing, so the QR scanner never received an
+  image. The calendar tab no longer applies the safe-area inset twice, and the
+  settings gear is reachable again.
+- Mobile no longer fails to start when a Google Drive token has expired.
 
 ## [0.4.1] — 2026-07-21
 
