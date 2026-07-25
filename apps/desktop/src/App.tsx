@@ -46,6 +46,7 @@ import { TabContextMenu } from "./components/TabContextMenu";
 import { ImportWizardModal } from "./components/import/ImportWizardModal";
 import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
 import { FirstRunModal } from "./components/onboarding/FirstRunModal";
+import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, shouldShowWhatsNew } from "./services/whatsNew";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
@@ -271,6 +272,36 @@ function App() {
       window.removeEventListener("plainva-show-whats-new", onShowWhatsNew);
     };
   }, []);
+  // After an update, show existing users what changed; show newcomers a short
+  // welcome instead. Both write the same marker, so neither reappears.
+  // Runs once per app start, before any vault is required.
+  const whatsNewChecked = useRef(false);
+  useEffect(() => {
+    if (whatsNewChecked.current) return;
+    whatsNewChecked.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const [seen, version] = await Promise.all([readWhatsNewSeenVersion(), getAppVersion()]);
+      if (cancelled || !shouldShowWhatsNew(seen, version)) return;
+
+      // No marker AND no vault history means this is a first run, not an update.
+      const isFirstRun = !seen && recentVaults.length === 0 && !vaultPath;
+      if (isFirstRun) setShowFirstRun(true);
+      else setShowWhatsNew(true);
+    })();
+
+    return () => { cancelled = true; };
+    // Intentionally start-only: recentVaults/vaultPath are read once, as they
+    // are already populated by the time this effect runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dismissReleaseDialog = useStableHandler(async () => {
+    setShowWhatsNew(false);
+    setShowFirstRun(false);
+    markWhatsNewSeen(await getAppVersion());
+  });
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
@@ -991,7 +1022,15 @@ function App() {
 
 
   if (!vaultPath) {
-    return <SplashScreen />;
+    // The release dialogs render here too: a first run and the first start
+    // after an update both land on the splash, before any vault is open.
+    return (
+      <>
+        <SplashScreen />
+        {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
+        {showFirstRun && <FirstRunModal onClose={dismissReleaseDialog} />}
+      </>
+    );
   }
 
   const showVerticalPreview = drag.splitPreview === "vertical";
@@ -1604,8 +1643,8 @@ function App() {
         />
       )}
       {showImportWizard && <ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} />}
-      {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
-      {showFirstRun && <FirstRunModal onClose={() => setShowFirstRun(false)} />}
+      {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
+      {showFirstRun && <FirstRunModal onClose={dismissReleaseDialog} />}
     </div>
   );
 }

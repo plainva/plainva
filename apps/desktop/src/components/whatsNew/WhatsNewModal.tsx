@@ -11,12 +11,11 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const latest = getLatestWhatsNew();
 
-  const highlights = [
-    t('whatsNew.highlight1', latest.highlights[0]),
-    t('whatsNew.highlight2', latest.highlights[1]),
-    t('whatsNew.highlight3', latest.highlights[2]),
-    t('whatsNew.highlight4', latest.highlights[3]),
-  ];
+  // The catalog states how many highlights this release has; the texts come
+  // from i18n so they exist in every language.
+  const highlights = Array.from({ length: latest.highlightCount }, (_, i) =>
+    t(`whatsNew.highlight${i + 1}`, { defaultValue: '' })
+  ).filter(Boolean);
 
   const handleOpenBlog = async () => {
     if (!latest.blogUrl) return;
@@ -31,39 +30,41 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   return (
     <Modal
       onClose={onClose}
-      title={t('whatsNew.title', "Was gibt's Neues in Plainva")}
+      title={t('whatsNew.title', { version: latest.version })}
       size="md"
       footer={
         <>
           {latest.blogUrl && (
             <Button variant="secondary" onClick={handleOpenBlog}>
-              {t('whatsNew.readBlog', 'Blogpost lesen')}
+              {t('whatsNew.readBlog')}
             </Button>
           )}
           <Button variant="primary" onClick={onClose}>
-            {t('whatsNew.understand', 'Verstanden')}
+            {t('whatsNew.understand')}
           </Button>
         </>
       }
     >
-      <div style={{ padding: 'var(--pv-space-2) 0' }}>
+      <div style={{ padding: 'var(--space-2) 0' }}>
+        <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 var(--space-4) 0' }}>
+          {t('whatsNew.subtitle')}
+        </p>
         <div style={{
-          background: 'var(--pv-color-bg-subtle, var(--bg-card))',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
+          background: 'var(--surface-container-low)',
+          border: '1px solid var(--border-color-light)',
+          borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-4) var(--space-5)',
-          margin: 'var(--space-2) 0'
         }}>
           <ul style={{
             margin: 0,
-            paddingLeft: 'var(--pv-space-5, 20px)',
+            paddingLeft: 'var(--space-5)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--pv-space-3, 12px)',
-            listStyleType: 'disc'
+            gap: 'var(--space-3)',
+            listStyleType: 'disc',
           }}>
             {highlights.map((h, i) => (
-              <li key={i} style={{ fontSize: 'var(--pv-font-size-md, 14px)', lineHeight: '1.6', color: 'var(--pv-color-text-main, var(--text-main))' }}>
+              <li key={i} style={{ fontSize: 'var(--text-ui)', lineHeight: '1.6', color: 'var(--text-main)' }}>
                 {h}
               </li>
             ))}
