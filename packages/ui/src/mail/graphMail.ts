@@ -1,25 +1,18 @@
-import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import {
-  generatePkcePair,
-  generateCodeVerifier,
-  buildOneDriveAuthUrl,
-  exchangeOneDriveCode,
-  refreshOneDriveAccessToken,
-} from "@plainva/core";
+import { refreshOneDriveAccessToken } from "@plainva/core";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
-import { microsoftAuthFetch } from "../authFetch";
-import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./mailClient";
+import { mailHttp } from "./transport";
+import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
 import type { MailAttachment } from "./mailOut";
 
 /**
  * Microsoft Graph mail backend (direct login, no app password / IMAP / SMTP).
  * Reuses the OneDrive PKCE cores and the OAuth loopback listener 1:1 — only the
  * SCOPES differ (delegated Mail.ReadWrite + Mail.Send on the SAME central Entra
- * app as the OneDrive sync). Everything runs over the Tauri http bridge; there
- * is no Rust for Microsoft mail. Message ids are opaque Graph strings; folders
+ * app as the OneDrive sync). Everything runs over plain HTTP through the
+ * injected MailHttp ports, so this file is platform-neutral: the desktop
+ * passes the Tauri http plugin, mobile the native bridge. Message ids are
+ * opaque Graph strings; folders
  * are addressed by their displayName (mapped to the Graph id per account) OR by
  * a role name, which resolves to Graph's language-independent well-known folder.
  */
@@ -27,28 +20,9 @@ import type { MailAttachment } from "./mailOut";
 export const GRAPH_MAIL_SCOPES = "User.Read Mail.ReadWrite Mail.Send offline_access";
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
-// ---- OAuth ---------------------------------------------------------------
-
-/** Runs the Microsoft consent flow for mail (loopback) and returns the refresh
- * token (not persisted — the account id does not exist yet at authorize time). */
-export async function authorizeMicrosoftMail(opts: { clientId: string }): Promise<{ refreshToken: string }> {
-  const port = await invoke<number>("oauth_loopback_start");
-  const redirectUri = `http://localhost:${port}`;
-  const { codeVerifier, codeChallenge } = await generatePkcePair();
-  const state = generateCodeVerifier();
-  const authUrl = buildOneDriveAuthUrl({ clientId: opts.clientId, redirectUri, codeChallenge, state, scope: GRAPH_MAIL_SCOPES });
-  await openUrl(authUrl);
-  const redirect = await invoke<{ code: string; state: string | null }>("oauth_loopback_wait", { timeoutSecs: 180 });
-  if (redirect.state !== state) throw new Error("OAuth state mismatch — aborted.");
-  // microsoftAuthFetch, NOT the raw webview fetch: the token POST must carry no
-  // Origin header (AADSTS90023 — maintainer finding 2026-07-20).
-  const tokens = await exchangeOneDriveCode(
-    { clientId: opts.clientId, code: redirect.code, codeVerifier, redirectUri, scope: GRAPH_MAIL_SCOPES },
-    microsoftAuthFetch
-  );
-  if (!tokens.refreshToken) throw new Error("Microsoft returned no refresh_token — connect again.");
-  return { refreshToken: tokens.refreshToken };
-}
+/* The consent flow itself is shell-specific (desktop: loopback listener,
+   mobile: custom-scheme redirect) and therefore NOT here — see
+   `apps/desktop/src/services/mail/graphMailAuth.ts`. */
 
 // ---- Per-account runtime (token cache + folder id map) -------------------
 
@@ -72,7 +46,7 @@ function buildRuntime(vaultPath: string, account: MailAccountConfig, initialRefr
   let inFlight: Promise<string> | null = null;
 
   const refresh = async (): Promise<string> => {
-    const res = await refreshOneDriveAccessToken({ clientId, refreshToken: currentRefreshToken, scope: GRAPH_MAIL_SCOPES }, microsoftAuthFetch);
+    const res = await refreshOneDriveAccessToken({ clientId, refreshToken: currentRefreshToken, scope: GRAPH_MAIL_SCOPES }, mailHttp().token);
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
     if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
@@ -111,7 +85,7 @@ export function forgetGraphMailRuntime(accountId: string): void {
 
 async function graphJson<T>(rt: GraphMailRuntime, method: string, path: string, body?: unknown): Promise<T> {
   const call = async (token: string): Promise<Response> =>
-    httpFetch(`${GRAPH}${path}`, {
+    mailHttp().api(`${GRAPH}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -357,7 +331,7 @@ export async function graphFetchMessage(vaultPath: string, account: MailAccountC
 /** Raw MIME (.eml) of a message, base64 — the "+ .eml beilegen" capture. */
 export async function graphFetchRaw(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string): Promise<string> {
   const rt = await runtimeFor(vaultPath, account);
-  const res = await httpFetch(`${GRAPH}/me/messages/${encodeURIComponent(id)}/$value`, {
+  const res = await mailHttp().api(`${GRAPH}/me/messages/${encodeURIComponent(id)}/$value`, {
     headers: { Authorization: `Bearer ${await rt.getAccessToken()}` },
   });
   if (!res.ok) throw new Error(`Graph mail raw fetch failed: ${res.status}`);

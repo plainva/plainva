@@ -22,7 +22,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { firstSettingsArea, settingsArea, hasCloudService, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
-import { listMailAccounts } from "../services/mail/mailAccounts";
+import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";

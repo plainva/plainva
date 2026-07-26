@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
-import { buildInviteIcs } from "../../services/mail/inviteIcs";
-import { utf8ToBase64 } from "../../services/mail/mailOut";
-import { listMailAccounts } from "../../services/mail/mailAccounts";
+import { buildInviteIcs } from "@plainva/ui/mail";
+import { utf8ToBase64 } from "@plainva/ui/mail";
+import { listMailAccounts } from "@plainva/ui/mail";
 import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";

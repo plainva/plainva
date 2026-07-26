@@ -42,6 +42,9 @@ const COMPONENT_ROOTS: Array<{ dir: string; prefix: string }> = [
   { dir: join(SRC, "services"), prefix: "services/" },
   { dir: join(SRC, "../../../packages/ui/src/components"), prefix: "components/" },
   { dir: join(SRC, "../../../packages/ui/src/base"), prefix: "base/" },
+  // The mail core moved to the shared package (feinplan G0.1) — it must stay
+  // under the same ratchet it had in the shell.
+  { dir: join(SRC, "../../../packages/ui/src/mail"), prefix: "mail/" },
 ];
 /** Shell root files scanned individually (walk would pull in tests/config). */
 const ROOT_FILES = ["App.tsx", "main.tsx"];
@@ -95,7 +98,7 @@ const BUDGET: Record<string, Counts> = {
   "components/mail/mail.css": {hex:1},
   "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3},
   "components/ThemePickerCards.tsx": {rgba:2},
-  "services/mail/mailSanitize.ts": {hex:2,fontSizeRaw:1},
+  "mail/mailSanitize.ts": {hex:2,fontSizeRaw:1},
 };
 
 function walk(dir: string, out: string[] = []): string[] {

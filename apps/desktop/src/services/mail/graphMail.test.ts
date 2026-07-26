@@ -20,8 +20,7 @@ function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
 }
 
-vi.mock("@tauri-apps/plugin-http", () => ({
-  fetch: vi.fn(async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string }) => {
+const fakeFetch = vi.fn(async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string }) => {
     calls.push({ url, method: init?.method ?? "GET", headers: init?.headers ?? {}, body: init?.body });
     // Well-known folder lookup (single folder, id only) — Graph answers these
     // regardless of the mailbox language.
@@ -63,13 +62,7 @@ vi.mock("@tauri-apps/plugin-http", () => ({
     if (url.includes("/move")) return json({ id: "moved" });
     if (url.endsWith("/me/messages")) return json({ id: "draft1" });
     return json({});
-  }),
-}));
-
-vi.mock("./mailAccounts", () => ({
-  getMailRefreshToken: vi.fn(async () => "REFRESH"),
-  saveMailRefreshToken: vi.fn(async () => {}),
-}));
+  });
 
 vi.mock("@plainva/core", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -87,14 +80,44 @@ import {
   graphDeleteMessage,
   graphListFlaggedEnvelopes,
   forgetGraphMailRuntime,
-} from "./graphMail";
-import type { MailAccountConfig } from "./mailAccounts";
+  setMailPlatform,
+  mailSecretKey,
+  type MailTransport,
+} from "@plainva/ui/mail";
+import { setPlatformServices } from "@plainva/ui";
+import type { MailAccountConfig } from "@plainva/ui/mail";
 
 const account: MailAccountConfig = { id: "acc1", label: "me@outlook.com", host: "", port: 993, user: "me@outlook.com", kind: "microsoft", clientId: "cid" };
+
+/** In-memory platform: the Graph runtime reads its refresh token through the
+ *  shared mailAccounts module, which asks the platform registry for secrets. */
+const secrets = new Map<string, unknown>();
 
 beforeEach(() => {
   calls.length = 0;
   forgetGraphMailRuntime("acc1");
+  secrets.clear();
+  secrets.set(mailSecretKey("/vault", "acc1"), { refreshToken: "REFRESH" });
+  setPlatformServices({
+    loadSettings: async () => ({
+      get: async () => undefined,
+      set: async () => {},
+      delete: async () => true,
+      keys: async () => [],
+      save: async () => {},
+    }),
+    credentials: {
+      readSecret: async <T,>(key: string) => (secrets.get(key) as T) ?? null,
+      writeSecret: async <T,>(key: string, value: T) => { secrets.set(key, value); },
+      removeSecret: async (key: string) => { secrets.delete(key); },
+    },
+    openExternal: async () => {},
+  });
+  // Graph never touches the IMAP transport; a throwing stub proves that.
+  const transport = new Proxy({} as MailTransport, {
+    get: () => () => { throw new Error("the Graph backend must not use the IMAP transport"); },
+  });
+  setMailPlatform({ transport, http: { api: fakeFetch as unknown as typeof fetch, token: fakeFetch as unknown as typeof fetch } });
 });
 
 describe("graphMail pure transforms", () => {

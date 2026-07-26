@@ -29,6 +29,7 @@ export * from "./lib/inlineMarkdown";
 export * from "./lib/lineDiff";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
+export * from "./lib/newNoteContent";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
 export * from "./lib/noteTitle";

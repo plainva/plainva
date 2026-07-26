@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "./mailOut";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {

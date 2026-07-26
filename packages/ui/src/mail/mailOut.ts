@@ -1,11 +1,12 @@
-import { invoke } from "@tauri-apps/api/core";
-import { markdownToHtml, markdownToPlainText } from "@plainva/ui";
+import { markdownToHtml } from "../lib/markdownToHtml";
+import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
-import { buildNewNoteContent } from "../newNote";
+import { buildNewNoteContent } from "../lib/newNoteContent";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailPassword, mailAccountKind } from "./mailAccounts";
-import type { MailMessage } from "./mailClient";
+import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
+import { mailTransport } from "./transport";
 
 /**
  * "Mail-raus" without ever sending (PIM stage 6): Plainva deliberately never
@@ -289,7 +290,7 @@ export async function sendMail(
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
-  await invoke("mail_send", {
+  await mailTransport().send({
     host: account.smtpHost,
     port: account.smtpPort ?? 587,
     user: account.user,
@@ -299,11 +300,11 @@ export async function sendMail(
     subject,
     text,
     html,
-    attachments: attachments.length ? attachments : null,
-    calendar: calendar?.ics ?? null,
-    calendarMethod: calendar?.method ?? null,
-    cc: cc.trim() || null,
-    bcc: bcc.trim() || null,
+    attachments: attachments.length ? attachments : undefined,
+    calendar: calendar?.ics,
+    calendarMethod: calendar?.method,
+    cc: cc.trim() || undefined,
+    bcc: bcc.trim() || undefined,
   });
 }
 
@@ -326,18 +327,17 @@ export async function appendDraft(
   }
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new Error("missing mail credentials");
-  await invoke("mail_append_draft", {
-    host: account.host,
-    port: account.port,
-    user: account.user,
-    pass,
-    mailbox,
-    to,
-    subject,
-    text,
-    html,
-    attachments: attachments.length ? attachments : null,
-    cc: cc.trim() || null,
-    bcc: bcc.trim() || null,
-  });
+  await mailTransport().appendDraft(
+    { host: account.host, port: account.port, user: account.user, pass },
+    {
+      mailbox,
+      to,
+      subject,
+      text,
+      html,
+      attachments: attachments.length ? attachments : undefined,
+      cc: cc.trim() || undefined,
+      bcc: bcc.trim() || undefined,
+    },
+  );
 }

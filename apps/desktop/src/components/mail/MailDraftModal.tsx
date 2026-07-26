@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Button, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
 import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { listMailAccounts, type MailAccountConfig } from "../../services/mail/mailAccounts";
-import { listMailboxesFor } from "../../services/mail/mailClient";
-import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "../../services/mail/mailOut";
+import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailboxesFor } from "@plainva/ui/mail";
+import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import "./mail.css";
 

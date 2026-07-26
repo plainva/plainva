@@ -53,7 +53,7 @@ import {
   backupZipKeepKey,
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
-import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "./mail/mailAccounts";
+import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module

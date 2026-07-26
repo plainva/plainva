@@ -12,7 +12,7 @@ import { familyOfCalDavUrl, familyOfImapHost, type CloudAccountRecord } from "@p
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { listMailAccounts, mailAccountKind, mailSecretKey } from "./mail/mailAccounts";
+import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
 

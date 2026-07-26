@@ -5,7 +5,7 @@ import { Button, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, fam
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
-import { listMailAccounts, mailAccountKind, type MailAccountConfig } from "../../services/mail/mailAccounts";
+import { listMailAccounts, mailAccountKind, type MailAccountConfig } from "@plainva/ui/mail";
 import { AccountMark } from "../settings/cloudAccountsShared";
 
 /**

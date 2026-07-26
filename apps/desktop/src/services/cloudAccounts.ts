@@ -18,7 +18,7 @@ import {
 } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { credentialManager } from "./CredentialManager";
-import { listMailAccounts, mailAccountKind } from "./mail/mailAccounts";
+import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 /**

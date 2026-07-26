@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInviteIcs, icsUtcStamp } from "./inviteIcs";
+import { buildInviteIcs, icsUtcStamp } from "@plainva/ui/mail";
 
 describe("iCal invitation builder (mail-client E6)", () => {
   it("formats a UTC timestamp", () => {

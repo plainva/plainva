@@ -22,8 +22,9 @@ import {
 import { connectCalDavAccount, connectGoogleAccount, connectMicrosoftAccount, removePimAccount } from "./pim/pimAccounts";
 import { savePimCredentials, getPimCredentials } from "./pim/pimCredentials";
 import { authorizeGooglePim, authorizeMicrosoftPim } from "./pim/pimAuth";
-import { authorizeMicrosoftMail, graphMailAddress, forgetGraphMailRuntime } from "./mail/graphMail";
-import { checkMailLogin } from "./mail/mailClient";
+import { graphMailAddress, forgetGraphMailRuntime } from "@plainva/ui/mail";
+import { authorizeMicrosoftMail } from "./mail/graphMailAuth";
+import { checkMailLogin } from "@plainva/ui/mail";
 import {
   listMailAccounts,
   saveMailAccount,
@@ -31,7 +32,7 @@ import {
   saveMailRefreshToken,
   removeMailAccount,
   type MailAccountConfig,
-} from "./mail/mailAccounts";
+} from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
 

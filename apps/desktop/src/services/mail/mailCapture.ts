@@ -1,7 +1,7 @@
 import { upsertFrontmatterKeys, readFrontmatterPath } from "@plainva/core";
 import { buildNewNoteContent } from "../newNote";
 import { taskDbFileStem } from "../taskDatabase";
-import type { MailMessage } from "./mailClient";
+import type { MailMessage } from "@plainva/ui/mail";
 
 /**
  * Mail capture (PIM stage 5): turns a fetched message into vault content.

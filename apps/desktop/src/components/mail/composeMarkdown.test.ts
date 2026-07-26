@@ -8,7 +8,7 @@ import {
   detectSlash,
   filterCommands,
   COMPOSE_COMMANDS,
-} from "./composeMarkdown";
+} from "@plainva/ui/mail";
 
 describe("composeMarkdown", () => {
   it("wraps a selection and places the caret inside the markers", () => {

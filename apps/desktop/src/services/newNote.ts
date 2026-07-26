@@ -1,5 +1,4 @@
 import { getSettingsStore } from "./settingsStore";
-import { ensureOkfFrontmatter } from "@plainva/core";
 import {
   defaultNoteTypeKey,
   dailyNoteTypeKey,
@@ -27,25 +26,7 @@ export async function getConfiguredDailyNoteType(vaultPath: string): Promise<str
   return value?.trim() || DEFAULT_DAILY_NOTE_TYPE;
 }
 
-/**
- * Ensures OKF minimum frontmatter on freshly created content. A template with
- * unparseable frontmatter must not block note creation — the content is then
- * returned unchanged (the conversion wizard is the place to repair files).
- */
-export function withOkfDefaults(content: string, type: string): string {
-  try {
-    return ensureOkfFrontmatter(content, { type }).content;
-  } catch {
-    return content;
-  }
-}
-
-/**
- * Initial content for a brand-new note: OKF frontmatter plus an H1 with the
- * note's name so the caret target is visible (maintainer, 2026-07-04). Callers
- * that intentionally start blank (e.g. template scaffolds) omit `title`.
- */
-export function buildNewNoteContent(type: string, title?: string): string {
-  const heading = title?.trim();
-  return withOkfDefaults(heading ? `# ${heading}\n` : "", type);
-}
+// The two content builders below moved to @plainva/ui (feinplan G0.1) so the
+// shared mail code can build notes; re-exported here so every existing import
+// path keeps working.
+export { withOkfDefaults, buildNewNoteContent } from "@plainva/ui";

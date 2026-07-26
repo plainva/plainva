@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
 import { buildEmailNoteContent, captureMailAsNote, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "./mailCapture";
-import type { MailMessage } from "./mailClient";
+import type { MailMessage } from "@plainva/ui/mail";
 
 function fakeAdapter(initial: Record<string, string> = {}) {
   const files = new Map<string, string | Uint8Array>(Object.entries(initial));

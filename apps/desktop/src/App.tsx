@@ -26,7 +26,7 @@ const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
-import type { MailAttachment } from "./services/mail/mailOut";
+import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
@@ -1571,7 +1571,7 @@ function App() {
               void (async () => {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
-                  const { noteToClipboardFlavors } = await import("./services/mail/mailOut");
+                  const { noteToClipboardFlavors } = await import("@plainva/ui/mail");
                   const flavors = noteToClipboardFlavors(stripFrontmatter(content));
                   await navigator.clipboard.write([
                     new ClipboardItem({
@@ -1592,7 +1592,7 @@ function App() {
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const [{ buildMailtoUrl }, { markdownToPlainText }, { openUrl }] = await Promise.all([
-                    import("./services/mail/mailOut"),
+                    import("@plainva/ui/mail"),
                     import("@plainva/ui"),
                     import("@tauri-apps/plugin-opener"),
                   ]);

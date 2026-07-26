@@ -13,7 +13,7 @@ import {
   filterCommands,
   type ComposeCommand,
   type ComposeCommandId,
-} from "./composeMarkdown";
+} from "@plainva/ui/mail";
 // The .pv-mail-cmp* rules live in mail.css. Import it here so the editor carries
 // its own styling wherever it is used — the calendar event dialog reuses this
 // component and never loads a mail view.

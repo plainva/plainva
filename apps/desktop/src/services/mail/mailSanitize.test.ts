@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { sanitizeEmailHtml, buildMailFrameDoc } from "./mailSanitize";
+import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 
 /**
  * The sandbox sanitizer is the security boundary of the mail viewer — these
