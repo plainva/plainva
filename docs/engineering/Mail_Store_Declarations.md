@@ -1,14 +1,16 @@
 # Store declarations for the mobile mail client
 
-Last reviewed: 2026-07-26 · Status: **prepared, not yet filed** (mail is not shipped publicly yet)
+Last reviewed: 2026-07-26 · Status: **filed** — the maintainer submitted the mail and calendar
+declarations in Google Play and App Store Connect on 2026-07-26. This file stays as the record of
+what was answered and why, so a later change can be diffed against it rather than re-derived.
 
-Shipping mail on mobile changes what data the app touches, so both stores need their privacy
-declarations updated **before the first public release that contains mail**. Internal test builds
-(Play internal testing, TestFlight) are not affected — G1 through G4 can be tested internally with
-the current declarations.
+Shipping mail on mobile changes what data the app touches, so both stores needed their privacy
+declarations updated **before the first public release that contains mail**. That is done; internal
+test builds (Play internal testing, TestFlight) were never affected either way.
 
-This file is the checklist: it holds the exact answers, so filing them is a matter of ticking boxes
-rather than re-deriving the reasoning under release pressure.
+This file was the checklist that made filing a matter of ticking boxes rather than re-deriving the
+reasoning under release pressure. It is now the record of what was declared — keep it in step with
+the forms whenever the app starts touching different data.
 
 ## What does NOT change
 
