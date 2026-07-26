@@ -1,8 +1,10 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-07-25
+Laatst bijgewerkt: 2026-07-26
 
 Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altijd naar de vault die je op dat moment hebt geopend, in een submap die je zelf benoemt — zo raakt hij de rest van je vault nooit aan, en kun je de geïmporteerde map achteraf verplaatsen of verwijderen als elke andere map.
+
+**Importeren gebeurt op de desktop.** De mobiele app kan niet importeren: haal de notities op de desktop binnen, dan komen ze via de synchronisatie op je telefoon terecht, net als elk ander bestand.
 
 ## Import starten
 

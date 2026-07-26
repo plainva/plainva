@@ -1,8 +1,10 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-07-25
+Última revisão: 2026-07-26
 
 O Plainva pode trazer notas de outros aplicativos de notas. A importação sempre grava no vault que você tem aberto no momento, em uma subpasta que você nomeia — assim ela nunca toca no restante do seu vault, e você pode mover ou excluir a pasta importada depois, como qualquer outra pasta.
+
+**A importação acontece no desktop.** O aplicativo móvel não importa: traga as notas no desktop e elas chegam ao seu celular pela sincronização, como qualquer outro arquivo.
 
 ## Iniciando uma importação
 

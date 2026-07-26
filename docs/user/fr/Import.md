@@ -1,8 +1,10 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-07-25
+Dernière mise à jour : 2026-07-26
 
 Plainva peut reprendre des notes depuis d'autres applications de prise de notes. L'import écrit toujours dans le vault que vous avez actuellement ouvert, dans un sous-dossier que vous nommez — il ne touche donc jamais au reste de votre vault, et vous pouvez déplacer ou supprimer le dossier importé par la suite comme n'importe quel autre dossier.
+
+**L’import s’effectue sur le bureau.** L’application mobile ne peut pas importer : récupérez les notes sur le bureau, elles arrivent ensuite sur votre téléphone via la synchronisation, comme tout autre fichier.
 
 ## Démarrer un import
 

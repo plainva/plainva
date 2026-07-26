@@ -1,8 +1,10 @@
 # Import z innej aplikacji
 
-Stan na: 2026-07-25
+Stan na: 2026-07-26
 
 Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze zapisuje dane w vaulcie, który masz aktualnie otwarty, w podfolderze o nazwie, którą wybierasz — dzięki temu nigdy nie dotyka reszty Twojego vaultu, a zaimportowany folder możesz później przenieść lub usunąć jak każdy inny folder.
+
+**Import odbywa się na komputerze.** Aplikacja mobilna nie potrafi importować: zaimportuj notatki na komputerze, a trafią na Twój telefon przez synchronizację, jak każdy inny plik.
 
 ## Rozpoczynanie importu
 
