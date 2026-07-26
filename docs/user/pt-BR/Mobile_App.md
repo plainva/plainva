@@ -39,7 +39,7 @@ Em **Configurações → E-mail** você conecta uma **caixa de correio da Micros
 
 Depois você pode abrir **E-mail** como uma área própria pelo ▾ ao lado do título e colocá-la na barra de navegação. A linha abaixo do título mostra pasta, não lidas e conta, e abre o seletor de pastas. Toque em uma mensagem para lê-la; **Salvar como nota** a arquiva na pasta **Mail** do seu cofre (capturar duas vezes abre a mesma nota). Imagens remotas continuam bloqueadas até você liberá-las para aquela mensagem — uma imagem carregada informa ao remetente quando e onde você leu.
 
-**Caixas IMAP ainda não funcionam no telefone.** Elas precisam de uma conexão direta com o servidor de e-mail, que ainda está sendo construída. Uma caixa IMAP que chega do computador pela sincronização de configurações aparece na lista e avisa ali mesmo — use-a no computador por enquanto.
+**Caixas IMAP também funcionam no telefone.** Adicione uma em **Configurações → E-mail**: escolha o provedor, informe o endereço e a senha de aplicativo, e o Plainva preenche os servidores. Se o seu provedor não estiver na lista, **Avançado** permite digitar você mesmo os servidores IMAP e SMTP, as portas e um nome de usuário diferente, e uma conta existente pode ser editada depois. Para selecionar várias mensagens, basta tocar e segurar uma delas.
 
 ## Sincronização
 

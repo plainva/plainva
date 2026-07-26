@@ -39,7 +39,7 @@ En **Ajustes → Correo electrónico** conectas un **buzón de Microsoft** (Outl
 
 Después puedes abrir **Correo electrónico** como área propia desde el ▾ junto al título y colocarla en la barra de navegación. La línea bajo el título muestra carpeta, mensajes sin leer y cuenta, y abre el selector de carpetas. Toca un mensaje para leerlo; **Guardar como nota** lo archiva en la carpeta **Mail** de tu bóveda (capturarlo dos veces abre la misma nota). Las imágenes remotas siguen bloqueadas hasta que las permitas para ese mensaje: una imagen cargada le indica al remitente cuándo y dónde lo leíste.
 
-**Los buzones IMAP aún no funcionan en el teléfono.** Necesitan una conexión directa con el servidor de correo, que todavía se está desarrollando. Un buzón IMAP que llega del escritorio por la sincronización de ajustes aparece en la lista y te lo indica allí mismo: úsalo en el escritorio mientras tanto.
+**Los buzones IMAP también funcionan en el teléfono.** Añade uno en **Ajustes → Correo electrónico**: elige el proveedor, introduce la dirección y la contraseña de aplicación, y Plainva rellena los servidores. Si tu proveedor no está en la lista, **Avanzado** te permite escribir tú mismo los servidores IMAP y SMTP, los puertos y un nombre de usuario distinto, y una cuenta existente se puede editar más tarde. Para seleccionar varios mensajes, basta con mantener pulsado uno de ellos.
 
 ## Sincronización
 

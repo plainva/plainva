@@ -39,7 +39,7 @@ W **Ustawieniach → Poczta e-mail** połączysz **skrzynkę Microsoft** (Outloo
 
 Potem otworzysz **Pocztę e-mail** jako osobny obszar przez ▾ przy tytule i umieścisz ją w pasku nawigacji. Wiersz pod tytułem pokazuje folder, liczbę nieprzeczytanych i konto oraz otwiera wybór folderów. Dotknij wiadomości, aby ją przeczytać; **Zapisz jako notatkę** umieści ją w folderze **Mail** Twojego sejfu (dwukrotne zapisanie otworzy tę samą notatkę). Zdalne obrazy pozostają zablokowane, dopóki ich nie zezwolisz dla tej wiadomości — wczytany obraz zdradza nadawcy, kiedy i gdzie czytałeś.
 
-**Skrzynki IMAP nie działają jeszcze na telefonie.** Wymagają bezpośredniego połączenia z serwerem poczty, które dopiero powstaje. Skrzynka IMAP, która trafiła tu z komputera przez synchronizację ustawień, pojawia się na liście i mówi o tym na miejscu — na razie korzystaj z niej na komputerze.
+**Skrzynki IMAP działają też na telefonie.** Dodaj jedną w **Ustawieniach → Poczta e-mail**: wybierz dostawcę, wpisz adres i hasło aplikacji, a Plainva uzupełni serwery. Jeśli Twojego dostawcy nie ma na liście, przycisk **Zaawansowane** pozwoli Ci samodzielnie wpisać serwery IMAP i SMTP, porty oraz inną nazwę użytkownika, a istniejące konto można później edytować. Wybór kilku wiadomości działa przez przytrzymanie jednej z nich.
 
 ## Synchronizacja
 

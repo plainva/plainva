@@ -39,7 +39,7 @@ In **Impostazioni → E-mail** colleghi una **casella Microsoft** (Outlook.com, 
 
 In seguito puoi aprire **E-mail** come area a sé dal ▾ accanto al titolo e collocarla nella barra di navigazione. La riga sotto il titolo mostra cartella, non letti e account, e apre il selettore delle cartelle. Tocca un messaggio per leggerlo; **Salva come nota** lo archivia nella cartella **Mail** del tuo vault (catturarlo due volte apre la stessa nota). Le immagini remote restano bloccate finché non le consenti per quel messaggio: un’immagine caricata rivela al mittente quando e dove hai letto.
 
-**Le caselle IMAP non funzionano ancora sul telefono.** Richiedono una connessione diretta al server di posta, ancora in fase di sviluppo. Una casella IMAP arrivata dal computer tramite la sincronizzazione delle impostazioni compare nell’elenco e te lo dice sul posto: per ora usala sul computer.
+**Anche le caselle IMAP funzionano sul telefono.** Aggiungine una in **Impostazioni → E-mail**: scegli il provider, inserisci l’indirizzo e la password per app, e Plainva compila i server. Se il tuo provider non è nell’elenco, **Avanzate** ti permettono di inserire tu stesso i server IMAP e SMTP, le porte e un nome utente diverso, e un account esistente si può modificare in seguito. Per selezionare più messaggi basta tenere premuto uno di essi.
 
 ## Sincronizzazione
 

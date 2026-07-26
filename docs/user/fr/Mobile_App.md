@@ -39,7 +39,7 @@ Dans **Réglages → E-mail**, connecte une **boîte Microsoft** (Outlook.com, M
 
 Ensuite, tu peux ouvrir **E-mail** comme domaine à part entière via le ▾ à côté du titre et le placer dans la barre de navigation. La ligne sous le titre indique le dossier, le nombre de messages non lus et le compte, et ouvre le sélecteur de dossiers. Touche un message pour le lire ; **Enregistrer comme note** le range dans le dossier **Mail** de ton coffre (capturer deux fois ouvre la même note). Les images distantes restent bloquées jusqu’à ce que tu les autorises pour ce message — une image chargée révèle à l’expéditeur quand et où tu as lu.
 
-**Les boîtes IMAP ne fonctionnent pas encore sur téléphone.** Elles nécessitent une connexion directe au serveur de messagerie, encore en cours de développement. Une boîte IMAP arrivée de l’ordinateur par la synchronisation des réglages apparaît dans la liste et te le signale sur place — utilise-la sur l’ordinateur en attendant.
+**Les boîtes IMAP fonctionnent aussi sur le téléphone.** Ajoutes-en une dans **Réglages → E-mail** : choisis le fournisseur, saisis l’adresse et le mot de passe d’application, et Plainva renseigne les serveurs. Si ton fournisseur ne figure pas dans la liste, **Avancé** te permet de saisir toi-même les serveurs IMAP et SMTP, les ports et un nom d’utilisateur différent, et un compte existant peut être modifié par la suite. Pour sélectionner plusieurs messages, il suffit d’un appui long sur l’un d’eux.
 
 ## Synchronisation
 

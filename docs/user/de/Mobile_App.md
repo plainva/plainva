@@ -39,7 +39,7 @@ Unter **Einstellungen → E-Mail** verbindest Du ein **Microsoft-Postfach** (Out
 
 Danach kannst Du **E-Mail** über das ▾ am Titel als eigenen Bereich öffnen und in der Navigationsleiste ablegen. Die Zeile unter dem Titel zeigt Ordner, ungelesene Anzahl und Konto und öffnet die Ordnerauswahl. Eine Nachricht öffnest Du per Tipp; **Als Notiz speichern** legt sie im Ordner **Mail** Deines Vaults ab (zweimal erfassen öffnet dieselbe Notiz). Externe Bilder bleiben blockiert, bis Du sie für die Nachricht freigibst — ein nachgeladenes Bild verrät dem Absender, wann und wo Du gelesen hast.
 
-**IMAP-Postfächer funktionieren auf dem Telefon noch nicht.** Sie brauchen eine direkte Verbindung zum Mailserver, die gerade entsteht. Ein IMAP-Postfach, das über die Einstellungs-Synchronisation vom Desktop kommt, erscheint in der Liste und sagt es Dir an Ort und Stelle — nutze es solange am Desktop.
+**IMAP-Postfächer funktionieren auf dem Telefon ebenfalls.** Leg eines unter **Einstellungen → E-Mail** an: Anbieter wählen, Adresse und App-Passwort eintragen, die Server füllt Plainva aus. Ist Dein Anbieter nicht dabei, trägst Du unter **Erweitert** IMAP- und SMTP-Server, Ports und einen abweichenden Benutzernamen selbst ein; ein bestehendes Konto lässt sich später bearbeiten. Mehrere Nachrichten wählst Du aus, indem Du eine davon gedrückt hältst.
 
 ## Synchronisation
 
