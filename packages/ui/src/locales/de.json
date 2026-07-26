@@ -73,7 +73,11 @@
     "rotateFailed": "Schlüsselwechsel konnte nicht gestartet werden. Prüfe die Passphrase.",
     "rotateDone": "Schlüsselwechsel abgeschlossen; der alte Schlüssel wurde entfernt.",
     "completeRotation": "Schlüsselwechsel abschließen",
-    "migrationActive": "Eine fortsetzbare Verschlüsselungsmigration läuft. Schließe sie ab, sobald die Sync-Warteschlange leer ist."
+    "migrationActive": "Eine fortsetzbare Verschlüsselungsmigration läuft. Schließe sie ab, sobald die Sync-Warteschlange leer ist.",
+    "mobileAlreadySetUp": "Für diesen Vault gibt es schon eine Sync-Passphrase. Gib sie ein, um dieses Gerät zu entsperren.",
+    "mobileProbeFailed": "Die Cloud konnte nicht auf eine vorhandene Passphrase geprüft werden. Versuch es mit Verbindung noch einmal.",
+    "mobileCreated": "Sync-Passphrase gesetzt. Dieses Gerät ist entsperrt.",
+    "mobileVerifyHint": "Tippe die beiden hervorgehobenen Gruppen zurück, damit klar ist, dass Du den Code gesichert hast."
   },
   "contextMenu": {
     "cut": "Ausschneiden",

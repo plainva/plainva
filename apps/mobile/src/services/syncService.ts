@@ -458,6 +458,19 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string): 
   return target.listFolders ? target.listFolders(path) : [];
 }
 
+/**
+ * Does a sideband file exist in the cloud for this vault? Used before the phone
+ * creates a settings keyfile (H2e): one may already be up there, unpulled, and
+ * publishing a second would lock every other device out of the sealed profile.
+ * A transport failure PROPAGATES — the caller must treat "cannot tell" as "do
+ * not create", never as "no".
+ */
+export async function remoteSidebandFileExists(vaultId: string, path: string): Promise<boolean> {
+  const provider = await getStoredProvider(vaultId);
+  if (!provider) throw new Error("sync connection required");
+  return (await buildTarget(provider, credKeyFor(vaultId)).download(path)) !== null;
+}
+
 /** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
 export async function createProviderFolder(p: MobileSyncProvider, path: string): Promise<void> {
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);

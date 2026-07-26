@@ -22,6 +22,7 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./s
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
+import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
@@ -58,6 +59,7 @@ export function VaultDetailScreen({
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
   const [deleted, setDeleted] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   /** H2c: sign-in secrets — its own opt-in, and only while unlocked. */
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
@@ -299,6 +301,18 @@ export function VaultDetailScreen({
             {settingsSyncOn && encryption !== "unlocked" && (
               <p className="m-hint">{t("settingsSync.secretsNeedsPassphrase")}</p>
             )}
+            {/* H2e: this state used to be a dead end — the phone could unlock
+                an encryption but never create one, so a phone-only user could
+                not seal their profile at all. */}
+            {settingsSyncOn && encryption === "none" && (
+              <div className="m-card">
+                <p><b>{t("encryption.passphraseRow")}</b></p>
+                <p>{t("encryption.passphraseRowDesc")}</p>
+                <button className="m-btn m-btn--filled" disabled={busy} onClick={() => setSetupOpen(true)} data-testid="encryption-setup-open">
+                  {t("encryption.setPassphrase")}
+                </button>
+              </div>
+            )}
             {settingsSyncOn && encryption === "locked" && (
               <div className="m-card">
                 <span className="m-state m-state--warn">
@@ -499,6 +513,17 @@ export function VaultDetailScreen({
         />
       )}
       {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={activeVault} />}
+      {setupOpen && (
+        <EncryptionSetupSheet
+          onClose={() => setSetupOpen(false)}
+          onDone={() => {
+            setSetupOpen(false);
+            setEncryption("unlocked");
+            void restartSync(activeVault);
+          }}
+          vault={activeVault}
+        />
+      )}
     </div>
   );
 }

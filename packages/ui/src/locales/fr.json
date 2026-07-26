@@ -73,7 +73,11 @@
     "rotateFailed": "Impossible de lancer le renouvellement. Vérifiez la phrase secrète.",
     "rotateDone": "Clé renouvelée ; l’ancienne clé a été supprimée.",
     "completeRotation": "Terminer le renouvellement",
-    "migrationActive": "Une migration reprenable est active. Terminez-la lorsque la file de synchronisation est vide."
+    "migrationActive": "Une migration reprenable est active. Terminez-la lorsque la file de synchronisation est vide.",
+    "mobileAlreadySetUp": "Ce coffre a déjà une phrase secrète de synchronisation. Saisis-la pour déverrouiller cet appareil.",
+    "mobileProbeFailed": "Impossible de vérifier dans le cloud s'il existe déjà une phrase secrète. Réessaie avec une connexion.",
+    "mobileCreated": "Phrase secrète de synchronisation définie. Cet appareil est déverrouillé.",
+    "mobileVerifyHint": "Retape les deux groupes surlignés pour confirmer que tu as bien enregistré le code."
   },
   "contextMenu": {
     "cut": "Couper",

@@ -7,7 +7,9 @@ import {
   SETTINGS_ENC_PATH,
   SettingsSyncStep,
   connectionFingerprint,
+  createKeyfile,
   evaluateManifestGuard,
+  exportRecoveryCode,
   fromBase64,
   isEncryptedState,
   openBlob,
@@ -18,6 +20,7 @@ import {
   type ConnectionE2EState,
   type ISyncTarget,
   type IVaultAdapter,
+  type Keyfile,
   type MasterKeyBundle,
   type SettingsSyncRunner,
 } from "@plainva/core";
@@ -30,6 +33,7 @@ import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 
 const GUARD_VERSION = 1;
+const KEYFILE_PATH = ".plainva/sync/keyfile.json";
 const enabledKey = (vaultId: string) => `settingsSyncMobile_${vaultId}`;
 /** Sign-in secrets are a SEPARATE opt-in from the settings profile (H2c). */
 const secretsKey = (vaultId: string) => `secretsSyncMobile_${vaultId}`;
@@ -161,20 +165,108 @@ async function loadKeyring(vaultId: string): Promise<{ active: MasterKeyBundle; 
   return ring;
 }
 
-export async function unlockMobileEncryption(vault: MobileVault, passphrase: string): Promise<void> {
-  const raw = vault.backup ?? vault.adapter;
-  const path = ".plainva/sync/keyfile.json";
-  if (!(await raw.exists(path))) throw new Error("no keyfile present");
-  const keyfile = JSON.parse(await raw.readTextFile(path));
-  const keys = await unlockAllKeys(keyfile, passphrase);
-  const active = keys.get(keyfile.activeKeyId);
-  if (!active) throw new Error("active key missing");
-  memory.set(vault.vaultId, { active, keys });
-  if (await isMobilePassphraseEveryStart(vault.vaultId)) return; // memory only (H2b)
-  await getPlatformServices().credentials.writeSecret<CachedKeyring>(cacheKey(vault.vaultId), {
+/** Caches an unlocked keyring for this vault (memory always, keychain unless H2b). */
+async function rememberKeyring(vaultId: string, active: MasterKeyBundle, keys: Map<string, MasterKeyBundle>): Promise<void> {
+  memory.set(vaultId, { active, keys });
+  if (await isMobilePassphraseEveryStart(vaultId)) return; // memory only (H2b)
+  await getPlatformServices().credentials.writeSecret<CachedKeyring>(cacheKey(vaultId), {
     activeKeyId: active.keyId,
     keys: [...keys.values()].map((key) => ({ keyId: key.keyId, mk: toBase64(key.masterKey) })),
   });
+}
+
+export async function unlockMobileEncryption(vault: MobileVault, passphrase: string): Promise<void> {
+  const raw = vault.backup ?? vault.adapter;
+  if (!(await raw.exists(KEYFILE_PATH))) throw new Error("no keyfile present");
+  const keyfile = JSON.parse(await raw.readTextFile(KEYFILE_PATH));
+  const keys = await unlockAllKeys(keyfile, passphrase);
+  const active = keys.get(keyfile.activeKeyId);
+  if (!active) throw new Error("active key missing");
+  await rememberKeyring(vault.vaultId, active, keys);
+}
+
+/**
+ * Creating the settings encryption ON THE PHONE (H2e).
+ *
+ * Until now the phone could only unlock what a desktop had created — a
+ * restriction with no technical reason left, since the phone has been able to
+ * set up an encrypted WORKSPACE since 0.4.10. The flow mirrors that one: what
+ * happens here produces nothing but memory, the recovery code is shown and
+ * verified first, and only `activatePreparedMobileEncryption` writes anything.
+ * An abandoned wizard therefore leaves no keyfile, no cached key, nothing to
+ * clean up.
+ *
+ * The dangerous case this guards against is a keyfile that already exists
+ * REMOTELY but has not been pulled yet: publishing a second one would lock
+ * every other device out of the sealed profile, because the keyfile sideband is
+ * whole-file last-writer-wins. So the probe is not optional, and being offline
+ * is a refusal rather than a guess.
+ */
+export class KeyfileAlreadyExistsError extends Error {
+  constructor() {
+    super("a keyfile for this vault already exists");
+  }
+}
+export class KeyfileProbeFailedError extends Error {
+  constructor() {
+    super("could not check the cloud for an existing keyfile");
+  }
+}
+
+interface EncryptionDraft {
+  vaultId: string;
+  keyfile: Keyfile;
+  bundle: MasterKeyBundle;
+  expiresAt: number;
+}
+const encryptionDrafts = new Map<string, EncryptionDraft>();
+const DRAFT_TTL_MS = 30 * 60 * 1000;
+
+/** Drops a draft and zeroes the master key it held. */
+export function discardPreparedMobileEncryption(draftId: string): void {
+  const draft = encryptionDrafts.get(draftId);
+  if (!draft) return;
+  draft.bundle.masterKey.fill(0);
+  encryptionDrafts.delete(draftId);
+}
+
+export async function prepareMobileEncryption(
+  vault: MobileVault,
+  passphrase: string,
+  probeRemote: (path: string) => Promise<boolean>,
+): Promise<{ draftId: string; recoveryCode: string }> {
+  const raw = vault.backup ?? vault.adapter;
+  if (await raw.exists(KEYFILE_PATH)) throw new KeyfileAlreadyExistsError();
+  let remoteExists: boolean;
+  try {
+    remoteExists = await probeRemote(KEYFILE_PATH);
+  } catch {
+    throw new KeyfileProbeFailedError();
+  }
+  if (remoteExists) throw new KeyfileAlreadyExistsError();
+
+  // One draft per vault, and expired ones go with it.
+  for (const [id, draft] of encryptionDrafts) {
+    if (draft.vaultId === vault.vaultId || draft.expiresAt <= Date.now()) discardPreparedMobileEncryption(id);
+  }
+  const { keyfile, bundle } = await createKeyfile(passphrase);
+  const draftId = crypto.randomUUID();
+  encryptionDrafts.set(draftId, { vaultId: vault.vaultId, keyfile, bundle, expiresAt: Date.now() + DRAFT_TTL_MS });
+  return { draftId, recoveryCode: exportRecoveryCode(bundle) };
+}
+
+/** The point of no return: writes the keyfile and unlocks this device. */
+export async function activatePreparedMobileEncryption(vault: MobileVault, draftId: string): Promise<void> {
+  const draft = encryptionDrafts.get(draftId);
+  if (!draft || draft.vaultId !== vault.vaultId || draft.expiresAt <= Date.now()) {
+    if (draft) discardPreparedMobileEncryption(draftId);
+    throw new Error("encryption-draft-expired");
+  }
+  const raw = vault.backup ?? vault.adapter;
+  await raw.writeTextFile(KEYFILE_PATH, JSON.stringify(draft.keyfile, null, 2));
+  // The bundle now lives in the keyring, so it must NOT be zeroed with the draft.
+  await rememberKeyring(vault.vaultId, draft.bundle, new Map([[draft.bundle.keyId, draft.bundle]]));
+  encryptionDrafts.delete(draftId);
 }
 
 export async function lockMobileEncryption(vaultId: string): Promise<void> {
@@ -184,7 +276,7 @@ export async function lockMobileEncryption(vaultId: string): Promise<void> {
 
 export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none" | "locked" | "unlocked"> {
   if (await loadKeyring(vault.vaultId)) return "unlocked";
-  return (await (vault.backup ?? vault.adapter).exists(".plainva/sync/keyfile.json")) ? "locked" : "none";
+  return (await (vault.backup ?? vault.adapter).exists(KEYFILE_PATH)) ? "locked" : "none";
 }
 
 function profilePort(vaultId: string) {
@@ -292,7 +384,7 @@ export async function prepareMobileSettingsSync(
       keyfilePreflightFailed = true;
     }
   }
-  const hasKeyfile = await rawVault.exists(".plainva/sync/keyfile.json");
+  const hasKeyfile = await rawVault.exists(KEYFILE_PATH);
   ring = ring ?? await loadKeyring(vault.vaultId);
   if (hasKeyfile && !ring && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-encryption-locked"));
   const profile = (await isMobileSettingsSyncEnabled(vault.vaultId)) && !keyfilePreflightFailed && (!hasKeyfile || !!ring)

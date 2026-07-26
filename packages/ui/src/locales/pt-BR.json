@@ -73,7 +73,11 @@
     "rotateFailed": "Não foi possível iniciar a troca. Verifique a frase secreta.",
     "rotateDone": "Troca de chave concluída; a chave antiga foi removida.",
     "completeRotation": "Concluir troca de chave",
-    "migrationActive": "Há uma migração de criptografia retomável ativa. Conclua quando a fila de sincronização estiver vazia."
+    "migrationActive": "Há uma migração de criptografia retomável ativa. Conclua quando a fila de sincronização estiver vazia.",
+    "mobileAlreadySetUp": "Este cofre já tem uma frase-senha de sincronização. Digite-a para desbloquear este dispositivo.",
+    "mobileProbeFailed": "Não foi possível verificar na nuvem se já existe uma frase-senha. Tente novamente com conexão.",
+    "mobileCreated": "Frase-senha de sincronização definida. Este dispositivo está desbloqueado.",
+    "mobileVerifyHint": "Digite novamente os dois grupos destacados para confirmar que você salvou o código."
   },
   "contextMenu": {
     "cut": "Recortar",

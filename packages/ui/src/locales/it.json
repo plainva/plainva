@@ -73,7 +73,11 @@
     "rotateFailed": "Impossibile avviare la rotazione. Controlla la passphrase.",
     "rotateDone": "Rotazione completata; la vecchia chiave è stata rimossa.",
     "completeRotation": "Completa rotazione",
-    "migrationActive": "È attiva una migrazione ripristinabile. Completala quando la coda di sincronizzazione è vuota."
+    "migrationActive": "È attiva una migrazione ripristinabile. Completala quando la coda di sincronizzazione è vuota.",
+    "mobileAlreadySetUp": "Questo vault ha già una passphrase di sincronizzazione. Inseriscila per sbloccare questo dispositivo.",
+    "mobileProbeFailed": "Non è stato possibile verificare nel cloud se esiste già una passphrase. Riprova con una connessione.",
+    "mobileCreated": "Passphrase di sincronizzazione impostata. Questo dispositivo è sbloccato.",
+    "mobileVerifyHint": "Riscrivi i due gruppi evidenziati per confermare di aver salvato il codice."
   },
   "contextMenu": {
     "cut": "Taglia",

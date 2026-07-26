@@ -73,7 +73,11 @@
     "rotateFailed": "无法开始密钥轮换。请检查密码短语。",
     "rotateDone": "密钥轮换完成，旧密钥已删除。",
     "completeRotation": "完成密钥轮换",
-    "migrationActive": "可恢复的加密迁移正在进行。同步队列为空后请完成迁移。"
+    "migrationActive": "可恢复的加密迁移正在进行。同步队列为空后请完成迁移。",
+    "mobileAlreadySetUp": "此仓库已有同步口令。请输入口令以解锁本设备。",
+    "mobileProbeFailed": "无法在云端检查是否已存在口令。请在有网络时重试。",
+    "mobileCreated": "同步口令已设置，本设备已解锁。",
+    "mobileVerifyHint": "请重新输入两个高亮的分组，以确认你已保存该代码。"
   },
   "contextMenu": {
     "cut": "剪切",

@@ -73,7 +73,11 @@
     "rotateFailed": "Could not start key rotation. Check the passphrase.",
     "rotateDone": "Key rotation finished; the old key was removed.",
     "completeRotation": "Finish key rotation",
-    "migrationActive": "A resumable encryption migration is active. Finish it after the sync queue is empty."
+    "migrationActive": "A resumable encryption migration is active. Finish it after the sync queue is empty.",
+    "mobileAlreadySetUp": "This vault already has a sync passphrase. Enter it to unlock this device.",
+    "mobileProbeFailed": "The cloud could not be checked for an existing passphrase. Try again with a connection.",
+    "mobileCreated": "Sync passphrase set. This device is unlocked.",
+    "mobileVerifyHint": "Type the two highlighted groups back to confirm you saved the code."
   },
   "contextMenu": {
     "cut": "Cut",

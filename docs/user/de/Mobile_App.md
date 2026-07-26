@@ -50,7 +50,8 @@ Wie oft dieser Vault nach Änderungen der Gegenstelle schaut, legst Du auf derse
 Auf der Vault-Seite steht außerdem, ob Deine **Einstellungen** mitreisen — als Karte mit klarem Zustand statt als nackter Knopf:
 
 - **Werden nicht synchronisiert**: Der Einstellungs-Sync ist für diesen Vault aus. Am Desktop schaltest Du ihn ein.
-- **Auf diesem Gerät noch nicht entsperrt**: Die Einstellungen liegen verschlüsselt in der Cloud. Gib die Passphrase ein, die Du beim Einrichten am Desktop vergeben hast — dieses Gerät entsperrt sie damit einmalig.
+- **Noch nicht verschlüsselt**: Für diesen Vault gibt es noch keine Sync-Passphrase. Du kannst sie jetzt **am Telefon** vergeben: Der Assistent zeigt den Wiederherstellungscode und lässt Dich zwei zufällig gewählte Gruppen daraus zurücktippen, bevor überhaupt etwas geschrieben wird. Liegt in der Cloud bereits eine Passphrase, sagt das Telefon Dir das und legt keine zweite an — sonst würden alle anderen Geräte ausgesperrt.
+- **Auf diesem Gerät noch nicht entsperrt**: Die Einstellungen liegen verschlüsselt in der Cloud. Gib die Passphrase ein, die beim Einrichten vergeben wurde — am Desktop oder hier am Telefon; dieses Gerät entsperrt sie damit einmalig.
 - **Werden synchronisiert**: Dieses Gerät ist entsperrt; Ordner, Ansichten und Backup-Regeln bleiben mit Deinen anderen Geräten im Gleichschritt.
 
 Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Gerät (siehe [Kalender und Termine](#kalender-und-termine)).

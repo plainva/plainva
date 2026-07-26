@@ -73,7 +73,11 @@
     "rotateFailed": "Sleutelrotatie kon niet worden gestart. Controleer de wachtwoordzin.",
     "rotateDone": "Sleutelrotatie voltooid; de oude sleutel is verwijderd.",
     "completeRotation": "Sleutelrotatie voltooien",
-    "migrationActive": "Er is een hervatbare versleutelingsmigratie actief. Voltooi die als de syncwachtrij leeg is."
+    "migrationActive": "Er is een hervatbare versleutelingsmigratie actief. Voltooi die als de syncwachtrij leeg is.",
+    "mobileAlreadySetUp": "Deze kluis heeft al een synchronisatie-wachtwoordzin. Voer die in om dit apparaat te ontgrendelen.",
+    "mobileProbeFailed": "De cloud kon niet worden gecontroleerd op een bestaande wachtwoordzin. Probeer het opnieuw met een verbinding.",
+    "mobileCreated": "Synchronisatie-wachtwoordzin ingesteld. Dit apparaat is ontgrendeld.",
+    "mobileVerifyHint": "Typ de twee gemarkeerde groepen opnieuw om te bevestigen dat je de code hebt bewaard."
   },
   "contextMenu": {
     "cut": "Knippen",

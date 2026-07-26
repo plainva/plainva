@@ -73,7 +73,11 @@
     "rotateFailed": "No se pudo iniciar la rotación. Comprueba la frase de contraseña.",
     "rotateDone": "Rotación completada; se eliminó la clave anterior.",
     "completeRotation": "Finalizar rotación",
-    "migrationActive": "Hay una migración reanudable activa. Finalízala cuando la cola de sincronización esté vacía."
+    "migrationActive": "Hay una migración reanudable activa. Finalízala cuando la cola de sincronización esté vacía.",
+    "mobileAlreadySetUp": "Esta bóveda ya tiene una frase de contraseña de sincronización. Introdúcela para desbloquear este dispositivo.",
+    "mobileProbeFailed": "No se pudo comprobar en la nube si ya existe una frase de contraseña. Inténtalo de nuevo con conexión.",
+    "mobileCreated": "Frase de contraseña de sincronización establecida. Este dispositivo está desbloqueado.",
+    "mobileVerifyHint": "Vuelve a escribir los dos grupos resaltados para confirmar que has guardado el código."
   },
   "contextMenu": {
     "cut": "Cortar",

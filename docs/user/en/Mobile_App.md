@@ -50,7 +50,8 @@ How often this vault checks the remote for changes is set on the same page (**sy
 The vault page also states whether your **settings** travel with you — as a card with a clear state rather than a bare button:
 
 - **Not being synced**: settings sync is off for this vault. Turn it on from the desktop.
-- **Not unlocked on this device yet**: your settings are stored encrypted in the cloud. Enter the passphrase you chose when setting this up on the desktop — this device unlocks them once with it.
+- **Not encrypted yet**: this vault has no sync passphrase. You can set one **on the phone** now: the wizard shows the recovery code and has you type two randomly chosen groups of it back before anything is written at all. If a passphrase already exists in the cloud, the phone says so and never creates a second one — that would lock every other device out.
+- **Not unlocked on this device yet**: your settings are stored encrypted in the cloud. Enter the passphrase chosen when this was set up — on the desktop or here on the phone; this device unlocks them once with it.
 - **Being synced**: this device is unlocked; folders, views and backup rules stay in step with your other devices.
 
 Each card also names what does *not* travel: sign-ins always stay on the device (see [Calendar and events](#calendar-and-events)).

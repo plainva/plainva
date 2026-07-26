@@ -73,7 +73,11 @@
     "rotateFailed": "Nie udało się rozpocząć zmiany klucza. Sprawdź hasło.",
     "rotateDone": "Zmiana klucza zakończona; stary klucz usunięto.",
     "completeRotation": "Zakończ zmianę klucza",
-    "migrationActive": "Trwa wznawialna migracja szyfrowania. Zakończ ją po opróżnieniu kolejki synchronizacji."
+    "migrationActive": "Trwa wznawialna migracja szyfrowania. Zakończ ją po opróżnieniu kolejki synchronizacji.",
+    "mobileAlreadySetUp": "Ten sejf ma już hasło synchronizacji. Wpisz je, aby odblokować to urządzenie.",
+    "mobileProbeFailed": "Nie udało się sprawdzić w chmurze, czy hasło już istnieje. Spróbuj ponownie z połączeniem.",
+    "mobileCreated": "Hasło synchronizacji ustawione. To urządzenie jest odblokowane.",
+    "mobileVerifyHint": "Wpisz ponownie dwie wyróżnione grupy, aby potwierdzić, że zapisałeś kod."
   },
   "contextMenu": {
     "cut": "Wytnij",
