@@ -128,6 +128,7 @@ export type NavKind =
   | "vaults"
   | "appearance"
   | "cloudaccounts"
+  | "cloudconnect"
   | "sync"
   | "vault";
 
@@ -144,7 +145,7 @@ export interface NavEntry {
   createTemplateId?: string;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "sync", "vault"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "cloudconnect", "sync", "vault"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 

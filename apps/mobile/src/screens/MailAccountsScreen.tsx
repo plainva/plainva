@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Trash2 } from "lucide-react";
-import { presetForEmail, TextInput, toast } from "@plainva/ui";
+import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
+import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { checkMailLogin, mailAccountKind, saveMailAccount } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, mailAccountKind, saveMailAccount } from "@plainva/ui/mail";
+import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { mConfirm } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
@@ -39,9 +40,8 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
   // IMAP sign-in (G2): the address picks the preset, so the usual case is
   // address + app password and nothing else.
   const [kind, setKind] = useState<"microsoft" | "imap">("microsoft");
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const preset = presetForEmail(email);
+  /** Account being edited (B4) — the same form serves adding and editing. */
+  const [editing, setEditing] = useState<MailAccountConfig | null>(null);
   const imapAvailable = hasNativeMailSocket();
 
   const reload = useCallback(() => {
@@ -72,28 +72,33 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
     }
   };
 
-  const connectImap = async () => {
+  /** Adds a new IMAP mailbox, or saves an edited one (B4). */
+  const submitImap = async (v: ImapFormValues) => {
     const vault = mailVaultId();
-    if (!vault || !preset || !email.trim() || !pass) return;
+    if (!vault) return;
     setBusy(true);
     try {
+      // An untouched password field means "keep the stored one" — changing a
+      // server address must not cost the user their app password.
+      const password = v.pass || (editing ? ((await getMailPassword(vault, editing.id)) ?? "") : "");
+      if (!password) throw new Error(t("mail.passwordMissing"));
       const account: MailAccountConfig = {
-        id: crypto.randomUUID(),
-        label: email.trim(),
-        host: preset.host,
-        port: preset.port,
-        user: email.trim(),
-        smtpHost: preset.smtpHost,
-        smtpPort: preset.smtpPort,
+        id: editing?.id ?? crypto.randomUUID(),
+        label: v.label,
+        host: v.host,
+        port: v.port,
+        user: v.user,
+        smtpHost: v.smtpHost || undefined,
+        smtpPort: v.smtpHost ? v.smtpPort : undefined,
         kind: "imap",
       };
       // Verify before storing: a rejected password must not leave a broken
-      // account behind (the same guarantee the Microsoft path gives).
-      await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, pass);
-      await saveMailAccount(vault, account, pass);
-      setEmail("");
-      setPass("");
-      toast.success(t("mail.accountAdded"));
+      // account behind (the same guarantee the Microsoft path gives) — and an
+      // edit must not break a mailbox that worked a moment ago.
+      await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
+      await saveMailAccount(vault, account, password);
+      setEditing(null);
+      toast.success(t(editing ? "mail.accountSaved" : "mail.accountAdded"));
       notifyMailChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -138,6 +143,18 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                   <span className="m-acct-name">{a.label}</span>
                   <DeviceSignInBadge state={state} />
                   <span className="m-acct-provider">{imap ? "IMAP" : "Microsoft"}</span>
+                  {imap && (
+                    /* Editing an existing mailbox (B4) — a server move used to
+                       mean removing the account and adding it again. */
+                    <button
+                      type="button"
+                      className="m-iconbtn"
+                      onClick={() => { setKind("imap"); setEditing(a); }}
+                      aria-label={t("common.edit")}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="m-iconbtn"
@@ -164,51 +181,34 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
         )}
 
         <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>
-          {t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
+          {editing ? t("common.edit") : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
         </h2>
-        <div className="m-viewpills" role="tablist">
-          {(["microsoft", "imap"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={kind === k}
-              className={kind === k ? "m-viewpill is-active" : "m-viewpill"}
-              onClick={() => setKind(k)}
-            >
-              {k === "microsoft" ? "Microsoft" : "IMAP"}
-            </button>
-          ))}
-        </div>
+        {!editing && (
+          <div className="m-viewpills" role="tablist">
+            {(["microsoft", "imap"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={kind === k}
+                className={kind === k ? "m-viewpill is-active" : "m-viewpill"}
+                onClick={() => setKind(k)}
+              >
+                {k === "microsoft" ? "Microsoft" : "IMAP"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {kind === "imap" ? (
-          <>
-            {!imapAvailable && <p className="m-hint m-hint--warn">{t("mail.imapMobileUnavailable")}</p>}
-            <p className="m-hint">{t("mail.imapHint")}</p>
-            <label className="m-field">
-              <span>{t("mail.emailAddress")}</span>
-              <TextInput value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" placeholder="name@example.com" />
-            </label>
-            {preset ? (
-              <p className="m-hint">
-                {preset.label} · {preset.host}:{preset.port}
-              </p>
-            ) : (
-              email.trim() !== "" && <p className="m-hint m-hint--warn">{t("mail.presetUnknown")}</p>
-            )}
-            <label className="m-field">
-              <span>{t("mail.password")}</span>
-              <TextInput type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
-            </label>
-            <button
-              type="button"
-              className="m-btn m-btn--filled"
-              disabled={busy || !imapAvailable || !preset || !pass}
-              onClick={() => void connectImap()}
-            >
-              {t("mail.connect")}
-            </button>
-          </>
+          <MailImapForm
+            key={editing?.id ?? "new"}
+            available={imapAvailable}
+            busy={busy}
+            editing={editing ?? undefined}
+            onCancel={editing ? () => setEditing(null) : undefined}
+            onSubmit={(v) => void submitImap(v)}
+          />
         ) : (
           <>
         <p className="m-hint">{t("mail.microsoftHint")}</p>

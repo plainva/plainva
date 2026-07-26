@@ -1,6 +1,6 @@
 import React from "react";
 import { Folder, CalendarDays, Mail } from "lucide-react";
-import { ICON, cx, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { ICON, accountMonogram, cx, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /** Shared bits of the Cloud-Konten surfaces (list, wizard, detail). */
@@ -55,28 +55,8 @@ export function familyLabel(family: CloudProviderFamily, flavor?: "nextcloud"): 
   }
 }
 
-const MONOGRAM: Record<CloudProviderFamily, string> = {
-  microsoft: "M",
-  google: "G",
-  webdav: "W",
-  dropbox: "D",
-  s3: "S3",
-  imap: "@",
-  apple: "A",
-  yahoo: "Y!",
-  aol: "AOL",
-  yandex: "Я",
-  mailru: "MR",
-  zoho: "Z",
-  fastmail: "F",
-  mailboxorg: "MB",
-  koofr: "K",
-  pcloud: "P",
-};
-
-export function accountMonogram(family: CloudProviderFamily, flavor?: "nextcloud"): string {
-  return family === "webdav" && flavor === "nextcloud" ? "N" : MONOGRAM[family];
-}
+/** Lives in @plainva/ui so both shells read the same table (H9). */
+export { accountMonogram };
 
 export const AccountMark: React.FC<{ family: CloudProviderFamily; flavor?: "nextcloud"; small?: boolean }> = ({
   family,

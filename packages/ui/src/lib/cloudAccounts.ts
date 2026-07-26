@@ -134,6 +134,35 @@ export function familyOfMailAccount(account: { kind: "imap" | "microsoft"; user:
   return GOOGLE_MAIL_HOSTS.test(domain) ? "google" : "imap";
 }
 
+const MONOGRAM: Record<CloudProviderFamily, string> = {
+  microsoft: "M",
+  google: "G",
+  webdav: "W",
+  dropbox: "D",
+  s3: "S3",
+  imap: "@",
+  apple: "A",
+  yahoo: "Y!",
+  aol: "AOL",
+  yandex: "Я",
+  mailru: "MR",
+  zoho: "Z",
+  fastmail: "F",
+  mailboxorg: "MB",
+  koofr: "K",
+  pcloud: "P",
+};
+
+/**
+ * Letters on an account's mark. Shared (H9): the mobile screen carried its own
+ * copy of this table alongside its own family union and its own provider maps,
+ * so a family added to the catalog appeared on the desktop and nowhere else.
+ * One table, one union, both shells.
+ */
+export function accountMonogram(family: CloudProviderFamily, flavor?: "nextcloud"): string {
+  return family === "webdav" && flavor === "nextcloud" ? "N" : MONOGRAM[family];
+}
+
 /** Nextcloud detection for migrated WebDAV/CalDAV entries (flavor is cosmetic only). */
 export function looksLikeNextcloud(url: string): boolean {
   return /\/remote\.php\//i.test(url);

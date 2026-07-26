@@ -52,6 +52,7 @@ import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen 
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
+import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import {
   activeFolderPath,
   backStep,
@@ -713,17 +714,28 @@ export default function App() {
         ) : top?.kind === "vaults" ? (
           <VaultsScreen
             activeVaultId={vault.vaultId}
-            onAddVault={() => push({ kind: "sync", path: "" })}
             onBack={pop}
             onCreateVault={createVaultFlow}
+            onOpenCloudAccounts={() => push({ kind: "cloudaccounts", path: "" })}
             onOpenVault={(id) => push({ kind: "vault", path: id })}
           />
         ) : top?.kind === "cloudaccounts" ? (
           <CloudAccountsScreen
-            onAddVault={() => push({ kind: "sync", path: "" })}
             onBack={pop}
+            onConnect={() => push({ kind: "cloudconnect", path: "" })}
             onOpenCalendarAccounts={() => push({ kind: "pimaccounts", path: "" })}
+            onOpenMailAccounts={() => push({ kind: "mailaccounts", path: "" })}
             onOpenVault={(id) => push({ kind: "vault", path: id })}
+          />
+        ) : top?.kind === "cloudconnect" ? (
+          <CloudConnectScreen
+            onBack={pop}
+            onPickService={(service) =>
+              push({
+                kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
+                path: "",
+              })
+            }
           />
         ) : top?.kind === "sync" ? (
           <AddVaultScreen createTemplateId={top.createTemplateId} onBack={pop} vault={vault} />

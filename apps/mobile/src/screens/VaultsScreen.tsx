@@ -8,22 +8,25 @@ import { switchVault } from "../services/vaultService";
  * Vault management inside the settings (redesign 2026-07-18, P4): the list of
  * known vaults — the ACTIVE one carries a check mark, tapping another one
  * switches (the established switchVault flow), the chevron opens the vault's
- * detail screen. "New vault" and "Connect cloud" live HERE, below the list,
- * so the whole vault workflow sits in one place (the splash may offer both
- * additionally, but this is their home).
+ * detail screen.
+ *
+ * Creating a vault lives here; SIGNING IN does not (H3). Cloud accounts is the
+ * one place for connections — files, calendar and mail together — so this
+ * screen points there instead of offering a second, files-only door into the
+ * same flow.
  */
 export function VaultsScreen({
   activeVaultId,
   onBack,
   onOpenVault,
   onCreateVault,
-  onAddVault,
+  onOpenCloudAccounts,
 }: {
   activeVaultId: string;
   onBack: () => void;
   onOpenVault: (id: string) => void;
   onCreateVault: () => void;
-  onAddVault: () => void;
+  onOpenCloudAccounts: () => void;
 }) {
   const { t } = useTranslation();
   const [vaults, setVaults] = useState<VaultEntry[]>([]);
@@ -74,11 +77,12 @@ export function VaultsScreen({
         <span>{t("mobile.vaultCreate")}</span>
         <ChevronRight className="m-chevron" size={18} />
       </button>
-      <button className="m-row" onClick={onAddVault}>
+      <button className="m-row" data-testid="vaults-to-cloud-accounts" onClick={onOpenCloudAccounts}>
         <Cloud className="m-accent" size={18} />
         <span>{t("mobile.vaultAdd")}</span>
         <ChevronRight className="m-chevron" size={18} />
       </button>
+      <p className="m-hint">{t("mobile.vaultAddViaCloudAccounts")}</p>
     </div>
   );
 }
