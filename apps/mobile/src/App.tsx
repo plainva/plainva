@@ -860,7 +860,7 @@ export default function App() {
 
       {/* Capture floats above the bar on tab roots and folder screens. Editors
           and other pushed surfaces keep their own actions and stay uncluttered. */}
-      {onboarded && showsCaptureFab(top) && (
+      {onboarded && showsCaptureFab(top, nav.activeTab) && (
         <button
           aria-label={t("mobile.newNote")}
           className="pv-fab m-fab-float m-fab-float--above-tabs"

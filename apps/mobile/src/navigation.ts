@@ -182,9 +182,18 @@ export function activeFolderPath(state: NavState): string {
   return top?.kind === "folder" ? top.path : "";
 }
 
-/** Capture stays available at a tab root and in every nested folder. */
-export function showsCaptureFab(top?: NavEntry): boolean {
-  return !top || top.kind === "folder";
+/**
+ * Capture stays available at a tab root and in every nested folder.
+ *
+ * Except in Mail: there the main action is "write a message", and that FAB is
+ * the screen's own. Two stacked FABs mean a surface has no main action at all
+ * (device report B2, 2026-07-26) — hence the tab id, not just the top entry:
+ * a tab ROOT has no entry to look at.
+ */
+export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolean {
+  if (!top) return activeTab !== "mail";
+  if (top.kind === "mail") return false;
+  return top.kind === "folder";
 }
 
 /**

@@ -196,6 +196,17 @@ describe("nav state (overlay + tab stacks)", () => {
     expect(activeFolderPath(overlay)).toBe("Archive/2026");
     expect(showsCaptureFab(navTop(overlay))).toBe(true);
   });
+
+  it("keeps the capture FAB out of Mail, as a tab root and as a pushed screen (B2)", () => {
+    // As a TAB there is no top entry at all — the tab id is what decides.
+    const mailTab = initialNavState("mail");
+    expect(showsCaptureFab(navTop(mailTab), mailTab.activeTab)).toBe(false);
+    expect(showsCaptureFab(navTop(initialNavState("notes")), "notes")).toBe(true);
+
+    // Reached through the areas sheet, Mail is a pushed overlay entry.
+    const pushed = pushEntry(initialNavState("notes"), { kind: "mail", path: "" });
+    expect(showsCaptureFab(navTop(pushed), pushed.activeTab)).toBe(false);
+  });
 });
 
 /**
