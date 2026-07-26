@@ -37,6 +37,7 @@
     "stateUnlocked": "desbloqueado",
     "step1": "1 · Ajustes y cuentas",
     "step1Desc": "Para que todos los dispositivos conozcan las mismas carpetas, vistas y cuentas. Sin frase de contraseña.",
+    "step1Sealed": "Otro dispositivo estableció una frase de contraseña, por lo que los ajustes se guardan cifrados en el baúl. Desbloquéalos en el paso 2 para que este dispositivo pueda leerlos.",
     "step2": "2 · Frase de contraseña de sincronización",
     "step2Desc": "Solo hace falta si los inicios de sesión también deben viajar. Además cifra los ajustes del paso 1.",
     "step2Optional": "Opcional",

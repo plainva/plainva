@@ -37,6 +37,7 @@
     "stateUnlocked": "déverrouillé",
     "step1": "1 · Réglages et comptes",
     "step1Desc": "Pour que chaque appareil connaisse les mêmes dossiers, vues et comptes. Sans phrase secrète.",
+    "step1Sealed": "Un autre appareil a défini une phrase de passe : les réglages sont donc chiffrés dans le coffre. Déverrouillez-les à l’étape 2 pour que cet appareil puisse les lire.",
     "step2": "2 · Phrase secrète de synchronisation",
     "step2Desc": "Nécessaire seulement si les connexions doivent suivre. Elle chiffre aussi les réglages de l’étape 1.",
     "step2Optional": "Facultatif",

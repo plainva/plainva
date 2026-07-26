@@ -36,6 +36,7 @@
     "stateUnlocked": "ontgrendeld",
     "step1": "1 · Instellingen en accounts",
     "step1Desc": "Zodat elk apparaat dezelfde mappen, weergaven en accounts kent. Zonder wachtwoordzin.",
+    "step1Sealed": "Een ander apparaat heeft een wachtwoordzin ingesteld, dus de instellingen staan versleuteld in de kluis. Ontgrendel ze in stap 2 zodat dit apparaat ze kan lezen.",
     "step2": "2 · Synchronisatie-wachtwoordzin",
     "step2Desc": "Alleen nodig als ook aanmeldingen moeten meereizen. Versleutelt bovendien de instellingen uit stap 1.",
     "step2Optional": "Optioneel",

@@ -37,6 +37,7 @@
     "stateUnlocked": "sbloccato",
     "step1": "1 · Impostazioni e account",
     "step1Desc": "Così ogni dispositivo conosce le stesse cartelle, viste e account. Senza passphrase.",
+    "step1Sealed": "Un altro dispositivo ha impostato una passphrase, quindi le impostazioni sono cifrate nel vault. Sbloccale al passaggio 2 perché questo dispositivo possa leggerle.",
     "step2": "2 · Passphrase di sincronizzazione",
     "step2Desc": "Serve solo se anche gli accessi devono viaggiare. Cifra inoltre le impostazioni del passaggio 1.",
     "step2Optional": "Facoltativo",

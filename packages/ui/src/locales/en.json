@@ -36,6 +36,7 @@
     "stateUnlocked": "unlocked",
     "step1": "1 · Settings and accounts",
     "step1Desc": "So every device knows the same folders, views and accounts. Works without a passphrase.",
+    "step1Sealed": "Another device set a passphrase, so the settings are stored encrypted in the vault. Unlock them in step 2 so this device can read them.",
     "step2": "2 · Sync passphrase",
     "step2Desc": "Only needed if sign-ins should travel too. It also encrypts the settings from step 1.",
     "step2Optional": "Optional",

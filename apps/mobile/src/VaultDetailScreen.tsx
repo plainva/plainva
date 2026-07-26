@@ -253,11 +253,20 @@ export function VaultDetailScreen({
             <p className="m-hint">{t("settingsSync.chainIntro")}</p>
 
             <div className="m-chain">
-              <div className={`m-chain-step ${settingsSyncOn ? "is-done" : "is-todo"}`}>
-                <div className="m-chain-node">{settingsSyncOn ? "✓" : "1"}</div>
+              {/* Sealed: another device set a passphrase, so the profile in the
+                  vault is encrypted and this device cannot read or write it
+                  until it unlocks. The switch stays on — nothing is wrong with
+                  it — but the step must not claim to be running. */}
+              <div className={`m-chain-step ${settingsSyncOn && encryption === "locked" ? "is-todo" : settingsSyncOn ? "is-done" : "is-todo"}`}>
+                <div className="m-chain-node">{settingsSyncOn && encryption !== "locked" ? "✓" : settingsSyncOn ? "!" : "1"}</div>
                 <div className="m-chain-body">
                   <div className="m-chain-head">
-                    <span className="m-chain-title">{t("settingsSync.step1")}</span>
+                    <span className="m-chain-title">
+                      {t("settingsSync.step1")}
+                      {settingsSyncOn && encryption === "locked" && (
+                        <span className="m-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>
+                      )}
+                    </span>
                     <Switch
                       checked={settingsSyncOn}
                       disabled={busy}
@@ -271,7 +280,9 @@ export function VaultDetailScreen({
                       }}
                     />
                   </div>
-                  <p className="m-chain-desc">{t("settingsSync.step1Desc")}</p>
+                  <p className="m-chain-desc">
+                    {settingsSyncOn && encryption === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
+                  </p>
                   <div className="m-chain-carries">
                     <span className="m-chain-chip">{t("settingsSync.chipCalendars")}</span>
                     <span className="m-chain-chip">{t("settingsSync.chipMailboxes")}</span>

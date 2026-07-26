@@ -282,14 +282,25 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
             {/* Step 1 stands alone: syncing settings and accounts needs NO
                 passphrase — without one the profile is simply plaintext JSON in
                 the vault. Only step 3 carries passwords and therefore needs a key. */}
-            <div className={`pv-chain-step ${settingsSyncOn ? "is-done" : "is-todo"}`}>
-              <div className="pv-chain-node">{settingsSyncOn ? "✓" : "1"}</div>
+            {/* …with ONE exception, and it has to be visible: once any device
+                has set a passphrase, the profile in the vault is sealed, so a
+                locked device can neither read nor write it. The switch stays
+                on, but the step must not claim to be running. */}
+            <div className={`pv-chain-step ${settingsSyncOn && encState === "locked" ? "is-todo" : settingsSyncOn ? "is-done" : "is-todo"}`}>
+              <div className="pv-chain-node">{settingsSyncOn && encState !== "locked" ? "✓" : settingsSyncOn ? "!" : "1"}</div>
               <div className="pv-chain-body">
                 <div className="pv-chain-head">
-                  <span className="pv-chain-title">{t("settingsSync.step1")}</span>
+                  <span className="pv-chain-title">
+                    {t("settingsSync.step1")}
+                    {settingsSyncOn && encState === "locked" && (
+                      <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>
+                    )}
+                  </span>
                   <Switch checked={settingsSyncOn} onChange={(on) => void toggleSettingsSync(on)} label={t("settingsSync.step1")} />
                 </div>
-                <p className="pv-chain-desc">{t("settingsSync.step1Desc")}</p>
+                <p className="pv-chain-desc">
+                  {settingsSyncOn && encState === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
+                </p>
                 <div className="pv-chain-carries">
                   <span className="pv-chain-chip">{t("settingsSync.chipCalendars")}</span>
                   <span className="pv-chain-chip">{t("settingsSync.chipMailboxes")}</span>

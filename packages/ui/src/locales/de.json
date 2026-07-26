@@ -36,6 +36,7 @@
     "stateUnlocked": "entsperrt",
     "step1": "1 · Einstellungen und Konten",
     "step1Desc": "Damit alle Geräte dieselben Ordner, Ansichten und Konten kennen. Ohne Passphrase möglich.",
+    "step1Sealed": "Ein anderes Gerät hat eine Passphrase gesetzt — die Einstellungen liegen deshalb verschlüsselt im Vault. Entsperre sie in Schritt 2, damit dieses Gerät sie lesen kann.",
     "step2": "2 · Sync-Passphrase",
     "step2Desc": "Nur nötig, wenn auch Anmeldungen mitreisen sollen. Verschlüsselt zusätzlich die Einstellungen aus Schritt 1.",
     "step2Optional": "Optional",

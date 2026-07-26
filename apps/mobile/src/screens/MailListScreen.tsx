@@ -20,6 +20,7 @@ import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMail
 import { bulkSeenTarget, runBulk, selectedRows, toggleSelected } from "./mail/mailBulk";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
+import { SheetGrip } from "../components/SheetGrip";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { cacheEnvelopes, cachedEnvelopes } from "../services/mail/mailCache";
 import type { MobileVault } from "../services/vaultService";
@@ -81,6 +82,18 @@ export function MailListScreen({
   // requests at the mail provider. `useStableHandler` keeps one identity.
   const accountById = useStableHandler((id: string | null) => accounts.find((a) => a.id === id) ?? null);
   const describeError = useStableHandler((e: unknown) => describe(e, t));
+  /**
+   * WHICH accounts exist, as a value. `accountById` is deliberately identity-
+   * stable, so neither the folder effect nor `load` noticed when the account
+   * list finally arrived: on a rebuild the remembered id is already in state,
+   * `resolveMailAccount` returns that same id, React bails out of the update —
+   * and both effects had already given up on their first pass, when `accounts`
+   * was still empty. The screen then sat there with no folders, no messages and
+   * no error, for good (device report 2026-07-26, "second tap on E-Mail").
+   * Keyed on the ids, not the array, so a refresh that changes nothing still
+   * does not fire another round of requests at the provider.
+   */
+  const accountsKey = useMemo(() => accounts.map((a) => a.id).join(","), [accounts]);
 
   // Accounts first — everything else hangs off the chosen one. A remembered
   // account that no longer exists falls back to the first (resolveMailAccount).
@@ -118,9 +131,14 @@ export function MailListScreen({
     return () => {
       cancelled = true;
     };
-  }, [vault, accountId, accountById, describeError]);
+  }, [vault, accountId, accountsKey, accountById, describeError]);
 
   const load = useCallback(async () => {
+    // Reading the key here rather than only listing it as a dependency: the
+    // closure otherwise reaches the account list solely through the
+    // identity-stable `accountById`, which is invisible to both the linter and
+    // to React. No accounts yet means there is nothing to ask for anyway.
+    if (!accountsKey) return;
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
     setLoading(true);
@@ -144,7 +162,7 @@ export function MailListScreen({
     } finally {
       setLoading(false);
     }
-  }, [vault, accountId, mailbox, accountById, describeError, vaultRef]);
+  }, [vault, accountId, accountsKey, mailbox, accountById, describeError, vaultRef]);
 
   useEffect(() => {
     void load();
@@ -472,7 +490,10 @@ export function MailListScreen({
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(false)}>
           <div className="m-sheet m-sheet--folders" onClick={(e) => e.stopPropagation()}>
-            <div className="m-sheet-grip" />
+            {/* The shared grip, not the bare bar: every other sheet in the app
+                follows the finger and closes on a downward swipe, and this one
+                was the last that only looked like it did. */}
+            <SheetGrip onClose={() => setSheet(false)} />
             <h2>{t("mail.folders")}</h2>
             <ul>
               {folderNames.map((name) => (

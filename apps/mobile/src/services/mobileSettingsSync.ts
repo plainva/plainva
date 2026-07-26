@@ -420,8 +420,7 @@ class MobileSidebandRunner implements SettingsSyncRunner {
     private readonly vaultId: string,
     private readonly connectionId: string,
     private readonly keyfile: KeyfileSyncStep,
-    private readonly profile: SettingsSyncStep | null,
-    private readonly secrets: SecretsSyncStep | null,
+    private readonly steps: SidebandSteps,
   ) {}
 
   async guardBeforeCycle(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
@@ -447,18 +446,68 @@ class MobileSidebandRunner implements SettingsSyncRunner {
 
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     await this.keyfile.run(target, vault);
-    await this.profile?.run(target, vault);
+    // Decided PER CYCLE, not once when the worker was built. It used to be
+    // built once, which meant a single failed keyfile probe at startup — one
+    // DNS hiccup is enough — switched the profile off for the rest of the
+    // session, silently, with the chain still showing step 1 as on (device
+    // report 2026-07-26). It also means unlocking the passphrase or flipping
+    // the switch takes effect on the next cycle instead of needing a restart.
+    const profile = await this.steps.profile(vault);
+    await profile?.run(target, vault);
     // A refused secret must not take the file sync down with it: a binding
     // mismatch is a reason to leave the keychain alone and say so, not to stop
     // syncing notes.
-    if (this.secrets) {
+    const secrets = await this.steps.secrets();
+    if (secrets) {
       try {
-        await this.secrets.run(target, vault);
+        await secrets.run(target, vault);
       } catch (error) {
         toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
       }
     }
   }
+}
+
+/**
+ * Builds the two optional sideband steps fresh for each cycle. Both depend on
+ * state the user can change while the worker runs (the toggles, the unlocked
+ * keyring) and on the vault (does a keyfile exist yet), so a decision taken
+ * once at construction time goes stale the moment any of that moves.
+ */
+interface SidebandSteps {
+  profile(vault: IVaultAdapter): Promise<SettingsSyncStep | null>;
+  secrets(): Promise<SecretsSyncStep | null>;
+}
+
+function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
+  const vaultId = vault.vaultId;
+  return {
+    async profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null> {
+      if (!(await isMobileSettingsSyncEnabled(vaultId))) return null;
+      const ring = await loadKeyring(vaultId);
+      // A keyfile in the vault means the profile is sealed. Writing a plaintext
+      // one beside it would be a second, competing truth — so a locked device
+      // waits instead. The chain says so; it must not claim step 1 is running.
+      if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
+      return new SettingsSyncStep({
+        port: profilePort(vault),
+        deviceId: device,
+        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        profileCrypto: ring
+          ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
+          : undefined,
+      });
+    },
+    async secrets(): Promise<SecretsSyncStep | null> {
+      const ring = await loadKeyring(vaultId);
+      if (!ring || !(await isMobileSecretsSyncEnabled(vaultId))) return null;
+      return new SecretsSyncStep({
+        port: createMobileSecretsPort(vaultId),
+        masterKey: ring.active,
+        onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
+      });
+    },
+  };
 }
 
 /** Adds fail-closed content handling and the mobile profile sideband to a worker. */
@@ -475,37 +524,14 @@ export async function prepareMobileSettingsSync(
   // public keyfile before choosing settings.json vs settings.enc; when it is
   // present but still locked, defer profile sync instead of creating a second
   // plaintext truth beside an existing sealed profile.
-  let keyfilePreflightFailed = false;
-  if (!ring) {
-    try {
-      await keyfile.run(rawTarget, rawVault);
-    } catch {
-      keyfilePreflightFailed = true;
-    }
-  }
-  const hasKeyfile = await rawVault.exists(KEYFILE_PATH);
+  // Best-effort: a failure here is a network blip, not an answer. The runner
+  // re-decides every cycle, so it recovers on its own.
+  if (!ring) await keyfile.run(rawTarget, rawVault).catch(() => undefined);
   ring = ring ?? await loadKeyring(vault.vaultId);
-  if (hasKeyfile && !ring && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-encryption-locked"));
-  const profile = (await isMobileSettingsSyncEnabled(vault.vaultId)) && !keyfilePreflightFailed && (!hasKeyfile || !!ring)
-    ? new SettingsSyncStep({
-        port: profilePort(vault),
-        deviceId: await deviceId(),
-        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
-        profileCrypto: ring ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") } : undefined,
-      })
-    : null;
-  // Secrets need a master key AND their own opt-in: without an unlocked
-  // keyring there is nothing to seal the bundle with, so the step simply does
-  // not exist rather than failing every cycle.
-  const secrets =
-    ring && (await isMobileSecretsSyncEnabled(vault.vaultId))
-      ? new SecretsSyncStep({
-          port: createMobileSecretsPort(vault.vaultId),
-          masterKey: ring.active,
-          onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
-        })
-      : null;
-  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, profile, secrets);
+  if ((await rawVault.exists(KEYFILE_PATH)) && !ring && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("m-encryption-locked"));
+  }
+  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, sidebandSteps(vault, await deviceId()));
   if (!ring) return { target: rawTarget, runner };
   const manifestBytes = await rawTarget.download(ENCRYPTION_MANIFEST_PATH);
   if (!manifestBytes) return { target: rawTarget, runner };

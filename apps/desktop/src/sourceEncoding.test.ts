@@ -13,6 +13,10 @@ import { join } from "node:path";
 
 const ROOTS = [
   join(__dirname, ".."), // apps/desktop (src + e2e)
+  // apps/mobile was NOT covered, which is how a stray U+0000 reached the mail
+  // list on 2026-07-26 — the third time this bug class has landed, and the
+  // first where the guard that exists for it simply was not looking.
+  join(__dirname, "..", "..", "mobile", "src"),
   join(__dirname, "..", "..", "..", "packages", "ui", "src"),
   join(__dirname, "..", "..", "..", "packages", "core", "src"),
 ];

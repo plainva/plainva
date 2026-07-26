@@ -38,6 +38,7 @@
     "stateUnlocked": "odblokowane",
     "step1": "1 · Ustawienia i konta",
     "step1Desc": "Aby każde urządzenie znało te same foldery, widoki i konta. Bez hasła synchronizacji.",
+    "step1Sealed": "Inne urządzenie ustawiło hasło, więc ustawienia są zaszyfrowane w sejfie. Odblokuj je w kroku 2, aby to urządzenie mogło je odczytać.",
     "step2": "2 · Hasło synchronizacji",
     "step2Desc": "Potrzebne tylko wtedy, gdy mają wędrować także logowania. Dodatkowo szyfruje ustawienia z kroku 1.",
     "step2Optional": "Opcjonalne",

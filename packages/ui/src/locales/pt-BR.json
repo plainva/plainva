@@ -37,6 +37,7 @@
     "stateUnlocked": "desbloqueado",
     "step1": "1 · Configurações e contas",
     "step1Desc": "Para que todos os dispositivos conheçam as mesmas pastas, visões e contas. Sem frase-senha.",
+    "step1Sealed": "Outro dispositivo definiu uma senha, então as configurações ficam criptografadas no cofre. Desbloqueie-as na etapa 2 para que este dispositivo possa lê-las.",
     "step2": "2 · Frase-senha de sincronização",
     "step2Desc": "Só é necessária se os logins também devem viajar. Ela ainda criptografa as configurações da etapa 1.",
     "step2Optional": "Opcional",
