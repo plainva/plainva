@@ -2375,7 +2375,10 @@
     "attachmentsMobile_one": "{{count}} pièce jointe — ouvre l’e-mail sur l’ordinateur pour l’enregistrer",
     "attachmentsMobile_other": "{{count}} pièces jointes — ouvre l’e-mail sur l’ordinateur pour les enregistrer",
     "attachmentsMobile_many": "{{count}} pièces jointes — ouvre l’e-mail sur l’ordinateur pour les enregistrer",
-    "noRecipient": "Ajoute au moins un destinataire"
+    "noRecipient": "Ajoute au moins un destinataire",
+    "password": "Mot de passe d’application",
+    "connect": "Connecter",
+    "presetUnknown": "Plainva ne connaît pas encore ce fournisseur — connecte la boîte sur l’ordinateur, où tu peux saisir le serveur et le port toi-même."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

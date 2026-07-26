@@ -12,6 +12,7 @@
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		7A0002000000000000000001 /* WebDavHttpPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000001 /* WebDavHttpPlugin.swift */; };
+		7A0002000000000000000009 /* MailNetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000009 /* MailNetPlugin.swift */; };
 		7A0002000000000000000002 /* SecureStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000002 /* SecureStorePlugin.swift */; };
 		7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000004 /* AtomicFilePlugin.swift */; };
 		7A0002000000000000000003 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000003 /* MainViewController.swift */; };
@@ -55,6 +56,7 @@
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7A0001000000000000000001 /* WebDavHttpPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDavHttpPlugin.swift; sourceTree = "<group>"; };
+		7A0001000000000000000009 /* MailNetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailNetPlugin.swift; sourceTree = "<group>"; };
 		7A0001000000000000000002 /* SecureStorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStorePlugin.swift; sourceTree = "<group>"; };
 		7A0001000000000000000004 /* AtomicFilePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFilePlugin.swift; sourceTree = "<group>"; };
 		7A0001000000000000000003 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7A0001000000000000000001 /* WebDavHttpPlugin.swift */,
+				7A0001000000000000000009 /* MailNetPlugin.swift */,
 				7A0001000000000000000002 /* SecureStorePlugin.swift */,
 				7A0001000000000000000004 /* AtomicFilePlugin.swift */,
 				7A0001000000000000000003 /* MainViewController.swift */,
@@ -256,6 +259,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				7A0002000000000000000001 /* WebDavHttpPlugin.swift in Sources */,
+				7A0002000000000000000009 /* MailNetPlugin.swift in Sources */,
 				7A0002000000000000000002 /* SecureStorePlugin.swift in Sources */,
 				7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */,
 				7A0002000000000000000003 /* MainViewController.swift in Sources */,

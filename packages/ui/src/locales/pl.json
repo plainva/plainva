@@ -2382,7 +2382,10 @@
     "attachmentsMobile_few": "{{count}} załączniki — otwórz wiadomość na komputerze, aby je zapisać",
     "attachmentsMobile_many": "{{count}} załączników — otwórz wiadomość na komputerze, aby je zapisać",
     "attachmentsMobile_other": "{{count}} załącznika — otwórz wiadomość na komputerze, aby je zapisać",
-    "noRecipient": "Podaj co najmniej jednego odbiorcę"
+    "noRecipient": "Podaj co najmniej jednego odbiorcę",
+    "password": "Hasło aplikacji",
+    "connect": "Połącz",
+    "presetUnknown": "Plainva nie zna jeszcze tego dostawcy — połącz skrzynkę na komputerze, gdzie możesz samodzielnie podać serwer i port."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

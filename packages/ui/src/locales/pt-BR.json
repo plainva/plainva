@@ -2375,7 +2375,10 @@
     "attachmentsMobile_one": "{{count}} anexo — abra o e-mail no computador para salvá-lo",
     "attachmentsMobile_other": "{{count}} anexos — abra o e-mail no computador para salvá-los",
     "attachmentsMobile_many": "{{count}} anexos — abra o e-mail no computador para salvá-los",
-    "noRecipient": "Informe pelo menos um destinatário"
+    "noRecipient": "Informe pelo menos um destinatário",
+    "password": "Senha de app",
+    "connect": "Conectar",
+    "presetUnknown": "O Plainva ainda não conhece este provedor — conecte a caixa de correio no computador, onde você pode informar servidor e porta."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

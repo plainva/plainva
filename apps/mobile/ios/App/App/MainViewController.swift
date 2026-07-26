@@ -12,5 +12,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(SecureStorePlugin())
         bridge?.registerPluginInstance(AtomicFilePlugin())
         bridge?.registerPluginInstance(ShareTargetPlugin())
+        bridge?.registerPluginInstance(MailNetPlugin())
     }
 }

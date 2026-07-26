@@ -2375,7 +2375,10 @@
     "attachmentsMobile_one": "{{count}} allegato: apri l’e-mail sul computer per salvarlo",
     "attachmentsMobile_other": "{{count}} allegati: apri l’e-mail sul computer per salvarli",
     "attachmentsMobile_many": "{{count}} allegati: apri l’e-mail sul computer per salvarli",
-    "noRecipient": "Aggiungi almeno un destinatario"
+    "noRecipient": "Aggiungi almeno un destinatario",
+    "password": "Password per app",
+    "connect": "Collega",
+    "presetUnknown": "Plainva non conosce ancora questo provider: collega la casella sul computer, dove puoi indicare server e porta."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

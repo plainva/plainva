@@ -2368,7 +2368,10 @@
     "noteExists": "Er bestaat al een notitie voor deze e-mail",
     "attachmentsMobile_one": "{{count}} bijlage — open de e-mail op de desktop om hem op te slaan",
     "attachmentsMobile_other": "{{count}} bijlagen — open de e-mail op de desktop om ze op te slaan",
-    "noRecipient": "Voeg minstens één ontvanger toe"
+    "noRecipient": "Voeg minstens één ontvanger toe",
+    "password": "App-wachtwoord",
+    "connect": "Verbinden",
+    "presetUnknown": "Plainva kent deze provider nog niet — verbind de postbus op de desktop, daar kun je server en poort zelf invullen."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

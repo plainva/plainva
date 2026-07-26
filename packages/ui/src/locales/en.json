@@ -2368,7 +2368,10 @@
     "noteExists": "A note for this email already exists",
     "attachmentsMobile_one": "{{count}} attachment — open the email on the desktop to save it",
     "attachmentsMobile_other": "{{count}} attachments — open the email on the desktop to save them",
-    "noRecipient": "Add at least one recipient"
+    "noRecipient": "Add at least one recipient",
+    "password": "App password",
+    "connect": "Connect",
+    "presetUnknown": "Plainva does not know this provider yet — connect the mailbox on the desktop, where you can enter server and port yourself."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

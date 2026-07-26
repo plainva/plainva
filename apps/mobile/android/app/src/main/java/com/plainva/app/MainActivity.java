@@ -25,6 +25,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SecureStorePlugin.class);
         registerPlugin(AtomicFilePlugin.class);
         registerPlugin(ShareTargetPlugin.class);
+        registerPlugin(MailNetPlugin.class);
         super.onCreate(savedInstanceState);
         stashShare(getIntent());
     }

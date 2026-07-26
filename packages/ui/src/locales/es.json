@@ -2375,7 +2375,10 @@
     "attachmentsMobile_one": "{{count}} adjunto: abre el correo en el escritorio para guardarlo",
     "attachmentsMobile_other": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos",
     "attachmentsMobile_many": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos",
-    "noRecipient": "Añade al menos un destinatario"
+    "noRecipient": "Añade al menos un destinatario",
+    "password": "Contraseña de aplicación",
+    "connect": "Conectar",
+    "presetUnknown": "Plainva todavía no conoce este proveedor: conecta el buzón en el escritorio, donde puedes indicar servidor y puerto tú mismo."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

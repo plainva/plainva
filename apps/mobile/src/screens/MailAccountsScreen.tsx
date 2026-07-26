@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Trash2 } from "lucide-react";
-import { TextInput, toast } from "@plainva/ui";
+import { presetForEmail, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { mailAccountKind } from "@plainva/ui/mail";
+import { checkMailLogin, mailAccountKind, saveMailAccount } from "@plainva/ui/mail";
 import { mConfirm } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
@@ -13,6 +13,8 @@ import {
   MAIL_CHANGED_EVENT,
 } from "../services/mail/mailRuntime";
 import { deviceSignInStates, type DeviceSignInState } from "../services/deviceSignIn";
+import { notifyMailChanged } from "../services/mail/mailRuntime";
+import { hasNativeMailSocket } from "../adapters/mailNet";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 
 /**
@@ -34,6 +36,13 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
   const [msClientId, setMsClientId] = useState("");
   const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
+  // IMAP sign-in (G2): the address picks the preset, so the usual case is
+  // address + app password and nothing else.
+  const [kind, setKind] = useState<"microsoft" | "imap">("microsoft");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const preset = presetForEmail(email);
+  const imapAvailable = hasNativeMailSocket();
 
   const reload = useCallback(() => {
     void listMobileMailAccounts()
@@ -56,6 +65,36 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
     setBusy(true);
     try {
       await connectMicrosoftMail(msClientId);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const connectImap = async () => {
+    const vault = mailVaultId();
+    if (!vault || !preset || !email.trim() || !pass) return;
+    setBusy(true);
+    try {
+      const account: MailAccountConfig = {
+        id: crypto.randomUUID(),
+        label: email.trim(),
+        host: preset.host,
+        port: preset.port,
+        user: email.trim(),
+        smtpHost: preset.smtpHost,
+        smtpPort: preset.smtpPort,
+        kind: "imap",
+      };
+      // Verify before storing: a rejected password must not leave a broken
+      // account behind (the same guarantee the Microsoft path gives).
+      await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, pass);
+      await saveMailAccount(vault, account, pass);
+      setEmail("");
+      setPass("");
+      toast.success(t("mail.accountAdded"));
+      notifyMailChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -108,13 +147,16 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                     <Trash2 size={16} />
                   </button>
                 </div>
-                {imap ? (
-                  /* An IMAP mailbox from the desktop shows up here through the
-                     settings sync — and cannot work until G2. Say so on the row
-                     rather than letting the list screen fail later. */
+                {imap && !imapAvailable ? (
+                  /* Only the web dev server lacks a socket; on a device IMAP
+                     works and the row needs no caveat. */
                   <p className="m-hint m-acct-hint">{t("mail.imapMobileUnavailable")}</p>
                 ) : (
-                  state === "signin" && <p className="m-hint m-acct-hint">{t("deviceSignIn.rowHintOauth")}</p>
+                  state === "signin" && (
+                    <p className="m-hint m-acct-hint">
+                      {imap ? t("deviceSignIn.rowHintStatic") : t("deviceSignIn.rowHintOauth")}
+                    </p>
+                  )
                 )}
               </div>
             );
@@ -124,8 +166,52 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
         <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>
           {t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
         </h2>
+        <div className="m-viewpills" role="tablist">
+          {(["microsoft", "imap"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={kind === k}
+              className={kind === k ? "m-viewpill is-active" : "m-viewpill"}
+              onClick={() => setKind(k)}
+            >
+              {k === "microsoft" ? "Microsoft" : "IMAP"}
+            </button>
+          ))}
+        </div>
+
+        {kind === "imap" ? (
+          <>
+            {!imapAvailable && <p className="m-hint m-hint--warn">{t("mail.imapMobileUnavailable")}</p>}
+            <p className="m-hint">{t("mail.imapHint")}</p>
+            <label className="m-field">
+              <span>{t("mail.emailAddress")}</span>
+              <TextInput value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" placeholder="name@example.com" />
+            </label>
+            {preset ? (
+              <p className="m-hint">
+                {preset.label} · {preset.host}:{preset.port}
+              </p>
+            ) : (
+              email.trim() !== "" && <p className="m-hint m-hint--warn">{t("mail.presetUnknown")}</p>
+            )}
+            <label className="m-field">
+              <span>{t("mail.password")}</span>
+              <TextInput type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="m-btn m-btn--filled"
+              disabled={busy || !imapAvailable || !preset || !pass}
+              onClick={() => void connectImap()}
+            >
+              {t("mail.connect")}
+            </button>
+          </>
+        ) : (
+          <>
         <p className="m-hint">{t("mail.microsoftHint")}</p>
-        <p className="m-hint m-hint--warn">{t("mail.imapMobileUnavailable")}</p>
 
         {msShowId ? (
           <label className="m-field">
@@ -141,6 +227,8 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
         <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void connect()}>
           {t("mail.connectMicrosoft")}
         </button>
+          </>
+        )}
       </div>
     </div>
   );

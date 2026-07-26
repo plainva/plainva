@@ -37,6 +37,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Plainva connects to the mail server you configure. If that server runs on your local network, iOS asks for this permission.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Plainva uses the camera so you can take a photo and add it to a note.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

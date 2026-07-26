@@ -2361,7 +2361,10 @@
     "unknownSender": "未知发件人",
     "noteExists": "这封邮件已经有一条笔记",
     "attachmentsMobile_other": "{{count}} 个附件——请在桌面端打开这封邮件以保存",
-    "noRecipient": "请至少填写一位收件人"
+    "noRecipient": "请至少填写一位收件人",
+    "password": "应用专用密码",
+    "connect": "连接",
+    "presetUnknown": "Plainva 还不认识这个提供商——请在桌面端连接该邮箱，那里可以自行填写服务器和端口。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

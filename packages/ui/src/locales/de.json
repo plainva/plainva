@@ -2368,7 +2368,10 @@
     "noteExists": "Zu dieser E-Mail gibt es schon eine Notiz",
     "attachmentsMobile_one": "{{count}} Anhang — zum Speichern die E-Mail am Desktop öffnen",
     "attachmentsMobile_other": "{{count}} Anhänge — zum Speichern die E-Mail am Desktop öffnen",
-    "noRecipient": "Mindestens eine Empfängeradresse angeben"
+    "noRecipient": "Mindestens eine Empfängeradresse angeben",
+    "password": "App-Passwort",
+    "connect": "Verbinden",
+    "presetUnknown": "Diesen Anbieter kennt Plainva noch nicht — verbinde das Postfach am Desktop, dort kannst Du Server und Port selbst eintragen."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

@@ -2361,7 +2361,10 @@
     "unknownSender": "送信者不明",
     "noteExists": "このメールのノートはすでにあります",
     "attachmentsMobile_other": "添付ファイル {{count}} 件 — 保存するにはデスクトップでこのメールを開いてください",
-    "noRecipient": "宛先を 1 件以上入力してください"
+    "noRecipient": "宛先を 1 件以上入力してください",
+    "password": "アプリパスワード",
+    "connect": "接続",
+    "presetUnknown": "このプロバイダーはまだ登録されていません。サーバーとポートを自分で入力できるデスクトップで接続してください。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",
