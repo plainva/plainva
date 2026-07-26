@@ -53,7 +53,7 @@ import {
   backupZipKeepKey,
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
-import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { mailAccountsKey, listMailAccounts, mailAccountKind, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -119,6 +119,12 @@ const PROFILE_FIELDS: ProfileField[] = [
 export interface DesktopProfileContext {
   pimRuntime?: PimRuntime | null;
   rawVault?: IVaultAdapter | null;
+  /**
+   * Reports records that were dropped as malformed. The port wires this to a
+   * toast; keeping it a callback rather than toasting from here leaves the
+   * import function pure enough to test.
+   */
+  onSkipped?: (reasons: string[]) => void;
 }
 
 export interface ProfileAccountMap {
@@ -247,10 +253,16 @@ export async function exportProfileValues(
 export async function applyProfileValues(
   store: ISettingsStore,
   vaultPath: string,
-  values: Record<string, unknown>,
+  incoming: Record<string, unknown>,
   context: DesktopProfileContext = {}
 ): Promise<void> {
-  validateProfileValues(values);
+  const sanitized = sanitizeProfileValues(incoming);
+  const values = sanitized.values;
+  if (sanitized.skipped.length > 0) {
+    // Visible, not silent: this is the class of problem that hid until now.
+    console.warn("[settingsProfile] skipped while importing:", sanitized.skipped.join("; "));
+    context.onSkipped?.(sanitized.skipped);
+  }
   await recoverProfileImportIfNeeded(store, vaultPath, context);
   const snapshot = await captureProfileSnapshot(store, vaultPath, context);
   await store.set(profileImportJournalKey(vaultPath), { startedAt: new Date().toISOString(), snapshot } satisfies ProfileImportJournal);
@@ -260,7 +272,10 @@ export async function applyProfileValues(
     for (const field of PROFILE_FIELDS) {
       if (Object.prototype.hasOwnProperty.call(values, field.logical)) {
         await store.set(field.key(vaultPath), values[field.logical]);
-      } else {
+      } else if (!sanitized.preserve.has(field.logical)) {
+        // Absent means "reset to default" — but a value we DROPPED as invalid is
+        // not absent, and wiping the local setting over it would turn a foreign
+        // formatting mistake into local data loss.
         await store.delete(field.key(vaultPath));
       }
     }
@@ -371,31 +386,84 @@ function validVaultPath(value: string): boolean {
   return !parts.some((part) => part === ".." || part === ".") && parts[0] !== ".plainva";
 }
 
-/** Validates the whole incoming projection before the first native write. */
-export function validateProfileValues(values: Record<string, unknown>): void {
+/** A cleaned projection plus what had to be left out, and why. */
+export interface SanitizedProfile {
+  values: Record<string, unknown>;
+  /**
+   * Logical names that were dropped as INVALID rather than being absent. The
+   * caller must not delete these keys: absence normally means "reset to
+   * default", and a malformed incoming value is no reason to wipe a working
+   * local setting.
+   */
+  preserve: Set<string>;
+  /** Human-readable reasons, for the error surface. */
+  skipped: string[];
+}
+
+/**
+ * Cleans the incoming projection instead of rejecting it wholesale.
+ *
+ * This used to throw on the first bad field, and `applyProfileValues` called it
+ * as its very first statement — so ONE unusable record (a Microsoft mailbox, a
+ * Windows path separator that had found its way into a folder setting) silently
+ * disabled the entire settings sync: no accounts, no calendar selection, not
+ * even the daily-notes folder, on every device and every cycle.
+ *
+ * A malformed record is now dropped and reported; everything else is applied.
+ * Only a structurally impossible document (not an object) is still fatal.
+ */
+export function sanitizeProfileValues(values: Record<string, unknown>): SanitizedProfile {
   if (!values || typeof values !== "object" || Array.isArray(values)) throw new Error("settings profile values are invalid");
+  const out: Record<string, unknown> = { ...values };
+  const preserve = new Set<string>();
+  const skipped: string[] = [];
+
+  const drop = (key: string, reason: string) => {
+    delete out[key];
+    preserve.add(key);
+    skipped.push(reason);
+  };
+
   for (const [key, value] of Object.entries(values)) {
-    if (PATH_FIELDS.has(key) && (typeof value !== "string" || !validVaultPath(value))) throw new Error(`invalid vault-relative path in ${key}`);
-    if (BOOLEAN_FIELDS.has(key) && typeof value !== "boolean") throw new Error(`invalid boolean in ${key}`);
-    if (NUMBER_FIELDS.has(key) && (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1_000_000)) {
-      throw new Error(`invalid number in ${key}`);
+    if (PATH_FIELDS.has(key) && (typeof value !== "string" || !validVaultPath(value))) drop(key, `invalid vault-relative path in ${key}`);
+    else if (BOOLEAN_FIELDS.has(key) && typeof value !== "boolean") drop(key, `invalid boolean in ${key}`);
+    else if (NUMBER_FIELDS.has(key) && (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1_000_000)) {
+      drop(key, `invalid number in ${key}`);
     }
   }
-  if (values.bookmarks !== undefined && (!Array.isArray(values.bookmarks) || values.bookmarks.some((p) => typeof p !== "string" || !p || !validVaultPath(p)))) {
-    throw new Error("invalid bookmarks in settings profile");
+
+  if (out.bookmarks !== undefined && (!Array.isArray(out.bookmarks) || out.bookmarks.some((p) => typeof p !== "string" || !p || !validVaultPath(p)))) {
+    drop("bookmarks", "invalid bookmarks in settings profile");
   }
-  if (values.pimAccounts !== undefined && !Array.isArray(values.pimAccounts)) throw new Error("invalid PIM account metadata");
-  if (values.mailAccounts !== undefined && !Array.isArray(values.mailAccounts)) throw new Error("invalid mail account metadata");
-  if (values.cloudAccounts !== undefined && !Array.isArray(values.cloudAccounts)) throw new Error("invalid cloud account registry");
-  if (Array.isArray(values.pimAccounts) && values.pimAccounts.some((a) => !validPimAccount(a))) throw new Error("invalid PIM account metadata");
-  if (Array.isArray(values.mailAccounts) && values.mailAccounts.some((a) => !validMailAccount(a))) throw new Error("invalid mail account metadata");
-  if (Array.isArray(values.cloudAccounts) && values.cloudAccounts.some((a) => !validCloudAccount(a))) throw new Error("invalid cloud account registry");
-  const selections = values.pimSelections as Partial<ProfilePimSelections> | undefined;
-  for (const selection of [...(selections?.calendars ?? []), ...(selections?.taskLists ?? [])]) {
-    if (!selection || typeof selection.accountId !== "string" || typeof selection.id !== "string" || typeof selection.selected !== "boolean") {
-      throw new Error("invalid PIM selections");
+
+  // Account lists: keep the usable rows, name the ones that were left out.
+  const filterAccounts = <T,>(key: string, isValid: (v: unknown) => v is T, label: string): void => {
+    const raw = out[key];
+    if (raw === undefined) return;
+    if (!Array.isArray(raw)) {
+      drop(key, `invalid ${label}`);
+      return;
     }
+    const kept = raw.filter((row) => isValid(row));
+    if (kept.length !== raw.length) skipped.push(`${raw.length - kept.length} × invalid ${label}`);
+    out[key] = kept;
+  };
+  filterAccounts("pimAccounts", validPimAccount, "PIM account metadata");
+  filterAccounts("mailAccounts", validMailAccount, "mail account metadata");
+  filterAccounts("cloudAccounts", validCloudAccount, "cloud account registry");
+
+  const selections = out.pimSelections as Partial<ProfilePimSelections> | undefined;
+  const validSelection = (s: unknown): boolean =>
+    !!s && typeof (s as { accountId?: unknown }).accountId === "string" && typeof (s as { id?: unknown }).id === "string" && typeof (s as { selected?: unknown }).selected === "boolean";
+  if (selections && (selections.calendars ?? selections.taskLists)) {
+    const calendars = (selections.calendars ?? []).filter(validSelection);
+    const taskLists = (selections.taskLists ?? []).filter(validSelection);
+    const dropped = (selections.calendars?.length ?? 0) + (selections.taskLists?.length ?? 0) - calendars.length - taskLists.length;
+    if (dropped > 0) skipped.push(`${dropped} × invalid PIM selection`);
+    out.pimSelections = { calendars, taskLists } satisfies ProfilePimSelections;
   }
+
+  return { values: out, preserve, skipped };
 }
 
 function nextLocalId(preferred: string, used: Set<string>): string {
@@ -423,7 +491,14 @@ function validPimAccount(value: unknown): value is PimAccountRow {
 
 function validMailAccount(value: unknown): value is MailAccountConfig {
   const a = value as MailAccountConfig;
-  return !!a && typeof a.id === "string" && typeof a.label === "string" && typeof a.host === "string" && typeof a.user === "string" && Number.isInteger(a.port) && a.port > 0 && a.port <= 65535 && (a.kind === undefined || a.kind === "imap" || a.kind === "microsoft");
+  if (!a || typeof a.id !== "string" || typeof a.label !== "string" || typeof a.host !== "string" || typeof a.user !== "string") return false;
+  if (a.kind !== undefined && a.kind !== "imap" && a.kind !== "microsoft") return false;
+  // A Microsoft (Graph) mailbox speaks no IMAP: it is stored with host "" and
+  // port 0 by design. Demanding a real port from it rejected the account — and
+  // because a rejected account aborted the whole import, a single Microsoft
+  // mailbox silently disabled the ENTIRE settings sync on every device.
+  if (mailAccountKind(a) === "microsoft") return true;
+  return Number.isInteger(a.port) && a.port > 0 && a.port <= 65535;
 }
 
 function validCloudAccount(value: unknown): value is CloudAccountRecord {
@@ -530,12 +605,16 @@ async function importCloudRegistry(
 
 /** Builds the desktop profile-sync port for a vault. */
 export function createDesktopProfilePort(vaultPath: string, context: DesktopProfileContext = {}): ProfileSettingsPort {
+  const withReporting: DesktopProfileContext = {
+    ...context,
+    onSkipped: context.onSkipped ?? ((reasons) => toast.warning(i18n.t("settingsSync.partialImport", { details: reasons.join("; ") }))),
+  };
   return {
     async exportValues() {
-      return exportProfileValues(await getSettingsStore(), vaultPath, context);
+      return exportProfileValues(await getSettingsStore(), vaultPath, withReporting);
     },
     async applyValues(values) {
-      await applyProfileValues(await getSettingsStore(), vaultPath, values, context);
+      await applyProfileValues(await getSettingsStore(), vaultPath, values, withReporting);
     },
   };
 }
@@ -632,7 +711,17 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     if (this.keyfileStep) await this.keyfileStep.run(target, vault);
     if (this.profileStep) await this.profileStep.run(target, vault);
-    if (this.secretsStep) await this.secretsStep.run(target, vault);
+    // A refused secret must not take the rest down with it, and it must not be
+    // invisible either — the worker only console.errors, so until now a rejected
+    // credential import looked exactly like "nothing happens". Mobile has had
+    // this toast; the desktop had neither the catch nor the message.
+    if (this.secretsStep) {
+      try {
+        await this.secretsStep.run(target, vault);
+      } catch (error) {
+        toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
+      }
+    }
   }
 }
 
@@ -673,7 +762,14 @@ export async function buildSettingsSyncStep(vaultPath: string, context: DesktopP
     : null;
 
   const secretsStep = secretsOn && mk && context.pimRuntime
-    ? new SecretsSyncStep({ port: createDesktopSecretsPort(vaultPath, context.pimRuntime), masterKey: mk })
+    ? new SecretsSyncStep({
+        port: createDesktopSecretsPort(vaultPath, context.pimRuntime),
+        masterKey: mk,
+        // Not an error: the account simply has not arrived here yet. Say so once
+        // rather than staying silent — it is the difference between "still
+        // syncing" and "broken", and the user cannot tell them apart otherwise.
+        onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
+      })
     : null;
 
   return new DesktopSidebandRunner(vaultPath, connectionId, keyfileStep, profileStep, secretsStep);

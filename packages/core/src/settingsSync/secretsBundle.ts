@@ -95,6 +95,26 @@ export function canonicalizeEndpoint(url: string): string {
 
 /** True when a synced entry's binding matches an observed local account. */
 export function bindingMatches(binding: SecretBinding, observed: { family: string; service: SecretBinding["service"]; user: string; endpoint: string }): boolean {
+  return bindingMatchesExceptFamily(binding, observed) && binding.family === observed.family;
+}
+
+/**
+ * The same match WITHOUT the provider family.
+ *
+ * The family is a catalog label, not part of the account's identity: the same
+ * self-hosted CalDAV server is "nextcloud" on a device that has it in its cloud
+ * registry and "webdav" on one that only has the host table. Service, secret
+ * type, user and endpoint still have to agree exactly — those are what actually
+ * decide WHERE a password would be sent, so a looser match cannot redirect a
+ * credential to a foreign host.
+ *
+ * Used as a fallback after the exact match, so two devices that label the same
+ * server differently still recognise each other instead of refusing forever.
+ */
+export function bindingMatchesExceptFamily(
+  binding: SecretBinding,
+  observed: { service: SecretBinding["service"]; user: string; endpoint: string }
+): boolean {
   let observedEndpoint: string;
   try {
     observedEndpoint = canonicalizeEndpoint(observed.endpoint);
@@ -102,7 +122,6 @@ export function bindingMatches(binding: SecretBinding, observed: { family: strin
     return false;
   }
   return (
-    binding.family === observed.family &&
     binding.service === observed.service &&
     binding.user === observed.user.trim().toLowerCase() &&
     binding.endpoint === observedEndpoint

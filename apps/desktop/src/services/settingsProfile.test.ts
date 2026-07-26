@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ISettingsStore } from "@plainva/ui";
-import { exportProfileValues, applyProfileValues } from "./settingsProfile";
+import { exportProfileValues, applyProfileValues, sanitizeProfileValues } from "./settingsProfile";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -92,5 +92,57 @@ describe("settingsProfile port", () => {
     await applyProfileValues(dst, V2, doc);
     expect(dst.map.get(dailyNotesFolderKey(V2))).toBe("Journal");
     expect(dst.map.get(meetingFolderKey(V2))).toBe("Meetings");
+  });
+});
+
+/**
+ * The validator had NO coverage at all, which is how a Microsoft mailbox could
+ * disable the entire settings sync unnoticed: it is stored with host "" and
+ * port 0 (correct — Graph speaks no IMAP), the validator demanded port > 0, and
+ * `applyProfileValues` ran it as its first statement. One such account meant no
+ * accounts, no calendar selection and not even the daily-notes folder arrived,
+ * on every device and every cycle, reported only to the console.
+ */
+describe("settingsProfile validation", () => {
+  const imapAccount = { id: "m1", label: "Mailbox", host: "imap.example.com", port: 993, user: "me@example.com" };
+  const graphAccount = { id: "m2", label: "Microsoft", host: "", port: 0, user: "me@outlook.com", kind: "microsoft" as const, clientId: "cid" };
+
+  it("accepts a Microsoft mailbox (host \"\", port 0) instead of rejecting the whole profile", () => {
+    const { values, skipped } = sanitizeProfileValues({ mailAccounts: [graphAccount] });
+    expect(skipped).toEqual([]);
+    expect(values.mailAccounts).toEqual([graphAccount]);
+  });
+
+  it("still rejects an IMAP mailbox without a usable port", () => {
+    const { values, skipped } = sanitizeProfileValues({ mailAccounts: [{ ...imapAccount, port: 0 }] });
+    expect(values.mailAccounts).toEqual([]);
+    expect(skipped.join(" ")).toContain("mail account");
+  });
+
+  it("keeps the good rows when one account is malformed, instead of dropping everything", () => {
+    const { values, skipped } = sanitizeProfileValues({
+      dailyNotesFolder: "Daily",
+      mailAccounts: [imapAccount, { id: 42 }],
+    });
+    expect(values.mailAccounts).toEqual([imapAccount]);
+    expect(values.dailyNotesFolder).toBe("Daily"); // unrelated settings survive
+    expect(skipped).toHaveLength(1);
+  });
+
+  it("does not delete a local setting because the incoming value was invalid", async () => {
+    const store = fakeStore();
+    await store.set(dailyNotesFolderKey(V), "Daily");
+    // A Windows path separator is rejected by validVaultPath. Absence normally
+    // means "reset to default" — an invalid value must not trigger that.
+    await applyProfileValues(store, V, { dailyNotesFolder: "Journal\\Sub" });
+    expect(store.map.get(dailyNotesFolderKey(V))).toBe("Daily");
+  });
+
+  it("reports what it skipped instead of failing the whole import", async () => {
+    const store = fakeStore();
+    const skipped: string[][] = [];
+    await applyProfileValues(store, V, { dailyNotesFolder: "Daily", backupZipKeep: "seven" }, { onSkipped: (r) => skipped.push(r) });
+    expect(store.map.get(dailyNotesFolderKey(V))).toBe("Daily");
+    expect(skipped.flat().join(" ")).toContain("backupZipKeep");
   });
 });

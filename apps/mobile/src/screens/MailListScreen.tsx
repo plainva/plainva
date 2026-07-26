@@ -292,10 +292,19 @@ export function MailListScreen({
     return (
       <div className="m-page">
         {onBack && backHeader}
-        <EmptyState icon={<Mail size={20} />}>{t("mail.noAccounts")}</EmptyState>
-        <button type="button" className="m-btn m-btn--filled" onClick={onOpenAccounts}>
-          {t("mail.addAccount")}
-        </button>
+        {/* The button belongs IN the empty state's action slot, like the
+            calendar's — rendered as a sibling it sat left-aligned while the
+            calendar's sat centred, for no reason a user could see. */}
+        <EmptyState
+          icon={<Mail size={20} />}
+          action={
+            <button type="button" className="m-btn m-btn--filled" onClick={onOpenAccounts}>
+              {t("mail.addAccount")}
+            </button>
+          }
+        >
+          {t("mail.noAccounts")}
+        </EmptyState>
       </div>
     );
   }
@@ -316,7 +325,7 @@ export function MailListScreen({
         <button type="button" className="m-mboxline" onClick={() => setSheet(true)}>
           <span className="m-mboxline-name">{mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}</span>
           {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
-          <span className="m-mboxline-acct">{localPart(account?.label)}</span>
+          <span className="m-mboxline-acct">{mailAccountLabel(account?.label)}</span>
           <ChevronDown size={16} />
         </button>
         <button
@@ -523,12 +532,27 @@ function describe(e: unknown, t: (k: string) => string): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** "marco@example.com" → "marco". The bar has room for a name, not an address;
- *  the full one is one tap away in the folder sheet. */
-function localPart(label: string | undefined): string {
+/**
+ * The account label for the mailbox bar, shortened without losing the part that
+ * tells two accounts apart.
+ *
+ * This used to cut at the "@" — which made marco.kammradt@outlook.com and
+ * marco.kammradt@gmail.com display identically, exactly the accounts a person is
+ * most likely to hold at once. The domain is what distinguishes them, so the
+ * domain is what we keep: the local part is elided instead, and only when the
+ * whole address does not fit.
+ */
+export function mailAccountLabel(label: string | undefined, max = 24): string {
   if (!label) return "";
-  const bare = /<([^>]+)>/.exec(label)?.[1] ?? label;
-  return bare.split("@")[0] || bare;
+  const bare = (/<([^>]+)>/.exec(label)?.[1] ?? label).trim();
+  if (bare.length <= max) return bare;
+  const at = bare.lastIndexOf("@");
+  if (at <= 0) return `${bare.slice(0, max - 1)}…`;
+  const domain = bare.slice(at); // "@outlook.com"
+  // Keep the domain whole; spend whatever is left on the local part. If even the
+  // domain does not fit, showing it alone still beats showing the wrong half.
+  const room = max - domain.length - 1;
+  return room < 1 ? `…${domain}` : `${bare.slice(0, room)}…${domain}`;
 }
 
 function formatDate(ts: number, lang: string): string {

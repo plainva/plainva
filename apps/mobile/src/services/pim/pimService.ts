@@ -111,6 +111,18 @@ export async function listPimAccounts(): Promise<PimAccountRow[]> {
   return (await runtime?.cache.listAccounts()) ?? [];
 }
 
+/**
+ * Whether the account cache is actually up.
+ *
+ * `listPimAccounts()` answers `[]` both when there are no accounts AND when the
+ * runtime has not booted yet — indistinguishable, and the sync worker starts in
+ * parallel with it. Anything that would DELETE based on an empty list has to ask
+ * this first (see mobileSecretsPort: tombstones).
+ */
+export function isPimRuntimeReady(): boolean {
+  return runtime !== null;
+}
+
 export async function listPimCalendars(): Promise<Array<PimCalendar & { accountId: string; selected: boolean }>> {
   return (await runtime?.cache.listCalendars()) ?? [];
 }

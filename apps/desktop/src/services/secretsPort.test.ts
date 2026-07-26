@@ -79,20 +79,51 @@ describe("shared secrets port (H2c)", () => {
     const elsewhere = makeDevice("desktop", () => [
       candidate({ secret: null, binding: binding({ endpoint: canonicalizeEndpoint("https://other.example.com/dav") }) }),
     ]);
-    await expect(elsewhere.port.importBundle(bundle)).rejects.toBeInstanceOf(SecretPolicyError);
+    const result = await elsewhere.port.importBundle(bundle);
+    // Skipped rather than thrown (see below) — but the guarantee that matters is
+    // unchanged: the password did NOT land on the other server.
+    expect(result.unknownAccounts).toEqual(["acc-1"]);
     expect(elsewhere.keychain.size).toBe(0);
   });
 
-  it("applies nothing at all when one entry of several is invalid", async () => {
+  /**
+   * This test used to assert the opposite ("applies nothing at all when one
+   * entry of several is invalid"), and that assertion was the reported bug: a
+   * fresh device knows none of the accounts yet, so EVERY entry was "invalid"
+   * and the device received nothing — while the app said nothing at all.
+   *
+   * An account that is merely unknown here is not a policy violation; it is the
+   * normal state of a device whose account metadata (a separate file) has not
+   * arrived yet. It is skipped and reported. A genuine CONFLICT — a local
+   * credential that disagrees — is still fatal, as the test above shows.
+   */
+  it("applies the accounts it knows and reports the ones it does not", async () => {
     const source = makeDevice("phone", () => [
       candidate(),
       candidate({ logicalId: "acc-2", slot: "mail_acc-2", binding: binding({ service: "mail", secretType: "imap-password" }), secret: { pass: "second" } }),
     ]);
     const bundle = await source.port.exportBundle();
-    // The target knows acc-1 but not acc-2 — the bundle is refused whole.
+
     const target = makeDevice("desktop", () => [candidate({ secret: null })]);
-    await expect(target.port.importBundle(bundle)).rejects.toBeInstanceOf(SecretPolicyError);
-    expect(target.keychain.size).toBe(0);
+    const result = await target.port.importBundle(bundle);
+
+    expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
+    expect(result.unknownAccounts).toEqual(["acc-2"]);
+  });
+
+  it("matches an account whose provider family differs (a catalog label, not an address)", async () => {
+    // The desktop labels a self-hosted server from its cloud registry
+    // ("nextcloud"); the phone only has the host table and says "webdav". Same
+    // server, same user, same endpoint — refusing that meant the secrets sync
+    // simply never worked for self-hosted setups.
+    const source = makeDevice("phone", () => [candidate({ binding: binding({ family: "nextcloud" }) })]);
+    const bundle = await source.port.exportBundle();
+
+    const target = makeDevice("desktop", () => [candidate({ secret: null, binding: binding({ family: "webdav" }) })]);
+    const result = await target.port.importBundle(bundle);
+
+    expect(result.unknownAccounts).toEqual([]);
+    expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
   });
 
   it("rolls back what it already wrote when a later write fails", async () => {
@@ -164,6 +195,52 @@ describe("shared secrets port (H2c)", () => {
     secret = { pass: "changed" };
     const third = await device.port.exportBundle();
     expect(third.entries["acc-1"].entryRev).toBe(first.entries["acc-1"].entryRev + 1);
+  });
+
+  /**
+   * A tombstone DELETES a credential on every other device, so it must never be
+   * guesswork. On mobile the account list comes from a runtime that boots in
+   * parallel with the sync worker: a cycle can catch it empty, which is
+   * indistinguishable from "the user removed every account". Without a guard,
+   * that one race published a tombstone per account — and the other device
+   * dutifully deleted working passwords.
+   */
+  it("does not tombstone while the account source reports it is not ready", async () => {
+    let ready = true;
+    let accounts = [candidate()];
+    const keychain = new Map<string, unknown>();
+    let meta: SecretsPortMeta | null = null;
+    const port = createSecretsPort({
+      deviceId: async () => "phone",
+      readMeta: async () => meta,
+      writeMeta: async (m) => void (meta = structuredClone(m)),
+      candidates: async () => accounts,
+      readSlot: async (slot) => keychain.get(slot) ?? null,
+      writeSlot: async (slot, value) => void keychain.set(slot, value),
+      removeSlot: async (slot) => void keychain.delete(slot),
+      accountsReady: async () => ready,
+      now: () => "2026-07-26T00:00:00.000Z",
+    });
+
+    await port.exportBundle(); // account is known from here on
+
+    // The runtime is not up yet: empty list, but nothing was deleted.
+    ready = false;
+    accounts = [];
+    const duringBoot = await port.exportBundle();
+    expect(duringBoot.entries["acc-1"]?.tombstone).toBeUndefined();
+
+    // Ready, but the list is STILL empty next to a known account — the shape of
+    // a source that has not answered properly. Also not a deletion.
+    ready = true;
+    const stillEmpty = await port.exportBundle();
+    expect(stillEmpty.entries["acc-1"]?.tombstone).toBeUndefined();
+
+    // A real removal (the source is ready and reports other accounts) does
+    // produce the tombstone, so deleting an account still propagates.
+    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9" })];
+    const afterRealRemoval = await port.exportBundle();
+    expect(afterRealRemoval.entries["acc-1"]?.tombstone).toBe(true);
   });
 
   it("keeps device-local fields such as an OAuth refresh token", async () => {

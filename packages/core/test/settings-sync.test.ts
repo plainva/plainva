@@ -589,6 +589,7 @@ describe("SecretsSyncStep", () => {
       async importBundle(b) {
         store.bundle = b;
         store.imported.push(b);
+        return { unknownAccounts: [] };
       },
     };
   }

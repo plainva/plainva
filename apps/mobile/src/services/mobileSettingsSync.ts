@@ -400,7 +400,11 @@ export async function prepareMobileSettingsSync(
   // not exist rather than failing every cycle.
   const secrets =
     ring && (await isMobileSecretsSyncEnabled(vault.vaultId))
-      ? new SecretsSyncStep({ port: createMobileSecretsPort(vault.vaultId), masterKey: ring.active })
+      ? new SecretsSyncStep({
+          port: createMobileSecretsPort(vault.vaultId),
+          masterKey: ring.active,
+          onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
+        })
       : null;
   const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, profile, secrets);
   if (!ring) return { target: rawTarget, runner };

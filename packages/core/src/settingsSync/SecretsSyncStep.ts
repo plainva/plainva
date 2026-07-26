@@ -25,18 +25,33 @@ import {
 import { SecretPolicyError } from "./secretsBundle.js";
 import { stableStringify } from "./profileFile.js";
 
+/** Outcome of an import; entries this device could not place yet. */
+export interface SecretsImportResult {
+  /**
+   * Ids whose account is unknown HERE — skipped, not failed. They apply on a
+   * later cycle once the account metadata has arrived through the profile.
+   */
+  unknownAccounts: string[];
+}
+
 /** Shell bridge between the OS keychain and the shareable secrets bundle. */
 export interface SecretsPort {
   /** The device's current shareable secrets (CalDAV/IMAP/static Google BYO). */
   exportBundle(): Promise<SecretsBundle>;
   /** Atomically apply the merged bundle to the keychain (binding-checked). */
-  importBundle(bundle: SecretsBundle): Promise<void>;
+  importBundle(bundle: SecretsBundle): Promise<SecretsImportResult>;
 }
 
 export interface SecretsSyncStepOptions {
   port: SecretsPort;
   masterKey: MasterKeyBundle;
   now?: () => string;
+  /**
+   * Called when entries were skipped because their account is unknown here.
+   * Not an error — the shell can point at the settings profile, which is what
+   * carries the account metadata these entries are waiting for.
+   */
+  onUnknownAccounts?: (ids: string[]) => void;
 }
 
 /** Runs the secrets-sync sideband against a target + raw vault adapter. */
@@ -68,7 +83,8 @@ export class SecretsSyncStep {
 
     // Import into the keychain only when the merge changed the local view.
     if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
-      await this.options.port.importBundle(merged);
+      const result = await this.options.port.importBundle(merged);
+      if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
     }
 
     // Upload only when the merge changed the remote view (read-compare-retry

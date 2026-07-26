@@ -8,7 +8,7 @@ import {
   type SecretsPortMeta,
 } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
-import { listPimAccounts } from "./pim/pimService";
+import { isPimRuntimeReady, listPimAccounts } from "./pim/pimService";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 
 /**
@@ -127,6 +127,13 @@ async function mobileCandidates(vaultId: string): Promise<LocalSecretCandidate[]
 export function createMobileSecretsPort(vaultId: string): SecretsPort {
   return createSecretsPort({
     deviceId,
+    // The PIM runtime boots in PARALLEL with the sync worker (App.tsx starts
+    // both without ordering), so a cycle can catch `listPimAccounts()` empty.
+    // An empty list looks exactly like "the user deleted every account", and
+    // export would answer with a tombstone each — which the other device then
+    // applies by deleting a working password. Never tombstone until the runtime
+    // that owns those accounts is actually up.
+    accountsReady: async () => isPimRuntimeReady(),
     readMeta: async () => (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
     writeMeta: async (meta) => {
       const store = await settingsStore();
