@@ -11,6 +11,10 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
+import { NoteDatabaseBar } from "./NoteDatabaseBar";
+import { isVirtualPath } from "./graph/virtualPaths";
+import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
+import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
@@ -646,6 +650,32 @@ export const Editor: React.FC<{
   // so body edits on every keystroke don't re-parse YAML.
   const fmBlock = frontmatterBlockOf(content);
   const docMeta = React.useMemo(() => plainvaMetaFromBlock(fmBlock), [fmBlock]);
+
+  // Database context (plan P4): which database this note is a row of, its
+  // parent and its sub-items. Derived from `.base` sources + the link index,
+  // never written back; cached per (path, index version) so switching notes
+  // does not re-parse every base. A failure leaves the bar hidden.
+  const [dbContext, setDbContext] = useState<NoteDatabaseContext>(EMPTY_NOTE_DATABASE_CONTEXT);
+  // Read as three values, not as `vaultContext`: the context object is a new
+  // identity on every provider render, which would rebuild the context (and
+  // re-parse every `.base`) on unrelated state changes.
+  const { vaultAdapter: dbCtxAdapter, queryService: dbCtxQuery, fileTreeVersion: dbCtxVersion } = vaultContext;
+  useEffect(() => {
+    const adapter = dbCtxAdapter;
+    const queryService = dbCtxQuery;
+    const fileTreeVersion = dbCtxVersion;
+    if (!activePath || !adapter || !queryService || isVirtualPath(activePath) || activePath.endsWith(".base")) {
+      setDbContext(EMPTY_NOTE_DATABASE_CONTEXT);
+      return;
+    }
+    let cancelled = false;
+    void loadNoteDatabaseContextCached(adapter, queryService, activePath, fileTreeVersion).then((ctx) => {
+      if (!cancelled) setDbContext(ctx);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePath, dbCtxAdapter, dbCtxQuery, dbCtxVersion]);
 
   // Current document text: the mounted view is the source of truth; the
   // `content` state (used in read mode) may lag by the E3 sync debounce.
@@ -1415,15 +1445,44 @@ export const Editor: React.FC<{
       }
     };
 
+    /**
+     * Tab menu → "Neu laden" (P2): re-read THIS file from disk. The per-file
+     * sibling of P1's vault-wide reconcile, for the case "I edited the open
+     * note in another program". A dirty buffer wins — discarding what the user
+     * typed without asking would be the one unrecoverable outcome here.
+     */
+    const handleReloadFile = (e: Event) => {
+      const { path } = (e as CustomEvent<{ path: string }>).detail;
+      if (path !== activePath || !vaultAdapter) return;
+      if (isDirtyRef.current) {
+        toast.warning(t("tabMenu.reloadDirty", { defaultValue: "Ungespeicherte Änderungen — erst speichern, dann neu laden." }));
+        return;
+      }
+      void vaultAdapter
+        .readTextFile(path)
+        .then((disk) => {
+          const normalized = disk.replace(/\r\n/g, "\n");
+          lastPersistedRef.current = normalized;
+          applyExternalText(normalized, "reloaded from disk");
+          isDirtyRef.current = false;
+        })
+        .catch((err) => {
+          console.error("[Editor] reloading the file failed", err);
+          toast.error(t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+        });
+    };
+
     window.addEventListener("plainva-external-update", handleExternalUpdate);
     window.addEventListener("plainva-auto-merged", handleAutoMerged);
     window.addEventListener("plainva-flush-pending-save", handleFlushRequest);
     window.addEventListener("plainva-file-restored", handleFileRestored);
+    window.addEventListener("plainva-reload-file", handleReloadFile);
     return () => {
       window.removeEventListener("plainva-external-update", handleExternalUpdate);
       window.removeEventListener("plainva-auto-merged", handleAutoMerged);
       window.removeEventListener("plainva-flush-pending-save", handleFlushRequest);
       window.removeEventListener("plainva-file-restored", handleFileRestored);
+      window.removeEventListener("plainva-reload-file", handleReloadFile);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, vaultAdapter]);
@@ -1781,6 +1840,12 @@ export const Editor: React.FC<{
               </div>
             )}
             <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} />
+            <NoteDatabaseBar
+              context={dbContext}
+              title={activePath ? noteDisplayName(activePath) : ""}
+              fullWidth={editorWidth === 'full'}
+              onOpenPath={(p) => onOpenPath?.(p, false)}
+            />
             <div className={managedIndex ? "pv-index-doc" : undefined}>
               <MarkdownReader
                 content={content}
@@ -1798,6 +1863,15 @@ export const Editor: React.FC<{
         ) : (
           // The editor session (P1/P2) mounts CodeMirror into this container;
           // React only ever touches the div's attributes, never the editor.
+          // The database context line sits ABOVE it as a plain React sibling —
+          // the editor container itself must stay untouched by React.
+          <>
+            <NoteDatabaseBar
+              context={dbContext}
+              title={activePath ? noteDisplayName(activePath) : ""}
+              fullWidth={editorWidth === 'full'}
+              onOpenPath={(p) => onOpenPath?.(p, false)}
+            />
           <div
             ref={editorContainerRef}
             // Readable line length (#1): center the text column when narrow.
@@ -1807,6 +1881,7 @@ export const Editor: React.FC<{
             // is exactly one scroll container per view — no nested scrollbars (#4).
             style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, fontSize: 'var(--content-font-size, 16px)' }}
           />
+          </>
         )}
       </div>
 

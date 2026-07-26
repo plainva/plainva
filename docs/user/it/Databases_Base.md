@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-07-21
+Ultimo aggiornamento: 2026-07-26
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -82,6 +82,14 @@ Le relazioni collegano le note tra loro — come in Notion, ma memorizzate come 
 - **Bacheca per relazione**: le bacheche possono raggruppare per una relazione; trascinare le schede tra le colonne riscrive il link.
 - **Filtrare sulle relazioni**: contiene / non contiene / è vuoto / non è vuoto, con un selettore di note.
 - Contano anche i backlink: i link del frontmatter compaiono nel pannello **Backlink**, e rinominare i file aggiorna automaticamente i link delle relazioni.
+
+## Dove si colloca questa nota? (contesto del database)
+
+Quando apri direttamente una voce di database — dall'albero dei file, dalla ricerca o tramite un `[[link]]` — Plainva ora ti dice di cosa fa parte:
+
+- Sopra la nota c'è una **riga di contesto**: i database a cui appartiene la nota, come chip cliccabili (un clic apre il database), seguiti dal percorso `voce genitore / questa nota` quando il database usa i sottoelementi. Se la nota appartiene a **più** database, compaiono tutti — la riga va a capo invece di ometterne uno.
+- Nella barra laterale destra, la sezione **Database** mostra la stessa cosa in modo più dettagliato: le appartenenze con le viste in cui compare la nota, la sua **voce genitore**, i suoi **sottoelementi** e le voci **collegate** tramite relazioni — ciascuna cliccabile.
+- Se una nota non appartiene a nessun database, non compaiono né la riga né la sezione. Niente di tutto ciò viene scritto nella nota: il contesto viene ricalcolato dai tuoi file `.base` e dai tuoi link ogni volta che la apri, e la nota stessa resta puro Markdown.
 
 ## Creare nuove voci
 

@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-07-21
+Laatst bijgewerkt: 2026-07-26
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -82,6 +82,14 @@ Relaties koppelen notities aan elkaar — zoals in Notion, maar opgeslagen als h
 - **Bord op relatie**: borden kunnen groeperen op een relatie; kaarten tussen kolommen slepen herschrijft de link.
 - **Filteren op relaties**: bevat / bevat niet / is leeg / is niet leeg, met een notitiekiezer.
 - Backlinks tellen ook mee: frontmatter-links verschijnen in het **Backlinks**-paneel, en het hernoemen van bestanden werkt relatielinks automatisch bij.
+
+## Waar hoort deze notitie bij? (databasecontext)
+
+Open je een database-item rechtstreeks — vanuit de bestandsboom, via zoeken of via een `[[link]]` — dan vertelt Plainva je nu waar het deel van uitmaakt:
+
+- Boven de notitie staat een **contextregel**: de databases waartoe de notitie behoort, als aanklikbare chips (een klik opent de database), gevolgd door het pad `bovenliggend item / deze notitie` wanneer de database subitems gebruikt. Behoort de notitie tot **meerdere** databases, dan verschijnen ze allemaal — de regel loopt dan door in plaats van er een weg te laten.
+- In de rechterzijbalk toont de sectie **Databases** hetzelfde uitgebreider: lidmaatschappen met de weergaven waarin de notitie voorkomt, haar **bovenliggend item**, haar **subitems** en de via relaties **gekoppelde** items — elk aanklikbaar.
+- Behoort een notitie tot geen enkele database, dan verschijnen noch de regel, noch de sectie. Niets hiervan wordt in de notitie geschreven: de context wordt telkens opnieuw berekend uit je `.base`-bestanden en links wanneer je de notitie opent, en de notitie zelf blijft gewoon Markdown.
 
 ## Nieuwe items aanmaken
 

@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-07-21
+Stan na: 2026-07-26
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -82,6 +82,14 @@ Relacje łączą notatki ze sobą — jak w Notion, ale zapisywane jako zupełni
 - **Tablica według relacji**: tablice mogą grupować według relacji; przeciąganie kart między kolumnami przepisuje link.
 - **Filtrowanie na relacjach**: zawiera / nie zawiera / jest puste / nie jest puste, z wyborem notatki.
 - Linki zwrotne też się liczą: linki frontmatter pojawiają się w panelu **Linki zwrotne**, a zmiana nazwy pliku automatycznie aktualizuje linki relacji.
+
+## Do czego należy ta notatka? (kontekst bazy danych)
+
+Gdy otwierasz wpis bazy danych bezpośrednio — z drzewa plików, z wyszukiwania lub przez `[[link]]` — Plainva mówi Ci teraz, czego jest częścią:
+
+- Nad notatką znajduje się **wiersz kontekstu**: bazy danych, do których należy notatka, jako klikalne chipy (kliknięcie otwiera bazę danych), a po nich ścieżka `element nadrzędny / ta notatka`, gdy baza danych korzysta z elementów podrzędnych. Jeśli notatka należy do **kilku** baz danych, pojawiają się wszystkie — wiersz zawija się, zamiast pomijać którąś z nich.
+- W prawym pasku bocznym sekcja **Bazy danych** pokazuje to samo bardziej szczegółowo: przynależności wraz z widokami, w których pojawia się notatka, jej **element nadrzędny**, jej **elementy podrzędne** oraz wpisy **powiązane** przez relacje — każdy klikalny.
+- Jeśli notatka nie należy do żadnej bazy danych, nie pojawia się ani wiersz, ani sekcja. Nic z tego nie jest zapisywane w notatce: kontekst jest obliczany na nowo przy każdym otwarciu na podstawie plików `.base` i Twoich linków, a sama notatka pozostaje zwykłym Markdownem.
 
 ## Tworzenie nowych wpisów
 

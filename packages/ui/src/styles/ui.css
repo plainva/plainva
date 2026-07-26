@@ -1678,3 +1678,50 @@ button.pv-acct:hover { background: var(--state-hover); }
   .pv-security-task-head .pv-btn { align-self: flex-start; }
   .pv-security-challenge-grid { grid-template-columns: 1fr; }
 }
+
+/* Note database context line (plan P4, mockup variant A). Sits between the
+   document header and the title and answers "which database is this note a row
+   of, and where does it sit in it". Built on the shared .pv-chip family, so
+   only the row layout and the breadcrumb pieces live here. */
+.pv-dbbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+.pv-dbbar-chip {
+  gap: var(--space-1);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  border-color: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* The sub-item count is a fact, not a destination — the mockup's ghost chip
+   keeps it visually below the clickable database chips. */
+.pv-dbbar-count {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-color);
+  font-weight: 500;
+}
+.pv-dbbar-sep { color: var(--text-faint); }
+.pv-dbbar-crumb {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.pv-dbbar-crumb--here { color: var(--text-main); font-weight: 600; cursor: default; }
+/* Key/value label of the sidebar's database section (mockup variant B). */
+.pv-kv-key {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}

@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-07-21
+Última revisão: 2026-07-26
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -82,6 +82,14 @@ Relações conectam notas entre si — como no Notion, mas armazenadas como `[[w
 - **Quadro por relação**: quadros podem ser agrupados por uma relação; arrastar cartões entre colunas reescreve o link.
 - **Filtrando por relações**: contém / não contém / está vazio / não está vazio, com um seletor de notas.
 - Os backlinks também contam: links do frontmatter aparecem no painel de **Backlinks**, e renomeações de arquivo atualizam automaticamente os links de relação.
+
+## Onde esta nota se encaixa? (contexto do banco de dados)
+
+Ao abrir um item de banco de dados diretamente — pela árvore de arquivos, pela busca ou por um `[[link]]` — o Plainva agora mostra do que ele faz parte:
+
+- Acima da nota fica uma **linha de contexto**: os bancos de dados aos quais a nota pertence, como chips clicáveis (um clique abre o banco de dados), seguidos do caminho `item pai / esta nota` quando o banco de dados usa subitens. Se a nota pertencer a **vários** bancos de dados, todos aparecem — a linha se estende em vez de omitir algum.
+- Na barra lateral direita, a seção **Bancos de dados** mostra o mesmo com mais detalhes: as associações com as visualizações em que a nota aparece, seu **item pai**, seus **subitens** e as entradas **vinculadas** por relações — cada uma clicável.
+- Se uma nota não pertencer a nenhum banco de dados, nem a linha nem a seção aparecem. Nada disso é gravado na nota: o contexto é recalculado a partir dos seus arquivos `.base` e dos links toda vez que você a abre, e a nota em si continua sendo Markdown puro.
 
 ## Criando novos itens
 

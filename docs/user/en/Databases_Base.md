@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-21
+Last reviewed: 2026-07-26
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -82,6 +82,14 @@ Relations link notes to each other — like in Notion, but stored as perfectly n
 - **Board by relation**: boards can group by a relation; dragging cards between columns rewrites the link.
 - **Filtering on relations**: contains / does not contain / is empty / is not empty, with a note picker.
 - Backlinks count too: frontmatter links appear in the **Backlinks** panel, and file renames automatically update relation links.
+
+## Where does this note belong? (database context)
+
+When you open a database entry directly — from the file tree, from search or through a `[[link]]` — Plainva now tells you what it is part of:
+
+- Above the note sits a **context line**: the databases the note belongs to as clickable chips (a click opens the database), followed by the path `parent entry / this note` when the database uses sub-items. If the note belongs to **several** databases, all of them appear — the line wraps rather than dropping one.
+- In the right sidebar, the **Databases** section shows the same in more detail: memberships with the views the note appears in, its **parent entry**, its **sub-items** and the entries **linked** through relations — each one clickable.
+- If a note belongs to no database, neither the line nor the section appears. None of this is written into the note: the context is recomputed from your `.base` files and links every time you open it, and the note itself stays plain Markdown.
 
 ## Creating new entries
 

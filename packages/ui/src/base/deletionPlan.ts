@@ -1,5 +1,15 @@
-import { parseBaseConfig } from "./baseFormat";
-import { stripPropertyFilters } from "./filterExpr";
+import {
+  baseByRef,
+  createMemberLookup,
+  isBasePath,
+  loadBaseInfos,
+  normBasePath,
+  type BaseDataDeps,
+  type BaseInfo,
+} from "./baseMembership";
+
+export type { IncomingRelationRef } from "./baseMembership";
+export { isBasePath } from "./baseMembership";
 import { noteDisplayName } from "../lib/noteTitle";
 
 /**
@@ -26,22 +36,8 @@ import { noteDisplayName } from "../lib/noteTitle";
  * share one implementation and the unit suite runs on fake deps.
  */
 
-export interface IncomingRelationRef {
-  path: string;
-  title: string;
-  propertyKey: string;
-}
-
-export interface DeletionPlanDeps {
-  /** Incoming frontmatter-property links for the given targets (any key). */
-  getIncomingRelationRefs(targetPaths: string[]): Promise<Map<string, IncomingRelationRef[]>>;
-  /** Resolved outgoing targets of one property on one note (link index order). */
-  getOutgoingRelationTargets(sourcePath: string, propertyKey: string): Promise<string[]>;
-  /** Membership query (the shells pass VaultQueryService.queryDatabaseFiles). */
-  queryDatabaseFiles(config: unknown): Promise<Array<{ path: string; title?: string | null }>>;
-  listBaseFilePaths(): Promise<string[]>;
-  readTextFile(path: string): Promise<string>;
-}
+/** The data surface a plan needs — shared with the note database context. */
+export type DeletionPlanDeps = BaseDataDeps;
 
 export interface CascadeElement {
   path: string;
@@ -96,67 +92,8 @@ export interface CascadeSelection {
   cleanupRefs: boolean;
 }
 
-function normPath(p: unknown): string {
-  return String(p ?? "").replace(/\\/g, "/").replace(/^\.\//, "");
-}
+const normPath = normBasePath;
 
-export function isBasePath(path: string): boolean {
-  return /\.base$/i.test(path);
-}
-
-function baseLabelOf(path: string): string {
-  return (path.split(/[/\\]/).pop() ?? path).replace(/\.base$/i, "");
-}
-
-interface BaseInfo {
-  path: string;
-  label: string;
-  config: unknown;
-  /** Every declared column key (typed or not) — used to group candidates. */
-  columnKeys: Set<string>;
-  /** Owning relation columns: key + raw relationBase reference (may be bare). */
-  relations: { key: string; relationBase: string | null }[];
-  /** Raw base references my computed reverse columns point at. */
-  reverseTargets: string[];
-}
-
-async function loadBaseInfos(deps: DeletionPlanDeps): Promise<BaseInfo[]> {
-  const out: BaseInfo[] = [];
-  for (const path of await deps.listBaseFilePaths()) {
-    try {
-      const config: any = parseBaseConfig(await deps.readTextFile(path));
-      const columns: Record<string, any> = config?.columns ?? {};
-      const relations: BaseInfo["relations"] = [];
-      const reverseTargets: string[] = [];
-      for (const [key, col] of Object.entries(columns)) {
-        if (!col || typeof col !== "object") continue;
-        if (col.input === "relation" || col.relationBase) {
-          relations.push({ key, relationBase: typeof col.relationBase === "string" ? col.relationBase : null });
-        }
-        if (col.reverseOf && typeof col.reverseOf.base === "string") {
-          reverseTargets.push(col.reverseOf.base);
-        }
-      }
-      out.push({ path: normPath(path), label: baseLabelOf(path), config, columnKeys: new Set(Object.keys(columns)), relations, reverseTargets });
-    } catch {
-      /* unparseable base: it cannot contribute groups */
-    }
-  }
-  return out;
-}
-
-/** Resolves a raw base reference (bare name or path) against the loaded bases. */
-function baseByRef(bases: BaseInfo[], ref: string | null): BaseInfo | null {
-  if (!ref) return null;
-  const norm = normPath(ref).toLowerCase();
-  const bare = norm.replace(/\.base$/i, "");
-  for (const b of bases) {
-    const p = b.path.toLowerCase();
-    if (p === norm || p === `${norm}.base`) return b;
-    if (b.label.toLowerCase() === bare && !bare.includes("/")) return b;
-  }
-  return null;
-}
 
 interface CascadeResult {
   /** path -> candidate (excluding the seeds themselves). */
@@ -201,23 +138,7 @@ export async function buildDeletionPlan(deps: DeletionPlanDeps, targetPaths: str
   const noteTargets = targets.filter((p) => !isBasePath(p));
 
   const bases = baseTargets.length > 0 || noteTargets.length > 0 ? await loadBaseInfos(deps) : [];
-  const memberCache = new Map<string, { set: Set<string>; rows: Array<{ path: string; title: string }> }>();
-  const membersOf = async (base: BaseInfo) => {
-    const cached = memberCache.get(base.path);
-    if (cached) return cached;
-    let rows: Array<{ path: string; title: string }>;
-    try {
-      rows = (await deps.queryDatabaseFiles(stripPropertyFilters(base.config))).map((r) => ({
-        path: normPath(r.path),
-        title: (r.title ?? "") || noteDisplayName(String(r.path)),
-      }));
-    } catch {
-      rows = [];
-    }
-    const entry = { set: new Set(rows.map((r) => r.path)), rows };
-    memberCache.set(base.path, entry);
-    return entry;
-  };
+  const membersOf = createMemberLookup(deps);
 
   const groups: CascadeGroup[] = [];
   const grouped = new Set<string>(); // every element lands in exactly one group

@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-07-21
+Stand: 2026-07-26
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -82,6 +82,14 @@ Relationen verknüpfen Notizen miteinander — wie in Notion, aber gespeichert a
 - **Board nach Relation**: Boards können nach einer Relation gruppieren; Karten-Drag zwischen Spalten setzt den Link um.
 - **Filter auf Relationen**: enthält / enthält nicht / ist leer / ist nicht leer, mit Notiz-Auswahl.
 - Backlinks zählen mit: Frontmatter-Links erscheinen im **Backlinks**-Panel, und Datei-Umbenennungen ziehen Relation-Links automatisch nach.
+
+## Wo gehört diese Notiz hin? (Datenbank-Kontext)
+
+Öffnest Du einen Datenbank-Eintrag direkt — aus dem Dateibaum, über die Suche oder einen `[[Link]]` —, sagt Dir Plainva jetzt, in welchem Zusammenhang die Notiz steht:
+
+- Über der Notiz steht eine **Kontextzeile**: die Datenbanken, zu denen die Notiz gehört, als anklickbare Chips (ein Klick öffnet die Datenbank), gefolgt vom Pfad `Eltern-Eintrag / diese Notiz`, wenn die Datenbank Unterelemente nutzt. Gehört die Notiz zu **mehreren** Datenbanken, erscheinen alle — die Zeile bricht dann um, statt eine wegzulassen.
+- In der rechten Seitenleiste zeigt der Bereich **Datenbanken** dasselbe ausführlicher: Mitgliedschaften mit den Ansichten, in denen die Notiz vorkommt, ihren **Eltern-Eintrag**, ihre **Unterelemente** und die über Relationen **verknüpften Einträge** — jeweils direkt anklickbar.
+- Gehört eine Notiz zu keiner Datenbank, erscheint weder Zeile noch Bereich. Nichts davon wird in die Notiz geschrieben: Der Kontext wird bei jedem Öffnen aus den `.base`-Dateien und Deinen Links neu berechnet, die Notiz selbst bleibt unverändertes Markdown.
 
 ## Neue Einträge anlegen
 

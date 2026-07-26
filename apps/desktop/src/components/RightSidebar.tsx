@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, GripVertical, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints } from "lucide-react";
+import { ChevronDown, Database, GripVertical, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -10,7 +10,9 @@ import { GraphContextSection } from "./graph/GraphContextSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
-import { ICON } from "@plainva/ui";
+import { ICON, EMPTY_NOTE_DATABASE_CONTEXT, hasNoteDatabaseContext, type NoteDatabaseContext } from "@plainva/ui";
+import { NoteDatabasesSection } from "./NoteDatabasesSection";
+import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
 
 /** Cheap top-level frontmatter key count (regex + small YAML parse) — avoids a full
  *  markdown AST parse per keystroke so the badge stays light even when collapsed. */
@@ -25,8 +27,8 @@ function frontmatterKeyCount(content: string): number {
   }
 }
 
-type SectionId = "calendar" | "outline" | "graph" | "backlinks" | "properties";
-const ALL: SectionId[] = ["calendar", "outline", "graph", "backlinks", "properties"];
+type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
+const ALL: SectionId[] = ["calendar", "outline", "graph", "databases", "backlinks", "properties"];
 const ORDER_KEY = "plainva-right-panels-order";
 const openKey = (id: SectionId) => `plainva-right-panel-open-${id}`;
 
@@ -62,12 +64,28 @@ interface RightSidebarProps {
 
 export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken }: RightSidebarProps) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion } = useVault();
+  const { queryService, fileTreeVersion, vaultAdapter } = useVault();
   const [order, setOrder] = useState<SectionId[]>(() => readOrder());
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
-    calendar: readOpen("calendar"), outline: readOpen("outline"), graph: readOpen("graph"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
+    calendar: readOpen("calendar"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
   }));
   const [counts, setCounts] = useState<{ backlinks: number; properties: number; outline: number }>({ backlinks: 0, properties: 0, outline: 0 });
+  // Database context of the active note (plan P4). Same cached source as the
+  // context line in the document head, so both always agree.
+  const [dbContext, setDbContext] = useState<NoteDatabaseContext>(EMPTY_NOTE_DATABASE_CONTEXT);
+  useEffect(() => {
+    if (!activePath || !vaultAdapter || !queryService || !/\.md$/i.test(activePath)) {
+      setDbContext(EMPTY_NOTE_DATABASE_CONTEXT);
+      return;
+    }
+    let cancelled = false;
+    void loadNoteDatabaseContextCached(vaultAdapter, queryService, activePath, fileTreeVersion).then((ctx) => {
+      if (!cancelled) setDbContext(ctx);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePath, vaultAdapter, queryService, fileTreeVersion]);
   const [dragId, setDragId] = useState<SectionId | null>(null);
   const [overId, setOverId] = useState<SectionId | null>(null);
   // Synchronous mirror of the active drag so pointer handlers don't read stale state.
@@ -170,6 +188,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     calendar: { title: t("rightPanel.calendar", { defaultValue: "Kalender" }), icon: <CalendarDays size={ICON.ui} />, pad: false },
     outline: { title: t("rightPanel.outline", { defaultValue: "Gliederung" }), icon: <List size={ICON.ui} />, count: counts.outline, pad: true },
     graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={ICON.ui} />, pad: true },
+    databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, pad: true },
     backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={ICON.ui} />, count: counts.backlinks, pad: true },
     properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
   };
@@ -178,6 +197,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     if (id === "calendar") return <CalendarWidget onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
     if (id === "outline") return <OutlineSection />;
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
+    if (id === "databases") return <NoteDatabasesSection context={dbContext} onOpenPath={onOpenPath} />;
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;
     return <PropertiesSection onOpenPath={onOpenPath} />;
   };
@@ -194,6 +214,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
         // note has content again (no "No properties for this file" panel).
         const hasContent = id === "calendar"
           || (id === "graph" && Boolean(activePath && /\.md$/i.test(activePath)))
+          || (id === "databases" && hasNoteDatabaseContext(dbContext))
           || (id === "outline" && counts.outline > 0)
           || (id === "backlinks" && counts.backlinks > 0)
           || (id === "properties" && counts.properties > 0);

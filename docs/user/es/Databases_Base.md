@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-07-21
+Última actualización: 2026-07-26
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -82,6 +82,14 @@ Las relaciones enlazan notas entre sí — como en Notion, pero guardadas como `
 - **Tablero por relación**: los tableros pueden agruparse por una relación; arrastrar tarjetas entre columnas reescribe el enlace.
 - **Filtrar por relaciones**: contiene / no contiene / está vacío / no está vacío, con un selector de notas.
 - Los retroenlaces también cuentan: los enlaces del frontmatter aparecen en el panel de **Retroenlaces**, y los renombrados de archivos actualizan automáticamente los enlaces de relación.
+
+## ¿Dónde encaja esta nota? (contexto de base de datos)
+
+Cuando abres directamente una entrada de base de datos — desde el árbol de archivos, desde la búsqueda o mediante un `[[enlace]]` — Plainva ahora te dice de qué forma parte:
+
+- Encima de la nota hay una **línea de contexto**: las bases de datos a las que pertenece la nota, como chips en los que se puede hacer clic (un clic abre la base de datos), seguidas de la ruta `entrada padre / esta nota` cuando la base de datos usa subelementos. Si la nota pertenece a **varias** bases de datos, aparecen todas — la línea se ajusta a varias líneas en lugar de omitir alguna.
+- En la barra lateral derecha, la sección **Bases de datos** muestra lo mismo con más detalle: las pertenencias con las vistas en las que aparece la nota, su **entrada padre**, sus **subelementos** y las entradas **enlazadas** mediante relaciones — cada una en la que se puede hacer clic.
+- Si una nota no pertenece a ninguna base de datos, no aparece ni la línea ni la sección. Nada de esto se escribe en la nota: el contexto se recalcula a partir de tus archivos `.base` y tus enlaces cada vez que la abres, y la nota en sí sigue siendo Markdown normal.
 
 ## Crear nuevos elementos
 

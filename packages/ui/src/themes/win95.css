@@ -519,3 +519,18 @@
 }
 [data-theme-name="win95"] .pv-security-code-group { background: #FFFFFF; color: #000000; }
 [data-theme-name="win95"] .pv-security-code-group[data-requested="true"] { background: #000080; color: #FFFFFF; }
+
+/* P4 database context line: square, bevelled chip like every other Win95 control. */
+[data-theme-name="win95"] .pv-dbbar-chip {
+  border: none;
+  border-radius: 0;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}
+[data-theme-name="win95"] .pv-dbbar-crumb { border-radius: 0; }
+[data-theme-name="win95"] .pv-kv-key { text-transform: none; letter-spacing: 0; }

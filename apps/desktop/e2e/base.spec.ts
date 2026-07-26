@@ -402,8 +402,15 @@ test.beforeEach(async ({ page }) => {
             return rows.map(r => ({ ...r }));
           }
           if (query.includes('FROM properties')) {
+            // Two callers, two key shapes: the base viewer passes file IDs,
+            // getFileProperties joins on files.path. Accept both so a query by
+            // path does not silently come back empty.
             const out: any[] = [];
-            for (const id of values) for (const p of dbProps[String(id)] || []) out.push({ file_id: id, ...p });
+            for (const v of values) {
+              const key = String(v);
+              const id = dbFiles.some(f => f.id === key) ? key : (dbFiles.find(f => f.path === key)?.id ?? key);
+              for (const p of dbProps[id] || []) out.push({ file_id: id, ...p });
+            }
             return out;
           }
           return [];
@@ -1745,4 +1752,35 @@ test('Sub-items lives in the data-source tab for every view type; graph shows th
   await configTab(page, 'view');
   await panel.getByRole('radio', { name: /^(Graph)$/ }).click();
   await expect(page.getByRole('button', { name: /Trotzdem verwenden|Use anyway/ })).toBeVisible();
+});
+
+// --- Plan 2026-07-25 P4: a note opened on its own says which database it is in ---
+
+test('Database context: opening an entry directly shows its databases and its parent', async ({ page }) => {
+  // The gap this closes: reached from the tree, from search or through a link,
+  // a database entry looked like any loose note — nothing said it was a row in
+  // a database, let alone which one or under which parent.
+  await page.goto('/');
+  await expect(page.getByText('Projekte', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Reached through the file tree — i.e. WITHOUT any database on screen, which
+  // is exactly the situation the bar is there for.
+  await page.getByText('Projekte', { exact: true }).click();
+  await page.locator('[data-tree-path="Projekte/Beta.md"]').click();
+
+  const bar = page.getByTestId('note-db-bar');
+  await expect(bar).toBeVisible({ timeout: 10000 });
+
+  // Beta sits in several databases over the Projekte folder — all of them are
+  // named (E6: no silent truncation), and the chip opens the database.
+  await expect(bar.getByRole('button', { name: /Cockpit/ })).toBeVisible();
+  await expect(bar.getByRole('button', { name: /Tasks/ })).toBeVisible();
+
+  // Tasks.base declares sub-items via `parent`, and Beta's parent is Alpha —
+  // so the trail reads Alpha › Beta rather than just naming the database.
+  await expect(bar.getByRole('button', { name: /^Alpha$/ })).toBeVisible();
+  await expect(bar).toContainText('Beta');
+
+  await bar.getByRole('button', { name: /Cockpit/ }).click();
+  await expect(page.getByRole('tab').filter({ hasText: 'Cockpit' })).toBeVisible();
 });

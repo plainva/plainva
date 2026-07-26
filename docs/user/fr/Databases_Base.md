@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-07-21
+Dernière mise à jour : 2026-07-26
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -82,6 +82,14 @@ Les relations lient des notes entre elles — comme dans Notion, mais stockées 
 - **Kanban par relation** : les boards peuvent se regrouper par une relation ; glisser des cartes entre les colonnes réécrit le lien.
 - **Filtrer sur les relations** : contient / ne contient pas / est vide / n'est pas vide, avec un sélecteur de notes.
 - Les backlinks comptent aussi : les liens du frontmatter apparaissent dans le panneau **Backlinks**, et les renommages de fichiers mettent automatiquement à jour les liens de relation.
+
+## Où cette note a-t-elle sa place ? (contexte de base de données)
+
+Quand vous ouvrez directement une entrée de base de données — depuis l'arborescence de fichiers, depuis la recherche ou via un `[[lien]]` — Plainva vous indique désormais de quoi elle fait partie :
+
+- Au-dessus de la note se trouve une **ligne de contexte** : les bases de données auxquelles appartient la note, sous forme de puces cliquables (un clic ouvre la base de données), suivies du chemin `entrée parente / cette note` lorsque la base de données utilise des sous-éléments. Si la note appartient à **plusieurs** bases de données, elles apparaissent toutes — la ligne passe alors à la ligne plutôt que d'en omettre une.
+- Dans la barre latérale droite, la section **Bases de données** montre la même chose plus en détail : les appartenances avec les vues où la note apparaît, son **entrée parente**, ses **sous-éléments** et les entrées **liées** par des relations — chacune cliquable.
+- Si une note n'appartient à aucune base de données, ni la ligne ni la section n'apparaissent. Rien de tout cela n'est écrit dans la note : le contexte est recalculé à partir de vos fichiers `.base` et de vos liens à chaque ouverture, et la note elle-même reste du Markdown ordinaire.
 
 ## Créer de nouveaux éléments
 
