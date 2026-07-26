@@ -28,7 +28,7 @@ export function MailListScreen({
 }: {
   bump: number;
   onBack?: () => void;
-  onOpenMessage: (accountId: string, mailbox: string, id: string) => void;
+  onOpenMessage: (accountId: string, mailbox: string, id: string, flagged: boolean) => void;
   onOpenAccounts: () => void;
   onCompose: (accountId: string) => void;
 }) {
@@ -172,7 +172,7 @@ export function MailListScreen({
               <button
                 type="button"
                 className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
-                onClick={() => account && mailbox && onOpenMessage(account.id, mailbox, m.id)}
+                onClick={() => account && mailbox && onOpenMessage(account.id, mailbox, m.id, m.flagged)}
               >
                 <span className="m-mailrow-top">
                   <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>

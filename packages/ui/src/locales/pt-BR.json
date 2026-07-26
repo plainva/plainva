@@ -2378,7 +2378,10 @@
     "noRecipient": "Informe pelo menos um destinatário",
     "password": "Senha de app",
     "connect": "Conectar",
-    "presetUnknown": "O Plainva ainda não conhece este provedor — conecte a caixa de correio no computador, onde você pode informar servidor e porta."
+    "presetUnknown": "O Plainva ainda não conhece este provedor — conecte a caixa de correio no computador, onde você pode informar servidor e porta.",
+    "deleted": "Movido para a lixeira",
+    "deleteForeverConfirm": "Excluir esta mensagem definitivamente?",
+    "noTrashFolder": "Esta caixa não tem lixeira — exclua a mensagem no seu provedor."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

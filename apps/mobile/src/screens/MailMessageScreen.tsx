@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, FileText, Reply } from "lucide-react";
+import { ChevronLeft, FileText, Reply, Star, Trash2 } from "lucide-react";
 import { EmptyState, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
-import { buildMailFrameDoc, buildReplyBody, captureMailAsNote, fetchMessage, sanitizeEmailHtml, setMessageSeen } from "@plainva/ui/mail";
+import {
+  buildMailFrameDoc,
+  buildReplyBody,
+  captureMailAsNote,
+  deleteMessagePermanently,
+  fetchMessage,
+  guessTrashMailbox,
+  listMailboxesFor,
+  moveMessage,
+  sanitizeEmailHtml,
+  setMessageFlagged,
+  setMessageSeen,
+} from "@plainva/ui/mail";
+import { mConfirm } from "../services/mobileDialogs";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -30,6 +43,7 @@ export function MailMessageScreen({
   onBack,
   onOpenNote,
   onReply,
+  flagged: initialFlagged = false,
 }: {
   vault: MobileVault;
   accountId: string;
@@ -38,6 +52,9 @@ export function MailMessageScreen({
   onBack: () => void;
   onOpenNote: (path: string) => void;
   onReply: (draft: { accountId: string; to: string; subject: string; body: string }) => void;
+  /** Envelope flag from the list — a fetched message carries none, so the star
+   *  would otherwise always start empty (the reason G1 left it out). */
+  flagged?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const [account, setAccount] = useState<MailAccountConfig | null>(null);
@@ -45,6 +62,7 @@ export function MailMessageScreen({
   const [error, setError] = useState<string | null>(null);
   const [showRemote, setShowRemote] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flagged, setFlagged] = useState(initialFlagged);
   const vaultId = mailVaultId();
 
   useEffect(() => {
@@ -62,7 +80,7 @@ export function MailMessageScreen({
         // here must not swallow the message itself.
         void setMessageSeen(vaultId, account, mailbox, messageId, true).catch(() => undefined);
       })
-      .catch((e) => !cancelled && setError(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e)));
+      .catch((e) => !cancelled && setError(describe(e, t)));
     return () => {
       cancelled = true;
     };
@@ -79,6 +97,45 @@ export function MailMessageScreen({
     return null;
   }, [message, showRemote, alwaysRemote]);
 
+  const toggleFlag = async () => {
+    if (!vaultId || !account) return;
+    const next = !flagged;
+    setFlagged(next); // optimistic: the star must answer the tap at once
+    try {
+      await setMessageFlagged(vaultId, account, mailbox, messageId, next);
+    } catch (e) {
+      setFlagged(!next);
+      toast.error(describe(e, t));
+    }
+  };
+
+  /** Trash, not shred: the message moves to the trash folder, exactly like the
+   *  desktop. Only a message ALREADY in the trash is deleted for good. */
+  const remove = async () => {
+    if (!vaultId || !account) return;
+    setBusy(true);
+    try {
+      const boxes = await listMailboxesFor(vaultId, account);
+      const trash = guessTrashMailbox(boxes.map((b) => b.name), boxes[0]?.delimiter);
+      const inTrash = trash !== null && trash === mailbox;
+      if (inTrash) {
+        if (!(await mConfirm({ title: t("mail.deleteForeverConfirm"), danger: true }))) return;
+        await deleteMessagePermanently(vaultId, account, mailbox, messageId);
+      } else if (trash) {
+        await moveMessage(vaultId, account, mailbox, messageId, trash);
+      } else {
+        toast.error(t("mail.noTrashFolder"));
+        return;
+      }
+      toast.success(t("mail.deleted"));
+      onBack();
+    } catch (e) {
+      toast.error(describe(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const capture = async () => {
     if (!message || !account) return;
     setBusy(true);
@@ -88,7 +145,7 @@ export function MailMessageScreen({
       toast.success(res.created ? t("mail.captured", { name: res.path }) : t("mail.noteExists"));
       onOpenNote(res.path);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(describe(e, t));
     } finally {
       setBusy(false);
     }
@@ -101,6 +158,18 @@ export function MailMessageScreen({
           <ChevronLeft size={20} />
         </button>
         <h1>{message?.subject || t("mail.noSubject")}</h1>
+        <button
+          type="button"
+          className="m-iconbtn"
+          aria-label={t("mail.flag")}
+          aria-pressed={flagged}
+          onClick={() => void toggleFlag()}
+        >
+          <Star size={18} className={flagged ? "m-mailrow-flag" : undefined} />
+        </button>
+        <button type="button" className="m-iconbtn" aria-label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
+          <Trash2 size={18} />
+        </button>
       </header>
 
       {error ? (
@@ -158,4 +227,10 @@ export function MailMessageScreen({
       )}
     </div>
   );
+}
+
+/** IMAP has its own message where no socket exists (the web dev server). */
+function describe(e: unknown, t: (k: string) => string): string {
+  if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
+  return e instanceof Error ? e.message : String(e);
 }

@@ -100,12 +100,12 @@ function parseDraft(path: string): MailDraft {
   }
 }
 
-function parseMailRef(path: string): { accountId: string; mailbox: string; messageId: string } {
+function parseMailRef(path: string): { accountId: string; mailbox: string; messageId: string; flagged: boolean } {
   try {
-    const p = JSON.parse(path) as { a?: string; m?: string; id?: string };
-    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "" };
+    const p = JSON.parse(path) as { a?: string; m?: string; id?: string; f?: boolean };
+    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "", flagged: p.f === true };
   } catch {
-    return { accountId: "", mailbox: "", messageId: "" };
+    return { accountId: "", mailbox: "", messageId: "", flagged: false };
   }
 }
 
@@ -787,7 +787,7 @@ export default function App() {
           <MailListScreen
             bump={bump}
             onBack={pop}
-            onOpenMessage={(a, m, id) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id }) })}
+            onOpenMessage={(a, m, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f }) })}
             onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
             onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
           />
@@ -845,7 +845,7 @@ export default function App() {
         ) : nav.activeTab === "mail" ? (
           <MailListScreen
             bump={bump}
-            onOpenMessage={(acc, mb, id) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id }) })}
+            onOpenMessage={(acc, mb, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
             onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
             onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
           />

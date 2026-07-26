@@ -2378,7 +2378,10 @@
     "noRecipient": "Aggiungi almeno un destinatario",
     "password": "Password per app",
     "connect": "Collega",
-    "presetUnknown": "Plainva non conosce ancora questo provider: collega la casella sul computer, dove puoi indicare server e porta."
+    "presetUnknown": "Plainva non conosce ancora questo provider: collega la casella sul computer, dove puoi indicare server e porta.",
+    "deleted": "Spostato nel cestino",
+    "deleteForeverConfirm": "Eliminare definitivamente questo messaggio?",
+    "noTrashFolder": "Questa casella non ha un cestino: elimina il messaggio presso il tuo provider."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

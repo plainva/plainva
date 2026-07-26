@@ -2371,7 +2371,10 @@
     "noRecipient": "Voeg minstens één ontvanger toe",
     "password": "App-wachtwoord",
     "connect": "Verbinden",
-    "presetUnknown": "Plainva kent deze provider nog niet — verbind de postbus op de desktop, daar kun je server en poort zelf invullen."
+    "presetUnknown": "Plainva kent deze provider nog niet — verbind de postbus op de desktop, daar kun je server en poort zelf invullen.",
+    "deleted": "Naar prullenbak verplaatst",
+    "deleteForeverConfirm": "Dit bericht definitief verwijderen?",
+    "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

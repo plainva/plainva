@@ -2385,7 +2385,10 @@
     "noRecipient": "Podaj co najmniej jednego odbiorcę",
     "password": "Hasło aplikacji",
     "connect": "Połącz",
-    "presetUnknown": "Plainva nie zna jeszcze tego dostawcy — połącz skrzynkę na komputerze, gdzie możesz samodzielnie podać serwer i port."
+    "presetUnknown": "Plainva nie zna jeszcze tego dostawcy — połącz skrzynkę na komputerze, gdzie możesz samodzielnie podać serwer i port.",
+    "deleted": "Przeniesiono do kosza",
+    "deleteForeverConfirm": "Usunąć tę wiadomość bezpowrotnie?",
+    "noTrashFolder": "Ta skrzynka nie ma kosza — usuń wiadomość u swojego dostawcy."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

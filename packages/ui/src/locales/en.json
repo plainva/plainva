@@ -2371,7 +2371,10 @@
     "noRecipient": "Add at least one recipient",
     "password": "App password",
     "connect": "Connect",
-    "presetUnknown": "Plainva does not know this provider yet — connect the mailbox on the desktop, where you can enter server and port yourself."
+    "presetUnknown": "Plainva does not know this provider yet — connect the mailbox on the desktop, where you can enter server and port yourself.",
+    "deleted": "Moved to trash",
+    "deleteForeverConfirm": "Delete this message for good?",
+    "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

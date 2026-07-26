@@ -2364,7 +2364,10 @@
     "noRecipient": "请至少填写一位收件人",
     "password": "应用专用密码",
     "connect": "连接",
-    "presetUnknown": "Plainva 还不认识这个提供商——请在桌面端连接该邮箱，那里可以自行填写服务器和端口。"
+    "presetUnknown": "Plainva 还不认识这个提供商——请在桌面端连接该邮箱，那里可以自行填写服务器和端口。",
+    "deleted": "已移至回收站",
+    "deleteForeverConfirm": "要永久删除这封邮件吗？",
+    "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

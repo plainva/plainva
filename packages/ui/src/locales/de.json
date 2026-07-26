@@ -2371,7 +2371,10 @@
     "noRecipient": "Mindestens eine Empfängeradresse angeben",
     "password": "App-Passwort",
     "connect": "Verbinden",
-    "presetUnknown": "Diesen Anbieter kennt Plainva noch nicht — verbinde das Postfach am Desktop, dort kannst Du Server und Port selbst eintragen."
+    "presetUnknown": "Diesen Anbieter kennt Plainva noch nicht — verbinde das Postfach am Desktop, dort kannst Du Server und Port selbst eintragen.",
+    "deleted": "In den Papierkorb verschoben",
+    "deleteForeverConfirm": "Diese Nachricht endgültig löschen?",
+    "noTrashFolder": "Dieses Postfach hat keinen Papierkorb — lösche die Nachricht bei Deinem Anbieter."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",
