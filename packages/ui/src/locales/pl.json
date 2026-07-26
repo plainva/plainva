@@ -2471,7 +2471,12 @@
     "noTrashFolder": "Ta skrzynka nie ma kosza — usuń wiadomość u swojego dostawcy.",
     "search": "Szukaj w tym folderze",
     "attachmentSaved": "Zapisano jako {{name}}",
-    "offlineCopy": "Offline — pokazujemy ostatnią kopię z tego urządzenia."
+    "offlineCopy": "Offline — pokazujemy ostatnią kopię z tego urządzenia.",
+    "sendingGroup": "Wysyłanie",
+    "signature": "Podpis",
+    "signatureHint": "Dodawany pod Twoim tekstem podczas pisania. Markdown, tak jak w edytorze.",
+    "senders": "Dodatkowe adresy nadawcy",
+    "sendersHint": "Jeden w wierszu, np. Imię <alias@example.org>. O tym, czy adres zostanie przyjęty, decyduje Twój dostawca."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

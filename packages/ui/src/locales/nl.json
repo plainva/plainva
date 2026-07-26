@@ -2455,7 +2455,12 @@
     "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider.",
     "search": "Zoeken in deze map",
     "attachmentSaved": "Opgeslagen als {{name}}",
-    "offlineCopy": "Offline — je ziet de laatste kopie van dit apparaat."
+    "offlineCopy": "Offline — je ziet de laatste kopie van dit apparaat.",
+    "sendingGroup": "Verzenden",
+    "signature": "Handtekening",
+    "signatureHint": "Wordt bij het opstellen onder je tekst gezet. Markdown, net als in de editor.",
+    "senders": "Extra afzenderadressen",
+    "sendersHint": "Eén per regel, bijv. Naam <alias@example.org>. Of een adres wordt geaccepteerd, bepaalt je provider."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

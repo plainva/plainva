@@ -2455,7 +2455,12 @@
     "noTrashFolder": "Dieses Postfach hat keinen Papierkorb — lösche die Nachricht bei Deinem Anbieter.",
     "search": "In diesem Ordner suchen",
     "attachmentSaved": "Gespeichert unter {{name}}",
-    "offlineCopy": "Offline — angezeigt wird die letzte Kopie von diesem Gerät."
+    "offlineCopy": "Offline — angezeigt wird die letzte Kopie von diesem Gerät.",
+    "sendingGroup": "Senden",
+    "signature": "Signatur",
+    "signatureHint": "Wird beim Verfassen unter Deinen Text gesetzt. Markdown wie im Editor.",
+    "senders": "Weitere Absender-Adressen",
+    "sendersHint": "Eine pro Zeile, z. B. Name <alias@example.org>. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

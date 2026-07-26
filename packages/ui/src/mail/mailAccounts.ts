@@ -27,6 +27,85 @@ export interface MailAccountConfig {
   kind?: "imap" | "microsoft";
   /** OAuth client id used for the Microsoft (Graph) login. */
   clientId?: string;
+  /**
+   * Signature in Markdown, appended below what you write (issue #34 round 1).
+   * Markdown like the rest of composing, so it renders in the HTML part and
+   * still reads correctly in the plain-text part.
+   */
+  signature?: string;
+  /**
+   * Additional sender addresses (aliases) offered in the From picker, e.g.
+   * "Name <alias@example.org>". The account's own `user` is always the first
+   * choice and never has to be listed here. Whether an alias is ACCEPTED is the
+   * provider's call — a server that refuses to relay it says so, and Plainva
+   * surfaces that error rather than silently sending as someone else.
+   */
+  senders?: string[];
+}
+
+/** Every address this account may send from: its own first, then the configured
+ * aliases, trimmed and de-duplicated (case-insensitively on the address). Pure. */
+export function senderOptions(account: MailAccountConfig): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [account.user, ...(account.senders ?? [])]) {
+    const value = (raw ?? "").trim();
+    if (!value) continue;
+    const key = (value.match(/<([^>]+)>/)?.[1] ?? value).trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
+/**
+ * Key of one entry in the From picker. Both shells offer ADDRESSES rather than
+ * accounts (an account contributes its own address plus its aliases), so the
+ * selected value has to carry both parts. "|" separates them: it cannot occur
+ * in a uuid and is not valid in an address.
+ */
+export function senderKey(accountId: string, address: string): string {
+  return `${accountId}|${address}`;
+}
+
+/** Splits a `senderKey`; an address may itself contain "|" only in a display
+ * name, so everything after the FIRST separator is the address. */
+export function splitSenderKey(key: string): { accountId: string; address: string } {
+  const at = key.indexOf("|");
+  return at < 0 ? { accountId: key, address: "" } : { accountId: key.slice(0, at), address: key.slice(at + 1) };
+}
+
+/** The signature block as it appears in a body: the conventional "-- " marker
+ * (which mail clients recognise and can fold) plus the text. */
+function signatureBlock(account: MailAccountConfig | null | undefined): string {
+  const signature = (account?.signature ?? "").trim();
+  return signature ? `-- \n${signature}` : "";
+}
+
+/** Appends the account's signature to a draft body, never twice. Pure. */
+export function withSignature(markdown: string, account: MailAccountConfig | null | undefined): string {
+  const block = signatureBlock(account);
+  if (!block || markdown.includes(block)) return markdown;
+  // The signature goes below what you write but ABOVE a quoted original, which
+  // is where every mail client puts it and where a reader expects it.
+  const quoteAt = markdown.search(/^>/m);
+  if (quoteAt < 0) return `${markdown.replace(/\s*$/, "")}\n\n${block}\n`;
+  const head = markdown.slice(0, quoteAt).replace(/\s*$/, "");
+  return `${head}\n\n${block}\n\n${markdown.slice(quoteAt)}`;
+}
+
+/** Removes an account's signature block from a body (used when the sender
+ * changes, so two signatures never stack up). Only removes an EXACT block, so
+ * text the user typed themselves is never touched. Pure. */
+export function withoutSignature(markdown: string, account: MailAccountConfig | null | undefined): string {
+  const block = signatureBlock(account);
+  if (!block || !markdown.includes(block)) return markdown;
+  return markdown.replace(new RegExp(`\\n*${escapeRegExp(block)}\\n*`), "\n\n").replace(/\s*$/, "\n");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Backend selector: stored accounts without a kind are IMAP. */
@@ -60,6 +139,24 @@ export async function saveMailAccount(vaultPath: string, account: MailAccountCon
   await store.set(mailAccountsKey(vaultPath), next);
   await store.save();
   await getPlatformServices().credentials.writeSecret(mailSecretKey(vaultPath, account.id), { pass: password });
+}
+
+/**
+ * Patches the non-secret fields of one account (signature, sender addresses,
+ * label). Deliberately separate from `saveMailAccount`, which writes the
+ * credential slot too — editing a signature must never touch the stored
+ * password, and there is no password to re-supply on that surface.
+ */
+export async function updateMailAccount(
+  vaultPath: string,
+  accountId: string,
+  patch: Partial<Omit<MailAccountConfig, "id">>
+): Promise<void> {
+  const store = await getPlatformServices().loadSettings();
+  const list = await listMailAccounts(vaultPath);
+  const next = list.map((a) => (a.id === accountId ? { ...a, ...patch } : a));
+  await store.set(mailAccountsKey(vaultPath), next);
+  await store.save();
 }
 
 export async function removeMailAccount(vaultPath: string, accountId: string): Promise<void> {

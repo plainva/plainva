@@ -54,6 +54,13 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 - **Wyślij notatkę e-mailem (mailto)** (paleta poleceń): otwiera Twój domyślny program pocztowy z notatką jako zwykłym tekstem (długie notatki są skracane).
 - **Kopiuj notatkę jako tekst e-maila** (paleta poleceń): umieszcza notatkę w schowku z formatowaniem — wklej ją w dowolnym edytorze wiadomości.
 
+## Podpis i adresy nadawcy
+
+W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne ustawienia:
+
+- **Podpis** — w Markdownie, dodawany pod Twoim tekstem podczas pisania (i nad cytowanym oryginałem, gdzie czytelnik się go spodziewa). Zmiana nadawcy w oknie tworzenia wiadomości podmienia podpis, zamiast doklejać drugi.
+- **Dodatkowe adresy nadawcy** — jeden w wierszu, np. `Imię <alias@example.org>`. Pole **Od** pokazuje wtedy adresy zamiast kont: najpierw własny adres skrzynki, potem aliasy. O tym, czy adres faktycznie zostanie przyjęty, decyduje Twój dostawca — serwer, który odmawia wysyłki z aliasu, mówi to wprost, a Plainva pokazuje ten błąd, zamiast po cichu wysyłać pod innym nazwiskiem.
+
 ## Działania w skrzynce
 
 Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.

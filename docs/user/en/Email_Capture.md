@@ -54,6 +54,13 @@ You don't have to send from within Plainva. These work on any note and need no S
 - **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened).
 - **Copy note as email text** (command palette): puts the note on the clipboard with formatting — paste it into any composer.
 
+## Signature and sender addresses
+
+Under **Settings → E-Mail → Sending** each mailbox carries two settings of its own:
+
+- **Signature** — Markdown, added below what you write when composing (and above a quoted original, where a reader expects it). Switching sender in the compose window swaps the signature instead of stacking a second one.
+- **Additional sender addresses** — one per line, e.g. `Name <alias@example.org>`. The compose window's **From** then lists addresses rather than accounts: the mailbox's own first, then its aliases. Whether an address is actually accepted is your provider's decision — a server that refuses to send as an alias says so, and Plainva shows that error rather than silently sending as someone else.
+
 ## Mailbox actions
 
 Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.

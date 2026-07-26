@@ -63,6 +63,8 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           if (String(args.key || '').startsWith('mailAccounts_')) {
             if ((window as any).__noMailAccounts) return [null, false];
+            // A test can supply its own mailboxes (e.g. with a signature/aliases).
+            if ((window as any).__mailAccountsOverride) return [(window as any).__mailAccountsOverride, true];
             return [(window as any).__twoMailAccounts ? [mailAccount, mailAccount2] : [mailAccount], true];
           }
           return [null, false];
@@ -557,4 +559,48 @@ test('mail list: right-click context menu, multi-select bulk bar, and the unread
   await expect(page.getByTestId('mail-ctx-delete')).toBeVisible();
   await page.getByTestId('mail-ctx-read').click();
   expect(await page.evaluate(() => (window as any).__setSeen)).toMatchObject({ uid: 2, seen: true });
+});
+
+test('signature and sender aliases ride the send (issue #34, round one)', async ({ page }) => {
+  await page.addInitScript(() => {
+    // One mailbox with a signature and one alias.
+    (window as any).__mailAccountsOverride = [
+      {
+        id: 'm1',
+        label: 'marco@example.org',
+        host: 'imap.example.org',
+        port: 993,
+        user: 'marco@example.org',
+        smtpHost: 'smtp.example.org',
+        smtpPort: 587,
+        signature: 'Marco\nPlainva',
+        senders: ['Support <support@example.org>'],
+      },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+
+  // The signature is already in the body, under the (empty) text.
+  await expect(page.getByTestId('draft-body')).toContainText('Marco');
+
+  // The From picker offers ADDRESSES: the mailbox's own plus its alias.
+  await page.getByTestId('draft-from-select').click();
+  await page.getByRole('option', { name: /support@example\.org/ }).click();
+  // The trigger shows the address, not the raw "<id>|<address>" key.
+  await expect(page.getByTestId('draft-from-select')).toContainText('Support <support@example.org>');
+  await expect(page.getByTestId('draft-from-select')).not.toContainText('m1|');
+
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Rückfrage');
+  await page.getByTestId('draft-send').click();
+
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  // The chosen alias reaches SMTP, and the signature is in the body.
+  expect(sent.from).toBe('Support <support@example.org>');
+  expect(sent.text).toContain('Marco');
 });

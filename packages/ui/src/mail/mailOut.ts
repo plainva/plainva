@@ -258,7 +258,8 @@ export function utf8ToBase64(text: string): string {
 
 /** Sends an outgoing message via the account's SMTP submission host
  * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
- * the account user. Never relays — this only submits the user's own mail. */
+ * the account user unless an alias was chosen. Never relays — this only submits
+ * the user's own mail. */
 export async function sendMail(
   vaultPath: string,
   account: MailAccountConfig,
@@ -272,7 +273,10 @@ export async function sendMail(
   calendar?: { ics: string; method?: string },
   /** Comma-separated Cc / Bcc recipients. */
   cc = "",
-  bcc = ""
+  bcc = "",
+  /** Sender address chosen in the compose window (an alias from
+   * `account.senders`); empty = the account's own address. */
+  from = ""
 ): Promise<void> {
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
@@ -284,7 +288,7 @@ export async function sendMail(
     const msAttachments = calendar
       ? [...attachments, { name: "invite.ics", mime: `text/calendar; method=${calendar.method ?? "REQUEST"}`, contentBase64: utf8ToBase64(calendar.ics) }]
       : attachments;
-    await graphSendMail(vaultPath, account, to, subject, html, msAttachments, cc, bcc);
+    await graphSendMail(vaultPath, account, to, subject, html, msAttachments, cc, bcc, from);
     return;
   }
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
@@ -295,7 +299,7 @@ export async function sendMail(
     port: account.smtpPort ?? 587,
     user: account.user,
     pass,
-    from: account.user,
+    from: from.trim() || account.user,
     to,
     subject,
     text,

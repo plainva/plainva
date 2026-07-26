@@ -2463,7 +2463,12 @@
     "noTrashFolder": "Questa casella non ha un cestino: elimina il messaggio presso il tuo provider.",
     "search": "Cerca in questa cartella",
     "attachmentSaved": "Salvato in {{name}}",
-    "offlineCopy": "Offline: viene mostrata l’ultima copia presente su questo dispositivo."
+    "offlineCopy": "Offline: viene mostrata l’ultima copia presente su questo dispositivo.",
+    "sendingGroup": "Invio",
+    "signature": "Firma",
+    "signatureHint": "Aggiunta sotto il tuo testo quando scrivi. Markdown, come nell'editor.",
+    "senders": "Altri indirizzi mittente",
+    "sendersHint": "Uno per riga, ad es. Nome <alias@example.org>. Se un indirizzo venga accettato lo decide il tuo provider."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

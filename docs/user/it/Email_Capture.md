@@ -54,6 +54,13 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 - **Invia la nota via e-mail (mailto)** (palette dei comandi): apre il tuo programma di posta predefinito con la nota come testo semplice (le note lunghe vengono accorciate).
 - **Copia la nota come testo e-mail** (palette dei comandi): mette la nota negli appunti con la formattazione — incollala in qualsiasi finestra di composizione e-mail.
 
+## Firma e indirizzi mittente
+
+In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni proprie:
+
+- **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda.
+- **Altri indirizzi mittente** — uno per riga, ad es. `Nome <alias@example.org>`. Il campo **Da** elenca allora indirizzi anziché account: prima quello della casella, poi i suoi alias. Se un indirizzo venga davvero accettato lo decide il tuo provider: un server che rifiuta l'invio con un alias lo dice, e Plainva mostra quell'errore invece di inviare in silenzio con un altro nome.
+
 ## Azioni sulla casella
 
 Stelle e contrassegni si sincronizzano tramite IMAP e Microsoft; **Contrassegnati** mostra la selezione del server. I messaggi si possono spostare singolarmente o in gruppo. Fuori dal cestino, **Elimina** significa sempre “sposta nel cestino”; solo nel cestino compare **Elimina definitivamente** dopo una conferma. Con Gmail, lo spostamento cambia le etichette e le azioni in **Tutti i messaggi** possono interessare il messaggio in ogni etichetta; Plainva avvisa prima.

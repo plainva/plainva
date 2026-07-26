@@ -2455,7 +2455,12 @@
     "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider.",
     "search": "Search this folder",
     "attachmentSaved": "Saved to {{name}}",
-    "offlineCopy": "Offline — showing the last copy from this device."
+    "offlineCopy": "Offline — showing the last copy from this device.",
+    "sendingGroup": "Sending",
+    "signature": "Signature",
+    "signatureHint": "Added below what you write when composing. Markdown, like in the editor.",
+    "senders": "Additional sender addresses",
+    "sendersHint": "One per line, e.g. Name <alias@example.org>. Whether an address is accepted is up to your provider."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

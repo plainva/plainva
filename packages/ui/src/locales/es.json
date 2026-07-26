@@ -2463,7 +2463,12 @@
     "noTrashFolder": "Este buzón no tiene papelera: elimina el mensaje en tu proveedor.",
     "search": "Buscar en esta carpeta",
     "attachmentSaved": "Guardado en {{name}}",
-    "offlineCopy": "Sin conexión: se muestra la última copia de este dispositivo."
+    "offlineCopy": "Sin conexión: se muestra la última copia de este dispositivo.",
+    "sendingGroup": "Envío",
+    "signature": "Firma",
+    "signatureHint": "Se añade debajo de tu texto al redactar. Markdown, como en el editor.",
+    "senders": "Direcciones de remitente adicionales",
+    "sendersHint": "Una por línea, p. ej. Nombre <alias@example.org>. Que una dirección se acepte lo decide tu proveedor."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

@@ -54,6 +54,13 @@ Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft g
 - **Notitie per e-mail versturen (mailto)** (opdrachtenpalet): opent je standaard mailprogramma met de notitie als platte tekst (lange notities worden ingekort).
 - **Notitie als e-mailtekst kopiëren** (opdrachtenpalet): zet de notitie met opmaak op het klembord — plak hem in elk venster waarin je een e-mail opstelt.
 
+## Handtekening en afzenderadressen
+
+Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen instellingen:
+
+- **Handtekening** — Markdown, wordt bij het opstellen onder je tekst gezet (en boven een geciteerd origineel, waar een lezer hem verwacht). Wissel je in het opstelvenster van afzender, dan wordt de handtekening vervangen in plaats van er een tweede bij te zetten.
+- **Extra afzenderadressen** — één per regel, bijv. `Naam <alias@example.org>`. Het veld **Van** toont dan adressen in plaats van accounts: eerst dat van de mailbox zelf, daarna de aliassen. Of een adres echt wordt geaccepteerd, bepaalt je provider — een server die weigeren te verzenden onder een alias zegt dat, en Plainva toont die fout in plaats van stilletjes onder een andere naam te verzenden.
+
 ## Mailboxacties
 
 Sterren/markeringen synchroniseren via IMAP en Microsoft; **Gemarkeerd** toont de serverselectie. Berichten kunnen afzonderlijk of in bulk worden verplaatst. Buiten de prullenbak betekent **Verwijderen** altijd “naar de prullenbak”; alleen daar is **Definitief verwijderen** na bevestiging beschikbaar. Bij Gmail is verplaatsen een labelwijziging en kunnen acties in **Alle e-mail** het bericht in alle labels raken; Plainva waarschuwt vooraf.

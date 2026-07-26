@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, mailAccountKind, saveMailAccount } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, mailAccountKind, saveMailAccount, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
-import { mConfirm } from "../services/mobileDialogs";
+import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
   listMobileMailAccounts,
@@ -37,6 +37,12 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
   const [msClientId, setMsClientId] = useState("");
   const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Per-account sending settings (issue #34 round 1): signature and the
+  // additional sender addresses. Not credentials — editing them must never ask
+  // for the password again, so they go through the metadata-only update.
+  const [sendingId, setSendingId] = useState("");
+  const [signature, setSignature] = useState("");
+  const [senders, setSenders] = useState("");
   // IMAP sign-in (G2): the address picks the preset, so the usual case is
   // address + app password and nothing else.
   const [kind, setKind] = useState<"microsoft" | "imap">("microsoft");
@@ -60,6 +66,39 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
     window.addEventListener(MAIL_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(MAIL_CHANGED_EVENT, onChanged);
   }, [reload]);
+
+  // Keep the sending form on a real account and show ITS values; a removed
+  // account falls back to the first one instead of editing a ghost.
+  const sendingAccount = accounts.find((a) => a.id === sendingId) ?? accounts[0] ?? null;
+  useEffect(() => {
+    if (!sendingAccount) {
+      setSendingId("");
+      return;
+    }
+    if (sendingAccount.id !== sendingId) setSendingId(sendingAccount.id);
+    setSignature(sendingAccount.signature ?? "");
+    setSenders((sendingAccount.senders ?? []).join("\n"));
+  }, [sendingAccount, sendingId]);
+
+  const persistSending = useCallback(
+    async (patch: Partial<MailAccountConfig>) => {
+      const vault = mailVaultId();
+      if (!vault || !sendingAccount) return;
+      await updateMailAccount(vault, sendingAccount.id, patch);
+      notifyMailChanged();
+    },
+    [sendingAccount]
+  );
+
+  const pickSendingAccount = () => {
+    void mSelect({
+      title: t("mail.account", { defaultValue: "Konto" }),
+      options: accounts.map((a) => ({ value: a.id, label: a.label || a.user })),
+      value: sendingId,
+    }).then((v) => {
+      if (v !== null) setSendingId(v);
+    });
+  };
 
   const connect = async () => {
     setBusy(true);
@@ -178,6 +217,43 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
               </div>
             );
           })
+        )}
+
+        {accounts.length > 0 && (
+          <>
+            <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>
+              {t("mail.sendingGroup", { defaultValue: "Senden" })}
+            </h2>
+            {accounts.length > 1 && (
+              <button className="m-row" onClick={pickSendingAccount}>
+                <span>{t("mail.account", { defaultValue: "Konto" })}</span>
+                <span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span>
+                <ChevronRight className="m-chevron" size={18} />
+              </button>
+            )}
+            <label className="m-field">
+              <span>{t("mail.signature", { defaultValue: "Signatur" })}</span>
+              <textarea
+                rows={4}
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                onBlur={() => void persistSending({ signature })}
+                data-testid="mail-signature"
+              />
+            </label>
+            <p className="m-hint">{t("mail.signatureHint")}</p>
+            <label className="m-field">
+              <span>{t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}</span>
+              <textarea
+                rows={3}
+                value={senders}
+                onChange={(e) => setSenders(e.target.value)}
+                onBlur={() => void persistSending({ senders: senders.split("\n").map((l) => l.trim()).filter(Boolean) })}
+                data-testid="mail-senders"
+              />
+            </label>
+            <p className="m-hint">{t("mail.sendersHint")}</p>
+          </>
         )}
 
         <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>

@@ -485,6 +485,18 @@ textarea {
   border-radius: var(--m-radius-chip);
 }
 
+/* Multi-line settings (mail signature, sender addresses): same field look, but
+   the height comes from `rows` instead of the touch minimum. */
+.m-field textarea {
+  border-radius: var(--m-radius-chip);
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--text-main);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  resize: vertical;
+}
+
 .m-field-row {
   display: flex;
   align-items: center;

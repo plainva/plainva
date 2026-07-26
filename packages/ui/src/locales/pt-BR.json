@@ -2463,7 +2463,12 @@
     "noTrashFolder": "Esta caixa não tem lixeira — exclua a mensagem no seu provedor.",
     "search": "Pesquisar nesta pasta",
     "attachmentSaved": "Salvo em {{name}}",
-    "offlineCopy": "Offline — mostrando a última cópia deste dispositivo."
+    "offlineCopy": "Offline — mostrando a última cópia deste dispositivo.",
+    "sendingGroup": "Envio",
+    "signature": "Assinatura",
+    "signatureHint": "Adicionada abaixo do seu texto ao escrever. Markdown, como no editor.",
+    "senders": "Endereços de remetente adicionais",
+    "sendersHint": "Um por linha, p. ex. Nome <alias@example.org>. Se um endereço é aceito, quem decide é o seu provedor."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

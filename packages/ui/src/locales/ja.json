@@ -2447,7 +2447,12 @@
     "noTrashFolder": "このメールボックスにはごみ箱がありません。プロバイダー側で削除してください。",
     "search": "このフォルダー内を検索",
     "attachmentSaved": "{{name}} に保存しました",
-    "offlineCopy": "オフライン — この端末に残っている最後のコピーを表示しています。"
+    "offlineCopy": "オフライン — この端末に残っている最後のコピーを表示しています。",
+    "sendingGroup": "送信",
+    "signature": "署名",
+    "signatureHint": "作成時に本文の下に追加されます。エディターと同じく Markdown です。",
+    "senders": "追加の差出人アドレス",
+    "sendersHint": "1 行に 1 つ、例: 名前 <alias@example.org>。アドレスが受け付けられるかは提供元の判断です。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

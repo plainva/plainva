@@ -5,8 +5,17 @@ import { Button, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, fam
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
-import { listMailAccounts, mailAccountKind, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailAccountKind, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
 import { AccountMark } from "../settings/cloudAccountsShared";
+import { Select } from "../Select";
+
+/** One address per line, blanks dropped. */
+function splitLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
 
 /**
  * The "E-Mail" service page content (cloud-accounts split): mailbox REFERENCES
@@ -19,6 +28,12 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   const { vaultPath } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [mailFolder, setMailFolder] = useState("");
+  // Per-account sending settings (issue #34 round 1). Edited here rather than
+  // in the connect wizard: they are not credentials, and changing a signature
+  // must never ask for a password again.
+  const [sendingId, setSendingId] = useState("");
+  const [signature, setSignature] = useState("");
+  const [senders, setSenders] = useState("");
 
   const reload = useCallback(async () => {
     if (!vaultPath) return;
@@ -31,6 +46,28 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
     window.addEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
     return () => window.removeEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
   }, [reload]);
+
+  // Keep the sending form pointed at a real account and show ITS values. A
+  // removed account falls back to the first one instead of editing a ghost.
+  useEffect(() => {
+    const current = accounts.find((a) => a.id === sendingId) ?? accounts[0];
+    if (!current) {
+      setSendingId("");
+      return;
+    }
+    if (current.id !== sendingId) setSendingId(current.id);
+    setSignature(current.signature ?? "");
+    setSenders((current.senders ?? []).join("\n"));
+  }, [accounts, sendingId]);
+
+  const persistSending = useCallback(
+    async (patch: Partial<MailAccountConfig>) => {
+      if (!vaultPath || !sendingId) return;
+      await updateMailAccount(vaultPath, sendingId, patch);
+      await reload();
+    },
+    [vaultPath, sendingId, reload]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -139,6 +176,52 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           })}
         </SettingCardNote>
       </SettingCard>
+
+      {accounts.length > 0 && (
+        <SettingCard label={t("mail.sendingGroup", { defaultValue: "Senden" })}>
+          {accounts.length > 1 && (
+            <SettingRow label={t("mail.account", { defaultValue: "Konto" })}>
+              <Select
+                value={sendingId}
+                onChange={setSendingId}
+                ariaLabel={t("mail.account", { defaultValue: "Konto" })}
+                data-testid="mail-sending-account"
+                options={accounts.map((a) => ({ value: a.id, label: a.label || a.user }))}
+              />
+            </SettingRow>
+          )}
+          <SettingRow
+            label={t("mail.signature", { defaultValue: "Signatur" })}
+            desc={t("mail.signatureHint", { defaultValue: "Wird beim Verfassen unter Deinen Text gesetzt. Markdown wie im Editor." })}
+            wide
+          >
+            <textarea
+              value={signature}
+              onChange={(e) => setSignature(e.target.value)}
+              onBlur={() => void persistSending({ signature })}
+              rows={4}
+              className="pv-field pv-field--area"
+              data-testid="mail-signature"
+              style={{ width: "100%" }}
+            />
+          </SettingRow>
+          <SettingRow
+            label={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}
+            desc={t("mail.sendersHint", { defaultValue: "Eine pro Zeile, z. B. Name <alias@example.org>. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter." })}
+            wide
+          >
+            <textarea
+              value={senders}
+              onChange={(e) => setSenders(e.target.value)}
+              onBlur={() => void persistSending({ senders: splitLines(senders) })}
+              rows={3}
+              className="pv-field pv-field--area"
+              data-testid="mail-senders"
+              style={{ width: "100%" }}
+            />
+          </SettingRow>
+        </SettingCard>
+      )}
     </div>
   );
 }

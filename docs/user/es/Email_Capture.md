@@ -54,6 +54,13 @@ No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y
 - **Enviar la nota por correo (mailto)** (paleta de comandos): abre tu programa de correo predeterminado con la nota como texto sin formato (las notas largas se acortan).
 - **Copiar la nota como texto de correo** (paleta de comandos): pone la nota en el portapapeles con formato — pégala en cualquier editor de correo.
 
+## Firma y direcciones de remitente
+
+En **Ajustes → Correo → Envío**, cada buzón tiene dos ajustes propios:
+
+- **Firma** — en Markdown, se añade debajo de tu texto al redactar (y encima de un original citado, donde el lector la espera). Si cambias de remitente en la ventana de redacción, la firma se sustituye en lugar de acumularse una segunda.
+- **Direcciones de remitente adicionales** — una por línea, p. ej. `Nombre <alias@example.org>`. El campo **De** muestra entonces direcciones en vez de cuentas: primero la propia del buzón y después sus alias. Que una dirección se acepte realmente lo decide tu proveedor: un servidor que rechaza enviar con un alias lo dice, y Plainva muestra ese error en lugar de enviar en silencio con otro nombre.
+
 ## Acciones del buzón
 
 Las estrellas/marcas se sincronizan por IMAP y Microsoft; **Marcados** muestra la selección del servidor. Puedes mover mensajes de forma individual o en grupo. Fuera de la papelera, **Eliminar** siempre significa «mover a la papelera»; solo allí aparece **Eliminar permanentemente** tras una confirmación. En Gmail, mover cambia etiquetas y las acciones en **Todos** pueden afectar al mensaje en todas sus etiquetas; Plainva avisa antes.

@@ -520,7 +520,10 @@ export async function graphSendMail(
   html: string,
   attachments: MailAttachment[] = [],
   cc = "",
-  bcc = ""
+  bcc = "",
+  /** Chosen sender address; only sent when it differs from the account itself,
+   * because Graph rejects a `from` the mailbox has no SendAs right for. */
+  from = ""
 ): Promise<void> {
   const rt = await runtimeFor(vaultPath, account);
   const message: Record<string, unknown> = {
@@ -528,10 +531,20 @@ export async function graphSendMail(
     body: { contentType: "HTML", content: html },
     toRecipients: toRecipients(to),
   };
+  const sender = pickSender(from, account);
+  if (sender) message.from = { emailAddress: { address: sender } };
   if (cc.trim()) message.ccRecipients = toRecipients(cc);
   if (bcc.trim()) message.bccRecipients = toRecipients(bcc);
   if (attachments.length) message.attachments = graphAttachments(attachments);
   await graphJson(rt, "POST", "/me/sendMail", { message, saveToSentItems: true });
+}
+
+/** The bare address to put in `from`, or "" when it is the account's own
+ * (the common case — sending it back would only invite a SendAs rejection). */
+function pickSender(from: string, account: MailAccountConfig): string {
+  const addr = (from.match(/<([^>]+)>/)?.[1] ?? from).trim();
+  if (!addr || addr.toLowerCase() === account.user.trim().toLowerCase()) return "";
+  return addr;
 }
 
 /** Creates a \Draft message in the mailbox (Graph POST /me/messages). */

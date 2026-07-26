@@ -54,6 +54,13 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 - **Envoyer la note par e-mail (mailto)** (palette de commandes) : ouvre votre programme de messagerie par défaut avec la note en texte brut (les notes longues sont raccourcies).
 - **Copier la note comme texte d'e-mail** (palette de commandes) : place la note dans le presse-papiers avec sa mise en forme — collez-la dans n'importe quel éditeur de message.
 
+## Signature et adresses d'expéditeur
+
+Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de deux réglages propres :
+
+- **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde.
+- **Adresses d'expéditeur supplémentaires** — une par ligne, p. ex. `Nom <alias@example.org>`. Le champ **De** liste alors des adresses plutôt que des comptes : d'abord celle de la boîte, puis ses alias. Qu'une adresse soit réellement acceptée relève de votre fournisseur — un serveur qui refuse l'envoi sous un alias le dit, et Plainva affiche cette erreur au lieu d'envoyer discrètement sous un autre nom.
+
 ## Actions sur la boîte aux lettres
 
 Les étoiles/marqueurs sont synchronisés via IMAP et Microsoft ; **Marqués** affiche la sélection du serveur. Les messages peuvent être déplacés seuls ou en groupe. Hors de la corbeille, **Supprimer** signifie toujours « déplacer vers la corbeille » ; seule la corbeille propose **Supprimer définitivement** après confirmation. Avec Gmail, un déplacement change les libellés et une action dans **Tous les messages** peut toucher le message dans tous ses libellés ; Plainva vous prévient avant l’action.

@@ -54,6 +54,13 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 - **Enviar nota por e-mail (mailto)** (paleta de comandos): abre seu programa de e-mail padrão com a nota como texto simples (notas longas são encurtadas).
 - **Copiar nota como texto de e-mail** (paleta de comandos): coloca a nota na área de transferência com formatação — cole em qualquer editor de e-mail.
 
+## Assinatura e endereços de remetente
+
+Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes próprios:
+
+- **Assinatura** — em Markdown, adicionada abaixo do seu texto ao escrever (e acima de um original citado, onde o leitor espera encontrá-la). Trocar de remetente na janela de composição substitui a assinatura em vez de empilhar uma segunda.
+- **Endereços de remetente adicionais** — um por linha, p. ex. `Nome <alias@example.org>`. O campo **De** passa a listar endereços em vez de contas: primeiro o da própria caixa, depois os apelidos. Se um endereço é de fato aceito, quem decide é o seu provedor — um servidor que recusa enviar com um apelido avisa, e o Plainva mostra esse erro em vez de enviar silenciosamente com outro nome.
+
 ## Ações da caixa de correio
 
 Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.

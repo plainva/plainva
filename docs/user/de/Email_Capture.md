@@ -54,6 +54,13 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 - **Notiz per E-Mail senden (mailto)** (Befehlspalette): öffnet Dein Standard-Mail-Programm mit der Notiz als reinem Text (lange Notizen werden gekürzt).
 - **Notiz als E-Mail-Text kopieren** (Befehlspalette): legt die Notiz mit Formatierung in die Zwischenablage — in jeden Editor einfügbar.
 
+## Signatur und Absender-Adressen
+
+Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Einstellungen:
+
+- **Signatur** — Markdown, wird beim Verfassen unter Deinen Text gesetzt (und über ein zitiertes Original, wo ein Leser sie erwartet). Wechselst Du im Verfassen-Fenster den Absender, wird die Signatur ausgetauscht statt eine zweite anzuhängen.
+- **Weitere Absender-Adressen** — eine pro Zeile, z. B. `Name <alias@example.org>`. Das Feld **Von** im Verfassen-Fenster listet dann Adressen statt Konten: zuerst die eigene des Postfachs, danach die Aliasse. Ob eine Adresse tatsächlich akzeptiert wird, entscheidet Dein Anbieter — ein Server, der das Senden unter einem Alias verweigert, sagt das, und Plainva zeigt diesen Fehler, statt still unter anderem Namen zu senden.
+
 ## Postfachaktionen
 
 Sterne/Markierungen werden mit IMAP und Microsoft synchronisiert; **Markiert** zeigt die serverseitige Auswahl. Nachrichten lassen sich einzeln oder gesammelt verschieben. Außerhalb des Papierkorbs bedeutet **Löschen** immer „in den Papierkorb verschieben“; nur im Papierkorb ist **Endgültig löschen** nach einer Bestätigung verfügbar. Bei Gmail entspricht Verschieben einem Labelwechsel, und Aktionen in **Alle Nachrichten** können die Nachricht in allen Labels betreffen – Plainva weist vor der Aktion darauf hin.

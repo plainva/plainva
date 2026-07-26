@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
 import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
-import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, type MailAttachment } from "@plainva/ui/mail";
+import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import "./mail.css";
 
@@ -62,6 +62,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const { vaultPath } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState("");
+  /** Chosen sender address within that account (an alias, or its own). */
+  const [fromAddress, setFromAddress] = useState("");
   const [mailboxes, setMailboxes] = useState<string[]>([]);
   const [folderDelimiter, setFolderDelimiter] = useState<string | undefined>(undefined);
   const [mailbox, setMailbox] = useState("");
@@ -80,6 +82,46 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * The From picker offers ADDRESSES, not accounts: an account contributes its
+   * own address plus its configured aliases (shared `senderKey` so both shells
+   * encode the choice the same way).
+   */
+  const fromOptions = useMemo(
+    () =>
+      accounts.flatMap((a) =>
+        senderOptions(a).map((address) => ({
+          value: senderKey(a.id, address),
+          label: accounts.length > 1 ? `${address} · ${a.label}` : address,
+        }))
+      ),
+    [accounts]
+  );
+
+  /** Switching sender swaps the signature: the previous account's block goes,
+   * the new one's comes in — otherwise two signatures stack up in one mail. */
+  const selectFrom = useCallback(
+    (value: string) => {
+      const { accountId: nextId, address } = splitSenderKey(value);
+      const previous = accounts.find((a) => a.id === accountId) ?? null;
+      const next = accounts.find((a) => a.id === nextId) ?? null;
+      setAccountId(nextId);
+      setFromAddress(address);
+      if (previous?.id !== next?.id) setBody((b) => withSignature(withoutSignature(b, previous), next));
+    },
+    [accounts, accountId]
+  );
+
+  // The signature of the initially selected account lands in the body once the
+  // accounts are loaded (the modal opens before that resolves).
+  const signedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!account || signedFor.current === account.id) return;
+    signedFor.current = account.id;
+    setBody((b) => withSignature(b, account));
+  }, [accounts, accountId]);
+
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -88,6 +130,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       if (!alive) return;
       setAccounts(list);
       setAccountId(list[0]?.id ?? "");
+      setFromAddress(list[0] ? senderOptions(list[0])[0] ?? "" : "");
     })();
     return () => { alive = false; };
   }, [vaultPath]);
@@ -173,14 +216,14 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           files = attach.filter((_, i) => i !== calIdx);
         } catch { /* fall back to a normal attachment */ }
       }
-      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft));
+      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft), fromAddress);
       toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, t]);
+  }, [vaultPath, accounts, accountId, fromAddress, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, t]);
 
   // Chip-field wiring per recipient list (To / Cc / Bcc).
   const chipList = (val: string, setVal: (v: string) => void, setDraft: (v: string) => void) => {
@@ -276,12 +319,18 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
             <>
               <div className="pv-mail-addr">
                 <span className="k">{t("mail.from", { defaultValue: "Von" })}</span>
-                {accounts.length > 1 ? (
+                {fromOptions.length > 1 ? (
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <Select ariaLabel={t("mail.from", { defaultValue: "Von" })} value={accountId} onChange={setAccountId} options={accounts.map((a) => ({ value: a.id, label: a.label }))} />
+                    <Select
+                      ariaLabel={t("mail.from", { defaultValue: "Von" })}
+                      value={`${accountId}\n${fromAddress}`}
+                      onChange={selectFrom}
+                      data-testid="draft-from-select"
+                      options={fromOptions}
+                    />
                   </div>
                 ) : (
-                  <input className="pv-field" value={accounts[0]?.label ?? ""} readOnly data-testid="draft-from" />
+                  <input className="pv-field" value={fromOptions[0]?.label ?? accounts[0]?.label ?? ""} readOnly data-testid="draft-from" />
                 )}
               </div>
               <div className="pv-mail-addr">

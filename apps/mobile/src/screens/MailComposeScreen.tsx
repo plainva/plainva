@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, Send } from "lucide-react";
 import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { sendMail } from "@plainva/ui/mail";
+import { sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
@@ -29,6 +29,8 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState(draft.accountId);
+  /** Chosen sender address within that account (an alias, or its own). */
+  const [fromAddress, setFromAddress] = useState("");
   const [to, setTo] = useState(draft.to);
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
@@ -41,20 +43,39 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
   useEffect(() => {
     void listMobileMailAccounts().then((rows) => {
       setAccounts(rows);
-      if (!rows.some((a) => a.id === accountId)) setAccountId(rows[0]?.id ?? "");
+      const account = rows.find((a) => a.id === accountId) ?? rows[0];
+      if (account?.id !== accountId) setAccountId(account?.id ?? "");
+      setFromAddress(account ? (senderOptions(account)[0] ?? "") : "");
+      if (account) setBody((b) => withSignature(b, account));
     });
     // The account list is fixed while a draft is open; re-reading it on every
     // keystroke would be pointless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** The picker offers ADDRESSES, not accounts: each account contributes its
+   * own address plus its configured aliases. */
+  const fromOptions = accounts.flatMap((a) =>
+    senderOptions(a).map((address) => ({
+      value: senderKey(a.id, address),
+      label: accounts.length > 1 ? `${address} · ${a.label}` : address,
+    })),
+  );
+
   const pickAccount = async () => {
     const picked = await mSelect({
       title: t("mail.from"),
-      options: accounts.map((a) => ({ value: a.id, label: a.label })),
-      value: accountId,
+      options: fromOptions,
+      value: senderKey(accountId, fromAddress),
     });
-    if (picked) setAccountId(picked);
+    if (!picked) return;
+    const { accountId: nextId, address } = splitSenderKey(picked);
+    const previous = accounts.find((a) => a.id === accountId) ?? null;
+    const next = accounts.find((a) => a.id === nextId) ?? null;
+    setAccountId(nextId);
+    setFromAddress(address);
+    // Swapping sender swaps the signature — otherwise two of them stack up.
+    if (previous?.id !== next?.id) setBody((b) => withSignature(withoutSignature(b, previous), next));
   };
 
   const send = async () => {
@@ -66,7 +87,7 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
     }
     setBusy(true);
     try {
-      await sendMail(vaultId, account, to.trim(), subject, body, [], undefined, cc.trim(), bcc.trim());
+      await sendMail(vaultId, account, to.trim(), subject, body, [], undefined, cc.trim(), bcc.trim(), fromAddress);
       toast.success(t("mail.sent"));
       onBack();
     } catch (e) {
@@ -89,13 +110,13 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
       </header>
 
       <div className="m-sync">
-        {accounts.length > 1 && (
+        {fromOptions.length > 1 && (
           /* A sheet, not a native select — the mobile shell replaced every
              OS dropdown in package P3 and the design guard enforces it. */
           <button type="button" className="m-row" onClick={() => void pickAccount()}>
             <span className="m-linestack">
               {t("mail.from")}
-              <small>{accounts.find((a) => a.id === accountId)?.label ?? ""}</small>
+              <small>{fromAddress || accounts.find((a) => a.id === accountId)?.label || ""}</small>
             </span>
           </button>
         )}
