@@ -60,7 +60,7 @@ export async function authorizeDropbox(opts: {
   );
   if (!tokens.refreshToken) {
     throw new Error(
-      "Dropbox hat keinen refresh_token geliefert (token_access_type=offline erwartet). Bitte erneut verbinden."
+      "Dropbox returned no refresh_token (token_access_type=offline expected). Please connect again."
     );
   }
 

@@ -1220,10 +1220,25 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               const isToday = key === todayKey;
               const isSelected = key === selectedDay;
               return (
-                <button
+                // A container, not a <button> (issue #34): the event and task
+                // rows inside are themselves clickable, and a button inside a
+                // button is invalid HTML. Keyboard behaviour is kept by hand —
+                // the cell stays one tab stop that selects the day, the rows
+                // are their own stops.
+                <div
                   key={key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={cell.toLocaleDateString(i18n.language, { dateStyle: "full" })}
                   data-testid={`calendar-day-${key}`}
                   onClick={() => setSelectedDay(key)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedDay(key);
+                    }
+                  }}
                   style={{
                     border: isSelected ? "1px solid var(--accent-color)" : "1px solid var(--border-color-light)",
                     borderRadius: "var(--radius-sm)",
@@ -1240,6 +1255,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   }}
                 >
                   <span
+                    data-testid={`calendar-day-number-${key}`}
                     style={{
                       fontSize: "var(--text-xs)",
                       fontWeight: isToday ? 700 : 400,
@@ -1248,14 +1264,26 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   >
                     {cell.getDate()}
                   </span>
+                  {/* Every row opens its own object (issue #34): an event its
+                      dialog, a task its note. The free area of the cell and the
+                      "+n" line keep opening the day. */}
                   {shownEvents.map((e) => (
-                    <span
+                    <button
+                      type="button"
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                      data-testid="calendar-month-event"
+                      onClick={(ev) => { ev.stopPropagation(); requestEdit(e); }}
                       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: 3,
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        textAlign: "left",
+                        cursor: "pointer",
+                        font: "inherit",
                         fontSize: "var(--text-xs)",
                         color: "var(--text-main)",
                         whiteSpace: "nowrap",
@@ -1271,15 +1299,24 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       />
                       {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
-                    </span>
+                    </button>
                   ))}
                   {shownTasks.map((task) => (
-                    <span
+                    <button
+                      type="button"
                       key={`task-${task.path}`}
+                      data-testid="calendar-month-task"
+                      onClick={(ev) => { ev.stopPropagation(); onOpenPath(task.path, false); }}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: 3,
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        textAlign: "left",
+                        cursor: "pointer",
+                        font: "inherit",
                         fontSize: "var(--text-xs)",
                         color: task.done ? "var(--text-muted)" : "var(--text-main)",
                         textDecoration: task.done ? "line-through" : "none",
@@ -1291,12 +1328,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     >
                       {task.done ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
-                    </span>
+                    </button>
                   ))}
                   {overflow > 0 ? (
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>+{overflow}</span>
                   ) : null}
-                </button>
+                </div>
               );
             })}
           </div>

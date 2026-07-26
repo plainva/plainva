@@ -264,7 +264,9 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   await expect(recentRow.locator('svg.lucide-calendar-range')).toBeVisible();
 
   // Select today -> the day pane is a time grid: all-day strip + a timed block.
-  await todayCell.click();
+  // The date number is the stable target: the cell's event rows are clickable
+  // objects now, so a centre click would open a dialog instead (issue #34).
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
   const dayPane = page.getByTestId('calendar-day-pane');
   await expect(dayPane.getByTestId('calendar-timegrid')).toBeVisible();
   await expect(page.getByTestId('calendar-allday-event').filter({ hasText: 'Feiertag' })).toBeVisible();
@@ -286,7 +288,7 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
 
   // The SAME event again reuses the note (no duplicate sibling).
   await page.getByTestId('ribbon-calendar').click();
-  await page.getByTestId(`calendar-day-${todayKey}`).click();
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
   await page.getByTestId('event-meeting-note').click();
   await expect
@@ -350,7 +352,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
-  await page.getByTestId(`calendar-day-${todayKey}`).click();
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
 
   // The day-pane "+" opens the create dialog (mock calendar is writable).
   await page.getByTestId('calendar-new-event').click();
@@ -404,7 +406,7 @@ test('series instance: clicking routes through the scope dialog; "all" prefills 
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
-  await page.getByTestId(`calendar-day-${todayKey}`).click();
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
 
   const seriesBlock = page.getByTestId('calendar-timed-event').filter({ hasText: 'Wochenmeeting' });
   // The block carries the recurrence badge.
@@ -546,6 +548,55 @@ test('the calendar optionally overlays due tasks from the standard task database
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
   await page.getByTestId('ribbon-calendar').click();
   await expect(page.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
+});
+
+test('month grid: a task row opens its note (issue #34)', async ({ page }) => {
+  // The rows used to be plain text inside the day button — the pointer promised
+  // a jump that never came. Due date sits on a day without fixture events, so
+  // the cell has a line left for the task.
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const quiet = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3);
+    const due = `${quiet.getFullYear()}-${pad(quiet.getMonth() + 1)}-${pad(quiet.getDate())}`;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = `---
+status: Offen
+frist: ${due}
+---
+# Steuer
+`;
+  }, CAL_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  await page.getByTestId('calendar-toggle-tasks').click();
+
+  const monthTask = page.getByTestId('calendar-month-task').filter({ hasText: 'Steuer' });
+  await expect(monthTask).toBeVisible();
+  await monthTask.click();
+  await expect(page.locator('.cm-content').getByText('Steuer').first()).toBeVisible();
+});
+
+test('month grid: an event row opens its dialog, the free cell area opens the day', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+
+  // The event row opens the edit dialog (same path as the time grid).
+  await page.getByTestId('calendar-month-event').filter({ hasText: 'Standup' }).first().click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+
+  // Clicking the cell itself still selects the day instead of an object.
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  await expect(page.getByTestId('calendar-day-pane')).toBeVisible();
 });
 
 test('view modes: month / day / 3-day / week are time grids, agenda is a list', async ({ page }) => {

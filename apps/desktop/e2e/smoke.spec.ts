@@ -263,6 +263,35 @@ test('Editor ⋮ menu: rename prompts for a name, moves the file and retargets t
   expect(moved.old).toBe(false);
 });
 
+test('a vanished file shows a state, not an error string that gets saved', async ({ page }) => {
+  // Issue #34: the read error used to be written INTO the editor buffer (in
+  // German, in an English app), so the next keystroke made the autosave
+  // recreate the deleted note with "Fehler beim Laden der Datei." as its body.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Vanished.md'] = '# Vanished\n\nStill here.\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Vanished', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('file-tree').getByText('Vanished', { exact: true }).click();
+  await expect(page.getByText('Still here.')).toBeVisible();
+
+  // The file disappears underneath us (deleted outside Plainva), then the tab
+  // is revisited — exactly the stale-index path the reporter hit.
+  await page.evaluate(() => { delete (window as any).mockFs['/test-vault/Vanished.md']; });
+  await page.getByText('Welcome', { exact: true }).click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  // The tree row is still there (the index has not caught up yet) — that is
+  // exactly the phantom entry a user clicks.
+  await page.getByTestId('file-tree').getByText('Vanished', { exact: true }).click();
+
+  const missing = page.getByTestId('editor-missing-file');
+  await expect(missing).toBeVisible();
+  await expect(missing).toContainText('no longer exists');
+  // No editor surface, so nothing can be typed — and nothing was written back.
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+  expect(await page.evaluate(() => '/test-vault/Vanished.md' in (window as any).mockFs)).toBe(false);
+});
+
 test('Lists: nested items get a stepped hanging indent in the editor', async ({ page }) => {
   // #2: verifies the listIndent decoration applies with the expected padding
   // (top level one step in from body, nested one step deeper) in live mode.

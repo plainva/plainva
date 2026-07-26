@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, MessageSquare } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, MessageSquare, FileX } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
-import { buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign } from "@plainva/ui";
+import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
@@ -333,6 +333,8 @@ export const Editor: React.FC<{
   // A sync conflict preserved the editor text in a .CONFLICT file; the target
   // file on disk now holds the OTHER side. Shown as a persistent banner (a
   // transient toast is too easy to miss for a "your text lives elsewhere now").
+  /** Set when the file could not be read — rendered as a state, not as text. */
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
@@ -1242,6 +1244,7 @@ export const Editor: React.FC<{
     loadedPathRef.current = null;
     lastPersistedRef.current = null;
     setIsLoading(true);
+    setLoadError(null);
     setConflictInfo(null);
     setDraftOffer(null);
     if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
@@ -1277,8 +1280,13 @@ export const Editor: React.FC<{
     }).catch(e => {
       console.error("Failed to load file content:", e);
       if (isMounted) {
-        loadedPathRef.current = activePath;
-        setContent("Fehler beim Laden der Datei.");
+        // A missing file is a STATE, never content (issue #34): the error text
+        // used to land in the editor buffer, so the next keystroke made the
+        // autosave write "Fehler beim Laden der Datei." to disk — recreating a
+        // deleted note with the error message as its body. `loadedPathRef`
+        // stays null, which keeps the save path shut.
+        setLoadError(e instanceof Error ? e.message : String(e));
+        setContent("");
         setIsLoading(false);
       }
     });
@@ -1860,6 +1868,35 @@ export const Editor: React.FC<{
           </>
         ) : isLoading ? (
           <div style={{ padding: "2rem", color: "var(--text-faint)" }}>{t("editor.loadingFile")}</div>
+        ) : loadError ? (
+          // Issue #34: phantom rows in a stale index (typically after a deletion
+          // made outside Plainva) used to open an editor whose CONTENT was the
+          // error message. The index entry is dropped right here, so the row
+          // that led here disappears instead of luring the next click.
+          <div data-testid="editor-missing-file" style={{ padding: "2rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)", textAlign: "center" }}>
+            <FileX size={ICON.empty} style={{ color: "var(--text-faint)" }} />
+            <strong style={{ fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("editor.missingFileTitle")}</strong>
+            <code style={{ fontSize: "var(--text-sm)" }}>{activePath}</code>
+            <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t("editor.missingFileBody")}</p>
+            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
+              {onDelete && (
+                <Button variant="primary" onClick={onDelete}>
+                  {t("editor.missingFileCloseTab")}
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (!indexer || !activePath) return;
+                  void applyIndexChanges(indexer, { removed: [activePath] })
+                    .then(() => triggerFileTreeUpdate([activePath]))
+                    .catch(() => {});
+                }}
+              >
+                {t("editor.missingFileRefresh")}
+              </Button>
+            </div>
+          </div>
         ) : (
           // The editor session (P1/P2) mounts CodeMirror into this container;
           // React only ever touches the div's attributes, never the editor.
