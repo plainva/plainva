@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-22
+Laatst bijgewerkt: 2026-07-26
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -47,6 +47,7 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 - **Meervoudige selectie:** verwijderen vraagt één keer bevestiging voor alle items, dupliceren en verplaatsen door slepen werken op de hele selectie. Verwijderde items belanden in de prullenbak van het besturingssysteem.
 - Nieuwe notities beginnen automatisch met een `# Kop` afgeleid van de bestandsnaam.
 - De eigen `index.md` van een map (het overzicht ervan) sorteert in de boom naar de **bovenkant** van die map, boven de submappen en bestanden — niet alfabetisch tussen de overige notities.
+- **Opnieuw inlezen:** de ronde pijl in de header van de boom (of **F5**) leest de vault opnieuw in — Plainva brengt de index in overeenstemming met de map en haalt bij online vaults ook de cloudbestanden op. Een kort rapport toont vervolgens wat nieuw, gewijzigd, verwijderd of overgeslagen was. Voor één map is er **Deze map opnieuw inlezen** in het rechtsklikmenu.
 
 ## Dagelijkse notities
 
@@ -60,6 +61,16 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 
 - **App** — alles wat app-breed geldt, in vijf gebieden. **Weergave**: de **Thema**-kiezer als voorbeeldkaarten — naast **Petrol** (de standaard) krijg je **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-achtig, maximaal rustig), **Sepia** (warm papier), **Bos**, **Middernacht** (OLED-zwart), **Hoog contrast** en **Fosforgroen**/**Fosforamber** (retroterminal met subtiele scanlines); daarnaast de **Modus** (**Licht**/**Donker**/**Systeemstandaard**; thema's met één modus zoals **Middernacht** leggen de modus vast, de licht/donker-schakelaar in de titelbalk pauzeert dan), **Taal**, **Week begint op**, **Dichtheid** en **Interfacezoom**. **Editor en notities**: **Standaardweergave**, **Lettergrootte van inhoud** en **Lettertype van inhoud**. **Opstarten en gedrag**: laatste vault automatisch openen, compatibiliteitswaarschuwingen. **Updates**: Plainva controleert bij het opstarten stilletjes op nieuwe versies en toont een melding zodra er een gevonden wordt — een klik erop downloadt en installeert de update meteen (de melding blijft staan tot Plainva opnieuw opstart). Uitschakelbaar via **Bij het starten op updates controleren**. **Over & diagnose**: versiedetails, de status van de **OS-sleutelhanger**, **Prestatiemetingen**, **Diagnose exporteren…** (geen notitie-inhoud) en **Probleem melden**. De sneltoetsen bereik je op elk moment via `F1` of **Sneltoetsen tonen** linksonder.
 - **Vault** — de gekozen vault staat als kleine kaart in de balk (de actieve vault draagt een stip); bij meerdere vaults opent **Wisselen** daaronder een keuzelijst. Daaronder de gebieden per vault: **Cloudaccounts** is de ene plek voor elke cloudaanmelding — **Account verbinden…** kiest de provider (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV of een e-mailpostvak) en de diensten (**Bestanden**, **Agenda en taken**, **E-mail**) die dat account moet dragen. De dienstgebieden **Synchronisatie** (zie [Sync instellen](Sync_Setup.md)), **Agenda** (zie [Agenda & taken](Calendar_and_Tasks.md)) en **E-mail** (zie [E-mail vastleggen](Email_Capture.md)) verschijnen pas zodra een verbonden account die dienst draagt. Altijd aanwezig: **Inhoud en structuur** (**Dagnotities**, **Sjablonen & taken** incl. de **Sjablonenmap**, **OKF (Open Knowledge Format)** — zie [OKF](OKF.md) — en **Uitgebreide databases**), **Backup & versiegeschiedenis** en **Onderhoud** (**Index opnieuw opbouwen**, verwijderde bestanden herstellen, vault-statistieken).
+
+## Tabbladen
+
+- **Rechtsklik op een tabblad** voor het menu: **Vastzetten**, **Vernieuwen**, **In split openen (rechts)**, **Pad kopiëren**, **Tonen in bestandsbeheer** en de sluitgroep.
+- **Vastzetten** houdt een tabblad op zijn plek: het verplaatst naar het begin van de balk, toont een pin in plaats van het sluitkruisje en overleeft elke **Andere sluiten** / **Links sluiten** / **Rechts sluiten** / **Alles sluiten**. Om het te sluiten, eerst **Losmaken**.
+- **Vernieuwen** verwerpt de weergave en leest het bestand opnieuw van de schijf — handig wanneer een ander programma het heeft gewijzigd. Heeft het tabblad niet-opgeslagen wijzigingen, dan weigert Plainva te vernieuwen in plaats van je werk te overschrijven.
+
+## De actiebalk aanpassen
+
+De smalle balk uiterst links kun je zelf sorteren: **sleep een knop** naar zijn nieuwe plek (na kort vasthouden, zodat een gewone klik nog steeds gewoon activeert). De bovenste groep (acties) en de onderste groep (sneltoetsen, instellingen) blijven daarbij gescheiden — sorteren gebeurt binnen een groep. Plainva onthoudt de volgorde; niets wordt ooit verborgen, zodat geen enkele functie onvindbaar kan worden. `Esc` breekt een lopende sleepbeweging af.
 
 ## De interface aanpassen
 

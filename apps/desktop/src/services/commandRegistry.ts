@@ -67,6 +67,10 @@ export interface CommandDeps {
   reopenClosedTab: () => void;
   /** Opens the PKM Import Wizard dialog. */
   openImport?: () => void;
+  /** Reconciles the index with the disk (and the cloud, on a synced vault) — P1. */
+  refreshVault: () => void;
+  /** Drops the index and re-parses every file, with a progress bar — P1. */
+  rebuildIndex: () => void;
 }
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
@@ -111,6 +115,8 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     { id: "print", titleKey: "editor.print", titleDefault: "Drucken / Als PDF…", run: d.printActive, isAvailable: () => d.canPrint() },
     { id: "export-markdown", titleKey: "editor.exportMarkdown", titleDefault: "Als Markdown exportieren…", run: d.exportActiveMarkdown, isAvailable: () => d.canPrint() },
     { id: "backup-now", titleKey: "settings.backupNow", titleDefault: "Jetzt sichern", run: d.backupNow },
+    { id: "refresh-vault", titleKey: "refresh.action", titleDefault: "Vault neu einlesen", hint: "F5", run: d.refreshVault },
+    { id: "rebuild-index", titleKey: "refresh.rebuildAction", titleDefault: "Index vollständig neu aufbauen", run: d.rebuildIndex },
     { id: "update-indexes", titleKey: "indexMd.updateAllAction", titleDefault: "Alle index.md aktualisieren", run: d.updateAllIndexes },
     { id: "switch-vault", titleKey: "sidebar.switchVault", titleDefault: "Vault wechseln", run: d.switchVault },
   ];

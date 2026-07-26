@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SunMoon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Pin, SunMoon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/theme";
 import { ICON, PlainvaLogo } from "@plainva/ui";
@@ -14,6 +14,8 @@ import { useDirtyPaths } from "../services/dirtyStore";
 interface TitleBarProps {
   /** Active path of each open tab (already resolved from tab history). */
   tabs: string[];
+  /** Indices of pinned tabs — they carry the pin glyph (P2). */
+  pinnedTabs?: boolean[];
   activeIndex: number;
   onSelectTab: (index: number) => void;
   onCloseTab: (index: number) => void;
@@ -33,7 +35,7 @@ interface TitleBarProps {
   onToggleRightSidebar?: () => void;
 }
 
-export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab, onTabContextMenu, leftWidth, paneIndex = 0, onMoveTab, onSplitWithTab, leftCollapsed, rightCollapsed, onToggleLeftSidebar, onToggleRightSidebar }: TitleBarProps) {
+export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTab, onNewTab, onTabContextMenu, leftWidth, paneIndex = 0, onMoveTab, onSplitWithTab, leftCollapsed, rightCollapsed, onToggleLeftSidebar, onToggleRightSidebar }: TitleBarProps) {
   const { t } = useTranslation();
   const isMac = detectMac();
   const dnd = useTabDnd(paneIndex, onMoveTab ?? (() => {}), onSplitWithTab);
@@ -154,6 +156,11 @@ export function TitleBar({ tabs, activeIndex, onSelectTab, onCloseTab, onNewTab,
                 touchAction: "none", userSelect: "none",
               }}
             >
+              {pinnedTabs?.[i] && (
+                <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", color: "var(--accent-color)" }}>
+                  <Pin size={ICON.meta} />
+                </span>
+              )}
               {VirtualIcon ? (
                 <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
                   <VirtualIcon size={ICON.ui} />

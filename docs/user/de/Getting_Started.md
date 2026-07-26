@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-22
+Stand: 2026-07-26
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -47,6 +47,7 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 - **Mehrfachauswahl:** Löschen mit einer Bestätigung, Duplizieren und Verschieben per Drag funktionieren für alle ausgewählten Elemente zusammen. Gelöschtes landet im Papierkorb des Betriebssystems.
 - Neue Notizen starten automatisch mit einer `# Überschrift` aus dem Dateinamen.
 - Die eigene `index.md` eines Ordners (seine Übersicht) sortiert im Baum an den **Anfang** dieses Ordners, über seine Unterordner und Dateien — nicht alphabetisch zwischen den übrigen Notizen.
+- **Neu einlesen:** Der Kreispfeil in der Kopfzeile des Baums (oder **F5**) liest den Vault neu ein — Plainva gleicht den Index mit dem Ordner ab und holt bei Online-Vaults zusätzlich die Cloud-Dateien. Anschließend zeigt ein kurzer Bericht, was neu, geändert, entfernt oder übersprungen wurde. Für einzelne Ordner gibt es **Ordner neu einlesen** im Rechtsklick-Menü.
 
 ## Tägliche Notizen
 
@@ -60,6 +61,16 @@ Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum ö
 
 - **App** — alles, was app-weit gilt, in fünf Bereichen. **Erscheinungsbild**: die **Theme**-Auswahl als Vorschau-Karten — neben **Petrol** (Standard) stehen **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (E-Ink-artig, maximal ruhig), **Sepia** (warmes Papier), **Wald**, **Mitternacht** (OLED-Schwarz), **Hoher Kontrast** und **Phosphor Grün**/**Phosphor Amber** (Retro-Terminal mit dezenten Scanlines) bereit; dazu der **Modus** (**Hell**/**Dunkel**/**System-Standard**; Ein-Modus-Themes wie **Mitternacht** legen den Modus fest, der Hell/Dunkel-Schalter in der Titelleiste pausiert dann), **Sprache**, **Wochenbeginn**, **Kompaktheitsgrad** und **Oberflächen-Zoom**. **Editor & Notizen**: **Standard-Ansicht**, **Inhalts-Schriftgröße** und **Inhalts-Schriftart**. **Start & Verhalten**: letzten Vault automatisch öffnen, Kompatibilitäts-Hinweise. **Updates**: Plainva sucht beim Start still nach neuen Versionen und zeigt bei Funden einen Hinweis — ein Klick darauf lädt und installiert das Update direkt (der Hinweis bleibt bis zum Neustart stehen). Abschaltbar über **Beim Start nach Updates suchen**. **Über & Diagnose**: Versionsangaben, Status des **OS-Keychain**, **Performance-Messwerte**, **Diagnose exportieren…** (ohne Notizinhalte) und **Problem melden**. Die Tastenkombinationen erreichst Du jederzeit per `F1` oder **Tastenkombinationen anzeigen** unten links.
 - **Vault** — der gewählte Vault steht als kleine Karte in der Leiste (der aktive Vault trägt einen Punkt); bei mehreren Vaults öffnet **Wechseln** darunter eine Auswahl-Liste. Darunter die Bereiche pro Vault: **Cloud-Konten** ist der eine Ort für alle Cloud-Anmeldungen — **Konto verbinden…** wählt den Anbieter (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV oder ein E-Mail-Postfach) und die Dienste (**Dateien**, **Kalender & Aufgaben**, **E-Mail**), die dieses Konto tragen soll. Die Dienst-Bereiche **Synchronisation** (siehe [Sync einrichten](Sync_Setup.md)), **Kalender** (siehe [Kalender & Aufgaben](Calendar_and_Tasks.md)) und **E-Mail** (siehe [E-Mail-Erfassung](Email_Capture.md)) erscheinen erst, wenn ein verbundenes Konto den jeweiligen Dienst trägt. Dazu immer: **Inhalt & Struktur** (**Tagesnotizen**, **Vorlagen & Aufgaben** inkl. **Vorlagen-Ordner (Templates)**, **OKF (Open Knowledge Format)** — siehe [OKF](OKF.md) — und **Erweiterte Datenbanken**), **Backup & Versionierung** und **Wartung** (**Index neu aufbauen**, gelöschte Dateien wiederherstellen, Vault-Statistik).
+
+## Tabs
+
+- **Rechtsklick auf einen Tab** öffnet sein Menü: **Anheften**, **Neu laden**, **Im Split öffnen (rechts)**, **Pfad kopieren**, **Im Dateimanager zeigen** und die Schließen-Gruppe.
+- **Anheften** hält einen Tab fest: Er rückt an den Anfang der Leiste, zeigt statt des Schließen-Kreuzes eine Nadel und überlebt jedes **Andere schließen** / **Links schließen** / **Rechts schließen** / **Alle schließen**. Zum Schließen erst wieder **Lösen**.
+- **Neu laden** verwirft die Ansicht und liest die Datei frisch von der Platte — nützlich, wenn ein anderes Programm sie geändert hat. Hat der Tab ungespeicherte Änderungen, lehnt Plainva das Neuladen ab, statt Deine Arbeit zu überschreiben.
+
+## Aktionsleiste anpassen
+
+Die schmale Leiste ganz links kannst Du selbst sortieren: **Ziehe einen Knopf** an seine neue Stelle (nach kurzem Halten, damit ein normaler Klick weiterhin nur auslöst). Die obere Gruppe (Aktionen) und die untere Gruppe (Tastenkombinationen, Einstellungen) bleiben dabei getrennt — sortiert wird innerhalb einer Gruppe. Die Reihenfolge merkt sich Plainva; ausgeblendet wird nichts, damit keine Funktion unauffindbar wird. Mit `Esc` brichst Du ein laufendes Ziehen ab.
 
 ## Oberfläche anpassen
 

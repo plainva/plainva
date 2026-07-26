@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-22
+Stan na: 2026-07-26
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -47,6 +47,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 - **Zaznaczenie wielokrotne:** usuwanie z jednym potwierdzeniem, duplikowanie i przenoszenie przez przeciąganie działają na całym zaznaczeniu. Usunięte elementy trafiają do kosza systemu operacyjnego.
 - Nowe notatki automatycznie zaczynają się od `# Nagłówka` wyprowadzonego z nazwy pliku.
 - Własna `index.md` folderu (jego przegląd) sortuje się na **początek** tego folderu w drzewie, nad jego podfolderami i plikami — a nie alfabetycznie wśród pozostałych notatek.
+- **Wczytaj ponownie:** okrągła strzałka w nagłówku drzewa (lub **F5**) wczytuje vault ponownie — Plainva uzgadnia indeks z folderem, a w przypadku vaultów online pobiera też pliki z chmury. Krótki raport pokazuje potem, co było nowe, zmienione, usunięte lub pominięte. Dla pojedynczego folderu jest **Wczytaj ten folder ponownie** w menu kontekstowym.
 
 ## Notatki dzienne
 
@@ -60,6 +61,16 @@ Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą
 
 - **Aplikacja** — wszystko, co dotyczy całej aplikacji, w pięciu obszarach. **Wygląd**: wybór **motywu** jako kart podglądu — oprócz **Petrol** (domyślny) dostępne są **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papier** (w stylu E-Ink, maksymalnie spokojny), **Sepia** (ciepły papier), **Las**, **Północ** (czerń OLED), **Wysoki kontrast** oraz **Fosfor zielony**/**Fosfor bursztynowy** (retro terminal z delikatnymi scanlines); do tego **Tryb** (**Jasny**/**Ciemny**/**Systemowy**; motywy jednotrybowe, takie jak **Północ**, ustalają tryb na stałe, a przełącznik jasny/ciemny na pasku tytułu jest wtedy nieaktywny), **Język**, **Początek tygodnia**, **Gęstość** i **Powiększenie interfejsu**. **Edytor i notatki**: **Widok domyślny**, **Rozmiar czcionki treści** i **Czcionka treści**. **Uruchamianie i zachowanie**: automatyczne otwieranie ostatniego vaultu, ostrzeżenia o zgodności. **Aktualizacje**: Plainva po cichu sprawdza dostępność nowych wersji przy starcie i pokazuje powiadomienie, gdy je znajdzie — kliknij je, aby od razu pobrać i zainstalować aktualizację (powiadomienie pozostaje widoczne do ponownego uruchomienia Plainva). Można to wyłączyć przez **Sprawdzaj aktualizacje przy starcie**. **Informacje i diagnostyka**: szczegóły wersji, status **pęku kluczy systemu**, **Pomiary wydajności**, **Eksportuj diagnostykę…** (bez treści notatek) i **Zgłoś problem**. Skróty klawiszowe są zawsze dostępne przez `F1` lub **Pokaż skróty klawiszowe** w lewym dolnym rogu.
 - **Vault** — wybrany vault znajduje się jako mała karta na pasku (aktywny vault ma kropkę); przy kilku vaultach **Zmień** poniżej otwiera listę wyboru. Poniżej obszary dla każdego vaultu: **Konta w chmurze** to jedno miejsce na wszystkie logowania w chmurze — **Połącz konto…** wybiera dostawcę (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV lub skrzynkę e-mail) oraz usługi (**Pliki**, **Kalendarz i zadania**, **E-mail**), jakie ma obsługiwać to konto. Obszary usług **Synchronizacja** (patrz [Konfiguracja synchronizacji](Sync_Setup.md)), **Kalendarz** (patrz [Kalendarz i zadania](Calendar_and_Tasks.md)) oraz **E-mail** (patrz [Przechwytywanie e-maili](Email_Capture.md)) pojawiają się dopiero, gdy połączone konto obsługuje daną usługę. Zawsze obecne: **Treść i struktura** (**Notatki dzienne**, **Szablony i zadania**, w tym **Folder szablonów**, **OKF (Open Knowledge Format)** — patrz [OKF](OKF.md) — i **Rozszerzone bazy danych**), **Backup i historia wersji** oraz **Konserwacja** (**Odbuduj indeks**, przywracanie usuniętych plików, statystyki vaultu).
+
+## Karty
+
+- **Kliknij prawym przyciskiem na kartę**, aby otworzyć jej menu: **Przypnij**, **Odśwież**, **Otwórz w podziale (po prawej)**, **Kopiuj ścieżkę**, **Pokaż w menedżerze plików** oraz grupę zamykania.
+- **Przypnij** utrzymuje kartę na miejscu: przesuwa się na początek paska, zamiast krzyżyka zamykania pokazuje pinezkę i przetrwa każde **Zamknij pozostałe** / **Zamknij po lewej** / **Zamknij po prawej** / **Zamknij wszystkie**. Aby ją zamknąć, najpierw **Odepnij**.
+- **Odśwież** odrzuca widok i wczytuje plik na nowo z dysku — przydatne, gdy zmienił go inny program. Jeśli karta ma niezapisane zmiany, Plainva odmawia odświeżenia, zamiast nadpisywać Twoją pracę.
+
+## Dostosowywanie paska akcji
+
+Wąski pasek zupełnie po lewej możesz sam sortować: **przeciągnij przycisk** na nowe miejsce (po krótkim przytrzymaniu, dzięki czemu zwykłe kliknięcie nadal po prostu go uruchamia). Górna grupa (akcje) i dolna grupa (skróty, ustawienia) pozostają przy tym rozdzielone — sortowanie odbywa się w obrębie jednej grupy. Plainva zapamiętuje kolejność; nic nigdy nie jest ukrywane, dzięki czemu żadna funkcja nie może stać się nieodnajdywalna. `Esc` anuluje trwające przeciąganie.
 
 ## Dostosowywanie interfejsu
 

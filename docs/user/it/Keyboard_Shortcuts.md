@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-07-15
+Ultimo aggiornamento: 2026-07-26
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -44,8 +44,9 @@ Nell'albero dei file: **clic** seleziona e apre, `Ctrl`+clic attiva/disattiva un
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Scheda successiva / precedente (`Ctrl` su qualsiasi sistema operativo) |
 | `Ctrl+1` … `Ctrl+8` | Vai alla scheda 1–8 |
 | `Ctrl+9` | Vai all'ultima scheda |
+| `F5` | Rileggi il vault (**non** ricarica l'app) |
 
-La modalità focus (entrambe le barre laterali nascoste) si trova nella palette dei comandi.
+La modalità focus (entrambe le barre laterali nascoste) si trova nella palette dei comandi. Bloccare una scheda, ricaricarla e il gruppo di chiusura (**Chiudi le altre** / **Chiudi a sinistra** / **Chiudi a destra** / **Chiudi tutto**) si trovano nel menu al **clic destro** sulla scheda.
 
 ## Formattazione testo
 
@@ -122,9 +123,10 @@ Mouse: **scorri** per lo zoom; **trascinamento con il tasto centrale** o `Ctrl`+
 ## Mouse e gesti (ovunque)
 
 - **Maniglia del blocco (`⠿`):** tocca per il menu del blocco (trasforma in, duplica, sposta, elimina); trascina per riordinare.
-- **Schede:** trascina per riordinare, tra i riquadri, o su un bordo per dividere.
+- **Schede:** trascina per riordinare, tra i riquadri, o su un bordo per dividere; il **clic destro** apre il menu della scheda (**Blocca**, **Ricarica**, **Apri nella vista divisa**, gruppo di chiusura). Una scheda **bloccata** passa in primo piano e sopravvive a ogni chiusura di massa.
+- **Barra delle azioni (estrema sinistra):** tieni premuto brevemente un pulsante e trascinalo per riordinarlo (il gruppo superiore e quello inferiore restano separati); `Esc` annulla.
 - **Link:** fai clic su un link interno / Markdown per aprirlo (`Ctrl`+clic per una nuova scheda).
-- **Clic destro** su una selezione o un campo per il menu di copia / taglia / incolla proprio di Plainva. `F5` e `Ctrl+R` **non** ricaricano (perderesti le schede e i buffer non salvati).
+- **Clic destro** su una selezione o un campo per il menu di copia / taglia / incolla proprio di Plainva. `F5` e `Ctrl+R` **non** ricaricano (perderesti le schede e i buffer non salvati) — rileggono invece il **vault**.
 - **Finestra di anteprima:** trascina l'intestazione per spostarla, l'angolo per ridimensionarla; `◀ ▶` hanno una cronologia propria.
 - **Calendario:** fai clic sul nome del mese per scegliere mese/anno; fai clic su un giorno per la sua nota giornaliera.
 - **Editor di immagini:** disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti.

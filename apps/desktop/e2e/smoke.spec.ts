@@ -1564,3 +1564,52 @@ test('Clicking an unresolved wiki link creates and opens the note', async ({ pag
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Ghost.md'] ?? null), { timeout: 8000 })
     .toContain('# Ghost');
 });
+
+// --- Plan 2026-07-25 P1/P2: reading the vault again, and the tab menu ---
+
+test('F5 reads the vault again and reports what changed', async ({ page }) => {
+  // Root cause the plan named: a file that arrived outside Plainva (network
+  // share, cloud client, another machine) stayed invisible because nothing
+  // rescanned. F5 used to be swallowed outright; now it triggers the reread.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // A file appears in the vault without Plainva ever writing it.
+  await page.evaluate(() => {
+    (window as any).mockFs['/test-vault/Arrived.md'] = '# Arrived\n\nCame from elsewhere.\n';
+  });
+
+  await page.keyboard.press('F5');
+
+  // The tree picks it up, and the report says so instead of staying silent —
+  // a non-zero "new" count is the point: a silent rescan would leave the user
+  // guessing whether anything happened at all.
+  await expect(page.getByText('Arrived', { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.pv-toast')).toContainText(/[1-9]\d*\s+(new|neu)/);
+});
+
+test('Tab menu: pinning survives "close all", unpinning releases the tab', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Welcome', { exact: true }).click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+
+  const tab = page.getByRole('tab').filter({ hasText: 'Welcome' });
+  await tab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Tab anheften|Pin tab/ }).click();
+
+  // A pinned tab trades its close cross for a pin — the visible promise that
+  // mass-closing will not take it.
+  await expect(tab.locator('.lucide-pin')).toBeVisible();
+
+  await tab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Alle Tabs schließen|Close all tabs/ }).click();
+  await expect(tab).toHaveCount(1);
+
+  // Unpin, then the same command closes it — proving the pin was the reason.
+  await tab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Anheftung aufheben|Unpin/ }).click();
+  await tab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Alle Tabs schließen|Close all tabs/ }).click();
+  await expect(tab).toHaveCount(0);
+});

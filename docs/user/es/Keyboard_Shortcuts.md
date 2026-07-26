@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-07-15
+Última actualización: 2026-07-26
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -44,8 +44,9 @@ En el árbol de archivos: **clic** selecciona y abre, `Ctrl`+clic alterna una se
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Pestaña siguiente / anterior (`Ctrl` en todos los sistemas operativos) |
 | `Ctrl+1` … `Ctrl+8` | Saltar a la pestaña 1–8 |
 | `Ctrl+9` | Saltar a la última pestaña |
+| `F5` | Volver a leer el vault (**no** recarga la aplicación) |
 
-El modo de enfoque (ambas barras laterales ocultas) está en la paleta de comandos.
+El modo de enfoque (ambas barras laterales ocultas) está en la paleta de comandos. Fijar una pestaña, recargarla y el grupo de cierre (**Cerrar las demás** / **Cerrar a la izquierda** / **Cerrar a la derecha** / **Cerrar todo**) están en el menú de **clic derecho** de la pestaña.
 
 ## Formatear texto
 
@@ -122,9 +123,10 @@ Ratón: **la rueda** hace zoom; **arrastre con el botón central** o `Ctrl`+arra
 ## Ratón y gestos (en todas partes)
 
 - **Control de bloque (`⠿`):** toca para abrir el menú del bloque (convertir en, duplicar, mover, eliminar); arrastra para reordenar.
-- **Pestañas:** arrastra para reordenar, entre paneles, o hasta un borde para dividir.
+- **Pestañas:** arrastra para reordenar, entre paneles, o hasta un borde para dividir; el **clic derecho** abre el menú de la pestaña (**Fijar**, **Recargar**, **Abrir en panel dividido**, grupo de cierre). Una pestaña **fijada** pasa al frente y sobrevive a cualquier cierre masivo.
+- **Barra de acciones (extremo izquierdo):** mantén pulsado un botón brevemente y arrástralo para reordenarlo (el grupo superior y el inferior permanecen separados); `Esc` cancela.
 - **Enlaces:** haz clic en un enlace wiki o Markdown para abrirlo (`Ctrl`+clic para una pestaña nueva).
-- **Clic derecho** en una selección o un campo abre el menú propio de Plainva para copiar / cortar / pegar. `F5` y `Ctrl+R` **no** recargan (perderían las pestañas y los búferes sin guardar).
+- **Clic derecho** en una selección o un campo abre el menú propio de Plainva para copiar / cortar / pegar. `F5` y `Ctrl+R` **no** recargan (perderían las pestañas y los búferes sin guardar) — en su lugar, vuelven a leer el **vault**.
 - **Ventana de vista rápida:** arrastra el encabezado para moverla, el asa de la esquina para cambiar el tamaño; `◀ ▶` tiene su propio historial.
 - **Calendario:** haz clic en el nombre del mes para elegir mes/año; haz clic en un día para su nota diaria.
 - **Editor de imágenes:** dibuja con el ratón (lápiz/flecha/rectángulo/texto/recorte); haz zoom con los botones.

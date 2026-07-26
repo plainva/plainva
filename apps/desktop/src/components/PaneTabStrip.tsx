@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Pin, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
 import { virtualTabMeta } from "./graph/virtualPaths";
@@ -9,6 +9,8 @@ import { useDirtyPaths } from "../services/dirtyStore";
 interface Props {
   paneIndex: number;
   tabs: string[];
+  /** Pin flag per tab — pinned tabs carry the pin glyph (P2). */
+  pinnedTabs?: boolean[];
   activeIndex: number;
   onSelect: (index: number) => void;
   onClose: (index: number) => void;
@@ -23,7 +25,7 @@ interface Props {
  * is split. Mirrors the title-bar tab styling so split and unsplit look alike.
  * Tabs can be dragged to reorder within the pane or moved to the other pane.
  */
-export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, onContextMenu, onMoveTab, onSplitWithTab }: Props) {
+export function PaneTabStrip({ paneIndex, tabs, pinnedTabs, activeIndex, onSelect, onClose, onContextMenu, onMoveTab, onSplitWithTab }: Props) {
   const { t } = useTranslation();
   const dnd = useTabDnd(paneIndex, onMoveTab, onSplitWithTab);
   const docIcons = useDocumentIcons();
@@ -66,6 +68,11 @@ export function PaneTabStrip({ paneIndex, tabs, activeIndex, onSelect, onClose, 
               touchAction: "none", userSelect: "none",
             }}
           >
+            {pinnedTabs?.[i] && (
+              <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", color: "var(--accent-color)" }}>
+                <Pin size={ICON.meta} />
+              </span>
+            )}
             {VirtualIcon ? (
               <span aria-hidden="true" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
                 <VirtualIcon size={ICON.ui} />

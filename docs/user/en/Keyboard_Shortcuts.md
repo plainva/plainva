@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-07-15
+Last reviewed: 2026-07-26
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -44,8 +44,9 @@ In the file tree: **click** selects and opens, `Ctrl`+click toggles a multi-sele
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab (`Ctrl` on every OS) |
 | `Ctrl+1` … `Ctrl+8` | Jump to tab 1–8 |
 | `Ctrl+9` | Jump to the last tab |
+| `F5` | Read the vault again (does **not** reload the app) |
 
-The focus mode (both sidebars hidden) lives in the command palette.
+The focus mode (both sidebars hidden) lives in the command palette. Pinning a tab, reloading it and the closing group (**Close others / to the left / to the right / all**) are on the tab's **right-click** menu.
 
 ## Format text
 
@@ -122,9 +123,10 @@ Mouse: **scroll** to zoom; **middle-mouse drag** or `Ctrl`+drag to pan (even ove
 ## Mouse & gestures (everywhere)
 
 - **Block handle (`⠿`):** tap for the block menu (turn into, duplicate, move, delete); drag to reorder.
-- **Tabs:** drag to reorder, between panes, or to an edge to split.
+- **Tabs:** drag to reorder, between panes, or to an edge to split; **right-click** opens the tab menu (**Pin**, **Reload**, **Open in split**, closing group). A **pinned** tab moves to the front and survives every mass close.
+- **Action bar (far left):** hold a button briefly and drag to reorder it (top and bottom group stay separate); `Esc` cancels.
 - **Links:** click a wiki / Markdown link to open it (`Ctrl`+click for a new tab).
-- **Right-click** a selection or field for Plainva's own copy / cut / paste menu. `F5` and `Ctrl+R` do **not** reload (they would drop tabs and unsaved buffers).
+- **Right-click** a selection or field for Plainva's own copy / cut / paste menu. `F5` and `Ctrl+R` do **not** reload the app (they would drop tabs and unsaved buffers) — they read the **vault** again instead.
 - **Peek window:** drag the header to move, the corner grip to resize; `◀ ▶` is its own history.
 - **Calendar:** click the month name to pick month/year; click a day for its daily note.
 - **Image editor:** draw with the mouse (pen/arrow/rectangle/text/crop); zoom with the buttons.

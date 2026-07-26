@@ -14,7 +14,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { ICON, isImagePath, Modal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -61,7 +61,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
@@ -73,7 +73,9 @@ import "./App.css";
 function App() {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, resetConnectionEncryption } = useVault();
+  const { vaultPath, loadingPath, selectVault, openVault, closeVault, recentVaults, isLoading, syncWorker, loadingProgress, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, resetConnectionEncryption, refreshVault, rebuildIndex } = useVault();
+  /** Spins the tree-header refresh button while a reconcile is running (P1). */
+  const [refreshing, setRefreshing] = useState(false);
 
   // Ribbon gating (cloud-accounts split, mockup screen 6): the calendar/mail
   // actions exist only while an account carries the service. The registry is
@@ -367,7 +369,7 @@ function App() {
   }, [vaultAdapter]);
   const {
     layout, splitRatio, activePane, activePath, isSplit, activeSplitDirection,
-    openTab, openInFocusedPane, focusOrOpenVirtual, openInOtherPane, openPathInSplit, navigateTab, selectTab, closeTab, closeTabsByPrefix,
+    openTab, openInFocusedPane, focusOrOpenVirtual, openInOtherPane, openPathInSplit, navigateTab, selectTab, closeTab, closeTabsBulk, toggleTabPinned, closeTabsByPrefix,
     renameTabPrefix, focusPane, splitEditor, splitEditorWithTab, moveTabTo, setSplitRatio, normalizeNow,
   } = usePaneLayout({
     vaultPath,
@@ -409,6 +411,9 @@ function App() {
   // Stable identities (useStableHandler) so the single global keydown listener
   // never re-subscribes; each reads the latest render's layout/active state.
   const closedTabsRef = useRef<string[]>([]);
+  // Mirrors the stack's depth so the tab menu can grey out "reopen closed tab"
+  // without reading the ref during render.
+  const [closedTabCount, setClosedTabCount] = useState(0);
   // Records a closed tab's path so Mod+Shift+T can reopen it (wired through the
   // tab strips + Mod+W; bulk closes via closeTabsByPrefix are left untracked).
   const trackClose = useStableHandler((paneIndex: number, index: number) => {
@@ -417,6 +422,7 @@ function App() {
     if (path) {
       closedTabsRef.current.push(path);
       if (closedTabsRef.current.length > 25) closedTabsRef.current.shift();
+      setClosedTabCount(closedTabsRef.current.length);
     }
     closeTab(paneIndex, index);
   });
@@ -425,6 +431,7 @@ function App() {
   });
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
+    setClosedTabCount(closedTabsRef.current.length);
     if (path) openInFocusedPane(path, true);
   });
   const cycleTab = useStableHandler((dir: number) => {
@@ -1040,6 +1047,7 @@ function App() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       <TitleBar
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
+        pinnedTabs={isSplit ? [] : activePane.tabs.map((tb) => tb.pinned === true)}
         activeIndex={activePane.activeIndex}
         onSelectTab={(i) => selectTab(layout.activePaneIndex, i)}
         onCloseTab={(i) => trackClose(layout.activePaneIndex, i)}
@@ -1160,6 +1168,19 @@ function App() {
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {vaultPath ? (vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath) : ""}
                 </span>
+                <button
+                  className="pv-iconbtn"
+                  aria-label={t('refresh.action', { defaultValue: 'Vault neu einlesen' })}
+                  data-tip={t('refresh.action', { defaultValue: 'Vault neu einlesen' })}
+                  data-testid="tree-refresh"
+                  disabled={refreshing}
+                  onClick={() => {
+                    setRefreshing(true);
+                    void refreshVault().catch(() => {}).finally(() => setRefreshing(false));
+                  }}
+                >
+                  <RefreshCw size={ICON.ui} className={refreshing ? 'spin-animation' : undefined} />
+                </button>
                 <button
                   className="pv-iconbtn"
                   aria-label={treeHasExpanded ? t('sidebar.collapseAll') : t('sidebar.expandAll')}
@@ -1294,6 +1315,7 @@ function App() {
                   <PaneTabStrip
                     paneIndex={i}
                     tabs={pane.tabs.map((tb) => tb.history[tb.historyIndex])}
+                    pinnedTabs={pane.tabs.map((tb) => tb.pinned === true)}
                     activeIndex={pane.activeIndex}
                     onSelect={(idx) => selectTab(i, idx)}
                     onClose={(idx) => trackClose(i, idx)}
@@ -1507,6 +1529,8 @@ function App() {
             showVersionHistory: (path) => setVersionHistoryTarget({ path }),
             backupNow: () => window.dispatchEvent(new CustomEvent("plainva-backup-now")),
             updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
+            refreshVault: () => { void refreshVault(); },
+            rebuildIndex: () => { void rebuildIndex(); },
             switchVault: () => { void closeVault(); },
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
             canPrint: () => activeDocument.get().kind === "markdown",
@@ -1612,23 +1636,47 @@ function App() {
       </Suspense>
       <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
       <QuickSwitcher isOpen={showQuickSwitcher} onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); normalizeNow(); }} onOpenPath={(p) => openInFocusedPane(p, quickSwitcherNewTab)} recentPaths={recentPaths} />
-      {tabMenu && (
-        <TabContextMenu
-          x={tabMenu.x}
-          y={tabMenu.y}
-          onSplitVertical={() => splitEditorWithTab("vertical", tabMenu.paneIndex, tabMenu.tabIndex)}
-          onSplitHorizontal={() => splitEditorWithTab("horizontal", tabMenu.paneIndex, tabMenu.tabIndex)}
-          activeDirection={activeSplitDirection}
-          onCloseTab={() => trackClose(tabMenu.paneIndex, tabMenu.tabIndex)}
-          onClose={() => setTabMenu(null)}
-          onShowVersionHistory={(() => {
-            const tab = layout.panes[tabMenu.paneIndex]?.tabs[tabMenu.tabIndex];
-            const tabPath = tab ? tab.history[tab.historyIndex] : null;
-            if (!tabPath || isVirtualPath(tabPath)) return undefined;
-            return () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: tabPath } }));
-          })()}
-        />
-      )}
+      {tabMenu && (() => {
+        // Everything the tab menu needs about the RIGHT-CLICKED tab (not the
+        // active one — they differ whenever you right-click a background tab).
+        const pane = layout.panes[tabMenu.paneIndex];
+        const tab = pane?.tabs[tabMenu.tabIndex];
+        const tabPath = tab ? tab.history[tab.historyIndex] : null;
+        const isFile = !!tabPath && !isVirtualPath(tabPath);
+        const isPinned = tab?.pinned === true;
+        // "Left" is dead on the first tab, "right" on the last — shown disabled
+        // rather than hidden, so the menu keeps a stable shape.
+        const hasUnpinnedLeft = !!pane && pane.tabs.slice(0, tabMenu.tabIndex).some((tb) => !tb.pinned);
+        const hasUnpinnedRight = !!pane && pane.tabs.slice(tabMenu.tabIndex + 1).some((tb) => !tb.pinned);
+        return (
+          <TabContextMenu
+            x={tabMenu.x}
+            y={tabMenu.y}
+            onSplitVertical={() => splitEditorWithTab("vertical", tabMenu.paneIndex, tabMenu.tabIndex)}
+            onSplitHorizontal={() => splitEditorWithTab("horizontal", tabMenu.paneIndex, tabMenu.tabIndex)}
+            activeDirection={activeSplitDirection}
+            onCloseTab={() => trackClose(tabMenu.paneIndex, tabMenu.tabIndex)}
+            onClose={() => setTabMenu(null)}
+            pinned={isPinned}
+            onTogglePin={() => toggleTabPinned(tabMenu.paneIndex, tabMenu.tabIndex)}
+            onReload={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-reload-file", { detail: { path: tabPath } })) : undefined}
+            onRevealInTree={isFile ? () => { parkTreeReveal(tabPath!); window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: tabPath } })); } : undefined}
+            onCopyPath={isFile ? () => { void navigator.clipboard.writeText(tabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
+            onRename={isFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
+            onToggleBookmark={isFile ? () => toggleBookmark(tabPath!) : undefined}
+            isBookmarked={isFile ? bookmarks.includes(tabPath!) : false}
+            onReopenClosed={() => reopenClosedTab()}
+            canReopenClosed={closedTabCount > 0}
+            onCloseOthers={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "others")}
+            onCloseLeft={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "left")}
+            onCloseRight={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "right")}
+            onCloseAll={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "all")}
+            canCloseLeft={hasUnpinnedLeft}
+            canCloseRight={hasUnpinnedRight}
+            onShowVersionHistory={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: tabPath } })) : undefined}
+          />
+        );
+      })()}
       <TemplatePickerModal isOpen={showTemplatePicker} onClose={() => setShowTemplatePicker(false)} />
 
       {showErrorModal && (

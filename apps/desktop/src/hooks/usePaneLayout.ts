@@ -7,7 +7,18 @@ import type { SplitDirection } from "../components/SplitButton";
 // pane. The transforms below are pure so the React handlers stay tiny — they
 // live here (not in App) so App only wires them up, and so they can be unit
 // tested in isolation (see usePaneLayout.test.ts).
-export interface TabItem { history: string[]; historyIndex: number }
+export interface TabItem {
+  history: string[];
+  historyIndex: number;
+  /**
+   * Pinned tabs sort to the left of a pane and are exempt from every mass-close
+   * action ("close others / left / right / all") — the browser contract, and
+   * the point of the feature: a daily note or reference stays put while the
+   * working tabs come and go. Absent on layouts saved before 2026-07-25, which
+   * reads as "not pinned".
+   */
+  pinned?: boolean;
+}
 export interface Pane { tabs: TabItem[]; activeIndex: number }
 export interface Layout { panes: Pane[]; direction: SplitDirection; activePaneIndex: number }
 
@@ -78,20 +89,71 @@ export function closeTabInPane(pane: Pane, index: number): Pane {
   return { tabs, activeIndex };
 }
 
-export function closeByPrefixInPane(pane: Pane, prefix: string): Pane {
-  const keep: { tab: TabItem; idx: number }[] = [];
-  pane.tabs.forEach((tb, i) => {
-    const p = tb.history[tb.historyIndex];
-    if (p !== prefix && !p.startsWith(prefix + "/")) keep.push({ tab: tb, idx: i });
+/**
+ * Keeps exactly the tabs `keep` accepts, preserving the active tab where
+ * possible. Shared by every mass-close action so they cannot drift apart.
+ */
+function keepTabsInPane(pane: Pane, keep: (tab: TabItem, index: number) => boolean): Pane {
+  const kept: { tab: TabItem; idx: number }[] = [];
+  pane.tabs.forEach((tab, i) => {
+    if (keep(tab, i)) kept.push({ tab, idx: i });
   });
-  if (keep.length === pane.tabs.length) return pane;
-  const tabs = keep.map((k) => k.tab);
+  if (kept.length === pane.tabs.length) return pane;
+  const tabs = kept.map((k) => k.tab);
   let activeIndex = -1;
   if (tabs.length) {
-    const found = keep.findIndex((k) => k.idx === pane.activeIndex);
+    const found = kept.findIndex((k) => k.idx === pane.activeIndex);
     activeIndex = Math.max(0, found >= 0 ? found : Math.min(pane.activeIndex, tabs.length - 1));
   }
   return { tabs, activeIndex };
+}
+
+/** Close every tab except `index` — pinned tabs survive (browser contract). */
+export function closeOtherTabs(pane: Pane, index: number): Pane {
+  return keepTabsInPane(pane, (tab, i) => i === index || tab.pinned === true);
+}
+
+/** Close the tabs left of `index`. Pinned tabs survive. */
+export function closeTabsToLeft(pane: Pane, index: number): Pane {
+  return keepTabsInPane(pane, (tab, i) => i >= index || tab.pinned === true);
+}
+
+/** Close the tabs right of `index`. Pinned tabs survive. */
+export function closeTabsToRight(pane: Pane, index: number): Pane {
+  return keepTabsInPane(pane, (tab, i) => i <= index || tab.pinned === true);
+}
+
+/** Close everything that is not pinned. */
+export function closeAllTabs(pane: Pane): Pane {
+  return keepTabsInPane(pane, (tab) => tab.pinned === true);
+}
+
+/**
+ * Pin/unpin a tab and re-sort it into place: pinned tabs form a block at the
+ * left, in pin order; unpinning drops the tab at the front of the unpinned
+ * block. The active tab keeps following its own tab, not its old index.
+ */
+export function togglePinInPane(pane: Pane, index: number): Pane {
+  const target = pane.tabs[index];
+  if (!target) return pane;
+  const updated: TabItem = { ...target, pinned: !target.pinned };
+  const rest = pane.tabs.filter((_, i) => i !== index);
+  // The boundary between the pinned block and the rest — the end of the pinned
+  // block when pinning, the front of the unpinned block when unpinning.
+  const boundary = rest.filter((t) => t.pinned).length;
+  const tabs = [...rest.slice(0, boundary), updated, ...rest.slice(boundary)];
+  const activeTab = pane.tabs[pane.activeIndex];
+  const activeIndex = activeTab ? tabs.indexOf(pane.activeIndex === index ? updated : activeTab) : -1;
+  return { tabs, activeIndex: activeIndex >= 0 ? activeIndex : Math.min(pane.activeIndex, tabs.length - 1) };
+}
+
+export function closeByPrefixInPane(pane: Pane, prefix: string): Pane {
+  // Deliberately ignores `pinned`: the file is gone from disk, so keeping a tab
+  // on it would leave a dead tab behind.
+  return keepTabsInPane(pane, (tb) => {
+    const p = tb.history[tb.historyIndex];
+    return p !== prefix && !p.startsWith(prefix + "/");
+  });
 }
 
 export function renamePrefixInPane(pane: Pane, oldPrefix: string, newPrefix: string): Pane {
@@ -375,6 +437,30 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     setLayout((prev) => normalizeLayout({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? closeTabInPane(p, index) : p)) }));
   }, []);
 
+  /**
+   * The browser-style mass-close family (P2). All four route through the same
+   * pure helpers, so "pinned tabs survive" cannot drift between them; the host
+   * runs its dirty-buffer confirmation before calling in.
+   */
+  const closeTabsBulk = useCallback((paneIndex: number, index: number, mode: "others" | "left" | "right" | "all") => {
+    setLayout((prev) =>
+      normalizeLayout({
+        ...prev,
+        panes: prev.panes.map((p, i) => {
+          if (i !== paneIndex) return p;
+          if (mode === "others") return closeOtherTabs(p, index);
+          if (mode === "left") return closeTabsToLeft(p, index);
+          if (mode === "right") return closeTabsToRight(p, index);
+          return closeAllTabs(p);
+        }),
+      })
+    );
+  }, []);
+
+  const toggleTabPinned = useCallback((paneIndex: number, index: number) => {
+    setLayout((prev) => ({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? togglePinInPane(p, index) : p)) }));
+  }, []);
+
   // Delete/rename affect every pane (the file may be open in more than one).
   const closeTabsByPrefix = useCallback((prefix: string) => {
     setLayout((prev) => normalizeLayout({ ...prev, panes: prev.panes.map((p) => closeByPrefixInPane(p, prefix)) }));
@@ -472,6 +558,8 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     navigateTab,
     selectTab,
     closeTab,
+    closeTabsBulk,
+    toggleTabPinned,
     closeTabsByPrefix,
     renameTabPrefix,
     focusPane,

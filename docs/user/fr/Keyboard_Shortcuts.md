@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-07-15
+Dernière mise à jour : 2026-07-26
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -44,8 +44,9 @@ Dans l'arborescence de fichiers : le **clic** sélectionne et ouvre, `Ctrl`+clic
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Onglet suivant / précédent (`Ctrl` sur tous les systèmes, y compris macOS) |
 | `Ctrl+1` … `Ctrl+8` | Aller à l'onglet 1–8 |
 | `Ctrl+9` | Aller au dernier onglet |
+| `F5` | Relire le vault (ne recharge **pas** l'application) |
 
-Le mode focus (les deux barres latérales masquées) se trouve dans la palette de commandes.
+Le mode focus (les deux barres latérales masquées) se trouve dans la palette de commandes. Épingler un onglet, le recharger et le groupe de fermeture (**Fermer les autres** / **Fermer à gauche** / **Fermer à droite** / **Fermer tout**) sont accessibles par **clic droit sur l'onglet**.
 
 ## Mise en forme du texte
 
@@ -122,9 +123,10 @@ Souris : la **molette** zoome ; le **clic molette + glisser** ou `Ctrl`+glisser 
 ## Souris et gestes (partout)
 
 - **Poignée de bloc (`⠿`) :** toucher pour le menu de bloc (transformer en, dupliquer, déplacer, supprimer) ; glisser pour réorganiser.
-- **Onglets :** glisser pour réorganiser, entre les volets, ou vers un bord pour scinder.
+- **Onglets :** glisser pour réorganiser, entre les volets, ou vers un bord pour scinder ; le **clic droit** ouvre le menu de l'onglet (**Épingler**, **Recharger**, **Ouvrir dans la vue scindée**, groupe de fermeture). Un onglet **épinglé** passe au premier plan et survit à toute fermeture groupée.
+- **Barre d'actions (tout à gauche) :** maintenez brièvement un bouton puis faites-le glisser pour le réorganiser (les groupes du haut et du bas restent séparés) ; `Esc` annule.
 - **Liens :** cliquer sur un lien interne / Markdown pour l'ouvrir (`Ctrl`+clic pour un nouvel onglet).
-- **Clic droit** sur une sélection ou un champ pour le menu copier / couper / coller propre à Plainva. `F5` et `Ctrl+R` ne rechargent **pas** l'application (cela ferait perdre les onglets et les brouillons non enregistrés).
+- **Clic droit** sur une sélection ou un champ pour le menu copier / couper / coller propre à Plainva. `F5` et `Ctrl+R` ne rechargent **pas** l'application (cela ferait perdre les onglets et les brouillons non enregistrés) — ils relisent plutôt le **vault**.
 - **Fenêtre d'aperçu :** en-tête pour déplacer, angle pour redimensionner ; `◀ ▶` est son propre historique.
 - **Calendrier :** cliquer sur le nom du mois pour choisir le mois ou l'année ; cliquer sur un jour pour sa note quotidienne.
 - **Éditeur d'image :** dessiner avec la souris (crayon/flèche/rectangle/texte/rognage) ; zoomer avec les boutons.

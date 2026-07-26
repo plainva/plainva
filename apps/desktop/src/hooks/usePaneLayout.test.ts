@@ -8,6 +8,11 @@ import {
   renamePrefixInPane,
   normalizeLayout,
   moveTab,
+  closeOtherTabs,
+  closeTabsToLeft,
+  closeTabsToRight,
+  closeAllTabs,
+  togglePinInPane,
   type Layout,
   type Pane,
 } from "./usePaneLayout";
@@ -180,5 +185,81 @@ describe("focusOrOpenVirtualInLayout (ribbon/palette singleton tabs)", () => {
     expect(r.activePaneIndex).toBe(1);
     expect(r.panes[1].activeIndex).toBe(1);
     expect(r.panes.flatMap(paths).filter((p) => p === V)).toHaveLength(1);
+  });
+});
+
+/**
+ * P2 — the browser-style mass-close family. The single rule that makes pinning
+ * worth having: a pinned tab survives every one of them. (Renaming/deleting a
+ * file still closes its tab — the file is gone, a pinned dead tab helps nobody;
+ * that path is closeByPrefixInPane above.)
+ */
+describe("mass close (P2)", () => {
+  const pinned = (p: string) => ({ history: [p], historyIndex: 0, pinned: true });
+
+  it("closes every other tab but keeps pinned ones", () => {
+    const src: Pane = { tabs: [pinned("Daily.md"), tab("A.md"), tab("B.md"), tab("C.md")], activeIndex: 2 };
+    const out = closeOtherTabs(src, 2);
+    expect(paths(out)).toEqual(["Daily.md", "B.md"]);
+    // The right-clicked tab stays active.
+    expect(paths(out)[out.activeIndex]).toBe("B.md");
+  });
+
+  it("closes to the left and to the right, pinned tabs excepted", () => {
+    const src: Pane = { tabs: [pinned("Daily.md"), tab("A.md"), tab("B.md"), tab("C.md")], activeIndex: 0 };
+    expect(paths(closeTabsToLeft(src, 2))).toEqual(["Daily.md", "B.md", "C.md"]);
+    expect(paths(closeTabsToRight(src, 2))).toEqual(["Daily.md", "A.md", "B.md"]);
+  });
+
+  it("closes everything except pinned tabs", () => {
+    const src: Pane = { tabs: [pinned("Daily.md"), tab("A.md"), tab("B.md")], activeIndex: 1 };
+    const out = closeAllTabs(src);
+    expect(paths(out)).toEqual(["Daily.md"]);
+    expect(out.activeIndex).toBe(0);
+  });
+
+  it("leaves the pane untouched when there is nothing to close", () => {
+    const src: Pane = { tabs: [tab("A.md")], activeIndex: 0 };
+    expect(closeOtherTabs(src, 0)).toBe(src);
+    expect(closeTabsToLeft(src, 0)).toBe(src);
+  });
+});
+
+describe("togglePinInPane (P2)", () => {
+  it("moves a newly pinned tab to the left block and keeps the active tab", () => {
+    const src: Pane = { tabs: [tab("A.md"), tab("B.md"), tab("C.md")], activeIndex: 0 };
+    const out = togglePinInPane(src, 2);
+    expect(paths(out)).toEqual(["C.md", "A.md", "B.md"]);
+    expect(out.tabs[0].pinned).toBe(true);
+    // "A.md" was active before and still is — the index followed the tab.
+    expect(paths(out)[out.activeIndex]).toBe("A.md");
+  });
+
+  it("appends to the END of the pinned block, so pin order is stable", () => {
+    const src: Pane = {
+      tabs: [{ history: ["P1.md"], historyIndex: 0, pinned: true }, tab("A.md"), tab("B.md")],
+      activeIndex: 0,
+    };
+    expect(paths(togglePinInPane(src, 2))).toEqual(["P1.md", "B.md", "A.md"]);
+  });
+
+  it("unpinning drops the tab in front of the unpinned block", () => {
+    const src: Pane = {
+      tabs: [
+        { history: ["P1.md"], historyIndex: 0, pinned: true },
+        { history: ["P2.md"], historyIndex: 0, pinned: true },
+        tab("A.md"),
+      ],
+      activeIndex: 2,
+    };
+    const out = togglePinInPane(src, 0);
+    expect(paths(out)).toEqual(["P2.md", "P1.md", "A.md"]);
+    expect(out.tabs[1].pinned).toBe(false);
+    expect(paths(out)[out.activeIndex]).toBe("A.md");
+  });
+
+  it("ignores an out-of-range index", () => {
+    const src: Pane = { tabs: [tab("A.md")], activeIndex: 0 };
+    expect(togglePinInPane(src, 5)).toBe(src);
   });
 });

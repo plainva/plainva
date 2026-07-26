@@ -78,7 +78,7 @@ const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = (
 );
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault } = useVault();
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const { t, i18n } = useTranslation();
@@ -894,9 +894,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <MaintenancePage
                       isActiveVault={isActiveVault}
                       reindexRunning={reindexRunning}
+                      onRefresh={() => {
+                        void refreshVault().catch((e) => console.error("[Settings] refresh failed", e));
+                      }}
                       onReindex={() => {
                         setReindexRunning(true);
-                        void refreshVault()
+                        void rebuildIndex()
                           .catch((e) => console.error("[Settings] reindex failed", e))
                           .finally(() => setReindexRunning(false));
                       }}

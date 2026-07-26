@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-07-15
+Laatst bijgewerkt: 2026-07-26
 
 Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het venster met sneltoetsen te openen. Het groepeert elke sneltoets en muisgebaar in gebieden waartussen je bovenaan met de chips wisselt, heeft een zoekveld dat over alle gebieden werkt, en herkent je platform automatisch: het toont `Ctrl`/`Alt` onder Windows en Linux en `⌘`/`⌥` onder macOS. In de tabellen hieronder betekent `Ctrl` daarom `⌘` op macOS en `Alt` betekent `⌥`.
 
@@ -44,8 +44,9 @@ In de bestandsboom: **klik** selecteert en opent, `Ctrl`+klik schakelt de multis
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Volgend / vorig tabblad (`Ctrl` op elk besturingssysteem) |
 | `Ctrl+1` … `Ctrl+8` | Naar tabblad 1–8 springen |
 | `Ctrl+9` | Naar het laatste tabblad springen |
+| `F5` | Leest de vault opnieuw in (laadt de app **niet** opnieuw) |
 
-De focusmodus (beide zijbalken verborgen) vind je in het opdrachtenpalet.
+De focusmodus (beide zijbalken verborgen) vind je in het opdrachtenpalet. Een tabblad vastzetten, vernieuwen en de sluitgroep (**Andere / links / rechts / alle sluiten**) vind je in het **rechtsklikmenu** van het tabblad.
 
 ## Tekst opmaken
 
@@ -122,9 +123,10 @@ Muis: **scrollen** om te zoomen; **middelste muisknop + slepen** of `Ctrl`+slepe
 ## Muis & gebaren (overal)
 
 - **Blokgreep (`⠿`):** aantikken voor het blokmenu (omzetten in, dupliceren, verplaatsen, verwijderen); slepen om te verplaatsen.
-- **Tabbladen:** slepen om te herordenen, tussen panelen, of naar een rand om te splitsen.
+- **Tabbladen:** slepen om te herordenen, tussen panelen, of naar een rand om te splitsen; **rechtsklik** opent het tabbladmenu (**Vastzetten**, **Vernieuwen**, **In split openen**, sluitgroep). Een **vastgezet** tabblad rukt naar voren en overleeft elke massasluiting.
+- **Actiebalk (uiterst links):** een knop kort ingedrukt houden en slepen om hem te herordenen (bovenste en onderste groep blijven gescheiden); `Esc` breekt af.
 - **Links:** klik op een wiki-/Markdown-link om hem te openen (`Ctrl`+klik voor een nieuw tabblad).
-- **Rechtsklik** op een selectie of een veld voor Plainva's eigen kopieer-/knip-/plakmenu. `F5` en `Ctrl+R` laden **niet** opnieuw (dat zou tabbladen en niet-opgeslagen buffers verwerpen).
+- **Rechtsklik** op een selectie of een veld voor Plainva's eigen kopieer-/knip-/plakmenu. `F5` en `Ctrl+R` laden **niet** opnieuw (dat zou tabbladen en niet-opgeslagen buffers verwerpen) — ze lezen in plaats daarvan de **vault** opnieuw in.
 - **Peek-venster:** kop slepen om te verplaatsen, hoekgreep om het formaat te wijzigen; `◀ ▶` is een eigen geschiedenis.
 - **Kalender:** klik op de maandnaam om maand/jaar te kiezen; klik op een dag voor zijn dagnotitie.
 - **Afbeeldingseditor:** teken met de muis (pen/pijl/rechthoek/tekst/bijsnijden); zoom via de knoppen.

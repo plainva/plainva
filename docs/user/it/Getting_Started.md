@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-07-22
+Ultimo aggiornamento: 2026-07-26
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -47,6 +47,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 - **Selezione multipla:** eliminare chiede conferma una sola volta per tutti gli elementi, duplicare e spostare trascinando funzionano sull'intera selezione. Gli elementi eliminati finiscono nel cestino del sistema operativo.
 - Le nuove note iniziano automaticamente con un `# Titolo` derivato dal nome del file.
 - La `index.md` di una cartella (la sua panoramica) si posiziona nell'albero in **cima** a quella cartella, sopra le sue sottocartelle e i suoi file — non in ordine alfabetico tra le altre note.
+- **Rileggi:** la freccia circolare nell'intestazione dell'albero (o **F5**) rilegge il vault — Plainva riconcilia l'indice con la cartella e, per i vault online, scarica anche i file dal cloud. Un breve resoconto indica poi cosa era nuovo, modificato, rimosso o saltato. Per una singola cartella c'è **Rileggi questa cartella** nel menu contestuale.
 
 ## Note giornaliere
 
@@ -60,6 +61,16 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 
 - **App** — tutto ciò che vale per l'intera app, suddiviso in cinque aree. **Aspetto**: il selettore **Tema** come schede di anteprima — oltre a **Petrolio** (predefinito) trovi **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Carta** (simile a un e-ink, massimamente calmo), **Seppia** (carta calda), **Foresta**, **Mezzanotte** (nero OLED), **Alto contrasto** e **Fosforo verde**/**Fosforo ambra** (terminale retrò con scanline discrete); più la **Modalità** (**Chiaro**/**Scuro**/**Predefinito di sistema**; i temi a modalità unica come **Mezzanotte** fissano la modalità, e l'interruttore chiaro/scuro nella barra del titolo si mette in pausa mentre sono attivi), **Lingua**, **Inizio settimana**, **Densità** e **Zoom dell'interfaccia**. **Editor e note**: **Vista predefinita**, **Dimensione carattere del contenuto** e **Carattere del contenuto**. **Avvio e comportamento**: apertura automatica dell'ultimo vault, avvisi di compatibilità. **Aggiornamenti**: Plainva controlla silenziosamente le nuove versioni all'avvio e mostra un avviso quando ne trova una — un clic su di esso scarica e installa subito l'aggiornamento (l'avviso resta visibile fino al riavvio di Plainva). Disattivabile tramite **Cerca aggiornamenti all'avvio**. **Informazioni e diagnostica**: dettagli sulla versione, lo stato del **Portachiavi del sistema operativo**, **Metriche di prestazioni**, **Esporta diagnostica…** (senza contenuti delle note) e **Segnala un problema**. Le scorciatoie da tastiera restano raggiungibili in qualsiasi momento tramite `F1` o **Mostra le scorciatoie da tastiera** in basso a sinistra.
 - **Vault** — il vault selezionato è mostrato come una piccola scheda nella barra laterale (il vault attivo porta un punto); con più vault, **Cambia** sotto di essa apre un elenco di selezione. Sotto, le aree per vault: **Account cloud** è l'unico posto per tutti gli accessi cloud — **Collega account…** sceglie il provider (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV o una casella e-mail) e i servizi (**File**, **Calendario e attività**, **E-mail**) che quell'account deve portare. Le aree di servizio **Sincronizzazione** (vedi [Configurare la sincronizzazione](Sync_Setup.md)), **Calendario** (vedi [Calendario e attività](Calendar_and_Tasks.md)) ed **E-mail** (vedi [Cattura e-mail](Email_Capture.md)) compaiono solo quando un account collegato porta quel servizio. Sempre presenti: **Contenuto e struttura** (**Note giornaliere**, **Modelli e attività** inclusa la **Cartella dei modelli**, **OKF (Open Knowledge Format)** — vedi [OKF](OKF.md) — e **Database estesi**), **Backup e cronologia delle versioni** e **Manutenzione** (**Ricostruisci indice**, ripristina i file eliminati, statistiche del vault).
+
+## Tabs
+
+- **Clic destro su una scheda** per aprire il suo menu: **Blocca**, **Ricarica**, **Apri nella vista divisa (destra)**, **Copia percorso**, **Mostra in Esplora file** e il gruppo di chiusura.
+- **Blocca** tiene ferma una scheda: si sposta all'inizio della barra delle schede, mostra una puntina invece della croce di chiusura e sopravvive a ogni **Chiudi le altre** / **Chiudi a sinistra** / **Chiudi a destra** / **Chiudi tutto**. Per chiuderla, tocca prima **Sblocca**.
+- **Ricarica** scarta la vista attuale e rilegge il file dal disco — utile quando un altro programma lo ha modificato. Se la scheda ha modifiche non salvate, Plainva rifiuta di ricaricare piuttosto che sovrascrivere il tuo lavoro.
+
+## Organizzare la barra delle azioni
+
+La barra stretta all'estrema sinistra puoi ordinarla tu: **trascina un pulsante** nella sua nuova posizione (dopo una breve pressione, così un semplice clic continua solo ad attivarlo). Il gruppo superiore (azioni) e quello inferiore (scorciatoie, impostazioni) restano separati — l'ordinamento avviene all'interno di un gruppo. Plainva ricorda l'ordine; nulla viene mai nascosto, così nessuna funzione può diventare irreperibile. `Esc` annulla un trascinamento in corso.
 
 ## Personalizzare l'interfaccia
 

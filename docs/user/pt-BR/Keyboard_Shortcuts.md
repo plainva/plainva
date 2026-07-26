@@ -1,6 +1,6 @@
 # Atalhos de Teclado
 
-Última revisão: 2026-07-15
+Última revisão: 2026-07-26
 
 Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para abrir a janela de atalhos a qualquer momento. Ela agrupa todos os atalhos e gestos do mouse em áreas que você alterna pelos chips na parte superior, tem um campo de busca que abrange todas as áreas e detecta automaticamente a sua plataforma: mostra `Ctrl`/`Alt` no Windows e no Linux, e `⌘`/`⌥` no macOS. Nas tabelas abaixo, portanto, `Ctrl` significa `⌘` no macOS, e `Alt` significa `⌥`.
 
@@ -44,8 +44,9 @@ Na árvore de arquivos: **clique** seleciona e abre, `Ctrl`+clique alterna uma s
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima aba / aba anterior (`Ctrl` em qualquer sistema) |
 | `Ctrl+1` … `Ctrl+8` | Ir para a aba 1–8 |
 | `Ctrl+9` | Ir para a última aba |
+| `F5` | Relê o vault novamente (**não** recarrega o app) |
 
-O modo de foco (ambas as barras laterais ocultas) está disponível na paleta de comandos.
+O modo de foco (ambas as barras laterais ocultas) está disponível na paleta de comandos. Fixar uma aba, recarregá-la e o grupo de fechamento (**Fechar as outras** / **à esquerda** / **à direita** / **todas**) estão no menu de **clique com o botão direito** da aba.
 
 ## Formatar texto
 
@@ -122,9 +123,10 @@ Mouse: a **roda do mouse** dá zoom; **arrastar com o botão do meio** ou `Ctrl`
 ## Mouse e gestos (em qualquer lugar)
 
 - **Alça do bloco (`⠿`):** toque para abrir o menu do bloco (transformar em, duplicar, mover, excluir); arraste para reordenar.
-- **Abas:** arraste para reordenar, entre painéis, ou até uma borda para dividir.
+- **Abas:** arraste para reordenar, entre painéis, ou até uma borda para dividir; **clique com o botão direito** abre o menu da aba (**Fixar**, **Recarregar**, **Abrir na divisão**, grupo de fechamento). Uma aba **fixada** vai para o início e sobrevive a qualquer fechamento em massa.
+- **Barra de ações (extrema esquerda):** mantenha um botão pressionado por um instante e arraste para reordená-lo (o grupo de cima e o de baixo permanecem separados); `Esc` cancela.
 - **Links:** clique em um link wiki / Markdown para abri-lo (`Ctrl`+clique para uma nova aba).
-- **Clique com o botão direito** em uma seleção ou campo para abrir o menu próprio do Plainva de copiar / recortar / colar. `F5` e `Ctrl+R` **não** recarregam (isso descartaria abas e buffers não salvos).
+- **Clique com o botão direito** em uma seleção ou campo para abrir o menu próprio do Plainva de copiar / recortar / colar. `F5` e `Ctrl+R` **não** recarregam (isso descartaria abas e buffers não salvos) — em vez disso, releem o **vault** novamente.
 - **Janela de espiada:** arraste o cabeçalho para mover, a alça no canto para redimensionar; `◀ ▶` tem histórico próprio.
 - **Calendário:** clique no nome do mês para escolher mês/ano; clique em um dia para sua nota diária.
 - **Editor de imagem:** desenhe com o mouse (caneta/seta/retângulo/texto/cortar); zoom pelos botões.

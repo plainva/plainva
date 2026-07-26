@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-07-22
+Last updated: 2026-07-26
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -47,6 +47,7 @@ You can also toggle between **Readable width** and **Full width**.
 - **Multi-selection:** deleting asks once for all items, duplicating and moving by drag work on the whole selection. Deleted items go to the operating system's trash.
 - New notes automatically start with a `# Heading` derived from the file name.
 - A folder's own `index.md` (its overview) sorts to the **top** of that folder in the tree, above its subfolders and files — not alphabetically among the other notes.
+- **Read again:** the circular arrow in the tree's heading (or **F5**) reads the vault again — Plainva reconciles the index with the folder and, on online vaults, also fetches the cloud files. A short report then states what was new, changed, removed or skipped. For a single folder there is **Read this folder again** in the right-click menu.
 
 ## Daily notes
 
@@ -60,6 +61,16 @@ The **Calendar** on the right is a day overview: **clicking** a date opens the [
 
 - **App** — everything that applies app-wide, in five areas. **Appearance**: the **Theme** picker as preview cards — besides **Petrol** (the default) you get **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Paper** (E-Ink-like, maximally calm), **Sepia** (warm paper), **Forest**, **Midnight** (OLED black), **High Contrast** and **Phosphor Green**/**Phosphor Amber** (retro terminal with subtle scanlines); plus the **Mode** (**Light**/**Dark**/**System Default**; single-mode themes such as **Midnight** pin the mode, and the light/dark switch in the title bar pauses while they are active), **Language**, **Week starts on**, **Density** and **Interface zoom**. **Editor & notes**: **Default view**, **Content font size** and **Content font**. **Startup & behavior**: open the last vault automatically, compatibility warnings. **Updates**: Plainva quietly checks for new versions on startup and shows a notice when one is found — click it to download and install the update straight away (it stays up until Plainva restarts). Opt out via **Check for updates on startup**. **About & diagnostics**: version details, the **OS keychain** status, **Performance metrics**, **Export diagnostics…** (no note content) and **Report a problem**. Keyboard shortcuts stay reachable any time via `F1` or **Show keyboard shortcuts** in the bottom left.
 - **Vault** — the selected vault sits as a small card in the rail (the active vault carries a dot); with several vaults, **Switch** below it opens a picker list. Below that, the per-vault areas: **Cloud accounts** is the one place for every cloud sign-in — **Connect account…** picks the provider (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV or an email mailbox) and the services (**Files**, **Calendar & tasks**, **Email**) that account should carry. The service areas **Sync** (see [Sync Setup](Sync_Setup.md)), **Calendar** (see [Calendar & Tasks](Calendar_and_Tasks.md)) and **Email** (see [Email capture](Email_Capture.md)) only appear once a connected account carries that service. Always present: **Content & structure** (**Daily notes**, **Templates & tasks** including the **Template Folder**, **OKF (Open Knowledge Format)** — see [OKF](OKF.md) — and **Extended databases**), **Backup & version history** and **Maintenance** (**Rebuild index**, restore deleted files, vault statistics).
+
+## Tabs
+
+- **Right-click a tab** for its menu: **Pin**, **Reload**, **Open in split (right)**, **Copy path**, **Show in file manager**, and the closing group.
+- **Pin** holds a tab in place: it moves to the front of the strip, shows a pin instead of the close cross, and survives every **Close others** / **Close to the left** / **Close to the right** / **Close all**. To close it, **Unpin** first.
+- **Reload** discards the view and reads the file from disk again — handy when another program changed it. If the tab has unsaved edits, Plainva refuses to reload rather than overwrite your work.
+
+## Arranging the action bar
+
+The narrow bar on the far left is yours to sort: **drag a button** to its new place (after a short hold, so a plain click still just triggers it). The top group (actions) and the bottom group (shortcuts, settings) stay separate — sorting happens within a group. Plainva remembers the order; nothing is ever hidden, so no function can become unfindable. `Esc` cancels a drag in progress.
 
 ## Customizing the interface
 

@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-07-22
+Última revisão: 2026-07-26
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -47,6 +47,7 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 - **Seleção múltipla:** excluir pergunta uma vez para todos os itens, duplicar e mover por arrastar funcionam para toda a seleção. Os itens excluídos vão para a lixeira do sistema operacional.
 - Novas notas começam automaticamente com um `# Título` derivado do nome do arquivo.
 - O `index.md` próprio de uma pasta (sua visão geral) é ordenado no **topo** dessa pasta na árvore, acima de suas subpastas e arquivos — não em ordem alfabética entre as demais notas.
+- **Reler:** a seta circular no cabeçalho da árvore (ou **F5**) relê o vault — o Plainva concilia o índice com a pasta e, em vaults on-line, também busca os arquivos da nuvem. Um breve relatório então mostra o que foi novo, alterado, removido ou ignorado. Para uma única pasta há **Reler esta pasta** no menu de contexto.
 
 ## Notas diárias
 
@@ -60,6 +61,16 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 
 - **App** — tudo que se aplica ao app inteiro, em cinco áreas. **Aparência**: o seletor de **Tema** como cartões de pré-visualização — além do **Azul-petróleo** (o padrão), você tem **Nord**, **Solarized**, **Gruvbox**, **Catppuccin**, **Papel** (estilo E-Ink, o mais calmo possível), **Sépia** (papel quente), **Floresta**, **Meia-noite** (preto OLED), **Alto contraste** e **Fósforo verde**/**Fósforo âmbar** (terminal retrô com scanlines discretas); além do **Modo** (**Claro**/**Escuro**/**Padrão do sistema**; temas de modo único como **Meia-noite** fixam o modo, e o alternador claro/escuro na barra de título pausa enquanto eles estão ativos), **Idioma**, **Início da semana**, **Densidade** e **Zoom da interface**. **Editor e notas**: **Visualização padrão**, **Tamanho da fonte do conteúdo** e **Fonte do conteúdo**. **Inicialização e comportamento**: abrir o último vault automaticamente, avisos de compatibilidade. **Atualizações**: o Plainva verifica silenciosamente novas versões ao iniciar e mostra um aviso quando encontra uma — clique nele para baixar e instalar a atualização na hora (o aviso permanece até o Plainva reiniciar). Desative em **Verificar atualizações ao iniciar**. **Sobre e diagnóstico**: detalhes de versão, o status do **Chaveiro do sistema**, **Métricas de desempenho**, **Exportar diagnóstico…** (sem conteúdo de notas) e **Relatar um problema**. Os atalhos de teclado ficam acessíveis a qualquer momento por `F1` ou **Mostrar atalhos de teclado**, no canto inferior esquerdo.
 - **Vault** — o vault selecionado fica como um pequeno cartão na barra lateral (o vault ativo tem um ponto); com vários vaults, **Trocar** abaixo dele abre uma lista de seleção. Abaixo, as áreas por vault: **Contas na nuvem** é o único lugar para todo login na nuvem — **Conectar conta…** escolhe o provedor (Microsoft, Google, Nextcloud, Dropbox, S3, WebDAV ou uma caixa de e-mail) e os serviços (**Arquivos**, **Calendário e tarefas**, **E-mail**) que essa conta deve carregar. As áreas de serviço **Sincronização** (veja [Configurar Sincronização](Sync_Setup.md)), **Calendário** (veja [Calendário & tarefas](Calendar_and_Tasks.md)) e **E-mail** (veja [Captura de e-mail](Email_Capture.md)) só aparecem quando uma conta conectada carrega esse serviço. Sempre presentes: **Conteúdo e estrutura** (**Notas diárias**, **Modelos e tarefas** incluindo a **Pasta de modelos**, **OKF (Open Knowledge Format)** — veja [OKF](OKF.md) — e **Bancos de dados estendidos**), **Backup e versionamento** e **Manutenção** (**Reconstruir índice**, restaurar arquivos excluídos, estatísticas do vault).
+
+## Abas
+
+- **Clique com o botão direito em uma aba** para abrir seu menu: **Fixar aba**, **Recarregar**, **Abrir na divisão (direita)**, **Copiar caminho**, **Mostrar no gerenciador de arquivos** e o grupo de fechamento.
+- **Fixar aba** mantém uma aba no lugar: ela vai para o início da barra, mostra um alfinete em vez do X de fechar e sobrevive a qualquer **Fechar as outras abas** / **Fechar abas à esquerda** / **Fechar abas à direita** / **Fechar todas as abas**. Para fechá-la, primeiro **Desafixar aba**.
+- **Recarregar** descarta a visualização e relê o arquivo do disco — útil quando outro programa o alterou. Se a aba tiver alterações não salvas, o Plainva se recusa a recarregar em vez de sobrescrever seu trabalho.
+
+## Organizando a barra de ações
+
+A barra estreita à extrema esquerda é sua para organizar: **arraste um botão** até seu novo lugar (depois de mantê-lo pressionado por um instante, para que um clique simples continue apenas acionando-o). O grupo de cima (ações) e o de baixo (atalhos, configurações) permanecem separados — a reorganização acontece dentro de cada grupo. O Plainva lembra a ordem; nada fica escondido, então nenhuma função pode se tornar impossível de encontrar. `Esc` cancela um arraste em andamento.
 
 ## Personalizando a interface
 

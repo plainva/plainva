@@ -38,6 +38,8 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     renameActive: vi.fn(),
     closeActiveTab: vi.fn(),
     reopenClosedTab: vi.fn(),
+    refreshVault: vi.fn(),
+    rebuildIndex: vi.fn(),
     ...overrides,
   };
 }
