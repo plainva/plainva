@@ -50,7 +50,8 @@ La frecuencia con la que esta bóveda busca cambios remotos se ajusta en la mism
 La página de la bóveda también indica si tu **configuración** te acompaña — como una tarjeta con un estado claro en lugar de un simple botón:
 
 - **No se está sincronizando**: la sincronización de ajustes está desactivada para este vault. Actívala desde el escritorio.
-- **Aún no desbloqueado en este dispositivo**: tu configuración está almacenada cifrada en la nube. Introduce la frase de contraseña que elegiste al configurarlo en el escritorio — este dispositivo la desbloquea una vez con ella.
+- **Aún no cifrado**: esta bóveda todavía no tiene frase de contraseña de sincronización. Ahora puedes establecer una **en el teléfono**: el asistente muestra el código de recuperación y te pide que vuelvas a escribir dos grupos elegidos al azar antes de que se escriba absolutamente nada. Si ya existe una frase de contraseña en la nube, el teléfono te lo indica y nunca crea una segunda — eso dejaría fuera a todos los demás dispositivos.
+- **Aún no desbloqueado en este dispositivo**: tu configuración está almacenada cifrada en la nube. Introduce la frase de contraseña elegida al configurarlo — en el escritorio o aquí, en el teléfono; este dispositivo la desbloquea una vez con ella.
 - **Se está sincronizando**: este dispositivo está desbloqueado; las carpetas, las vistas y las reglas de copia de seguridad se mantienen al día con tus otros dispositivos.
 
 Cada tarjeta también indica qué *no* viaja: los inicios de sesión siempre permanecen en el dispositivo (ver [Calendario y eventos](#calendario-y-eventos)).

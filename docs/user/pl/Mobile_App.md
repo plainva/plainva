@@ -50,7 +50,8 @@ To, jak często ten sejf sprawdza zmiany po stronie zdalnej, ustawisz na tej sam
 Strona vaulta podaje też, czy Twoje **ustawienia** podróżują razem z Tobą — jako karta z wyraźnym stanem zamiast gołego przycisku:
 
 - **nie są synchronizowane**: synchronizacja ustawień jest wyłączona dla tego vaultu. Włącz ją na komputerze.
-- **Nie odblokowano jeszcze na tym urządzeniu**: Twoje ustawienia są przechowywane w chmurze w postaci zaszyfrowanej. Wprowadź frazę hasłową ustawioną na komputerze — to urządzenie odblokuje je nią jednorazowo.
+- **Nie zaszyfrowano jeszcze**: ten vault nie ma jeszcze frazy hasłowej synchronizacji. Możesz ją teraz ustawić **na telefonie**: kreator pokazuje kod odzyskiwania i każe wpisać z powrotem dwie losowo wybrane grupy, zanim cokolwiek zostanie zapisane. Jeśli w chmurze istnieje już fraza hasłowa, telefon to zgłasza i nigdy nie tworzy drugiej — to zablokowałoby dostęp wszystkim innym urządzeniom.
+- **Nie odblokowano jeszcze na tym urządzeniu**: Twoje ustawienia są przechowywane w chmurze w postaci zaszyfrowanej. Wprowadź frazę hasłową ustawioną podczas konfiguracji — na komputerze albo tutaj, na telefonie; to urządzenie odblokuje je nią jednorazowo.
 - **są synchronizowane**: to urządzenie jest odblokowane; foldery, widoki i reguły backupu pozostają zgodne z Twoimi innymi urządzeniami.
 
 Każda karta podaje też, co *nie* podróżuje: logowania zawsze pozostają na urządzeniu (patrz [Kalendarz i wydarzenia](#kalendarz-i-wydarzenia)).

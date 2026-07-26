@@ -50,7 +50,8 @@ Hoe vaak deze kluis op wijzigingen op afstand controleert stel je op dezelfde pa
 De vaultpagina vermeldt ook of je **instellingen** meereizen — als kaart met een duidelijke status in plaats van een kale knop:
 
 - **worden niet gesynchroniseerd**: de instellingensynchronisatie staat uit voor deze vault. Zet hem aan op de desktop.
-- **Nog niet ontgrendeld op dit apparaat**: je instellingen staan versleuteld opgeslagen in de cloud. Voer de wachtwoordzin in die je bij het instellen op de desktop hebt gekozen — dit apparaat ontgrendelt ze daarmee eenmalig.
+- **Nog niet versleuteld**: deze vault heeft nog geen synchronisatiewachtwoordzin. Je kunt er nu **op de telefoon** een instellen: de wizard toont de herstelcode en laat je twee willekeurig gekozen groepen ervan terugtypen voordat er ook maar iets wordt weggeschreven. Bestaat er al een wachtwoordzin in de cloud, dan meldt de telefoon dat en maakt er nooit een tweede aan — dat zou alle andere apparaten buitensluiten.
+- **Nog niet ontgrendeld op dit apparaat**: je instellingen staan versleuteld opgeslagen in de cloud. Voer de wachtwoordzin in die bij het instellen is gekozen — op de desktop of hier, op de telefoon; dit apparaat ontgrendelt ze daarmee eenmalig.
 - **worden gesynchroniseerd**: dit apparaat is ontgrendeld; mappen, weergaven en back-upregels blijven synchroon met je andere apparaten.
 
 Elke kaart vermeldt ook wat *niet* meereist: aanmeldingen blijven altijd op het apparaat (zie [Kalender en afspraken](#kalender-en-afspraken)).

@@ -50,7 +50,8 @@ La fréquence à laquelle ce coffre vérifie les changements distants se règle 
 La page du coffre indique aussi si vos **paramètres** vous suivent — sous forme de carte avec un état clair plutôt qu'un simple bouton :
 
 - **Ne sont pas synchronisés** : la synchronisation des paramètres est désactivée pour ce vault. Activez-la depuis l'application de bureau.
-- **Pas encore déverrouillé sur cet appareil** : vos paramètres sont stockés chiffrés dans le cloud. Saisissez la phrase de passe que vous avez choisie lors de la configuration sur le bureau — cet appareil les déverrouille une fois grâce à elle.
+- **Pas encore chiffré** : ce vault n'a pas encore de phrase secrète de synchronisation. Vous pouvez désormais en définir une **sur le téléphone** : l'assistant affiche le code de récupération et vous fait retaper deux groupes choisis au hasard avant que quoi que ce soit ne soit écrit. Si une phrase secrète existe déjà dans le cloud, le téléphone vous le signale et n'en crée jamais une seconde — cela empêcherait tous les autres appareils d'y accéder.
+- **Pas encore déverrouillé sur cet appareil** : vos paramètres sont stockés chiffrés dans le cloud. Saisissez la phrase secrète choisie lors de la configuration — sur le bureau ou ici, sur le téléphone ; cet appareil les déverrouille une fois grâce à elle.
 - **Sont synchronisés** : cet appareil est déverrouillé ; les dossiers, les vues et les règles de sauvegarde restent au diapason de vos autres appareils.
 
 Chaque carte précise aussi ce qui *ne* voyage *pas* : les connexions restent toujours sur l'appareil (voir [Calendrier et événements](#calendrier-et-événements)).
@@ -63,7 +64,7 @@ Les instantanés (historique des versions), un journal des brouillons (après un
 
 ## Partage et raccourcis
 
-Sur Android et iOS, le texte et les URL partagés deviennent une nouvelle note dans la boîte de réception ; les images et fichiers sont importés comme pièces jointes (25 Mo maximum par fichier). Sur Android, un appui long sur l’icône ajoute les raccourcis **Nouvelle note** et **Aujourd’hui**. La page du vault permet d’activer **Synchroniser les réglages** et de déverrouiller ou verrouiller en toute sécurité un vault chiffré avec sa phrase de passe.
+Sur Android et iOS, le texte et les URL partagés deviennent une nouvelle note dans la boîte de réception ; les images et fichiers sont importés comme pièces jointes (25 Mo maximum par fichier). Sur Android, un appui long sur l’icône ajoute les raccourcis **Nouvelle note** et **Aujourd’hui**. La page du vault permet d’activer **Synchroniser les réglages** et de déverrouiller ou verrouiller en toute sécurité un vault chiffré avec sa phrase secrète.
 
 ## Dossiers, photos et calendrier
 

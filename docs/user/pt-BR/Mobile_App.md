@@ -50,7 +50,8 @@ A frequência com que este cofre verifica mudanças remotas é definida na mesma
 A página do vault também informa se suas **configurações** viajam com você — como um cartão com um estado claro, em vez de um botão qualquer:
 
 - **As configurações não estão sendo sincronizadas**: a sincronização de configurações está desativada para este vault. Ative-a pelo desktop.
-- **Ainda não desbloqueado neste dispositivo**: suas configurações ficam armazenadas de forma criptografada na nuvem. Digite a frase secreta que você definiu ao configurar isso no desktop — este dispositivo as desbloqueia uma vez com ela.
+- **Ainda não criptografado**: este vault ainda não tem frase secreta de sincronização. Você já pode defini-la **no telefone**: o assistente mostra o código de recuperação e pede que você digite de volta dois grupos escolhidos aleatoriamente antes que qualquer coisa seja gravada. Se já existir uma frase secreta na nuvem, o telefone avisa e nunca cria uma segunda — isso deixaria todos os outros dispositivos de fora.
+- **Ainda não desbloqueado neste dispositivo**: suas configurações ficam armazenadas de forma criptografada na nuvem. Digite a frase secreta definida ao configurar isso — no desktop ou aqui, no telefone; este dispositivo as desbloqueia uma vez com ela.
 - **As configurações estão sendo sincronizadas**: este dispositivo está desbloqueado; pastas, visualizações e regras de backup permanecem sincronizadas com seus outros dispositivos.
 
 Cada cartão também informa o que *não* viaja: os logins sempre ficam no dispositivo (veja [Calendário e eventos](#calendário-e-eventos)).

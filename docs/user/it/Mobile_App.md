@@ -50,7 +50,8 @@ La frequenza con cui questo vault controlla le modifiche remote si imposta nella
 La pagina del vault indica anche se le tue **impostazioni** ti seguono — come una scheda con uno stato chiaro invece di un semplice pulsante:
 
 - **Non vengono sincronizzate**: la sincronizzazione delle impostazioni è disattivata per questo vault. Attivala dal desktop.
-- **Non ancora sbloccato su questo dispositivo**: le tue impostazioni sono memorizzate crittografate nel cloud. Inserisci la passphrase che hai scelto configurandolo sul desktop — questo dispositivo le sblocca una volta con essa.
+- **Non ancora crittografato**: questo vault non ha ancora una passphrase di sincronizzazione. Ora puoi impostarne una **sul telefono**: la procedura guidata mostra il codice di ripristino e ti fa reinserire due gruppi scelti a caso prima che venga scritto qualsiasi cosa. Se in cloud esiste già una passphrase, il telefono te lo dice e non ne crea mai una seconda — questo escluderebbe tutti gli altri dispositivi.
+- **Non ancora sbloccato su questo dispositivo**: le tue impostazioni sono memorizzate crittografate nel cloud. Inserisci la passphrase scelta durante la configurazione — sul desktop o qui, sul telefono; questo dispositivo le sblocca una volta con essa.
 - **Vengono sincronizzate**: questo dispositivo è sbloccato; cartelle, viste e regole di backup restano allineate con i tuoi altri dispositivi.
 
 Ogni scheda indica anche cosa *non* viaggia: gli accessi restano sempre sul dispositivo (vedi [Calendario ed eventi](#calendario-ed-eventi)).
