@@ -136,19 +136,22 @@ describe("editorSession", () => {
     expect(session.view.dom.querySelector(".cm-selectionLayer")).not.toBeNull();
   });
 
-  it("touch read mode stays selectable without a keyboard, edit restores input (C, 2026-07-24)", () => {
+  it("touch read mode is NOT an editable region, so Android offers Copy (2026-07-26)", () => {
     const { session } = makeSession("live", DOC, false, true);
     const content = session.view.contentDOM;
-    // Read: contenteditable ON (native selection) but read-only + inputmode
-    // "none" — nothing editable and the virtual keyboard stays down.
-    expect(session.view.state.facet(EditorView.editable)).toBe(true);
+    // Android treats a contenteditable as an input field: its autofill service
+    // then claims the selection toolbar and replaces Copy with "Autofill" —
+    // text you can select but not copy (device report). Read mode is therefore
+    // plain, non-editable text on touch too; drawSelection is already off, so
+    // the platform paints its own selection with handles.
+    expect(session.view.state.facet(EditorView.editable)).toBe(false);
     expect(session.view.state.readOnly).toBe(true);
-    expect(content.getAttribute("inputmode")).toBe("none");
-    // Edit restores input: still editable, writable, keyboard back.
+    expect(content.getAttribute("contenteditable")).toBe("false");
+    // Edit restores input: editable, writable, keyboard back.
     session.setEditable(true);
     expect(session.view.state.facet(EditorView.editable)).toBe(true);
     expect(session.view.state.readOnly).toBe(false);
-    expect(content.getAttribute("inputmode")).not.toBe("none");
+    expect(content.getAttribute("contenteditable")).toBe("true");
   });
 
   it("off-touch read mode flips the editable facet directly (desktop unchanged)", () => {

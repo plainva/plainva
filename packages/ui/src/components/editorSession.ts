@@ -149,11 +149,14 @@ export interface EditorSessionConfig {
    * never the raw contenteditable attribute (CM rewrites that on the next
    * update and the keyboard comes back — mobile finding, 2026-07-11).
    *
-   * On the touch profile read mode keeps contenteditable ON so the WebView
-   * paints a native, extendable text selection (copy from read mode), but sets
-   * `EditorState.readOnly` + `inputmode="none"` — nothing is editable and the
-   * virtual keyboard stays down. Off-touch it flips `EditorView.editable`
-   * directly (desktop read is a separate MarkdownReader, not this session).
+   * Read mode flips `EditorView.editable`, on touch as well. It briefly kept
+   * contenteditable ON there so the WebView would paint a native selection —
+   * but the thing that had hidden the native selection was `drawSelection`,
+   * which the touch profile already switches off. The leftover editable region
+   * had a price: Android treats a contenteditable as an input field, so its
+   * autofill service claimed the selection toolbar and offered "Autofill"
+   * where Copy belongs — selectable text you could not copy (device report,
+   * 2026-07-26). Non-editable text selects natively and copies normally.
    */
   editable?: boolean;
   /**
@@ -200,17 +203,12 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
   const editableComp = new Compartment();
-  // Touch read mode keeps the contentDOM editable (so the WebView paints a
-  // native, extendable selection) but read-only + inputmode="none" — no edits,
-  // no virtual keyboard. Off-touch flips EditorView.editable directly.
-  const editableExtensions = (on: boolean): Extension =>
-    cfg.touchInput
-      ? [
-          EditorView.editable.of(true),
-          EditorState.readOnly.of(!on),
-          EditorView.contentAttributes.of(on ? {} : { inputmode: "none" }),
-        ]
-      : [EditorView.editable.of(on), EditorState.readOnly.of(!on)];
+  // One rule on both profiles: read mode is NOT editable. See the `editable`
+  // doc above for why the touch profile no longer makes an exception.
+  const editableExtensions = (on: boolean): Extension => [
+    EditorView.editable.of(on),
+    EditorState.readOnly.of(!on),
+  ];
 
   // Stable container for the embed widgets. `vaultContext` is a getter so a
   // widget built later sees the CURRENT services (the old host handed the
