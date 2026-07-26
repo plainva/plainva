@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, Mail, PenLine, Settings, Star } from "lucide-react";
-import { EmptyState, toast } from "@plainva/ui";
+import { EmptyState, toast, useStableHandler } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import { listEnvelopes, listMailboxesFor, mailFolderLabel, sortMailFolders } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
@@ -47,6 +47,12 @@ export function MailListScreen({
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
 
+  // The effects below must not re-run just because i18n handed out a new `t`
+  // (or the account array was rebuilt) — each re-run is another round of
+  // requests at the mail provider. `useStableHandler` keeps one identity.
+  const accountById = useStableHandler((id: string | null) => accounts.find((a) => a.id === id) ?? null);
+  const describeError = useStableHandler((e: unknown) => describe(e, t));
+
   // Accounts first — everything else hangs off the chosen one.
   useEffect(() => {
     void listMobileMailAccounts().then((rowsA) => {
@@ -62,11 +68,16 @@ export function MailListScreen({
   }, []);
 
   // Folders of the chosen account; the inbox is the natural landing folder.
+  // Keyed on the account ID, not the account object: `listMobileMailAccounts`
+  // hands back a fresh array each time, so an object dependency re-ran this on
+  // every refresh — and several folder/message requests at once is exactly
+  // what makes Graph answer 429 (device report 2026-07-26).
   useEffect(() => {
-    if (!vault || !account) return;
+    const acc = accountById(accountId);
+    if (!vault || !acc) return;
     let cancelled = false;
     setError(null);
-    void listMailboxesFor(vault, account)
+    void listMailboxesFor(vault, acc)
       .then((list) => {
         if (cancelled) return;
         setFolders(list);
@@ -74,13 +85,14 @@ export function MailListScreen({
         const inbox = names.find((n) => n.toLowerCase() === "inbox") ?? names[0] ?? null;
         setMailbox((cur) => (cur && names.includes(cur) ? cur : inbox));
       })
-      .catch((e) => !cancelled && setError(describe(e, t)));
+      .catch((e) => !cancelled && setError(describeError(e)));
     return () => {
       cancelled = true;
     };
-  }, [vault, account, t]);
+  }, [vault, accountId, accountById, describeError]);
 
   const load = useCallback(async () => {
+    const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
     setLoading(true);
     setError(null);
@@ -90,12 +102,12 @@ export function MailListScreen({
       setUnseen(page.unseen);
       setTotal(page.total);
     } catch (e) {
-      setError(describe(e, t));
+      setError(describeError(e));
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [vault, account, mailbox, t]);
+  }, [vault, accountId, mailbox, accountById, describeError]);
 
   useEffect(() => {
     void load();
@@ -112,7 +124,7 @@ export function MailListScreen({
       setRows([...rows, ...page.messages.filter((m) => !seen.has(m.id))]);
       setTotal(page.total);
     } catch (e) {
-      toast.error(describe(e, t));
+      toast.error(describeError(e));
     } finally {
       setLoading(false);
     }

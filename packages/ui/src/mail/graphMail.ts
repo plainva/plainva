@@ -81,7 +81,39 @@ export function forgetGraphMailRuntime(accountId: string): void {
   runtimes.delete(accountId);
 }
 
-// ---- Request helper (JSON, with one 401 retry) ---------------------------
+// ---- Request helper (JSON, 401 retry, throttling) ------------------------
+
+/**
+ * Graph enforces a MailboxConcurrency limit (a handful of simultaneous
+ * requests per mailbox) and answers 429 "ApplicationThrottled" when a client
+ * exceeds it. A screen that opens folders and messages at once trips that
+ * easily, so requests pass through a small gate AND back off when Graph asks
+ * them to. Reported from a device on 2026-07-26; the desktop had the same
+ * exposure and inherits the fix.
+ */
+const MAX_IN_FLIGHT = 3;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+async function gate<T>(fn: () => Promise<T>): Promise<T> {
+  if (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => waiting.push(resolve));
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    waiting.shift()?.();
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Seconds Graph asks us to wait, capped so a bad header cannot hang the UI. */
+function retryDelayMs(res: Response, attempt: number): number {
+  const header = Number(res.headers.get("Retry-After"));
+  const seconds = Number.isFinite(header) && header > 0 ? Math.min(header, 30) : 2 ** attempt;
+  return seconds * 1000;
+}
 
 async function graphJson<T>(rt: GraphMailRuntime, method: string, path: string, body?: unknown): Promise<T> {
   const call = async (token: string): Promise<Response> =>
@@ -94,12 +126,18 @@ async function graphJson<T>(rt: GraphMailRuntime, method: string, path: string, 
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-  let res = await call(await rt.getAccessToken());
-  if (res.status === 401) res = await call(await rt.getAccessToken(true));
-  if (!res.ok) throw new Error(`Graph mail ${method} ${path} failed: ${res.status} ${await res.text().catch(() => "")}`.trim());
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return gate(async () => {
+    let res = await call(await rt.getAccessToken());
+    if (res.status === 401) res = await call(await rt.getAccessToken(true));
+    for (let attempt = 0; res.status === 429 && attempt < 3; attempt++) {
+      await sleep(retryDelayMs(res, attempt));
+      res = await call(await rt.getAccessToken());
+    }
+    if (!res.ok) throw new Error(`Graph mail ${method} ${path} failed: ${res.status} ${await res.text().catch(() => "")}`.trim());
+    if (res.status === 204) return undefined as T;
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  });
 }
 
 // ---- Folder id resolution ------------------------------------------------
