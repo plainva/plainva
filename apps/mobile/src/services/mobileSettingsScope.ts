@@ -13,9 +13,17 @@ export const MIN_SYNC_INTERVAL_SECONDS = 5;
 
 export interface VaultScopedSettings {
   dailyFolder: string;
+  /** ＋-capture target when no folder is open (R3.6). */
   inboxFolder: string;
+  /** Where "insert template" / "new from template" look for .md templates
+   *  (R3.4; same default as the desktop's per-vault setting). */
   templateFolder: string;
+  /** Template file name (inside templateFolder) seeding new daily notes;
+   *  empty = plain skeleton. */
   dailyTemplate: string;
+  /** Snapshot retention (package G): min seconds between snapshots (0 = every
+   *  write), max per file, max age in days (0 = unlimited). Applied to the
+   *  active vault via updatePolicy. */
   backupIntervalSeconds: number;
   backupMaxPerFile: number;
   backupMaxAgeDays: number;
@@ -28,6 +36,17 @@ export interface VaultScopedSettings {
   /** Load remote images in mail bodies. Default OFF: a remote image is a
    *  tracking beacon. Mirrors the desktop's per-vault opt-in. */
   mailRemoteImages: boolean;
+  /**
+   * Last mailbox the user was looking at: account id + folder name (device
+   * report B1, 2026-07-26). Both were component state, so opening a message
+   * unmounted the list and going back landed in the first account's inbox.
+   *
+   * Per vault and NOT part of the settings-sync profile (the profile port
+   * names its fields explicitly): which folder this phone last had open is a
+   * device fact, not a setting worth carrying to another device.
+   */
+  mailAccountId: string;
+  mailMailbox: string;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -41,6 +60,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "syncIntervalSeconds",
   "mailFolder",
   "mailRemoteImages",
+  "mailAccountId",
+  "mailMailbox",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -55,6 +76,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   syncIntervalSeconds: 30,
   mailFolder: "Mail",
   mailRemoteImages: false,
+  mailAccountId: "",
+  mailMailbox: "",
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -70,6 +93,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     mailRemoteImages: src.mailRemoteImages ?? VAULT_DEFAULTS.mailRemoteImages,
+    mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,
+    mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
   };
 }
 

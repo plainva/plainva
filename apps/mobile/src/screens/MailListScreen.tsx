@@ -6,6 +6,7 @@ import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/m
 import { listEnvelopes, listMailboxesFor, mailFolderLabel, searchEnvelopes, sortMailFolders } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
+import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { cacheEnvelopes, cachedEnvelopes } from "../services/mail/mailCache";
 import type { MobileVault } from "../services/vaultService";
@@ -39,9 +40,11 @@ export function MailListScreen({
   const { t, i18n } = useTranslation();
   const vaultObj = vault_;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
-  const [accountId, setAccountId] = useState<string | null>(null);
+  // Seeded from the remembered pair (B1), so a rebuild after the reader closes
+  // lands where the user was — not in the first account's inbox.
+  const [accountId, setAccountId] = useState<string | null>(() => rememberedMailPlace().accountId);
   const [folders, setFolders] = useState<MailboxInfo[]>([]);
-  const [mailbox, setMailbox] = useState<string | null>(null);
+  const [mailbox, setMailbox] = useState<string | null>(() => rememberedMailPlace().mailbox);
   const [rows, setRows] = useState<MailEnvelope[]>([]);
   const [unseen, setUnseen] = useState(0);
   const [total, setTotal] = useState(0);
@@ -62,11 +65,12 @@ export function MailListScreen({
   const accountById = useStableHandler((id: string | null) => accounts.find((a) => a.id === id) ?? null);
   const describeError = useStableHandler((e: unknown) => describe(e, t));
 
-  // Accounts first — everything else hangs off the chosen one.
+  // Accounts first — everything else hangs off the chosen one. A remembered
+  // account that no longer exists falls back to the first (resolveMailAccount).
   useEffect(() => {
     void listMobileMailAccounts().then((rowsA) => {
       setAccounts(rowsA);
-      setAccountId((cur) => cur ?? rowsA[0]?.id ?? null);
+      setAccountId((cur) => resolveMailAccount(cur, rowsA));
     });
   }, [bump]);
 
@@ -91,8 +95,7 @@ export function MailListScreen({
         if (cancelled) return;
         setFolders(list);
         const names = sortMailFolders(list.map((f) => f.name), list[0]?.delimiter);
-        const inbox = names.find((n) => n.toLowerCase() === "inbox") ?? names[0] ?? null;
-        setMailbox((cur) => (cur && names.includes(cur) ? cur : inbox));
+        setMailbox((cur) => resolveMailbox(cur, names));
       })
       .catch((e) => !cancelled && setError(describeError(e)));
     return () => {
@@ -129,6 +132,14 @@ export function MailListScreen({
   useEffect(() => {
     void load();
   }, [load, bump]);
+
+  // Remember the pair once both are resolved (B1). Writing here rather than in
+  // the pickers also records the fallback, so a vanished account does not leave
+  // a stale id behind. rememberMailPlace is a no-op when nothing changed.
+  useEffect(() => {
+    if (!accountId || !mailbox) return;
+    void rememberMailPlace({ accountId, mailbox });
+  }, [accountId, mailbox]);
 
   const loadMore = async () => {
     if (!vault || !account || !mailbox || loading || rows.length >= total) return;
@@ -271,7 +282,9 @@ export function MailListScreen({
       {account && (
         <button
           type="button"
-          className="pv-fab m-fab-float"
+          /* Above the tab bar, like every other root-level FAB: 26px sits
+             INSIDE the bar (device report B2, 2026-07-26). */
+          className="pv-fab m-fab-float m-fab-float--above-tabs"
           aria-label={t("mail.newMessage")}
           onClick={() => onCompose(account.id)}
         >

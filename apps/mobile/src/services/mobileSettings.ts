@@ -40,18 +40,18 @@ export type ThemeMode = "system" | "light" | "dark";
 export type DefaultView = "read" | "edit";
 export type MotionPref = "system" | "on" | "off";
 
-export interface MobileSettings {
+/**
+ * Extends the per-vault slice rather than restating it: every field of
+ * VaultScopedSettings used to be declared here a second time, so adding a
+ * per-vault field left this type behind (caught while adding the remembered
+ * mailbox, B1). One declaration, one place to document a field.
+ */
+export interface MobileSettings extends VaultScopedSettings {
   themeMode: ThemeMode;
   /** Bundled theme id from the shared registry (package D3); single-mode
    * themes pin `data-theme` regardless of `themeMode`. */
   themeName: string;
   defaultView: DefaultView;
-  dailyFolder: string;
-  /** ＋-capture target when no folder is open (R3.6). */
-  inboxFolder: string;
-  /** Where "insert template" / "new from template" look for .md templates
-   * (R3.4; same default as the desktop's per-vault setting). */
-  templateFolder: string;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -64,10 +64,6 @@ export interface MobileSettings {
    * existing installations keep exactly the bar they had.
    */
   barTabCount: number;
-  /** Vault folder captured e-mails land in (mail G1). */
-  mailFolder: string;
-  /** Load remote images in mail bodies — off by default (tracking beacons). */
-  mailRemoteImages: boolean;
   /** Discovered easter-egg theme ids (D5; same semantics as the desktop). */
   unlockedThemes: string[];
   /** Collected LCARS palette variant ids (D5). */
@@ -80,16 +76,6 @@ export interface MobileSettings {
   contentFontSize: number;
   /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
   motion: MotionPref;
-  /** Snapshot retention (package G) — PER VAULT (package A, matching desktop):
-   * min seconds between snapshots (0 = every write), max per file, max age
-   * in days (0 = unlimited). Applied to the active vault via updatePolicy. */
-  backupIntervalSeconds: number;
-  backupMaxPerFile: number;
-  backupMaxAgeDays: number;
-  /** Template file name (inside templateFolder) seeding new daily notes; empty = plain skeleton. */
-  dailyTemplate: string;
-  /** Seconds between sync cycles, min MIN_SYNC_INTERVAL_SECONDS (H2a). */
-  syncIntervalSeconds: number;
 }
 
 /** Re-export so consumers (mobileSettingsSync) keep importing the type from here. */
