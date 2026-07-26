@@ -2360,6 +2360,7 @@
     "noSearchResults": "Nenhum resultado nesta pasta.",
     "markRead": "Marcar como lido",
     "markUnread": "Marcar como não lido",
+    "bulkPartial": "Não foi possível alterar todas as mensagens ({{n}} com falha): {{error}}",
     "moveTo": "Mover para…",
     "moved": "Movido para {{folder}}",
     "delete": "Excluir",

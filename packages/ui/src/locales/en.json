@@ -2354,6 +2354,7 @@
     "noSearchResults": "No matches in this folder.",
     "markRead": "Mark as read",
     "markUnread": "Mark as unread",
+    "bulkPartial": "Not every message could be changed ({{n}} failed): {{error}}",
     "moveTo": "Move to…",
     "moved": "Moved to {{folder}}",
     "delete": "Delete",

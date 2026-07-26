@@ -2354,6 +2354,7 @@
     "noSearchResults": "Keine Treffer in diesem Ordner.",
     "markRead": "Als gelesen markieren",
     "markUnread": "Als ungelesen markieren",
+    "bulkPartial": "Nicht jede Nachricht ließ sich ändern ({{n}} fehlgeschlagen): {{error}}",
     "moveTo": "Verschieben nach…",
     "moved": "Verschoben nach {{folder}}",
     "delete": "Löschen",

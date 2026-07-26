@@ -2348,6 +2348,7 @@
     "noSearchResults": "此文件夹中没有匹配项。",
     "markRead": "标记为已读",
     "markUnread": "标记为未读",
+    "bulkPartial": "并非所有邮件都能修改（{{n}} 封失败）：{{error}}",
     "moveTo": "移动到…",
     "moved": "已移动到 {{folder}}",
     "delete": "删除",

@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronDown, Mail, PenLine, Search, Settings, Star, X } from "lucide-react";
+import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { EmptyState, toast, useStableHandler } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
-import { listEnvelopes, listMailboxesFor, mailFolderLabel, searchEnvelopes, sortMailFolders } from "@plainva/ui/mail";
+import {
+  deleteMessagePermanently,
+  guessTrashMailbox,
+  listEnvelopes,
+  listMailboxesFor,
+  mailFolderLabel,
+  moveMessage,
+  searchEnvelopes,
+  setMessageSeen,
+  sortMailFolders,
+} from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
+import { bulkSeenTarget, runBulk, selectedRows, toggleSelected } from "./mail/mailBulk";
+import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { useLongPress } from "../lib/useLongPress";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { cacheEnvelopes, cachedEnvelopes } from "../services/mail/mailCache";
 import type { MobileVault } from "../services/vaultService";
@@ -55,6 +68,9 @@ export function MailListScreen({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [stale, setStale] = useState(false);
+  /** null = not in selection mode (G3a); a set = mode on, possibly empty. */
+  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
@@ -186,6 +202,79 @@ export function MailListScreen({
     void load();
   };
 
+  const folderNames = useMemo(
+    () => sortMailFolders(folders.map((f) => f.name), folders[0]?.delimiter),
+    [folders],
+  );
+
+  // ---- Selection mode (G3a) ------------------------------------------------
+  // Long-press opens it, tapping then selects further. The desktop does this
+  // with Ctrl/Shift; a phone has one finger, so the mode is the modifier.
+  const press = useLongPress<string>((id) => setSelection(new Set([id])));
+  const chosen = useMemo(() => (selection ? selectedRows(rows, selection) : []), [rows, selection]);
+
+  /** Applies a bulk action to the chosen ids, one at a time, then refreshes. */
+  const runOnSelection = async (action: (id: string) => Promise<void>, after: (done: string[]) => void) => {
+    if (chosen.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const outcome = await runBulk(chosen.map((m) => m.id), action);
+      after(outcome.done);
+      if (outcome.failed.length > 0) {
+        toast.error(t("mail.bulkPartial", { n: outcome.failed.length, error: outcome.error ?? "" }));
+      }
+      setSelection(null);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkSeen = () => {
+    const account = accountById(accountId);
+    if (!vault || !account || !mailbox) return;
+    const target = bulkSeenTarget(rows, selection ?? new Set());
+    void runOnSelection(
+      (id) => setMessageSeen(vault, account, mailbox, id, target),
+      (done) => {
+        const set = new Set(done);
+        setRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
+        setUnseen((n) => Math.max(0, target ? n - done.length : n + done.length));
+      },
+    );
+  };
+
+  const bulkMove = async () => {
+    const account = accountById(accountId);
+    if (!vault || !account || !mailbox) return;
+    const target = await mSelect({
+      title: t("mail.moveTo"),
+      options: folderNames.filter((n) => n !== mailbox).map((n) => ({ value: n, label: mailFolderLabel(n, folders[0]?.delimiter) })),
+    });
+    if (!target) return;
+    void runOnSelection(
+      (id) => moveMessage(vault, account, mailbox, id, target),
+      (done) => setRows((prev) => prev.filter((m) => !done.includes(m.id))),
+    );
+  };
+
+  /** Trash, not shred — same rule as a single message: only what is already in
+   *  the trash is deleted for good, and that asks first. */
+  const bulkDelete = async () => {
+    const account = accountById(accountId);
+    if (!vault || !account || !mailbox) return;
+    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const inTrash = trash !== null && trash === mailbox;
+    if (!inTrash && !trash) {
+      toast.error(t("mail.noTrashFolder"));
+      return;
+    }
+    if (inTrash && !(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: t("mobile.selectedCount", { n: chosen.length }), danger: true }))) return;
+    void runOnSelection(
+      (id) => (inTrash ? deleteMessagePermanently(vault, account, mailbox, id) : moveMessage(vault, account, mailbox, id, trash!)),
+      (done) => setRows((prev) => prev.filter((m) => !done.includes(m.id))),
+    );
+  };
+
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
@@ -197,11 +286,6 @@ export function MailListScreen({
       </button>
       <h1>{t("mail.title")}</h1>
     </header>
-  );
-
-  const folderNames = useMemo(
-    () => sortMailFolders(folders.map((f) => f.name), folders[0]?.delimiter),
-    [folders],
   );
 
   if (accounts.length === 0) {
@@ -282,7 +366,22 @@ export function MailListScreen({
               <button
                 type="button"
                 className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
-                onClick={() => account && mailbox && onOpenMessage(account.id, mailbox, m.id, m.flagged)}
+                onClick={() => {
+                  if (!press.clicked()) return; // the long-press already acted
+                  if (selection) {
+                    setSelection(toggleSelected(selection, m.id));
+                    return;
+                  }
+                  if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSelection(new Set([m.id]));
+                }}
+                onPointerCancel={press.clear}
+                onPointerDown={() => press.start(m.id)}
+                onPointerLeave={press.clear}
+                onPointerUp={press.clear}
               >
                 {/* Unread is a dot AND weight: a phone in sunlight loses the
                     weight difference long before it loses the dot. */}
@@ -298,6 +397,7 @@ export function MailListScreen({
                   </span>
                   {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                 </span>
+                {selection && <span className={`m-slotmark${selection.has(m.id) ? " is-on" : ""}`} />}
               </button>
             </li>
           ))}
@@ -310,7 +410,9 @@ export function MailListScreen({
         </button>
       )}
 
-      {account && (
+      {/* Selection mode owns the bottom of the screen; the compose FAB would
+          sit on top of the bulk bar and offer an unrelated action. */}
+      {account && !selection && (
         <button
           type="button"
           /* Above the tab bar, like every other root-level FAB: 26px sits
@@ -321,6 +423,41 @@ export function MailListScreen({
         >
           <PenLine size={22} />
         </button>
+      )}
+
+      {selection && (
+        <div className="m-selectbar">
+          <span>{t("mobile.selectedCount", { n: selection.size })}</span>
+          <span className="m-headactions">
+            <button
+              aria-label={bulkSeenTarget(rows, selection) ? t("mail.markRead") : t("mail.markUnread")}
+              className="m-iconbtn"
+              disabled={bulkBusy || selection.size === 0}
+              onClick={bulkSeen}
+            >
+              <MailOpen size={20} />
+            </button>
+            <button
+              aria-label={t("mail.moveTo")}
+              className="m-iconbtn"
+              disabled={bulkBusy || selection.size === 0}
+              onClick={() => void bulkMove()}
+            >
+              <FolderInput size={20} />
+            </button>
+            <button
+              aria-label={t("common.delete")}
+              className="m-iconbtn"
+              disabled={bulkBusy || selection.size === 0}
+              onClick={() => void bulkDelete()}
+            >
+              <Trash2 size={20} />
+            </button>
+            <button aria-label={t("common.cancel")} className="m-iconbtn" onClick={() => setSelection(null)}>
+              <X size={20} />
+            </button>
+          </span>
+        </div>
       )}
 
       {sheet && (

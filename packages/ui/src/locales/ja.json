@@ -2348,6 +2348,7 @@
     "noSearchResults": "このフォルダーに一致するものはありません。",
     "markRead": "既読にする",
     "markUnread": "未読にする",
+    "bulkPartial": "すべてのメールを変更できませんでした（{{n}} 件が失敗）: {{error}}",
     "moveTo": "移動先…",
     "moved": "{{folder}} に移動しました",
     "delete": "削除",

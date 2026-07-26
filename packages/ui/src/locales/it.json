@@ -2360,6 +2360,7 @@
     "noSearchResults": "Nessun risultato in questa cartella.",
     "markRead": "Segna come letto",
     "markUnread": "Segna come non letto",
+    "bulkPartial": "Non è stato possibile modificare tutti i messaggi ({{n}} non riusciti): {{error}}",
     "moveTo": "Sposta in…",
     "moved": "Spostato in {{folder}}",
     "delete": "Elimina",

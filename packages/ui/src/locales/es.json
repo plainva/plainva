@@ -2360,6 +2360,7 @@
     "noSearchResults": "Sin resultados en esta carpeta.",
     "markRead": "Marcar como leído",
     "markUnread": "Marcar como no leído",
+    "bulkPartial": "No se pudieron cambiar todos los mensajes ({{n}} con error): {{error}}",
     "moveTo": "Mover a…",
     "moved": "Movido a {{folder}}",
     "delete": "Eliminar",

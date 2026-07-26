@@ -2366,6 +2366,7 @@
     "noSearchResults": "Brak wyników w tym folderze.",
     "markRead": "Oznacz jako przeczytane",
     "markUnread": "Oznacz jako nieprzeczytane",
+    "bulkPartial": "Nie udało się zmienić wszystkich wiadomości (błędy: {{n}}): {{error}}",
     "moveTo": "Przenieś do…",
     "moved": "Przeniesiono do {{folder}}",
     "delete": "Usuń",

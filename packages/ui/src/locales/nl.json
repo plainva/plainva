@@ -2354,6 +2354,7 @@
     "noSearchResults": "Geen resultaten in deze map.",
     "markRead": "Markeren als gelezen",
     "markUnread": "Markeren als ongelezen",
+    "bulkPartial": "Niet elk bericht kon worden gewijzigd ({{n}} mislukt): {{error}}",
     "moveTo": "Verplaatsen naar…",
     "moved": "Verplaatst naar {{folder}}",
     "delete": "Verwijderen",

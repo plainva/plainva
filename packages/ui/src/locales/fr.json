@@ -2360,6 +2360,7 @@
     "noSearchResults": "Aucun résultat dans ce dossier.",
     "markRead": "Marquer comme lu",
     "markUnread": "Marquer comme non lu",
+    "bulkPartial": "Tous les messages n’ont pas pu être modifiés ({{n}} en échec) : {{error}}",
     "moveTo": "Déplacer vers…",
     "moved": "Déplacé vers {{folder}}",
     "delete": "Supprimer",
