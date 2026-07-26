@@ -2012,7 +2012,10 @@
     "navBarOutside": "Nicht in der Leiste — über „Bereiche“ erreichbar",
     "navBarSummary": "{{n}} Bereiche",
     "navBarHint": "Zieh die Bereiche in die gewünschte Reihenfolge. Die obersten liegen in der Leiste — alle anderen erreichst Du über „Bereiche“ in der Kopfzeile.",
-    "tabDatabasesShort": "DBs"
+    "tabDatabasesShort": "DBs",
+    "changeCloudFolder": "Cloud-Ordner ändern",
+    "changeCloudFolderConfirm": "Dieser Vault synchronisiert ab jetzt mit „{{folder}}“. Bereits heruntergeladene Dateien bleiben auf dem Gerät; neue Inhalte kommen aus dem neuen Ordner.",
+    "syncIntervalValue": "Alle {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",
@@ -2445,6 +2448,7 @@
     "mailCaptureGroup": "Ablage & Datenschutz"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Verschlüsselte Workspaces sind experimentell und noch nicht unabhängig geprüft. Bewahre Wiederherstellungsdatei und -code sicher auf — ohne sie lassen sich verschlüsselte Notizen nicht wiederherstellen.",
     "qrScanning": "Richte die Kamera auf den QR-Code",
     "qrCameraFailed": "Kamera nicht verfügbar — füge den Code stattdessen ein.",
     "liftEncryption": "Verschlüsselung aufheben",

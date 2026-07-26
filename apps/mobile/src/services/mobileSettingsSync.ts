@@ -23,6 +23,7 @@ import {
 import { getPlatformServices, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
+import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 
@@ -31,6 +32,9 @@ const enabledKey = (vaultId: string) => `settingsSyncMobile_${vaultId}`;
 const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
 const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
+/** "Ask for the passphrase on every start" (H2b) — mirrors the desktop's
+ *  `passphraseEveryStart`: when on, the unlocked keyring stays in memory only. */
+const everyStartKey = (vaultId: string) => `mkEveryStartMobile_${vaultId}`;
 const deviceKey = "settingsSyncDeviceIdMobile";
 const memory = new Map<string, { active: MasterKeyBundle; keys: Map<string, MasterKeyBundle> }>();
 
@@ -95,10 +99,24 @@ export async function clearMobileSyncState(vaultId: string, provider: MobileSync
   }
   await store.delete(enabledKey(vaultId));
   await store.delete(unknownKey(vaultId));
+  await store.delete(everyStartKey(vaultId));
   await store.save();
   // Drops the in-memory keyring and the `mkcache_mobile_<vaultId>` credential
   // secret (a credential-store entry, not a settings key).
   await lockMobileEncryption(vaultId);
+}
+
+export async function isMobilePassphraseEveryStart(vaultId: string): Promise<boolean> {
+  return (await (await settingsStore()).get<boolean>(everyStartKey(vaultId))) === true;
+}
+
+/** Turning it ON drops the persisted keyring immediately — otherwise the
+ *  setting would only take effect after the next lock. */
+export async function setMobilePassphraseEveryStart(vaultId: string, on: boolean): Promise<void> {
+  const store = await settingsStore();
+  await store.set(everyStartKey(vaultId), on);
+  await store.save();
+  if (on) await getPlatformServices().credentials.removeSecret(cacheKey(vaultId));
 }
 
 export async function setMobileSettingsSyncEnabled(vaultId: string, enabled: boolean): Promise<void> {
@@ -110,6 +128,9 @@ export async function setMobileSettingsSyncEnabled(vaultId: string, enabled: boo
 async function loadKeyring(vaultId: string): Promise<{ active: MasterKeyBundle; keys: Map<string, MasterKeyBundle> } | null> {
   const present = memory.get(vaultId);
   if (present) return present;
+  // Every-start mode never reads a persisted keyring: the passphrase must be
+  // entered again after each app start (H2b).
+  if (await isMobilePassphraseEveryStart(vaultId)) return null;
   const cached = await getPlatformServices().credentials.readSecret<CachedKeyring>(cacheKey(vaultId));
   if (!cached?.activeKeyId || !Array.isArray(cached.keys)) return null;
   const keys = new Map(cached.keys.map((key) => [key.keyId, { keyId: key.keyId, masterKey: fromBase64(key.mk) }]));
@@ -129,6 +150,7 @@ export async function unlockMobileEncryption(vault: MobileVault, passphrase: str
   const active = keys.get(keyfile.activeKeyId);
   if (!active) throw new Error("active key missing");
   memory.set(vault.vaultId, { active, keys });
+  if (await isMobilePassphraseEveryStart(vault.vaultId)) return; // memory only (H2b)
   await getPlatformServices().credentials.writeSecret<CachedKeyring>(cacheKey(vault.vaultId), {
     activeKeyId: active.keyId,
     keys: [...keys.values()].map((key) => ({ keyId: key.keyId, mk: toBase64(key.masterKey) })),
@@ -158,6 +180,9 @@ function profilePort(vaultId: string) {
         backupSnapshotIntervalSeconds: s.backupIntervalSeconds,
         backupMaxCountPerFile: s.backupMaxPerFile,
         backupMaxAgeDays: s.backupMaxAgeDays,
+        // H2a: the desktop has always put this in the profile; mobile neither
+        // read nor wrote it, so a value set there never arrived on the phone.
+        syncIntervalSeconds: s.syncIntervalSeconds,
       };
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
@@ -168,7 +193,8 @@ function profilePort(vaultId: string) {
       if (typeof values.backupSnapshotIntervalSeconds === "number" && values.backupSnapshotIntervalSeconds >= 0) patch.backupIntervalSeconds = values.backupSnapshotIntervalSeconds;
       if (typeof values.backupMaxCountPerFile === "number" && values.backupMaxCountPerFile >= 0) patch.backupMaxPerFile = values.backupMaxCountPerFile;
       if (typeof values.backupMaxAgeDays === "number" && values.backupMaxAgeDays >= 0) patch.backupMaxAgeDays = values.backupMaxAgeDays;
-      const known = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays"]);
+      if (typeof values.syncIntervalSeconds === "number" && values.syncIntervalSeconds >= MIN_SYNC_INTERVAL_SECONDS) patch.syncIntervalSeconds = values.syncIntervalSeconds;
+      const known = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "syncIntervalSeconds"]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);

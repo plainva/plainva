@@ -6,26 +6,102 @@ import Capacitor
  * the shared sync targets need arbitrary methods (PROPFIND & friends) and
  * binary bodies, which the stock CapacitorHttp cannot carry. Contract:
  * request({url, method, headers, body?, bodyBase64?}) ->
- * {status, headers, bodyBase64}.
+ * {status, headers, bodyBase64}
+ * allowOrigin({origin}) -> void
+ *
+ * Origin policy (H8b, 2026-07-26): Android has enforced an allowlist since the
+ * hardening pass; iOS registered `request` only, so `allowOrigin` failed
+ * silently in the TS wrapper and this side stayed open. A compromised WebView
+ * could therefore reach any host through the native bridge on iOS but not on
+ * Android. Both platforms now enforce the same two rules: user-configured
+ * origins (WebDAV/S3, registered during sync setup) plus a fixed https-only
+ * provider suffix list — checked again on every redirect hop.
  */
 @objc(WebDavHttpPlugin)
 public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "WebDavHttpPlugin"
     public let jsName = "WebDavHttp"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "request", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "request", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "allowOrigin", returnType: CAPPluginReturnPromise)
     ]
+
+    /** User-configured origins (scheme://host[:port]) — WebDAV servers, S3 endpoints. */
+    private static var allowedOrigins = Set<String>()
+    private static let originLock = NSLock()
+
+    /** Fixed provider hosts (suffix match on the host, https only). Mirrors PROVIDER_HOST_SUFFIXES. */
+    private static let providerHostSuffixes = [
+        ".googleapis.com",
+        ".google.com",
+        "graph.microsoft.com",
+        "login.microsoftonline.com",
+        "login.live.com",
+        ".dropboxapi.com",
+        ".dropbox.com",
+        ".amazonaws.com",
+    ]
+
+    /** Hard cap for buffered response bodies (the bridge is not a streamer yet). */
+    private static let maxResponseBytes = 256 * 1024 * 1024
+
+    static func originOf(_ url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else { return nil }
+        var origin = "\(scheme)://\(host)"
+        let defaultPort = scheme == "https" ? 443 : (scheme == "http" ? 80 : -1)
+        if let port = url.port, port != defaultPort {
+            origin += ":\(port)"
+        }
+        return origin
+    }
+
+    static func isAllowed(_ url: URL) -> Bool {
+        guard let origin = originOf(url), let host = url.host?.lowercased() else { return false }
+        originLock.lock()
+        let registered = allowedOrigins.contains(origin)
+        originLock.unlock()
+        if registered { return true }
+        guard url.scheme?.lowercased() == "https" else { return false } // fixed providers are https-only
+        for suffix in providerHostSuffixes {
+            if suffix.hasPrefix(".") {
+                if host.hasSuffix(suffix) || host == String(suffix.dropFirst()) { return true }
+            } else if host == suffix {
+                return true
+            }
+        }
+        return false
+    }
+
+    private lazy var redirectGuard = RedirectGuard()
 
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 300
-        return URLSession(configuration: config)
+        return URLSession(configuration: config, delegate: redirectGuard, delegateQueue: nil)
     }()
+
+    /** Registers a user-configured server origin (called from the sync setup). */
+    @objc func allowOrigin(_ call: CAPPluginCall) {
+        guard let raw = call.getString("origin"),
+              let url = URL(string: raw),
+              let origin = WebDavHttpPlugin.originOf(url) else {
+            call.reject("invalid origin")
+            return
+        }
+        WebDavHttpPlugin.originLock.lock()
+        WebDavHttpPlugin.allowedOrigins.insert(origin)
+        WebDavHttpPlugin.originLock.unlock()
+        call.resolve()
+    }
 
     @objc func request(_ call: CAPPluginCall) {
         guard let urlString = call.getString("url"), let url = URL(string: urlString) else {
             call.reject("invalid url")
+            return
+        }
+        guard WebDavHttpPlugin.isAllowed(url) else {
+            call.reject("blocked by origin policy: \(WebDavHttpPlugin.originOf(url) ?? urlString)")
             return
         }
         var req = URLRequest(url: url)
@@ -57,6 +133,11 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("no http response")
                 return
             }
+            let payload = data ?? Data()
+            if payload.count > WebDavHttpPlugin.maxResponseBytes {
+                call.reject("response exceeds the size cap")
+                return
+            }
             var headers: [String: String] = [:]
             for (name, value) in http.allHeaderFields {
                 if let nameText = name as? String, let valueText = value as? String {
@@ -66,8 +147,27 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve([
                 "status": http.statusCode,
                 "headers": headers,
-                "bodyBase64": (data ?? Data()).base64EncodedString(),
+                "bodyBase64": payload.base64EncodedString(),
             ])
         }.resume()
+    }
+}
+
+/**
+ * Per-hop redirect check — the counterpart to the Android network interceptor:
+ * following a redirect to a foreign host must be refused even though redirects
+ * are allowed in principle.
+ */
+final class RedirectGuard: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession,
+                    task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        guard let url = request.url, WebDavHttpPlugin.isAllowed(url) else {
+            completionHandler(nil) // stop the redirect; the caller sees the 3xx
+            return
+        }
+        completionHandler(request)
     }
 }

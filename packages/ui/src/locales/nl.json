@@ -2012,7 +2012,10 @@
     "navBarOutside": "Niet in de balk — bereikbaar via “Onderdelen”",
     "navBarSummary": "{{n}} onderdelen",
     "navBarHint": "Sleep de onderdelen naar de gewenste volgorde. De bovenste staan in de balk — de overige bereik je via “Onderdelen” boven in het scherm.",
-    "tabDatabasesShort": "DBs"
+    "tabDatabasesShort": "DBs",
+    "changeCloudFolder": "Cloudmap wijzigen",
+    "changeCloudFolderConfirm": "Deze kluis synchroniseert voortaan met \"{{folder}}\". Bestanden die al op dit apparaat staan blijven; nieuwe inhoud komt uit de nieuwe map.",
+    "syncIntervalValue": "Elke {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",
@@ -2445,6 +2448,7 @@
     "mailCaptureGroup": "Vastleggen & privacy"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Versleutelde workspaces zijn experimenteel en zijn nog niet onafhankelijk beoordeeld. Bewaar je herstelbestand en -code op een veilige plek — zonder deze zijn versleutelde notities niet te herstellen.",
     "qrScanning": "Richt de camera op de QR-code",
     "qrCameraFailed": "Camera niet beschikbaar — plak in plaats daarvan de code.",
     "liftEncryption": "Versleuteling opheffen",

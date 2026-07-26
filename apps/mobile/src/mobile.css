@@ -295,7 +295,7 @@ textarea {
   color: var(--text-muted);
 }
 
-.m-soon {
+.m-badge-muted {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -511,6 +511,15 @@ textarea {
 }
 .m-hint--inset {
   margin: 0 16px 6px;
+}
+/* Caveat note (H6): warning-toned but calm — it states a limitation, it is not
+   an error. Uses the shared warning token pair, no raw colours. */
+.m-hint--warn {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--warning-bg);
+  color: var(--warning-text);
 }
 .m-row:disabled {
   opacity: 1;

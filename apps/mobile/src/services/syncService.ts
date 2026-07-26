@@ -21,7 +21,8 @@ import { getPlatformServices, scaffoldVaultTemplate, type VaultTemplateDefinitio
 import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
-import { updateMobileSettings } from "./mobileSettings";
+import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
+import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import { prepareMobileSettingsSync } from "./mobileSettingsSync";
 import {
@@ -449,18 +450,71 @@ export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ w
  * uses the current token.
  */
 export async function listProviderFolders(p: MobileSyncProvider, path: string): Promise<string[]> {
-  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
-  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  // Awaited here (unlike the worker start): this runs behind a button and a
+  // lost race would show the user a bare "could not list" instead of retrying.
+  if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
   const target = buildTarget(p, credKeyFor("probe"));
   return target.listFolders ? target.listFolders(path) : [];
 }
 
 /** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
 export async function createProviderFolder(p: MobileSyncProvider, path: string): Promise<void> {
-  if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
-  else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
+  if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
   const target = buildTarget(p, credKeyFor("probe"));
   if (target.createFolder) await target.createFolder(path);
+}
+
+/**
+ * Cycle interval in ms (H2a). Was hard-coded to 30 s at both worker call sites;
+ * it is now the per-vault, syncable `syncIntervalSeconds` setting — same field
+ * name and same lower bound as the desktop, so a value set there arrives here
+ * through the settings sync instead of being silently ignored.
+ */
+function syncIntervalMs(): number {
+  const seconds = getMobileSettings().syncIntervalSeconds;
+  return Math.max(MIN_SYNC_INTERVAL_SECONDS, Number.isFinite(seconds) ? seconds : 30) * 1000;
+}
+
+/**
+ * Points an existing connection at a different remote folder (H2d) — the
+ * desktop has had this on its sync page; mobile could only pick a folder while
+ * connecting. Local files are untouched; the next cycle reconciles against the
+ * new remote. WebDAV is deliberately not supported: there the chosen folder is
+ * baked into the base URL at connect time, so "changing" it means reconnecting.
+ */
+export function canChangeRemoteFolder(provider: string | undefined): boolean {
+  return provider === "drive" || provider === "onedrive" || provider === "dropbox" || provider === "s3";
+}
+
+export function remoteFolderOf(p: MobileSyncProvider): string {
+  switch (p.provider) {
+    case "drive":
+    case "onedrive": return p.creds.rootFolderName ?? "";
+    case "dropbox": return p.creds.rootPath ?? "";
+    case "s3": return p.creds.prefix ?? "";
+    default: return "";
+  }
+}
+
+function withRemoteFolder(p: MobileSyncProvider, folder: string): MobileSyncProvider {
+  const value = folder.trim() || undefined;
+  switch (p.provider) {
+    case "drive": return { provider: "drive", creds: { ...p.creds, rootFolderName: value } };
+    case "onedrive": return { provider: "onedrive", creds: { ...p.creds, rootFolderName: value } };
+    case "dropbox": return { provider: "dropbox", creds: { ...p.creds, rootPath: value } };
+    case "s3": return { provider: "s3", creds: { ...p.creds, prefix: value } };
+    default: return p;
+  }
+}
+
+export async function changeRemoteFolder(v: MobileVault, folder: string): Promise<void> {
+  const stored = await getStoredProvider(v.vaultId);
+  if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
+  await stopSyncAndDrain();
+  await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
+  await startSyncIfConfigured(v);
 }
 
 async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void> {
@@ -501,7 +555,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     setState({ status: "syncing", message: null });
     await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
-      intervalMs: 30_000,
+      intervalMs: syncIntervalMs(),
       sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
     });
     encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
@@ -519,7 +573,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter
   // memory budgets, and a batch of large attachments must not balloon RAM.
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, 30_000, {
+  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,

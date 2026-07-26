@@ -109,7 +109,7 @@ export function TagsScreen({
               <button className="m-row-main" onClick={() => onOpenTag(root)}>
                 <Hash className="m-accent" size={16} />
                 <span>{root}</span>
-                <span className="m-soon">{g.total}</span>
+                <span className="m-badge-muted">{g.total}</span>
               </button>
               {g.children.length > 0 && (
                 <button
@@ -142,7 +142,7 @@ export function TagsScreen({
                 >
                   <Hash className="m-chevron" size={14} />
                   <span>{row.tag.slice(root.length + 1)}</span>
-                  <span className="m-soon">{row.count}</span>
+                  <span className="m-badge-muted">{row.count}</span>
                 </button>
               ))}
           </Fragment>

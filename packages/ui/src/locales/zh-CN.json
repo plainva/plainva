@@ -2006,7 +2006,10 @@
     "navBarOutside": "不在导航栏中——可通过“区域”访问",
     "navBarSummary": "{{n}} 个区域",
     "navBarHint": "把区域拖动到你想要的顺序。排在最前面的会显示在导航栏中，其余的可以通过页眉里的“区域”打开。",
-    "tabDatabasesShort": "数据库"
+    "tabDatabasesShort": "数据库",
+    "changeCloudFolder": "更改云端文件夹",
+    "changeCloudFolderConfirm": "此仓库今后将与“{{folder}}”同步。已下载到本设备的文件会保留；新内容将来自新文件夹。",
+    "syncIntervalValue": "每 {{seconds}} 秒"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
@@ -2438,6 +2441,7 @@
     "mailCaptureGroup": "归档与隐私"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "加密工作区仍处于实验阶段，尚未经过独立审计。请妥善保管恢复文件和恢复码——没有它们将无法恢复已加密的笔记。",
     "qrScanning": "将摄像头对准二维码",
     "qrCameraFailed": "摄像头不可用——请改为粘贴代码。",
     "liftEncryption": "取消加密",

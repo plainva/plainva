@@ -2018,7 +2018,10 @@
     "navBarOutside": "Pas dans la barre — accessible via « Rubriques »",
     "navBarSummary": "{{n}} rubriques",
     "navBarHint": "Faites glisser les rubriques dans l'ordre souhaité. Les premières se trouvent dans la barre — vous accédez à toutes les autres via « Rubriques » dans l'en-tête.",
-    "tabDatabasesShort": "BDD"
+    "tabDatabasesShort": "BDD",
+    "changeCloudFolder": "Changer de dossier cloud",
+    "changeCloudFolderConfirm": "Ce coffre se synchronisera désormais avec « {{folder}} ». Les fichiers déjà présents sur cet appareil sont conservés ; les nouveaux contenus proviendront du nouveau dossier.",
+    "syncIntervalValue": "Toutes les {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",
@@ -2452,6 +2455,7 @@
     "mailCaptureGroup": "Capture et confidentialité"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Les espaces chiffrés sont expérimentaux et n'ont pas encore fait l'objet d'un audit indépendant. Conservez votre fichier et votre code de récupération en lieu sûr : sans eux, les notes chiffrées sont irrécupérables.",
     "qrScanning": "Dirigez l'appareil photo vers le code QR",
     "qrCameraFailed": "Appareil photo indisponible — collez le code à la place.",
     "liftEncryption": "Supprimer le chiffrement",

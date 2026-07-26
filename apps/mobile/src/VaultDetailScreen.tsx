@@ -1,21 +1,30 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Lock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
-import { mConfirm, mPrompt } from "./services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
+  canChangeRemoteFolder,
+  changeRemoteFolder,
+  getStoredProvider,
   getSyncStatus,
+  listProviderFolders,
   pauseProvider,
+  remoteFolderOf,
   resumeProvider,
   restartSync,
   subscribeSyncStatus,
   syncNow,
+  type MobileSyncProvider,
 } from "./services/syncService";
-import { isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
+import { isMobilePassphraseEveryStart, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
+import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
+import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
+import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
 import { Switch, toast } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -51,6 +60,12 @@ export function VaultDetailScreen({
   const [deleted, setDeleted] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
+  /** H2b: passphrase re-entry after every start (desktop parity). */
+  const [everyStart, setEveryStart] = useState(false);
+  /** H2a: cycle interval, per vault and syncable (was hard-coded to 30 s). */
+  const [interval, setIntervalSeconds] = useState(() => getMobileSettings().syncIntervalSeconds);
+  /** H2d: change the remote folder of an existing connection. */
+  const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
 
   useEffect(() => {
     void getVaultEntry(vaultId).then(setEntry);
@@ -64,10 +79,16 @@ export function VaultDetailScreen({
     const reload = () => {
       void isMobileSettingsSyncEnabled(vaultId).then(setSettingsSyncOn);
       void mobileEncryptionStatus(activeVault).then(setEncryption);
+      void isMobilePassphraseEveryStart(vaultId).then(setEveryStart);
+      setIntervalSeconds(getMobileSettings().syncIntervalSeconds);
     };
     reload();
     window.addEventListener("m-encryption-locked", reload);
-    return () => window.removeEventListener("m-encryption-locked", reload);
+    window.addEventListener("m-settings-changed", reload);
+    return () => {
+      window.removeEventListener("m-encryption-locked", reload);
+      window.removeEventListener("m-settings-changed", reload);
+    };
   }, [activeVault, isActive, vaultId]);
 
   if (!entry) return <div className="m-page" />;
@@ -138,7 +159,7 @@ export function VaultDetailScreen({
         {entry.provider && (
           <div className="m-row m-row--static">
             <span>{PROVIDER_LABELS[entry.provider] ?? entry.provider}</span>
-            {entry.paused && <span className="m-soon">{t("mobile.syncDisconnect")}</span>}
+            {entry.paused && <span className="m-badge-muted">{t("mobile.syncDisconnect")}</span>}
           </div>
         )}
 
@@ -179,6 +200,45 @@ export function VaultDetailScreen({
           </p>
         )}
         {isActive && entry.provider && <QueuePeek vault={activeVault} />}
+        {/* H2a: the cycle interval was hard-coded to 30 s on mobile while the
+            desktop exposed it AND synced it in the profile — a value set there
+            never arrived here. Same field, same lower bound, applied live. */}
+        {isActive && entry.provider && (
+          <>
+            <button
+              className="m-row"
+              disabled={busy}
+              onClick={() => {
+                void mSelect({
+                  title: t("settings.syncInterval"),
+                  options: [15, 30, 60, 300, 900].map((seconds) => ({
+                    value: String(seconds),
+                    label: t("mobile.syncIntervalValue", { seconds }),
+                  })),
+                  value: String(interval),
+                }).then(async (picked) => {
+                  if (picked === null) return;
+                  const seconds = Math.max(MIN_SYNC_INTERVAL_SECONDS, Number(picked));
+                  setBusy(true);
+                  try {
+                    await applyVaultSettings(vaultId, { syncIntervalSeconds: seconds });
+                    setIntervalSeconds(seconds);
+                    await restartSync(activeVault); // the worker takes the interval at construction
+                  } finally {
+                    setBusy(false);
+                  }
+                });
+              }}
+            >
+              <RefreshCw className="m-chevron" size={16} />
+              <span className="m-linestack">
+                {t("settings.syncInterval")}
+                <small>{t("mobile.syncIntervalValue", { seconds: interval })}</small>
+              </span>
+            </button>
+            <p className="m-hint">{t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}</p>
+          </>
+        )}
         {isActive && entry.provider && (
           <>
             <p className="m-sectionlabel">{t("settingsSync.cardLabel")}</p>
@@ -242,6 +302,27 @@ export function VaultDetailScreen({
                 </button>
               </div>
             )}
+            {settingsSyncOn && encryption !== "none" && (
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("encryption.everyStart")}
+                  <small>{t("encryption.everyStartDesc")}</small>
+                </span>
+                <Switch
+                  checked={everyStart}
+                  disabled={busy}
+                  label={t("encryption.everyStart")}
+                  onChange={(next) => {
+                    setBusy(true);
+                    void setMobilePassphraseEveryStart(vaultId, next)
+                      .then(() => setEveryStart(next))
+                      .then(() => mobileEncryptionStatus(activeVault))
+                      .then(setEncryption)
+                      .finally(() => setBusy(false));
+                  }}
+                />
+              </div>
+            )}
             {settingsSyncOn && encryption === "unlocked" && (
               <div className="m-card">
                 <span className="m-state m-state--ok">
@@ -298,6 +379,23 @@ export function VaultDetailScreen({
               <FileClock size={16} /> {t("versions.deletedTitle")}
             </button>
           )}
+          {/* H2d: the folder was only choosable while connecting; the desktop
+              has had this on its sync page. Not offered for WebDAV, where the
+              folder is baked into the base URL at connect time. */}
+          {isActive && canChangeRemoteFolder(entry.provider) && (
+            <button
+              className="m-btn m-btn--tonal"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void getStoredProvider(vaultId)
+                  .then((stored) => { if (stored) setFolderPick(stored); })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <Cloud size={16} /> {t("mobile.changeCloudFolder")}
+            </button>
+          )}
           {entry.provider && !entry.paused && (
             <button
               className="m-btn m-btn--tonal"
@@ -346,6 +444,32 @@ export function VaultDetailScreen({
           )}
         </div>
       </div>
+      {folderPick && (
+        <CloudFolderPickerSheet
+          title={t("mobile.changeCloudFolder")}
+          listFolders={(path) => listProviderFolders(folderPick, path)}
+          onClose={() => setFolderPick(null)}
+          onPick={(path) => {
+            const target = path || remoteFolderOf(folderPick);
+            setFolderPick(null);
+            void mConfirm({
+              title: t("mobile.changeCloudFolder"),
+              message: t("mobile.changeCloudFolderConfirm", { folder: target || "/" }),
+              confirmLabel: t("common.ok"),
+            }).then(async (ok) => {
+              if (!ok) return;
+              setBusy(true);
+              try {
+                await changeRemoteFolder(activeVault, path);
+              } catch (e) {
+                toast.warning(String(e));
+              } finally {
+                setBusy(false);
+              }
+            });
+          }}
+        />
+      )}
       {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={activeVault} />}
     </div>
   );

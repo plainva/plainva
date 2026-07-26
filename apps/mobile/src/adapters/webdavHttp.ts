@@ -28,13 +28,18 @@ const WebDavHttp = registerPlugin<WebDavHttpNative>("WebDavHttp");
  * WebDAV URL, a custom S3 endpoint, deliberately including private-network
  * targets the user typed in — must be allowed here before the first request.
  * No-op on the web dev server (the browser fetch has no such gate).
+ *
+ * Both native platforms enforce this since 2026-07-26 (H8b); before that iOS
+ * had no allowlist and swallowed this call. The catch stays as a guard against
+ * an outdated native shell, but a failure now means requests to that origin
+ * WILL be refused — so it is logged as an error, not a shrug.
  */
 export async function allowHttpOrigin(urlOrOrigin: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     await WebDavHttp.allowOrigin({ origin: urlOrOrigin });
   } catch (e) {
-    console.warn("[webdavHttp] allowOrigin failed", e);
+    console.error("[webdavHttp] allowOrigin failed — requests to this origin will be blocked", e);
   }
 }
 

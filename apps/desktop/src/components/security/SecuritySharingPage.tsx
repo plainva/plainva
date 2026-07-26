@@ -298,6 +298,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   return (
     <div>
       <AreaHead areaId="security" />
+      {/* Honesty gate (H6): the "experimental, not independently reviewed"
+          caveat lived only in the What's-New text and the handbook — not where
+          a workspace is actually created or joined. Shown in every sub-area. */}
+      <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
       {area === null && (<>
       {!isActiveVault && <Banner kind="info" rounded>{t("workspaceSecurity.openVaultFirst")}</Banner>}
       {isActiveVault && !hasSyncConnection && <Banner kind="warning" rounded>{t("workspaceSecurity.connectionRequired")}</Banner>}

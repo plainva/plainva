@@ -84,6 +84,8 @@ export interface MobileSettings {
   backupMaxAgeDays: number;
   /** Template file name (inside templateFolder) seeding new daily notes; empty = plain skeleton. */
   dailyTemplate: string;
+  /** Seconds between sync cycles, min MIN_SYNC_INTERVAL_SECONDS (H2a). */
+  syncIntervalSeconds: number;
 }
 
 /** Re-export so consumers (mobileSettingsSync) keep importing the type from here. */

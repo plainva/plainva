@@ -775,7 +775,7 @@ export function BaseScreen({
                   <span className="m-tl-dot" />
                   <span>{rowTitle(r)}</span>
                 </button>
-                {end && <span className="m-soon">→ {end}</span>}
+                {end && <span className="m-badge-muted">→ {end}</span>}
               </div>
             </div>
           );

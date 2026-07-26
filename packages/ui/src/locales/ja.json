@@ -2006,7 +2006,10 @@
     "navBarOutside": "バー外——「エリア」から利用できます",
     "navBarSummary": "{{n}}件のエリア",
     "navBarHint": "エリアを好きな順序にドラッグして並べ替えてください。上位のエリアはバーに表示され、それ以外はヘッダーの「エリア」から利用できます。",
-    "tabDatabasesShort": "DB"
+    "tabDatabasesShort": "DB",
+    "changeCloudFolder": "クラウドフォルダーを変更",
+    "changeCloudFolderConfirm": "この Vault は今後「{{folder}}」と同期します。この端末にあるファイルはそのまま残り、新しい内容は新しいフォルダーから届きます。",
+    "syncIntervalValue": "{{seconds}} 秒ごと"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",
@@ -2438,6 +2441,7 @@
     "mailCaptureGroup": "取り込みとプライバシー"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "暗号化ワークスペースは実験的な機能で、第三者による監査はまだ受けていません。リカバリーファイルとコードは安全な場所に保管してください。これらがないと暗号化されたノートは復元できません。",
     "qrScanning": "カメラを QR コードに向けてください",
     "qrCameraFailed": "カメラを使用できません — 代わりにコードを貼り付けてください。",
     "liftEncryption": "暗号化を解除",

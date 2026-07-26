@@ -2024,7 +2024,10 @@
     "navBarOutside": "Poza paskiem — dostępne przez „Obszary”",
     "navBarSummary": "{{n}} obszar(ów)",
     "navBarHint": "Przeciągnij obszary w wybranej kolejności. Te na górze znajdują się na pasku — pozostałe są dostępne przez „Obszary” u góry ekranu.",
-    "tabDatabasesShort": "Bazy"
+    "tabDatabasesShort": "Bazy",
+    "changeCloudFolder": "Zmień folder w chmurze",
+    "changeCloudFolderConfirm": "Ten sejf będzie od teraz synchronizowany z „{{folder}}”. Pliki już pobrane na to urządzenie pozostaną; nowa zawartość będzie pochodzić z nowego folderu.",
+    "syncIntervalValue": "Co {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",
@@ -2459,6 +2462,7 @@
     "mailCaptureGroup": "Zapisywanie i prywatność"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Zaszyfrowane przestrzenie robocze są eksperymentalne i nie zostały jeszcze niezależnie zweryfikowane. Przechowuj plik i kod odzyskiwania w bezpiecznym miejscu — bez nich nie da się odzyskać zaszyfrowanych notatek.",
     "qrScanning": "Skieruj aparat na kod QR",
     "qrCameraFailed": "Aparat niedostępny — zamiast tego wklej kod.",
     "liftEncryption": "Zdejmij szyfrowanie",

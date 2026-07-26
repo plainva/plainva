@@ -2018,7 +2018,10 @@
     "navBarOutside": "No está en la barra — se accede mediante “Áreas”",
     "navBarSummary": "{{n}} áreas",
     "navBarHint": "Arrastra las áreas al orden que prefieras. Las primeras están en la barra — accedes a todas las demás mediante “Áreas” en la cabecera.",
-    "tabDatabasesShort": "BDs"
+    "tabDatabasesShort": "BDs",
+    "changeCloudFolder": "Cambiar carpeta en la nube",
+    "changeCloudFolderConfirm": "Esta bóveda se sincronizará a partir de ahora con «{{folder}}». Los archivos que ya están en el dispositivo se mantienen; el contenido nuevo vendrá de la nueva carpeta.",
+    "syncIntervalValue": "Cada {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",
@@ -2452,6 +2455,7 @@
     "mailCaptureGroup": "Captura y privacidad"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Los espacios cifrados son experimentales y aún no han sido auditados de forma independiente. Guarda el archivo y el código de recuperación en un lugar seguro: sin ellos no se pueden recuperar las notas cifradas.",
     "qrScanning": "Apunta la cámara al código QR",
     "qrCameraFailed": "Cámara no disponible: pega el código en su lugar.",
     "liftEncryption": "Quitar el cifrado",

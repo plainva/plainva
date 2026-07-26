@@ -2018,7 +2018,10 @@
     "navBarOutside": "Non nella barra — raggiungibile tramite “Aree”",
     "navBarSummary": "{{n}} aree",
     "navBarHint": "Trascina le aree nell'ordine desiderato. Le prime si trovano nella barra — raggiungi tutte le altre tramite “Aree” nell'intestazione.",
-    "tabDatabasesShort": "DB"
+    "tabDatabasesShort": "DB",
+    "changeCloudFolder": "Cambia cartella cloud",
+    "changeCloudFolderConfirm": "Da ora questo vault si sincronizzerà con «{{folder}}». I file già presenti su questo dispositivo restano; i nuovi contenuti arriveranno dalla nuova cartella.",
+    "syncIntervalValue": "Ogni {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",
@@ -2452,6 +2455,7 @@
     "mailCaptureGroup": "Cattura e privacy"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Gli spazi di lavoro cifrati sono sperimentali e non sono ancora stati verificati in modo indipendente. Conserva al sicuro il file e il codice di ripristino: senza di essi le note cifrate non sono recuperabili.",
     "qrScanning": "Inquadra il codice QR con la fotocamera",
     "qrCameraFailed": "Fotocamera non disponibile — incolla invece il codice.",
     "liftEncryption": "Rimuovere la crittografia",

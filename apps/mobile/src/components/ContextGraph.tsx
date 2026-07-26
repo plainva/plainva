@@ -137,7 +137,7 @@ export function ContextGraph({
             <p className="m-suggest-text">
               {titleOf(s.source === path ? s.target : s.source)}
               <b> [[{titleOf(s.target)}]]</b>
-              <span className="m-soon"> · {t(REASON_KEY[s.reason])}</span>
+              <span className="m-badge-muted"> · {t(REASON_KEY[s.reason])}</span>
             </p>
             <div className="m-suggest-actions">
               <button className="m-btn m-btn--tonal" onClick={() => accept(s)}>

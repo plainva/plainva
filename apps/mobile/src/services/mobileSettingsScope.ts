@@ -8,6 +8,9 @@
  * app-wide and stays in the global `mobile-settings` blob.
  */
 
+/** Lower bound for the sync cycle, identical to the desktop's constant (H2a). */
+export const MIN_SYNC_INTERVAL_SECONDS = 5;
+
 export interface VaultScopedSettings {
   dailyFolder: string;
   inboxFolder: string;
@@ -16,6 +19,9 @@ export interface VaultScopedSettings {
   backupIntervalSeconds: number;
   backupMaxPerFile: number;
   backupMaxAgeDays: number;
+  /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
+   *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
+  syncIntervalSeconds: number;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -26,6 +32,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "backupIntervalSeconds",
   "backupMaxPerFile",
   "backupMaxAgeDays",
+  "syncIntervalSeconds",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -37,6 +44,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupIntervalSeconds: 120,
   backupMaxPerFile: 100,
   backupMaxAgeDays: 90,
+  syncIntervalSeconds: 30,
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -49,6 +57,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupIntervalSeconds: src.backupIntervalSeconds ?? VAULT_DEFAULTS.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? VAULT_DEFAULTS.backupMaxPerFile,
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,
+    syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
   };
 }
 

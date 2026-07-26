@@ -2012,7 +2012,10 @@
     "navBarOutside": "Not in the bar — reachable via “Areas”",
     "navBarSummary": "{{n}} areas",
     "navBarHint": "Drag the areas into the order you want. The topmost ones sit in the bar — you reach all the others via “Areas” in the header.",
-    "tabDatabasesShort": "DBs"
+    "tabDatabasesShort": "DBs",
+    "changeCloudFolder": "Change cloud folder",
+    "changeCloudFolderConfirm": "This vault will sync with \"{{folder}}\" from now on. Files already on this device stay; new content comes from the new folder.",
+    "syncIntervalValue": "Every {{seconds}} s"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",
@@ -2445,6 +2448,7 @@
     "mailCaptureGroup": "Capture & privacy"
   },
   "workspaceSecurity": {
+    "experimentalNotice": "Encrypted workspaces are experimental and have not been independently reviewed yet. Keep your recovery file and code somewhere safe — without them, encrypted notes cannot be recovered.",
     "qrScanning": "Point the camera at the QR code",
     "qrCameraFailed": "Camera unavailable — paste the code instead.",
     "liftEncryption": "Lift encryption",

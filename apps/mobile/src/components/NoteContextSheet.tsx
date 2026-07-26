@@ -200,7 +200,7 @@ export function NoteContextSheet({
                 >
                   <FileText size={18} />
                   <span>{b.title}</span>
-                  {b.count > 1 && <span className="m-soon">×{b.count}</span>}
+                  {b.count > 1 && <span className="m-badge-muted">×{b.count}</span>}
                 </button>
               ))
             ))}
