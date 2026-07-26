@@ -2376,7 +2376,8 @@
     "deleteForeverConfirm": "Dit bericht definitief verwijderen?",
     "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider.",
     "search": "Zoeken in deze map",
-    "attachmentSaved": "Opgeslagen als {{name}}"
+    "attachmentSaved": "Opgeslagen als {{name}}",
+    "offlineCopy": "Offline — je ziet de laatste kopie van dit apparaat."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

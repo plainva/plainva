@@ -2369,7 +2369,8 @@
     "deleteForeverConfirm": "要永久删除这封邮件吗？",
     "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。",
     "search": "在此文件夹中搜索",
-    "attachmentSaved": "已保存到 {{name}}"
+    "attachmentSaved": "已保存到 {{name}}",
+    "offlineCopy": "离线——显示的是本设备上的最后一份副本。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

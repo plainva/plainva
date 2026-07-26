@@ -1,0 +1,152 @@
+import type { MailEnvelope, MailMessage } from "@plainva/ui/mail";
+import type { MobileVault } from "../vaultService";
+
+/**
+ * Offline reading for mail (mail feinplan, cache stage).
+ *
+ * Deliberately a CACHE, never a source of truth: the server always wins, and
+ * nothing here is ever the only copy of anything. A phone loses signal in a
+ * lift; the point is that the list you just looked at is still there, not that
+ * the app becomes an offline mail store.
+ *
+ * It lives in the vault's index database, next to the other per-vault caches,
+ * so removing a vault removes its mail cache with it.
+ */
+
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS mail_envelopes (
+     account TEXT NOT NULL,
+     mailbox TEXT NOT NULL,
+     id TEXT NOT NULL,
+     subject TEXT NOT NULL,
+     sender TEXT NOT NULL,
+     date_ts INTEGER NOT NULL,
+     seen INTEGER NOT NULL,
+     flagged INTEGER NOT NULL,
+     cached_at INTEGER NOT NULL,
+     PRIMARY KEY (account, mailbox, id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_mail_env_box ON mail_envelopes (account, mailbox, date_ts DESC)`,
+  `CREATE TABLE IF NOT EXISTS mail_bodies (
+     account TEXT NOT NULL,
+     mailbox TEXT NOT NULL,
+     id TEXT NOT NULL,
+     payload TEXT NOT NULL,
+     cached_at INTEGER NOT NULL,
+     PRIMARY KEY (account, mailbox, id)
+   )`,
+];
+
+/** Bodies are the big rows; keep the most recent ones only. */
+const MAX_BODIES = 200;
+
+let ready: WeakSet<object> = new WeakSet();
+
+async function ensure(vault: MobileVault): Promise<boolean> {
+  if (!vault.db) return false;
+  if (ready.has(vault.db as object)) return true;
+  for (const stmt of SCHEMA) await vault.db.execute(stmt);
+  ready.add(vault.db as object);
+  return true;
+}
+
+/** Forgets the memo of which databases are prepared (vault switch). */
+export function resetMailCache(): void {
+  ready = new WeakSet();
+}
+
+export async function cacheEnvelopes(
+  vault: MobileVault,
+  account: string,
+  mailbox: string,
+  rows: MailEnvelope[],
+): Promise<void> {
+  if (!(await ensure(vault)) || rows.length === 0) return;
+  const now = Date.now();
+  for (const m of rows) {
+    await vault.db!.execute(
+      `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, cached_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(account, mailbox, id) DO UPDATE SET
+         subject = excluded.subject, sender = excluded.sender, date_ts = excluded.date_ts,
+         seen = excluded.seen, flagged = excluded.flagged, cached_at = excluded.cached_at`,
+      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, now],
+    );
+  }
+}
+
+export async function cachedEnvelopes(
+  vault: MobileVault,
+  account: string,
+  mailbox: string,
+  limit: number,
+): Promise<MailEnvelope[]> {
+  if (!(await ensure(vault))) return [];
+  const rows = await vault.db!.query<{
+    id: string;
+    subject: string;
+    sender: string;
+    date_ts: number;
+    seen: number;
+    flagged: number;
+  }>(
+    `SELECT id, subject, sender, date_ts, seen, flagged FROM mail_envelopes
+     WHERE account = ? AND mailbox = ? ORDER BY date_ts DESC LIMIT ?`,
+    [account, mailbox, limit],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    subject: r.subject,
+    from: r.sender,
+    dateTs: r.date_ts,
+    seen: r.seen === 1,
+    flagged: r.flagged === 1,
+  }));
+}
+
+export async function cacheMessage(
+  vault: MobileVault,
+  account: string,
+  mailbox: string,
+  message: MailMessage,
+): Promise<void> {
+  if (!(await ensure(vault))) return;
+  await vault.db!.execute(
+    `INSERT INTO mail_bodies (account, mailbox, id, payload, cached_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(account, mailbox, id) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
+    [account, mailbox, message.id, JSON.stringify(message), Date.now()],
+  );
+  // Bounded on write rather than on a timer: a cache that only ever grows is
+  // the same bug as no cache at all, just slower to notice.
+  await vault.db!.execute(
+    `DELETE FROM mail_bodies WHERE rowid NOT IN
+       (SELECT rowid FROM mail_bodies ORDER BY cached_at DESC LIMIT ?)`,
+    [MAX_BODIES],
+  );
+}
+
+export async function cachedMessage(
+  vault: MobileVault,
+  account: string,
+  mailbox: string,
+  id: string,
+): Promise<MailMessage | null> {
+  if (!(await ensure(vault))) return null;
+  const rows = await vault.db!.query<{ payload: string }>(
+    `SELECT payload FROM mail_bodies WHERE account = ? AND mailbox = ? AND id = ?`,
+    [account, mailbox, id],
+  );
+  if (rows.length === 0) return null;
+  try {
+    return JSON.parse(rows[0].payload) as MailMessage;
+  } catch {
+    return null; // a corrupt row is a cache miss, never an error
+  }
+}
+
+/** Drops everything cached for an account (used when it is removed). */
+export async function forgetCachedMail(vault: MobileVault, account: string): Promise<void> {
+  if (!(await ensure(vault))) return;
+  await vault.db!.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [account]);
+  await vault.db!.execute(`DELETE FROM mail_bodies WHERE account = ?`, [account]);
+}

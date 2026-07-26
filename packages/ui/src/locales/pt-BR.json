@@ -2383,7 +2383,8 @@
     "deleteForeverConfirm": "Excluir esta mensagem definitivamente?",
     "noTrashFolder": "Esta caixa não tem lixeira — exclua a mensagem no seu provedor.",
     "search": "Pesquisar nesta pasta",
-    "attachmentSaved": "Salvo em {{name}}"
+    "attachmentSaved": "Salvo em {{name}}",
+    "offlineCopy": "Offline — mostrando a última cópia deste dispositivo."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

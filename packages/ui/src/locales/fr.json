@@ -2383,7 +2383,8 @@
     "deleteForeverConfirm": "Supprimer définitivement ce message ?",
     "noTrashFolder": "Cette boîte n’a pas de corbeille — supprime le message chez ton fournisseur.",
     "search": "Rechercher dans ce dossier",
-    "attachmentSaved": "Enregistré sous {{name}}"
+    "attachmentSaved": "Enregistré sous {{name}}",
+    "offlineCopy": "Hors ligne — affichage de la dernière copie de cet appareil."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

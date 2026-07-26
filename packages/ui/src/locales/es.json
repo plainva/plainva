@@ -2383,7 +2383,8 @@
     "deleteForeverConfirm": "¿Eliminar definitivamente este mensaje?",
     "noTrashFolder": "Este buzón no tiene papelera: elimina el mensaje en tu proveedor.",
     "search": "Buscar en esta carpeta",
-    "attachmentSaved": "Guardado en {{name}}"
+    "attachmentSaved": "Guardado en {{name}}",
+    "offlineCopy": "Sin conexión: se muestra la última copia de este dispositivo."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

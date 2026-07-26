@@ -7,6 +7,8 @@ import { listEnvelopes, listMailboxesFor, mailFolderLabel, searchEnvelopes, sort
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { cacheEnvelopes, cachedEnvelopes } from "../services/mail/mailCache";
+import type { MobileVault } from "../services/vaultService";
 
 const PAGE = 30;
 
@@ -20,12 +22,14 @@ const PAGE = 30;
  * messages it holds. Tapping it opens the folder sheet.
  */
 export function MailListScreen({
+  vault: vault_,
   bump,
   onBack,
   onOpenMessage,
   onOpenAccounts,
   onCompose,
 }: {
+  vault: MobileVault;
   bump: number;
   onBack?: () => void;
   onOpenMessage: (accountId: string, mailbox: string, id: string, flagged: boolean) => void;
@@ -33,6 +37,7 @@ export function MailListScreen({
   onCompose: (accountId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const vaultObj = vault_;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [folders, setFolders] = useState<MailboxInfo[]>([]);
@@ -45,9 +50,11 @@ export function MailListScreen({
   const [sheet, setSheet] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [stale, setStale] = useState(false);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
+  const vaultRef = vaultObj;
 
   // The effects below must not re-run just because i18n handed out a new `t`
   // (or the account array was rebuilt) — each re-run is another round of
@@ -99,17 +106,25 @@ export function MailListScreen({
     setLoading(true);
     setError(null);
     try {
+      setStale(false);
       const page = await listEnvelopes(vault, account, mailbox, 0, PAGE);
       setRows(page.messages);
       setUnseen(page.unseen);
       setTotal(page.total);
+      void cacheEnvelopes(vaultRef, account.id, mailbox, page.messages);
     } catch (e) {
-      setError(describeError(e));
-      setRows([]);
+      // Offline or throttled: show what was last seen rather than an empty
+      // screen. The banner still says the refresh failed — the cache is a
+      // fallback, never a claim that this is current.
+      const cached = await cachedEnvelopes(vaultRef, account.id, mailbox, PAGE);
+      setRows(cached);
+      setTotal(cached.length);
+      setError(cached.length > 0 ? null : describeError(e));
+      setStale(cached.length > 0);
     } finally {
       setLoading(false);
     }
-  }, [vault, accountId, mailbox, accountById, describeError]);
+  }, [vault, accountId, mailbox, accountById, describeError, vaultRef]);
 
   useEffect(() => {
     void load();
@@ -193,6 +208,8 @@ export function MailListScreen({
     <div className="m-page" ref={ptrRef}>
       {onBack && backHeader}
       {ptrIndicator}
+
+      {stale && <p className="m-hint m-hint--warn">{t("mail.offlineCopy")}</p>}
 
       {/* Which mailbox am I looking at, and how much is unread. */}
       <button type="button" className="m-mboxline" onClick={() => setSheet(true)}>

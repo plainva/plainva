@@ -22,6 +22,7 @@ import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntim
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
+import { cacheMessage, cachedMessage } from "../services/mail/mailCache";
 
 /**
  * Reading one message (mail feinplan G1). Two things carry over unchanged from
@@ -64,6 +65,7 @@ export function MailMessageScreen({
   const [showRemote, setShowRemote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flagged, setFlagged] = useState(initialFlagged);
+  const [stale, setStale] = useState(false);
   const vaultId = mailVaultId();
 
   useEffect(() => {
@@ -77,15 +79,26 @@ export function MailMessageScreen({
       .then((m) => {
         if (cancelled) return;
         setMessage(m);
+        void cacheMessage(vault, accountId, mailbox, m);
         // Opening a message marks it read, like every mail client; a failure
         // here must not swallow the message itself.
         void setMessageSeen(vaultId, account, mailbox, messageId, true).catch(() => undefined);
       })
-      .catch((e) => !cancelled && setError(describe(e, t)));
+      .catch(async (e) => {
+        if (cancelled) return;
+        // Offline: show the copy from when it was last read, and say so.
+        const cached = await cachedMessage(vault, accountId, mailbox, messageId);
+        if (cached) {
+          setMessage(cached);
+          setStale(true);
+        } else {
+          setError(describe(e, t));
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [vaultId, account, mailbox, messageId, t]);
+  }, [vaultId, account, vault, accountId, mailbox, messageId, t]);
 
   const alwaysRemote = getMobileSettings().mailRemoteImages === true;
   const frame = useMemo(() => {
@@ -206,6 +219,8 @@ export function MailMessageScreen({
         <p className="m-hint">{t("common.loading", { defaultValue: "…" })}</p>
       ) : (
         <>
+          {stale && <p className="m-hint m-hint--warn">{t("mail.offlineCopy")}</p>}
+
           <div className="m-mailmeta">
             <p className="m-mailmeta-from">{message.from}</p>
             <p className="m-mailmeta-to">{message.to}</p>

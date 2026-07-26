@@ -785,6 +785,7 @@ export default function App() {
           <PimAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "mail" ? (
           <MailListScreen
+            vault={vault}
             bump={bump}
             onBack={pop}
             onOpenMessage={(a, m, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f }) })}
@@ -844,6 +845,7 @@ export default function App() {
           <PimCalendarScreen bump={bump} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
         ) : nav.activeTab === "mail" ? (
           <MailListScreen
+            vault={vault}
             bump={bump}
             onOpenMessage={(acc, mb, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
             onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}

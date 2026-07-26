@@ -2376,7 +2376,8 @@
     "deleteForeverConfirm": "Diese Nachricht endgültig löschen?",
     "noTrashFolder": "Dieses Postfach hat keinen Papierkorb — lösche die Nachricht bei Deinem Anbieter.",
     "search": "In diesem Ordner suchen",
-    "attachmentSaved": "Gespeichert unter {{name}}"
+    "attachmentSaved": "Gespeichert unter {{name}}",
+    "offlineCopy": "Offline — angezeigt wird die letzte Kopie von diesem Gerät."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

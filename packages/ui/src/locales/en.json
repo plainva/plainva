@@ -2376,7 +2376,8 @@
     "deleteForeverConfirm": "Delete this message for good?",
     "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider.",
     "search": "Search this folder",
-    "attachmentSaved": "Saved to {{name}}"
+    "attachmentSaved": "Saved to {{name}}",
+    "offlineCopy": "Offline — showing the last copy from this device."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

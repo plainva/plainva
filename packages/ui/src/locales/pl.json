@@ -2390,7 +2390,8 @@
     "deleteForeverConfirm": "Usunąć tę wiadomość bezpowrotnie?",
     "noTrashFolder": "Ta skrzynka nie ma kosza — usuń wiadomość u swojego dostawcy.",
     "search": "Szukaj w tym folderze",
-    "attachmentSaved": "Zapisano jako {{name}}"
+    "attachmentSaved": "Zapisano jako {{name}}",
+    "offlineCopy": "Offline — pokazujemy ostatnią kopię z tego urządzenia."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",
