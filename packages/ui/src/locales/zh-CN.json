@@ -2360,7 +2360,8 @@
     "folderEmpty": "此文件夹中没有邮件",
     "unknownSender": "未知发件人",
     "noteExists": "这封邮件已经有一条笔记",
-    "attachmentsMobile_other": "{{count}} 个附件——请在桌面端打开这封邮件以保存"
+    "attachmentsMobile_other": "{{count}} 个附件——请在桌面端打开这封邮件以保存",
+    "noRecipient": "请至少填写一位收件人"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

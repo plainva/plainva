@@ -113,6 +113,7 @@ export type NavKind =
   | "pimcalendar"
   | "mail"
   | "mailmsg"
+  | "mailcompose"
   | "mailaccounts"
   | "pimaccounts"
   | "databases"

@@ -2367,7 +2367,8 @@
     "unknownSender": "Unknown sender",
     "noteExists": "A note for this email already exists",
     "attachmentsMobile_one": "{{count}} attachment — open the email on the desktop to save it",
-    "attachmentsMobile_other": "{{count}} attachments — open the email on the desktop to save them"
+    "attachmentsMobile_other": "{{count}} attachments — open the email on the desktop to save them",
+    "noRecipient": "Add at least one recipient"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

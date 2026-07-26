@@ -2374,7 +2374,8 @@
     "noteExists": "Per questa e-mail esiste già una nota",
     "attachmentsMobile_one": "{{count}} allegato: apri l’e-mail sul computer per salvarlo",
     "attachmentsMobile_other": "{{count}} allegati: apri l’e-mail sul computer per salvarli",
-    "attachmentsMobile_many": "{{count}} allegati: apri l’e-mail sul computer per salvarli"
+    "attachmentsMobile_many": "{{count}} allegati: apri l’e-mail sul computer per salvarli",
+    "noRecipient": "Aggiungi almeno un destinatario"
   },
   "cloudAccounts": {
     "serviceFiles": "File",

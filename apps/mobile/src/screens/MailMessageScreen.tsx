@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, FileText } from "lucide-react";
+import { ChevronLeft, FileText, Reply } from "lucide-react";
 import { EmptyState, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
-import { buildMailFrameDoc, captureMailAsNote, fetchMessage, sanitizeEmailHtml, setMessageSeen } from "@plainva/ui/mail";
+import { buildMailFrameDoc, buildReplyBody, captureMailAsNote, fetchMessage, sanitizeEmailHtml, setMessageSeen } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -29,6 +29,7 @@ export function MailMessageScreen({
   messageId,
   onBack,
   onOpenNote,
+  onReply,
 }: {
   vault: MobileVault;
   accountId: string;
@@ -36,6 +37,7 @@ export function MailMessageScreen({
   messageId: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
+  onReply: (draft: { accountId: string; to: string; subject: string; body: string }) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [account, setAccount] = useState<MailAccountConfig | null>(null);
@@ -131,10 +133,27 @@ export function MailMessageScreen({
             <p className="m-hint">{t("mail.attachmentsMobile", { count: message.attachments.length })}</p>
           )}
 
-          <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void capture()}>
-            <FileText size={16} />
-            {t("mail.captureNote")}
-          </button>
+          <div className="m-btnrow">
+            <button
+              type="button"
+              className="m-btn m-btn--tonal"
+              onClick={() =>
+                onReply({
+                  accountId,
+                  to: message.from,
+                  subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
+                  body: buildReplyBody(message),
+                })
+              }
+            >
+              <Reply size={16} />
+              {t("mail.reply")}
+            </button>
+            <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void capture()}>
+              <FileText size={16} />
+              {t("mail.captureNote")}
+            </button>
+          </div>
         </>
       )}
     </div>

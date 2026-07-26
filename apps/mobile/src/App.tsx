@@ -43,6 +43,7 @@ import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { MailListScreen } from "./screens/MailListScreen";
 import { MailMessageScreen } from "./screens/MailMessageScreen";
+import { MailComposeScreen, type MailDraft } from "./screens/MailComposeScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
@@ -90,6 +91,15 @@ const dailyPathFor = (iso: string) => ({
 /** A mail message needs three values in one nav path — account, mailbox and
  *  message id. JSON keeps mailbox names with any character intact (a raw
  *  separator byte would not, and NUL once turned source files binary here). */
+function parseDraft(path: string): MailDraft {
+  try {
+    const d = JSON.parse(path) as Partial<MailDraft>;
+    return { accountId: d.accountId ?? "", to: d.to ?? "", subject: d.subject ?? "", body: d.body ?? "" };
+  } catch {
+    return { accountId: "", to: "", subject: "", body: "" };
+  }
+}
+
 function parseMailRef(path: string): { accountId: string; mailbox: string; messageId: string } {
   try {
     const p = JSON.parse(path) as { a?: string; m?: string; id?: string };
@@ -779,6 +789,7 @@ export default function App() {
             onBack={pop}
             onOpenMessage={(a, m, id) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id }) })}
             onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
+            onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
           />
         ) : top?.kind === "mailmsg" ? (
           <MailMessageScreen
@@ -786,7 +797,10 @@ export default function App() {
             {...parseMailRef(top.path)}
             onBack={pop}
             onOpenNote={openNote}
+            onReply={(d) => push({ kind: "mailcompose", path: JSON.stringify(d) })}
           />
+        ) : top?.kind === "mailcompose" ? (
+          <MailComposeScreen draft={parseDraft(top.path)} onBack={pop} />
         ) : top?.kind === "mailaccounts" ? (
           <MailAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "databases" ? (
@@ -833,6 +847,7 @@ export default function App() {
             bump={bump}
             onOpenMessage={(acc, mb, id) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id }) })}
             onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
+            onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
           />
         ) : nav.activeTab === "graph" ? (
           <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />

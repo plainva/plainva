@@ -2374,7 +2374,8 @@
     "noteExists": "Ya existe una nota para este correo",
     "attachmentsMobile_one": "{{count}} adjunto: abre el correo en el escritorio para guardarlo",
     "attachmentsMobile_other": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos",
-    "attachmentsMobile_many": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos"
+    "attachmentsMobile_many": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos",
+    "noRecipient": "Añade al menos un destinatario"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

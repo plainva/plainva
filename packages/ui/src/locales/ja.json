@@ -2360,7 +2360,8 @@
     "folderEmpty": "このフォルダーにメールはありません",
     "unknownSender": "送信者不明",
     "noteExists": "このメールのノートはすでにあります",
-    "attachmentsMobile_other": "添付ファイル {{count}} 件 — 保存するにはデスクトップでこのメールを開いてください"
+    "attachmentsMobile_other": "添付ファイル {{count}} 件 — 保存するにはデスクトップでこのメールを開いてください",
+    "noRecipient": "宛先を 1 件以上入力してください"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

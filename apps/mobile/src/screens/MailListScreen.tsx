@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronDown, Mail, Settings, Star } from "lucide-react";
+import { ChevronLeft, ChevronDown, Mail, PenLine, Settings, Star } from "lucide-react";
 import { EmptyState, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import { listEnvelopes, listMailboxesFor, mailFolderLabel, sortMailFolders } from "@plainva/ui/mail";
@@ -24,11 +24,13 @@ export function MailListScreen({
   onBack,
   onOpenMessage,
   onOpenAccounts,
+  onCompose,
 }: {
   bump: number;
   onBack?: () => void;
   onOpenMessage: (accountId: string, mailbox: string, id: string) => void;
   onOpenAccounts: () => void;
+  onCompose: (accountId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -189,6 +191,17 @@ export function MailListScreen({
       {rows.length < total && (
         <button type="button" className="m-btn m-btn--ghost" disabled={loading} onClick={() => void loadMore()}>
           {t("mail.loadMore")}
+        </button>
+      )}
+
+      {account && (
+        <button
+          type="button"
+          className="pv-fab m-fab-float"
+          aria-label={t("mail.newMessage")}
+          onClick={() => onCompose(account.id)}
+        >
+          <PenLine size={22} />
         </button>
       )}
 

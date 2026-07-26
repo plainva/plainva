@@ -2381,7 +2381,8 @@
     "attachmentsMobile_one": "{{count}} załącznik — otwórz wiadomość na komputerze, aby go zapisać",
     "attachmentsMobile_few": "{{count}} załączniki — otwórz wiadomość na komputerze, aby je zapisać",
     "attachmentsMobile_many": "{{count}} załączników — otwórz wiadomość na komputerze, aby je zapisać",
-    "attachmentsMobile_other": "{{count}} załącznika — otwórz wiadomość na komputerze, aby je zapisać"
+    "attachmentsMobile_other": "{{count}} załącznika — otwórz wiadomość na komputerze, aby je zapisać",
+    "noRecipient": "Podaj co najmniej jednego odbiorcę"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

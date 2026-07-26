@@ -2374,7 +2374,8 @@
     "noteExists": "Já existe uma nota para este e-mail",
     "attachmentsMobile_one": "{{count}} anexo — abra o e-mail no computador para salvá-lo",
     "attachmentsMobile_other": "{{count}} anexos — abra o e-mail no computador para salvá-los",
-    "attachmentsMobile_many": "{{count}} anexos — abra o e-mail no computador para salvá-los"
+    "attachmentsMobile_many": "{{count}} anexos — abra o e-mail no computador para salvá-los",
+    "noRecipient": "Informe pelo menos um destinatário"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

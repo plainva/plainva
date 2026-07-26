@@ -2367,7 +2367,8 @@
     "unknownSender": "Unbekannter Absender",
     "noteExists": "Zu dieser E-Mail gibt es schon eine Notiz",
     "attachmentsMobile_one": "{{count}} Anhang — zum Speichern die E-Mail am Desktop öffnen",
-    "attachmentsMobile_other": "{{count}} Anhänge — zum Speichern die E-Mail am Desktop öffnen"
+    "attachmentsMobile_other": "{{count}} Anhänge — zum Speichern die E-Mail am Desktop öffnen",
+    "noRecipient": "Mindestens eine Empfängeradresse angeben"
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",
