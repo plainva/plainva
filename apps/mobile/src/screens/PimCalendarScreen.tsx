@@ -18,6 +18,7 @@ import {
   subscribePimStatus,
   getPimStatus,
   listPimEvents,
+  listPimCalendars,
   listPimAccounts,
   pimSyncNow,
   respondToPimEvent,
@@ -52,6 +53,9 @@ export function PimCalendarScreen({
   const [view, setView] = useState<PimView>("day");
   const [anchor, setAnchor] = useState(() => new Date());
   const [events, setEvents] = useState<PimEventRow[]>([]);
+  // Calendar colours, so an event without its own colour still reads as
+  // belonging to its calendar (desktop parity).
+  const [calColor, setCalColor] = useState<Map<string, string>>(new Map());
   const [hasAccounts, setHasAccounts] = useState<boolean | null>(null);
   /**
    * The account that came through the settings sync but never signed in HERE
@@ -77,6 +81,9 @@ export function PimCalendarScreen({
 
   const reload = useCallback(() => {
     void listPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
+    void listPimCalendars()
+      .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""]))))
+      .catch(() => setCalColor(new Map()));
     void listPimAccounts().then(async (a) => {
       setHasAccounts(a.length > 0);
       if (a.length === 0) {
@@ -113,7 +120,7 @@ export function PimCalendarScreen({
     setAnchor((d) => new Date(d.getTime() + dir * step * DAY_MS));
   };
 
-  const colorOf = (e: PimEventRow) => e.color || "var(--accent-color)";
+  const colorOf = (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)";
   const todayIso = isoOf(new Date());
 
   const openEvent = async (e: PimEventRow) => {
