@@ -11,7 +11,7 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
-import { listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
+import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "@plainva/ui/mail";
@@ -80,7 +80,7 @@ interface MailViewProps {
 
 export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const { t, i18n } = useTranslation();
-  const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate } = useVault();
+  const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate, dbAdapter } = useVault();
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
@@ -111,6 +111,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [unseen, setUnseen] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  // Showing the cached copy because the refresh failed (offline / throttled).
+  const [stale, setStale] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(false);
@@ -235,15 +237,30 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setTotal(page.total);
         setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
+        setStale(false);
+        void cacheEnvelopes(dbAdapter, account.id, mailbox, page.messages);
       } catch (e) {
         // A late failure of a superseded request must not surface as the
         // current mailbox's error.
-        if (current()) setListError(e instanceof Error ? e.message : String(e));
+        if (!current()) return;
+        // Offline or throttled: show the last copy from this device rather than
+        // an empty pane. The banner still says it is not current — the cache is
+        // a fallback, never a claim of freshness. Only the first page: a failed
+        // "load more" must not replace what is already on screen.
+        const cached = offset === 0 ? await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE) : [];
+        if (!current()) return;
+        if (cached.length > 0) {
+          setEnvelopes(cached);
+          setTotal(cached.length);
+          setStale(true);
+        } else {
+          setListError(e instanceof Error ? e.message : String(e));
+        }
       } finally {
         if (current()) setLoadingList(false);
       }
     },
-    [vaultPath, account, mailbox]
+    [vaultPath, account, mailbox, dbAdapter]
   );
 
   useEffect(() => {
@@ -273,14 +290,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setShowRemoteOnce(false);
       try {
         const msg = await fetchMessage(vaultPath, account, mailbox, uid);
-        if (current()) setMessage(msg);
+        if (!current()) return;
+        setMessage(msg);
+        void cacheMessage(dbAdapter, account.id, mailbox, msg);
       } catch (e) {
-        if (current()) toast.error(e instanceof Error ? e.message : String(e));
+        if (!current()) return;
+        // A message read once stays readable without the network.
+        const cached = await cachedMessage(dbAdapter, account.id, mailbox, uid);
+        if (!current()) return;
+        if (cached) setMessage(cached);
+        else toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         if (current()) setLoadingMessage(false);
       }
     },
-    [vaultPath, account, mailbox]
+    [vaultPath, account, mailbox, dbAdapter]
   );
 
   const allowRemote = remoteOptIn || showRemoteOnce;
@@ -771,6 +795,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
         <div className="pv-mail-scroll" data-testid="mail-list">
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
+          {stale && <p className="pv-mail-hint pv-mail-hint--warn" data-testid="mail-offline">{t("mail.offlineCopy")}</p>}
           {listError ? (
             <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
           ) : visibleEnvelopes.length === 0 && !loadingList && !searchBusy ? (

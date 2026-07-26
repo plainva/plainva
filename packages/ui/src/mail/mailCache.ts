@@ -1,16 +1,20 @@
-import type { MailEnvelope, MailMessage } from "@plainva/ui/mail";
-import type { MobileVault } from "../vaultService";
+import type { IDatabaseAdapter } from "@plainva/core";
+import type { MailEnvelope, MailMessage } from "./types";
 
 /**
- * Offline reading for mail (mail feinplan, cache stage).
+ * Offline reading for mail (mail feinplan, cache stage; lifted to the shared
+ * seam for the desktop in issue #34 wave 3).
  *
  * Deliberately a CACHE, never a source of truth: the server always wins, and
  * nothing here is ever the only copy of anything. A phone loses signal in a
- * lift; the point is that the list you just looked at is still there, not that
- * the app becomes an offline mail store.
+ * lift and a laptop opens its mail before the network is up; the point is that
+ * the list you just looked at is still there, not that the app becomes an
+ * offline mail store.
  *
  * It lives in the vault's index database, next to the other per-vault caches,
- * so removing a vault removes its mail cache with it.
+ * so removing a vault removes its mail cache with it. Both shells pass their
+ * own `IDatabaseAdapter` — the SQL is identical, which is the whole reason this
+ * is one file instead of two.
  */
 
 const SCHEMA = [
@@ -54,14 +58,14 @@ const MAX_BODIES = 200;
 
 let ready: WeakSet<object> = new WeakSet();
 
-async function ensure(vault: MobileVault): Promise<boolean> {
-  if (!vault.db) return false;
-  if (ready.has(vault.db as object)) return true;
-  for (const stmt of SCHEMA) await vault.db.execute(stmt);
+async function ensure(db: IDatabaseAdapter | null | undefined): Promise<boolean> {
+  if (!db) return false;
+  if (ready.has(db as object)) return true;
+  for (const stmt of SCHEMA) await db.execute(stmt);
   for (const stmt of ADDED_COLUMNS) {
-    await vault.db.execute(stmt).catch(() => undefined); // already present
+    await db.execute(stmt).catch(() => undefined); // already present
   }
-  ready.add(vault.db as object);
+  ready.add(db as object);
   return true;
 }
 
@@ -71,34 +75,34 @@ export function resetMailCache(): void {
 }
 
 export async function cacheEnvelopes(
-  vault: MobileVault,
+  db: IDatabaseAdapter | null | undefined,
   account: string,
   mailbox: string,
-  rows: MailEnvelope[],
+  rows: MailEnvelope[]
 ): Promise<void> {
-  if (!(await ensure(vault)) || rows.length === 0) return;
+  if (!db || !(await ensure(db)) || rows.length === 0) return;
   const now = Date.now();
   for (const m of rows) {
-    await vault.db!.execute(
+    await db.execute(
       `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview, cached_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(account, mailbox, id) DO UPDATE SET
          subject = excluded.subject, sender = excluded.sender, date_ts = excluded.date_ts,
          seen = excluded.seen, flagged = excluded.flagged, preview = excluded.preview,
          cached_at = excluded.cached_at`,
-      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, m.preview ?? "", now],
+      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, m.preview ?? "", now]
     );
   }
 }
 
 export async function cachedEnvelopes(
-  vault: MobileVault,
+  db: IDatabaseAdapter | null | undefined,
   account: string,
   mailbox: string,
-  limit: number,
+  limit: number
 ): Promise<MailEnvelope[]> {
-  if (!(await ensure(vault))) return [];
-  const rows = await vault.db!.query<{
+  if (!db || !(await ensure(db))) return [];
+  const rows = await db.query<{
     id: string;
     subject: string;
     sender: string;
@@ -109,7 +113,7 @@ export async function cachedEnvelopes(
   }>(
     `SELECT id, subject, sender, date_ts, seen, flagged, preview FROM mail_envelopes
      WHERE account = ? AND mailbox = ? ORDER BY date_ts DESC LIMIT ?`,
-    [account, mailbox, limit],
+    [account, mailbox, limit]
   );
   return rows.map((r) => ({
     id: r.id,
@@ -123,36 +127,36 @@ export async function cachedEnvelopes(
 }
 
 export async function cacheMessage(
-  vault: MobileVault,
+  db: IDatabaseAdapter | null | undefined,
   account: string,
   mailbox: string,
-  message: MailMessage,
+  message: MailMessage
 ): Promise<void> {
-  if (!(await ensure(vault))) return;
-  await vault.db!.execute(
+  if (!db || !(await ensure(db))) return;
+  await db.execute(
     `INSERT INTO mail_bodies (account, mailbox, id, payload, cached_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(account, mailbox, id) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
-    [account, mailbox, message.id, JSON.stringify(message), Date.now()],
+    [account, mailbox, message.id, JSON.stringify(message), Date.now()]
   );
   // Bounded on write rather than on a timer: a cache that only ever grows is
   // the same bug as no cache at all, just slower to notice.
-  await vault.db!.execute(
+  await db.execute(
     `DELETE FROM mail_bodies WHERE rowid NOT IN
        (SELECT rowid FROM mail_bodies ORDER BY cached_at DESC LIMIT ?)`,
-    [MAX_BODIES],
+    [MAX_BODIES]
   );
 }
 
 export async function cachedMessage(
-  vault: MobileVault,
+  db: IDatabaseAdapter | null | undefined,
   account: string,
   mailbox: string,
-  id: string,
+  id: string
 ): Promise<MailMessage | null> {
-  if (!(await ensure(vault))) return null;
-  const rows = await vault.db!.query<{ payload: string }>(
+  if (!db || !(await ensure(db))) return null;
+  const rows = await db.query<{ payload: string }>(
     `SELECT payload FROM mail_bodies WHERE account = ? AND mailbox = ? AND id = ?`,
-    [account, mailbox, id],
+    [account, mailbox, id]
   );
   if (rows.length === 0) return null;
   try {
@@ -163,8 +167,8 @@ export async function cachedMessage(
 }
 
 /** Drops everything cached for an account (used when it is removed). */
-export async function forgetCachedMail(vault: MobileVault, account: string): Promise<void> {
-  if (!(await ensure(vault))) return;
-  await vault.db!.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [account]);
-  await vault.db!.execute(`DELETE FROM mail_bodies WHERE account = ?`, [account]);
+export async function forgetCachedMail(db: IDatabaseAdapter | null | undefined, account: string): Promise<void> {
+  if (!db || !(await ensure(db))) return;
+  await db.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [account]);
+  await db.execute(`DELETE FROM mail_bodies WHERE account = ?`, [account]);
 }

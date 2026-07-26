@@ -6,6 +6,8 @@ import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
   buildReplyBody,
+  cacheMessage,
+  cachedMessage,
   captureMailAsNote,
   fetchAttachment,
   deleteMessagePermanently,
@@ -22,7 +24,6 @@ import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntim
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
-import { cacheMessage, cachedMessage } from "../services/mail/mailCache";
 
 /**
  * Reading one message (mail feinplan G1). Two things carry over unchanged from
@@ -79,7 +80,7 @@ export function MailMessageScreen({
       .then((m) => {
         if (cancelled) return;
         setMessage(m);
-        void cacheMessage(vault, accountId, mailbox, m);
+        void cacheMessage(vault?.db, accountId, mailbox, m);
         // Opening a message marks it read, like every mail client; a failure
         // here must not swallow the message itself.
         void setMessageSeen(vaultId, account, mailbox, messageId, true).catch(() => undefined);
@@ -87,7 +88,7 @@ export function MailMessageScreen({
       .catch(async (e) => {
         if (cancelled) return;
         // Offline: show the copy from when it was last read, and say so.
-        const cached = await cachedMessage(vault, accountId, mailbox, messageId);
+        const cached = await cachedMessage(vault?.db, accountId, mailbox, messageId);
         if (cached) {
           setMessage(cached);
           setStale(true);

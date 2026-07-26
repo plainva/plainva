@@ -26,6 +26,8 @@ Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou
 
 Les pièces jointes sont listées avec leur nom et leur taille ; l'original `.eml` (voir plus bas) les contient en entier.
 
+Lorsqu'une actualisation échoue — pas de réseau, ou le fournisseur limite les requêtes —, la liste continue d'afficher la dernière copie vue sur cet appareil, avec une mention le signalant, plutôt qu'un volet vide. Un message déjà lu reste lisible de la même façon. Ce n'est jamais qu'un cache : le serveur fait toujours foi, rien ici n'est l'unique copie de quoi que ce soit, et supprimer le vault le supprime aussi.
+
 ## Faire entrer un message dans le vault
 
 Trois boutons sur chaque message :

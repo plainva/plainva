@@ -26,6 +26,8 @@ Open the mail tab from the left action rail (mail icon) or the command palette (
 
 Attachments are listed with name and size; the original `.eml` (below) carries them in full.
 
+When a refresh fails — no network, or the provider is throttling — the list keeps showing the last copy from this device, with a note saying so, instead of an empty pane. A message you have already read stays readable the same way. This is only ever a cache: the server always wins, nothing here is the only copy of anything, and removing the vault removes it too.
+
 ## Getting a message into the vault
 
 Three buttons on every message:

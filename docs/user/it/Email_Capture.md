@@ -26,6 +26,8 @@ Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mai
 
 Gli allegati sono elencati con nome e dimensione; l'originale `.eml` (sotto) li contiene per intero.
 
+Quando un aggiornamento fallisce — niente rete, oppure il provider sta limitando le richieste —, l'elenco continua a mostrare l'ultima copia vista su questo dispositivo, con un avviso che lo dice, invece di un riquadro vuoto. Un messaggio già letto resta leggibile allo stesso modo. Resta comunque solo una cache: il server ha sempre ragione, nulla qui è l'unica copia di qualcosa e rimuovendo il vault sparisce con esso.
+
 ## Portare un messaggio nel vault
 
 Tre pulsanti su ogni messaggio:

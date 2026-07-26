@@ -224,6 +224,12 @@
 .pv-mail-hint--error {
   color: var(--error-text);
 }
+/* Cached copy on screen because the refresh failed — a warning, not an error:
+   what is shown is real, just not current. */
+.pv-mail-hint--warn {
+  color: var(--warning-text);
+  background: var(--warning-bg);
+}
 .pv-mail-env {
   display: flex;
   gap: 9px;

@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, PenLine, Search,
 import { EmptyState, toast, useStableHandler } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
+  cacheEnvelopes,
+  cachedEnvelopes,
   deleteMessagePermanently,
   guessTrashMailbox,
   listEnvelopes,
@@ -22,7 +24,6 @@ import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
-import { cacheEnvelopes, cachedEnvelopes } from "../services/mail/mailCache";
 import type { MobileVault } from "../services/vaultService";
 
 const PAGE = 30;
@@ -149,12 +150,12 @@ export function MailListScreen({
       setRows(page.messages);
       setUnseen(page.unseen);
       setTotal(page.total);
-      void cacheEnvelopes(vaultRef, account.id, mailbox, page.messages);
+      void cacheEnvelopes(vaultRef?.db, account.id, mailbox, page.messages);
     } catch (e) {
       // Offline or throttled: show what was last seen rather than an empty
       // screen. The banner still says the refresh failed — the cache is a
       // fallback, never a claim that this is current.
-      const cached = await cachedEnvelopes(vaultRef, account.id, mailbox, PAGE);
+      const cached = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
       setRows(cached);
       setTotal(cached.length);
       setError(cached.length > 0 ? null : describeError(e));

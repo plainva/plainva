@@ -20,6 +20,7 @@ export * from "./inviteIcs";
 export * from "./composeMarkdown";
 export * from "./composeSession";
 export * from "./mailCapture";
+export * from "./mailCache";
 export * from "./net/socket";
 export * from "./net/mime";
 export * from "./net/mimeBuild";
