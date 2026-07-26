@@ -112,7 +112,7 @@ export async function renameToName(opts: {
 
 /** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */
 export interface RenameReindexer {
-  indexVaultFull(): Promise<void>;
+  indexVaultFull(): Promise<unknown>;
   indexPath(path: string): Promise<unknown>;
   removePathFromIndex(path: string): Promise<void>;
 }

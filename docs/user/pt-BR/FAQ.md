@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-07-20
+Última revisão: 2026-07-25
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -70,9 +70,21 @@ O Plainva conecta qualquer provedor que ofereça uma interface aberta (IMAP, Cal
 
 ## App
 
-### Por que o F5 não recarrega e onde está o menu de contexto do navegador?
+### O que o F5 faz, e onde está o menu de contexto do navegador?
 
-O Plainva é um aplicativo de desktop, não uma página web. As teclas de recarregar (F5, Ctrl+R) estão desativadas de propósito — recarregar descartaria suas abas abertas e as edições não salvas. O menu de contexto embutido da WebView também fica oculto; clicar com o botão direito sobre um texto selecionado ainda oferece **Copiar**, e a árvore de arquivos, as abas e as tabelas mantêm seus próprios menus de contexto.
+O Plainva é um aplicativo de desktop, não uma página web. Por isso o `F5` (e o Ctrl+R) não recarrega a janela — isso descartaria suas abas abertas e as edições não salvas. Em vez disso, a tecla **relê o vault**: o Plainva concilia o índice com a pasta e, em vaults on-line, também busca os arquivos da nuvem. O menu de contexto embutido da WebView continua oculto; clicar com o botão direito sobre um texto selecionado ainda oferece **Copiar**, e a árvore de arquivos, as abas e as tabelas mantêm seus próprios menus de contexto.
+
+### Por que não vejo imediatamente arquivos criados externamente?
+
+Normalmente o Plainva percebe sozinho quando outro programa altera algo na pasta do seu vault. Quando isso falha — por exemplo em unidades de rede, em pastas na nuvem, ou quando o arquivo veio de outro computador — use **Reler o vault**:
+
+* `F5`, ou a seta circular no cabeçalho da árvore de arquivos,
+* **Reler esta pasta** no menu de contexto de uma pasta (mais rápido em vaults muito grandes),
+* o comando **Reler o vault** na paleta de comandos (`Ctrl/Cmd+P`).
+
+O Plainva então mostra um breve relatório: quantos arquivos eram novos, alterados ou removidos — e **quais entradas foram ignoradas**. Uma pasta ignorada é o motivo mais comum de um arquivo nunca "chegar": o Plainva não conseguiu lê-la (permissões ausentes, unidade de rede desconectada) ou ela aponta em círculo para si mesma. Em vaults on-line, o relatório também informa que uma sincronização completa com a nuvem foi solicitada.
+
+Além disso, o Plainva concilia automaticamente sempre que você volta para a janela vindo de outro programa (no máximo a cada 30 segundos; a nuvem no máximo a cada 5 minutos). Se um arquivo continuar invisível mesmo assim, use **Reconstruir o índice do zero** em Configurações → Vault → Manutenção.
 
 ### Por que não vejo nenhuma animação?
 

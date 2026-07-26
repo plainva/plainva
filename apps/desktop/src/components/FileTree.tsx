@@ -356,7 +356,7 @@ export const FileTree: React.FC<{
 }> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange }) => {
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
-  const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
+  const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
   const docIcons = useDocumentIcons();
   const [files, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
@@ -1422,6 +1422,20 @@ export const FileTree: React.FC<{
                   <MenuItem icon={<Download size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}>{t("import.contextAction", "Aus anderer App importieren...")}</MenuItem>
                   <MenuSeparator />
                   <MenuLabel>{contextMenu.path === "" ? t("fileTree.groupVault", "Vault") : t("fileTree.groupFolder", "Ordner")}</MenuLabel>
+                  {/* P1b: the fast path on a huge vault — reconcile just this
+                      subtree instead of walking all 20.000 files. */}
+                  <MenuItem
+                    icon={<RefreshCw size={ICON.ui} />}
+                    data-testid="tree-refresh-folder"
+                    onSelect={() => {
+                      if (contextMenu.path === "") void refreshVault();
+                      else void refreshFolder(contextMenu.path);
+                    }}
+                  >
+                    {contextMenu.path === ""
+                      ? t("refresh.action", { defaultValue: "Vault neu einlesen" })
+                      : t("refresh.folderAction", { defaultValue: "Ordner neu einlesen" })}
+                  </MenuItem>
                   <MenuItem icon={<ListTree size={ICON.ui} />} onSelect={() => handleGenerateIndex(contextMenu.path)}>{t("indexMd.contextAction")}</MenuItem>
                   {contextMenu.path === "" && (
                     <MenuItem icon={<RefreshCw size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}>

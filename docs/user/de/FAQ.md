@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-07-20
+Stand: 2026-07-25
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -70,9 +70,21 @@ Plainva bindet jeden Anbieter an, der eine offene Schnittstelle bietet (IMAP, Ca
 
 ## App
 
-### Warum lädt F5 nicht neu, und wo ist das Rechtsklick-Menü des Browsers?
+### Was macht F5, und wo ist das Rechtsklick-Menü des Browsers?
 
-Plainva ist eine Desktop-App, keine Webseite. Neu-laden-Tasten (F5, Strg+R) sind bewusst deaktiviert — ein Neuladen würde Deine offenen Tabs und ungespeicherten Änderungen verwerfen. Das eingebaute Rechtsklick-Menü der WebView ist ebenfalls ausgeblendet; ein Rechtsklick auf markierten Text bietet weiterhin **Kopieren**, und Dateibaum, Tabs und Tabellen behalten ihre eigenen Rechtsklick-Menüs.
+Plainva ist eine Desktop-App, keine Webseite. **F5** (und Strg+R) lädt deshalb nicht das Fenster neu — das würde Deine offenen Tabs und ungespeicherten Änderungen verwerfen. Stattdessen liest die Taste den **Vault neu ein**: Plainva gleicht den Index mit dem Ordner ab und holt bei Online-Vaults zusätzlich die Dateien aus der Cloud. Das eingebaute Rechtsklick-Menü der WebView ist ausgeblendet; ein Rechtsklick auf markierten Text bietet weiterhin **Kopieren**, und Dateibaum, Tabs und Tabellen behalten ihre eigenen Rechtsklick-Menüs.
+
+### Warum sehe ich extern angelegte Dateien nicht sofort?
+
+Normalerweise merkt Plainva von selbst, wenn ein anderes Programm etwas in Deinem Vault-Ordner ändert. Klappt das nicht — etwa auf Netzlaufwerken, in Cloud-Ordnern oder wenn die Datei über einen anderen Rechner kam — hilft **Vault neu einlesen**:
+
+* **F5** oder der Kreispfeil in der Kopfzeile des Dateibaums,
+* **Ordner neu einlesen** im Rechtsklick-Menü eines Ordners (schneller bei sehr großen Vaults),
+* der Befehl **Vault neu einlesen** in der Befehlspalette (`Strg/Cmd+P`).
+
+Danach zeigt Plainva einen kurzen Bericht: wie viele Dateien neu, geändert oder entfernt waren — und **welche Einträge übersprungen wurden**. Ein übersprungener Ordner ist der häufigste Grund dafür, dass eine Datei „nicht ankommt": Plainva konnte ihn nicht lesen (fehlende Rechte, getrenntes Netzlaufwerk) oder er verweist im Kreis auf sich selbst. Bei Online-Vaults nennt der Bericht zusätzlich, dass ein voller Cloud-Abgleich angefordert wurde.
+
+Zusätzlich gleicht Plainva automatisch ab, sobald Du aus einem anderen Programm ins Fenster zurückkehrst (höchstens alle 30 Sekunden; die Cloud höchstens alle 5 Minuten). Bleibt eine Datei auch danach unsichtbar, hilft **Index vollständig neu aufbauen** unter Einstellungen → Vault → Wartung.
 
 ### Warum sehe ich keine Animationen?
 

@@ -4,7 +4,7 @@ import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { toast } from "@plainva/ui";
+import { toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -22,6 +22,8 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
+import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "../services/vaultRefresh";
+import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runTaskSync } from "../services/pim/taskSync";
 
@@ -35,6 +37,12 @@ export interface VaultSyncWorker {
   stopAndDrain(): Promise<void>;
   triggerImmediate(): void;
   retryFailed(): void;
+  /**
+   * Drop the delta cursor, revive parked pushes and sync now. Only the plain
+   * sync worker has it (the encrypted workspace worker has no delta cursor);
+   * "Vault neu einlesen" falls back to triggerImmediate without it.
+   */
+  fullResync?: () => Promise<void>;
   noteUserInitiatedDeletion(paths: string[]): void;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
 }
@@ -94,7 +102,16 @@ interface VaultState {
 interface VaultContextType extends VaultState {
   selectVault: () => Promise<void>;
   openVault: (path: string) => Promise<void>;
-  refreshVault: () => Promise<void>;
+  /**
+   * "Read the vault again" (P1): reconcile the index against the disk AND —
+   * when the vault syncs — ask the cloud for a full listing. Returns the report
+   * so the caller can show it; never throws for the cloud half.
+   */
+  refreshVault: (opts?: { silent?: boolean; skipCloud?: boolean }) => Promise<VaultRefreshResult>;
+  /** Reconcile a single folder subtree (the fast path on huge vaults). */
+  refreshFolder: (folderPath: string) => Promise<void>;
+  /** Throw the index away and index every file from scratch (slow, with progress). */
+  rebuildIndex: () => Promise<void>;
   /**
    * Refresh the tree/views. Passing the affected file paths marks this as a
    * FILE-ONLY refresh: the expensive folder-structure walk is skipped and
@@ -328,6 +345,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // decorator wraps it. Held on a ref (not state) so the encryption activation can
   // write the remote manifest + drive the migration sweep synchronously, without
   // waiting for a state update. null when no vault/sync connection is open.
+  /** Coalesces overlapping refresh requests (F5 spam, focus + interval landing together). */
+  const refreshInFlightRef = useRef<Promise<VaultRefreshResult> | null>(null);
+  /** Last automatic refresh per half, for the focus/interval throttles (E4/E11). */
+  const autoRefreshMarksRef = useRef({ local: 0, cloud: 0 });
   const syncTargetRef = useRef<ISyncTarget | null>(null);
   const syncProviderRef = useRef<SyncProviderId | null>(null);
   const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
@@ -1005,10 +1026,17 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           const relevantEvents = events.filter(e => {
             // React to markdown AND attachment changes, mirroring the indexer's own
             // SQLite db + -wal/-shm), so we don't re-trigger on our own index writes.
+            // The rescan marker always passes: it means the adapter could NOT
+            // attribute a change, and dropping it would lose the change entirely.
+            if (e.path === WATCH_RESCAN_MARKER) return true;
             return e.path !== "" && !isInternalPath(e.path);
           });
           if (relevantEvents.length > 0) {
-            for (const e of relevantEvents) pendingWatchPaths.add(e.path);
+            for (const e of relevantEvents) {
+              // "" is the vault root — indexPath classifies it as a directory and
+              // the queue escalates to a full reconcile (P1d fail-safe).
+              pendingWatchPaths.add(e.path === WATCH_RESCAN_MARKER ? "" : e.path);
+            }
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
               const batch = Array.from(pendingWatchPaths);
@@ -1022,6 +1050,16 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
         });
       } catch (err: any) {
+        // Used to land in `state.error`, which nothing renders during normal
+        // operation — so a vault silently stopped noticing external changes.
+        // The interval net below keeps working; the user just needs to know
+        // that changes now arrive late instead of instantly.
+        console.error("[VaultContext] vault watcher failed to start", err);
+        toast.warning(
+          i18n.t("refresh.watcherFailed", {
+            defaultValue: "Externe Änderungen werden nicht mehr sofort erkannt. Plainva gleicht jetzt regelmäßig ab — F5 liest sofort neu ein.",
+          })
+        );
         setState(s => ({ ...s, error: `Watcher error: ${err.message || String(err)}` }));
       }
     };
@@ -1190,13 +1228,132 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const refreshVault = async () => {
-    if (state.indexer) {
-      setState(s => ({ ...s, isLoading: true }));
-      await state.indexer.indexVaultFull();
-      setState(s => ({ ...s, isLoading: false, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
+  const bumpTree = () =>
+    setState(s => ({
+      ...s,
+      fileTreeVersion: s.fileTreeVersion + 1,
+      treeStructureVersion: s.treeStructureVersion + 1,
+      fileTreeVersionPaths: null,
+    }));
+
+  /**
+   * P1: reconcile the index with the disk and — on a synced vault — ask the
+   * cloud for a full listing, then report what happened. Deliberately does NOT
+   * take over the loading screen: this runs from F5 and on window focus, and
+   * blanking the app on every alt-tab would be worse than the problem.
+   */
+  const refreshVault = async (opts?: { silent?: boolean; skipCloud?: boolean }): Promise<VaultRefreshResult> => {
+    const indexer = state.indexer;
+    if (!indexer) {
+      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
+    }
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+    const run = (async () => {
+      try {
+        const result = await runVaultRefresh({
+          indexer,
+          syncWorker: state.syncWorker,
+          skipCloud: opts?.skipCloud,
+        });
+        bumpTree();
+        if (!opts?.silent) toast.success(buildRefreshToast(result, i18n.t.bind(i18n)));
+        return result;
+      } catch (e) {
+        console.error("[VaultContext] vault refresh failed", e);
+        if (!opts?.silent) {
+          toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+        }
+        throw e;
+      } finally {
+        refreshInFlightRef.current = null;
+      }
+    })();
+    refreshInFlightRef.current = run;
+    return run;
+  };
+
+  /** Reconcile ONE folder subtree — the fast path when the vault has 20.000 files. */
+  const refreshFolder = async (folderPath: string) => {
+    const indexer = state.indexer;
+    const adapter = state.vaultAdapter;
+    if (!indexer || !adapter) return;
+    try {
+      const entries = await adapter.listDir(folderPath, true);
+      let touched = 0;
+      for (const entry of entries) {
+        if (entry.isDirectory) continue;
+        const outcome = await indexer.indexPath(entry.path);
+        if (outcome === "indexed" || outcome === "removed") touched++;
+      }
+      bumpTree();
+      toast.success(
+        i18n.t("refresh.folderDone", {
+          defaultValue: "Ordner neu eingelesen · {{n}} Dateien aktualisiert",
+          n: touched,
+        })
+      );
+    } catch (e) {
+      console.error("[VaultContext] folder refresh failed", e);
+      toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
     }
   };
+
+  /**
+   * The expensive sibling of refreshVault: drop every indexed row and parse the
+   * whole vault again. This is what the maintenance page always CLAIMED to do
+   * ("Index neu aufbauen") while actually running the cheap reconcile.
+   */
+  const rebuildIndex = async () => {
+    const indexer = state.indexer;
+    const db = state.dbAdapter;
+    if (!indexer || !db) return;
+    setState(s => ({ ...s, isLoading: true }));
+    try {
+      // sync_state stays: it carries the remote base for every file, and losing
+      // it would make the next cycle re-upload the entire vault.
+      await db.execute(`DELETE FROM files`);
+      await db.execute(`DELETE FROM fts_notes`);
+      await indexer.indexVaultFull();
+      bumpTree();
+      toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
+    } catch (e) {
+      console.error("[VaultContext] index rebuild failed", e);
+      toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+    } finally {
+      setState(s => ({ ...s, isLoading: false }));
+    }
+  };
+
+  // P1b/P1c: one mechanism, several triggers. The manual ones (F5, the tree
+  // button, the command palette) arrive as an event; the automatic ones are
+  // window focus and a slow interval net. Both automatic paths are throttled
+  // (30 s local, 5 min for the cloud listing) so alt-tabbing costs nothing.
+  const stableRefresh = useStableHandler(refreshVault);
+  useEffect(() => {
+    if (!state.indexer) return;
+
+    const manual = () => {
+      void stableRefresh().catch(() => {});
+    };
+    const auto = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      const plan = planAutoRefresh(now, autoRefreshMarksRef.current);
+      if (!plan.local) return;
+      autoRefreshMarksRef.current.local = now;
+      if (plan.cloud) autoRefreshMarksRef.current.cloud = now;
+      void stableRefresh({ silent: true, skipCloud: !plan.cloud }).catch(() => {});
+    };
+
+    window.addEventListener("plainva-refresh-vault", manual);
+    window.addEventListener("focus", auto);
+    const intervalId = window.setInterval(auto, AUTO_REFRESH_LIMITS.cloudMs / 2);
+    return () => {
+      window.removeEventListener("plainva-refresh-vault", manual);
+      window.removeEventListener("focus", auto);
+      window.clearInterval(intervalId);
+    };
+  }, [state.indexer, stableRefresh]);
 
   const triggerFileTreeUpdate = (paths?: string[]) => {
     if (paths && paths.length > 0) {
@@ -1592,7 +1749,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state]
   );

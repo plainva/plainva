@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-07-20
+Dernière mise à jour : 2026-07-25
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -70,9 +70,21 @@ Plainva connecte tout fournisseur qui propose une interface ouverte (IMAP, CalDA
 
 ## Application
 
-### Pourquoi F5 ne recharge-t-il pas, et où est le menu contextuel du navigateur ?
+### Que fait F5, et où est le menu contextuel du navigateur ?
 
-Plainva est une application de bureau, pas une page web. Les touches de rechargement (F5, Ctrl+R) sont désactivées volontairement — un rechargement supprimerait vos onglets ouverts et vos modifications non enregistrées. Le menu contextuel intégré de la WebView est également masqué ; un clic droit sur du texte sélectionné propose toujours **Copier**, et l'arborescence des fichiers, les onglets et les tableaux conservent leurs propres menus contextuels.
+Plainva est une application de bureau, pas une page web. `F5` (et Ctrl+R) ne recharge donc pas la fenêtre — cela supprimerait vos onglets ouverts et vos modifications non enregistrées. La touche **relit plutôt le vault** : Plainva réconcilie l'index avec le dossier et, pour les vaults en ligne, récupère aussi les fichiers du cloud. Le menu contextuel intégré de la WebView reste masqué ; un clic droit sur du texte sélectionné propose toujours **Copier**, et l'arborescence des fichiers, les onglets et les tableaux conservent leurs propres menus contextuels.
+
+### Pourquoi ne vois-je pas immédiatement les fichiers créés en externe ?
+
+Normalement, Plainva remarque de lui-même quand un autre programme modifie quelque chose dans votre dossier de vault. Si cela échoue — par exemple sur des lecteurs réseau, dans des dossiers cloud, ou lorsque le fichier provient d'un autre ordinateur — utilisez **Relire le vault** :
+
+* `F5`, ou la flèche circulaire dans l'en-tête de l'arborescence de fichiers,
+* **Relire ce dossier** dans le menu contextuel d'un dossier (plus rapide pour les très grands vaults),
+* la commande **Relire le vault** dans la palette de commandes (`Ctrl/Cmd+P`).
+
+Plainva affiche ensuite un court rapport : combien de fichiers étaient nouveaux, modifiés ou supprimés — et **quelles entrées ont été ignorées**. Un dossier ignoré est la raison la plus fréquente pour laquelle un fichier n'« arrive » jamais : Plainva n'a pas pu le lire (droits manquants, lecteur réseau déconnecté) ou il pointe vers lui-même en boucle. Pour les vaults en ligne, le rapport indique en plus qu'une synchronisation complète du cloud a été demandée.
+
+Plainva réconcilie en plus automatiquement dès que vous revenez à la fenêtre depuis un autre programme (au maximum toutes les 30 secondes ; le cloud au maximum toutes les 5 minutes). Si un fichier reste invisible malgré tout, utilisez **Reconstruire entièrement l'index** sous Paramètres → Vault → Maintenance.
 
 ### Pourquoi ne vois-je aucune animation ?
 

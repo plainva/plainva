@@ -5,7 +5,8 @@ export type IndexPathOutcome = "indexed" | "removed" | "unchanged" | "needs-full
 /** The slice of VaultIndexer this queue drives (kept minimal for testability). */
 export interface IncrementalIndexerLike {
   indexPath(path: string): Promise<IndexPathOutcome>;
-  indexVaultFull(): Promise<void>;
+  /** Resolves with the scan report; the queue only cares that it finished. */
+  indexVaultFull(): Promise<unknown>;
 }
 
 export interface IndexBatchResult {

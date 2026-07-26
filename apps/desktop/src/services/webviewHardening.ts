@@ -10,9 +10,13 @@ import { findEditable, selectedText } from "@plainva/ui";
  *    cells, block handles, graph) call preventDefault/stopPropagation first, so
  *    this bubble-phase listener leaves them untouched (`e.defaultPrevented`).
  *    Over plain text with a selection we open our own minimal "Copy" menu.
- *  - Reload keys (F5, Ctrl/Cmd+R) are swallowed: a reload throws away the whole
- *    in-memory app state (open tabs, unsaved buffers, split layout). Mod+Alt+R
- *    stays free — it toggles the right sidebar — because we require `!altKey`.
+ *  - Reload keys (F5, Ctrl/Cmd+R) never reload the webview: that would throw
+ *    away the whole in-memory app state (open tabs, unsaved buffers, split
+ *    layout). Since 2026-07-25 they are not merely swallowed — they mean what
+ *    they mean everywhere else and re-read the vault (plan P1): the key fires
+ *    `plainva-refresh-vault`, which VaultContext turns into a disk reconcile
+ *    plus, on a synced vault, a full cloud listing. Mod+Alt+R stays free — it
+ *    toggles the right sidebar — because we require `!altKey`.
  *  - DevTools keys (F12, Ctrl/Cmd+Shift+I/J/C) are swallowed only in production.
  *    Release builds ship without devtools anyway; dev builds keep them so the
  *    maintainer can still debug.
@@ -37,7 +41,13 @@ export function isDevtoolsKey(e: KeyboardEvent): boolean {
 }
 
 function onKeyDown(e: KeyboardEvent): void {
-  if (isReloadKey(e) || (import.meta.env.PROD && isDevtoolsKey(e))) {
+  if (isReloadKey(e)) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("plainva-refresh-vault"));
+    return;
+  }
+  if (import.meta.env.PROD && isDevtoolsKey(e)) {
     e.preventDefault();
     e.stopPropagation();
   }

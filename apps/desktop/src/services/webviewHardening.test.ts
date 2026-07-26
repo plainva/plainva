@@ -45,15 +45,23 @@ describe("webviewHardening key predicates", () => {
 });
 
 describe("webviewHardening listeners", () => {
-  it("swallows the reload key but leaves the sidebar toggle alone", () => {
+  it("never reloads the webview but now re-reads the vault, and leaves the sidebar toggle alone", () => {
     initWebviewHardening();
+    const refreshed = vi.fn();
+    window.addEventListener("plainva-refresh-vault", refreshed);
+
     const f5 = new KeyboardEvent("keydown", { key: "F5", cancelable: true, bubbles: true });
     window.dispatchEvent(f5);
+    // Still cancelled — a webview reload would drop tabs and unsaved buffers …
     expect(f5.defaultPrevented).toBe(true);
+    // … but the key is no longer dead: it means "read the vault again" (P1b).
+    expect(refreshed).toHaveBeenCalledOnce();
 
     const sidebar = new KeyboardEvent("keydown", { key: "r", ctrlKey: true, altKey: true, cancelable: true, bubbles: true });
     window.dispatchEvent(sidebar);
     expect(sidebar.defaultPrevented).toBe(false);
+    expect(refreshed).toHaveBeenCalledOnce();
+    window.removeEventListener("plainva-refresh-vault", refreshed);
   });
 
   it("suppresses the native menu and opens the copy menu on a text selection", () => {

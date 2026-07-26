@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-07-20
+Laatst bijgewerkt: 2026-07-25
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -70,9 +70,21 @@ Plainva verbindt elke provider die een open interface biedt (IMAP, CalDAV, WebDA
 
 ## App
 
-### Waarom herlaadt F5 niet, en waar is het rechtsklikmenu van de browser?
+### Wat doet F5, en waar is het rechtsklikmenu van de browser?
 
-Plainva is een desktop-app, geen webpagina. Herlaadtoetsen (F5, Ctrl+R) zijn met opzet uitgeschakeld — herladen zou je open tabbladen en niet-opgeslagen wijzigingen weggooien. Het ingebouwde rechtsklikmenu van de WebView is ook verborgen; rechtsklikken op geselecteerde tekst biedt nog steeds **Kopiëren**, en de bestandsboom, tabbladen en tabellen behouden hun eigen rechtsklikmenu's.
+Plainva is een desktop-app, geen webpagina. Daarom herlaadt `F5` (en Ctrl+R) het venster niet — dat zou je open tabbladen en niet-opgeslagen wijzigingen weggooien. In plaats daarvan **leest de toets de vault opnieuw in**: Plainva brengt de index in overeenstemming met de map en haalt bij online vaults ook de cloudbestanden op. Het ingebouwde rechtsklikmenu van de WebView blijft verborgen; rechtsklikken op geselecteerde tekst biedt nog steeds **Kopiëren**, en de bestandsboom, tabbladen en tabellen behouden hun eigen rechtsklikmenu's.
+
+### Waarom zie ik extern aangemaakte bestanden niet meteen?
+
+Normaal gesproken merkt Plainva vanzelf wanneer een ander programma iets wijzigt in je vault-map. Lukt dat niet — bijvoorbeeld op netwerkschijven, in cloudmappen, of wanneer het bestand van een andere computer kwam — gebruik dan **Vault opnieuw inlezen**:
+
+* `F5`, of de ronde pijl in de header van de bestandsboom,
+* **Deze map opnieuw inlezen** in het rechtsklikmenu van een map (sneller bij zeer grote vaults),
+* de opdracht **Vault opnieuw inlezen** in het opdrachtenpalet (`Ctrl/Cmd+P`).
+
+Plainva toont vervolgens een kort rapport: hoeveel bestanden nieuw, gewijzigd of verwijderd waren — en **welke items zijn overgeslagen**. Een overgeslagen map is de meest voorkomende reden dat een bestand nooit "aankomt": Plainva kon de map niet lezen (ontbrekende rechten, losgekoppelde netwerkschijf) of de map verwijst in een kring naar zichzelf. Bij online vaults meldt het rapport bovendien dat een volledige cloudsynchronisatie is aangevraagd.
+
+Daarnaast gelijkt Plainva automatisch af zodra je vanuit een ander programma terugkeert naar het venster (maximaal elke 30 seconden; de cloud maximaal elke 5 minuten). Blijft een bestand ook dan onzichtbaar, gebruik dan **Index volledig opnieuw opbouwen** onder Instellingen → Vault → Onderhoud.
 
 ### Waarom zie ik geen animaties?
 

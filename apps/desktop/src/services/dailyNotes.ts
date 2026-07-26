@@ -66,7 +66,8 @@ export interface DailyNoteOptions {
   vaultPath: string;
   adapter: DailyNoteAdapter;
   /** Re-index callback run after a new note is created. */
-  onIndex: () => Promise<void>;
+  /** Re-index after creating the note; the result (a scan report) is not used. */
+  onIndex: () => Promise<unknown>;
   /** Ask the user before creating a missing note (calendar uses this; the
    *  "today" button does not). */
   confirmCreate: boolean;

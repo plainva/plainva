@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath } from "@plainva/core";
 import { readTextFile, readFile, readDir, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
@@ -16,7 +16,67 @@ import { createLimiter, type ConcurrencyLimiter } from "@plainva/ui";
  */
 const LIST_CONCURRENCY = 8;
 
+/**
+ * Hard depth cap for the directory walk. Symlinks/junctions ARE followed now
+ * (P1e: a cloud folder mounted into the vault used to be invisible forever,
+ * even after a restart), so a link pointing back at an ancestor would recurse
+ * without end — the `visited` set cannot catch it because every pass through
+ * the loop builds a NEW, longer path string, and the filesystem plugin offers
+ * no canonicalisation to compare real targets. The cap terminates such a loop
+ * and the walk reports the cut-off point as a skipped entry instead of hanging
+ * or silently truncating.
+ */
+const MAX_WALK_DEPTH = 32;
+
 type FsLimiter = ConcurrencyLimiter;
+
+/**
+ * Turns an absolute watcher path into a vault-relative one, or null if it does
+ * not belong to this vault.
+ *
+ * The former implementation was a bare `p.startsWith(rootPath)`. It missed the
+ * cases Windows actually produces — a drive letter in the other case, a
+ * trailing separator on the root, the extended-length `\\?\` prefix — and then
+ * pushed the ABSOLUTE path into the index queue, where it matches no indexed
+ * row (worst case the existing row is treated as removed). Callers now fall
+ * back to a full reconcile when this returns null, which is fail-safe.
+ */
+export function relativizeWatchPath(rootPath: string, absolutePath: string): string | null {
+  const strip = (s: string) => s.replace(/^\\\\\?\\/, "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const root = strip(rootPath);
+  const full = strip(absolutePath);
+  if (!root) return null;
+  const startsWithRoot = (haystack: string, needle: string) =>
+    haystack.slice(0, needle.length) === needle;
+  let rest: string | null = null;
+  if (startsWithRoot(full, root)) {
+    rest = full.slice(root.length);
+  } else if (startsWithRoot(full.toLowerCase(), root.toLowerCase())) {
+    // Windows paths are case-insensitive; the watcher and the picker disagree
+    // about the drive letter and about UNC host casing often enough to matter.
+    rest = full.slice(root.length);
+  }
+  if (rest === null) return null;
+  // The vault root itself — a change to the folder, not to a file in it.
+  if (rest === "") return "";
+  // Guard against a sibling that merely shares the prefix ("/vault-old/x" vs "/vault").
+  if (rest[0] !== "/") return null;
+  return rest.slice(1);
+}
+
+/**
+ * Sentinel watch-event path meaning "I could not attribute this change to a
+ * concrete file — reconcile the whole vault". `*` is not a legal filename on
+ * Windows and never appears as a relative vault path, so it cannot collide.
+ */
+export const WATCH_RESCAN_MARKER = "*";
+
+/** True for filesystem "access" (read/open) events, which must not re-trigger indexing. */
+export function isAccessWatchEvent(type: unknown): boolean {
+  if (typeof type === "string") return type.toLowerCase().includes("access");
+  if (type && typeof type === "object") return Object.prototype.hasOwnProperty.call(type, "access");
+  return false;
+}
 
 /** Uint8Array → base64 for the atomic-write IPC (chunked: no stack overflow
  *  on multi-MB images, and a JSON number-array would be ~4x the size). */
@@ -170,20 +230,48 @@ export class TauriVaultAdapter implements IVaultAdapter {
     };
   }
 
-  // Internal method to handle recursion and symlink protection
-  private async _listDirInternal(path: string, absPath: string, recursive: boolean, visited: Set<string>, limit: FsLimiter): Promise<VaultFileInfo[]> {
-    if (visited.has(absPath)) return [];
+  // Internal method to handle recursion, symlink cycles and skip reporting
+  private async _listDirInternal(
+    path: string,
+    absPath: string,
+    recursive: boolean,
+    visited: Set<string>,
+    limit: FsLimiter,
+    skipped: VaultWalkSkip[],
+    depth: number
+  ): Promise<VaultFileInfo[]> {
+    if (visited.has(absPath)) {
+      skipped.push({ path, reason: "cycle" });
+      return [];
+    }
     visited.add(absPath);
+
+    if (depth > MAX_WALK_DEPTH) {
+      skipped.push({ path, reason: "cycle" });
+      return [];
+    }
 
     if (!(await limit.run(() => exists(absPath)))) return [];
 
-    const entries = await limit.run(() => readDir(absPath));
+    let entries: Awaited<ReturnType<typeof readDir>>;
+    try {
+      entries = await limit.run(() => readDir(absPath));
+    } catch {
+      // Permission denied, offline network share, torn-down mount: report it
+      // instead of returning an empty folder that looks legitimately empty.
+      skipped.push({ path, reason: "unreadable" });
+      return [];
+    }
 
-    // Filter valid entries
+    // Filter valid entries. Symlinks/junctions are FOLLOWED (P1e) — a cloud or
+    // network folder mounted into the vault used to be dropped here, so its
+    // notes never reached the index and no restart could fix that. Exclusions
+    // now use the shared internal-path semantics, so a user's own dot-file
+    // (`.env-notes.md`) stays visible while `.git`/`.obsidian`/… stay out.
     const validEntries = entries.filter(e => {
-      if (e.isSymlink) return false; // Prevent infinite symlink loops
       const name = e.name;
-      return name && name !== ".plainva" && name !== "node_modules" && name !== "dist" && name !== ".git" && !name.startsWith(".");
+      if (!name) return false;
+      return !isInternalPath(path ? `${path}/${name}` : name);
     });
 
     const separator = absPath.includes('\\') ? '\\' : '/';
@@ -235,7 +323,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
           .map((entry) => {
             const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
             const childAbsPath = basePath + entry.name;
-            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit);
+            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit, skipped, depth + 1);
           })
       );
       for (const cl of childLists) results.push(...cl);
@@ -245,8 +333,16 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async listDir(path: string = "", recursive: boolean = false): Promise<VaultFileInfo[]> {
+    return (await this.listDirReport(path, recursive)).files;
+  }
+
+  async listDirReport(path: string = "", recursive: boolean = false): Promise<VaultListing> {
     const absPath = await this.getAbsolutePath(path);
-    return this._listDirInternal(path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY));
+    const skipped: VaultWalkSkip[] = [];
+    const files = await this._listDirInternal(
+      path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0
+    );
+    return { files, skipped };
   }
 
   async createDir(path: string): Promise<void> {
@@ -261,28 +357,26 @@ export class TauriVaultAdapter implements IVaultAdapter {
       const { watch: tauriWatch } = await import("@tauri-apps/plugin-fs");
 
       const unwatch = await tauriWatch(this.rootPath, async (event) => {
-        // Ignore "access" events (reading files/directories) to prevent infinite loops 
-        // when the indexer reads the vault.
-        const typeStr = JSON.stringify(event.type).toLowerCase();
-        if (typeStr.includes('access')) {
-          return;
-        }
+        // Ignore "access" events (reading files/directories) to prevent infinite loops
+        // when the indexer reads the vault. Read off the event STRUCTURE — the old
+        // JSON.stringify heuristic also matched a note called "access-log.md".
+        if (isAccessWatchEvent(event.type)) return;
 
-        // tauri event has paths array
-        const vaultPaths = (event.paths || []).map(p => {
-          // Attempt to convert absolute path to vault-relative path
-          // Simple string replace for now since we know rootPath is prefix
-          let rel = p;
-          if (p.startsWith(this.rootPath)) {
-            rel = p.substring(this.rootPath.length);
-            if (rel.startsWith("\\") || rel.startsWith("/")) {
-              rel = rel.substring(1);
-            }
+        const events: import("@plainva/core").WatchEvent[] = [];
+        for (const p of event.paths || []) {
+          const rel = relativizeWatchPath(this.rootPath, p);
+          if (rel === null) {
+            // Not attributable to this vault (unexpected casing, a mount point,
+            // a truncated path). Enqueuing the raw absolute path would address a
+            // row that does not exist — worse, it can read as "removed". Ask for
+            // a full reconcile instead: slower, but never wrong.
+            console.warn("[TauriVaultAdapter] watcher path outside the vault root, forcing a full reconcile:", p);
+            events.push({ path: WATCH_RESCAN_MARKER, type: "any" });
+            continue;
           }
-          return rel.split("\\").join("/");
-        });
-        
-        callback(vaultPaths.map(p => ({ path: p, type: "any" })));
+          events.push({ path: rel, type: "any" });
+        }
+        callback(events);
       }, { recursive: true, delayMs: 300 });
 
       return unwatch;

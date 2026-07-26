@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-07-25
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -70,9 +70,21 @@ Plainva connects every provider that offers an open interface (IMAP, CalDAV, Web
 
 ## App
 
-### Why doesn't F5 reload, and where is the browser right-click menu?
+### What does F5 do, and where is the browser right-click menu?
 
-Plainva is a desktop app, not a web page. Reload keys (F5, Ctrl+R) are disabled on purpose — a reload would throw away your open tabs and unsaved edits. The WebView's built-in right-click menu is hidden too; right-clicking selected text still offers **Copy**, and the file tree, tabs and tables keep their own right-click menus.
+Plainva is a desktop app, not a web page. **F5** (and Ctrl+R) therefore does not reload the window — that would throw away your open tabs and unsaved edits. Instead the key **reads the vault again**: Plainva reconciles the index with the folder and, on online vaults, also fetches the files from the cloud. The WebView's built-in right-click menu is hidden; right-clicking selected text still offers **Copy**, and the file tree, tabs and tables keep their own right-click menus.
+
+### Why don't I see externally created files right away?
+
+Normally Plainva notices by itself when another program changes something in your vault folder. When that fails — on network drives, in cloud folders, or when the file arrived from another computer — use **Read the vault again**:
+
+* **F5**, or the circular arrow in the file tree's heading,
+* **Read this folder again** in a folder's right-click menu (faster on very large vaults),
+* the **Read the vault again** command in the command palette (`Ctrl/Cmd+P`).
+
+Plainva then shows a short report: how many files were new, changed or removed — and **which entries were skipped**. A skipped folder is the most common reason a file never "arrives": Plainva could not read it (missing permissions, a disconnected network drive) or it links back to itself in a circle. On online vaults the report also states that a full cloud sync was requested.
+
+Plainva additionally reconciles automatically whenever you return to the window from another program (at most every 30 seconds; the cloud at most every 5 minutes). If a file stays invisible even then, use **Rebuild the index from scratch** under Settings → Vault → Maintenance.
 
 ### Why don't I see any animations?
 

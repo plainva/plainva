@@ -116,7 +116,19 @@ export interface IVaultAdapter {
    * @param recursive If true, returns all items in subdirectories as well
    */
   listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]>;
-  
+
+  /**
+   * Same walk as `listDir`, but additionally reports the entries the walk
+   * deliberately left out (symlink cycles, unreadable directories). Optional:
+   * adapters that cannot skip anything (flat cloud listings, in-memory fakes)
+   * simply omit it and callers fall back to `listDir` with an empty skip list.
+   *
+   * Exists so the full re-index can answer "did the scan even see my file?" —
+   * a folder silently missing from the walk used to be indistinguishable from
+   * a folder that is genuinely empty.
+   */
+  listDirReport?(path?: string, recursive?: boolean): Promise<VaultListing>;
+
   /**
    * Creates a directory and any necessary parent directories.
    * Does not throw if directory already exists.
@@ -134,4 +146,21 @@ export interface IVaultAdapter {
 export interface WatchEvent {
   path: string;
   type?: "create" | "modify" | "remove" | "rename" | "any";
+}
+
+/** An entry the directory walk left out, with the reason it was left out. */
+export interface VaultWalkSkip {
+  /** Vault-relative path of the skipped entry. */
+  path: string;
+  /**
+   * `cycle` — a link target already visited in this walk (following it would loop).
+   * `unreadable` — listing the entry failed (permissions, offline network share).
+   */
+  reason: "cycle" | "unreadable";
+}
+
+/** Result of a reporting directory walk (see `IVaultAdapter.listDirReport`). */
+export interface VaultListing {
+  files: VaultFileInfo[];
+  skipped: VaultWalkSkip[];
 }

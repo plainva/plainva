@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-07-20
+Stan na: 2026-07-25
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -70,9 +70,21 @@ Plainva łączy się z każdym dostawcą, który oferuje otwarty interfejs (IMAP
 
 ## Aplikacja
 
-### Dlaczego F5 nie odświeża i gdzie jest menu kontekstowe przeglądarki?
+### Co robi F5, i gdzie jest menu kontekstowe przeglądarki?
 
-Plainva to aplikacja desktopowa, a nie strona internetowa. Klawisze odświeżania (F5, Ctrl+R) są celowo wyłączone — odświeżenie odrzuciłoby otwarte karty i niezapisane zmiany. Wbudowane menu kontekstowe WebView jest również ukryte; kliknięcie prawym przyciskiem myszy na zaznaczonym tekście nadal oferuje **Kopiuj**, a drzewo plików, karty i tabele zachowują własne menu kontekstowe.
+Plainva to aplikacja desktopowa, a nie strona internetowa. Dlatego `F5` (i Ctrl+R) nie odświeża okna — to odrzuciłoby otwarte karty i niezapisane zmiany. Zamiast tego klawisz **wczytuje vault ponownie**: Plainva uzgadnia indeks z folderem, a w przypadku vaultów online pobiera też pliki z chmury. Wbudowane menu kontekstowe WebView pozostaje ukryte; kliknięcie prawym przyciskiem myszy na zaznaczonym tekście nadal oferuje **Kopiuj**, a drzewo plików, karty i tabele zachowują własne menu kontekstowe.
+
+### Dlaczego nie widzę od razu plików utworzonych zewnętrznie?
+
+Zwykle Plainva sama zauważa, gdy inny program zmienia coś w folderze Twojego vaultu. Gdy to zawiedzie — na przykład na dyskach sieciowych, w folderach w chmurze albo gdy plik pochodzi z innego komputera — użyj **Wczytaj vault ponownie**:
+
+* `F5` lub okrągła strzałka w nagłówku drzewa plików,
+* **Wczytaj ten folder ponownie** w menu kontekstowym folderu (szybsze przy bardzo dużych vaultach),
+* polecenie **Wczytaj vault ponownie** w palecie poleceń (`Ctrl/Cmd+P`).
+
+Plainva pokazuje wtedy krótki raport: ile plików było nowych, zmienionych lub usuniętych — oraz **które wpisy zostały pominięte**. Pominięty folder jest najczęstszym powodem, dla którego plik nigdy „nie dociera": Plainva nie mogła go odczytać (brak uprawnień, odłączony dysk sieciowy) albo folder odsyła sam do siebie w kółko. Przy vaultach online raport dodatkowo informuje, że zażądano pełnej synchronizacji z chmurą.
+
+Dodatkowo Plainva uzgadnia stan automatycznie za każdym razem, gdy wracasz do okna z innego programu (co najwyżej co 30 sekund; chmura co najwyżej co 5 minut). Jeśli plik mimo to pozostaje niewidoczny, użyj **Odbuduj indeks od zera** w Ustawienia → Vault → Konserwacja.
 
 ### Dlaczego nie widzę żadnych animacji?
 

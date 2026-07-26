@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-07-20
+Última actualización: 2026-07-25
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -70,9 +70,21 @@ Plainva conecta con cualquier proveedor que ofrezca una interfaz abierta (IMAP, 
 
 ## Aplicación
 
-### ¿Por qué F5 no recarga y dónde está el menú contextual del navegador?
+### ¿Qué hace F5, y dónde está el menú contextual del navegador?
 
-Plainva es una aplicación de escritorio, no una página web. Las teclas de recarga (F5, Ctrl+R) están desactivadas a propósito: una recarga descartaría tus pestañas abiertas y los cambios sin guardar. El menú contextual integrado de la WebView también está oculto; al hacer clic derecho sobre texto seleccionado sigue apareciendo **Copiar**, y el árbol de archivos, las pestañas y las tablas conservan sus propios menús contextuales.
+Plainva es una aplicación de escritorio, no una página web. Por eso `F5` (y Ctrl+R) no recarga la ventana — eso descartaría tus pestañas abiertas y los cambios sin guardar. En su lugar, la tecla **vuelve a leer el vault**: Plainva concilia el índice con la carpeta y, en vaults en línea, también obtiene los archivos de la nube. El menú contextual integrado de la WebView permanece oculto; hacer clic derecho sobre texto seleccionado sigue ofreciendo **Copiar**, y el árbol de archivos, las pestañas y las tablas conservan sus propios menús contextuales.
+
+### ¿Por qué no veo de inmediato los archivos creados externamente?
+
+Normalmente Plainva se da cuenta por sí solo cuando otro programa cambia algo en la carpeta de tu vault. Cuando eso falla — por ejemplo en unidades de red, en carpetas de la nube o cuando el archivo llegó desde otro ordenador — usa **Volver a leer el vault**:
+
+* `F5`, o la flecha circular en el encabezado del árbol de archivos,
+* **Volver a leer esta carpeta** en el menú contextual de una carpeta (más rápido en vaults muy grandes),
+* el comando **Volver a leer el vault** en la paleta de comandos (`Ctrl/Cmd+P`).
+
+Plainva muestra entonces un breve informe: cuántos archivos eran nuevos, se modificaron o se eliminaron — y **qué entradas se omitieron**. Una carpeta omitida es el motivo más frecuente por el que un archivo nunca "llega": Plainva no pudo leerla (faltan permisos, unidad de red desconectada) o se enlaza a sí misma en un bucle. En vaults en línea, el informe también indica que se solicitó una sincronización completa con la nube.
+
+Además, Plainva concilia automáticamente cada vez que vuelves a la ventana desde otro programa (como máximo cada 30 segundos; la nube como máximo cada 5 minutos). Si un archivo sigue invisible aun así, usa **Reconstruir el índice por completo** en Configuración → Vault → Mantenimiento.
 
 ### ¿Por qué no veo animaciones?
 

@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultFileInfo } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultFileInfo, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
@@ -44,6 +44,24 @@ export function isInternalPath(path: string): boolean {
 /** Escapes SQL LIKE wildcards (and the escape char itself) so a path prefix matches literally. */
 function escapeLikePrefix(prefix: string): string {
   return prefix.replace(/[\\%_]/g, "\\$&");
+}
+
+/**
+ * What a full re-index actually did. Returned by `indexVaultFull` so the host can
+ * tell the user whether the scan saw their file at all — previously the pass was
+ * silent and a failed/blind scan was indistinguishable from "nothing changed".
+ */
+export interface IndexScanReport {
+  /** Files indexed that had no row before. */
+  added: number;
+  /** Files re-indexed because their mtime differed from the indexed one. */
+  changed: number;
+  /** Indexed files that are gone from disk and were de-indexed. */
+  removed: number;
+  /** Entries the directory walk left out, with reasons (empty when the adapter cannot report them). */
+  skipped: VaultWalkSkip[];
+  /** Wall-clock duration of the pass in milliseconds. */
+  durationMs: number;
 }
 
 export interface VaultIndexerOptions {
@@ -565,7 +583,8 @@ export class VaultIndexer {
    * Performance Optimized: Only processes modified or new files, removes deleted ones,
    * and wraps everything in a single bulk transaction.
    */
-  async indexVaultFull(): Promise<void> {
+  async indexVaultFull(): Promise<IndexScanReport> {
+    const startedAt = Date.now();
     this.pendingNewLocalFiles = [];
     this.pendingExternalMods = [];
     const dbFiles = await this.dbAdapter.query<{path: string, mtime_local: number}>(
@@ -573,7 +592,17 @@ export class VaultIndexer {
     );
     const dbFileMap = new Map(dbFiles.map(f => [f.path, f.mtime_local]));
 
-    const diskFiles = await this.vaultAdapter.listDir("", true);
+    // Prefer the reporting walk so skipped entries (link cycles, unreadable
+    // folders) reach the report instead of vanishing silently.
+    let skipped: VaultWalkSkip[] = [];
+    let diskFiles: VaultFileInfo[];
+    if (this.vaultAdapter.listDirReport) {
+      const listing = await this.vaultAdapter.listDirReport("", true);
+      diskFiles = listing.files;
+      skipped = listing.skipped;
+    } else {
+      diskFiles = await this.vaultAdapter.listDir("", true);
+    }
     const mdFiles = diskFiles.filter(f => !f.isDirectory && f.name.endsWith(".md"));
     // Non-markdown attachments (images, PDFs, …) are tracked for sync too, except
     // internal/VCS data. Conflict copies ARE indexed (kept visible); push targets skip them.
@@ -598,8 +627,21 @@ export class VaultIndexer {
       }
     }
 
+    // Added vs. changed is decided against the pre-pass index snapshot: a file
+    // with no row was created outside Plainva, one with a row just moved on.
+    const isNew = (file: VaultFileInfo) => !dbFileMap.has(file.path);
+    const addedCount = mdToIndex.filter(isNew).length + attachmentsToIndex.filter(isNew).length;
+    const scannedCount = mdToIndex.length + attachmentsToIndex.length;
+    const report = (): IndexScanReport => ({
+      added: addedCount,
+      changed: scannedCount - addedCount,
+      removed: filesToDelete.length,
+      skipped,
+      durationMs: Date.now() - startedAt,
+    });
+
     if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
-      return; // Nothing to do
+      return report(); // Nothing to do — but the walk still reports what it skipped.
     }
 
     // One-query-per-table lookups for the whole pass (P2.4) instead of three
@@ -685,5 +727,6 @@ export class VaultIndexer {
     if (this.options?.onLocalFileDeleted) {
       for (const path of filesToDelete) this.options.onLocalFileDeleted(path);
     }
+    return report();
   }
 }

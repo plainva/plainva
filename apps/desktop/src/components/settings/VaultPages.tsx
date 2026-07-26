@@ -335,6 +335,9 @@ export const BackupPage: React.FC<BackupPageProps> = (p) => {
 export interface MaintenancePageProps {
   isActiveVault: boolean;
   reindexRunning: boolean;
+  /** Fast reconcile against the disk (and the cloud on a synced vault) — P1. */
+  onRefresh: () => void;
+  /** Throw the index away and parse every file again — the slow one. */
   onReindex: () => void;
   onShowDeletedFiles: () => void;
   vaultStats: { notes: number; attachments: number } | null;
@@ -347,13 +350,24 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = (p) => {
       <AreaHead areaId="maintenance" />
       {p.isActiveVault ? (
         <>
+          {/* Two actions where there used to be one mislabelled button: the
+              old "Index neu aufbauen" ran the cheap reconcile, so the expensive
+              rebuild had no entry point at all (plan P1b). */}
           <SettingCard label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}>
             <SettingRow
-              label={t("settings.rebuildIndex", { defaultValue: "Suchindex" })}
+              label={t("refresh.action", { defaultValue: "Vault neu einlesen" })}
+              desc={t("refresh.actionDesc", { defaultValue: "Gleicht den Index mit dem Ordner ab und holt bei Online-Vaults die Cloud-Dateien. Schnell und verlustfrei — dasselbe wie F5." })}
+            >
+              <Button variant="secondary" size="sm" disabled={p.reindexRunning} onClick={p.onRefresh}>
+                {t("refresh.action", { defaultValue: "Vault neu einlesen" })}
+              </Button>
+            </SettingRow>
+            <SettingRow
+              label={t("refresh.rebuildAction", { defaultValue: "Index vollständig neu aufbauen" })}
               desc={t("settings.rebuildIndexDesc", { defaultValue: "Baut den Suchindex dieses Vaults komplett neu auf — hilft, wenn Suche, Backlinks oder Datenbanken veraltet wirken." })}
             >
               <Button variant="secondary" size="sm" disabled={p.reindexRunning} onClick={p.onReindex}>
-                {p.reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("settings.rebuildIndexAction", { defaultValue: "Index neu aufbauen" })}
+                {p.reindexRunning ? t("settings.rebuildIndexRunning", { defaultValue: "Läuft…" }) : t("refresh.rebuildAction", { defaultValue: "Index vollständig neu aufbauen" })}
               </Button>
             </SettingRow>
           </SettingCard>

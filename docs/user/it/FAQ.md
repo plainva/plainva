@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-07-20
+Ultimo aggiornamento: 2026-07-25
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -70,9 +70,21 @@ Plainva collega qualsiasi provider che offra un'interfaccia aperta (IMAP, CalDAV
 
 ## App
 
-### Perché F5 non ricarica e dov'è il menu contestuale del browser?
+### Cosa fa F5, e dov'è il menu contestuale del browser?
 
-Plainva è un'applicazione desktop, non una pagina web. I tasti di ricarica (F5, Ctrl+R) sono disattivati di proposito: una ricarica scarterebbe le schede aperte e le modifiche non salvate. Anche il menu contestuale integrato della WebView è nascosto; facendo clic con il tasto destro su un testo selezionato è comunque disponibile **Copia**, e l'albero dei file, le schede e le tabelle mantengono i propri menu contestuali.
+Plainva è un'applicazione desktop, non una pagina web. Per questo `F5` (e Ctrl+R) non ricarica la finestra — questo scarterebbe le schede aperte e le modifiche non salvate. Il tasto invece **rilegge il vault**: Plainva riconcilia l'indice con la cartella e, per i vault online, scarica anche i file dal cloud. Il menu contestuale integrato della WebView resta nascosto; un clic destro su testo selezionato offre comunque **Copia**, e l'albero dei file, le schede e le tabelle mantengono i propri menu contestuali.
+
+### Perché non vedo subito i file creati esternamente?
+
+Normalmente Plainva si accorge da solo quando un altro programma modifica qualcosa nella cartella del tuo vault. Quando questo non funziona — ad esempio su unità di rete, in cartelle cloud o quando il file proviene da un altro computer — usa **Rileggi il vault**:
+
+* `F5`, oppure la freccia circolare nell'intestazione dell'albero dei file,
+* **Rileggi questa cartella** nel menu contestuale di una cartella (più veloce nei vault molto grandi),
+* il comando **Rileggi il vault** nella palette dei comandi (`Ctrl/Cmd+P`).
+
+Plainva mostra quindi un breve resoconto: quanti file erano nuovi, modificati o rimossi — e **quali voci sono state saltate**. Una cartella saltata è il motivo più comune per cui un file non "arriva" mai: Plainva non è riuscito a leggerla (permessi mancanti, unità di rete disconnessa) oppure fa riferimento a se stessa in modo circolare. Nei vault online, il resoconto indica anche che è stata richiesta una sincronizzazione completa con il cloud.
+
+Inoltre, Plainva riconcilia automaticamente ogni volta che torni alla finestra da un altro programma (al massimo ogni 30 secondi; il cloud al massimo ogni 5 minuti). Se un file resta invisibile anche dopo, usa **Ricostruisci l'indice da zero** in Impostazioni → Vault → Manutenzione.
 
 ### Perché non vedo animazioni?
 
