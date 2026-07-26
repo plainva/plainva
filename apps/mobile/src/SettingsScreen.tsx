@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, FolderClosed } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
 import { settingsAreas, type SettingsAreaDef } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 
@@ -23,11 +23,17 @@ export function SettingsScreen({
   onBack,
   onOpenArea,
   onOpenVaults,
+  onOpenNavBar,
+  barCount,
 }: {
   onBack: () => void;
   /** Pushes the detail screen of a catalog area (id from the shared catalog). */
   onOpenArea: (id: string) => void;
   onOpenVaults: () => void;
+  /** Opens the mobile-only navigation-bar setting (plan P5). */
+  onOpenNavBar: () => void;
+  /** Areas currently in the bar — shown as the row's summary. */
+  barCount: number;
 }) {
   const { t } = useTranslation();
   const [vaultName, setVaultName] = useState("");
@@ -78,6 +84,15 @@ export function SettingsScreen({
       {settingsAreas("app")
         .filter((a) => MOBILE_AREAS.app.includes(a.id))
         .map(renderArea)}
+      {/* Mobile-only area (plan P5): the desktop has no bottom bar, so this
+          row lives here instead of in the shared settings catalog. It sits
+          right after Appearance, as in the mockup. */}
+      <button className="m-row" data-testid="settings-navbar" onClick={onOpenNavBar}>
+        <LayoutPanelTop className="m-accent" size={18} />
+        <span>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</span>
+        <span className="m-row-note">{t("mobile.navBarSummary", { defaultValue: "{{n}} Bereiche", n: barCount })}</span>
+        <ChevronRight className="m-chevron" size={18} />
+      </button>
 
       <p className="m-sectionlabel">{t("settings.sectionVault")}</p>
       {settingsAreas("vault")

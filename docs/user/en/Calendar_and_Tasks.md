@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-07-21
+Last reviewed: 2026-07-26
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -16,6 +16,8 @@ Open **Settings → your vault → Cloud accounts → Connect account…**, pick
 - **Microsoft**: just click **Sign in with Microsoft…** and confirm in the browser — no setup needed. One Microsoft account can also carry **Files** (OneDrive) and **Email** in the same pass.
 
 The assistant shows a per-service status ("connected — n calendars found"). You then manage the **calendars** (checked ones appear in the calendar tab) and the **task lists** (deliberately unchecked by default — ticking one starts the task sync described below) in the **Calendar** area; the **Meetings folder** (where meeting notes are created) and the **Default calendar** live there too. Passwords and tokens live in your operating system's keychain.
+
+**Every device signs in for itself.** If you use [settings sync](Sync_Setup.md#sync-encryption-passphrase), the account *details* travel with you, but the sign-in never does — it deliberately stays on the device. An account picked up that way appears in the list on the other device but is not signed in there yet; in the [mobile app](Mobile_App.md) it then carries a **sign in** marker and the calendar explains it instead of staying empty. Connecting once is enough.
 
 ## The calendar tab
 

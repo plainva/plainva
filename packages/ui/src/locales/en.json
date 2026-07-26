@@ -1,12 +1,20 @@
 {
   "settingsSync": {
-    "cardLabel": "Sync settings",
-    "toggleLabel": "Sync this vault's settings",
-    "toggleDesc": "Stores this vault's settings (daily notes, templates, task database, backup rules and more) as a small file inside the vault so they match on all your devices. Requires an active cloud sync.",
-    "explainer": "No credentials and no device-specific paths are transferred. If you change settings on more than one device, the most recently saved version wins.",
     "adopted": "Settings adopted from another device.",
+    "cardLabel": "Sync settings",
+    "explainer": "No credentials and no device-specific paths are transferred. If you change settings on more than one device, the most recently saved version wins.",
+    "lockedBody": "Your settings are stored encrypted in the cloud. Enter the passphrase you chose when setting this up on the desktop — this device unlocks them once with it.",
+    "offTitle": "Settings are not being synced",
+    "passphraseTitle": "Not unlocked on this device yet",
+    "secretsDesc": "Only static IMAP/CalDAV passwords and custom Google Calendar app credentials; OAuth tokens stay on this device.",
     "secretsLabel": "Sync account credentials",
-    "secretsDesc": "Only static IMAP/CalDAV passwords and custom Google Calendar app credentials; OAuth tokens stay on this device."
+    "secretsNoteMobile": "What syncs are your settings — folders, views, backup rules. Sign-ins always stay on the device.",
+    "statePassphraseMissing": "Passphrase missing",
+    "stateUnlocked": "unlocked",
+    "toggleDesc": "Stores this vault's settings (daily notes, templates, task database, backup rules and more) as a small file inside the vault so they match on all your devices. Requires an active cloud sync.",
+    "toggleLabel": "Sync this vault's settings",
+    "unlockedBody": "This device is unlocked. Changes to folders, views and backup rules are kept in step with your other devices.",
+    "unlockedTitle": "Settings are being synced"
   },
   "encryption": {
     "contentRow": "Encrypt vault content",
@@ -639,7 +647,16 @@
     "splitRight": "Split right",
     "splitDown": "Split down",
     "versionHistory": "Version history…",
-    "close": "Close tab"
+    "close": "Close tab",
+    "reload": "Reload",
+    "reloadDirty": "Unsaved changes — save first, then reload.",
+    "pin": "Pin tab",
+    "unpin": "Unpin tab",
+    "closeOthers": "Close other tabs",
+    "closeLeft": "Close tabs to the left",
+    "closeRight": "Close tabs to the right",
+    "closeAll": "Close all tabs",
+    "reloadHint": "from disk"
   },
   "sync": {
     "error": "Sync error – click for details and retry",
@@ -1586,7 +1603,8 @@
     "properties": "Properties",
     "reorder": "Move section",
     "propertiesUnavailable": "No properties for this file.",
-    "graph": "Graph"
+    "graph": "Graph",
+    "databases": "Databases"
   },
   "search": {
     "find": "Find",
@@ -1824,7 +1842,6 @@
     "tabNotes": "Notes",
     "tabSearch": "Search",
     "tabToday": "Today",
-    "tabMore": "More",
     "recent": "Recent",
     "folders": "Folders",
     "comingSoon": "Coming in a later step.",
@@ -1858,9 +1875,7 @@
     "syncCreatesVaultHint": "Connecting creates a new, separate vault for this cloud location.",
     "vaultAdd": "Connect a cloud vault",
     "vaultCreate": "Create a vault",
-    "moreArrangeHint": "Drag the handle to arrange. The top three appear in the navigation bar below.",
     "moreInBar": "In the navigation bar",
-    "moreMoreList": "More areas",
     "activeVault": "Active vault",
     "vaultBlockHint": "Tap to switch or connect",
     "vaultAddSection": "Add",
@@ -1986,7 +2001,18 @@
     "todayNothing": "Nothing was edited on this day.",
     "settingFolders": "Folders",
     "settingInboxFolder": "Inbox folder",
-    "settingTemplateFolder": "Template folder"
+    "settingTemplateFolder": "Template folder",
+    "areas": "Areas",
+    "navBar": "Navigation bar",
+    "navBarArrange": "Customize the navigation bar…",
+    "navBarCount": "Areas in the bar",
+    "navBarFewer": "Fewer areas",
+    "navBarMore": "More areas",
+    "navBarPreview": "Preview",
+    "navBarOutside": "Not in the bar — reachable via “Areas”",
+    "navBarSummary": "{{n}} areas",
+    "navBarHint": "Drag the areas into the order you want. The topmost ones sit in the bar — you reach all the others via “Areas” in the header.",
+    "tabDatabasesShort": "DBs"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",
@@ -2829,5 +2855,40 @@
     "point2": "Databases and views: Obsidian-compatible .base files with eight views — table, board, calendar and more.",
     "point3": "Moving in is easy: import your notes straight from Notion, Evernote, Google Keep, Simplenote or Logseq.",
     "start": "Get started"
+  },
+  "refresh": {
+    "action": "Read the vault again",
+    "actionDesc": "Reconciles the index with the folder and, on online vaults, fetches the cloud files. Fast and lossless — the same as F5.",
+    "folderAction": "Read this folder again",
+    "folderDone": "Folder read again · {{n}} files updated",
+    "localLine": "Local: {{added}} new · {{changed}} changed · {{removed}} removed",
+    "skippedLine": "Skipped: {{paths}}",
+    "cloudRequested": "Cloud: full sync requested",
+    "cloudFailed": "Cloud: could not request a sync",
+    "failed": "The vault could not be read again.",
+    "rebuildAction": "Rebuild the index from scratch",
+    "rebuildDone": "Index rebuilt from scratch.",
+    "watcherFailed": "External changes are no longer noticed immediately. Plainva now reconciles regularly — F5 reads the vault again right away.",
+    "done": "Vault read again"
+  },
+  "dbContext": {
+    "memberOf": "Belongs to",
+    "parent": "Parent",
+    "subItems": "Sub-items",
+    "subItemCount": "{{n}} sub-items",
+    "linked": "Linked",
+    "linkedEntry": "{{base}} · {{n}} entries",
+    "openBaseView": "{{base}} · view “{{view}}”"
+  },
+  "deviceSignIn": {
+    "action": "Sign in on this device",
+    "active": "active",
+    "cardBodyOauth": "The account arrived through settings sync. Sign-ins are never synced for security reasons — every device signs in for itself. Signing in once is enough.",
+    "cardBodyStatic": "The account arrived through settings sync, but its password did not. Sign in once on this device.",
+    "cardTitle": "{{account}} ({{provider}}) is not signed in on this device.",
+    "notSignedIn": "Not signed in",
+    "rowHintOauth": "Arrived through settings sync. Sign-ins never travel — remove the account and connect it again below.",
+    "rowHintStatic": "The password is missing on this device. Remove the account and connect it again below.",
+    "signIn": "sign in"
   }
 }

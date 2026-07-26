@@ -1,12 +1,20 @@
 {
   "settingsSync": {
-    "cardLabel": "Einstellungen synchronisieren",
-    "toggleLabel": "Einstellungen dieses Vaults synchronisieren",
-    "toggleDesc": "Legt die Vault-Einstellungen (Tagesnotizen, Vorlagen, Aufgaben-Datenbank, Backup-Regeln u. a.) als kleine Datei in den Vault, damit sie auf all Deinen Geräten gleich sind. Braucht eine aktive Cloud-Synchronisation.",
-    "explainer": "Es werden keine Zugangsdaten und keine gerätespezifischen Pfade übertragen. Bei Änderungen auf mehreren Geräten gewinnt die zuletzt gespeicherte Fassung.",
     "adopted": "Einstellungen von einem anderen Gerät übernommen.",
+    "cardLabel": "Einstellungen synchronisieren",
+    "explainer": "Es werden keine Zugangsdaten und keine gerätespezifischen Pfade übertragen. Bei Änderungen auf mehreren Geräten gewinnt die zuletzt gespeicherte Fassung.",
+    "lockedBody": "Die Einstellungen liegen verschlüsselt in der Cloud. Gib die Passphrase ein, die Du beim Einrichten am Desktop vergeben hast — dieses Gerät entsperrt sie damit einmalig.",
+    "offTitle": "Einstellungen werden nicht synchronisiert",
+    "passphraseTitle": "Auf diesem Gerät noch nicht entsperrt",
+    "secretsDesc": "Nur statische IMAP-/CalDAV-Passwörter und eigene Google-Kalender-App-Daten; OAuth-Tokens bleiben auf diesem Gerät.",
     "secretsLabel": "Konten-Zugangsdaten synchronisieren",
-    "secretsDesc": "Nur statische IMAP-/CalDAV-Passwörter und eigene Google-Kalender-App-Daten; OAuth-Tokens bleiben auf diesem Gerät."
+    "secretsNoteMobile": "Synchronisiert werden Deine Einstellungen — Ordner, Ansichten, Backup-Regeln. Anmeldungen bleiben immer auf dem Gerät.",
+    "statePassphraseMissing": "Passphrase fehlt",
+    "stateUnlocked": "entsperrt",
+    "toggleDesc": "Legt die Vault-Einstellungen (Tagesnotizen, Vorlagen, Aufgaben-Datenbank, Backup-Regeln u. a.) als kleine Datei in den Vault, damit sie auf all Deinen Geräten gleich sind. Braucht eine aktive Cloud-Synchronisation.",
+    "toggleLabel": "Einstellungen dieses Vaults synchronisieren",
+    "unlockedBody": "Dieses Gerät ist entsperrt. Änderungen an Ordnern, Ansichten und Backup-Regeln gleichen sich mit Deinen anderen Geräten ab.",
+    "unlockedTitle": "Einstellungen werden synchronisiert"
   },
   "encryption": {
     "contentRow": "Vault-Inhalt verschlüsseln",
@@ -639,7 +647,16 @@
     "splitRight": "Rechts teilen",
     "splitDown": "Unten teilen",
     "versionHistory": "Versionsverlauf…",
-    "close": "Tab schließen"
+    "close": "Tab schließen",
+    "reload": "Neu laden",
+    "reloadDirty": "Ungespeicherte Änderungen — erst speichern, dann neu laden.",
+    "pin": "Tab anheften",
+    "unpin": "Anheftung aufheben",
+    "closeOthers": "Andere Tabs schließen",
+    "closeLeft": "Tabs links schließen",
+    "closeRight": "Tabs rechts schließen",
+    "closeAll": "Alle Tabs schließen",
+    "reloadHint": "von der Platte"
   },
   "sync": {
     "error": "Sync-Fehler – klicken für Details und erneuten Versuch",
@@ -1586,7 +1603,8 @@
     "properties": "Eigenschaften",
     "reorder": "Abschnitt verschieben",
     "propertiesUnavailable": "Keine Eigenschaften für diese Datei.",
-    "graph": "Graph"
+    "graph": "Graph",
+    "databases": "Datenbanken"
   },
   "search": {
     "find": "Suchen",
@@ -1824,7 +1842,6 @@
     "tabNotes": "Notizen",
     "tabSearch": "Suche",
     "tabToday": "Heute",
-    "tabMore": "Mehr",
     "recent": "Zuletzt",
     "folders": "Ordner",
     "comingSoon": "Folgt in einem späteren Schritt.",
@@ -1858,9 +1875,7 @@
     "syncCreatesVaultHint": "Verbinden legt einen neuen, getrennten Vault für diesen Cloud-Speicherort an.",
     "vaultAdd": "Mit Cloud verbinden",
     "vaultCreate": "Neuen Vault erstellen",
-    "moreArrangeHint": "Ziehe am Griff zum Anordnen. Die oberen drei erscheinen unten in der Navigationsleiste.",
     "moreInBar": "In der Navigationsleiste",
-    "moreMoreList": "Weitere Bereiche",
     "activeVault": "Aktiver Vault",
     "vaultBlockHint": "Tippen zum Wechseln oder Verbinden",
     "vaultAddSection": "Hinzufügen",
@@ -1986,7 +2001,18 @@
     "todayNothing": "An diesem Tag wurde nichts bearbeitet.",
     "settingFolders": "Ordner",
     "settingInboxFolder": "Inbox-Ordner",
-    "settingTemplateFolder": "Vorlagen-Ordner"
+    "settingTemplateFolder": "Vorlagen-Ordner",
+    "areas": "Bereiche",
+    "navBar": "Navigationsleiste",
+    "navBarArrange": "Navigationsleiste anpassen…",
+    "navBarCount": "Bereiche in der Leiste",
+    "navBarFewer": "Weniger Bereiche",
+    "navBarMore": "Mehr Bereiche",
+    "navBarPreview": "Vorschau",
+    "navBarOutside": "Nicht in der Leiste — über „Bereiche“ erreichbar",
+    "navBarSummary": "{{n}} Bereiche",
+    "navBarHint": "Zieh die Bereiche in die gewünschte Reihenfolge. Die obersten liegen in der Leiste — alle anderen erreichst Du über „Bereiche“ in der Kopfzeile.",
+    "tabDatabasesShort": "DBs"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",
@@ -2829,5 +2855,40 @@
     "point2": "Datenbanken und Ansichten: Obsidian-kompatible .base-Dateien mit acht Ansichten — Tabelle, Board, Kalender und mehr.",
     "point3": "Der Umzug ist einfach: Notizen aus Notion, Evernote, Google Keep, Simplenote oder Logseq direkt importieren.",
     "start": "Los geht’s"
+  },
+  "refresh": {
+    "action": "Vault neu einlesen",
+    "actionDesc": "Gleicht den Index mit dem Ordner ab und holt bei Online-Vaults die Cloud-Dateien. Schnell und verlustfrei — dasselbe wie F5.",
+    "folderAction": "Ordner neu einlesen",
+    "folderDone": "Ordner neu eingelesen · {{n}} Dateien aktualisiert",
+    "localLine": "Lokal: {{added}} neu · {{changed}} geändert · {{removed}} entfernt",
+    "skippedLine": "Übersprungen: {{paths}}",
+    "cloudRequested": "Cloud: Voll-Abgleich angefordert",
+    "cloudFailed": "Cloud: Abgleich konnte nicht angefordert werden",
+    "failed": "Vault konnte nicht neu eingelesen werden.",
+    "rebuildAction": "Index vollständig neu aufbauen",
+    "rebuildDone": "Index vollständig neu aufgebaut.",
+    "watcherFailed": "Externe Änderungen werden nicht mehr sofort erkannt. Plainva gleicht jetzt regelmäßig ab — F5 liest sofort neu ein.",
+    "done": "Vault neu eingelesen"
+  },
+  "dbContext": {
+    "memberOf": "Gehört zu",
+    "parent": "Übergeordnet",
+    "subItems": "Unterelemente",
+    "subItemCount": "{{n}} Unterelemente",
+    "linked": "Verknüpft",
+    "linkedEntry": "{{base}} · {{n}} Einträge",
+    "openBaseView": "{{base}} · Ansicht „{{view}}“"
+  },
+  "deviceSignIn": {
+    "action": "Auf diesem Gerät anmelden",
+    "active": "aktiv",
+    "cardBodyOauth": "Das Konto kam über die Einstellungs-Synchronisation. Anmeldungen werden aus Sicherheitsgründen nie mit synchronisiert — jedes Gerät meldet sich selbst an. Einmal anmelden reicht.",
+    "cardBodyStatic": "Das Konto kam über die Einstellungs-Synchronisation, sein Passwort aber nicht. Melde Dich einmal auf diesem Gerät an.",
+    "cardTitle": "{{account}} ({{provider}}) ist auf diesem Gerät nicht angemeldet.",
+    "notSignedIn": "Nicht angemeldet",
+    "rowHintOauth": "Über die Einstellungs-Synchronisation gekommen. Anmeldungen reisen nie mit — entferne das Konto und verbinde es unten neu.",
+    "rowHintStatic": "Auf diesem Gerät fehlt das Passwort. Entferne das Konto und verbinde es unten neu.",
+    "signIn": "anmelden"
   }
 }

@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-07-21
+Ultimo aggiornamento: 2026-07-26
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -16,6 +16,8 @@ Apri **Impostazioni → Vault → Account cloud → Collega account…**, scegli
 - **Microsoft**: basta cliccare su **Accedi con Microsoft…** e confermare nel browser — non serve alcuna configurazione. Un account Microsoft può portare anche **File** (OneDrive) ed **E-mail** nello stesso passaggio.
 
 L'assistente mostra uno stato per servizio ("collegato — n calendari trovati"). Gestisci quindi i **calendari** (quelli spuntati compaiono nella scheda del calendario) e gli **elenchi attività** (deliberatamente non spuntati per impostazione predefinita — spuntandone uno avvia la sincronizzazione delle attività descritta di seguito) nell'area **Calendario**; lì si trovano anche la **Cartella riunioni** (dove vengono create le note delle riunioni) e il **Calendario predefinito**. Le password e i token sono memorizzati nel portachiavi del sistema operativo.
+
+**Ogni dispositivo accede per conto proprio.** Se usi la [sincronizzazione delle impostazioni](Sync_Setup.md#crittografia-di-sincronizzazione-passphrase), i *dati* dell'account ti seguono, ma l'accesso in sé mai — resta volutamente sul dispositivo. Un account arrivato così compare quindi nell'elenco sull'altro dispositivo, ma lì non ha ancora eseguito l'accesso; nell'[app mobile](Mobile_App.md) porta allora il contrassegno **accedi** e il calendario lo spiega invece di restare vuoto. Basta collegarsi una volta.
 
 ## La scheda del calendario
 

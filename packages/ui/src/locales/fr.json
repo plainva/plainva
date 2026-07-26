@@ -6,7 +6,15 @@
     "explainer": "Aucun identifiant ni chemin spécifique à l'appareil n'est transféré. Si vous modifiez les paramètres sur plusieurs appareils, la version enregistrée le plus récemment l'emporte.",
     "adopted": "Paramètres repris d'un autre appareil.",
     "secretsLabel": "Synchroniser les identifiants de compte",
-    "secretsDesc": "Uniquement les mots de passe IMAP/CalDAV statiques et les identifiants Google Agenda personnalisés ; les jetons OAuth restent sur cet appareil."
+    "secretsDesc": "Uniquement les mots de passe IMAP/CalDAV statiques et les identifiants Google Agenda personnalisés ; les jetons OAuth restent sur cet appareil.",
+    "lockedBody": "Vos paramètres sont stockés chiffrés dans le cloud. Saisissez la phrase secrète choisie lors de la configuration sur le bureau — cet appareil les déverrouille une fois avec elle.",
+    "offTitle": "Les paramètres ne sont pas synchronisés",
+    "passphraseTitle": "Pas encore déverrouillé sur cet appareil",
+    "secretsNoteMobile": "Ce qui est synchronisé, ce sont vos paramètres — dossiers, vues, règles de sauvegarde. Les connexions restent toujours sur l'appareil.",
+    "statePassphraseMissing": "Phrase secrète manquante",
+    "stateUnlocked": "déverrouillé",
+    "unlockedBody": "Cet appareil est déverrouillé. Les modifications des dossiers, vues et règles de sauvegarde restent synchronisées avec vos autres appareils.",
+    "unlockedTitle": "Les paramètres sont synchronisés"
   },
   "encryption": {
     "contentRow": "Chiffrer le contenu du vault",
@@ -639,7 +647,16 @@
     "splitRight": "Scinder à droite",
     "splitDown": "Scinder en bas",
     "versionHistory": "Historique des versions…",
-    "close": "Fermer l'onglet"
+    "close": "Fermer l'onglet",
+    "reload": "Recharger",
+    "reloadDirty": "Modifications non enregistrées — enregistrez d'abord, puis rechargez.",
+    "pin": "Épingler l'onglet",
+    "unpin": "Désépingler l'onglet",
+    "closeOthers": "Fermer les autres onglets",
+    "closeLeft": "Fermer les onglets à gauche",
+    "closeRight": "Fermer les onglets à droite",
+    "closeAll": "Fermer tous les onglets",
+    "reloadHint": "depuis le disque"
   },
   "sync": {
     "error": "Erreur de synchronisation – cliquez pour les détails et une nouvelle tentative",
@@ -1588,7 +1605,8 @@
     "properties": "Propriétés",
     "reorder": "Déplacer la section",
     "propertiesUnavailable": "Aucune propriété pour ce fichier.",
-    "graph": "Graphe"
+    "graph": "Graphe",
+    "databases": "Bases de données"
   },
   "search": {
     "find": "Rechercher",
@@ -1829,7 +1847,6 @@
     "tabNotes": "Notes",
     "tabSearch": "Recherche",
     "tabToday": "Aujourd'hui",
-    "tabMore": "Plus",
     "recent": "Récents",
     "folders": "Dossiers",
     "comingSoon": "À venir dans une étape ultérieure.",
@@ -1863,9 +1880,7 @@
     "syncCreatesVaultHint": "La connexion crée un nouveau coffre séparé pour cet emplacement cloud.",
     "vaultAdd": "Connecter un coffre cloud",
     "vaultCreate": "Créer un vault",
-    "moreArrangeHint": "Faites glisser la poignée pour organiser. Les trois premiers apparaissent dans la barre de navigation.",
     "moreInBar": "Dans la barre de navigation",
-    "moreMoreList": "Autres sections",
     "activeVault": "Vault actif",
     "vaultBlockHint": "Touchez pour changer ou connecter",
     "vaultAddSection": "Ajouter",
@@ -1992,7 +2007,18 @@
     "todayNothing": "Rien n'a été modifié ce jour-là.",
     "settingFolders": "Dossiers",
     "settingInboxFolder": "Dossier de la boîte de réception",
-    "settingTemplateFolder": "Dossier des modèles"
+    "settingTemplateFolder": "Dossier des modèles",
+    "areas": "Rubriques",
+    "navBar": "Barre de navigation",
+    "navBarArrange": "Personnaliser la barre de navigation…",
+    "navBarCount": "Rubriques dans la barre",
+    "navBarFewer": "Moins de rubriques",
+    "navBarMore": "Plus de rubriques",
+    "navBarPreview": "Aperçu",
+    "navBarOutside": "Pas dans la barre — accessible via « Rubriques »",
+    "navBarSummary": "{{n}} rubriques",
+    "navBarHint": "Faites glisser les rubriques dans l'ordre souhaité. Les premières se trouvent dans la barre — vous accédez à toutes les autres via « Rubriques » dans l'en-tête.",
+    "tabDatabasesShort": "BDD"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",
@@ -2844,5 +2870,40 @@
     "point2": "Bases de données et vues : fichiers .base compatibles avec Obsidian, avec huit vues — tableau, kanban, calendrier et bien d'autres.",
     "point3": "S'installer est simple : importez vos notes directement depuis Notion, Evernote, Google Keep, Simplenote ou Logseq.",
     "start": "Commencer"
+  },
+  "refresh": {
+    "action": "Relire le vault",
+    "actionDesc": "Réconcilie l'index avec le dossier et, pour les vaults en ligne, récupère les fichiers du cloud. Rapide et sans perte — comme F5.",
+    "folderAction": "Relire ce dossier",
+    "folderDone": "Dossier relu · {{n}} fichiers mis à jour",
+    "localLine": "Local : {{added}} nouveaux · {{changed}} modifiés · {{removed}} supprimés",
+    "skippedLine": "Ignorés : {{paths}}",
+    "cloudRequested": "Cloud : synchronisation complète demandée",
+    "cloudFailed": "Cloud : impossible de demander une synchronisation",
+    "failed": "Le vault n'a pas pu être relu.",
+    "rebuildAction": "Reconstruire entièrement l'index",
+    "rebuildDone": "Index entièrement reconstruit.",
+    "watcherFailed": "Les modifications externes ne sont plus détectées immédiatement. Plainva réconcilie désormais régulièrement — F5 relit le vault immédiatement.",
+    "done": "Coffre relu"
+  },
+  "dbContext": {
+    "memberOf": "Appartient à",
+    "parent": "Parent",
+    "subItems": "Sous-éléments",
+    "subItemCount": "{{n}} sous-éléments",
+    "linked": "Lié",
+    "linkedEntry": "{{base}} · {{n}} entrées",
+    "openBaseView": "{{base}} · vue « {{view}} »"
+  },
+  "deviceSignIn": {
+    "action": "Se connecter sur cet appareil",
+    "active": "actif",
+    "cardBodyOauth": "Le compte est arrivé via la synchronisation des paramètres. Les connexions ne sont jamais synchronisées pour des raisons de sécurité — chaque appareil se connecte de son côté. Se connecter une fois suffit.",
+    "cardBodyStatic": "Le compte est arrivé via la synchronisation des paramètres, mais pas son mot de passe. Connectez-vous une fois sur cet appareil.",
+    "cardTitle": "{{account}} ({{provider}}) n'est pas connecté sur cet appareil.",
+    "notSignedIn": "Non connecté",
+    "rowHintOauth": "Arrivé via la synchronisation des paramètres. Les connexions ne circulent jamais — supprimez le compte et reconnectez-le ci-dessous.",
+    "rowHintStatic": "Le mot de passe manque sur cet appareil. Supprimez le compte et reconnectez-le ci-dessous.",
+    "signIn": "se connecter"
   }
 }

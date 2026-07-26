@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-22
+Dernière mise à jour : 2026-07-26
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -97,7 +97,9 @@ Ouvrez **Paramètres → Synchronisation → Phrase de passe de synchronisation 
 
 La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger la phrase de passe à chaque démarrage** pour la ressaisir après chaque redémarrage à la place, et utilisez **Verrouiller** pour supprimer la clé mise en cache sur cet appareil.
 
-**Synchroniser les réglages** transfère les réglages partagés du vault et les métadonnées des comptes ; les chemins locaux, la disposition et les données d’exécution restent propres à l’appareil. **Synchroniser les secrets des comptes** est une option distincte pour les mots de passe d’application et identifiants BYO autorisés ; les jetons OAuth ne sont jamais partagés. L’état du chiffrement guide les étapes **Préparation**, **Migration**, **Strict**, **Déchiffrement** et **Rotation de clé**. Les appareils mobiles peuvent déverrouiller le même vault chiffré avec sa phrase de passe.
+**Synchroniser les réglages** transfère les réglages partagés du vault et les métadonnées des comptes ; les chemins locaux, la disposition et les données d’exécution restent propres à l’appareil. **Synchroniser les secrets des comptes** est une option distincte pour les mots de passe d’application et identifiants BYO autorisés ; les jetons OAuth ne sont jamais partagés. L’état du chiffrement guide les étapes **Préparation**, **Migration**, **Strict**, **Déchiffrement** et **Rotation de clé** ; une rotation ne se termine qu’une fois tous les fichiers distants vérifiés.
+
+Sur le **téléphone**, la page du vault affiche la même chose sous forme de carte d’état : **ne sont pas synchronisés**, **pas encore déverrouillé sur cet appareil** (saisissez la phrase de passe — celle que vous avez choisie sur le bureau) ou **sont synchronisés**. L’application mobile **déverrouille** donc un vault chiffré, mais ne configure pas elle-même la synchronisation des paramètres. Et comme les connexions ne voyagent jamais, un compte synchronisé peut apparaître sur un appareil qui ne s’est pas encore connecté — l’application le précise alors explicitement et propose la connexion au lieu de rester vide.
 
 ## Erreurs et nouvelle tentative automatique
 

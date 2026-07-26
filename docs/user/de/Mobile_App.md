@@ -1,14 +1,16 @@
 # Die mobile App
 
-Stand: 2026-07-25
+Stand: 2026-07-26
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
 ## Aufbau
 
-- **Untere Leiste:** drei frei anordenbare Bereiche plus der feste **Mehr**-Tab. Unter **Mehr** stehen alle Bereiche (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Graph) — ein Tipp öffnet den Bereich, der **Zieh-Griff** ordnet die Liste an: die oberen drei bilden die Leiste (im Rahmen markiert), nach oben ziehen befördert einen Bereich hinein.
+- **Untere Leiste:** **drei bis fünf** Bereiche Deiner Wahl — einen festen **Mehr**-Tab gibt es nicht mehr, der Platz gehört Deinen Bereichen.
+- **Alle Bereiche** (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: entweder über das **▾ neben dem Titel** in der oberen Leiste oder durch **langes Drücken auf die untere Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**.
+- **Navigationsleiste einstellen:** **Einstellungen** → **Navigationsleiste**. Dort legst Du mit **−**/**+** fest, wie viele Bereiche die Leiste zeigt (3–5, mit Live-Vorschau), und ordnest die Liste per **Zieh-Griff**: die oberen Einträge bilden die Leiste (im Rahmen markiert), nach oben ziehen befördert einen Bereich hinein. Ausgeblendet wird nichts — was nicht in der Leiste steht, bleibt über das Bereichs-Blatt erreichbar. Verlässt der gerade offene Bereich die Leiste, springt die App auf den ersten sichtbaren.
 - **＋** schwebt als runder Knopf über der Leiste und öffnet die Schnellanlage: Notiz, Tagesnotiz, Ordner, Datenbank, „Aus Vorlage…".
-- **Obere Leiste:** Suche und die **Einstellungen** (⋮); auf dem Startbildschirm zusätzlich „Zuletzt geöffnet" und Deine Lesezeichen.
+- **Obere Leiste:** der Titel mit **▾** (öffnet das Bereichs-Blatt), Suche und die **Einstellungen** (⋮); auf dem Startbildschirm zusätzlich „Zuletzt geöffnet" und Deine Lesezeichen.
 - **Einstellungen:** Der ⋮-Knopf öffnet zuerst die Bereichsliste (wie die linke Seite der Desktop-Einstellungen) — ein Tipp öffnet die jeweilige Seite. Ganz oben führt **Aktiver Vault** zur Vault-Verwaltung: Vault wechseln (Häkchen = aktiv), **Neuen Vault erstellen** und **Mit Cloud verbinden**.
 
 ## Notizen lesen und bearbeiten
@@ -29,9 +31,19 @@ Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als 
 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 
+**Anmelden gilt pro Gerät.** Synchronisiert werden Deine Konto-*Einstellungen*, nie die Anmeldung selbst — das ist Absicht: Zugangsdaten sollen das Gerät nicht verlassen. Ein Konto, das über die Einstellungs-Synchronisation kam, taucht deshalb in der Liste auf, trägt aber die Markierung **anmelden**; darunter steht, was zu tun ist. Solange kein Konto auf diesem Gerät angemeldet ist, erklärt der Kalender das an Ort und Stelle, statt einfach leer zu bleiben, und führt Dich mit **Auf diesem Gerät anmelden** zu den Konten. Angemeldete Konten zeigen **aktiv**.
+
 ## Synchronisation
 
 In den **Einstellungen** (⋮) führt **Aktiver Vault** zur Vault-Verwaltung; dort verbindest Du Cloud-Speicher (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Mit Cloud verbinden** holt einen bestehenden Cloud-Vault aufs Gerät; **Neuen Vault erstellen** fragt zuerst **Auf diesem Gerät** oder **Bei einem Online-Dienst** und danach die Startstruktur (leer oder eine Vorlage wie PARA) — beim Online-Weg folgt das Verbinden, der Ziel-Ordner in der Cloud lässt sich im Auswahl-Blatt über **Neuer Ordner** frisch anlegen, und die Struktur wird beim ersten Sync hochgeladen. Dieselbe Wahl zwischen bestehendem und neuem Cloud-Vault bietet auch der erste Start („Mit Cloud verbinden"). Jede Verbindung bekommt einen eigenen, getrennten Vault auf dem Gerät. Die Vault-Seite zeigt Status, Fortschritt, ausstehende Übertragungen und bietet **Vault exportieren** (ZIP über das Teilen-Menü).
+
+Auf der Vault-Seite steht außerdem, ob Deine **Einstellungen** mitreisen — als Karte mit klarem Zustand statt als nackter Knopf:
+
+- **Werden nicht synchronisiert**: Der Einstellungs-Sync ist für diesen Vault aus. Am Desktop schaltest Du ihn ein.
+- **Auf diesem Gerät noch nicht entsperrt**: Die Einstellungen liegen verschlüsselt in der Cloud. Gib die Passphrase ein, die Du beim Einrichten am Desktop vergeben hast — dieses Gerät entsperrt sie damit einmalig.
+- **Werden synchronisiert**: Dieses Gerät ist entsperrt; Ordner, Ansichten und Backup-Regeln bleiben mit Deinen anderen Geräten im Gleichschritt.
+
+Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Gerät (siehe [Kalender und Termine](#kalender-und-termine)).
 
 **Einstellungen** → **Sicherheit & Freigaben** benennt, was die Verbindung tatsächlich ist — und richtet bei einem normalen Cloud-Vault den verschlüsselten Workspace direkt auf dem Telefon ein (Identität → Wiederherstellungsdatei und Code → Aktivierung). Ohne Cloud-Verbindung gibt es nichts zu verschlüsseln; der Bereich sagt das auch so.
 

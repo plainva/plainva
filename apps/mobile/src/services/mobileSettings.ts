@@ -10,6 +10,7 @@ import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { getActiveVaultEntry, listVaults, LOCAL_VAULT_ID } from "./vaultRegistry";
+import { DEFAULT_BAR_TAB_COUNT } from "../navigation";
 import {
   VAULT_DEFAULTS,
   VAULT_KEYS,
@@ -57,6 +58,12 @@ export interface MobileSettings {
   onboarded: boolean;
   /** Bottom-bar screens (R2.2), sanitized by navigation.sanitizeTabSlots. */
   tabSlots: string[];
+  /**
+   * How many of `tabSlots` the bar shows (plan P5: 3–5, no fixed "More" tab).
+   * Was a hard-coded constant until 2026-07-25; a missing value reads as 3, so
+   * existing installations keep exactly the bar they had.
+   */
+  barTabCount: number;
   /** Discovered easter-egg theme ids (D5; same semantics as the desktop). */
   unlockedThemes: string[];
   /** Collected LCARS palette variant ids (D5). */
@@ -94,6 +101,7 @@ const DEFAULTS: MobileSettings = {
   language: "",
   onboarded: false,
   tabSlots: ["notes", "today", "tags", "bookmarks"],
+  barTabCount: DEFAULT_BAR_TAB_COUNT,
   unlockedThemes: [],
   unlockedThemeVariants: [],
   themeVariants: {},

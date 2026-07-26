@@ -1,14 +1,16 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-25
+Stan na: 2026-07-26
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
 ## Układ
 
-- **Dolny pasek:** trzy dowolnie rozmieszczone ekrany plus stała karta **Więcej**. **Więcej** wyświetla wszystkie ekrany (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Graf) — dotknięcie je otwiera, **uchwyt** zmienia kolejność listy: górne trzy tworzą pasek (oznaczone ramką), przeciągnięcie ekranu w górę przenosi go na pasek.
+- **Dolny pasek:** **od trzech do pięciu** obszarów według wyboru — stałej karty **Więcej** już nie ma; miejsce należy do Twoich obszarów.
+- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
+- **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile obszarów pokazuje pasek (3–5, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez arkusz obszarów. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.
-- **Górny pasek:** wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
+- **Górny pasek:** tytuł z **▾** (otwiera arkusz obszarów), wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
 - **Ustawienia:** przycisk ⋮ otwiera najpierw listę obszarów (jak lewa strona ustawień na komputerze) — dotknięcie otwiera daną stronę. Na górze **Aktywny vault** prowadzi do zarządzania vaultami: przełączanie vaultów (znacznik = aktywny), **Utwórz vault** i **Połącz sejf w chmurze**.
 
 ## Czytanie i edycja notatek
@@ -29,9 +31,19 @@ Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek
 
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
+**Logowanie dotyczy każdego urządzenia osobno.** Synchronizowane są *ustawienia* Twojego konta, nigdy samo logowanie — to celowe: dane logowania nie powinny opuszczać urządzenia. Konto, które pojawiło się dzięki synchronizacji ustawień, widnieje więc na liście, ale nosi oznaczenie **zaloguj się**, a pod nim znajduje się wskazówka, co zrobić. Dopóki na tym urządzeniu żadne konto nie jest zalogowane, kalendarz wyjaśnia to w tym miejscu zamiast po prostu pozostawać pusty, a **Zaloguj się na tym urządzeniu** prowadzi do kont. Zalogowane konta pokazują **aktywne**.
+
 ## Synchronizacja
 
 W **Ustawieniach** (⋮) **Aktywny vault** prowadzi do zarządzania vaultami; tam łączysz się z magazynem w chmurze (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Połącz sejf w chmurze** pobiera na urządzenie istniejący sejf w chmurze; **Utwórz vault** pyta najpierw **Na tym urządzeniu** czy **W usłudze online**, a potem o strukturę początkową (pustą lub szablon, np. PARA) — przy ścieżce online następuje połączenie, docelowy folder w chmurze można od razu utworzyć przez **Nowy folder** w arkuszu wyboru, a struktura zostaje przesłana podczas pierwszej synchronizacji. Ten sam wybór między istniejącym a nowym sejfem w chmurze oferuje też pierwsze uruchomienie („Połącz sejf w chmurze”). Każde połączenie otrzymuje własny, osobny sejf na urządzeniu. Strona sejfu pokazuje status, postęp, oczekujące transfery i oferuje **Eksportuj sejf** (ZIP przez arkusz udostępniania).
+
+Strona vaulta podaje też, czy Twoje **ustawienia** podróżują razem z Tobą — jako karta z wyraźnym stanem zamiast gołego przycisku:
+
+- **nie są synchronizowane**: synchronizacja ustawień jest wyłączona dla tego vaultu. Włącz ją na komputerze.
+- **Nie odblokowano jeszcze na tym urządzeniu**: Twoje ustawienia są przechowywane w chmurze w postaci zaszyfrowanej. Wprowadź frazę hasłową ustawioną na komputerze — to urządzenie odblokuje je nią jednorazowo.
+- **są synchronizowane**: to urządzenie jest odblokowane; foldery, widoki i reguły backupu pozostają zgodne z Twoimi innymi urządzeniami.
+
+Każda karta podaje też, co *nie* podróżuje: logowania zawsze pozostają na urządzeniu (patrz [Kalendarz i wydarzenia](#kalendarz-i-wydarzenia)).
 
 **Ustawienia** → **Bezpieczeństwo i udostępnianie** podaje, czym połączenie naprawdę jest — a przy zwykłym sejfie w chmurze konfiguruje zaszyfrowany obszar roboczy wprost na telefonie (tożsamość → plik odzyskiwania i kod → aktywacja). Bez połączenia z chmurą nie ma czego szyfrować i sekcja to mówi.
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Lock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt } from "./services/mobileDialogs";
 import {
   getSyncStatus,
@@ -198,33 +198,62 @@ export function VaultDetailScreen({
               />
             </div>
             <p className="m-hint">{t("settingsSync.toggleDesc")}</p>
-            {encryption === "locked" && (
-              <button
-                className="m-btn m-btn--filled"
-                disabled={busy}
-                onClick={() => {
-                  void mPrompt({ title: t("encryption.modalUnlockTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
-                    if (cancelled || !value) return;
-                    setBusy(true);
-                    try {
-                      await unlockMobileEncryption(activeVault, value);
-                      await restartSync(activeVault);
-                      setEncryption("unlocked");
-                    } catch {
-                      toast.warning(t("encryption.wrongPassphrase"));
-                    } finally {
-                      setBusy(false);
-                    }
-                  });
-                }}
-              >
-                {t("encryption.enterPassphrase")}
-              </button>
+            {/* P6: the bare "Enter passphrase" / "Lock" button used to sit here
+                with nothing explaining WHICH passphrase (it is NOT the encrypted
+                workspace's), what it protects, or what locking does. Three
+                states, each with the two sentences that answer that. */}
+            {!settingsSyncOn && (
+              <div className="m-card">
+                <p><b>{t("settingsSync.offTitle")}</b></p>
+                <p>{t("settingsSync.explainer")}</p>
+              </div>
             )}
-            {encryption === "unlocked" && (
-              <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
-                {t("encryption.lock")}
-              </button>
+            {settingsSyncOn && (
+              <p className="m-hint">{t("settingsSync.secretsNoteMobile")}</p>
+            )}
+            {settingsSyncOn && encryption === "locked" && (
+              <div className="m-card">
+                <span className="m-state m-state--warn">
+                  <Lock size={12} />
+                  {t("settingsSync.statePassphraseMissing")}
+                </span>
+                <p><b>{t("settingsSync.passphraseTitle")}</b></p>
+                <p>{t("settingsSync.lockedBody")}</p>
+                <button
+                  className="m-btn m-btn--filled"
+                  disabled={busy}
+                  onClick={() => {
+                    void mPrompt({ title: t("settingsSync.passphraseTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
+                      if (cancelled || !value) return;
+                      setBusy(true);
+                      try {
+                        await unlockMobileEncryption(activeVault, value);
+                        await restartSync(activeVault);
+                        setEncryption("unlocked");
+                      } catch {
+                        toast.warning(t("encryption.wrongPassphrase"));
+                      } finally {
+                        setBusy(false);
+                      }
+                    });
+                  }}
+                >
+                  {t("encryption.enterPassphrase")}
+                </button>
+              </div>
+            )}
+            {settingsSyncOn && encryption === "unlocked" && (
+              <div className="m-card">
+                <span className="m-state m-state--ok">
+                  <Check size={12} />
+                  {t("settingsSync.stateUnlocked")}
+                </span>
+                <p><b>{t("settingsSync.unlockedTitle")}</b></p>
+                <p>{t("settingsSync.unlockedBody")}</p>
+                <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
+                  {t("encryption.lock")}
+                </button>
+              </div>
             )}
           </>
         )}

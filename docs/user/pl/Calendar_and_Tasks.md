@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-07-21
+Stan na: 2026-07-26
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -14,6 +14,8 @@ Otwórz **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…**
 - **Microsoft**: wystarczy kliknąć **Zaloguj się przez Microsoft…** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna. Jedno konto Microsoft może w tym samym przebiegu obsługiwać też **Pliki** (OneDrive) i **E-mail**.
 
 Asystent pokazuje status dla każdej usługi („Połączono — znaleziono n kalendarzy”). Wybór **kalendarzy** (zaznaczone pojawiają się w karcie kalendarza) i **list zadań** (celowo domyślnie odznaczone — zaznaczenie jednej uruchamia opisaną niżej synchronizację zadań) zarządzasz później w obszarze **Kalendarz**; tam znajduje się też **Folder spotkań** (gdzie powstają notatki ze spotkań) i **Domyślny kalendarz**. Hasła i tokeny są przechowywane w pęku kluczy Twojego systemu operacyjnego.
+
+**Każde urządzenie loguje się osobno.** Jeśli korzystasz z [synchronizacji ustawień](Sync_Setup.md#szyfrowanie-synchronizacji-hasło), *dane* konta podróżują razem z Tobą, ale logowanie nigdy — celowo pozostaje na urządzeniu. Konto przejęte w ten sposób pojawia się więc na liście na drugim urządzeniu, ale nie jest tam jeszcze zalogowane; w [aplikacji mobilnej](Mobile_App.md) nosi wtedy oznaczenie **zaloguj się**, a kalendarz wyjaśnia to zamiast pozostawać pusty. Wystarczy połączyć się raz.
 
 ## Karta kalendarza
 

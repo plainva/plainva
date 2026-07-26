@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-07-21
+Stand: 2026-07-26
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -16,6 +16,8 @@ Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **Cal
 - **Microsoft**: einfach **Bei Microsoft anmelden…** klicken und im Browser bestätigen — keine Einrichtung nötig. Ein Microsoft-Konto kann im selben Durchgang auch **Dateien** (OneDrive) und **E-Mail** tragen.
 
 Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden"). Die **Kalender**-Auswahl (angehakte erscheinen im Kalender-Tab) und die **Aufgabenlisten** (bewusst standardmäßig abgewählt — ein Häkchen startet den unten beschriebenen Aufgaben-Sync) verwaltest Du danach im Bereich **Kalender**; dort sitzen auch der **Meeting-Ordner** (wo Meeting-Notizen entstehen) und der **Standardkalender**. Passwörter und Tokens liegen im Schlüsselbund Deines Betriebssystems.
+
+**Jedes Gerät meldet sich selbst an.** Wenn Du die [Einstellungs-Synchronisation](Sync_Setup.md#sync-verschlüsselung-passphrase) nutzt, reisen die Konto-*Angaben* mit, die Anmeldung aber nie — sie bleibt bewusst auf dem Gerät. Ein so übernommenes Konto erscheint auf dem anderen Gerät also in der Liste, ist dort aber noch nicht angemeldet; in der [mobilen App](Mobile_App.md) trägt es dann die Markierung **anmelden** und der Kalender erklärt es statt leer zu bleiben. Einmal verbinden genügt.
 
 ## Der Kalender-Tab
 

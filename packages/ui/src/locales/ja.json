@@ -6,7 +6,15 @@
     "explainer": "認証情報や端末固有のパスは転送されません。複数の端末で設定を変更した場合は、最後に保存されたバージョンが優先されます。",
     "adopted": "設定は別の端末から採用されました。",
     "secretsLabel": "アカウント認証情報を同期",
-    "secretsDesc": "静的な IMAP/CalDAV パスワードと独自の Google カレンダー認証情報のみ。OAuth トークンはこのデバイスに残ります。"
+    "secretsDesc": "静的な IMAP/CalDAV パスワードと独自の Google カレンダー認証情報のみ。OAuth トークンはこのデバイスに残ります。",
+    "lockedBody": "設定は暗号化された状態でクラウドに保存されています。デスクトップでこれを設定した際に選んだパスフレーズを入力してください——この端末はそれで一度だけロックを解除します。",
+    "offTitle": "設定は同期されていません",
+    "passphraseTitle": "この端末ではまだロックが解除されていません",
+    "secretsNoteMobile": "同期されるのはお使いの設定——フォルダー、ビュー、バックアップのルールです。サインインは常にこのデバイスに残ります。",
+    "statePassphraseMissing": "パスフレーズがありません",
+    "stateUnlocked": "ロック解除済み",
+    "unlockedBody": "この端末はロックが解除されています。フォルダー、ビュー、バックアップのルールへの変更は、他の端末と同期されます。",
+    "unlockedTitle": "設定は同期されています"
   },
   "encryption": {
     "contentRow": "保管庫のコンテンツを暗号化",
@@ -639,7 +647,16 @@
     "splitRight": "右に分割",
     "splitDown": "下に分割",
     "versionHistory": "バージョン履歴…",
-    "close": "タブを閉じる"
+    "close": "タブを閉じる",
+    "reload": "再読み込み",
+    "reloadDirty": "未保存の変更があります — 先に保存してから再読み込みしてください。",
+    "pin": "タブを固定",
+    "unpin": "タブの固定を解除",
+    "closeOthers": "他のタブを閉じる",
+    "closeLeft": "左側のタブを閉じる",
+    "closeRight": "右側のタブを閉じる",
+    "closeAll": "すべてのタブを閉じる",
+    "reloadHint": "ディスクから"
   },
   "sync": {
     "error": "同期エラー——クリックで詳細と再試行",
@@ -1584,7 +1601,8 @@
     "properties": "プロパティ",
     "reorder": "セクションを移動",
     "propertiesUnavailable": "このファイルにはプロパティがありません。",
-    "graph": "グラフ"
+    "graph": "グラフ",
+    "databases": "データベース"
   },
   "search": {
     "find": "検索",
@@ -1819,7 +1837,6 @@
     "tabNotes": "ノート",
     "tabSearch": "検索",
     "tabToday": "今日",
-    "tabMore": "その他",
     "recent": "最近",
     "folders": "フォルダ",
     "comingSoon": "今後のステップで追加されます。",
@@ -1853,9 +1870,7 @@
     "syncCreatesVaultHint": "接続すると、このクラウドの場所専用の新しい保管庫が作成されます。",
     "vaultAdd": "クラウド保管庫を接続",
     "vaultCreate": "Vault を作成",
-    "moreArrangeHint": "ハンドルをドラッグして並べ替えます。上位3つが下のナビゲーションバーに表示されます。",
     "moreInBar": "ナビゲーションバー内",
-    "moreMoreList": "その他のエリア",
     "activeVault": "現在の保管庫",
     "vaultBlockHint": "タップして切り替えまたは接続",
     "vaultAddSection": "追加",
@@ -1980,7 +1995,18 @@
     "todayNothing": "この日に編集されたものはありません。",
     "settingFolders": "フォルダー",
     "settingInboxFolder": "インボックスフォルダー",
-    "settingTemplateFolder": "テンプレートフォルダー"
+    "settingTemplateFolder": "テンプレートフォルダー",
+    "areas": "エリア",
+    "navBar": "ナビゲーションバー",
+    "navBarArrange": "ナビゲーションバーを並べ替え…",
+    "navBarCount": "バー内のエリア",
+    "navBarFewer": "エリアを減らす",
+    "navBarMore": "エリアを増やす",
+    "navBarPreview": "プレビュー",
+    "navBarOutside": "バー外——「エリア」から利用できます",
+    "navBarSummary": "{{n}}件のエリア",
+    "navBarHint": "エリアを好きな順序にドラッグして並べ替えてください。上位のエリアはバーに表示され、それ以外はヘッダーの「エリア」から利用できます。",
+    "tabDatabasesShort": "DB"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",
@@ -2814,5 +2840,40 @@
     "point2": "データベースとビュー: Obsidian互換の.baseファイルで、8つのビュー——テーブル、ボード、カレンダーなど——に対応しています。",
     "point3": "乗り換えは簡単です: Notion、Evernote、Google Keep、Simplenote、Logseq から直接ノートをインポートできます。",
     "start": "始める"
+  },
+  "refresh": {
+    "action": "保管庫を再読み込み",
+    "actionDesc": "インデックスをフォルダーと照合し、オンライン保管庫ではクラウドのファイルも取得します。高速でデータが失われることはありません——F5と同じです。",
+    "folderAction": "このフォルダーを再読み込み",
+    "folderDone": "フォルダーを再読み込みしました · {{n}}件のファイルを更新",
+    "localLine": "ローカル: 新規{{added}}件 · 変更{{changed}}件 · 削除{{removed}}件",
+    "skippedLine": "スキップ: {{paths}}",
+    "cloudRequested": "クラウド: フル同期をリクエストしました",
+    "cloudFailed": "クラウド: 同期をリクエストできませんでした",
+    "failed": "保管庫を再読み込みできませんでした。",
+    "rebuildAction": "インデックスを最初から再構築",
+    "rebuildDone": "インデックスを最初から再構築しました。",
+    "watcherFailed": "外部の変更がすぐには検知されなくなりました。Plainvaは今後定期的に照合します——F5を押すとすぐに保管庫を再読み込みします。",
+    "done": "Vaultを再読み込みしました"
+  },
+  "dbContext": {
+    "memberOf": "所属",
+    "parent": "親",
+    "subItems": "サブアイテム",
+    "subItemCount": "{{n}}件のサブアイテム",
+    "linked": "リンク済み",
+    "linkedEntry": "{{base}} · {{n}}件のエントリ",
+    "openBaseView": "{{base}} · 「{{view}}」ビュー"
+  },
+  "deviceSignIn": {
+    "action": "このデバイスでサインイン",
+    "active": "アクティブ",
+    "cardBodyOauth": "このアカウントは設定の同期を通じて届きました。セキュリティ上の理由からサインインは一切同期されません——各デバイスが自分でサインインします。一度サインインすれば十分です。",
+    "cardBodyStatic": "このアカウントは設定の同期を通じて届きましたが、パスワードは届きませんでした。このデバイスで一度サインインしてください。",
+    "cardTitle": "{{account}}（{{provider}}）はこのデバイスでサインインしていません。",
+    "notSignedIn": "サインインしていません",
+    "rowHintOauth": "設定の同期を通じて届きました。サインインは一切同期されません——アカウントを削除し、下から再接続してください。",
+    "rowHintStatic": "このデバイスにはパスワードがありません。アカウントを削除し、下から再接続してください。",
+    "signIn": "サインイン"
   }
 }

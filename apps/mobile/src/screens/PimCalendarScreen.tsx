@@ -22,6 +22,9 @@ import {
   pimSyncNow,
   respondToPimEvent,
 } from "../services/pim/pimService";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { deviceSignInStates, isOAuthProvider } from "../services/deviceSignIn";
+import { DeviceSignInCard } from "../components/DeviceSignInRow";
 
 /**
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
@@ -50,6 +53,12 @@ export function PimCalendarScreen({
   const [anchor, setAnchor] = useState(() => new Date());
   const [events, setEvents] = useState<PimEventRow[]>([]);
   const [hasAccounts, setHasAccounts] = useState<boolean | null>(null);
+  /**
+   * The account that came through the settings sync but never signed in HERE
+   * (plan P7). Only set when NO account on this device is signed in — a partly
+   * working calendar must never be replaced by an explanation.
+   */
+  const [needsSignIn, setNeedsSignIn] = useState<{ label: string; provider: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => { pimSyncNow(); });
@@ -68,7 +77,17 @@ export function PimCalendarScreen({
 
   const reload = useCallback(() => {
     void listPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
-    void listPimAccounts().then((a) => setHasAccounts(a.length > 0));
+    void listPimAccounts().then(async (a) => {
+      setHasAccounts(a.length > 0);
+      if (a.length === 0) {
+        setNeedsSignIn(null);
+        return;
+      }
+      const vault = await getActiveVaultEntry();
+      const states = await deviceSignInStates("pim", vault.id, a.map((r) => r.id));
+      const anySignedIn = a.some((r) => states.get(r.id) === "active");
+      setNeedsSignIn(anySignedIn ? null : { label: a[0].label, provider: a[0].provider });
+    });
   }, [rangeStart, rangeEnd]);
 
   useEffect(() => { reload(); }, [reload, bump]);
@@ -204,6 +223,15 @@ export function PimCalendarScreen({
         >
           {t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}
         </EmptyState>
+      ) : needsSignIn ? (
+        <div className="m-scroll">
+          <DeviceSignInCard
+            accountLabel={needsSignIn.label}
+            oauth={isOAuthProvider(needsSignIn.provider)}
+            onSignIn={() => onOpenSettings?.()}
+            providerLabel={needsSignIn.provider}
+          />
+        </div>
       ) : view === "agenda" ? (
         <div ref={ptrRef} className="m-scroll">
           {ptrIndicator}

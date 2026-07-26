@@ -1,15 +1,17 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-07-25
+Laatst bijgewerkt: 2026-07-26
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
 ## Indeling
 
-- **Onderbalk:** drie vrij te ordenen schermen plus het vaste tabblad **Meer**. **Meer** toont alle schermen (Notities, Vandaag, Tags, Bladwijzers, Kalender, Databases, Graaf) — een tik opent het, de **greep** herordent de lijst: de bovenste drie vormen de balk (gemarkeerd met een kader), een scherm omhoog slepen bevordert het naar de balk.
+- **Onderbalk:** **drie tot vijf** onderdelen naar keuze — een vast tabblad **Meer** is er niet meer; de ruimte is voor jouw onderdelen.
+- **Elk onderdeel** (Notities, Vandaag, Tags, Bladwijzers, Kalender, Databases, Graaf) is altijd één tik verwijderd via het **onderdelenblad**: ofwel via de **▾ naast de titel** in de bovenbalk, ofwel door **lang te drukken op de onderbalk**. Het blad markeert het huidige onderdeel en leidt onderaan direct naar **Navigatiebalk aanpassen…**.
+- **De balk instellen:** **Instellingen** → **Navigatiebalk**. Met **−**/**+** stel je in hoeveel onderdelen de balk toont (3–5, met live voorbeeld), en met de **sleepgreep** orden je de lijst: de bovenste items vormen de balk (gemarkeerd met een kader), een item omhoog slepen bevordert het. Er wordt nooit iets verborgen — wat niet in de balk staat, blijft bereikbaar via het onderdelenblad. Verlaat het onderdeel waar je je bevindt de balk, dan springt de app naar het eerste zichtbare onderdeel.
 - **＋** zweeft als ronde knop boven de balk en opent snel aanmaken: notitie, dagnotitie, map, database, "Vanuit sjabloon…".
-- **Bovenbalk:** zoeken en de **Instellingen** (⋮); het beginscherm toont bovendien "Recent" en je bladwijzers.
-- **Instellingen:** de ⋮-knop opent eerst de gebiedslijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**.
+- **Bovenbalk:** de titel met **▾** (opent het onderdelenblad), zoeken en de **Instellingen** (⋮); het beginscherm toont bovendien "Recent geopend" en je bladwijzers.
+- **Instellingen:** de ⋮-knop opent eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**.
 
 ## Notities lezen en bewerken
 
@@ -29,9 +31,19 @@ De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandr
 
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 
+**Aanmelden geldt per apparaat.** Wat wordt gesynchroniseerd, zijn je account-*instellingen*, nooit de aanmelding zelf — dat is bewust zo: inloggegevens mogen het apparaat niet verlaten. Een account dat via de instellingensynchronisatie is binnengekomen, verschijnt daarom wel in de lijst, maar draagt de markering **aanmelden**, met eronder een regel die vertelt wat je moet doen. Zolang er geen account op dit apparaat is aangemeld, legt de agenda dat ter plekke uit in plaats van gewoon leeg te blijven, en brengt **Op dit apparaat aanmelden** je naar de accounts. Aangemelde accounts tonen **actief**.
+
 ## Synchronisatie
 
 In **Instellingen** (⋮) leidt **Actieve vault** naar het vaultbeheer; daar verbind je cloudopslag (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Cloudkluis verbinden** haalt een bestaande cloudkluis naar het apparaat; **Een vault maken** vraagt eerst **Op dit apparaat** of **Bij een onlinedienst** en daarna de startstructuur (leeg of een sjabloon zoals PARA) — bij het online pad volgt het verbinden, de doelmap in de cloud kun je meteen vers aanmaken via **Nieuwe map**, en de structuur wordt bij de eerste synchronisatie geüpload. Dezelfde keuze tussen een bestaande en een nieuwe cloudkluis biedt ook de eerste start ("Cloudkluis verbinden"). Elke verbinding krijgt een eigen, gescheiden kluis op het apparaat. De kluispagina toont status, voortgang, openstaande overdrachten en biedt **Kluis exporteren** (ZIP via het deelvenster).
+
+De vaultpagina vermeldt ook of je **instellingen** meereizen — als kaart met een duidelijke status in plaats van een kale knop:
+
+- **worden niet gesynchroniseerd**: de instellingensynchronisatie staat uit voor deze vault. Zet hem aan op de desktop.
+- **Nog niet ontgrendeld op dit apparaat**: je instellingen staan versleuteld opgeslagen in de cloud. Voer de wachtwoordzin in die je bij het instellen op de desktop hebt gekozen — dit apparaat ontgrendelt ze daarmee eenmalig.
+- **worden gesynchroniseerd**: dit apparaat is ontgrendeld; mappen, weergaven en back-upregels blijven synchroon met je andere apparaten.
+
+Elke kaart vermeldt ook wat *niet* meereist: aanmeldingen blijven altijd op het apparaat (zie [Kalender en afspraken](#kalender-en-afspraken)).
 
 **Instellingen** → **Beveiliging en delen** noemt wat de verbinding werkelijk is — en bij een gewone cloudkluis stelt het de versleutelde werkruimte direct op de telefoon in (identiteit → herstelbestand en code → activering). Zonder cloudverbinding is er niets te versleutelen, en dat staat er ook.
 

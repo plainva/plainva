@@ -6,7 +6,15 @@
     "explainer": "Non vengono trasferite credenziali né percorsi specifici del dispositivo. Se modifichi le impostazioni su più di un dispositivo, vince la versione salvata più di recente.",
     "adopted": "Impostazioni adottate da un altro dispositivo.",
     "secretsLabel": "Sincronizza credenziali account",
-    "secretsDesc": "Solo password IMAP/CalDAV statiche e credenziali personalizzate di Google Calendar; i token OAuth restano su questo dispositivo."
+    "secretsDesc": "Solo password IMAP/CalDAV statiche e credenziali personalizzate di Google Calendar; i token OAuth restano su questo dispositivo.",
+    "lockedBody": "Le tue impostazioni sono salvate cifrate nel cloud. Inserisci la frase segreta scelta durante la configurazione sul desktop — questo dispositivo le sblocca una volta con essa.",
+    "offTitle": "Le impostazioni non vengono sincronizzate",
+    "passphraseTitle": "Non ancora sbloccato su questo dispositivo",
+    "secretsNoteMobile": "Ciò che viene sincronizzato sono le tue impostazioni — cartelle, viste, regole di backup. Gli accessi restano sempre sul dispositivo.",
+    "statePassphraseMissing": "Frase segreta mancante",
+    "stateUnlocked": "sbloccato",
+    "unlockedBody": "Questo dispositivo è sbloccato. Le modifiche a cartelle, viste e regole di backup restano allineate con i tuoi altri dispositivi.",
+    "unlockedTitle": "Le impostazioni vengono sincronizzate"
   },
   "encryption": {
     "contentRow": "Cifra il contenuto del vault",
@@ -639,7 +647,16 @@
     "splitRight": "Dividi a destra",
     "splitDown": "Dividi in basso",
     "versionHistory": "Cronologia delle versioni…",
-    "close": "Chiudi scheda"
+    "close": "Chiudi scheda",
+    "reload": "Ricarica",
+    "reloadDirty": "Modifiche non salvate — salva prima, poi ricarica.",
+    "pin": "Blocca scheda",
+    "unpin": "Sblocca scheda",
+    "closeOthers": "Chiudi le altre schede",
+    "closeLeft": "Chiudi le schede a sinistra",
+    "closeRight": "Chiudi le schede a destra",
+    "closeAll": "Chiudi tutte le schede",
+    "reloadHint": "dal disco"
   },
   "sync": {
     "error": "Errore di sincronizzazione – clicca per i dettagli e per riprovare",
@@ -1588,7 +1605,8 @@
     "properties": "Proprietà",
     "reorder": "Sposta sezione",
     "propertiesUnavailable": "Nessuna proprietà per questo file.",
-    "graph": "Grafo"
+    "graph": "Grafo",
+    "databases": "Database"
   },
   "search": {
     "find": "Trova",
@@ -1829,7 +1847,6 @@
     "tabNotes": "Note",
     "tabSearch": "Ricerca",
     "tabToday": "Oggi",
-    "tabMore": "Altro",
     "recent": "Recenti",
     "folders": "Cartelle",
     "comingSoon": "In arrivo in una fase successiva.",
@@ -1863,9 +1880,7 @@
     "syncCreatesVaultHint": "La connessione crea un nuovo vault separato per questa posizione cloud.",
     "vaultAdd": "Collega un vault cloud",
     "vaultCreate": "Crea un vault",
-    "moreArrangeHint": "Trascina la maniglia per riordinare. Le prime tre appaiono nella barra di navigazione.",
     "moreInBar": "Nella barra di navigazione",
-    "moreMoreList": "Altre sezioni",
     "activeVault": "Vault attivo",
     "vaultBlockHint": "Tocca per cambiare o collegare",
     "vaultAddSection": "Aggiungi",
@@ -1992,7 +2007,18 @@
     "todayNothing": "Niente è stato modificato in questo giorno.",
     "settingFolders": "Cartelle",
     "settingInboxFolder": "Cartella Inbox",
-    "settingTemplateFolder": "Cartella dei modelli"
+    "settingTemplateFolder": "Cartella dei modelli",
+    "areas": "Aree",
+    "navBar": "Barra di navigazione",
+    "navBarArrange": "Personalizza la barra di navigazione…",
+    "navBarCount": "Aree nella barra",
+    "navBarFewer": "Meno aree",
+    "navBarMore": "Più aree",
+    "navBarPreview": "Anteprima",
+    "navBarOutside": "Non nella barra — raggiungibile tramite “Aree”",
+    "navBarSummary": "{{n}} aree",
+    "navBarHint": "Trascina le aree nell'ordine desiderato. Le prime si trovano nella barra — raggiungi tutte le altre tramite “Aree” nell'intestazione.",
+    "tabDatabasesShort": "DB"
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",
@@ -2844,5 +2870,40 @@
     "point2": "Database e viste: file .base compatibili con Obsidian con otto viste — tabella, bacheca, calendario e altro.",
     "point3": "È facile trasferirsi: importa le tue note direttamente da Notion, Evernote, Google Keep, Simplenote o Logseq.",
     "start": "Iniziamo"
+  },
+  "refresh": {
+    "action": "Rileggi il vault",
+    "actionDesc": "Riconcilia l'indice con la cartella e, per i vault online, scarica anche i file dal cloud. Veloce e senza perdite — come F5.",
+    "folderAction": "Rileggi questa cartella",
+    "folderDone": "Cartella riletta · {{n}} file aggiornati",
+    "localLine": "Locale: {{added}} nuovi · {{changed}} modificati · {{removed}} rimossi",
+    "skippedLine": "Saltati: {{paths}}",
+    "cloudRequested": "Cloud: sincronizzazione completa richiesta",
+    "cloudFailed": "Cloud: impossibile richiedere la sincronizzazione",
+    "failed": "Non è stato possibile rileggere il vault.",
+    "rebuildAction": "Ricostruisci l'indice da zero",
+    "rebuildDone": "Indice ricostruito da zero.",
+    "watcherFailed": "Le modifiche esterne non vengono più rilevate immediatamente. Plainva ora riconcilia regolarmente — F5 rilegge subito il vault.",
+    "done": "Vault riletto"
+  },
+  "dbContext": {
+    "memberOf": "Appartiene a",
+    "parent": "Padre",
+    "subItems": "Sottoelementi",
+    "subItemCount": "{{n}} sottoelementi",
+    "linked": "Collegato",
+    "linkedEntry": "{{base}} · {{n}} voci",
+    "openBaseView": "{{base}} · vista \"{{view}}\""
+  },
+  "deviceSignIn": {
+    "action": "Accedi su questo dispositivo",
+    "active": "attivo",
+    "cardBodyOauth": "L'account è arrivato tramite la sincronizzazione delle impostazioni. Gli accessi non vengono mai sincronizzati per motivi di sicurezza — ogni dispositivo accede per conto proprio. Basta accedere una volta.",
+    "cardBodyStatic": "L'account è arrivato tramite la sincronizzazione delle impostazioni, ma la sua password no. Accedi una volta su questo dispositivo.",
+    "cardTitle": "{{account}} ({{provider}}) non ha eseguito l'accesso su questo dispositivo.",
+    "notSignedIn": "Accesso non eseguito",
+    "rowHintOauth": "Arrivato tramite la sincronizzazione delle impostazioni. Gli accessi non viaggiano mai — rimuovi l'account e ricollegalo qui sotto.",
+    "rowHintStatic": "Manca la password su questo dispositivo. Rimuovi l'account e ricollegalo qui sotto.",
+    "signIn": "accedi"
   }
 }

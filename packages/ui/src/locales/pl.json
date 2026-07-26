@@ -6,7 +6,15 @@
     "explainer": "Nie są przesyłane żadne dane logowania ani ścieżki właściwe dla danego urządzenia. Jeśli zmienisz ustawienia na więcej niż jednym urządzeniu, wygrywa ostatnio zapisana wersja.",
     "adopted": "Ustawienia przejęte z innego urządzenia.",
     "secretsLabel": "Synchronizuj dane logowania kont",
-    "secretsDesc": "Tylko statyczne hasła IMAP/CalDAV i własne dane aplikacji Kalendarza Google; tokeny OAuth pozostają na tym urządzeniu."
+    "secretsDesc": "Tylko statyczne hasła IMAP/CalDAV i własne dane aplikacji Kalendarza Google; tokeny OAuth pozostają na tym urządzeniu.",
+    "lockedBody": "Twoje ustawienia są przechowywane w chmurze w postaci zaszyfrowanej. Wprowadź frazę hasłową ustawioną podczas konfiguracji na komputerze — to urządzenie odblokuje je nią jednorazowo.",
+    "offTitle": "Ustawienia nie są synchronizowane",
+    "passphraseTitle": "Nie odblokowano jeszcze na tym urządzeniu",
+    "secretsNoteMobile": "Synchronizowane są Twoje ustawienia — foldery, widoki, reguły backupu. Logowania zawsze pozostają na urządzeniu.",
+    "statePassphraseMissing": "Brak frazy hasłowej",
+    "stateUnlocked": "odblokowane",
+    "unlockedBody": "To urządzenie jest odblokowane. Zmiany w folderach, widokach i regułach backupu są zgodne z Twoimi innymi urządzeniami.",
+    "unlockedTitle": "Ustawienia są synchronizowane"
   },
   "encryption": {
     "contentRow": "Szyfruj zawartość vaultu",
@@ -639,7 +647,16 @@
     "splitRight": "Podziel w prawo",
     "splitDown": "Podziel w dół",
     "versionHistory": "Historia wersji…",
-    "close": "Zamknij kartę"
+    "close": "Zamknij kartę",
+    "reload": "Odśwież",
+    "reloadDirty": "Niezapisane zmiany — najpierw zapisz, potem odśwież.",
+    "pin": "Przypnij kartę",
+    "unpin": "Odepnij kartę",
+    "closeOthers": "Zamknij pozostałe karty",
+    "closeLeft": "Zamknij karty po lewej",
+    "closeRight": "Zamknij karty po prawej",
+    "closeAll": "Zamknij wszystkie karty",
+    "reloadHint": "z dysku"
   },
   "sync": {
     "error": "Błąd synchronizacji – kliknij, aby zobaczyć szczegóły i ponowić",
@@ -1590,7 +1607,8 @@
     "properties": "Właściwości",
     "reorder": "Przenieś sekcję",
     "propertiesUnavailable": "Brak właściwości dla tego pliku.",
-    "graph": "Graf"
+    "graph": "Graf",
+    "databases": "Bazy danych"
   },
   "search": {
     "find": "Znajdź",
@@ -1834,7 +1852,6 @@
     "tabNotes": "Notatki",
     "tabSearch": "Szukaj",
     "tabToday": "Dzisiaj",
-    "tabMore": "Więcej",
     "recent": "Ostatnie",
     "folders": "Foldery",
     "comingSoon": "Pojawi się w późniejszym kroku.",
@@ -1868,9 +1885,7 @@
     "syncCreatesVaultHint": "Połączenie tworzy nowy, osobny sejf dla tej lokalizacji w chmurze.",
     "vaultAdd": "Połącz sejf w chmurze",
     "vaultCreate": "Utwórz vault",
-    "moreArrangeHint": "Przeciągnij uchwyt, aby zmienić kolejność. Trzy pierwsze pojawią się na pasku nawigacji.",
     "moreInBar": "Na pasku nawigacji",
-    "moreMoreList": "Pozostałe obszary",
     "activeVault": "Aktywny vault",
     "vaultBlockHint": "Dotknij, aby zmienić lub połączyć",
     "vaultAddSection": "Dodaj",
@@ -1998,7 +2013,18 @@
     "todayNothing": "Tego dnia niczego nie edytowano.",
     "settingFolders": "Foldery",
     "settingInboxFolder": "Folder skrzynki",
-    "settingTemplateFolder": "Folder szablonów"
+    "settingTemplateFolder": "Folder szablonów",
+    "areas": "Obszary",
+    "navBar": "Pasek nawigacji",
+    "navBarArrange": "Dostosuj pasek nawigacji…",
+    "navBarCount": "Obszary na pasku",
+    "navBarFewer": "Mniej obszarów",
+    "navBarMore": "Więcej obszarów",
+    "navBarPreview": "Podgląd",
+    "navBarOutside": "Poza paskiem — dostępne przez „Obszary”",
+    "navBarSummary": "{{n}} obszar(ów)",
+    "navBarHint": "Przeciągnij obszary w wybranej kolejności. Te na górze znajdują się na pasku — pozostałe są dostępne przez „Obszary” u góry ekranu.",
+    "tabDatabasesShort": "Bazy"
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",
@@ -2859,5 +2885,40 @@
     "point2": "Bazy danych i widoki: kompatybilne z Obsidian pliki .base z ośmioma widokami — tabela, tablica, kalendarz i inne.",
     "point3": "Przeprowadzka jest prosta: zaimportuj swoje notatki bezpośrednio z Notion, Evernote, Google Keep, Simplenote lub Logseq.",
     "start": "Zacznijmy"
+  },
+  "refresh": {
+    "action": "Wczytaj vault ponownie",
+    "actionDesc": "Uzgadnia indeks z folderem, a w przypadku vaultów online pobiera też pliki z chmury. Szybkie i bezstratne — tak samo jak F5.",
+    "folderAction": "Wczytaj ten folder ponownie",
+    "folderDone": "Folder wczytany ponownie · zaktualizowano {{n}} plików",
+    "localLine": "Lokalnie: nowych {{added}} · zmienionych {{changed}} · usuniętych {{removed}}",
+    "skippedLine": "Pominięto: {{paths}}",
+    "cloudRequested": "Chmura: zażądano pełnej synchronizacji",
+    "cloudFailed": "Chmura: nie udało się zażądać synchronizacji",
+    "failed": "Nie udało się wczytać vaultu ponownie.",
+    "rebuildAction": "Odbuduj indeks od zera",
+    "rebuildDone": "Indeks odbudowany od zera.",
+    "watcherFailed": "Zmiany zewnętrzne nie są już wykrywane natychmiast. Plainva uzgadnia teraz stan regularnie — F5 wczytuje vault ponownie od razu.",
+    "done": "Ponownie wczytano vault"
+  },
+  "dbContext": {
+    "memberOf": "Należy do",
+    "parent": "Nadrzędny",
+    "subItems": "Elementy podrzędne",
+    "subItemCount": "Elementy podrzędne: {{n}}",
+    "linked": "Powiązane",
+    "linkedEntry": "{{base}} · {{n}} wpisów",
+    "openBaseView": "{{base}} · widok „{{view}}”"
+  },
+  "deviceSignIn": {
+    "action": "Zaloguj się na tym urządzeniu",
+    "active": "aktywne",
+    "cardBodyOauth": "Konto pochodzi z synchronizacji ustawień. Logowania nigdy nie są synchronizowane ze względów bezpieczeństwa — każde urządzenie loguje się osobno. Wystarczy zalogować się raz.",
+    "cardBodyStatic": "Konto pochodzi z synchronizacji ustawień, ale bez hasła. Zaloguj się raz na tym urządzeniu.",
+    "cardTitle": "{{account}} ({{provider}}) nie jest zalogowane na tym urządzeniu.",
+    "notSignedIn": "Niezalogowane",
+    "rowHintOauth": "Pochodzi z synchronizacji ustawień. Logowania nigdy nie są przesyłane — usuń konto i połącz je ponownie poniżej.",
+    "rowHintStatic": "Na tym urządzeniu brakuje hasła. Usuń konto i połącz je ponownie poniżej.",
+    "signIn": "zaloguj się"
   }
 }

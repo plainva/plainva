@@ -1,14 +1,16 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-07-25
+Ultimo aggiornamento: 2026-07-26
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
 ## Layout
 
-- **Barra inferiore:** tre schermate disposte liberamente più la scheda fissa **Altro**. **Altro** elenca ogni schermata (Note, Oggi, Tag, Segnalibri, Calendario, Database, Grafo) — un tocco la apre, la **maniglia** riordina l'elenco: le prime tre formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra.
+- **Barra inferiore:** **da tre a cinque** aree a tua scelta — non c'è più una scheda fissa **Altro**; lo spazio appartiene alle tue aree.
+- **Ogni area** (Note, Oggi, Tag, Segnalibri, Calendario, Database, Grafo) resta a un tocco di distanza tramite il **foglio delle aree**: o il **▾ accanto al titolo** nella barra superiore, oppure una **pressione prolungata sulla barra inferiore**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Disponi la barra di navigazione…**.
+- **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante aree mostra la barra (da 3 a 5, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite il foglio delle aree. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida: nota, nota giornaliera, cartella, database, "Da modello…".
-- **Barra superiore:** ricerca e le **Impostazioni** (⋮); la schermata iniziale mostra inoltre "Recenti" e i tuoi segnalibri.
+- **Barra superiore:** il titolo con **▾** (apre il foglio delle aree), la ricerca e le **Impostazioni** (⋮); la schermata iniziale mostra inoltre "Aperti di recente" e i tuoi segnalibri.
 - **Impostazioni:** il pulsante ⋮ apre prima l'elenco delle aree (come il lato sinistro delle impostazioni desktop) — un tocco apre quella pagina. In cima, **Vault attivo** porta alla gestione dei vault: cambiare vault (segno di spunta = attivo), **Crea un vault** e **Collega un vault cloud**.
 
 ## Leggere e modificare le note
@@ -29,9 +31,19 @@ Il **Calendario** (scheda inferiore o tramite "Altro") mostra le tue note giorna
 
 Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli eventi: collega **CalDAV** sul dispositivo con una password per app (es. Fastmail, Nextcloud, iCloud); Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 
+**L'accesso è per dispositivo.** A sincronizzarsi sono le *impostazioni* del tuo account, mai l'accesso in sé — è voluto: le credenziali non devono lasciare il dispositivo. Un account arrivato così tramite la sincronizzazione delle impostazioni compare quindi nell'elenco, ma porta il contrassegno **accedi**, con una riga sotto che indica cosa fare. Finché nessun account ha eseguito l'accesso su questo dispositivo, il calendario lo spiega lì al posto di restare semplicemente vuoto, e **Accedi su questo dispositivo** ti porta agli account. Gli account con l'accesso eseguito mostrano **attivo**.
+
 ## Sincronizzazione
 
 In **Impostazioni** (⋮), **Vault attivo** porta alla gestione dei vault; lì colleghi l'archiviazione cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Collega un vault cloud** porta un vault cloud esistente sul dispositivo; **Crea un vault** chiede prima **Su questo dispositivo** o **Presso un servizio online** e poi la struttura iniziale (vuota o un modello come PARA) — nel percorso online segue la connessione, la cartella di destinazione nel cloud può essere creata al momento tramite **Nuova cartella** nel foglio di selezione, e la struttura viene caricata alla prima sincronizzazione. Anche il primo avvio ("Collega un vault cloud") offre la stessa scelta tra un vault cloud esistente e uno nuovo. Ogni connessione ottiene un proprio vault separato sul dispositivo. La pagina del vault mostra stato, avanzamento, trasferimenti in sospeso e offre **Esporta il vault** (ZIP tramite il foglio di condivisione).
+
+La pagina del vault indica anche se le tue **impostazioni** ti seguono — come una scheda con uno stato chiaro invece di un semplice pulsante:
+
+- **Non vengono sincronizzate**: la sincronizzazione delle impostazioni è disattivata per questo vault. Attivala dal desktop.
+- **Non ancora sbloccato su questo dispositivo**: le tue impostazioni sono memorizzate crittografate nel cloud. Inserisci la passphrase che hai scelto configurandolo sul desktop — questo dispositivo le sblocca una volta con essa.
+- **Vengono sincronizzate**: questo dispositivo è sbloccato; cartelle, viste e regole di backup restano allineate con i tuoi altri dispositivi.
+
+Ogni scheda indica anche cosa *non* viaggia: gli accessi restano sempre sul dispositivo (vedi [Calendario ed eventi](#calendario-ed-eventi)).
 
 **Impostazioni** → **Sicurezza e condivisione** indica che cos'è realmente la connessione e, per un normale vault cloud, configura l'area di lavoro crittografata direttamente sul telefono (identità → file di ripristino e codice → attivazione). Senza connessione cloud non c'è nulla da crittografare, e la sezione lo dice.
 

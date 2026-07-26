@@ -12,6 +12,9 @@ import {
   removePimAccount,
 } from "../services/pim/pimService";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
+import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 
 /**
  * Mobile PIM calendar accounts. All three providers connect on-device: CalDAV
@@ -40,9 +43,18 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const [msClientId, setMsClientId] = useState("");
   const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Sign-in state per account (plan P7). A synced account row without a
+  // credential slot on this device is the case the screen used to hide.
+  const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
 
   const reload = useCallback(() => {
-    void listPimAccounts().then(setAccounts).catch(() => setAccounts([]));
+    void listPimAccounts()
+      .then(async (rows) => {
+        setAccounts(rows);
+        const vault = await getActiveVaultEntry();
+        setSignIn(await deviceSignInStates("pim", vault.id, rows.map((r) => r.id)));
+      })
+      .catch(() => setAccounts([]));
     void listPimCalendars().then(setCalendars).catch(() => setCalendars([]));
   }, []);
 
@@ -140,15 +152,26 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
         ) : (
           accounts.map((a) => {
             const cals = calendars.filter((c) => c.accountId === a.id);
+            const state = signIn.get(a.id) ?? "active";
             return (
               <div key={a.id} style={{ marginBottom: 16 }}>
-                <div className="m-row" style={{ fontWeight: 600 }}>
-                  <span style={{ flex: 1 }}>{a.label}</span>
-                  <span className="m-prop-val" style={{ textTransform: "uppercase", fontSize: "var(--text-xs)" }}>{a.provider}</span>
+                <div className="m-row m-acct" data-testid={`pim-account-${a.id}`}>
+                  <span className="m-acct-name">{a.label}</span>
+                  <DeviceSignInBadge state={state} />
+                  <span className="m-acct-provider">{a.provider}</span>
                   <button type="button" className="m-iconbtn" onClick={() => void remove(a)} aria-label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}>
                     <Trash2 size={16} />
                   </button>
                 </div>
+                {state === "signin" && (
+                  /* The row alone would only say "not signed in" — this line
+                     says what to do, right where the account is listed. */
+                  <p className="m-hint m-acct-hint">
+                    {isOAuthProvider(a.provider)
+                      ? t("deviceSignIn.rowHintOauth", { defaultValue: "Über die Einstellungs-Synchronisation gekommen. Anmeldungen reisen nie mit — entferne das Konto und verbinde es unten neu." })
+                      : t("deviceSignIn.rowHintStatic", { defaultValue: "Auf diesem Gerät fehlt das Passwort. Entferne das Konto und verbinde es unten neu." })}
+                  </p>
+                )}
                 {cals.map((c) => (
                   <button key={c.id} type="button" className="m-row" onClick={() => void toggleCal(c)} style={{ paddingLeft: 24 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "var(--radius-pill)", background: c.color || "var(--accent-color)", flexShrink: 0 }} />

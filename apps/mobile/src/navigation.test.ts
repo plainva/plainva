@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
   backStep,
-  BAR_TAB_COUNT,
+  DEFAULT_BAR_TAB_COUNT,
+  ensureVisibleTab,
+  MAX_BAR_TABS,
+  MIN_BAR_TABS,
+  sanitizeBarTabCount,
   barTabs,
   DEFAULT_TAB_ORDER,
   initialNavState,
@@ -36,7 +40,7 @@ describe("sanitizeTabSlots (full-order model, redesign P3)", () => {
     expect(out.slice(0, 4)).toEqual(["notes", "today", "tags", "bookmarks"]);
     expect(out).toHaveLength(TAB_POOL.length);
     expect(barTabs(out)).toEqual(["notes", "today", "tags"]);
-    expect(barTabs(out)).toHaveLength(BAR_TAB_COUNT);
+    expect(barTabs(out)).toHaveLength(DEFAULT_BAR_TAB_COUNT);
   });
 
   it("returns a fresh array (callers mutate for reordering)", () => {
@@ -191,5 +195,51 @@ describe("nav state (overlay + tab stacks)", () => {
     overlay = pushEntry(overlay, { kind: "folder", path: "Archive/2026" });
     expect(activeFolderPath(overlay)).toBe("Archive/2026");
     expect(showsCaptureFab(navTop(overlay))).toBe(true);
+  });
+});
+
+/**
+ * P5 — the bar carries 3–5 areas and no fixed "More" tab. The count is a
+ * setting now; everything outside the bar is reached through the areas sheet.
+ */
+describe("bar tab count (plan P5)", () => {
+  it("clamps into the Material range and falls back to the default", () => {
+    expect(sanitizeBarTabCount(undefined)).toBe(DEFAULT_BAR_TAB_COUNT);
+    expect(sanitizeBarTabCount("4")).toBe(DEFAULT_BAR_TAB_COUNT);
+    expect(sanitizeBarTabCount(0)).toBe(MIN_BAR_TABS);
+    expect(sanitizeBarTabCount(99)).toBe(MAX_BAR_TABS);
+    expect(sanitizeBarTabCount(4)).toBe(4);
+    expect(sanitizeBarTabCount(4.4)).toBe(4);
+  });
+
+  it("existing installations keep exactly the bar they had", () => {
+    // No stored count (upgrade) must read as the previous hard-coded three.
+    expect(DEFAULT_BAR_TAB_COUNT).toBe(MIN_BAR_TABS);
+    const order = sanitizeTabSlots(undefined);
+    expect(barTabs(order, sanitizeBarTabCount(undefined))).toHaveLength(3);
+  });
+
+  it("shows as many areas as configured", () => {
+    const order = sanitizeTabSlots(undefined);
+    expect(barTabs(order, 5)).toHaveLength(5);
+    expect(barTabs(order, 3)).toEqual(order.slice(0, 3));
+  });
+});
+
+describe("ensureVisibleTab (plan P5)", () => {
+  it("falls back to the first visible area when the active one leaves the bar", () => {
+    const state = initialNavState("bookmarks");
+    const next = ensureVisibleTab(state, ["notes", "today", "tags"]);
+    expect(next.activeTab).toBe("notes");
+  });
+
+  it("leaves the state alone while the active area is still in the bar", () => {
+    const state = initialNavState("today");
+    expect(ensureVisibleTab(state, ["notes", "today", "tags"])).toBe(state);
+  });
+
+  it("never strands the app on an empty bar", () => {
+    const state = initialNavState("today");
+    expect(ensureVisibleTab(state, [])).toBe(state);
   });
 });

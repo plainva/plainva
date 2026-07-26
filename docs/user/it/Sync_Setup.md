@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-07-22
+Ultimo aggiornamento: 2026-07-26
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -97,7 +97,9 @@ Apri **Impostazioni → Sincronizzazione → Passphrase di sincronizzazione e cr
 
 La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **Richiedi la passphrase a ogni avvio** per reinserirla invece dopo ogni riavvio, e usa **Blocca** per rimuovere la chiave in cache da questo dispositivo.
 
-**Sincronizza impostazioni** trasferisce le impostazioni condivise del vault e i metadati degli account; percorsi locali, layout e dati di runtime restano specifici del dispositivo. **Sincronizza segreti degli account** è un’opzione separata per password delle app e credenziali BYO consentite; i token OAuth non vengono mai condivisi. Lo stato della crittografia guida attraverso **Preparazione**, **Migrazione**, **Rigido**, **Decrittografia** e **Rotazione della chiave**. I dispositivi mobili possono sbloccare lo stesso vault cifrato con la passphrase.
+**Sincronizza impostazioni** trasferisce le impostazioni condivise del vault e i metadati degli account; percorsi locali, layout e dati di runtime restano specifici del dispositivo. **Sincronizza segreti degli account** è un’opzione separata per password delle app e credenziali BYO consentite; i token OAuth non vengono mai condivisi. Lo stato della crittografia guida attraverso **Preparazione**, **Migrazione**, **Rigido**, **Decrittografia** e **Rotazione della chiave**; una rotazione si conclude solo dopo aver verificato tutti i file remoti.
+
+Sul **telefono**, la pagina del vault mostra la stessa cosa come scheda di stato: **non vengono sincronizzate**, **non ancora sbloccato su questo dispositivo** (inserisci la passphrase — la stessa che hai scelto sul desktop) oppure **vengono sincronizzate**. L'app mobile quindi **sblocca** un vault cifrato, ma non configura essa stessa la sincronizzazione delle impostazioni. E poiché gli accessi non viaggiano mai, un account sincronizzato può comparire su un dispositivo che non ha ancora eseguito l'accesso — l'app lo dice lì esplicitamente e offre l'accesso invece di restare vuota.
 
 ## Errori e nuovo tentativo automatico
 

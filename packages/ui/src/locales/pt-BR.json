@@ -6,7 +6,15 @@
     "explainer": "Não transferimos credenciais nem caminhos específicos de cada dispositivo. Se você alterar as configurações em mais de um dispositivo, vale a versão salva mais recentemente.",
     "adopted": "Configurações adotadas de outro dispositivo.",
     "secretsLabel": "Sincronizar credenciais de contas",
-    "secretsDesc": "Somente senhas IMAP/CalDAV estáticas e credenciais próprias do Google Agenda; tokens OAuth permanecem neste dispositivo."
+    "secretsDesc": "Somente senhas IMAP/CalDAV estáticas e credenciais próprias do Google Agenda; tokens OAuth permanecem neste dispositivo.",
+    "lockedBody": "Suas configurações ficam armazenadas de forma criptografada na nuvem. Digite a frase secreta que você definiu ao configurar isso no desktop — este dispositivo as desbloqueia uma vez com ela.",
+    "offTitle": "As configurações não estão sendo sincronizadas",
+    "passphraseTitle": "Ainda não desbloqueado neste dispositivo",
+    "secretsNoteMobile": "Suas configurações são sincronizadas — pastas, visualizações, regras de backup. Os logins sempre ficam no dispositivo.",
+    "statePassphraseMissing": "Frase secreta ausente",
+    "stateUnlocked": "desbloqueado",
+    "unlockedBody": "Este dispositivo está desbloqueado. As alterações em pastas, visualizações e regras de backup permanecem sincronizadas com seus outros dispositivos.",
+    "unlockedTitle": "As configurações estão sendo sincronizadas"
   },
   "encryption": {
     "contentRow": "Criptografar o conteúdo do vault",
@@ -639,7 +647,16 @@
     "splitRight": "Dividir à direita",
     "splitDown": "Dividir abaixo",
     "versionHistory": "Histórico de versões…",
-    "close": "Fechar aba"
+    "close": "Fechar aba",
+    "reload": "Recarregar",
+    "reloadDirty": "Alterações não salvas — salve primeiro e depois recarregue.",
+    "pin": "Fixar aba",
+    "unpin": "Desafixar aba",
+    "closeOthers": "Fechar as outras abas",
+    "closeLeft": "Fechar abas à esquerda",
+    "closeRight": "Fechar abas à direita",
+    "closeAll": "Fechar todas as abas",
+    "reloadHint": "do disco"
   },
   "sync": {
     "error": "Erro de sincronização – clique para ver detalhes e tentar novamente",
@@ -1588,7 +1605,8 @@
     "properties": "Propriedades",
     "reorder": "Mover seção",
     "propertiesUnavailable": "Sem propriedades para este arquivo.",
-    "graph": "Grafo"
+    "graph": "Grafo",
+    "databases": "Bancos de dados"
   },
   "search": {
     "find": "Localizar",
@@ -1829,7 +1847,6 @@
     "tabNotes": "Notas",
     "tabSearch": "Busca",
     "tabToday": "Hoje",
-    "tabMore": "Mais",
     "recent": "Recentes",
     "folders": "Pastas",
     "comingSoon": "Chega em uma etapa posterior.",
@@ -1863,9 +1880,7 @@
     "syncCreatesVaultHint": "Conectar cria um cofre novo e separado para este local na nuvem.",
     "vaultAdd": "Conectar um cofre na nuvem",
     "vaultCreate": "Criar um vault",
-    "moreArrangeHint": "Arraste a alça para organizar. Os três primeiros aparecem na barra de navegação.",
     "moreInBar": "Na barra de navegação",
-    "moreMoreList": "Outras seções",
     "activeVault": "Vault ativo",
     "vaultBlockHint": "Toque para trocar ou conectar",
     "vaultAddSection": "Adicionar",
@@ -1992,7 +2007,18 @@
     "todayNothing": "Nada foi editado neste dia.",
     "settingFolders": "Pastas",
     "settingInboxFolder": "Pasta de entrada",
-    "settingTemplateFolder": "Pasta de modelos"
+    "settingTemplateFolder": "Pasta de modelos",
+    "areas": "Seções",
+    "navBar": "Barra de navegação",
+    "navBarArrange": "Personalizar a barra de navegação…",
+    "navBarCount": "Seções na barra",
+    "navBarFewer": "Menos seções",
+    "navBarMore": "Mais seções",
+    "navBarPreview": "Prévia",
+    "navBarOutside": "Fora da barra — acessível em “Seções”",
+    "navBarSummary": "{{n}} seções",
+    "navBarHint": "Arraste as seções para a ordem desejada. As que ficam no topo aparecem na barra — as demais você acessa em “Seções” no cabeçalho.",
+    "tabDatabasesShort": "BDs"
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",
@@ -2844,5 +2870,40 @@
     "point2": "Bancos de dados e visualizações: arquivos .base compatíveis com Obsidian, com oito visualizações — tabela, quadro, calendário e mais.",
     "point3": "A mudança é fácil: importe suas notas direto do Notion, Evernote, Google Keep, Simplenote ou Logseq.",
     "start": "Começar"
+  },
+  "refresh": {
+    "action": "Reler o vault",
+    "actionDesc": "Concilia o índice com a pasta e, em vaults on-line, também busca os arquivos da nuvem. Rápido e sem perdas — o mesmo que F5.",
+    "folderAction": "Reler esta pasta",
+    "folderDone": "Pasta relida · {{n}} arquivos atualizados",
+    "localLine": "Local: {{added}} novos · {{changed}} alterados · {{removed}} removidos",
+    "skippedLine": "Ignorados: {{paths}}",
+    "cloudRequested": "Nuvem: sincronização completa solicitada",
+    "cloudFailed": "Nuvem: não foi possível solicitar a sincronização",
+    "failed": "Não foi possível reler o vault.",
+    "rebuildAction": "Reconstruir o índice do zero",
+    "rebuildDone": "Índice reconstruído do zero.",
+    "watcherFailed": "As alterações externas não são mais detectadas de imediato. O Plainva agora concilia regularmente — o F5 relê o vault na hora.",
+    "done": "Vault relido"
+  },
+  "dbContext": {
+    "memberOf": "Pertence a",
+    "parent": "Pai",
+    "subItems": "Subitens",
+    "subItemCount": "{{n}} subitens",
+    "linked": "Vinculado",
+    "linkedEntry": "{{base}} · {{n}} entradas",
+    "openBaseView": "{{base}} · visualização \"{{view}}\""
+  },
+  "deviceSignIn": {
+    "action": "Entrar neste dispositivo",
+    "active": "ativa",
+    "cardBodyOauth": "A conta chegou pela sincronização de configurações. Por segurança, os logins nunca são sincronizados — cada dispositivo entra por conta própria. Basta entrar uma vez.",
+    "cardBodyStatic": "A conta chegou pela sincronização de configurações, mas a senha não. Entre uma vez neste dispositivo.",
+    "cardTitle": "{{account}} ({{provider}}) ainda não fez login neste dispositivo.",
+    "notSignedIn": "Sem login",
+    "rowHintOauth": "Chegou pela sincronização de configurações. Os logins nunca são transferidos — remova a conta e conecte-a novamente abaixo.",
+    "rowHintStatic": "A senha está faltando neste dispositivo. Remova a conta e conecte-a novamente abaixo.",
+    "signIn": "entrar"
   }
 }

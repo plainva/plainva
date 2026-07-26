@@ -1,15 +1,17 @@
 # O app mobile
 
-Última revisão: 2026-07-25
+Última revisão: 2026-07-26
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
 ## Layout
 
-- **Barra inferior:** três telas organizáveis livremente, mais a aba fixa **Mais**. **Mais** lista todas as telas (Notas, Hoje, Tags, Favoritos, Calendário, Bancos de dados, Grafo) — um toque a abre, a **alça** reorganiza a lista: as três primeiras formam a barra (marcadas com uma moldura), arrastar uma para cima a promove para a barra.
+- **Barra inferior:** **de três a cinco** seções à sua escolha — não existe mais a aba fixa **Mais**; o espaço pertence às suas seções.
+- **Cada seção** (Notas, Hoje, Tags, Favoritos, Calendário, Bancos de dados, Grafo) fica sempre a um toque de distância pela **folha de seções**: seja pelo **▾ ao lado do título** na barra superior, seja por um **toque longo na barra inferior**. A folha marca a seção atual e leva direto a **Personalizar a barra de navegação…**, na parte de baixo.
+- **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas seções a barra mostra (3–5, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Nada fica escondido — o que não está na barra continua acessível pela folha de seções. Se a seção em que você está sair da barra, o app vai para a primeira visível.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida: nota, nota diária, pasta, banco de dados, "A partir de modelo…".
-- **Barra superior:** busca e as **Configurações** (⋮); a tela inicial também mostra "Recentes" e seus favoritos.
-- **Configurações:** o botão ⋮ abre primeiro a lista de áreas (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**.
+- **Barra superior:** o título com **▾** (abre a folha de seções), busca e as **Configurações** (⋮); a tela inicial também mostra "Recentes" e seus favoritos.
+- **Configurações:** o botão ⋮ abre primeiro a lista de seções (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**.
 
 ## Ler e editar notas
 
@@ -29,9 +31,19 @@ O **Calendário** (aba inferior ou em "Mais") mostra suas notas diárias em uma 
 
 Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte o **CalDAV** no dispositivo com uma senha de aplicativo (p. ex. Fastmail, Nextcloud, iCloud); Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 
+**O login é por dispositivo.** O que sincroniza são as *configurações* da sua conta, nunca o login em si — de propósito: credenciais não devem sair do dispositivo. Uma conta que chegou pela sincronização de configurações aparece então na lista, mas com o marcador **entrar**, com uma linha logo abaixo dizendo o que fazer. Enquanto nenhuma conta estiver conectada neste dispositivo, o calendário explica isso no lugar em vez de simplesmente ficar vazio, e **Entrar neste dispositivo** leva você até as contas. Contas conectadas mostram **ativa**.
+
 ## Sincronização
 
 Em **Configurações** (⋮), **Vault ativo** leva ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida: a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada pela primeira sincronização. No primeiro início do app, a opção (**"Conectar um cofre na nuvem"**) oferece a mesma escolha entre um vault existente e um novo vault na nuvem. Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).
+
+A página do vault também informa se suas **configurações** viajam com você — como um cartão com um estado claro, em vez de um botão qualquer:
+
+- **As configurações não estão sendo sincronizadas**: a sincronização de configurações está desativada para este vault. Ative-a pelo desktop.
+- **Ainda não desbloqueado neste dispositivo**: suas configurações ficam armazenadas de forma criptografada na nuvem. Digite a frase secreta que você definiu ao configurar isso no desktop — este dispositivo as desbloqueia uma vez com ela.
+- **As configurações estão sendo sincronizadas**: este dispositivo está desbloqueado; pastas, visualizações e regras de backup permanecem sincronizadas com seus outros dispositivos.
+
+Cada cartão também informa o que *não* viaja: os logins sempre ficam no dispositivo (veja [Calendário e eventos](#calendário-e-eventos)).
 
 **Configurações** → **Segurança e compartilhamento** informa o que a conexão realmente é — e, em um vault de nuvem comum, configura o espaço de trabalho criptografado direto no telefone (identidade → arquivo de recuperação e código → ativação). Sem conexão de nuvem não há nada para criptografar, e a área diz isso.
 

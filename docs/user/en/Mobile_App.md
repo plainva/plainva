@@ -1,14 +1,16 @@
 # The mobile app
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
 ## Layout
 
-- **Bottom bar:** three freely arrangeable screens plus the fixed **More** tab. **More** lists every screen (Notes, Today, Tags, Bookmarks, Calendar, Databases, Graph) — a tap opens it, the **drag handle** rearranges the list: the top three form the bar (marked by a frame), dragging one up promotes it into the bar.
+- **Bottom bar:** **three to five** areas of your choice — there is no fixed **More** tab any more; the space belongs to your areas.
+- **Every area** (Notes, Today, Tags, Bookmarks, Calendar, Databases, Graph) stays one tap away through the **areas sheet**: either the **▾ next to the title** in the top bar or a **long press on the bottom bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom.
+- **Configuring the bar:** **Settings** → **Navigation bar**. Use **−**/**+** to set how many areas the bar shows (3–5, with a live preview) and the **drag handle** to arrange the list: the top entries form the bar (marked by a frame), dragging one up promotes it. Nothing is ever hidden — whatever is not in the bar remains reachable through the areas sheet. If the area you are on leaves the bar, the app moves to the first visible one.
 - **＋** floats as a round button above the bar and opens quick create: note, daily note, folder, database, "From template…".
-- **Top bar:** search and the **Settings** (⋮); the home screen additionally shows "Recently opened" and your bookmarks.
+- **Top bar:** the title with **▾** (opens the areas sheet), search and the **Settings** (⋮); the home screen additionally shows "Recently opened" and your bookmarks.
 - **Settings:** the ⋮ button opens the area list first (like the left side of the desktop settings) — a tap opens that page. **Active vault** on top leads to the vault management: switch vaults (check mark = active), **Create a vault** and **Connect to cloud**.
 
 ## Reading and editing notes
@@ -29,9 +31,19 @@ The **Calendar** (bottom tab or via "More") shows your daily notes as a month gr
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
+**Signing in is per device.** What syncs are your account *settings*, never the sign-in itself — deliberately so: credentials should not leave the device. An account that arrived through settings sync therefore shows up in the list but carries a **sign in** marker, with a line underneath telling you what to do. As long as no account is signed in on this device, the calendar explains that in place instead of simply staying empty, and **Sign in on this device** takes you to the accounts. Signed-in accounts show **active**.
+
 ## Sync
 
 In the **Settings** (⋮), **Active vault** leads to the vault management; there you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault onto the device; **Create a vault** first asks **On this device** or **With an online service** and then for the starter structure (empty or a template like PARA) — on the online path the connection follows, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded by the first sync. The first launch ("Connect to cloud") offers the same choice between an existing and a new cloud vault. Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).
+
+The vault page also states whether your **settings** travel with you — as a card with a clear state rather than a bare button:
+
+- **Not being synced**: settings sync is off for this vault. Turn it on from the desktop.
+- **Not unlocked on this device yet**: your settings are stored encrypted in the cloud. Enter the passphrase you chose when setting this up on the desktop — this device unlocks them once with it.
+- **Being synced**: this device is unlocked; folders, views and backup rules stay in step with your other devices.
+
+Each card also names what does *not* travel: sign-ins always stay on the device (see [Calendar and events](#calendar-and-events)).
 
 **Settings** → **Security & Sharing** names what the connection actually is — and for a plain cloud vault it sets up the encrypted workspace right on the phone (identity → recovery file and code → activation). Without a cloud connection there is nothing to encrypt, and the area says so.
 

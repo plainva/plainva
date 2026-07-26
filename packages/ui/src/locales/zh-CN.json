@@ -6,7 +6,15 @@
     "explainer": "不会传输任何凭据或设备专属路径。如果你在多台设备上更改设置，以最近保存的版本为准。",
     "adopted": "已采用来自另一台设备的设置。",
     "secretsLabel": "同步账户凭据",
-    "secretsDesc": "仅同步静态 IMAP/CalDAV 密码和自定义 Google 日历应用凭据；OAuth 令牌保留在此设备上。"
+    "secretsDesc": "仅同步静态 IMAP/CalDAV 密码和自定义 Google 日历应用凭据；OAuth 令牌保留在此设备上。",
+    "lockedBody": "你的设置以加密形式存储在云端。请输入你在桌面端设置此功能时选择的密码短语——此设备会用它一次性解锁这些设置。",
+    "offTitle": "设置未在同步",
+    "passphraseTitle": "此设备尚未解锁",
+    "secretsNoteMobile": "同步的是你的设置——文件夹、视图、备份规则。登录始终保留在设备上。",
+    "statePassphraseMissing": "缺少密码短语",
+    "stateUnlocked": "已解锁",
+    "unlockedBody": "此设备已解锁。对文件夹、视图和备份规则的更改会与你的其他设备保持同步。",
+    "unlockedTitle": "设置正在同步"
   },
   "encryption": {
     "contentRow": "加密仓库内容",
@@ -639,7 +647,16 @@
     "splitRight": "向右分屏",
     "splitDown": "向下分屏",
     "versionHistory": "版本历史…",
-    "close": "关闭标签页"
+    "close": "关闭标签页",
+    "reload": "重新加载",
+    "reloadDirty": "有未保存的更改 — 请先保存，再重新加载。",
+    "pin": "固定标签页",
+    "unpin": "取消固定标签页",
+    "closeOthers": "关闭其他标签页",
+    "closeLeft": "关闭左侧标签页",
+    "closeRight": "关闭右侧标签页",
+    "closeAll": "关闭所有标签页",
+    "reloadHint": "从磁盘"
   },
   "sync": {
     "error": "同步出错——点击查看详情并重试",
@@ -1584,7 +1601,8 @@
     "properties": "属性",
     "reorder": "移动分区",
     "propertiesUnavailable": "此文件没有属性。",
-    "graph": "关系图"
+    "graph": "关系图",
+    "databases": "数据库"
   },
   "search": {
     "find": "查找",
@@ -1819,7 +1837,6 @@
     "tabNotes": "笔记",
     "tabSearch": "搜索",
     "tabToday": "今天",
-    "tabMore": "更多",
     "recent": "最近",
     "folders": "文件夹",
     "comingSoon": "将在后续步骤中提供。",
@@ -1853,9 +1870,7 @@
     "syncCreatesVaultHint": "连接会为此云端位置创建一个新的独立仓库。",
     "vaultAdd": "连接云端仓库",
     "vaultCreate": "创建 Vault",
-    "moreArrangeHint": "拖动手柄进行排序。前三项会显示在底部导航栏中。",
     "moreInBar": "导航栏中",
-    "moreMoreList": "其他区域",
     "activeVault": "当前仓库",
     "vaultBlockHint": "点按以切换或连接",
     "vaultAddSection": "添加",
@@ -1980,7 +1995,18 @@
     "todayNothing": "当天没有编辑任何内容。",
     "settingFolders": "文件夹",
     "settingInboxFolder": "收件箱文件夹",
-    "settingTemplateFolder": "模板文件夹"
+    "settingTemplateFolder": "模板文件夹",
+    "areas": "区域",
+    "navBar": "导航栏",
+    "navBarArrange": "自定义导航栏…",
+    "navBarCount": "导航栏中的区域",
+    "navBarFewer": "减少区域",
+    "navBarMore": "增加区域",
+    "navBarPreview": "预览",
+    "navBarOutside": "不在导航栏中——可通过“区域”访问",
+    "navBarSummary": "{{n}} 个区域",
+    "navBarHint": "把区域拖动到你想要的顺序。排在最前面的会显示在导航栏中，其余的可以通过页眉里的“区域”打开。",
+    "tabDatabasesShort": "数据库"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
@@ -2814,5 +2840,40 @@
     "point2": "数据库与视图：与 Obsidian 兼容的 .base 文件，提供表格、看板、日历等八种视图。",
     "point3": "轻松搬家：直接从 Notion、Evernote、Google Keep、Simplenote 或 Logseq 导入你的笔记。",
     "start": "开始使用"
+  },
+  "refresh": {
+    "action": "重新读取仓库",
+    "actionDesc": "将索引与文件夹核对，联网仓库还会获取云端文件。快速且不会丢失数据——效果和 F5 一样。",
+    "folderAction": "重新读取此文件夹",
+    "folderDone": "文件夹已重新读取 · 已更新{{n}}个文件",
+    "localLine": "本地：新增{{added}}个 · 修改{{changed}}个 · 删除{{removed}}个",
+    "skippedLine": "已跳过：{{paths}}",
+    "cloudRequested": "云端：已请求完整同步",
+    "cloudFailed": "云端：无法请求同步",
+    "failed": "无法重新读取仓库。",
+    "rebuildAction": "从头重建索引",
+    "rebuildDone": "索引已从头重建。",
+    "watcherFailed": "外部更改不再被立即发现。Plainva 现在会定期核对——按 F5 会立即重新读取仓库。",
+    "done": "已重新读取 Vault"
+  },
+  "dbContext": {
+    "memberOf": "属于",
+    "parent": "父级",
+    "subItems": "子项",
+    "subItemCount": "{{n}}个子项",
+    "linked": "已关联",
+    "linkedEntry": "{{base}} · {{n}} 个条目",
+    "openBaseView": "{{base}} · 视图“{{view}}”"
+  },
+  "deviceSignIn": {
+    "action": "在此设备上登录",
+    "active": "有效",
+    "cardBodyOauth": "该账户是通过设置同步而来的。出于安全考虑，登录绝不会同步——每台设备都需要自行登录。只需登录一次即可。",
+    "cardBodyStatic": "该账户是通过设置同步而来的，但密码没有一起同步。请在此设备上登录一次。",
+    "cardTitle": "{{account}}（{{provider}}）尚未在此设备上登录。",
+    "notSignedIn": "未登录",
+    "rowHintOauth": "通过设置同步而来。登录绝不会同步——请移除该账户，然后在下方重新连接。",
+    "rowHintStatic": "此设备上缺少密码。请移除该账户，然后在下方重新连接。",
+    "signIn": "登录"
   }
 }

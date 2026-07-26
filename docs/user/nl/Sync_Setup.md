@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-22
+Laatst bijgewerkt: 2026-07-26
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -97,7 +97,9 @@ Open **Instellingen → Synchronisatie → Sync-wachtwoordzin en versleuteling**
 
 De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwoordzin bij elke start vereisen** aan om deze in plaats daarvan na elke herstart opnieuw in te voeren, en gebruik **Vergrendelen** om de gecachete sleutel op dit apparaat te verwijderen.
 
-**Instellingen synchroniseren** draagt gedeelde vault-instellingen en accountmetadata over; lokale paden, indeling en runtimegegevens blijven apparaatspecifiek. **Accountgeheimen synchroniseren** is een afzonderlijke optie voor toegestane statische app-wachtwoorden en BYO-inloggegevens; OAuth-tokens worden nooit gedeeld. De versleutelingsstatus begeleidt **Voorbereiden**, **Migratie**, **Strikt**, **Ontsleutelen** en **Sleutelrotatie**. Mobiele apparaten kunnen dezelfde versleutelde vault met de wachtwoordzin ontgrendelen.
+**Instellingen synchroniseren** draagt gedeelde vault-instellingen en accountmetadata over; lokale paden, indeling en runtimegegevens blijven apparaatspecifiek. **Accountgeheimen synchroniseren** is een afzonderlijke optie voor toegestane statische app-wachtwoorden en BYO-inloggegevens; OAuth-tokens worden nooit gedeeld. De versleutelingsstatus begeleidt **Voorbereiden**, **Migratie**, **Strikt**, **Ontsleutelen** en **Sleutelrotatie**.
+
+Op de **telefoon** toont de vaultpagina hetzelfde als een statuskaart: **worden niet gesynchroniseerd**, **nog niet ontgrendeld op dit apparaat** (voer de wachtwoordzin in — dezelfde die je op de desktop hebt gekozen) of **worden gesynchroniseerd**. De mobiele app **ontgrendelt** dus een versleutelde vault, maar richt de instellingensynchronisatie niet zelf in. En omdat aanmeldingen nooit meereizen, kan een gesynchroniseerd account verschijnen op een apparaat dat zich nog niet heeft aangemeld — de app zegt dat daar expliciet en biedt de aanmelding aan in plaats van leeg te blijven.
 
 ## Fouten en automatisch opnieuw proberen
 

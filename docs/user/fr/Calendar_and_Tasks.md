@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-07-21
+Dernière mise à jour : 2026-07-26
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -16,6 +16,8 @@ Ouvrez **Paramètres → Vault → Comptes cloud → Connecter un compte…**, c
 - **Microsoft** : cliquez simplement sur **Se connecter avec Microsoft…** et confirmez dans le navigateur — aucune configuration nécessaire. Un compte Microsoft peut aussi porter **Fichiers** (OneDrive) et **E-mail** dans le même passage.
 
 L'assistant affiche un statut par service (« connecté — n calendriers trouvés »). Vous gérez ensuite les **calendriers** (ceux cochés apparaissent dans l'onglet calendrier) et les **listes de tâches** (délibérément décochées par défaut — en cocher une démarre la synchronisation des tâches décrite ci-dessous) dans la zone **Calendrier** ; le **Dossier des réunions** (où sont créées les notes de réunion) et l'**Agenda par défaut** s'y trouvent aussi. Les mots de passe et les jetons résident dans le trousseau de votre système d'exploitation.
+
+**Chaque appareil se connecte de son côté.** Si vous utilisez la [synchronisation des paramètres](Sync_Setup.md#chiffrement-de-synchronisation-phrase-de-passe), les *informations* du compte vous suivent, mais jamais la connexion elle-même — elle reste volontairement sur l'appareil. Un compte récupéré ainsi apparaît donc dans la liste sur l'autre appareil, mais n'y est pas encore connecté ; dans l'[application mobile](Mobile_App.md), il porte alors la marque **se connecter** et le calendrier l'explique au lieu de rester vide. Se connecter une fois suffit.
 
 ## L'onglet calendrier
 

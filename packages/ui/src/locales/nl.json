@@ -6,7 +6,15 @@
     "explainer": "Er worden geen inloggegevens en geen apparaatspecifieke paden overgedragen. Als je op meer dan één apparaat instellingen wijzigt, wint de laatst opgeslagen versie.",
     "adopted": "Instellingen overgenomen van een ander apparaat.",
     "secretsLabel": "Accountgegevens synchroniseren",
-    "secretsDesc": "Alleen statische IMAP-/CalDAV-wachtwoorden en eigen Google Agenda-appgegevens; OAuth-tokens blijven op dit apparaat."
+    "secretsDesc": "Alleen statische IMAP-/CalDAV-wachtwoorden en eigen Google Agenda-appgegevens; OAuth-tokens blijven op dit apparaat.",
+    "lockedBody": "Je instellingen staan versleuteld opgeslagen in de cloud. Voer de wachtwoordzin in die je bij het instellen op de desktop hebt gekozen — dit apparaat ontgrendelt ze daarmee eenmalig.",
+    "offTitle": "Instellingen worden niet gesynchroniseerd",
+    "passphraseTitle": "Nog niet ontgrendeld op dit apparaat",
+    "secretsNoteMobile": "Wat synchroniseert zijn je instellingen — mappen, weergaven, back-upregels. Aanmeldingen blijven altijd op het apparaat.",
+    "statePassphraseMissing": "Wachtwoordzin ontbreekt",
+    "stateUnlocked": "ontgrendeld",
+    "unlockedBody": "Dit apparaat is ontgrendeld. Wijzigingen aan mappen, weergaven en back-upregels blijven synchroon met je andere apparaten.",
+    "unlockedTitle": "Instellingen worden gesynchroniseerd"
   },
   "encryption": {
     "contentRow": "Vault-inhoud versleutelen",
@@ -639,7 +647,16 @@
     "splitRight": "Rechts splitsen",
     "splitDown": "Onder splitsen",
     "versionHistory": "Versiegeschiedenis…",
-    "close": "Tabblad sluiten"
+    "close": "Tabblad sluiten",
+    "reload": "Vernieuwen",
+    "reloadDirty": "Niet-opgeslagen wijzigingen — sla eerst op en vernieuw dan.",
+    "pin": "Tabblad vastzetten",
+    "unpin": "Tabblad losmaken",
+    "closeOthers": "Andere tabbladen sluiten",
+    "closeLeft": "Tabbladen links sluiten",
+    "closeRight": "Tabbladen rechts sluiten",
+    "closeAll": "Alle tabbladen sluiten",
+    "reloadHint": "vanaf de schijf"
   },
   "sync": {
     "error": "Synchronisatiefout – klik voor details en een nieuwe poging",
@@ -1586,7 +1603,8 @@
     "properties": "Eigenschappen",
     "reorder": "Sectie verplaatsen",
     "propertiesUnavailable": "Geen eigenschappen voor dit bestand.",
-    "graph": "Graaf"
+    "graph": "Graaf",
+    "databases": "Databases"
   },
   "search": {
     "find": "Zoeken",
@@ -1824,7 +1842,6 @@
     "tabNotes": "Notities",
     "tabSearch": "Zoeken",
     "tabToday": "Vandaag",
-    "tabMore": "Meer",
     "recent": "Recent",
     "folders": "Mappen",
     "comingSoon": "Volgt in een latere stap.",
@@ -1858,9 +1875,7 @@
     "syncCreatesVaultHint": "Verbinden maakt een nieuwe, gescheiden kluis voor deze cloudlocatie.",
     "vaultAdd": "Cloudkluis verbinden",
     "vaultCreate": "Een vault maken",
-    "moreArrangeHint": "Sleep aan de greep om te ordenen. De bovenste drie verschijnen in de navigatiebalk.",
     "moreInBar": "In de navigatiebalk",
-    "moreMoreList": "Overige onderdelen",
     "activeVault": "Actieve vault",
     "vaultBlockHint": "Tik om te wisselen of te verbinden",
     "vaultAddSection": "Toevoegen",
@@ -1986,7 +2001,18 @@
     "todayNothing": "Er is op deze dag niets bewerkt.",
     "settingFolders": "Mappen",
     "settingInboxFolder": "Inbox-map",
-    "settingTemplateFolder": "Sjablonenmap"
+    "settingTemplateFolder": "Sjablonenmap",
+    "areas": "Onderdelen",
+    "navBar": "Navigatiebalk",
+    "navBarArrange": "Navigatiebalk aanpassen…",
+    "navBarCount": "Onderdelen in de balk",
+    "navBarFewer": "Minder onderdelen",
+    "navBarMore": "Meer onderdelen",
+    "navBarPreview": "Voorbeeld",
+    "navBarOutside": "Niet in de balk — bereikbaar via “Onderdelen”",
+    "navBarSummary": "{{n}} onderdelen",
+    "navBarHint": "Sleep de onderdelen naar de gewenste volgorde. De bovenste staan in de balk — de overige bereik je via “Onderdelen” boven in het scherm.",
+    "tabDatabasesShort": "DBs"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",
@@ -2829,5 +2855,40 @@
     "point2": "Databases en weergaven: Obsidian-compatibele .base-bestanden met acht weergaven — tabel, bord, kalender en meer.",
     "point3": "Verhuizen is eenvoudig: importeer je notities rechtstreeks vanuit Notion, Evernote, Google Keep, Simplenote of Logseq.",
     "start": "Aan de slag"
+  },
+  "refresh": {
+    "action": "Vault opnieuw inlezen",
+    "actionDesc": "Brengt de index in overeenstemming met de map en haalt bij online vaults ook de cloudbestanden op. Snel en zonder verlies — hetzelfde als F5.",
+    "folderAction": "Deze map opnieuw inlezen",
+    "folderDone": "Map opnieuw ingelezen · {{n}} bestanden bijgewerkt",
+    "localLine": "Lokaal: {{added}} nieuw · {{changed}} gewijzigd · {{removed}} verwijderd",
+    "skippedLine": "Overgeslagen: {{paths}}",
+    "cloudRequested": "Cloud: volledige synchronisatie aangevraagd",
+    "cloudFailed": "Cloud: kon geen synchronisatie aanvragen",
+    "failed": "De vault kon niet opnieuw worden ingelezen.",
+    "rebuildAction": "Index volledig opnieuw opbouwen",
+    "rebuildDone": "Index volledig opnieuw opgebouwd.",
+    "watcherFailed": "Externe wijzigingen worden niet meer direct opgemerkt. Plainva synchroniseert nu regelmatig — F5 leest de vault direct opnieuw in.",
+    "done": "Vault opnieuw ingelezen"
+  },
+  "dbContext": {
+    "memberOf": "Behoort tot",
+    "parent": "Bovenliggend",
+    "subItems": "Subitems",
+    "subItemCount": "{{n}} subitems",
+    "linked": "Gekoppeld",
+    "linkedEntry": "{{base}} · {{n}} items",
+    "openBaseView": "{{base}} · weergave \"{{view}}\""
+  },
+  "deviceSignIn": {
+    "action": "Op dit apparaat aanmelden",
+    "active": "actief",
+    "cardBodyOauth": "Het account kwam binnen via de instellingensynchronisatie. Aanmeldingen worden om veiligheidsredenen nooit meegesynchroniseerd — elk apparaat meldt zich zelf aan. Eenmaal aanmelden is genoeg.",
+    "cardBodyStatic": "Het account kwam binnen via de instellingensynchronisatie, maar het wachtwoord niet. Meld je eenmalig aan op dit apparaat.",
+    "cardTitle": "{{account}} ({{provider}}) is niet aangemeld op dit apparaat.",
+    "notSignedIn": "Niet aangemeld",
+    "rowHintOauth": "Binnengekomen via de instellingensynchronisatie. Aanmeldingen reizen nooit mee — verwijder het account en verbind het hieronder opnieuw.",
+    "rowHintStatic": "Het wachtwoord ontbreekt op dit apparaat. Verwijder het account en verbind het hieronder opnieuw.",
+    "signIn": "aanmelden"
   }
 }

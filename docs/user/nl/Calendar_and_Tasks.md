@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-07-21
+Laatst bijgewerkt: 2026-07-26
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -16,6 +16,8 @@ Open **Instellingen → Vault → Cloudaccounts → Account verbinden…**, kies
 - **Microsoft**: klik gewoon op **Aanmelden met Microsoft…** en bevestig in de browser — geen instelling nodig. Eén Microsoft-account kan in dezelfde stap ook **Bestanden** (OneDrive) en **E-mail** dragen.
 
 De assistent toont per dienst een status ("verbonden — n agenda's gevonden"). Je beheert daarna de **agenda's** (aangevinkte verschijnen in het agenda-tabblad) en de **takenlijsten** (bewust standaard niet aangevinkt — een vinkje start de hieronder beschreven takensynchronisatie) in het gebied **Agenda**; daar staan ook de **Vergadermap** (waar vergadernotities worden aangemaakt) en de **Standaardagenda**. Wachtwoorden en tokens komen terecht in de sleutelhanger van het besturingssysteem.
+
+**Elk apparaat meldt zich zelf aan.** Als je [instellingensynchronisatie](Sync_Setup.md#sync-versleuteling-wachtwoordzin) gebruikt, reizen de account-*gegevens* mee, maar de aanmelding nooit — die blijft bewust op het apparaat. Een account dat zo is overgenomen, verschijnt dus wel in de lijst op het andere apparaat, maar is daar nog niet aangemeld; in de [mobiele app](Mobile_App.md) draagt het dan de markering **aanmelden** en legt de agenda dat uit in plaats van leeg te blijven. Eenmaal verbinden is genoeg.
 
 ## Het agenda-tabblad
 

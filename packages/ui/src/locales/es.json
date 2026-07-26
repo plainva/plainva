@@ -6,7 +6,15 @@
     "explainer": "No se transfieren credenciales ni rutas específicas de cada dispositivo. Si cambias la configuración en más de un dispositivo, gana la versión guardada más recientemente.",
     "adopted": "Configuración adoptada desde otro dispositivo.",
     "secretsLabel": "Sincronizar credenciales de cuentas",
-    "secretsDesc": "Solo contraseñas IMAP/CalDAV estáticas y credenciales propias de Google Calendar; los tokens OAuth permanecen en este dispositivo."
+    "secretsDesc": "Solo contraseñas IMAP/CalDAV estáticas y credenciales propias de Google Calendar; los tokens OAuth permanecen en este dispositivo.",
+    "lockedBody": "Tu configuración se guarda cifrada en la nube. Introduce la frase de contraseña que elegiste al configurarlo en el escritorio — este dispositivo la desbloquea una vez con ella.",
+    "offTitle": "La configuración no se está sincronizando",
+    "passphraseTitle": "Aún no desbloqueado en este dispositivo",
+    "secretsNoteMobile": "Lo que se sincroniza es tu configuración — carpetas, vistas, reglas de copia de seguridad. Los inicios de sesión siempre permanecen en el dispositivo.",
+    "statePassphraseMissing": "Falta la frase de contraseña",
+    "stateUnlocked": "desbloqueado",
+    "unlockedBody": "Este dispositivo está desbloqueado. Los cambios en carpetas, vistas y reglas de copia de seguridad se mantienen sincronizados con tus otros dispositivos.",
+    "unlockedTitle": "La configuración se está sincronizando"
   },
   "encryption": {
     "contentRow": "Cifrar el contenido del vault",
@@ -639,7 +647,16 @@
     "splitRight": "Dividir a la derecha",
     "splitDown": "Dividir abajo",
     "versionHistory": "Historial de versiones…",
-    "close": "Cerrar pestaña"
+    "close": "Cerrar pestaña",
+    "reload": "Recargar",
+    "reloadDirty": "Cambios sin guardar — guarda primero y luego recarga.",
+    "pin": "Fijar pestaña",
+    "unpin": "Dejar de fijar pestaña",
+    "closeOthers": "Cerrar las demás pestañas",
+    "closeLeft": "Cerrar las pestañas de la izquierda",
+    "closeRight": "Cerrar las pestañas de la derecha",
+    "closeAll": "Cerrar todas las pestañas",
+    "reloadHint": "desde el disco"
   },
   "sync": {
     "error": "Error de sincronización: haz clic para ver detalles y reintentar",
@@ -1588,7 +1605,8 @@
     "properties": "Propiedades",
     "reorder": "Mover sección",
     "propertiesUnavailable": "No hay propiedades para este archivo.",
-    "graph": "Grafo"
+    "graph": "Grafo",
+    "databases": "Bases de datos"
   },
   "search": {
     "find": "Buscar",
@@ -1829,7 +1847,6 @@
     "tabNotes": "Notas",
     "tabSearch": "Búsqueda",
     "tabToday": "Hoy",
-    "tabMore": "Más",
     "recent": "Recientes",
     "folders": "Carpetas",
     "comingSoon": "Llegará en un paso posterior.",
@@ -1863,9 +1880,7 @@
     "syncCreatesVaultHint": "Conectar crea una bóveda nueva y separada para esta ubicación en la nube.",
     "vaultAdd": "Conectar una bóveda en la nube",
     "vaultCreate": "Crear un vault",
-    "moreArrangeHint": "Arrastra el tirador para ordenar. Los tres primeros aparecen en la barra de navegación.",
     "moreInBar": "En la barra de navegación",
-    "moreMoreList": "Otras secciones",
     "activeVault": "Vault activo",
     "vaultBlockHint": "Toca para cambiar o conectar",
     "vaultAddSection": "Añadir",
@@ -1992,7 +2007,18 @@
     "todayNothing": "No se editó nada este día.",
     "settingFolders": "Carpetas",
     "settingInboxFolder": "Carpeta de entrada",
-    "settingTemplateFolder": "Carpeta de plantillas"
+    "settingTemplateFolder": "Carpeta de plantillas",
+    "areas": "Áreas",
+    "navBar": "Barra de navegación",
+    "navBarArrange": "Personalizar la barra de navegación…",
+    "navBarCount": "Áreas en la barra",
+    "navBarFewer": "Menos áreas",
+    "navBarMore": "Más áreas",
+    "navBarPreview": "Vista previa",
+    "navBarOutside": "No está en la barra — se accede mediante “Áreas”",
+    "navBarSummary": "{{n}} áreas",
+    "navBarHint": "Arrastra las áreas al orden que prefieras. Las primeras están en la barra — accedes a todas las demás mediante “Áreas” en la cabecera.",
+    "tabDatabasesShort": "BDs"
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",
@@ -2844,5 +2870,40 @@
     "point2": "Bases de datos y vistas: archivos .base compatibles con Obsidian, con ocho vistas — tabla, tablero, calendario y más.",
     "point3": "Mudarte es fácil: importa tus notas directamente desde Notion, Evernote, Google Keep, Simplenote o Logseq.",
     "start": "Empezar"
+  },
+  "refresh": {
+    "action": "Volver a leer el vault",
+    "actionDesc": "Concilia el índice con la carpeta y, en vaults en línea, obtiene los archivos de la nube. Rápido y sin pérdidas — igual que F5.",
+    "folderAction": "Volver a leer esta carpeta",
+    "folderDone": "Carpeta releída · {{n}} archivos actualizados",
+    "localLine": "Local: {{added}} nuevos · {{changed}} modificados · {{removed}} eliminados",
+    "skippedLine": "Omitidos: {{paths}}",
+    "cloudRequested": "Nube: sincronización completa solicitada",
+    "cloudFailed": "Nube: no se pudo solicitar la sincronización",
+    "failed": "No se pudo volver a leer el vault.",
+    "rebuildAction": "Reconstruir el índice por completo",
+    "rebuildDone": "Índice reconstruido por completo.",
+    "watcherFailed": "Los cambios externos ya no se detectan de inmediato. Plainva ahora concilia periódicamente — F5 vuelve a leer el vault al instante.",
+    "done": "Vault releído"
+  },
+  "dbContext": {
+    "memberOf": "Pertenece a",
+    "parent": "Padre",
+    "subItems": "Subelementos",
+    "subItemCount": "{{n}} subelementos",
+    "linked": "Vinculado",
+    "linkedEntry": "{{base}} · {{n}} entradas",
+    "openBaseView": "{{base}} · vista “{{view}}”"
+  },
+  "deviceSignIn": {
+    "action": "Iniciar sesión en este dispositivo",
+    "active": "activa",
+    "cardBodyOauth": "La cuenta llegó mediante la sincronización de la configuración. Los inicios de sesión nunca se sincronizan por seguridad — cada dispositivo inicia sesión por su cuenta. Basta con iniciar sesión una vez.",
+    "cardBodyStatic": "La cuenta llegó mediante la sincronización de la configuración, pero su contraseña no. Inicia sesión una vez en este dispositivo.",
+    "cardTitle": "{{account}} ({{provider}}) no ha iniciado sesión en este dispositivo.",
+    "notSignedIn": "Sin iniciar sesión",
+    "rowHintOauth": "Llegó mediante la sincronización de la configuración. Los inicios de sesión nunca viajan — elimina la cuenta y vuelve a conectarla abajo.",
+    "rowHintStatic": "Falta la contraseña en este dispositivo. Elimina la cuenta y vuelve a conectarla abajo.",
+    "signIn": "iniciar sesión"
   }
 }

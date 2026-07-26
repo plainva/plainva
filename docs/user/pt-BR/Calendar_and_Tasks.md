@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-07-21
+Última revisão: 2026-07-26
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -14,6 +14,8 @@ Abra **Configurações → seu vault → Contas na nuvem → Conectar conta…**
 - **Microsoft**: basta clicar em **Entrar com a Microsoft…** e confirmar no navegador — nenhuma configuração é necessária. Uma conta Microsoft também pode carregar **Arquivos** (OneDrive) e **E-mail** na mesma passagem.
 
 O assistente mostra um status por serviço ("conectado — n calendários encontrados"). Você gerencia os **calendários** (os marcados aparecem na aba do calendário) e as **listas de tarefas** (desmarcadas por padrão, propositalmente — marcar uma inicia a sincronização de tarefas descrita abaixo) na área **Calendário**; a **Pasta de reuniões** (onde as notas de reunião são criadas) e o **Calendário padrão** também ficam lá. Senhas e tokens ficam no chaveiro do seu sistema operacional.
+
+**Cada dispositivo faz login por conta própria.** Se você usa a [sincronização de configurações](Sync_Setup.md#criptografia-de-sincronização-senha), os *detalhes* da conta viajam com você, mas o login nunca — ele fica propositalmente no dispositivo. Uma conta que chegou dessa forma aparece na lista no outro dispositivo, mas ainda não está conectada ali; no [app mobile](Mobile_App.md), ela então carrega o marcador **entrar** e o calendário explica isso em vez de ficar vazio. Basta conectar uma vez.
 
 ## A aba do calendário
 

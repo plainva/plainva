@@ -5,7 +5,6 @@ import {
   Calendar,
   Cloud,
   Database as DatabaseIcon,
-  Ellipsis,
   FileText,
   FolderPlus,
   Plus,
@@ -41,7 +40,8 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
-import { MoreScreen } from "./screens/MoreScreen";
+import { NavBarScreen } from "./screens/NavBarScreen";
+import { AreasSheet } from "./components/AreasSheet";
 import { GraphScreen } from "./screens/GraphScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
@@ -51,6 +51,8 @@ import {
   activeFolderPath,
   backStep,
   barTabs,
+  ensureVisibleTab,
+  sanitizeBarTabCount,
   initialNavState,
   navTop,
   popTop,
@@ -97,6 +99,10 @@ export default function App() {
   const [slots, setSlots] = useState<TabScreenId[]>(() =>
     sanitizeTabSlots(getMobileSettings().tabSlots),
   );
+  // How many areas the bar shows (plan P5: 3–5, no fixed "More" tab).
+  const [barCount, setBarCount] = useState<number>(() => sanitizeBarTabCount(getMobileSettings().barTabCount));
+  /** Areas sheet: the one place that reaches every area (E10). */
+  const [areasOpen, setAreasOpen] = useState(false);
   const [nav, setNav] = useState<NavState>(() => initialNavState(slots[0]));
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
@@ -169,9 +175,13 @@ export default function App() {
     // active tab must stay a BAR tab (first three) — rearranging the active
     // one out of the bar falls back to the first bar slot.
     const onSettings = () => {
-      const next = sanitizeTabSlots(getMobileSettings().tabSlots);
+      const settings = getMobileSettings();
+      const next = sanitizeTabSlots(settings.tabSlots);
+      const nextCount = sanitizeBarTabCount(settings.barTabCount);
       setSlots((prev) => (prev.join() === next.join() ? prev : next));
-      setNav((s) => (barTabs(next).includes(s.activeTab) ? s : { ...s, activeTab: barTabs(next)[0] }));
+      setBarCount(nextCount);
+      // Shrinking or rearranging the bar can push the active tab out of it.
+      setNav((s) => ensureVisibleTab(s, barTabs(next, nextCount)));
     };
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
@@ -313,11 +323,31 @@ export default function App() {
     return () => window.removeEventListener("m-open-security", openSecurity);
   }, []);
 
+  // Long press on the navigation bar opens the areas sheet (P5/E10) — the
+  // shortcut next to the discoverable title ▾. A short tap must stay a tab
+  // switch, so the timer is cancelled on pointerup/leave. Declared above the
+  // early return: hooks must run in the same order on every render.
+  const barPressTimer = useRef<number | null>(null);
+
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);
 
   const push = (entry: NavEntry) => setNav((s) => pushEntry(s, entry));
+
+  const cancelBarPress = () => {
+    if (barPressTimer.current !== null) {
+      window.clearTimeout(barPressTimer.current);
+      barPressTimer.current = null;
+    }
+  };
+  const beginBarPress = () => {
+    cancelBarPress();
+    barPressTimer.current = window.setTimeout(() => {
+      haptics.medium();
+      setAreasOpen(true);
+    }, 450);
+  };
   const pop = () => {
     setNav(popTop);
     setBump((n) => n + 1);
@@ -589,10 +619,11 @@ export default function App() {
 
       {/* One shared large head on every tab root — title, search and ⋮ sit in
           the same spot everywhere (maintainer feedback: nothing may jump).
-          The ⋮ opens the SETTINGS directly (redesign P3); the area overview
-          lives behind the bar's fixed More tab instead. */}
+          The ⋮ opens the SETTINGS directly (redesign P3); the TITLE opens the
+          areas sheet (P5/E10), which replaced the bar's fixed More tab. */}
       {!top && (
         <TabHead
+          onAreas={() => setAreasOpen(true)}
           onSettings={() => push({ kind: "settings", path: "" })}
           // The graph tab carries its own live map-filter search field; the
           // shell's full-text search pill would be a confusing second search
@@ -631,6 +662,8 @@ export default function App() {
                       ? push({ kind: "pimaccounts", path: "" })
                       : push({ kind: "settingsArea", path: id })
             }
+            onOpenNavBar={() => push({ kind: "more", path: "" })}
+            barCount={barCount}
             onOpenVaults={() => push({ kind: "vaults", path: "" })}
           />
         ) : top?.kind === "settingsArea" ? (
@@ -705,9 +738,10 @@ export default function App() {
         ) : top?.kind === "search" ? (
           <SearchScreen onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "more" ? (
-          <MoreScreen
+          <NavBarScreen
+            barCount={barCount}
             onBack={pop}
-            onOpenScreen={(id) => push(SCREEN_ENTRY[id])}
+            onBarCount={(n) => void updateMobileSettings({ barTabCount: sanitizeBarTabCount(n) })}
             onReorder={(next) => void updateMobileSettings({ tabSlots: next })}
             order={slots}
           />
@@ -777,27 +811,48 @@ export default function App() {
       )}
 
       {!noteOpen && (
-        <nav aria-label="Tabs" className="m-tabbar">
-          {barTabs(slots).map((id) => (
+        // No fixed "More" tab any more (plan P5): the bar carries 3–5 areas
+        // and nothing else. A LONG PRESS anywhere on it opens the areas sheet
+        // — the shortcut for frequent users; the app-bar title (▾) is the
+        // discoverable way in. A short tap stays a tab switch.
+        <nav
+          aria-label="Tabs"
+          className="m-tabbar"
+          onContextMenu={(e) => { e.preventDefault(); haptics.medium(); setAreasOpen(true); }}
+          onPointerDown={beginBarPress}
+          onPointerUp={cancelBarPress}
+          onPointerCancel={cancelBarPress}
+          onPointerLeave={cancelBarPress}
+        >
+          {barTabs(slots, barCount).map((id) => (
             <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
           ))}
-          {/* Fixed More tab: opens the area overview (arrange + everything
-              else); tapping it again keeps it open, any other tab dismisses. */}
-          <button
-            className={`m-tab${top?.kind === "more" ? " is-active" : ""}`}
-            onClick={() => {
-              haptics.light();
-              setNav((s) => (navTop(s)?.kind === "more" ? s : pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" })));
-            }}
-          >
-            <span className="m-tab-pill">
-              <Ellipsis size={20} />
-            </span>
-            <span className="m-tab-label">{t("mobile.tabMore")}</span>
-          </button>
         </nav>
       )}
 
+      {areasOpen && (
+        <AreasSheet
+          active={nav.activeTab}
+          onArrange={() => {
+            setAreasOpen(false);
+            // Straight to the setting that arranges the bar — noticing "this
+            // should be in the bar" and fixing it is one tap apart.
+            setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" }));
+          }}
+          onClose={() => setAreasOpen(false)}
+          onPick={(id) => {
+            setAreasOpen(false);
+            haptics.light();
+            // In the bar → switch tabs. Outside it → push the screen as an
+            // overlay, so back returns to where the user came from.
+            setNav((s) =>
+              barTabs(slots, barCount).includes(id)
+                ? tapTab(s, id)
+                : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY[id])
+            );
+          }}
+        />
+      )}
       {oauthPick && (
         <CloudFolderPickerSheet
           title={t("mobile.syncFolder")}
@@ -882,7 +937,9 @@ function TabButton({
       <span className="m-tab-pill">
         <Icon size={20} />
       </span>
-      <span className="m-tab-label">{t(def.labelKey)}</span>
+      {/* Bar-specific short name where one exists (E7) — an ellipsis
+          ("Datenbanke…") is not a shortened label, it is a broken one. */}
+      <span className="m-tab-label">{t(def.barLabelKey ?? def.labelKey)}</span>
     </button>
   );
 }

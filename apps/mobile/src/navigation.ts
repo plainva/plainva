@@ -2,12 +2,15 @@ import type { ComponentType } from "react";
 import { Bookmark, Sun, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
 
 /**
- * Configurable bottom navigation (settings redesign 2026-07-18, P3): the bar
- * carries THREE free slots plus a fixed "More" tab; ＋ capture floats as a
- * FAB. The persisted `tabSlots` value is the FULL ordered pool — the bar
- * renders its first three entries, the More screen shows the whole order and
- * rearranges it with a drag handle. Every pool screen stays reachable through
- * "More" regardless of the arrangement.
+ * Configurable bottom navigation. The persisted `tabSlots` value is the FULL
+ * ordered pool; the bar renders its first `barTabCount` entries.
+ *
+ * Since 2026-07-25 (plan P5) there is NO fixed "More" tab: the bar carries
+ * 3 to 5 areas and nothing else — exactly the Material range for a bottom
+ * navigation, which is also why the labels can stay. The areas outside the bar
+ * are reached through the AREAS sheet, opened from the app-bar title ("Home ▾")
+ * or by long-pressing the bar (E10). Arranging moved out of the More screen
+ * into Settings → Navigation bar.
  */
 
 export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "databases" | "graph";
@@ -16,6 +19,13 @@ export interface TabDef {
   id: TabScreenId;
   icon: ComponentType<{ size?: number | string; className?: string }>;
   labelKey: string;
+  /**
+   * Shorter label for the navigation bar, where five destinations leave ~75 px
+   * per tab (E7: long names are SHORTENED, never dropped). Only set where the
+   * full name does not fit; everywhere else — areas sheet, settings — the full
+   * `labelKey` is used.
+   */
+  barLabelKey?: string;
 }
 
 export const TAB_POOL: TabDef[] = [
@@ -24,13 +34,24 @@ export const TAB_POOL: TabDef[] = [
   { id: "tags", icon: Hash, labelKey: "mobile.tags" },
   { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
-  { id: "databases", icon: Database, labelKey: "mobile.tabDatabases" },
+  { id: "databases", icon: Database, labelKey: "mobile.tabDatabases", barLabelKey: "mobile.tabDatabasesShort" },
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
 
-/** Default order = pool order; the bar shows the first BAR_TAB_COUNT. */
+/** Default order = pool order; the bar shows the first `barTabCount` entries. */
 export const DEFAULT_TAB_ORDER: TabScreenId[] = TAB_POOL.map((t) => t.id);
-export const BAR_TAB_COUNT = 3;
+
+/** Hard bounds of the bar (Material: 3–5 destinations). */
+export const MIN_BAR_TABS = 3;
+export const MAX_BAR_TABS = 5;
+export const DEFAULT_BAR_TAB_COUNT = MIN_BAR_TABS;
+
+/** Clamps a persisted/stepped count into the allowed range. */
+export function sanitizeBarTabCount(raw: unknown): number {
+  const n = typeof raw === "number" ? Math.round(raw) : Number.NaN;
+  if (!Number.isFinite(n)) return DEFAULT_BAR_TAB_COUNT;
+  return Math.max(MIN_BAR_TABS, Math.min(MAX_BAR_TABS, n));
+}
 
 const POOL_IDS = new Set<string>(TAB_POOL.map((t) => t.id));
 
@@ -54,13 +75,13 @@ export function sanitizeTabSlots(raw: unknown): TabScreenId[] {
   return out;
 }
 
-/** The bar's free slots — the first three entries of the full order. */
-export function barTabs(order: TabScreenId[]): TabScreenId[] {
-  return order.slice(0, BAR_TAB_COUNT);
+/** The bar's slots — the first `count` entries of the full order. */
+export function barTabs(order: TabScreenId[], count: number = DEFAULT_BAR_TAB_COUNT): TabScreenId[] {
+  return order.slice(0, sanitizeBarTabCount(count));
 }
 
 /**
- * Drag-handle reorder (More screen): moves `id` to `toIndex` within the full
+ * Drag-handle reorder (Settings → Navigation bar): moves `id` to `toIndex` within the full
  * order. Bar membership follows from POSITION (top three), never from a
  * separate selection — dragging into the top three promotes into the bar.
  */
@@ -96,6 +117,7 @@ export type NavKind =
   | "bookmarks"
   | "search"
   | "more"
+  | "areas"
   | "settings"
   | "settingsArea"
   | "vaults"
@@ -117,7 +139,7 @@ export interface NavEntry {
   createTemplateId?: string;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "sync", "vault"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "sync", "vault"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 
@@ -198,6 +220,16 @@ export function tapTab(state: NavState, id: TabScreenId): NavState {
     return { ...state, overlay: [], stacks: { ...state.stacks, [id]: [] } };
   }
   return { ...state, overlay: [], activeTab: id };
+}
+
+/**
+ * Keeps the active tab inside the bar. Shrinking the bar (or reordering it) can
+ * push the current tab out; without this the bar would show no selection at all
+ * and the user would be looking at a screen they cannot navigate back to.
+ */
+export function ensureVisibleTab(state: NavState, visible: TabScreenId[]): NavState {
+  if (visible.length === 0 || visible.includes(state.activeTab)) return state;
+  return { ...state, activeTab: visible[0] };
 }
 
 /** Android back: overlay first, then the tab stack, else minimize the app. */
