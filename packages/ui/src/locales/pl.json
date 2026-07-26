@@ -2388,7 +2388,9 @@
     "presetUnknown": "Plainva nie zna jeszcze tego dostawcy — połącz skrzynkę na komputerze, gdzie możesz samodzielnie podać serwer i port.",
     "deleted": "Przeniesiono do kosza",
     "deleteForeverConfirm": "Usunąć tę wiadomość bezpowrotnie?",
-    "noTrashFolder": "Ta skrzynka nie ma kosza — usuń wiadomość u swojego dostawcy."
+    "noTrashFolder": "Ta skrzynka nie ma kosza — usuń wiadomość u swojego dostawcy.",
+    "search": "Szukaj w tym folderze",
+    "attachmentSaved": "Zapisano jako {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

@@ -2374,7 +2374,9 @@
     "presetUnknown": "Plainva kent deze provider nog niet — verbind de postbus op de desktop, daar kun je server en poort zelf invullen.",
     "deleted": "Naar prullenbak verplaatst",
     "deleteForeverConfirm": "Dit bericht definitief verwijderen?",
-    "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider."
+    "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider.",
+    "search": "Zoeken in deze map",
+    "attachmentSaved": "Opgeslagen als {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

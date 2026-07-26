@@ -12,6 +12,7 @@ import {
   graphListFolders,
   graphListEnvelopes,
   graphFetchMessage,
+  graphFetchAttachment,
   graphFetchRaw,
   graphSetSeen,
   graphMove,
@@ -85,6 +86,19 @@ export async function fetchMessage(vaultPath: string, account: MailAccountConfig
 export async function fetchRawMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<string> {
   if (mailAccountKind(account) === "microsoft") return graphFetchRaw(vaultPath, account, mailbox, id);
   return mailTransport().fetchRaw(await creds(vaultPath, account), { mailbox, uid: Number(id) });
+}
+
+/** One attachment's bytes, base64 (mail feinplan G3 — the first caller of the
+ *  transport operation that has existed unused since the desktop client). */
+export async function fetchAttachment(
+  vaultPath: string,
+  account: MailAccountConfig,
+  mailbox: string,
+  id: string,
+  index: number
+): Promise<string> {
+  if (mailAccountKind(account) === "microsoft") return graphFetchAttachment(vaultPath, account, mailbox, id, index);
+  return mailTransport().fetchAttachment(await creds(vaultPath, account), { mailbox, uid: Number(id), index });
 }
 
 // ---- Mailbox actions (mail-client E4) -------------------------------------

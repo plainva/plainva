@@ -2374,7 +2374,9 @@
     "presetUnknown": "Plainva does not know this provider yet — connect the mailbox on the desktop, where you can enter server and port yourself.",
     "deleted": "Moved to trash",
     "deleteForeverConfirm": "Delete this message for good?",
-    "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider."
+    "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider.",
+    "search": "Search this folder",
+    "attachmentSaved": "Saved to {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

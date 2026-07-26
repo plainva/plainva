@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, FileText, Reply, Star, Trash2 } from "lucide-react";
-import { EmptyState, toast } from "@plainva/ui";
+import { ChevronLeft, FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
+import { EmptyState, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
   buildReplyBody,
   captureMailAsNote,
+  fetchAttachment,
   deleteMessagePermanently,
   fetchMessage,
   guessTrashMailbox,
@@ -136,6 +137,33 @@ export function MailMessageScreen({
     }
   };
 
+  /** Saves an attachment into the vault, next to where captured mail lands —
+   *  a phone has no "download folder" the app may write to, and a file inside
+   *  the vault syncs with everything else. */
+  const saveAttachment = async (index: number, name: string) => {
+    if (!vaultId || !account) return;
+    setBusy(true);
+    try {
+      const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
+      const folder = `${getMobileSettings().mailFolder || "Mail"}/Attachments`;
+      await vault.files.createDir(folder).catch(() => undefined);
+      const safe = safeFileStem(name.replace(/\.[^.]+$/, "")) ?? "attachment";
+      const ext = /\.([^.]+)$/.exec(name)?.[1] ?? "bin";
+      let path = `${folder}/${safe}.${ext}`;
+      // Never overwrite: two mails may carry the same file name.
+      for (let n = 2; await vault.files.exists(path); n++) path = `${folder}/${safe}-${n}.${ext}`;
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await vault.files.writeBinaryFile(path, bytes);
+      toast.success(t("mail.attachmentSaved", { name: path }));
+    } catch (e) {
+      toast.error(describe(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const capture = async () => {
     if (!message || !account) return;
     setBusy(true);
@@ -199,7 +227,24 @@ export function MailMessageScreen({
           )}
 
           {message.attachments.length > 0 && (
-            <p className="m-hint">{t("mail.attachmentsMobile", { count: message.attachments.length })}</p>
+            <ul className="m-maillist">
+              {message.attachments.map((a) => (
+                <li key={a.index}>
+                  <button
+                    type="button"
+                    className="m-row"
+                    disabled={busy}
+                    onClick={() => void saveAttachment(a.index, a.name)}
+                  >
+                    <Paperclip size={16} />
+                    <span className="m-linestack">
+                      {a.name}
+                      <small>{formatSize(a.size)}</small>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
 
           <div className="m-btnrow">
@@ -233,4 +278,10 @@ export function MailMessageScreen({
 function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
   return e instanceof Error ? e.message : String(e);
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -266,6 +266,35 @@ export async function graphListFolders(vaultPath: string, account: MailAccountCo
   return folders.map((f) => ({ name: f.displayName, role: roles.get(f.id), delimiter: "/" }));
 }
 
+/**
+ * One attachment's bytes, base64 (mail feinplan G3). The index is the position
+ * in the list `graphFetchMessage` reported, so the reader can name what it is
+ * asking for without carrying Graph's opaque attachment ids around.
+ */
+export async function graphFetchAttachment(
+  vaultPath: string,
+  account: MailAccountConfig,
+  _mailbox: string,
+  id: string,
+  index: number
+): Promise<string> {
+  const rt = await runtimeFor(vaultPath, account);
+  const list = await graphJson<{ value?: Array<{ id?: string; contentBytes?: string }> }>(
+    rt,
+    "GET",
+    `/me/messages/${encodeURIComponent(id)}/attachments?$select=id`
+  );
+  const item = (list.value ?? [])[index];
+  if (!item?.id) throw new Error("attachment not found");
+  const full = await graphJson<{ contentBytes?: string }>(
+    rt,
+    "GET",
+    `/me/messages/${encodeURIComponent(id)}/attachments/${encodeURIComponent(item.id)}`
+  );
+  if (!full.contentBytes) throw new Error("this attachment has no downloadable content");
+  return full.contentBytes;
+}
+
 /** The account's primary address (Graph /me) for the display label; also a
  * cheap validation call after connecting (a login that cannot read /me is a
  * failed login). */

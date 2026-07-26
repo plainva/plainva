@@ -2381,7 +2381,9 @@
     "presetUnknown": "Plainva todavía no conoce este proveedor: conecta el buzón en el escritorio, donde puedes indicar servidor y puerto tú mismo.",
     "deleted": "Movido a la papelera",
     "deleteForeverConfirm": "¿Eliminar definitivamente este mensaje?",
-    "noTrashFolder": "Este buzón no tiene papelera: elimina el mensaje en tu proveedor."
+    "noTrashFolder": "Este buzón no tiene papelera: elimina el mensaje en tu proveedor.",
+    "search": "Buscar en esta carpeta",
+    "attachmentSaved": "Guardado en {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

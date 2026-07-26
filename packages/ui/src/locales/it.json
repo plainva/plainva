@@ -2381,7 +2381,9 @@
     "presetUnknown": "Plainva non conosce ancora questo provider: collega la casella sul computer, dove puoi indicare server e porta.",
     "deleted": "Spostato nel cestino",
     "deleteForeverConfirm": "Eliminare definitivamente questo messaggio?",
-    "noTrashFolder": "Questa casella non ha un cestino: elimina il messaggio presso il tuo provider."
+    "noTrashFolder": "Questa casella non ha un cestino: elimina il messaggio presso il tuo provider.",
+    "search": "Cerca in questa cartella",
+    "attachmentSaved": "Salvato in {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "File",

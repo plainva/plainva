@@ -2887,3 +2887,24 @@ textarea {
 }
 
 .m-sheet--folders { max-height: 70vh; overflow-y: auto; }
+
+/* Mail search sits with the list, not in the app bar: the app bar's search is
+   the vault's, and two searches in one place would be ambiguous. */
+.m-mailsearch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-color-light);
+  color: var(--text-muted);
+}
+.m-mailsearch input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  font-size: var(--text-ui);
+}
+.m-mailsearch input:focus { outline: none; }

@@ -2367,7 +2367,9 @@
     "presetUnknown": "このプロバイダーはまだ登録されていません。サーバーとポートを自分で入力できるデスクトップで接続してください。",
     "deleted": "ごみ箱に移動しました",
     "deleteForeverConfirm": "このメールを完全に削除しますか？",
-    "noTrashFolder": "このメールボックスにはごみ箱がありません。プロバイダー側で削除してください。"
+    "noTrashFolder": "このメールボックスにはごみ箱がありません。プロバイダー側で削除してください。",
+    "search": "このフォルダー内を検索",
+    "attachmentSaved": "{{name}} に保存しました"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

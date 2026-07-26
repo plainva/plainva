@@ -2381,7 +2381,9 @@
     "presetUnknown": "O Plainva ainda não conhece este provedor — conecte a caixa de correio no computador, onde você pode informar servidor e porta.",
     "deleted": "Movido para a lixeira",
     "deleteForeverConfirm": "Excluir esta mensagem definitivamente?",
-    "noTrashFolder": "Esta caixa não tem lixeira — exclua a mensagem no seu provedor."
+    "noTrashFolder": "Esta caixa não tem lixeira — exclua a mensagem no seu provedor.",
+    "search": "Pesquisar nesta pasta",
+    "attachmentSaved": "Salvo em {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

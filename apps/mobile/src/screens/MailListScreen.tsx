@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronDown, Mail, PenLine, Settings, Star } from "lucide-react";
+import { ChevronLeft, ChevronDown, Mail, PenLine, Search, Settings, Star, X } from "lucide-react";
 import { EmptyState, toast, useStableHandler } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
-import { listEnvelopes, listMailboxesFor, mailFolderLabel, sortMailFolders } from "@plainva/ui/mail";
+import { listEnvelopes, listMailboxesFor, mailFolderLabel, searchEnvelopes, sortMailFolders } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -43,6 +43,8 @@ export function MailListScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
@@ -130,6 +132,33 @@ export function MailListScreen({
     }
   };
 
+  /** Server-side search (G3): the phone holds one page, so filtering locally
+   *  would only ever find what is already on screen. */
+  const runSearch = async () => {
+    const account = accountById(accountId);
+    const term = query.trim();
+    if (!vault || !account || !mailbox || !term) return;
+    setSearching(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const hits = await searchEnvelopes(vault, account, mailbox, term);
+      setRows(hits);
+      setTotal(hits.length);
+    } catch (e) {
+      setError(describeError(e));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    setSearching(false);
+    void load();
+  };
+
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
@@ -173,6 +202,22 @@ export function MailListScreen({
         <ChevronDown size={16} />
       </button>
 
+      <div className="m-mailsearch">
+        <Search size={16} />
+        <input
+          type="search"
+          value={query}
+          placeholder={t("mail.search")}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void runSearch()}
+        />
+        {searching && (
+          <button type="button" className="m-iconbtn" aria-label={t("sidebar.clearSearch")} onClick={clearSearch}>
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
       {error ? (
         <EmptyState icon={<Mail size={20} />}>{error}</EmptyState>
       ) : rows.length === 0 && !loading ? (
@@ -200,7 +245,7 @@ export function MailListScreen({
         </ul>
       )}
 
-      {rows.length < total && (
+      {!searching && rows.length < total && (
         <button type="button" className="m-btn m-btn--ghost" disabled={loading} onClick={() => void loadMore()}>
           {t("mail.loadMore")}
         </button>

@@ -2381,7 +2381,9 @@
     "presetUnknown": "Plainva ne connaît pas encore ce fournisseur — connecte la boîte sur l’ordinateur, où tu peux saisir le serveur et le port toi-même.",
     "deleted": "Déplacé vers la corbeille",
     "deleteForeverConfirm": "Supprimer définitivement ce message ?",
-    "noTrashFolder": "Cette boîte n’a pas de corbeille — supprime le message chez ton fournisseur."
+    "noTrashFolder": "Cette boîte n’a pas de corbeille — supprime le message chez ton fournisseur.",
+    "search": "Rechercher dans ce dossier",
+    "attachmentSaved": "Enregistré sous {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

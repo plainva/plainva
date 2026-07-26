@@ -2367,7 +2367,9 @@
     "presetUnknown": "Plainva 还不认识这个提供商——请在桌面端连接该邮箱，那里可以自行填写服务器和端口。",
     "deleted": "已移至回收站",
     "deleteForeverConfirm": "要永久删除这封邮件吗？",
-    "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。"
+    "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。",
+    "search": "在此文件夹中搜索",
+    "attachmentSaved": "已保存到 {{name}}"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",
