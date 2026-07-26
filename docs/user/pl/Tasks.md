@@ -1,7 +1,6 @@
 # Zadania
 
-Stan na: 2026-07-22
-
+Stan na: 2026-07-26
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
 ## Dlaczego osobny widok (a nie `.base`)
@@ -53,6 +52,8 @@ Każdy wiersz zadania niesie ikonę bazy danych: **Przenieś do bazy zadań**. J
 - zastępuje linię pola wyboru w notatce źródłowej linkiem wiki do nowej notatki zadania — element pozostaje czytelny tam, gdzie został napisany, a zadanie żyje teraz w bazie danych.
 
 **Kliknij prawym przyciskiem** ikonę, aby zamiast tego wybrać inną bazę danych jako cel; jeśli nie ustawiono domyślnej bazy danych, kliknięcie od razu otwiera ten wybór. Wszystko pozostaje zwykłym Markdownem: nowe zadanie to zwykła notatka z frontmatter, a link w notatce źródłowej to normalny `[[link wiki]]`.
+
+**+ Nowe zadanie** w nagłówku sekcji tworzy wpis bezpośrednio w bazie zadań (ten sam folder zapisu, szablon i wartości domyślne co przy przenoszeniu pola wyboru) i otwiera go. Pola wyboru napisane w notatce w niej pozostają — zadaniami bazy stają się dopiero wtedy, gdy je przeniesiesz.
 
 ## Ukrywanie notatek z widoku Zadania
 

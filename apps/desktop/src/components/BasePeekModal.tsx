@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Columns2, Maximize2, PanelRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Columns2, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
-import { FloatingWindow, ICON, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
+import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
 
 // Floating peek window for notes opened from a `.base` view or the graph.
@@ -26,6 +26,8 @@ export function BasePeekModal({
   onClose,
   onMaximize,
   onOpenSplit,
+  onRename,
+  onDelete,
 }: {
   /** Initial note or `.base`; the host may change it to open another entry into
    * the same window — that pushes onto the history (browser-like). */
@@ -35,6 +37,13 @@ export function BasePeekModal({
   onMaximize: (path: string) => void;
   /** Open the CURRENT peek target in the neighboring pane; absent when no split host exists. */
   onOpenSplit?: (path: string) => void;
+  /**
+   * Entry actions (issue #34). The peek deliberately hides the editor's own ⋮,
+   * so an entry opened from a database had no way to be renamed or deleted —
+   * you had to find the note in the file tree. The host supplies both.
+   */
+  onRename?: (path: string) => void;
+  onDelete?: (path: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -70,6 +79,8 @@ export function BasePeekModal({
   // (the peek Editor publishes here instead of the global sidebar channel).
   const peekChannel = useMemo(() => createDocChannel(), []);
   const [showProps, setShowProps] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   const title = current.split(/[/\\]/).pop()?.replace(/\.(md|base)$/i, "") || current;
   const propsLabel = t("rightPanel.properties", { defaultValue: "Eigenschaften" });
@@ -105,7 +116,13 @@ export function BasePeekModal({
               <ArrowRight size={ICON.ui} />
             </button>
           </div>
-          <span className="pv-peek-title" data-tip={current}>{title}</span>
+          <span
+            className="pv-peek-title"
+            data-tip={onRename && !isBase ? t("database.entryRenameHint") : current}
+            onDoubleClick={onRename && !isBase ? () => onRename(current) : undefined}
+          >
+            {title}
+          </span>
           <div className="pv-peek-actions">
             {onOpenSplit && (
               <button
@@ -139,6 +156,19 @@ export function BasePeekModal({
             >
               <Maximize2 size={ICON.ui} />
             </button>
+            {(onRename || onDelete) && !isBase && (
+              <button
+                ref={menuBtnRef}
+                type="button"
+                className="pv-peek-btn"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label={t("common.moreActions")}
+                data-tip={t("common.moreActions")}
+                data-testid="peek-menu-btn"
+              >
+                <MoreVertical size={ICON.ui} />
+              </button>
+            )}
             <button
               type="button"
               className="pv-peek-btn"
@@ -148,6 +178,24 @@ export function BasePeekModal({
             >
               <X size={ICON.ui} />
             </button>
+            {menuOpen && (
+              <MenuSurface open anchorRef={menuBtnRef} align="right" onClose={() => setMenuOpen(false)} ariaLabel={t("database.entryActions")}>
+                <MenuLabel>{t("database.entry")}</MenuLabel>
+                {onRename && (
+                  <MenuItem data-testid="peek-menu-rename" onSelect={() => { setMenuOpen(false); onRename(current); }}>
+                    {t("database.entryRename")}
+                  </MenuItem>
+                )}
+                {onDelete && (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem danger onSelect={() => { setMenuOpen(false); onDelete(current); }}>
+                      {t("database.entryDelete")}
+                    </MenuItem>
+                  </>
+                )}
+              </MenuSurface>
+            )}
           </div>
         </>
       }

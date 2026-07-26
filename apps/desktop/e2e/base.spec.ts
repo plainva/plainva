@@ -560,6 +560,40 @@ test('Base table: rows render, filter row narrows, sort rule flips order', async
 // although every row carried the tag (the predicate stringified the list), and the
 // value dropdown then degraded to a text input because its options were derived
 // from the (now empty) filtered rows instead of the source.
+// Issue #34: "Creating a new entry … doesn't allow you to choose a name or
+// rename it or delete it, other than by renaming or deleting the linked file."
+// No base view had a row menu, and the peek hides the editor's ⋮.
+test('Base table: right-clicking a row renames the entry and carries its heading', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+
+  const table = page.locator('table');
+  await expect(table.getByText('Alpha')).toBeVisible();
+  await table.locator('tbody tr').filter({ hasText: 'Alpha' }).click({ button: 'right' });
+
+  await page.getByRole('menuitem', { name: /Umbenennen|Rename/ }).click();
+  const dlg = page.getByRole('dialog', { name: /Umbenennen|Rename/ });
+  await expect(dlg).toBeVisible();
+  const input = dlg.getByRole('textbox');
+  await expect(input).toHaveValue('Alpha');
+  await input.fill('Fencing quote');
+  await dlg.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+
+  // The rename runs write → move → reindex, so poll the disk rather than
+  // reading it once (a single read raced the move under full-suite load).
+  await expect
+    .poll(() =>
+      page.evaluate(() => '/test-vault/Projekte/Alpha.md' in (window as any).mockFs),
+    )
+    .toBe(false);
+  // The heading mirrored the file name, so it travels with it — otherwise the
+  // note would still call itself "Alpha" in its own text.
+  const renamed = await page.evaluate(
+    () => (window as any).mockFs['/test-vault/Projekte/Fencing quote.md'] as string,
+  );
+  expect(renamed).toContain('# Fencing quote');
+});
+
 test('Base filter on a list property: "is" matches membership and the value dropdown survives', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Cockpit');

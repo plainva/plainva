@@ -1,7 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-07-22
-
+Ultimo aggiornamento: 2026-07-26
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
 ## Perché una vista separata (e non un `.base`)
@@ -53,6 +52,8 @@ Ogni riga di attività porta un'icona di database: **Sposta nel database delle a
 - sostituisce la riga della casella di controllo nella nota di origine con un wiki-link alla nuova nota attività — la voce resta leggibile dove è stata scritta, e l'attività ora vive nel database.
 
 **Clic destro** sull'icona per scegliere invece un database diverso come destinazione; senza un database predefinito, il clic apre subito quel selettore. Tutto resta puro Markdown: la nuova attività è una nota normale con frontmatter, e il link nella nota di origine è un normale `[[wiki-link]]`.
+
+**+ Nuova attività** nell'intestazione della sezione crea una voce direttamente nel database attività (stessa cartella di archiviazione, stesso modello e stessi valori predefiniti dello spostamento di una casella) e la apre. Le caselle scritte in una nota restano in quella nota: diventano attività del database solo quando le sposti.
 
 ## Nascondere le note dalla vista Attività
 

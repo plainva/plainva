@@ -99,6 +99,8 @@ export function BaseTimelineView({
                     {dayItems.map(({ row, isStart, isSpan }, idx) => (
                       isStart ? (
                         <div key={(row["file.path"] || idx) + "-s"} {...cardHandlers(row["file.path"])}
+                          data-testid="base-row"
+                          onContextMenu={(e) => cells.onRowContextMenu?.(row["file.path"], e)}
                           onClick={(e) => onOpenNote?.(row["file.path"], e)} data-tip={row["file.name"]}
                           style={{ background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.4rem 0.5rem", borderRadius: "var(--radius-sm)", borderLeft: "3px solid var(--accent-color)", fontSize: "var(--text-sm)", cursor: "pointer", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}>
                           <div style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row["file.name"]}</div>

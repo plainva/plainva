@@ -221,6 +221,8 @@ export function BaseBoardView({
               {groups[groupKey].map((row, idx) => (
                 <div
                   key={row['file.path'] || idx}
+                  data-testid="base-row"
+                  onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
                   {...(isReverseGroup ? {} : cardHandlers(cardKeyOf(row['file.path'], groupKey)))}
                   onClick={(e) => onOpenNote?.(row['file.path'], e)}
                   style={{ background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey) ? 0.45 : 1 }}

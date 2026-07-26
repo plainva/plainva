@@ -11,6 +11,7 @@ import {
 } from "../services/cascadeDelete";
 import { getTaskDatabasePath } from "../services/taskDatabase";
 import { applyIndexChanges } from "../services/fileActions";
+import { appConfirm } from "../services/appDialogs";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { CascadeDeleteModal } from "./CascadeDeleteModal";
 
@@ -93,6 +94,29 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
       toast.error(d.t("dialogs.bulkErrorsMsg", { count: result.errors.length, names: result.errors.join(", ") }));
     } else if (result.deleted.length > 0) {
       toast.info(d.t("cascade.deletedToast", { count: result.deleted.length }));
+    }
+
+    // A database creates its storage folder, and deleting the database left it
+    // behind empty (issue #34). Offered, never silent — the folder is the
+    // user's, even when Plainva made it.
+    for (const folder of result.emptiedFolders) {
+      const ok = await appConfirm({
+        title: d.t("cascade.emptyFolderTitle"),
+        message: d.t("cascade.emptyFolderMsg", { folder }),
+        confirmLabel: d.t("cascade.emptyFolderConfirm"),
+        kind: "danger",
+      });
+      if (!ok) continue;
+      try {
+        d.syncWorker?.noteUserInitiatedDeletion([folder]);
+        await d.vaultAdapter.deleteItem(folder, true);
+        if (d.indexer) await applyIndexChanges(d.indexer, { needsFullScan: true });
+        d.triggerFileTreeUpdate();
+        notifyFileOps([{ type: "delete", path: folder, isFolder: true }]);
+      } catch (e) {
+        console.error("cascade empty-folder delete failed", folder, e);
+        toast.error(d.t("dialogs.deleteErrorMsg", { error: e instanceof Error ? e.message : String(e) }));
+      }
     }
     finish(result.deleted.length > 0);
   };

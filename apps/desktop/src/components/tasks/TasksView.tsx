@@ -7,10 +7,11 @@ import { Select } from "../Select";
 import { useVault, templateFolderKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
-import { promoteTask } from "../../services/taskPromotion";
+import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
+import { appPrompt } from "../../services/appDialogs";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
 const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
@@ -293,6 +294,40 @@ export function TasksView({ onOpenPath }: Props) {
     },
     [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, t]
   );
+
+  /** Create an entry directly in the task database (issue #34): the section
+   *  could only tick and open, so adding a task meant opening the `.base`. */
+  const createDbTask = useCallback(async () => {
+    if (!vaultAdapter || !vaultPath || !taskDb) return;
+    const title = await appPrompt({
+      title: t("tasks.newDbTask"),
+      message: t("tasks.newDbTaskPrompt"),
+      confirmLabel: t("common.confirm"),
+    });
+    if (title === null || !title.trim()) return;
+    try {
+      const res = await createTaskInDatabase({
+        adapter: vaultAdapter,
+        dbPath: taskDb,
+        title: title.trim(),
+        noteType: await getConfiguredNoteType(vaultPath),
+      });
+      if (!res.ok) {
+        toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteFailed"));
+        return;
+      }
+      if (indexer) {
+        await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => {});
+        triggerFileTreeUpdate([res.notePath]);
+        notifyFileOps([{ type: "create", path: res.notePath }]);
+      }
+      setRefreshTick((x) => x + 1);
+      onOpenPath(res.notePath, false);
+    } catch (e) {
+      console.error("[TasksView] creating a database task failed", e);
+      toast.error(t("tasks.promoteFailed"));
+    }
+  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, t]);
 
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
@@ -580,13 +615,18 @@ export function TasksView({ onOpenPath }: Props) {
               <span style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "0.05rem 0.45rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)" }}>
                 {filteredDbRows.length}
               </span>
-              <button
-                type="button"
-                onClick={() => onOpenPath(taskDb, false)}
-                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "var(--text-sm)", flexShrink: 0 }}
-              >
-                <Table size={ICON.ui} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
-              </button>
+              <div style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0 }}>
+                <Button variant="primary" size="sm" onClick={() => void createDbTask()} data-testid="task-db-new">
+                  {t("tasks.newDbTask")}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => onOpenPath(taskDb, false)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", fontSize: "var(--text-sm)" }}
+                >
+                  <Table size={ICON.ui} /> {t("tasks.openDb", { defaultValue: "Als Datenbank öffnen" })}
+                </button>
+              </div>
             </div>
             <div style={{ padding: "0.25rem 0 0.35rem" }}>
               {filteredDbRows.length === 0 ? (
@@ -641,9 +681,16 @@ export function TasksView({ onOpenPath }: Props) {
           </div>
         )}
         {taskDb && (
-          <div style={{ margin: "0.2rem 0.9rem 0.4rem", fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
-            {t("tasks.notesSection", { defaultValue: "Aus Notizen" })}
-          </div>
+          <>
+            <div style={{ margin: "0.2rem 0.9rem 0.1rem", fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", fontWeight: 500 }}>
+              {t("tasks.notesSection", { defaultValue: "Aus Notizen" })}
+            </div>
+            {/* Issue #34 — "How do you promote a task into the database?" The
+                action existed as an unlabelled grey icon at the end of a row. */}
+            <p style={{ margin: "0 0.9rem 0.4rem", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+              {t("tasks.notesSectionHint")}
+            </p>
+          </>
         )}
         {loading ? null : groups.length === 0 ? (
           <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "var(--text-md)" }}>
@@ -747,9 +794,10 @@ export function TasksView({ onOpenPath }: Props) {
                       aria-label={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
                       data-tip={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
                       data-testid="task-promote"
-                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center" }}
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-sm)" }}
                     >
                       <Database size={ICON.ui} />
+                      {t("tasks.promoteShort")}
                     </button>
                   </div>
                 ))}

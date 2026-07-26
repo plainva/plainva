@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { applyIndexChanges } from "../services/fileActions";
+import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
-import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal } from "@plainva/ui";
+import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
   addReverseColumnToConfig,
@@ -33,7 +33,8 @@ import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "../services/embedScope";
 import { writeRelationLink } from "../services/graphRelationTargets";
 import { toast } from "@plainva/ui";
-import { appConfirm } from "../services/appDialogs";
+import { requestCascadeDelete } from "../services/cascadeDelete";
+import { appConfirm, appPrompt } from "../services/appDialogs";
 import { NewItemButton, NewItemFolderDialog } from "./base/NewItemButton";
 import type { ReverseIntent } from "./ColumnSchemaEditor";
 import { activeDocument } from "../services/activeDocument";
@@ -263,12 +264,71 @@ export function BaseViewer({
     setPeekPath(path);
   };
 
+  // Entry actions (issue #34): until now a database could only open notes —
+  // renaming or deleting an entry meant hunting it down in the file tree, and
+  // the peek deliberately hides the editor's ⋮. The menu travels with the cells
+  // so every view offers it through one plumbing point.
+  const [rowMenu, setRowMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
+
+  /** Rename an entry from the row menu or the peek. Carries a mirrored H1 (the
+   *  state a fresh `{Base}_{n}` entry is in) so the note is not called Task_1 in
+   *  its own text after the tree already shows the new name. */
+  const renameEntry = useCallback(async (path: string) => {
+    if (!vaultAdapter) return;
+    const current = renameInitialName(path, false);
+    const next = await appPrompt({
+      title: t("common.rename"),
+      initial: current,
+      confirmLabel: t("common.confirm"),
+    });
+    if (next === null || next.trim() === current) return;
+    const result = await renameToName({
+      adapter: vaultAdapter,
+      queryService: queryService ?? null,
+      oldPath: path,
+      newName: next,
+      isFolder: false,
+      carryHeading: true,
+    });
+    if (!result.ok) {
+      toast.error(result.reason === "already-exists" ? t("dialogs.alreadyExistsMsg") : t("dialogs.invalidNameMsg"));
+      return;
+    }
+    if (indexer) await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+    triggerFileTreeUpdate();
+    if (peekPath === path) setPeekPath(result.newPath);
+    if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
+  }, [vaultAdapter, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
+
+  const duplicateEntry = useCallback(async (path: string) => {
+    if (!vaultAdapter) return;
+    try {
+      const copy = await duplicateFile(vaultAdapter, path, t("fileTree.copySuffix"));
+      if (indexer) await applyIndexChanges(indexer, { added: [copy] });
+      triggerFileTreeUpdate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }, [vaultAdapter, indexer, triggerFileTreeUpdate, t]);
+
+  /** Deleting runs through the shared cascade flow so relation targets and the
+   *  large-deletion prompts behave exactly as everywhere else. */
+  const deleteEntry = useCallback(async (path: string) => {
+    const deleted = await requestCascadeDelete({ paths: [path] });
+    if (deleted && peekPath === path) setPeekPath(null);
+  }, [peekPath]);
+
   // Shared cell layer (typed display + inline editing), used by every view.
   const cells = useBaseCells({
     dbConfig,
     dbData,
     setDbData,
     onOpenNote: requestOpen,
+    onRowContextMenu: (path, ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      setRowMenu({ path, at: { x: ev.clientX, y: ev.clientY } });
+    },
     dateFormat: dbConfig?.views?.[activeViewIndex]?.dateFormat ?? "default",
   });
 
@@ -1981,7 +2041,33 @@ export function BaseViewer({
           onClose={() => setPeekPath(null)}
           onMaximize={(p) => { onOpenPath?.(p, true); setPeekPath(null); }}
           onOpenSplit={onOpenInSplit ? (p) => { onOpenInSplit(p); setPeekPath(null); } : undefined}
+          onRename={(p) => void renameEntry(p)}
+          onDelete={(p) => void deleteEntry(p)}
         />
+      )}
+      {rowMenu && (
+        <MenuSurface open at={rowMenu.at} onClose={() => setRowMenu(null)} ariaLabel={t("database.entryActions")}>
+          <MenuLabel>{t("database.entry")}</MenuLabel>
+          <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); requestOpen(p); }}>
+            {t("database.entryOpen")}
+          </MenuItem>
+          {onOpenInSplit && (
+            <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); onOpenInSplit(p); }}>
+              {t("database.entryOpenSplit")}
+            </MenuItem>
+          )}
+          <MenuSeparator />
+          <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); void renameEntry(p); }}>
+            {t("database.entryRename")}
+          </MenuItem>
+          <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); void duplicateEntry(p); }}>
+            {t("database.entryDuplicate")}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem danger onSelect={() => { const p = rowMenu.path; setRowMenu(null); void deleteEntry(p); }}>
+            {t("database.entryDelete")}
+          </MenuItem>
+        </MenuSurface>
       )}
       {iconColorPicker && (
         <HeaderColorPicker

@@ -1,7 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-07-22
-
+Última revisão: 2026-07-26
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
 ## Por que uma visualização separada (e não um `.base`)
@@ -53,6 +52,8 @@ Toda linha de tarefa traz um ícone de banco de dados: **Mover para o banco de t
 - substitui a linha da caixa de seleção na nota de origem por um link wiki para a nova nota de tarefa — o item continua legível onde foi escrito, e a tarefa agora vive no banco de dados.
 
 **Clique com o botão direito** no ícone para escolher outro banco de dados como destino; sem um banco de tarefas padrão definido, o clique já abre esse seletor imediatamente. Tudo permanece Markdown puro: a nova tarefa é uma nota comum com frontmatter, e o link na nota de origem é um `[[wiki link]]` normal.
+
+**+ Nova tarefa** no cabeçalho da seção cria uma entrada diretamente no banco de tarefas (mesma pasta de armazenamento, modelo e preenchimentos de quando você move uma caixa) e a abre. Caixas de seleção escritas em uma nota permanecem nela — só viram tarefas do banco quando você as move.
 
 ## Ocultando notas da visualização de Tarefas
 

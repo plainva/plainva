@@ -214,3 +214,64 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
 
   return { ok: true, notePath, title };
 }
+
+export interface CreateTaskOptions {
+  adapter: PromoteTaskOptions["adapter"];
+  dbPath: string;
+  title: string;
+  noteType: string;
+}
+
+/**
+ * Creates an entry in the task database WITHOUT a source checkbox (issue #34):
+ * the Tasks view could only tick and open, so the only way to add a task was to
+ * open the `.base` and use "+ Entry". Shares the promotion's resolution — same
+ * storage folder, template, OKF defaults, inherited tags and open-status
+ * pre-fill — so both routes produce identical notes.
+ */
+export async function createTaskInDatabase(
+  opts: CreateTaskOptions
+): Promise<{ ok: true; notePath: string } | { ok: false; reason: "dbUnreadable" | "noFolder" }> {
+  const { adapter, dbPath, title, noteType } = opts;
+  let config: any;
+  try {
+    config = parseBaseConfig(await adapter.readTextFile(dbPath));
+  } catch {
+    return { ok: false, reason: "dbUnreadable" };
+  }
+  const target = resolveNewItemTarget(config);
+  if (!target.folder) return { ok: false, reason: "noFolder" };
+
+  const stem = taskFileStem(title) ?? title;
+  const dir = target.folder.replace(/\/+$/, "");
+  const prefix = dir ? dir + "/" : "";
+  let name = stem;
+  for (let n = 2; await adapter.exists(prefix + name + ".md"); n++) name = `${stem} ${n}`;
+  const notePath = prefix + name + ".md";
+
+  let templateText: string | null = null;
+  if (config.newItemTemplate) {
+    try {
+      templateText = await adapter.readTextFile(config.newItemTemplate);
+    } catch {
+      /* template missing — create without it */
+    }
+  }
+
+  const prefills: Record<string, any> = {};
+  const statusKey = findColumnKey(
+    config,
+    (c) => (c.input === "status" || c.input === "select") && Array.isArray(c.options) && c.options.length > 0
+  );
+  if (statusKey) {
+    const first = config.columns[statusKey].options[0];
+    const value = typeof first === "string" ? first : first?.value;
+    if (value) prefills[statusKey] = value;
+  }
+  const doneKey = findColumnKey(config, (c) => c.input === "checkbox");
+  if (doneKey) prefills[doneKey] = false;
+
+  const content = buildNewItemContent({ templateText, noteType, title, inheritTags: target.inheritTags ?? [], prefills });
+  await adapter.writeTextFile(notePath, content);
+  return { ok: true, notePath };
+}

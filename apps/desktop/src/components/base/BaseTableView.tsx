@@ -199,7 +199,13 @@ export function BaseTableView({
         </thead>
         <tbody>
           {displayRows.map(({ row, depth, hasChildren, childCount, isExpanded }, idx) => (
-            <tr key={row['file.path'] || idx} style={{ borderBottom: '1px solid var(--border-color)' }} className="table-row-hover">
+            <tr
+              key={row['file.path'] || idx}
+              style={{ borderBottom: '1px solid var(--border-color)' }}
+              className="table-row-hover"
+              data-testid="base-row"
+              onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
+            >
               {visibleColumns.map((col: string, colIdx: number) => {
                 const isEditing = editingCell?.path === row['file.path'] && editingCell?.col === col;
 

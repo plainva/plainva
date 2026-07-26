@@ -31,6 +31,28 @@ export function renameInitialName(path: string, isFolder: boolean): string {
 }
 
 /**
+ * Rewrites a note's first heading when it MIRRORS the old file name — the state
+ * a database entry starts in (`buildNewItemContent` writes `# <file name>`).
+ * Returns null when nothing should change: no heading, a heading the user
+ * wrote, or a heading that is not the document's first content line.
+ * Frontmatter is skipped, never rewritten.
+ */
+export function carryMirroredHeading(content: string, oldName: string, newName: string): string | null {
+  const fm = content.startsWith("---") ? content.indexOf("\n---", 3) : -1;
+  const bodyStart = fm >= 0 ? content.indexOf("\n", fm + 1) + 1 : 0;
+  const body = content.slice(bodyStart);
+  // The heading must be the first non-empty body line — a "# Task_1" buried in
+  // the middle of a note is prose, not a title.
+  const match = body.match(/^(\s*)(#{1,6}[ \t]+)(.+?)([ \t]*)$/m);
+  if (!match || match.index === undefined) return null;
+  if (body.slice(0, match.index).trim() !== "") return null;
+  if (match[3].trim() !== oldName.trim()) return null;
+  const start = bodyStart + match.index;
+  const end = start + match[0].length;
+  return content.slice(0, start) + match[1] + match[2] + newName + match[4] + content.slice(end);
+}
+
+/**
  * Renames `oldPath` (vault-relative) to `newName` within its folder. Notes AND
  * `.base` databases get the vault-wide link retargeting (W5; bases since plan
  * Vorlagen-Datenbank-Zuordnung P5 — body links/embeds like `![[Tasks.base]]`
@@ -50,6 +72,14 @@ export async function renameToName(opts: {
   isFolder: boolean;
   /** Vault-relative template folder for the `.base` templateFor sweep; omit to skip it. */
   templateFolder?: string;
+  /**
+   * Carry a mirrored H1 along (issue #34). A note created from a database gets
+   * `# <file name>`, so renaming the file alone would leave the note titled
+   * "Task_1" in the text while the tree shows the new name. The heading only
+   * moves when it EXACTLY matches the old file name — a heading the user wrote
+   * themselves is never touched.
+   */
+  carryHeading?: boolean;
 }): Promise<RenameToNameResult> {
   const { adapter, queryService, oldPath, isFolder } = opts;
   const name = opts.newName.trim();
@@ -66,6 +96,17 @@ export async function renameToName(opts: {
   const newPath = parentPath ? `${parentPath}/${finalName}` : finalName;
 
   if (await adapter.exists(newPath)) return { ok: false, reason: "already-exists" };
+
+  // Before the move, while the old name is still the truth.
+  if (opts.carryHeading && wasNote) {
+    try {
+      const before = await adapter.readTextFile(oldPath);
+      const carried = carryMirroredHeading(before, renameInitialName(oldPath, false), name);
+      if (carried !== null) await adapter.writeTextFile(oldPath, carried);
+    } catch (e) {
+      console.warn("[fileActions] heading carry before rename failed", e);
+    }
+  }
 
   const isBaseRename =
     !isFolder && oldPath.toLowerCase().endsWith(".base") && newPath.toLowerCase().endsWith(".base");

@@ -1,7 +1,6 @@
 # Tareas
 
-Última actualización: 2026-07-22
-
+Última actualización: 2026-07-26
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
 ## Por qué una vista aparte (y no una `.base`)
@@ -53,6 +52,8 @@ Cada fila de casilla lleva un icono de base de datos: **Mover a la base de datos
 - reemplaza la línea de la casilla en la nota de origen por un enlace interno a la nueva nota de tarea — el elemento sigue siendo legible donde se escribió, y la tarea ahora vive en la base de datos.
 
 Haz **clic derecho** en el icono para elegir en su lugar otra base de datos como destino; sin una base de datos de tareas predeterminada, el clic abre ese selector directamente. Todo sigue siendo Markdown puro: la nueva tarea es una nota normal con frontmatter, y el enlace en la nota de origen es un `[[enlace interno]]` normal.
+
+**+ Nueva tarea** en la cabecera de la sección crea una entrada directamente en la base de datos de tareas (misma carpeta de almacenamiento, plantilla y valores por defecto que al mover una casilla) y la abre. Las casillas escritas en una nota permanecen en esa nota: solo se convierten en tareas de la base cuando las mueves.
 
 ## Ocultar notas de la vista Tareas
 

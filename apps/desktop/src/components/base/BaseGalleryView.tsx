@@ -53,6 +53,8 @@ export function BaseGalleryView({
           return (
             <div
               key={row['file.path'] || idx}
+              data-testid="base-row"
+              onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
               {...(onDropToSplit ? cardHandlers(row['file.path']) : {})}
               style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-1)", overflow: "hidden", touchAction: "none", opacity: draggingPath === row['file.path'] ? 0.45 : 1 }}
             >

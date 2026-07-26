@@ -95,6 +95,8 @@ export function BaseCalendarView({
                     <div style={{ alignSelf: "flex-end", fontSize: "var(--text-sm)", fontWeight: todayCell ? 700 : 400, color: todayCell ? "var(--accent-on)" : "var(--text-muted)", background: todayCell ? "var(--accent-color)" : "transparent", borderRadius: "var(--radius-pill)", minWidth: 20, height: 20, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{day}</div>
                     {items.map((row, idx) => (
                       <div key={row["file.path"] || idx} {...cardHandlers(row["file.path"])}
+                        data-testid="base-row"
+                        onContextMenu={(e) => cells.onRowContextMenu?.(row["file.path"], e)}
                         onClick={(e) => onOpenNote?.(row["file.path"], e)} data-tip={row["file.name"]}
                         style={{ background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.3rem 0.45rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", cursor: "pointer", borderLeft: "2px solid var(--accent-color)", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}>
                         <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>{row["file.name"]}</div>

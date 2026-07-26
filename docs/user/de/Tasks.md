@@ -1,7 +1,6 @@
 # Aufgaben
 
-Stand: 2026-07-22
-
+Stand: 2026-07-26
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
 ## Warum eine eigene Ansicht (und keine `.base`)
@@ -53,6 +52,8 @@ Jede Checkbox-Zeile trägt ein Datenbank-Symbol: **Zur Aufgaben-Datenbank versch
 - ersetzt die Checkbox-Zeile in der Ursprungsnotiz durch einen Wiki-Link auf die neue Aufgaben-Notiz — der Eintrag bleibt an Ort und Stelle lesbar, die Aufgabe lebt ab jetzt in der Datenbank.
 
 Mit einem **Rechtsklick** auf das Symbol wählst Du stattdessen eine andere Datenbank als Ziel; ohne festgelegte Standard-Datenbank öffnet schon der Klick diese Auswahl. Alles bleibt reines Markdown: Die neue Aufgabe ist eine gewöhnliche Notiz mit Frontmatter, der Link in der Ursprungsnotiz ein normaler `[[Wiki-Link]]`.
+
+**+ Neue Aufgabe** in der Kopfzeile der Sektion legt einen Eintrag direkt in der Aufgaben-Datenbank an (gleicher Ablage-Ordner, gleiche Vorlage und Vorbelegungen wie beim Verschieben einer Checkbox) und öffnet ihn. In einer Notiz geschriebene Checkboxen bleiben in dieser Notiz — sie werden erst zu Datenbank-Aufgaben, wenn Du sie verschiebst.
 
 ## Notizen aus der Aufgabenansicht ausblenden
 

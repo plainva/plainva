@@ -26,6 +26,7 @@ export function useBaseCells({
   dbData,
   setDbData,
   onOpenNote,
+  onRowContextMenu,
   dateFormat = "default",
 }: {
   dbConfig: any;
@@ -37,6 +38,13 @@ export function useBaseCells({
    * (Base-UX2 P5); a plain click opens the peek window.
    */
   onOpenNote?: (path: string, ev?: React.MouseEvent) => void;
+  /**
+   * Right-click on an entry ROW. Travels with the cells (like `onOpenNote`) so
+   * every view gets the same menu through one plumbing point instead of seven
+   * props — until issue #34 there was no way to rename or delete an entry from
+   * a database at all; you had to find the note in the file tree.
+   */
+  onRowContextMenu?: (path: string, ev: React.MouseEvent) => void;
   /** Per-view display format of date values (plan W4/P12). */
   dateFormat?: DateDisplayFormat;
 }) {
@@ -621,6 +629,7 @@ export function useBaseCells({
   };
 
   return {
+    onRowContextMenu,
     editingCell,
     columnLabel,
     getColumnInput,

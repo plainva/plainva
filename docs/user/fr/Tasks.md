@@ -1,7 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-07-22
-
+Dernière mise à jour : 2026-07-26
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
 ## Pourquoi une vue séparée (et pas une `.base`)
@@ -53,6 +52,8 @@ Chaque ligne de case à cocher porte une icône de base de données : **Déplace
 - remplace la ligne de case à cocher dans la note d'origine par un lien wiki vers la nouvelle note de tâche — l'élément reste lisible là où il a été écrit, et la tâche vit désormais dans la base de données.
 
 **Clic droit** sur l'icône pour choisir une autre base de données comme cible à la place ; sans base de tâches par défaut, le clic ouvre directement ce sélecteur. Tout reste du Markdown pur : la nouvelle tâche est une note ordinaire avec un frontmatter, et le lien dans la note d'origine est un `[[lien wiki]]` normal.
+
+**+ Nouvelle tâche** dans l'en-tête de la section crée une entrée directement dans la base de tâches (même dossier de stockage, même modèle et mêmes valeurs par défaut qu'une case déplacée) et l'ouvre. Les cases écrites dans une note y restent : elles ne deviennent des tâches de la base que lorsque vous les déplacez.
 
 ## Masquer des notes de la vue Tâches
 

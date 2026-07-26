@@ -1,7 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-07-22
-
+Laatst bijgewerkt: 2026-07-26
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
 ## Waarom een aparte weergave (en geen `.base`)
@@ -53,6 +52,8 @@ Elke taakregel draagt een database-icoon: **Naar de takendatabase verplaatsen**.
 - vervangt de selectievakjeregel in de oorspronkelijke notitie door een wiki-link naar de nieuwe taaknotitie — het item blijft leesbaar op de plek waar het geschreven werd, en de taak leeft nu in de database.
 
 **Rechtsklik** op het icoon om in plaats daarvan een andere database als doel te kiezen; zonder standaard takendatabase opent de klik die kiezer meteen. Alles blijft gewoon Markdown: de nieuwe taak is een gewone notitie met frontmatter, en de link in de oorspronkelijke notitie is een normale `[[wiki-link]]`.
+
+**+ Nieuwe taak** in de sectiekop maakt direct een item in de takendatabase aan (dezelfde opslagmap, sjabloon en standaardwaarden als bij het verplaatsen van een vinkje) en opent het. Vinkjes die je in een notitie schrijft blijven daar — ze worden pas databasetaken als je ze verplaatst.
 
 ## Notities uit de Taken-weergave verbergen
 

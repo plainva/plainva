@@ -17,7 +17,7 @@ export function BaseListView({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1rem" }}>
       {dbData.map((row, idx) => (
-        <div key={row['file.path'] || idx} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "var(--space-4)", background: "var(--bg-secondary)", boxShadow: "var(--shadow-1)" }}>
+        <div key={row['file.path'] || idx} data-testid="base-row" onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "var(--space-4)", background: "var(--bg-secondary)", boxShadow: "var(--shadow-1)" }}>
           <h3 onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ margin: "0 0 0.5rem 0", fontSize: "var(--text-lg)", cursor: "pointer", color: "var(--text-main)", overflowWrap: "anywhere" }}>{row['file.name']}</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
             {visibleColumns.filter(c => c !== 'file.name').map(col => {

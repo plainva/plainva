@@ -1,7 +1,6 @@
 # Tasks
 
-Last updated: 2026-07-22
-
+Last updated: 2026-07-26
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
 ## Why a separate view (and not a `.base`)
@@ -53,6 +52,8 @@ Every checkbox row carries a database icon: **Move to the task database**. One c
 - replaces the checkbox line in the origin note with a wiki link to the new task note — the item stays readable where it was written, and the task now lives in the database.
 
 **Right-click** the icon to pick a different database as the target instead; without a standard database, the click opens that picker right away. Everything stays plain Markdown: the new task is an ordinary note with frontmatter, and the link in the origin note is a normal `[[wiki link]]`.
+
+**+ New task** in the section header creates an entry directly in the task database (same storage folder, template and defaults as a promoted checkbox) and opens it. Checkboxes written in a note stay in that note — they only become database tasks when you move them.
 
 ## Hiding notes from the Tasks view
 

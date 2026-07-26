@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
+import { applyIndexChanges, carryMirroredHeading, duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
 function makeAdapter(initial: Record<string, string | Uint8Array>) {
@@ -269,5 +269,50 @@ describe("applyIndexChanges", () => {
     expect(calls.full).toBe(0);
     expect(calls.removed).toEqual([]);
     expect(calls.indexed).toEqual([]);
+  });
+});
+
+// Issue #34: a database entry starts as "# <file name>". Renaming the file
+// alone would leave the note titled Task_1 in the text while the tree shows the
+// new name — but a heading the user wrote must never be rewritten.
+describe("carryMirroredHeading", () => {
+  it("moves a heading that mirrors the old file name", () => {
+    expect(carryMirroredHeading("# Task_1\n\nBody\n", "Task_1", "Fencing quote")).toBe("# Fencing quote\n\nBody\n");
+  });
+
+  it("keeps frontmatter untouched and finds the heading behind it", () => {
+    const src = "---\ntype: Note\nstatus: Offen\n---\n\n# Task_1\n\nBody\n";
+    expect(carryMirroredHeading(src, "Task_1", "Steuer")).toBe("---\ntype: Note\nstatus: Offen\n---\n\n# Steuer\n\nBody\n");
+  });
+
+  it("leaves a heading the user wrote alone", () => {
+    expect(carryMirroredHeading("# My own title\n\nBody\n", "Task_1", "Fencing quote")).toBeNull();
+  });
+
+  it("ignores a matching heading that is not the first content line", () => {
+    expect(carryMirroredHeading("Intro text\n\n# Task_1\n", "Task_1", "New")).toBeNull();
+  });
+
+  it("does nothing without a heading", () => {
+    expect(carryMirroredHeading("Just a body.\n", "Task_1", "New")).toBeNull();
+  });
+
+  it("preserves the heading level and trailing spaces", () => {
+    expect(carryMirroredHeading("### Task_1  \nx", "Task_1", "New")).toBe("### New  \nx");
+  });
+});
+
+describe("renameToName with carryHeading", () => {
+  it("renames the file and its mirrored heading in one go", async () => {
+    const { adapter, files } = makeAdapter({ "Tasks/Task_1.md": "# Task_1\n\nBody\n" });
+    const res = await renameToName({ adapter, queryService: null, oldPath: "Tasks/Task_1.md", newName: "Fencing quote", isFolder: false, carryHeading: true });
+    expect(res.ok).toBe(true);
+    expect(files.get("Tasks/Fencing quote.md")).toBe("# Fencing quote\n\nBody\n");
+  });
+
+  it("leaves the body alone without the flag", async () => {
+    const { adapter, files } = makeAdapter({ "Tasks/Task_1.md": "# Task_1\n\nBody\n" });
+    await renameToName({ adapter, queryService: null, oldPath: "Tasks/Task_1.md", newName: "Fencing quote", isFolder: false });
+    expect(files.get("Tasks/Fencing quote.md")).toBe("# Task_1\n\nBody\n");
   });
 });

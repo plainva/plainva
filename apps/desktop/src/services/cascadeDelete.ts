@@ -12,6 +12,7 @@ import {
   selectedPaths,
   type CascadeSelection,
   type DeletionPlan,
+  parseBaseConfig,
   type DeletionPlanDeps,
 } from "@plainva/ui";
 import { taskDatabaseKey } from "../contexts/VaultContext";
@@ -131,6 +132,12 @@ export interface CascadeExecuteResult {
   errors: string[];
   /** Surviving notes whose relation values were cleaned (need a reindex). */
   cleanedSources: string[];
+  /**
+   * Storage folders of deleted databases that are now EMPTY. The host offers to
+   * remove them (issue #34) — a database creates its folder, so leaving it
+   * behind is the leftover the reporter kept running into.
+   */
+  emptiedFolders: string[];
 }
 
 export async function executeDeletionPlan(opts: {
@@ -153,6 +160,7 @@ export async function executeDeletionPlan(opts: {
 
   const errors: string[] = [];
   const cleanedSources: string[] = [];
+  const emptiedFolders: string[] = [];
 
   // 1. Reference cleanup FIRST (surviving notes lose their links onto the
   //    doomed targets while those still resolve).
@@ -172,6 +180,20 @@ export async function executeDeletionPlan(opts: {
       errors.push(ref.source.split(/[/\\]/).pop() ?? ref.source);
     }
     step();
+  }
+
+  // 1b. A database's storage folder is only readable while the `.base` still
+  //     exists — remember it now, probe for emptiness after the deletes.
+  const storageFolders = new Map<string, string>();
+  for (const basePath of plan.affectedBases) {
+    if (!pathSet.has(basePath)) continue;
+    try {
+      const config: any = parseBaseConfig(await adapter.readTextFile(basePath));
+      const folder = config?.newItemFolder ? normSlash(String(config.newItemFolder)).replace(/\/+$/, "") : "";
+      if (folder) storageFolders.set(basePath, folder);
+    } catch {
+      /* unreadable base — nothing to offer */
+    }
   }
 
   // 2. The user confirmed exactly these paths — the sync mass-deletion guard
@@ -219,9 +241,22 @@ export async function executeDeletionPlan(opts: {
         console.error("cascade templateFor sweep failed", e);
       }
     }
+    // The database's storage folder was created WITH the database and is left
+    // behind empty when it goes (issue #34: "folders not deleting"). Collect it
+    // for the host to offer — never delete silently, and never when anything
+    // survives inside.
+    try {
+      const folder = storageFolders.get(basePath);
+      if (folder && !emptiedFolders.includes(folder)) {
+        const rest = await adapter.listDir(folder).catch(() => null);
+        if (rest && rest.length === 0) emptiedFolders.push(folder);
+      }
+    } catch (e) {
+      console.error("cascade empty-folder probe failed", e);
+    }
   }
 
-  return { deleted, errors, cleanedSources };
+  return { deleted, errors, cleanedSources, emptiedFolders };
 }
 
 function normSlash(p: string): string {
