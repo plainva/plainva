@@ -2361,7 +2361,13 @@
     "filterFlagged": "Contrassegnati",
     "flagged": "Contrassegnato",
     "unflag": "Rimuovi contrassegno",
-    "flag": "Contrassegna"
+    "flag": "Contrassegna",
+    "accounts": "Caselle di posta",
+    "addAccount": "Aggiungi casella",
+    "removeAccount": "Rimuovi casella",
+    "removeAccountConfirm": "Rimuovere la casella?",
+    "accountAdded": "Casella collegata",
+    "imapMobileUnavailable": "Le caselle IMAP non funzionano ancora sul telefono: richiedono una connessione diretta al server di posta, ancora in fase di sviluppo. Per ora usale sul computer; le caselle Microsoft funzionano qui."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

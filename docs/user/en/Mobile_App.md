@@ -33,6 +33,12 @@ Manage accounts from the gear icon in the event calendar: connect **CalDAV** on 
 
 **Signing in is per device.** What syncs are your account *settings*, never the sign-in itself — deliberately so: credentials should not leave the device. An account that arrived through settings sync therefore shows up in the list but carries a **sign in** marker, with a line underneath telling you what to do. As long as no account is signed in on this device, the calendar explains that in place instead of simply staying empty, and **Sign in on this device** takes you to the accounts. Signed-in accounts show **active**.
 
+## Email
+
+Under **Settings → Email** you connect a **Microsoft mailbox** (Outlook.com, Microsoft 365) directly through the browser sign-in — no app password needed. As with the calendar, signing in happens per device.
+
+**IMAP mailboxes do not work on the phone yet.** They need a direct connection to the mail server, which is still being built. An IMAP mailbox that arrives from the desktop through settings sync shows up in the list and says so in place — use it on the desktop for now.
+
 ## Sync
 
 In the **Settings** (⋮), **Active vault** leads to the vault management; there you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault onto the device; **Create a vault** first asks **On this device** or **With an online service** and then for the starter structure (empty or a template like PARA) — on the online path the connection follows, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded by the first sync. The first launch ("Connect to cloud") offers the same choice between an existing and a new cloud vault. Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).

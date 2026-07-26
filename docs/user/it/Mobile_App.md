@@ -33,6 +33,12 @@ Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli even
 
 **L'accesso è per dispositivo.** A sincronizzarsi sono le *impostazioni* del tuo account, mai l'accesso in sé — è voluto: le credenziali non devono lasciare il dispositivo. Un account arrivato così tramite la sincronizzazione delle impostazioni compare quindi nell'elenco, ma porta il contrassegno **accedi**, con una riga sotto che indica cosa fare. Finché nessun account ha eseguito l'accesso su questo dispositivo, il calendario lo spiega lì al posto di restare semplicemente vuoto, e **Accedi su questo dispositivo** ti porta agli account. Gli account con l'accesso eseguito mostrano **attivo**.
 
+## E-mail
+
+In **Impostazioni → E-mail** colleghi una **casella Microsoft** (Outlook.com, Microsoft 365) direttamente tramite l’accesso nel browser, senza password per app. Come per il calendario, l’accesso vale per dispositivo.
+
+**Le caselle IMAP non funzionano ancora sul telefono.** Richiedono una connessione diretta al server di posta, ancora in fase di sviluppo. Una casella IMAP arrivata dal computer tramite la sincronizzazione delle impostazioni compare nell’elenco e te lo dice sul posto: per ora usala sul computer.
+
 ## Sincronizzazione
 
 In **Impostazioni** (⋮), **Vault attivo** porta alla gestione dei vault; lì colleghi l'archiviazione cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Collega un vault cloud** porta un vault cloud esistente sul dispositivo; **Crea un vault** chiede prima **Su questo dispositivo** o **Presso un servizio online** e poi la struttura iniziale (vuota o un modello come PARA) — nel percorso online segue la connessione, la cartella di destinazione nel cloud può essere creata al momento tramite **Nuova cartella** nel foglio di selezione, e la struttura viene caricata alla prima sincronizzazione. Anche il primo avvio ("Collega un vault cloud") offre la stessa scelta tra un vault cloud esistente e uno nuovo. Ogni connessione ottiene un proprio vault separato sul dispositivo. La pagina del vault mostra stato, avanzamento, trasferimenti in sospeso e offre **Esporta il vault** (ZIP tramite il foglio di condivisione).

@@ -2361,7 +2361,13 @@
     "filterFlagged": "Marcadas",
     "flagged": "Marcada",
     "unflag": "Remover marca",
-    "flag": "Marcar"
+    "flag": "Marcar",
+    "accounts": "Caixas de correio",
+    "addAccount": "Adicionar caixa de correio",
+    "removeAccount": "Remover caixa de correio",
+    "removeAccountConfirm": "Remover a caixa de correio?",
+    "accountAdded": "Caixa de correio conectada",
+    "imapMobileUnavailable": "Caixas IMAP ainda não funcionam no telefone: elas precisam de uma conexão direta com o servidor de e-mail, que ainda está sendo construída. Use-as no computador por enquanto; caixas da Microsoft funcionam aqui."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

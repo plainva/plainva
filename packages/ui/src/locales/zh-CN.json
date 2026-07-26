@@ -2349,7 +2349,13 @@
     "filterFlagged": "已标记",
     "flagged": "已标记",
     "unflag": "取消标记",
-    "flag": "标记"
+    "flag": "标记",
+    "accounts": "邮箱",
+    "addAccount": "添加邮箱",
+    "removeAccount": "移除邮箱",
+    "removeAccountConfirm": "移除邮箱？",
+    "accountAdded": "邮箱已连接",
+    "imapMobileUnavailable": "IMAP 邮箱在手机上还不能使用：它们需要与邮件服务器直接连接，该功能仍在开发中。请暂时在桌面端使用；Microsoft 邮箱在这里可以使用。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

@@ -2355,7 +2355,13 @@
     "filterFlagged": "Flagged",
     "flagged": "Flagged",
     "unflag": "Remove flag",
-    "flag": "Flag"
+    "flag": "Flag",
+    "accounts": "Mailboxes",
+    "addAccount": "Add mailbox",
+    "removeAccount": "Remove mailbox",
+    "removeAccountConfirm": "Remove mailbox?",
+    "accountAdded": "Mailbox connected",
+    "imapMobileUnavailable": "IMAP mailboxes do not work on the phone yet — they need a direct connection to the mail server, which is still being built. Use them on the desktop for now; Microsoft mailboxes work here."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

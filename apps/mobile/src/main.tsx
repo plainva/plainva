@@ -11,6 +11,7 @@ import { initMobileSettings } from "./services/mobileSettings";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
+import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
 import App from "./App";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
@@ -82,6 +83,11 @@ setPlatformServices({
     }
   },
 });
+
+// The mail seam (feinplan G0.1/G1): registered once, before any mail screen
+// can be opened. Stage one is Graph-only — the IMAP half refuses until the
+// native plugin lands (G2).
+registerMobileMailPlatform();
 
 async function boot(): Promise<void> {
   // Never let an init failure blank the screen: log and render anyway, so an

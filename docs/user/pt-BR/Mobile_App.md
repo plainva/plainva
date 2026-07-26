@@ -33,6 +33,12 @@ Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte 
 
 **O login é por dispositivo.** O que sincroniza são as *configurações* da sua conta, nunca o login em si — de propósito: credenciais não devem sair do dispositivo. Uma conta que chegou pela sincronização de configurações aparece então na lista, mas com o marcador **entrar**, com uma linha logo abaixo dizendo o que fazer. Enquanto nenhuma conta estiver conectada neste dispositivo, o calendário explica isso no lugar em vez de simplesmente ficar vazio, e **Entrar neste dispositivo** leva você até as contas. Contas conectadas mostram **ativa**.
 
+## E-mail
+
+Em **Configurações → E-mail** você conecta uma **caixa de correio da Microsoft** (Outlook.com, Microsoft 365) diretamente pelo login no navegador — sem senha de app. Como no calendário, o login vale por dispositivo.
+
+**Caixas IMAP ainda não funcionam no telefone.** Elas precisam de uma conexão direta com o servidor de e-mail, que ainda está sendo construída. Uma caixa IMAP que chega do computador pela sincronização de configurações aparece na lista e avisa ali mesmo — use-a no computador por enquanto.
+
 ## Sincronização
 
 Em **Configurações** (⋮), **Vault ativo** leva ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida: a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada pela primeira sincronização. No primeiro início do app, a opção (**"Conectar um cofre na nuvem"**) oferece a mesma escolha entre um vault existente e um novo vault na nuvem. Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).

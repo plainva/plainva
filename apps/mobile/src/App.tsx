@@ -14,6 +14,7 @@ import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
+import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
@@ -39,6 +40,7 @@ import { SearchScreen } from "./screens/SearchScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
+import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
@@ -154,6 +156,7 @@ export default function App() {
       setVault(v);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
       void startPim(v).catch((e) => console.error("[boot] pim start failed", e));
+      startMobileMail(v);
     });
     void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     const onChanged = () => setBump((n) => n + 1);
@@ -161,6 +164,7 @@ export default function App() {
     // reboot the vault and restart sync for the newly active container.
     const onSwitched = () => {
       stopPim();
+      stopMobileMail();
       setVault(null);
       setNav((s) => initialNavState(s.activeTab));
       void getMobileVault().then((v) => {
@@ -168,6 +172,7 @@ export default function App() {
         setBump((n) => n + 1);
         void startSyncIfConfigured(v).catch((e) => console.error("[switch] sync start failed", e));
         void startPim(v).catch((e) => console.error("[switch] pim start failed", e));
+        startMobileMail(v);
       });
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
@@ -660,7 +665,9 @@ export default function App() {
                     ? push({ kind: "vault", path: vault.vaultId })
                     : id === "pim"
                       ? push({ kind: "pimaccounts", path: "" })
-                      : push({ kind: "settingsArea", path: id })
+                      : id === "mail"
+                        ? push({ kind: "mailaccounts", path: "" })
+                        : push({ kind: "settingsArea", path: id })
             }
             onOpenNavBar={() => push({ kind: "more", path: "" })}
             barCount={barCount}
@@ -751,6 +758,8 @@ export default function App() {
           <PimCalendarScreen bump={bump} onBack={pop} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
         ) : top?.kind === "pimaccounts" ? (
           <PimAccountsScreen bump={bump} onBack={pop} />
+        ) : top?.kind === "mailaccounts" ? (
+          <MailAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "graphmap" ? (

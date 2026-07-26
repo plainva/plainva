@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setPlatformServices } from "@plainva/ui";
+import { mailSecretKey } from "@plainva/ui/mail";
 import {
   deviceCredentialKey,
   deviceSignInState,
@@ -45,7 +46,9 @@ describe("deviceCredentialKey", () => {
     // Pinned on purpose: if a slot name ever drifts, the badge would silently
     // claim "not signed in" for a perfectly working account.
     expect(deviceCredentialKey("pim", "v1", "acc")).toBe("pim_v1_acc");
-    expect(deviceCredentialKey("mail", "v1", "acc")).toBe("mail_v1_acc");
+    // Mail must match the SHARED builder in @plainva/ui/mail, not a
+    // restatement — the shape is `mail_<account>_<base64(vault)>`.
+    expect(deviceCredentialKey("mail", "v1", "acc")).toBe(mailSecretKey("v1", "acc"));
   });
 });
 

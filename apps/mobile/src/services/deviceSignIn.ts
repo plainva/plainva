@@ -1,4 +1,5 @@
 import { getPlatformServices } from "@plainva/ui";
+import { mailSecretKey } from "@plainva/ui/mail";
 
 /**
  * "Is this account signed in ON THIS DEVICE?" (plan P7).
@@ -24,9 +25,15 @@ export type DeviceSignInState =
   /** Known account, but no credential on this device: it has to sign in once. */
   | "signin";
 
-/** Credential slot key per account kind (mirrors the desktop keychain slots). */
+/**
+ * Credential slot key per account kind. PIM mirrors `pimCredentials.ts`; mail
+ * delegates to the SHARED builder rather than restating it — this helper was
+ * written before the mail client existed and guessed a different shape
+ * (`mail_<vault>_<account>`), which would have reported every working mailbox
+ * as "not signed in". One builder, no drift.
+ */
 export function deviceCredentialKey(kind: DeviceAccountKind, vaultId: string, accountId: string): string {
-  return kind === "pim" ? `pim_${vaultId}_${accountId}` : `mail_${vaultId}_${accountId}`;
+  return kind === "pim" ? `pim_${vaultId}_${accountId}` : mailSecretKey(vaultId, accountId);
 }
 
 /**

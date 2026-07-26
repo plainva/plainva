@@ -2355,7 +2355,13 @@
     "filterFlagged": "Gemarkeerd",
     "flagged": "Gemarkeerd",
     "unflag": "Markering verwijderen",
-    "flag": "Markeren"
+    "flag": "Markeren",
+    "accounts": "Postbussen",
+    "addAccount": "Postbus toevoegen",
+    "removeAccount": "Postbus verwijderen",
+    "removeAccountConfirm": "Postbus verwijderen?",
+    "accountAdded": "Postbus verbonden",
+    "imapMobileUnavailable": "IMAP-postbussen werken nog niet op de telefoon: ze hebben een directe verbinding met de mailserver nodig, die nog wordt gebouwd. Gebruik ze voorlopig op de desktop; Microsoft-postbussen werken hier wel."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

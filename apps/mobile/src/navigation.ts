@@ -110,6 +110,7 @@ export type NavKind =
   | "base"
   | "today"
   | "pimcalendar"
+  | "mailaccounts"
   | "pimaccounts"
   | "databases"
   | "graphmap"

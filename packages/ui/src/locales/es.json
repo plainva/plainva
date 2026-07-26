@@ -2361,7 +2361,13 @@
     "filterFlagged": "Marcados",
     "flagged": "Marcado",
     "unflag": "Quitar marca",
-    "flag": "Marcar"
+    "flag": "Marcar",
+    "accounts": "Buzones",
+    "addAccount": "Añadir buzón",
+    "removeAccount": "Eliminar buzón",
+    "removeAccountConfirm": "¿Eliminar el buzón?",
+    "accountAdded": "Buzón conectado",
+    "imapMobileUnavailable": "Los buzones IMAP aún no funcionan en el teléfono: necesitan una conexión directa con el servidor de correo, que todavía se está desarrollando. Mientras tanto úsalos en el escritorio; los buzones de Microsoft sí funcionan aquí."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

@@ -2349,7 +2349,13 @@
     "filterFlagged": "フラグ付き",
     "flagged": "フラグ付き",
     "unflag": "フラグを外す",
-    "flag": "フラグを付ける"
+    "flag": "フラグを付ける",
+    "accounts": "メールボックス",
+    "addAccount": "メールボックスを追加",
+    "removeAccount": "メールボックスを削除",
+    "removeAccountConfirm": "メールボックスを削除しますか？",
+    "accountAdded": "メールボックスを接続しました",
+    "imapMobileUnavailable": "IMAP メールボックスはスマートフォンではまだ利用できません。メールサーバーへの直接接続が必要で、その機能は開発中です。当面はデスクトップでご利用ください。Microsoft のメールボックスはここで使えます。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

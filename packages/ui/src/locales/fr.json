@@ -2361,7 +2361,13 @@
     "filterFlagged": "Marqués",
     "flagged": "Marqué",
     "unflag": "Retirer le marquage",
-    "flag": "Marquer"
+    "flag": "Marquer",
+    "accounts": "Boîtes aux lettres",
+    "addAccount": "Ajouter une boîte aux lettres",
+    "removeAccount": "Supprimer la boîte aux lettres",
+    "removeAccountConfirm": "Supprimer la boîte aux lettres ?",
+    "accountAdded": "Boîte aux lettres connectée",
+    "imapMobileUnavailable": "Les boîtes IMAP ne fonctionnent pas encore sur téléphone : elles nécessitent une connexion directe au serveur de messagerie, encore en cours de développement. Utilise-les sur l’ordinateur en attendant ; les boîtes Microsoft fonctionnent ici."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

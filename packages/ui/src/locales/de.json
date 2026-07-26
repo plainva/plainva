@@ -2355,7 +2355,13 @@
     "filterFlagged": "Markiert",
     "flagged": "Markiert",
     "unflag": "Markierung entfernen",
-    "flag": "Markieren"
+    "flag": "Markieren",
+    "accounts": "Postfächer",
+    "addAccount": "Postfach hinzufügen",
+    "removeAccount": "Postfach entfernen",
+    "removeAccountConfirm": "Postfach entfernen?",
+    "accountAdded": "Postfach verbunden",
+    "imapMobileUnavailable": "IMAP-Postfächer funktionieren auf dem Telefon noch nicht — sie brauchen eine direkte Verbindung zum Mailserver, die noch entsteht. Nutze sie solange am Desktop; Microsoft-Postfächer gehen hier."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

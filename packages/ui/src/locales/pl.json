@@ -2367,7 +2367,13 @@
     "filterFlagged": "Oznaczone",
     "flagged": "Oznaczone",
     "unflag": "Usuń oznaczenie",
-    "flag": "Oznacz"
+    "flag": "Oznacz",
+    "accounts": "Skrzynki pocztowe",
+    "addAccount": "Dodaj skrzynkę",
+    "removeAccount": "Usuń skrzynkę",
+    "removeAccountConfirm": "Usunąć skrzynkę?",
+    "accountAdded": "Skrzynka połączona",
+    "imapMobileUnavailable": "Skrzynki IMAP nie działają jeszcze na telefonie — wymagają bezpośredniego połączenia z serwerem poczty, które dopiero powstaje. Na razie korzystaj z nich na komputerze; skrzynki Microsoft działają tutaj."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",
