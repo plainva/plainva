@@ -1,4 +1,4 @@
-import { defineBase, serializeBaseConfig } from "@plainva/ui";
+import { defineBase, safeFileStem, serializeBaseConfig } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { taskDatabaseKey } from "../contexts/VaultContext";
 
@@ -42,16 +42,11 @@ export interface TaskDbAdapter {
  * Sanitized file stem for a user-typed database name: path separators and
  * OS-forbidden characters are dropped, whitespace collapsed. Returns null for
  * a name with no usable characters.
+ *
+ * Re-export of the shared rule (`@plainva/ui`): the mail capture and the
+ * mobile shell need the identical stem, so there is one implementation.
  */
-export function taskDbFileStem(name: string): string | null {
-  const stem = name
-    .replace(/[\\/:*?"<>|]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    // A trailing dot would collide with the ".base" extension on Windows.
-    .replace(/\.+$/, "");
-  return stem.length > 0 ? stem : null;
-}
+export const taskDbFileStem = safeFileStem;
 
 /** The `.base` path + source folder + serialized content for a new task DB. */
 export function buildTaskDbFile(stem: string, labels: TaskDbLabels): { path: string; folder: string; content: string } {

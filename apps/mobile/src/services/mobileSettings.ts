@@ -64,6 +64,10 @@ export interface MobileSettings {
    * existing installations keep exactly the bar they had.
    */
   barTabCount: number;
+  /** Vault folder captured e-mails land in (mail G1). */
+  mailFolder: string;
+  /** Load remote images in mail bodies — off by default (tracking beacons). */
+  mailRemoteImages: boolean;
   /** Discovered easter-egg theme ids (D5; same semantics as the desktop). */
   unlockedThemes: string[];
   /** Collected LCARS palette variant ids (D5). */

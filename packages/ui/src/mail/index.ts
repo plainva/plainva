@@ -18,3 +18,4 @@ export * from "./mailOut";
 export * from "./mailSanitize";
 export * from "./inviteIcs";
 export * from "./composeMarkdown";
+export * from "./mailCapture";

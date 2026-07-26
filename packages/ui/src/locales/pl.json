@@ -2373,7 +2373,15 @@
     "removeAccount": "Usuń skrzynkę",
     "removeAccountConfirm": "Usunąć skrzynkę?",
     "accountAdded": "Skrzynka połączona",
-    "imapMobileUnavailable": "Skrzynki IMAP nie działają jeszcze na telefonie — wymagają bezpośredniego połączenia z serwerem poczty, które dopiero powstaje. Na razie korzystaj z nich na komputerze; skrzynki Microsoft działają tutaj."
+    "imapMobileUnavailable": "Skrzynki IMAP nie działają jeszcze na telefonie — wymagają bezpośredniego połączenia z serwerem poczty, które dopiero powstaje. Na razie korzystaj z nich na komputerze; skrzynki Microsoft działają tutaj.",
+    "folders": "Foldery",
+    "folderEmpty": "Brak wiadomości w tym folderze",
+    "unknownSender": "Nieznany nadawca",
+    "noteExists": "Notatka do tej wiadomości już istnieje",
+    "attachmentsMobile_one": "{{count}} załącznik — otwórz wiadomość na komputerze, aby go zapisać",
+    "attachmentsMobile_few": "{{count}} załączniki — otwórz wiadomość na komputerze, aby je zapisać",
+    "attachmentsMobile_many": "{{count}} załączników — otwórz wiadomość na komputerze, aby je zapisać",
+    "attachmentsMobile_other": "{{count}} załącznika — otwórz wiadomość na komputerze, aby je zapisać"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

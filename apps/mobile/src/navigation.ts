@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Bookmark, Sun, CalendarDays, Database, Hash, Home, Waypoints } from "lucide-react";
+import { Bookmark, CalendarDays, Database, Hash, Home, Mail, Sun, Waypoints } from "lucide-react";
 
 /**
  * Configurable bottom navigation. The persisted `tabSlots` value is the FULL
@@ -13,7 +13,7 @@ import { Bookmark, Sun, CalendarDays, Database, Hash, Home, Waypoints } from "lu
  * into Settings → Navigation bar.
  */
 
-export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "databases" | "graph";
+export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "mail" | "databases" | "graph";
 
 export interface TabDef {
   id: TabScreenId;
@@ -34,6 +34,7 @@ export const TAB_POOL: TabDef[] = [
   { id: "tags", icon: Hash, labelKey: "mobile.tags" },
   { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
+  { id: "mail", icon: Mail, labelKey: "mail.title" },
   { id: "databases", icon: Database, labelKey: "mobile.tabDatabases", barLabelKey: "mobile.tabDatabasesShort" },
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
@@ -110,6 +111,8 @@ export type NavKind =
   | "base"
   | "today"
   | "pimcalendar"
+  | "mail"
+  | "mailmsg"
   | "mailaccounts"
   | "pimaccounts"
   | "databases"
@@ -156,6 +159,7 @@ export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   tags: [],
   bookmarks: [],
   calendar: [],
+  mail: [],
   databases: [],
   graph: [],
 });

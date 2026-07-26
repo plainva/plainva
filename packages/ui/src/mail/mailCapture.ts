@@ -1,7 +1,7 @@
 import { upsertFrontmatterKeys, readFrontmatterPath } from "@plainva/core";
-import { buildNewNoteContent } from "../newNote";
-import { taskDbFileStem } from "../taskDatabase";
-import type { MailMessage } from "@plainva/ui/mail";
+import { buildNewNoteContent } from "../lib/newNoteContent";
+import { safeFileStem } from "../lib/fileStem";
+import type { MailMessage } from "./types";
 
 /**
  * Mail capture (PIM stage 5): turns a fetched message into vault content.
@@ -22,7 +22,7 @@ export interface MailCaptureAdapter {
 }
 
 export function mailNoteStem(dayKey: string, subject: string): string {
-  const clean = taskDbFileStem(subject) ?? "";
+  const clean = safeFileStem(subject) ?? "";
   const capped = clean.length > MAX_TITLE_STEM ? clean.slice(0, MAX_TITLE_STEM).trim() : clean;
   return capped ? `${dayKey} ${capped}` : dayKey;
 }

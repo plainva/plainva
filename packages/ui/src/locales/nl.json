@@ -2361,7 +2361,13 @@
     "removeAccount": "Postbus verwijderen",
     "removeAccountConfirm": "Postbus verwijderen?",
     "accountAdded": "Postbus verbonden",
-    "imapMobileUnavailable": "IMAP-postbussen werken nog niet op de telefoon: ze hebben een directe verbinding met de mailserver nodig, die nog wordt gebouwd. Gebruik ze voorlopig op de desktop; Microsoft-postbussen werken hier wel."
+    "imapMobileUnavailable": "IMAP-postbussen werken nog niet op de telefoon: ze hebben een directe verbinding met de mailserver nodig, die nog wordt gebouwd. Gebruik ze voorlopig op de desktop; Microsoft-postbussen werken hier wel.",
+    "folders": "Mappen",
+    "folderEmpty": "Geen berichten in deze map",
+    "unknownSender": "Onbekende afzender",
+    "noteExists": "Er bestaat al een notitie voor deze e-mail",
+    "attachmentsMobile_one": "{{count}} bijlage — open de e-mail op de desktop om hem op te slaan",
+    "attachmentsMobile_other": "{{count}} bijlagen — open de e-mail op de desktop om ze op te slaan"
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

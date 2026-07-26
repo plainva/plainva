@@ -37,6 +37,8 @@ Gérez les comptes depuis l'icône en forme d'engrenage dans le calendrier des �
 
 Dans **Réglages → E-mail**, connecte une **boîte Microsoft** (Outlook.com, Microsoft 365) directement via la connexion dans le navigateur — sans mot de passe d’application. Comme pour le calendrier, la connexion se fait par appareil.
 
+Ensuite, tu peux ouvrir **E-mail** comme domaine à part entière via le ▾ à côté du titre et le placer dans la barre de navigation. La ligne sous le titre indique le dossier, le nombre de messages non lus et le compte, et ouvre le sélecteur de dossiers. Touche un message pour le lire ; **Enregistrer comme note** le range dans le dossier **Mail** de ton coffre (capturer deux fois ouvre la même note). Les images distantes restent bloquées jusqu’à ce que tu les autorises pour ce message — une image chargée révèle à l’expéditeur quand et où tu as lu.
+
 **Les boîtes IMAP ne fonctionnent pas encore sur téléphone.** Elles nécessitent une connexion directe au serveur de messagerie, encore en cours de développement. Une boîte IMAP arrivée de l’ordinateur par la synchronisation des réglages apparaît dans la liste et te le signale sur place — utilise-la sur l’ordinateur en attendant.
 
 ## Synchronisation

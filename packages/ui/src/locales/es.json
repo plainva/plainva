@@ -2367,7 +2367,14 @@
     "removeAccount": "Eliminar buzón",
     "removeAccountConfirm": "¿Eliminar el buzón?",
     "accountAdded": "Buzón conectado",
-    "imapMobileUnavailable": "Los buzones IMAP aún no funcionan en el teléfono: necesitan una conexión directa con el servidor de correo, que todavía se está desarrollando. Mientras tanto úsalos en el escritorio; los buzones de Microsoft sí funcionan aquí."
+    "imapMobileUnavailable": "Los buzones IMAP aún no funcionan en el teléfono: necesitan una conexión directa con el servidor de correo, que todavía se está desarrollando. Mientras tanto úsalos en el escritorio; los buzones de Microsoft sí funcionan aquí.",
+    "folders": "Carpetas",
+    "folderEmpty": "No hay mensajes en esta carpeta",
+    "unknownSender": "Remitente desconocido",
+    "noteExists": "Ya existe una nota para este correo",
+    "attachmentsMobile_one": "{{count}} adjunto: abre el correo en el escritorio para guardarlo",
+    "attachmentsMobile_other": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos",
+    "attachmentsMobile_many": "{{count}} adjuntos: abre el correo en el escritorio para guardarlos"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

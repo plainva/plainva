@@ -2367,7 +2367,14 @@
     "removeAccount": "Remover caixa de correio",
     "removeAccountConfirm": "Remover a caixa de correio?",
     "accountAdded": "Caixa de correio conectada",
-    "imapMobileUnavailable": "Caixas IMAP ainda não funcionam no telefone: elas precisam de uma conexão direta com o servidor de e-mail, que ainda está sendo construída. Use-as no computador por enquanto; caixas da Microsoft funcionam aqui."
+    "imapMobileUnavailable": "Caixas IMAP ainda não funcionam no telefone: elas precisam de uma conexão direta com o servidor de e-mail, que ainda está sendo construída. Use-as no computador por enquanto; caixas da Microsoft funcionam aqui.",
+    "folders": "Pastas",
+    "folderEmpty": "Nenhuma mensagem nesta pasta",
+    "unknownSender": "Remetente desconhecido",
+    "noteExists": "Já existe uma nota para este e-mail",
+    "attachmentsMobile_one": "{{count}} anexo — abra o e-mail no computador para salvá-lo",
+    "attachmentsMobile_other": "{{count}} anexos — abra o e-mail no computador para salvá-los",
+    "attachmentsMobile_many": "{{count}} anexos — abra o e-mail no computador para salvá-los"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

@@ -37,6 +37,8 @@ Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **Ca
 
 W **Ustawieniach → Poczta e-mail** połączysz **skrzynkę Microsoft** (Outlook.com, Microsoft 365) bezpośrednio przez logowanie w przeglądarce — bez hasła aplikacji. Tak jak przy kalendarzu, logowanie obowiązuje osobno na każdym urządzeniu.
 
+Potem otworzysz **Pocztę e-mail** jako osobny obszar przez ▾ przy tytule i umieścisz ją w pasku nawigacji. Wiersz pod tytułem pokazuje folder, liczbę nieprzeczytanych i konto oraz otwiera wybór folderów. Dotknij wiadomości, aby ją przeczytać; **Zapisz jako notatkę** umieści ją w folderze **Mail** Twojego sejfu (dwukrotne zapisanie otworzy tę samą notatkę). Zdalne obrazy pozostają zablokowane, dopóki ich nie zezwolisz dla tej wiadomości — wczytany obraz zdradza nadawcy, kiedy i gdzie czytałeś.
+
 **Skrzynki IMAP nie działają jeszcze na telefonie.** Wymagają bezpośredniego połączenia z serwerem poczty, które dopiero powstaje. Skrzynka IMAP, która trafiła tu z komputera przez synchronizację ustawień, pojawia się na liście i mówi o tym na miejscu — na razie korzystaj z niej na komputerze.
 
 ## Synchronizacja

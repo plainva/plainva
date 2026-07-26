@@ -37,6 +37,8 @@ Manage accounts from the gear icon in the event calendar: connect **CalDAV** on 
 
 Under **Settings → Email** you connect a **Microsoft mailbox** (Outlook.com, Microsoft 365) directly through the browser sign-in — no app password needed. As with the calendar, signing in happens per device.
 
+After that you can open **Email** as its own area from the ▾ next to the title and place it in the navigation bar. The line under the title shows folder, unread count and account, and opens the folder picker. Tap a message to read it; **Save as note** files it in the **Mail** folder of your vault (capturing twice opens the same note). Remote images stay blocked until you allow them for that message — a loaded image tells the sender when and where you read.
+
 **IMAP mailboxes do not work on the phone yet.** They need a direct connection to the mail server, which is still being built. An IMAP mailbox that arrives from the desktop through settings sync shows up in the list and says so in place — use it on the desktop for now.
 
 ## Sync

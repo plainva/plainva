@@ -2367,7 +2367,14 @@
     "removeAccount": "Supprimer la boîte aux lettres",
     "removeAccountConfirm": "Supprimer la boîte aux lettres ?",
     "accountAdded": "Boîte aux lettres connectée",
-    "imapMobileUnavailable": "Les boîtes IMAP ne fonctionnent pas encore sur téléphone : elles nécessitent une connexion directe au serveur de messagerie, encore en cours de développement. Utilise-les sur l’ordinateur en attendant ; les boîtes Microsoft fonctionnent ici."
+    "imapMobileUnavailable": "Les boîtes IMAP ne fonctionnent pas encore sur téléphone : elles nécessitent une connexion directe au serveur de messagerie, encore en cours de développement. Utilise-les sur l’ordinateur en attendant ; les boîtes Microsoft fonctionnent ici.",
+    "folders": "Dossiers",
+    "folderEmpty": "Aucun message dans ce dossier",
+    "unknownSender": "Expéditeur inconnu",
+    "noteExists": "Une note existe déjà pour cet e-mail",
+    "attachmentsMobile_one": "{{count}} pièce jointe — ouvre l’e-mail sur l’ordinateur pour l’enregistrer",
+    "attachmentsMobile_other": "{{count}} pièces jointes — ouvre l’e-mail sur l’ordinateur pour les enregistrer",
+    "attachmentsMobile_many": "{{count}} pièces jointes — ouvre l’e-mail sur l’ordinateur pour les enregistrer"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

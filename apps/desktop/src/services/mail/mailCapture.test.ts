@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildEmailNoteContent, captureMailAsNote, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "./mailCapture";
+import { buildEmailNoteContent, captureMailAsNote, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "@plainva/ui/mail";
 import type { MailMessage } from "@plainva/ui/mail";
 
 function fakeAdapter(initial: Record<string, string> = {}) {

@@ -22,6 +22,12 @@ export interface VaultScopedSettings {
   /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
    *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
   syncIntervalSeconds: number;
+  /** Vault folder captured e-mails land in (mail G1) — same key and default
+   *  as the desktop, so the setting travels with the settings sync. */
+  mailFolder: string;
+  /** Load remote images in mail bodies. Default OFF: a remote image is a
+   *  tracking beacon. Mirrors the desktop's per-vault opt-in. */
+  mailRemoteImages: boolean;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -33,6 +39,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "backupMaxPerFile",
   "backupMaxAgeDays",
   "syncIntervalSeconds",
+  "mailFolder",
+  "mailRemoteImages",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -45,6 +53,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupMaxPerFile: 100,
   backupMaxAgeDays: 90,
   syncIntervalSeconds: 30,
+  mailFolder: "Mail",
+  mailRemoteImages: false,
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -58,6 +68,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupMaxPerFile: src.backupMaxPerFile ?? VAULT_DEFAULTS.backupMaxPerFile,
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
+    mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
+    mailRemoteImages: src.mailRemoteImages ?? VAULT_DEFAULTS.mailRemoteImages,
   };
 }
 

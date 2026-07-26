@@ -41,6 +41,8 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { MailAccountsScreen } from "./screens/MailAccountsScreen";
+import { MailListScreen } from "./screens/MailListScreen";
+import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
@@ -85,12 +87,25 @@ const dailyPathFor = (iso: string) => ({
 });
 
 /** Pool-screen id -> pushable stack entry (More menu, R2.5). */
+/** A mail message needs three values in one nav path — account, mailbox and
+ *  message id. JSON keeps mailbox names with any character intact (a raw
+ *  separator byte would not, and NUL once turned source files binary here). */
+function parseMailRef(path: string): { accountId: string; mailbox: string; messageId: string } {
+  try {
+    const p = JSON.parse(path) as { a?: string; m?: string; id?: string };
+    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "" };
+  } catch {
+    return { accountId: "", mailbox: "", messageId: "" };
+  }
+}
+
 const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   notes: { kind: "folder", path: "" },
   today: { kind: "today", path: "" },
   tags: { kind: "tags", path: "" },
   bookmarks: { kind: "bookmarks", path: "" },
   calendar: { kind: "pimcalendar", path: "" },
+  mail: { kind: "mail", path: "" },
   databases: { kind: "databases", path: "" },
   graph: { kind: "graphmap", path: "" },
 };
@@ -758,6 +773,20 @@ export default function App() {
           <PimCalendarScreen bump={bump} onBack={pop} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
         ) : top?.kind === "pimaccounts" ? (
           <PimAccountsScreen bump={bump} onBack={pop} />
+        ) : top?.kind === "mail" ? (
+          <MailListScreen
+            bump={bump}
+            onBack={pop}
+            onOpenMessage={(a, m, id) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id }) })}
+            onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
+          />
+        ) : top?.kind === "mailmsg" ? (
+          <MailMessageScreen
+            vault={vault}
+            {...parseMailRef(top.path)}
+            onBack={pop}
+            onOpenNote={openNote}
+          />
         ) : top?.kind === "mailaccounts" ? (
           <MailAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "databases" ? (
@@ -799,6 +828,12 @@ export default function App() {
           <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : nav.activeTab === "calendar" ? (
           <PimCalendarScreen bump={bump} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
+        ) : nav.activeTab === "mail" ? (
+          <MailListScreen
+            bump={bump}
+            onOpenMessage={(acc, mb, id) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id }) })}
+            onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
+          />
         ) : nav.activeTab === "graph" ? (
           <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
         ) : (

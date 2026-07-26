@@ -37,6 +37,8 @@ Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV*
 
 Bij **Instellingen → E-mail** verbind je een **Microsoft-postbus** (Outlook.com, Microsoft 365) rechtstreeks via het inloggen in de browser — zonder app-wachtwoord. Net als bij de agenda geldt: inloggen gebeurt per apparaat.
 
+Daarna open je **E-mail** als eigen gebied via het ▾ naast de titel en zet je het desgewenst in de navigatiebalk. De regel onder de titel toont map, ongelezen aantal en account, en opent de mapkiezer. Tik op een bericht om het te lezen; **Als notitie opslaan** plaatst het in de map **Mail** van je kluis (twee keer vastleggen opent dezelfde notitie). Externe afbeeldingen blijven geblokkeerd tot je ze voor dat bericht toestaat — een geladen afbeelding verklapt de afzender wanneer en waar je hebt gelezen.
+
 **IMAP-postbussen werken nog niet op de telefoon.** Ze hebben een directe verbinding met de mailserver nodig, die nog wordt gebouwd. Een IMAP-postbus die via de instellingen-synchronisatie van de desktop komt, verschijnt in de lijst en zegt dat ter plekke — gebruik hem voorlopig op de desktop.
 
 ## Synchronisatie

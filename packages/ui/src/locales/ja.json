@@ -2355,7 +2355,12 @@
     "removeAccount": "メールボックスを削除",
     "removeAccountConfirm": "メールボックスを削除しますか？",
     "accountAdded": "メールボックスを接続しました",
-    "imapMobileUnavailable": "IMAP メールボックスはスマートフォンではまだ利用できません。メールサーバーへの直接接続が必要で、その機能は開発中です。当面はデスクトップでご利用ください。Microsoft のメールボックスはここで使えます。"
+    "imapMobileUnavailable": "IMAP メールボックスはスマートフォンではまだ利用できません。メールサーバーへの直接接続が必要で、その機能は開発中です。当面はデスクトップでご利用ください。Microsoft のメールボックスはここで使えます。",
+    "folders": "フォルダー",
+    "folderEmpty": "このフォルダーにメールはありません",
+    "unknownSender": "送信者不明",
+    "noteExists": "このメールのノートはすでにあります",
+    "attachmentsMobile_other": "添付ファイル {{count}} 件 — 保存するにはデスクトップでこのメールを開いてください"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

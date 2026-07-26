@@ -2367,7 +2367,14 @@
     "removeAccount": "Rimuovi casella",
     "removeAccountConfirm": "Rimuovere la casella?",
     "accountAdded": "Casella collegata",
-    "imapMobileUnavailable": "Le caselle IMAP non funzionano ancora sul telefono: richiedono una connessione diretta al server di posta, ancora in fase di sviluppo. Per ora usale sul computer; le caselle Microsoft funzionano qui."
+    "imapMobileUnavailable": "Le caselle IMAP non funzionano ancora sul telefono: richiedono una connessione diretta al server di posta, ancora in fase di sviluppo. Per ora usale sul computer; le caselle Microsoft funzionano qui.",
+    "folders": "Cartelle",
+    "folderEmpty": "Nessun messaggio in questa cartella",
+    "unknownSender": "Mittente sconosciuto",
+    "noteExists": "Per questa e-mail esiste già una nota",
+    "attachmentsMobile_one": "{{count}} allegato: apri l’e-mail sul computer per salvarlo",
+    "attachmentsMobile_other": "{{count}} allegati: apri l’e-mail sul computer per salvarli",
+    "attachmentsMobile_many": "{{count}} allegati: apri l’e-mail sul computer per salvarli"
   },
   "cloudAccounts": {
     "serviceFiles": "File",
