@@ -246,13 +246,19 @@ export function VaultDetailScreen({
         )}
         {isActive && entry.provider && (
           <>
-            <p className="m-sectionlabel">{t("settingsSync.cardLabel")}</p>
+            {/* Same chain as the desktop (plan P5): three steps that build on
+                each other, in one place, with the dependency visible. */}
+            <p className="m-sectionlabel">{t("settingsSync.chainLabel")}</p>
+            <p className="m-hint">{t("settingsSync.chainIntro")}</p>
             <div className="m-row m-row--static">
-              <span>{t("settingsSync.toggleLabel")}</span>
+              <span className="m-linestack">
+                {t("settingsSync.step2")}
+                <small>{t("settingsSync.step2Desc")}</small>
+              </span>
               <Switch
                 checked={settingsSyncOn}
                 disabled={busy}
-                label={t("settingsSync.toggleLabel")}
+                label={t("settingsSync.step2")}
                 onChange={(next) => {
                   setBusy(true);
                   void setMobileSettingsSyncEnabled(vaultId, next)
@@ -262,7 +268,7 @@ export function VaultDetailScreen({
                 }}
               />
             </div>
-            <p className="m-hint">{t("settingsSync.toggleDesc")}</p>
+            <p className="m-hint">{t("settingsSync.carries")}</p>
             {/* P6: the bare "Enter passphrase" / "Lock" button used to sit here
                 with nothing explaining WHICH passphrase (it is NOT the encrypted
                 workspace's), what it protects, or what locking does. Three
@@ -278,16 +284,18 @@ export function VaultDetailScreen({
                 them. It has one now, so this is a switch. It needs the
                 encryption unlocked: the bundle is sealed with the master key,
                 and without one there is nothing to seal it with. */}
-            {settingsSyncOn && encryption === "unlocked" && (
+            {/* E3: shown always, but only operable once step 2 is on — a
+                password can reach an account this device does not know. */}
+            {encryption === "unlocked" && (
               <div className="m-row m-row--static">
                 <span className="m-linestack">
-                  {t("settingsSync.secretsLabel")}
-                  <small>{t("settingsSync.secretsDesc")}</small>
+                  {t("settingsSync.step3")}
+                  <small>{settingsSyncOn ? t("settingsSync.step3Desc") : t("settingsSync.needsStep2Body")}</small>
                 </span>
                 <Switch
-                  checked={secretsSyncOn}
-                  disabled={busy}
-                  label={t("settingsSync.secretsLabel")}
+                  checked={secretsSyncOn && settingsSyncOn}
+                  disabled={busy || !settingsSyncOn}
+                  label={t("settingsSync.step3")}
                   onChange={(next) => {
                     setBusy(true);
                     void setMobileSecretsSyncEnabled(vaultId, next)
@@ -298,8 +306,21 @@ export function VaultDetailScreen({
                 />
               </div>
             )}
+            {settingsSyncOn && encryption === "unlocked" && <p className="m-hint">{t("settingsSync.oauthNote")}</p>}
             {settingsSyncOn && encryption !== "unlocked" && (
               <p className="m-hint">{t("settingsSync.secretsNeedsPassphrase")}</p>
+            )}
+            {settingsSyncOn && (
+              <button
+                className="m-btn"
+                disabled={busy}
+                onClick={() => {
+                  toast.info(t("settingsSync.pullStarted"));
+                  void syncNow();
+                }}
+              >
+                {t("settingsSync.pullNow")}
+              </button>
             )}
             {/* H2e: this state used to be a dead end — the phone could unlock
                 an encryption but never create one, so a phone-only user could

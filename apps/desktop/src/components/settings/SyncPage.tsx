@@ -12,6 +12,7 @@ import {
   ICON,
   familyOfSyncProvider,
   hasCloudService,
+  toast,
   type CloudAccountRecord,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
@@ -269,16 +270,66 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
         </SettingCard>
       )}
 
+      {/* One chain instead of three switches in two places (plan P5). The steps
+          build on each other, and until now nothing on screen said so: a user
+          who only set the passphrase waited forever for accounts that were
+          never going to travel. */}
       {connected && (
-        <SettingCard label={t("settingsSync.cardLabel")}>
-          <SettingRow label={t("settingsSync.toggleLabel")} desc={t("settingsSync.toggleDesc")}>
+        <SettingCard label={t("settingsSync.chainLabel")}>
+          <SettingCardNote>{t("settingsSync.chainIntro")}</SettingCardNote>
+
+          <SettingRow
+            label={t("settingsSync.step1")}
+            desc={encState === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step1Desc")}
+          >
+            {encState === "unlocked" ? (
+              <Button variant="ghost" onClick={() => void doLock()} data-testid="chain-encryption-lock">{t("encryption.lock")}</Button>
+            ) : (
+              <Button variant="primary" onClick={() => setEncModal(encState === "none" ? "create" : "unlock")} data-testid="chain-encryption">
+                {encState === "none" ? t("encryption.setPassphrase") : t("encryption.enterPassphrase")}
+              </Button>
+            )}
+          </SettingRow>
+
+          <SettingRow label={t("settingsSync.step2")} desc={t("settingsSync.step2Desc")}>
             <Switch
               checked={settingsSyncOn}
               onChange={(on) => void toggleSettingsSync(on)}
-              label={t("settingsSync.toggleLabel")}
+              label={t("settingsSync.step2")}
             />
           </SettingRow>
-          <SettingCardNote>{t("settingsSync.explainer")}</SettingCardNote>
+          <SettingCardNote>{t("settingsSync.carries")}</SettingCardNote>
+
+          {/* E3: locked rather than uselessly switchable. A password can only
+              travel to an account this device already knows, and the accounts
+              come with step 2 — so without it this switch cannot do anything. */}
+          <SettingRow
+            label={t("settingsSync.step3")}
+            desc={settingsSyncOn ? t("settingsSync.step3Desc") : t("settingsSync.needsStep2Body")}
+          >
+            <Switch
+              checked={secretsSyncOn && settingsSyncOn}
+              disabled={!settingsSyncOn}
+              onChange={(on) => void toggleSecretsSync(on)}
+              label={t("settingsSync.step3")}
+            />
+          </SettingRow>
+          {settingsSyncOn && <SettingCardNote>{t("settingsSync.oauthNote")}</SettingCardNote>}
+
+          {settingsSyncOn && p.isActiveVault && (
+            <SettingRow label={t("settingsSync.pullNow")} desc={t("settingsSync.pullNowDesc")}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  toast.info(t("settingsSync.pullStarted"));
+                  window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
+                }}
+                data-testid="chain-pull-now"
+              >
+                {t("mobile.syncNow")}
+              </Button>
+            </SettingRow>
+          )}
         </SettingCard>
       )}
 
@@ -307,9 +358,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
             )}
           </SettingRow>
-          <SettingRow label={t("settingsSync.secretsLabel", { defaultValue: "Konten-Zugangsdaten synchronisieren" })} desc={t("settingsSync.secretsDesc", { defaultValue: "Nur statische IMAP-/CalDAV-Passwörter und eigene Google-Kalender-App-Daten; OAuth-Tokens bleiben auf diesem Gerät." })}>
-            <Switch checked={secretsSyncOn} onChange={(on) => void toggleSecretsSync(on)} label={t("settingsSync.secretsLabel", { defaultValue: "Konten-Zugangsdaten synchronisieren" })} />
-          </SettingRow>
+          {/* The sign-in switch moved into the chain above, where its dependency
+              on step 2 is visible. Leaving a second copy here would let a user
+              turn it on in the one place that does not show why it does nothing. */}
           {encState !== "none" && (
             <SettingRow label={t("encryption.everyStart")} desc={t("encryption.everyStartDesc")}>
               <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />

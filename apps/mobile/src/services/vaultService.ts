@@ -34,6 +34,7 @@ import {
 } from "./vaultRegistry";
 import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { clearMobileSyncState } from "./mobileSettingsSync";
+import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
@@ -178,6 +179,9 @@ export async function deleteVault(id: string): Promise<void> {
   await getStoredProvider(id)
     .then((provider) => clearMobileSyncState(id, provider))
     .catch(() => {});
+  // The cloud-account registry is vault-scoped too; leaving it behind would
+  // resurrect stale accounts if the same vault id were ever reused.
+  await clearCloudAccounts(id).catch(() => {});
   await purgeCredentials(id).catch(() => {});
   await removeVault(id);
 }

@@ -97,9 +97,9 @@ Open **Settings → Synchronisation → Sync passphrase & encryption**:
 
 The unlocked key is cached on each device. Turn on **Require passphrase at every start** to re-enter it after each restart instead, and use **Lock** to remove the cached key from this device.
 
-**Sync settings** transfers the shared vault settings and account metadata; local paths, layout and runtime data stay device-specific. **Sync account secrets** is a separate opt-in for allowlisted static app passwords and BYO credentials—OAuth tokens are never shared. The encryption status leads through **Preparing**, **Migration**, **Strict**, **Decrypting** and **Key rotation**; a rotation only finishes after every remote file has been verified.
+**Accounts on all your devices** is three steps that build on each other. **1 · Encryption**: protects what travels between devices, but carries nothing by itself. **2 · Settings and accounts**: puts vault settings *and your accounts* (calendars, mailboxes, calendar selection) into a small file in the vault. **3 · Carry sign-ins**: additionally carries static IMAP and CalDAV passwords, encrypted. Step 3 can only be switched on once step 2 runs — a password can only travel to an account the device already knows. Not carried: device-specific paths and OAuth sign-ins (Microsoft, Google); their tokens are device-bound, so the account appears on the new device and needs **Sign in** there once.
 
-On the **phone**, the vault page shows the same thing as a state card: **not being synced**, **not unlocked on this device yet** (enter the passphrase — the one you chose on the desktop) or **being synced**. So the mobile app **unlocks** an encrypted vault, but does not set settings sync up itself. And because sign-ins never travel, a synced account can appear on a device that has not signed in yet — the app says so there explicitly and offers the sign-in instead of staying empty.
+On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 
 ## Errors and automatic retries
 

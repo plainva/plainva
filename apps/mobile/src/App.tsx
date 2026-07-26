@@ -225,13 +225,28 @@ export default function App() {
       // Shrinking or rearranging the bar can push the active tab out of it.
       setNav((s) => ensureVisibleTab(s, barTabs(next, nextCount)));
     };
+    // Accounts arrived through the settings sync (plan P3). They were written
+    // straight into the vault database, so the runtimes are still holding the
+    // state from before — without this the imported calendar stays empty and
+    // the mailbox invisible until the next app start.
+    const onAccountsImported = () => {
+      void getMobileVault().then((v) => {
+        stopPim();
+        void startPim(v).catch((e) => console.error("[import] pim restart failed", e));
+        stopMobileMail();
+        startMobileMail(v);
+        setBump((n) => n + 1);
+      });
+    };
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
     window.addEventListener("m-settings-changed", onSettings);
+    window.addEventListener("m-accounts-imported", onAccountsImported);
     return () => {
       window.removeEventListener("m-vault-changed", onChanged);
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-settings-changed", onSettings);
+      window.removeEventListener("m-accounts-imported", onAccountsImported);
     };
   }, []);
 

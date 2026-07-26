@@ -32,7 +32,23 @@ import {
   type IVaultAdapter,
   type PimAccountRow,
 } from "@plainva/core";
-import { parseBookmarksFile, serializeBookmarksFile, toast, type CloudAccountRecord, type ISettingsStore } from "@plainva/ui";
+import {
+  cloudRegistryToLogical,
+  emptyAccountMap,
+  importAccountMetadata as sharedImportAccountMetadata,
+  parseBookmarksFile,
+  remapCloudRegistry,
+  serializeBookmarksFile,
+  toast,
+  validCloudAccount,
+  validMailAccount,
+  validPimAccount,
+  type AccountImportPorts,
+  type CloudAccountRecord,
+  type ISettingsStore,
+  type ProfileAccountMap,
+  type ProfilePimSelections,
+} from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
@@ -53,7 +69,7 @@ import {
   backupZipKeepKey,
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
-import { mailAccountsKey, listMailAccounts, mailAccountKind, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -127,24 +143,16 @@ export interface DesktopProfileContext {
   onSkipped?: (reasons: string[]) => void;
 }
 
-export interface ProfileAccountMap {
-  pimLocalToLogical: Record<string, string>;
-  mailLocalToLogical: Record<string, string>;
-}
+export type { ProfileAccountMap };
 
 export async function loadProfileAccountMap(vaultPath: string): Promise<ProfileAccountMap> {
   const store = await getSettingsStore();
-  return (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? { pimLocalToLogical: {}, mailLocalToLogical: {} };
+  return (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap();
 }
 
 export async function isSecretsSyncEnabled(vaultPath: string, store?: ISettingsStore): Promise<boolean> {
   const s = store ?? (await getSettingsStore());
   return (await s.get<boolean>(secretsSyncEnabledKey(vaultPath))) === true;
-}
-
-interface ProfilePimSelections {
-  calendars: Array<{ accountId: string; id: string; selected: boolean }>;
-  taskLists: Array<{ accountId: string; id: string; selected: boolean }>;
 }
 
 interface ProfileImportSnapshot {
@@ -218,20 +226,7 @@ export async function exportProfileValues(
   }
 
   const rawCloudAccounts = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
-  if (Array.isArray(rawCloudAccounts)) {
-    values.cloudAccounts = rawCloudAccounts.map((record) => ({
-      ...record,
-      services: {
-        ...record.services,
-        ...(record.services.calendar
-          ? { calendar: { pimAccountId: map.pimLocalToLogical[record.services.calendar.pimAccountId] ?? record.services.calendar.pimAccountId } }
-          : {}),
-        ...(record.services.mail
-          ? { mail: { mailAccountId: map.mailLocalToLogical[record.services.mail.mailAccountId] ?? record.services.mail.mailAccountId } }
-          : {}),
-      },
-    }));
-  }
+  if (Array.isArray(rawCloudAccounts)) values.cloudAccounts = cloudRegistryToLogical(rawCloudAccounts, map);
 
   if (context.rawVault) {
     try {
@@ -466,44 +461,30 @@ export function sanitizeProfileValues(values: Record<string, unknown>): Sanitize
   return { values: out, preserve, skipped };
 }
 
-function nextLocalId(preferred: string, used: Set<string>): string {
-  if (preferred && !used.has(preferred)) return preferred;
-  let id: string;
-  do id = globalThis.crypto.randomUUID().slice(0, 12); while (used.has(id));
-  return id;
-}
-
-function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "config">): string {
-  const url = typeof a.config.url === "string" ? a.config.url.trim().replace(/\/+$/, "").toLowerCase() : "";
-  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  const client = typeof a.config.clientId === "string" ? a.config.clientId.trim().toLowerCase() : "";
-  return [a.provider, url, user, client, a.label.trim().toLowerCase()].join("|");
-}
-
-function mailIdentity(a: MailAccountConfig): string {
-  return [a.kind ?? "imap", a.host.trim().toLowerCase(), a.port, a.user.trim().toLowerCase()].join("|");
-}
-
-function validPimAccount(value: unknown): value is PimAccountRow {
-  const a = value as PimAccountRow;
-  return !!a && typeof a.id === "string" && ["caldav", "google", "microsoft"].includes(a.provider) && typeof a.label === "string" && !!a.config && typeof a.config === "object" && !Array.isArray(a.config);
-}
-
-function validMailAccount(value: unknown): value is MailAccountConfig {
-  const a = value as MailAccountConfig;
-  if (!a || typeof a.id !== "string" || typeof a.label !== "string" || typeof a.host !== "string" || typeof a.user !== "string") return false;
-  if (a.kind !== undefined && a.kind !== "imap" && a.kind !== "microsoft") return false;
-  // A Microsoft (Graph) mailbox speaks no IMAP: it is stored with host "" and
-  // port 0 by design. Demanding a real port from it rejected the account — and
-  // because a rejected account aborted the whole import, a single Microsoft
-  // mailbox silently disabled the ENTIRE settings sync on every device.
-  if (mailAccountKind(a) === "microsoft") return true;
-  return Number.isInteger(a.port) && a.port > 0 && a.port <= 65535;
-}
-
-function validCloudAccount(value: unknown): value is CloudAccountRecord {
-  const a = value as CloudAccountRecord;
-  return !!a && typeof a.id === "string" && typeof a.family === "string" && typeof a.label === "string" && !!a.services && typeof a.services === "object" && !Array.isArray(a.services);
+/**
+ * Desktop side of the shared account import. The judgement (identity matching,
+ * id collisions, the map) lives in `@plainva/ui/accountProfile` so the phone
+ * runs the SAME code; this only says where the desktop keeps its accounts.
+ */
+function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntime: PimRuntime | null): AccountImportPorts {
+  return {
+    listPimAccounts: async () => (pimRuntime ? pimRuntime.cache.listAccounts() : []),
+    upsertPimAccount: async (row) => {
+      if (pimRuntime) await pimRuntime.cache.upsertAccount(row);
+    },
+    listCalendars: async (accountId) => (pimRuntime ? pimRuntime.cache.listCalendars(accountId) : []),
+    setCalendarSelected: async (accountId, id, selected) => {
+      if (pimRuntime) await pimRuntime.cache.setCalendarSelected(accountId, id, selected);
+    },
+    listTaskLists: async (accountId) => (pimRuntime ? pimRuntime.cache.listTaskLists(accountId) : []),
+    setTaskListSelected: async (accountId, id, selected) => {
+      if (pimRuntime) await pimRuntime.cache.setTaskListSelected(accountId, id, selected);
+    },
+    listMailAccounts: () => listMailAccounts(vaultPath),
+    replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
+    loadAccountMap: async () => (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap(),
+    saveAccountMap: async (map) => store.set(profileAccountMapKey(vaultPath), map),
+  };
 }
 
 async function importAccountMetadata(
@@ -512,71 +493,17 @@ async function importAccountMetadata(
   values: Record<string, unknown>,
   pimRuntime: PimRuntime | null
 ): Promise<{ pim: Map<string, string>; mail: Map<string, string> }> {
-  const previousMap = (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? { pimLocalToLogical: {}, mailLocalToLogical: {} };
-  const pimMap = new Map<string, string>();
-  const mailMap = new Map<string, string>();
-
-  if (pimRuntime && Array.isArray(values.pimAccounts)) {
-    const existing = await pimRuntime.cache.listAccounts();
-    const used = new Set(existing.map((a) => a.id));
-    const selections = values.pimSelections as Partial<ProfilePimSelections> | undefined;
-    for (const importedValue of values.pimAccounts) {
-      if (!validPimAccount(importedValue)) throw new Error("invalid PIM account in settings profile");
-      const imported = importedValue;
-      const same = existing.find((a) => pimIdentity(a) === pimIdentity(imported));
-      const idCollision = existing.find((a) => a.id === imported.id);
-      const localId = same?.id ?? (idCollision && pimIdentity(idCollision) !== pimIdentity(imported) ? nextLocalId(imported.id, used) : imported.id);
-      used.add(localId);
-      pimMap.set(imported.id, localId);
-      const calendarPending = Object.fromEntries((selections?.calendars ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
-      const taskPending = Object.fromEntries((selections?.taskLists ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
-      const row: PimAccountRow = {
-        ...imported,
-        id: localId,
-        config: {
-          ...imported.config,
-          ...(Object.keys(calendarPending).length ? { plainvaPendingCalendarSelections: calendarPending } : {}),
-          ...(Object.keys(taskPending).length ? { plainvaPendingTaskListSelections: taskPending } : {}),
-        },
-      };
-      await pimRuntime.cache.upsertAccount(row);
-      const currentCals = await pimRuntime.cache.listCalendars(localId);
-      for (const cal of currentCals) if (Object.prototype.hasOwnProperty.call(calendarPending, cal.id)) await pimRuntime.cache.setCalendarSelected(localId, cal.id, !!calendarPending[cal.id]);
-      const currentLists = await pimRuntime.cache.listTaskLists(localId);
-      for (const list of currentLists) if (Object.prototype.hasOwnProperty.call(taskPending, list.id)) await pimRuntime.cache.setTaskListSelected(localId, list.id, !!taskPending[list.id]);
-    }
-  }
-
-  if (Array.isArray(values.mailAccounts)) {
-    const existing = await listMailAccounts(vaultPath);
-    const used = new Set(existing.map((a) => a.id));
-    const importedRows: MailAccountConfig[] = [];
-    for (const importedValue of values.mailAccounts) {
-      if (!validMailAccount(importedValue)) throw new Error("invalid mail account in settings profile");
-      const imported = importedValue;
-      const same = existing.find((a) => mailIdentity(a) === mailIdentity(imported));
-      const idCollision = existing.find((a) => a.id === imported.id);
-      const localId = same?.id ?? (idCollision && mailIdentity(idCollision) !== mailIdentity(imported) ? nextLocalId(imported.id, used) : imported.id);
-      used.add(localId);
-      mailMap.set(imported.id, localId);
-      importedRows.push({ ...imported, id: localId });
-    }
-    const importedIds = new Set(importedRows.map((a) => a.id));
-    await replaceMailAccounts(vaultPath, [...existing.filter((a) => !importedIds.has(a.id)), ...importedRows]);
-  }
-
-  const nextMap: ProfileAccountMap = {
-    pimLocalToLogical: { ...previousMap.pimLocalToLogical, ...Object.fromEntries([...pimMap].map(([logical, local]) => [local, logical])) },
-    mailLocalToLogical: { ...previousMap.mailLocalToLogical, ...Object.fromEntries([...mailMap].map(([logical, local]) => [local, logical])) },
-  };
-  await store.set(profileAccountMapKey(vaultPath), nextMap);
+  // Without a runtime there is no PIM truth to reconcile against; importing
+  // calendars into nothing would strand them. Mail is store-backed and fine.
+  const scoped = pimRuntime ? values : { ...values, pimAccounts: undefined, pimSelections: undefined };
+  const idMap = await sharedImportAccountMetadata(scoped, desktopAccountPorts(store, vaultPath, pimRuntime));
 
   const defaultCalendar = values.defaultCalendar;
   if (typeof defaultCalendar === "string" && defaultCalendar.includes(" ")) {
     const [logical, ...rest] = defaultCalendar.split(" ");
-    await store.set(defaultCalendarKey(vaultPath), `${pimMap.get(logical) ?? logical} ${rest.join(" ")}`);
+    await store.set(defaultCalendarKey(vaultPath), `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`);
   }
-  return { pim: pimMap, mail: mailMap };
+  return idMap;
 }
 
 async function importCloudRegistry(
@@ -585,22 +512,7 @@ async function importCloudRegistry(
   idMap: { pim: Map<string, string>; mail: Map<string, string> }
 ): Promise<void> {
   if (!Array.isArray(value)) return;
-  const records: CloudAccountRecord[] = [];
-  for (const raw of value) {
-    const record = raw as CloudAccountRecord;
-    if (!record || typeof record.id !== "string" || typeof record.family !== "string" || typeof record.label !== "string" || !record.services || typeof record.services !== "object") {
-      throw new Error("invalid cloud account in settings profile");
-    }
-    records.push({
-      ...record,
-      services: {
-        ...record.services,
-        ...(record.services.calendar ? { calendar: { pimAccountId: idMap.pim.get(record.services.calendar.pimAccountId) ?? record.services.calendar.pimAccountId } } : {}),
-        ...(record.services.mail ? { mail: { mailAccountId: idMap.mail.get(record.services.mail.mailAccountId) ?? record.services.mail.mailAccountId } } : {}),
-      },
-    });
-  }
-  await saveCloudAccounts(vaultPath, records);
+  await saveCloudAccounts(vaultPath, remapCloudRegistry(value.filter(validCloudAccount), idMap));
 }
 
 /** Builds the desktop profile-sync port for a vault. */

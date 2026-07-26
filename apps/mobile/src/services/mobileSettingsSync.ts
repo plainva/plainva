@@ -24,10 +24,25 @@ import {
   type MasterKeyBundle,
   type SettingsSyncRunner,
 } from "@plainva/core";
-import { getPlatformServices, toast } from "@plainva/ui";
+import {
+  cloudRegistryToLogical,
+  emptyAccountMap,
+  getPlatformServices,
+  importAccountMetadata,
+  remapCloudRegistry,
+  toast,
+  validCloudAccount,
+  type AccountImportPorts,
+  type ProfileAccountMap,
+  type ProfilePimSelections,
+} from "@plainva/ui";
+import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
+import { PimCacheRepository } from "@plainva/core";
+import { loadCloudAccounts, refreshCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import { createMobileSecretsPort } from "./mobileSecretsPort";
+import { isPimRuntimeReady } from "./pim/pimService";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
@@ -279,12 +294,54 @@ export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none"
   return (await (vault.backup ?? vault.adapter).exists(KEYFILE_PATH)) ? "locked" : "none";
 }
 
-function profilePort(vaultId: string) {
+/**
+ * The account map lives beside the profile: it ties a device-local account id
+ * to the id used in the shared document, so the same account is recognised
+ * across devices even though the ids differ (they end up in keychain slots).
+ */
+const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
+
+/** Mobile side of the shared account import (plan P3). */
+function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
+  const vaultId = vault.vaultId;
+  // Write through a cache built on the vault's own database rather than the PIM
+  // runtime: the runtime boots in parallel with the sync worker, and an import
+  // that waited for it would simply do nothing on the cycle that matters.
+  const cache = vault.db ? new PimCacheRepository(vault.db) : null;
+  return {
+    listPimAccounts: async () => (cache ? cache.listAccounts() : []),
+    upsertPimAccount: async (row) => {
+      if (cache) await cache.upsertAccount(row);
+    },
+    listCalendars: async (accountId) => (cache ? cache.listCalendars(accountId) : []),
+    setCalendarSelected: async (accountId, id, selected) => {
+      if (cache) await cache.setCalendarSelected(accountId, id, selected);
+    },
+    listTaskLists: async (accountId) => (cache ? cache.listTaskLists(accountId) : []),
+    setTaskListSelected: async (accountId, id, selected) => {
+      if (cache) await cache.setTaskListSelected(accountId, id, selected);
+    },
+    listMailAccounts: () => listMailAccounts(vaultId),
+    replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
+    loadAccountMap: async () => (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap(),
+    saveAccountMap: async (map) => {
+      const s = await settingsStore();
+      await s.set(accountMapKey(vaultId), map);
+      await s.save();
+    },
+  };
+}
+
+function profilePort(vault: MobileVault) {
+  const vaultId = vault.vaultId;
   return {
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
-      return {
+      const map = (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap();
+      const cache = vault.db ? new PimCacheRepository(vault.db) : null;
+
+      const values: Record<string, unknown> = {
         ...unknown,
         dailyNotesFolder: s.dailyFolder,
         dailyNoteTemplate: s.dailyTemplate,
@@ -295,7 +352,33 @@ function profilePort(vaultId: string) {
         // H2a: the desktop has always put this in the profile; mobile neither
         // read nor wrote it, so a value set there never arrived on the phone.
         syncIntervalSeconds: s.syncIntervalSeconds,
+        // These two are per-vault on mobile and were documented as travelling
+        // with the sync — but the port never listed them, so they never did.
+        mailFolder: s.mailFolder,
+        mailRemoteImages: s.mailRemoteImages,
       };
+
+      // Accounts (plan P3). Until now they fell into `unknown`, were written
+      // back untouched and never applied — which is why a phone kept asking the
+      // user to create every calendar and mailbox by hand.
+      if (cache) {
+        const accounts = await cache.listAccounts();
+        values.pimAccounts = accounts.map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id }));
+        const calendars = await cache.listCalendars();
+        const taskLists = await cache.listTaskLists();
+        values.pimSelections = {
+          calendars: calendars.map((c) => ({ accountId: map.pimLocalToLogical[c.accountId] ?? c.accountId, id: c.id, selected: c.selected })),
+          taskLists: taskLists.map((l) => ({ accountId: map.pimLocalToLogical[l.accountId] ?? l.accountId, id: l.id, selected: l.selected })),
+        } satisfies ProfilePimSelections;
+      }
+      const mail = await listMailAccounts(vaultId);
+      values.mailAccounts = mail.map((a) => ({ ...a, id: map.mailLocalToLogical[a.id] ?? a.id }));
+      // Bring the registry up to date before publishing it — this is the one
+      // place guaranteed to run whenever the profile is exported. It only writes
+      // when something actually changed, so it cannot loop.
+      const registry = await refreshCloudAccounts(vaultId, isPimRuntimeReady()).catch(() => loadCloudAccounts(vaultId));
+      values.cloudAccounts = cloudRegistryToLogical(registry, map);
+      return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
       const patch: Partial<VaultSettings> = {};
@@ -306,12 +389,28 @@ function profilePort(vaultId: string) {
       if (typeof values.backupMaxCountPerFile === "number" && values.backupMaxCountPerFile >= 0) patch.backupMaxPerFile = values.backupMaxCountPerFile;
       if (typeof values.backupMaxAgeDays === "number" && values.backupMaxAgeDays >= 0) patch.backupMaxAgeDays = values.backupMaxAgeDays;
       if (typeof values.syncIntervalSeconds === "number" && values.syncIntervalSeconds >= MIN_SYNC_INTERVAL_SECONDS) patch.syncIntervalSeconds = values.syncIntervalSeconds;
-      const known = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "syncIntervalSeconds"]);
+      if (typeof values.mailFolder === "string" && !values.mailFolder.startsWith("/")) patch.mailFolder = values.mailFolder;
+      if (typeof values.mailRemoteImages === "boolean") patch.mailRemoteImages = values.mailRemoteImages;
+
+      const idMap = await importAccountMetadata(values, mobileAccountPorts(vault));
+      if (Array.isArray(values.cloudAccounts)) {
+        await saveCloudAccounts(vaultId, remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), idMap));
+      }
+
+      const known = new Set([
+        "dailyNotesFolder", "dailyNoteTemplate", "templateFolder",
+        "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays",
+        "syncIntervalSeconds", "mailFolder", "mailRemoteImages",
+        "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts",
+      ]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
       await store.save();
       await applyVaultSettings(vaultId, patch);
+      // The accounts exist now; the runtimes have to be told, or the calendar
+      // stays empty until the next app start.
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-accounts-imported"));
     },
   };
 }
@@ -389,7 +488,7 @@ export async function prepareMobileSettingsSync(
   if (hasKeyfile && !ring && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-encryption-locked"));
   const profile = (await isMobileSettingsSyncEnabled(vault.vaultId)) && !keyfilePreflightFailed && (!hasKeyfile || !!ring)
     ? new SettingsSyncStep({
-        port: profilePort(vault.vaultId),
+        port: profilePort(vault),
         deviceId: await deviceId(),
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
         profileCrypto: ring ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") } : undefined,
