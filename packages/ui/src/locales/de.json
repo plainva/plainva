@@ -2316,7 +2316,17 @@
     "dueToday": "fällig heute",
     "dueOn": "fällig {{date}}",
     "inviteSubject": "Einladung: {{title}}",
-    "linkedBlock": "Verknüpfter Kalenderblock"
+    "linkedBlock": "Verknüpfter Kalenderblock",
+    "blockTime": "Zeit blocken",
+    "blockCreatesEvent": "Legt einen Termin mit diesem Titel an und verknüpft ihn mit der Notiz.",
+    "blockDuration": "Dauer",
+    "blockCustom": "Eigene",
+    "blockMinutesLabel": "Minuten",
+    "blockUntil": "Bis {{time}}",
+    "blockHours": "{{n}} h",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Zeit geblockt: {{title}}",
+    "blockNotAnchored": "Termin angelegt — die Notiz konnte nicht verknüpft werden."
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP)",

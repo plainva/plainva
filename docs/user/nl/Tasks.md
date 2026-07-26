@@ -55,6 +55,14 @@ Elke taakregel draagt een database-icoon: **Naar de takendatabase verplaatsen**.
 
 **+ Nieuwe taak** in de sectiekop maakt direct een item in de takendatabase aan (dezelfde opslagmap, sjabloon en standaardwaarden als bij het verplaatsen van een vinkje) en opent het. Vinkjes die je in een notitie schrijft blijven daar — ze worden pas databasetaken als je ze verplaatst.
 
+## Tijd blokkeren voor een taak
+
+Taken zijn in Plainva **dagnauwkeurig**: een taak heeft een vervaldatum, geen tijdstip. Wil je er tijd voor vrijmaken, dan maakt Plainva daarvoor een **afspraak** aan — dat is het object met een tijdsbereik, dat overlappingen in het raster toont en met je agenda-account synchroniseert.
+
+Het agendapictogram op een taakregel opent **Tijd blokkeren**: de datum (vooringevuld met de vervaldatum), de starttijd en de **Duur** (15 min, 30 min, 1 u, 2 u of **Aangepast**), plus een agendakeuze als meerdere agenda's schrijfbaar zijn. De afspraak krijgt de titel van de taak en verwijst terug naar de notitie.
+
+Bij een taak uit de database onthoudt de notitie het blok ook in haar frontmatter (`plainva.blocks`), zodat de koppeling van beide kanten zichtbaar is. Een regel met selectievakje heeft geen eigen notitie — daar ontstaat alleen de afspraak, die verwijst naar de notitie waarin de regel staat. Het pictogram verschijnt alleen als er een agenda-account is verbonden.
+
 ## Notities uit de Taken-weergave verbergen
 
 Sommige notities bevatten selectievakjes die nooit "echte" taken zijn — vooral **sjablonen**. Om ze buiten de lijst te houden, kan een notitie zichzelf uitsluiten. De waarheid blijft in het bestand: de uitsluiting is een frontmatter-veld in de notitie, geen verborgen app-instelling. Het synchroniseert mee, is zichtbaar in Obsidian en is met elke teksteditor te controleren:

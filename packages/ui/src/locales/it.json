@@ -2323,7 +2323,17 @@
     "dueToday": "scade oggi",
     "dueOn": "scade {{date}}",
     "inviteSubject": "Invito: {{title}}",
-    "linkedBlock": "Blocco calendario collegato"
+    "linkedBlock": "Blocco calendario collegato",
+    "blockTime": "Blocca tempo",
+    "blockCreatesEvent": "Crea un evento con questo titolo e lo collega alla nota.",
+    "blockDuration": "Durata",
+    "blockCustom": "Personalizzata",
+    "blockMinutesLabel": "Minuti",
+    "blockUntil": "Fino alle {{time}}",
+    "blockHours": "{{n}} h",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Tempo bloccato: {{title}}",
+    "blockNotAnchored": "Evento creato — non è stato possibile collegare la nota."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

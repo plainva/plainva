@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table } from "lucide-react";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
 import { Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
-import { useVault, templateFolderKey } from "../../contexts/VaultContext";
+import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
@@ -12,6 +12,17 @@ import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 import { appPrompt } from "../../services/appDialogs";
+import {
+  calendarPickerOptions,
+  minutesToTime,
+  nextHalfHourMinutes,
+  resolveDefaultCalendarKey,
+  writableCalendarsOf,
+  type TaskBlockValues,
+} from "../../services/pim/calendarModel";
+import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
+import { localIsoKey } from "../../services/dailyNotePath";
+import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
 const inlineCodeStyle: React.CSSProperties = { background: "var(--code-bg)", borderRadius: "var(--radius-xs)", padding: "0 3px", fontSize: "0.9em" };
@@ -123,6 +134,13 @@ export function TasksView({ onOpenPath }: Props) {
   }, [dbCompletion]);
   const [promoteMenu, setPromoteMenu] = useState<{ task: TaskRecord; at: { x: number; y: number } } | null>(null);
   const [allBases, setAllBases] = useState<{ path: string; title: string }[]>([]);
+  // "Block time" (issue #34, wave 3): the task keeps its due DATE and gains a
+  // calendar event for the window. `notePath` is the note that receives the
+  // anchor (a database entry has one, a checkbox does not); `linkPath` is what
+  // the event links back to.
+  const [blockTarget, setBlockTarget] = useState<{ title: string; due: string | null; notePath?: string; linkPath: string } | null>(null);
+  const [calendarOptions, setCalendarOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [prefCalendarKey, setPrefCalendarKey] = useState("");
 
   // The stage-3 task reconciler announces every finished run — re-query so a
   // remote check-off (Google Tasks etc.) shows up without relying on the
@@ -244,6 +262,71 @@ export function TasksView({ onOpenPath }: Props) {
       alive = false;
     };
   }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick]);
+
+  // Writable calendars for "block time" — the SAME rule the calendar tab uses
+  // (shared pure helpers), so the two pickers can never disagree about which
+  // calendars accept a write. Visibility is not a write permission.
+  useEffect(() => {
+    if (!pimRuntime || !vaultPath) {
+      setCalendarOptions([]);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      try {
+        const [accounts, calendars, store] = await Promise.all([
+          pimRuntime.cache.listAccounts(),
+          pimRuntime.cache.listCalendars(),
+          getSettingsStore(),
+        ]);
+        if (!alive) return;
+        const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+        const label = new Map(accounts.map((a) => [a.id, a.label]));
+        setCalendarOptions(calendarPickerOptions(writableCalendarsOf(calendars, enabled), label, accounts.length > 1));
+        setPrefCalendarKey(((await store.get<string>(defaultCalendarKey(vaultPath))) ?? "").trim());
+      } catch {
+        if (alive) setCalendarOptions([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, vaultPath, refreshTick]);
+
+  const submitBlock = useCallback(
+    async (values: TaskBlockValues, calendarKey: string) => {
+      const target = blockTarget;
+      if (!target || !vaultAdapter || !pimRuntime) return;
+      const accountId = calendarKey.split(" ")[0] ?? "";
+      const accounts = await pimRuntime.cache.listAccounts();
+      const account = accounts.find((a) => a.id === accountId);
+      const provider = account ? await pimRuntime.buildTarget(account) : null;
+      if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+      const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [target.linkPath];
+      const res = await createTaskTimeBlock({
+        adapter: vaultAdapter,
+        target: provider,
+        calendarKey,
+        title: target.title,
+        values,
+        notePath: target.notePath,
+        linkPath: target.linkPath,
+        allPaths,
+      });
+      setBlockTarget(null);
+      if (target.notePath && !res.anchored) {
+        toast.info(t("pim.blockNotAnchored", { defaultValue: "Termin angelegt — die Notiz konnte nicht verknüpft werden." }));
+      } else {
+        toast.info(t("pim.blockCreated", { defaultValue: "Zeit geblockt: {{title}}", title: target.title }));
+      }
+      if (target.notePath && indexer) {
+        await applyIndexChanges(indexer, { added: [target.notePath] }).catch(() => undefined);
+        triggerFileTreeUpdate([target.notePath]);
+      }
+      void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+    },
+    [blockTarget, vaultAdapter, pimRuntime, queryService, indexer, triggerFileTreeUpdate, t]
+  );
 
   // Promote a checkbox into the task database (default DB on click; any DB via
   // the context menu). The service re-verifies the ordinal against the fresh
@@ -658,6 +741,15 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ) : null}
                     </button>
+                    {calendarOptions.length > 0 && (
+                      <IconButton
+                        label={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
+                        data-testid="task-db-block"
+                        onClick={() => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path })}
+                      >
+                        <CalendarPlus size={ICON.ui} />
+                      </IconButton>
+                    )}
                     {r.status ? (
                       <button
                         type="button"
@@ -779,6 +871,23 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ))}
                     </button>
+                    {calendarOptions.length > 0 && (
+                      <IconButton
+                        label={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
+                        data-testid="task-block"
+                        onClick={() =>
+                          setBlockTarget({
+                            title: stripTaskMeta(task.text) || task.text,
+                            due: task.due ?? null,
+                            // A checkbox has no note of its own — only the event
+                            // is created, linking back to the note it lives in.
+                            linkPath: path,
+                          })
+                        }
+                      >
+                        <CalendarPlus size={ICON.ui} />
+                      </IconButton>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -806,6 +915,19 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+
+      {blockTarget && (
+        <TimeBlockModal
+          taskTitle={blockTarget.title}
+          // A due task blocks on its due day by default, everything else today.
+          initialDayKey={blockTarget.due ?? localIsoKey(new Date())}
+          initialStartTime={minutesToTime(nextHalfHourMinutes(new Date()))}
+          calendarOptions={calendarOptions}
+          initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, prefCalendarKey)}
+          onCancel={() => setBlockTarget(null)}
+          onSubmit={submitBlock}
+        />
+      )}
 
       {dbStatusMenu && dbStatusOptions && (
         <MenuSurface open onClose={() => setDbStatusMenu(null)} at={dbStatusMenu.at} ariaLabel={t("tasks.setStatus", { defaultValue: "Status ändern" })}>

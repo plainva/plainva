@@ -2323,7 +2323,17 @@
     "dueToday": "échéance aujourd'hui",
     "dueOn": "échéance {{date}}",
     "inviteSubject": "Invitation : {{title}}",
-    "linkedBlock": "Bloc de calendrier lié"
+    "linkedBlock": "Bloc de calendrier lié",
+    "blockTime": "Bloquer du temps",
+    "blockCreatesEvent": "Crée un événement portant ce titre et le lie à la note.",
+    "blockDuration": "Durée",
+    "blockCustom": "Personnalisée",
+    "blockMinutesLabel": "Minutes",
+    "blockUntil": "Jusqu'à {{time}}",
+    "blockHours": "{{n}} h",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Temps bloqué : {{title}}",
+    "blockNotAnchored": "Événement créé — la note n'a pas pu être liée."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

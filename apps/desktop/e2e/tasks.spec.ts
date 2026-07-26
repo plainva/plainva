@@ -67,6 +67,12 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
+          // PIM cache: opt-in per test via __pimAccounts, so the "block time"
+          // action (which needs a writable calendar) stays out of every other
+          // test's rows.
+          if (q.includes('FROM pim_accounts')) return (window as any).__pimAccounts ?? [];
+          if (q.includes('FROM pim_calendars')) return (window as any).__pimCalendars ?? [];
+          if (q.includes('FROM pim_events') || q.includes('FROM pim_tasklists') || q.includes('FROM pim_tasks')) return [];
           if (q.includes('SELECT path, title, content FROM fts_notes')) {
             return noteRows()
               .filter((r) => r.mode !== 'attachment')
@@ -452,4 +458,50 @@ test('without a standard database the promote button offers the database picker'
     .toBeTruthy();
   const todo = await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']);
   expect(todo).toContain('- [[buy milk]]');
+});
+
+test('block time on a task offers date/start/duration and reaches the provider (issue #34, wave 3)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] =
+      '---\ntype: task\nstatus: Offen\nfrist: 2026-08-03\nplainva:\n  pim:\n    uid: remote-1\n---\n\n# Steuer\n';
+    // A writable calendar exists -> the action is offered.
+    (window as any).__pimAccounts = [{ id: 'acc1', provider: 'caldav', label: 'Testkonto', config: '{}', enabled: 1 }];
+    (window as any).__pimCalendars = [
+      { account_id: 'acc1', cal_id: 'cal1', name: 'Privat', color: '#2a9d8f', selected: 1, read_only: 0 },
+    ];
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  // The database row carries the action; a checkbox row carries it too.
+  await expect(page.getByTestId('task-db-block')).toBeVisible();
+  await expect(page.getByTestId('task-block').first()).toBeVisible();
+
+  await page.getByTestId('task-db-block').click();
+  const dialog = page.getByTestId('task-block-modal');
+  await expect(dialog).toBeVisible();
+
+  // The due date prefills the day, the duration defaults to one hour, and the
+  // end read-out follows the chosen preset.
+  await expect(page.getByTestId('task-block-day')).toHaveValue('2026-08-03');
+  await page.getByTestId('task-block-start').fill('13:00');
+  await expect(page.getByTestId('task-block-until')).toContainText('14:00');
+  await page.getByTestId('task-block-120').click();
+  await expect(page.getByTestId('task-block-until')).toContainText('15:00');
+
+  // A custom length reveals the minutes field.
+  await page.getByTestId('task-block-custom').click();
+  await expect(page.getByTestId('task-block-minutes')).toBeVisible();
+  await page.getByTestId('task-block-minutes').fill('45');
+  await expect(page.getByTestId('task-block-until')).toContainText('13:45');
+
+  // Submitting reaches the provider layer; with no mock credentials the write
+  // fails INLINE and the dialog stays open instead of pretending success.
+  await page.getByTestId('task-block-submit').click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await expect(dialog).toBeVisible();
 });

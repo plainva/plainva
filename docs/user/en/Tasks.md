@@ -55,6 +55,14 @@ Every checkbox row carries a database icon: **Move to the task database**. One c
 
 **+ New task** in the section header creates an entry directly in the task database (same storage folder, template and defaults as a promoted checkbox) and opens it. Checkboxes written in a note stay in that note — they only become database tasks when you move them.
 
+## Blocking time for a task
+
+Tasks in Plainva are **day-granular**: a task has a due date, not a time of day. When you want to reserve a window for one, Plainva creates a **calendar event** — that is the object which owns a time range, renders with overlaps in the grid and syncs with your calendar account.
+
+The calendar icon on a task row opens **Block time**: the date (prefilled with the due date), the start, and the duration (15 min, 30 min, 1 h, 2 h or **Custom**), plus a calendar picker when more than one calendar accepts writes. The event carries the task's title and links back to the note.
+
+For a task from the database, the note also remembers the block in its frontmatter (`plainva.blocks`), so the link is visible from both ends. A checkbox row has no note of its own — there only the event is created, pointing at the note the row lives in. The icon appears only when a calendar account is connected.
+
 ## Hiding notes from the Tasks view
 
 Some notes hold checkboxes that are never "real" tasks — **templates** above all. To keep them out of the list, a note can exclude itself. The truth stays in the file: the exclusion is a frontmatter field in the note, not a hidden app setting. It syncs, is visible in Obsidian, and can be checked with any text editor:

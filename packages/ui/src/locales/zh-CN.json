@@ -2309,7 +2309,17 @@
     "dueToday": "今天到期",
     "dueOn": "{{date}} 到期",
     "inviteSubject": "邀请：{{title}}",
-    "linkedBlock": "已关联的日历时间块"
+    "linkedBlock": "已关联的日历时间块",
+    "blockTime": "预留时间",
+    "blockCreatesEvent": "创建一个同名日程，并与该笔记关联。",
+    "blockDuration": "时长",
+    "blockCustom": "自定义",
+    "blockMinutesLabel": "分钟",
+    "blockUntil": "至 {{time}}",
+    "blockHours": "{{n}} 小时",
+    "blockLengthMinutes": "{{n}} 分钟",
+    "blockCreated": "已预留时间：{{title}}",
+    "blockNotAnchored": "日程已创建 — 无法关联笔记。"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP）",

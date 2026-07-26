@@ -114,6 +114,11 @@ export function setFrontmatterPath(
  * Read-only and total: returns undefined when the content has no parseable
  * frontmatter, the path is empty, or the key is absent — it never throws, so
  * hot read paths (task/graph aggregation) can call it per note safely.
+ *
+ * Collections come back as PLAIN JS values, not yaml AST nodes: `getIn` returns
+ * the node for a list/map, so a caller reading e.g. `plainva.blocks` would get
+ * a YAMLSeq and `Array.isArray` would quietly say false. Scalars were already
+ * plain values, so this only ever widens what callers can read.
  */
 export function readFrontmatterPath(content: string, path: readonly string[]): unknown {
   if (path.length === 0) return undefined;
@@ -124,7 +129,13 @@ export function readFrontmatterPath(content: string, path: readonly string[]): u
     return undefined;
   }
   if (!split.hadFrontmatter || split.doc.contents === null) return undefined;
-  return split.doc.getIn(path);
+  const value = split.doc.getIn(path);
+  return isNode(value) ? value.toJSON() : value;
+}
+
+/** A yaml AST node (list/map) as opposed to an already-plain scalar value. */
+function isNode(value: unknown): value is { toJSON: () => unknown } {
+  return !!value && typeof value === "object" && typeof (value as { toJSON?: unknown }).toJSON === "function";
 }
 
 /**

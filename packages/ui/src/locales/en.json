@@ -2316,7 +2316,17 @@
     "dueToday": "due today",
     "dueOn": "due {{date}}",
     "inviteSubject": "Invitation: {{title}}",
-    "linkedBlock": "Linked calendar block"
+    "linkedBlock": "Linked calendar block",
+    "blockTime": "Block time",
+    "blockCreatesEvent": "Creates an event with this title and links it to the note.",
+    "blockDuration": "Duration",
+    "blockCustom": "Custom",
+    "blockMinutesLabel": "Minutes",
+    "blockUntil": "Until {{time}}",
+    "blockHours": "{{n}} h",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Time blocked: {{title}}",
+    "blockNotAnchored": "Event created — the note could not be linked."
   },
   "mail": {
     "sectionTitle": "Email (IMAP)",

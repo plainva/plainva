@@ -2309,7 +2309,17 @@
     "dueToday": "今日締め切り",
     "dueOn": "{{date}} 締め切り",
     "inviteSubject": "招待: {{title}}",
-    "linkedBlock": "リンク済みカレンダーブロック"
+    "linkedBlock": "リンク済みカレンダーブロック",
+    "blockTime": "時間を確保",
+    "blockCreatesEvent": "このタイトルの予定を作成し、ノートと関連付けます。",
+    "blockDuration": "所要時間",
+    "blockCustom": "カスタム",
+    "blockMinutesLabel": "分",
+    "blockUntil": "{{time}} まで",
+    "blockHours": "{{n}} 時間",
+    "blockLengthMinutes": "{{n}} 分",
+    "blockCreated": "時間を確保しました: {{title}}",
+    "blockNotAnchored": "予定を作成しました — ノートを関連付けられませんでした。"
   },
   "mail": {
     "sectionTitle": "メール（IMAP）",

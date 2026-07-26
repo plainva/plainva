@@ -55,6 +55,14 @@ Ogni riga di attività porta un'icona di database: **Sposta nel database delle a
 
 **+ Nuova attività** nell'intestazione della sezione crea una voce direttamente nel database attività (stessa cartella di archiviazione, stesso modello e stessi valori predefiniti dello spostamento di una casella) e la apre. Le caselle scritte in una nota restano in quella nota: diventano attività del database solo quando le sposti.
 
+## Bloccare tempo per un'attività
+
+In Plainva le attività hanno granularità **giornaliera**: un'attività ha una data di scadenza, non un orario. Quando vuoi riservarle una finestra, Plainva crea un **evento** — è l'oggetto che possiede un intervallo di tempo, viene disegnato con le sovrapposizioni nella griglia e si sincronizza con il tuo account calendario.
+
+L'icona del calendario su una riga attività apre **Blocca tempo**: la data (precompilata con la scadenza), l'inizio e la **Durata** (15 min, 30 min, 1 h, 2 h o **Personalizzata**), più un selettore di calendario quando più di uno accetta scritture. L'evento porta il titolo dell'attività e rimanda alla nota.
+
+Per un'attività del database, la nota ricorda anche il blocco nel frontmatter (`plainva.blocks`), così il collegamento è visibile da entrambi i lati. Una riga con casella non ha una nota propria — lì viene creato solo l'evento, che punta alla nota in cui si trova la riga. L'icona compare solo se è collegato un account calendario.
+
 ## Nascondere le note dalla vista Attività
 
 Alcune note contengono caselle di controllo che non sono mai attività "vere" — soprattutto i **modelli**. Per tenerle fuori dall'elenco, una nota può escludere se stessa. La verità resta nel file: l'esclusione è un campo del frontmatter della nota, non un'impostazione nascosta dell'app. Si sincronizza, è visibile in Obsidian e può essere verificata con qualsiasi editor di testo:

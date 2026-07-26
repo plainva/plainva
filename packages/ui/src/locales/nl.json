@@ -2316,7 +2316,17 @@
     "dueToday": "vandaag te doen",
     "dueOn": "te doen {{date}}",
     "inviteSubject": "Uitnodiging: {{title}}",
-    "linkedBlock": "Gekoppeld kalenderblok"
+    "linkedBlock": "Gekoppeld kalenderblok",
+    "blockTime": "Tijd blokkeren",
+    "blockCreatesEvent": "Maakt een afspraak met deze titel en koppelt die aan de notitie.",
+    "blockDuration": "Duur",
+    "blockCustom": "Aangepast",
+    "blockMinutesLabel": "Minuten",
+    "blockUntil": "Tot {{time}}",
+    "blockHours": "{{n}} u",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Tijd geblokkeerd: {{title}}",
+    "blockNotAnchored": "Afspraak gemaakt — de notitie kon niet worden gekoppeld."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

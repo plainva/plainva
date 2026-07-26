@@ -55,6 +55,14 @@ Mit einem **Rechtsklick** auf das Symbol wählst Du stattdessen eine andere Date
 
 **+ Neue Aufgabe** in der Kopfzeile der Sektion legt einen Eintrag direkt in der Aufgaben-Datenbank an (gleicher Ablage-Ordner, gleiche Vorlage und Vorbelegungen wie beim Verschieben einer Checkbox) und öffnet ihn. In einer Notiz geschriebene Checkboxen bleiben in dieser Notiz — sie werden erst zu Datenbank-Aufgaben, wenn Du sie verschiebst.
 
+## Zeit für eine Aufgabe blocken
+
+Aufgaben sind in Plainva **taggenau**: Eine Aufgabe hat ein Fälligkeitsdatum, keine Uhrzeit. Wenn Du Dir für eine Aufgabe ein Zeitfenster reservieren willst, legt Plainva dafür einen **Termin** an — das ist das Objekt, das einen Zeitraum kennt, im Raster mit Überschneidungen dargestellt wird und mit Deinem Kalender-Konto synchronisiert.
+
+Das Kalender-Symbol an einer Aufgabenzeile öffnet **Zeit blocken**: Datum (mit der Fälligkeit vorbelegt), Beginn und **Dauer** (15 min, 30 min, 1 h, 2 h oder **Eigene**), bei mehreren beschreibbaren Kalendern zusätzlich die Kalenderauswahl. Der Termin trägt den Titel der Aufgabe und verlinkt zurück auf die Notiz.
+
+Bei einer Aufgabe aus der Datenbank merkt sich die Notiz den Block zusätzlich im Frontmatter (`plainva.blocks`), sodass die Verknüpfung von beiden Seiten sichtbar ist. Eine Checkbox-Zeile hat keine eigene Notiz — dort entsteht nur der Termin, der auf die Notiz zeigt, in der die Zeile steht. Das Symbol erscheint nur, wenn ein Kalender-Konto verbunden ist.
+
 ## Notizen aus der Aufgabenansicht ausblenden
 
 Manche Notizen enthalten Checkboxen, die nie „echte" Aufgaben sind — allen voran **Vorlagen**. Damit sie die Liste nicht füllen, kann eine Notiz sich selbst ausschließen. Die Wahrheit bleibt dabei in der Datei: der Ausschluss steht als Frontmatter-Feld in der Notiz, nicht in einer versteckten App-Einstellung. Er synchronisiert mit, ist in Obsidian sichtbar und lässt sich mit jedem Texteditor prüfen:

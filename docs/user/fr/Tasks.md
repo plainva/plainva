@@ -55,6 +55,14 @@ Chaque ligne de case à cocher porte une icône de base de données : **Déplace
 
 **+ Nouvelle tâche** dans l'en-tête de la section crée une entrée directement dans la base de tâches (même dossier de stockage, même modèle et mêmes valeurs par défaut qu'une case déplacée) et l'ouvre. Les cases écrites dans une note y restent : elles ne deviennent des tâches de la base que lorsque vous les déplacez.
 
+## Bloquer du temps pour une tâche
+
+Dans Plainva, les tâches ont une granularité **journalière** : une tâche a une date d'échéance, pas une heure. Lorsque vous voulez réserver un créneau pour l'une d'elles, Plainva crée un **événement** — c'est l'objet qui possède une plage horaire, s'affiche avec ses chevauchements dans la grille et se synchronise avec votre compte d'agenda.
+
+L'icône d'agenda sur une ligne de tâche ouvre **Bloquer du temps** : la date (préremplie avec l'échéance), le début et la **Durée** (15 min, 30 min, 1 h, 2 h ou **Personnalisée**), plus un sélecteur d'agenda si plusieurs agendas acceptent l'écriture. L'événement reprend le titre de la tâche et renvoie vers la note.
+
+Pour une tâche issue de la base de données, la note mémorise aussi le blocage dans son frontmatter (`plainva.blocks`), de sorte que le lien est visible des deux côtés. Une ligne à cocher n'a pas de note propre — seul l'événement est créé, pointant vers la note qui contient la ligne. L'icône n'apparaît que si un compte d'agenda est connecté.
+
 ## Masquer des notes de la vue Tâches
 
 Certaines notes contiennent des cases à cocher qui ne sont jamais de « vraies » tâches — les **modèles** en premier lieu. Pour les tenir à l'écart de la liste, une note peut s'exclure elle-même. La vérité reste dans le fichier : l'exclusion est un champ de frontmatter dans la note, pas un réglage caché de l'application. Elle se synchronise, est visible dans Obsidian et peut être vérifiée avec n'importe quel éditeur de texte :

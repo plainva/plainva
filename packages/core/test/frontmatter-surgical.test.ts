@@ -6,6 +6,7 @@ import {
   renameFrontmatterKey,
   renameFrontmatterWikiLinks,
   ensureOkfFrontmatter,
+  readFrontmatterPath,
   FrontmatterSurgicalError
 } from "../src/frontmatter-surgical.js";
 import { getPlainvaMeta } from "../src/metadata.js";
@@ -300,5 +301,50 @@ describe("renameFrontmatterWikiLinks", () => {
         { key: "x", oldTarget: "Alt", newTarget: "Neu" },
       ])
     ).toThrow(FrontmatterSurgicalError);
+  });
+});
+
+describe("readFrontmatterPath", () => {
+  const DOC = `---
+type: task
+plainva:
+  tasks: false
+  pim:
+    uid: remote-1
+  blocks:
+    - uid: a
+      account: acc1
+    - uid: b
+---
+
+# Body
+`;
+
+  it("reads scalars at a nested path", () => {
+    expect(readFrontmatterPath(DOC, ["type"])).toBe("task");
+    expect(readFrontmatterPath(DOC, ["plainva", "tasks"])).toBe(false);
+    expect(readFrontmatterPath(DOC, ["plainva", "pim", "uid"])).toBe("remote-1");
+  });
+
+  it("returns collections as PLAIN values, not yaml nodes", () => {
+    // The trap this pins: getIn hands back a YAMLSeq for a list, so a caller
+    // doing Array.isArray(...) used to get false and silently see nothing.
+    const blocks = readFrontmatterPath(DOC, ["plainva", "blocks"]);
+    expect(Array.isArray(blocks)).toBe(true);
+    expect(blocks).toEqual([{ uid: "a", account: "acc1" }, { uid: "b" }]);
+    expect(readFrontmatterPath(DOC, ["plainva"])).toEqual({
+      tasks: false,
+      pim: { uid: "remote-1" },
+      blocks: [{ uid: "a", account: "acc1" }, { uid: "b" }],
+    });
+  });
+
+  const BROKEN = ["---", "{ kaputt: [", "---", ""].join("\n");
+
+  it("is total: missing keys, no frontmatter and malformed yaml all yield undefined", () => {
+    expect(readFrontmatterPath(DOC, ["nope"])).toBeUndefined();
+    expect(readFrontmatterPath(DOC, [])).toBeUndefined();
+    expect(readFrontmatterPath("# no frontmatter", ["type"])).toBeUndefined();
+    expect(readFrontmatterPath(BROKEN, ["type"])).toBeUndefined();
   });
 });

@@ -12,6 +12,14 @@ import {
   formatTimeRange,
   linkCalendarBlocks,
   shiftDayKey,
+  buildTaskBlockDraft,
+  calendarPickerOptions,
+  minutesToTime,
+  nextHalfHourMinutes,
+  resolveDefaultCalendarKey,
+  splitCalendarKey,
+  timeToMinutes,
+  writableCalendarsOf,
 } from "./calendarModel";
 
 function ev(partial: Partial<PimEventRow> & { start: PimEventRow["start"]; end: PimEventRow["end"] }): PimEventRow {
@@ -331,5 +339,89 @@ describe("buildEditCalendarOptions", () => {
     expect(buildEditCalendarOptions(master, writable, calName, accountLabel, true)).toEqual([]);
     const instance = ev({ accountId: "acc", calendarId: "calA", recurrence: "FREQ=WEEKLY", start: { ts: 0 }, end: { ts: 0 } });
     expect(buildEditCalendarOptions(instance, writable, calName, accountLabel, true)).toEqual([]);
+  });
+});
+
+describe("writable calendars (shared picker rule)", () => {
+  const cals = [
+    { id: "a", name: "Work", accountId: "acc1" },
+    { id: "b", name: "Hidden", accountId: "acc1" },
+    { id: "c", name: "Holidays", accountId: "acc1", readOnly: true },
+    { id: "d", name: "Other", accountId: "acc2" },
+  ];
+
+  it("keeps calendars that are merely hidden — visibility is not a write permission", () => {
+    // The regression this pins: gating on `selected` used to hide calendars
+    // one may legitimately write a block into.
+    const out = writableCalendarsOf(cals, new Set(["acc1", "acc2"]));
+    expect(out.map((c) => c.id)).toEqual(["a", "b", "d"]);
+  });
+
+  it("drops read-only calendars and calendars of disabled accounts", () => {
+    expect(writableCalendarsOf(cals, new Set(["acc1"])).map((c) => c.id)).toEqual(["a", "b"]);
+  });
+
+  it("appends the account name only when more than one account exists", () => {
+    const label = new Map([["acc1", "me@work"]]);
+    expect(calendarPickerOptions([cals[0]], label, false)).toEqual([{ value: "acc1 a", label: "Work" }]);
+    expect(calendarPickerOptions([cals[0]], label, true)).toEqual([{ value: "acc1 a", label: "Work · me@work" }]);
+  });
+
+  it("falls back to the first option when the preferred calendar is gone", () => {
+    const options = [{ value: "acc1 a" }, { value: "acc1 b" }];
+    expect(resolveDefaultCalendarKey(options, "acc1 b")).toBe("acc1 b");
+    expect(resolveDefaultCalendarKey(options, "acc9 zz")).toBe("acc1 a");
+    expect(resolveDefaultCalendarKey([], "acc1 a")).toBe("");
+  });
+
+  it("splits the picker key at the FIRST space only (CalDAV ids contain spaces)", () => {
+    expect(splitCalendarKey("acc1 https://dav/cal/my cal/")).toEqual({ accountId: "acc1", calendarId: "https://dav/cal/my cal/" });
+    expect(splitCalendarKey("acc1")).toBeNull();
+    expect(splitCalendarKey("")).toBeNull();
+  });
+});
+
+describe("task time blocking", () => {
+  it("rounds up to the next half hour and never rolls past the day", () => {
+    expect(nextHalfHourMinutes(new Date(2026, 6, 26, 9, 1))).toBe(9 * 60 + 30);
+    expect(nextHalfHourMinutes(new Date(2026, 6, 26, 9, 30))).toBe(9 * 60 + 30);
+    expect(nextHalfHourMinutes(new Date(2026, 6, 26, 23, 55))).toBe(23 * 60);
+  });
+
+  it("round-trips HH:MM and rejects nonsense", () => {
+    expect(minutesToTime(0)).toBe("00:00");
+    expect(minutesToTime(9 * 60 + 5)).toBe("09:05");
+    expect(timeToMinutes("09:05")).toBe(9 * 60 + 5);
+    expect(timeToMinutes("24:00")).toBeNull();
+    expect(timeToMinutes("9:5")).toBeNull();
+    expect(timeToMinutes("nope")).toBeNull();
+  });
+
+  it("builds a timed event of the requested length that links back to the note", () => {
+    const draft = buildTaskBlockDraft({
+      title: "Write the report",
+      values: { dayKey: "2026-08-03", startTime: "13:00", durationMinutes: 120 },
+      noteTarget: "Tasks/Report",
+    });
+    expect(draft.allDay).toBe(false);
+    expect(draft.title).toBe("Write the report");
+    expect(draft.end.ts - draft.start.ts).toBe(120 * 60 * 1000);
+    expect(new Date(draft.start.ts).getHours()).toBe(13); // local wall clock
+    // A wiki link, not a provider-private property: it stays readable in
+    // Google Calendar and Outlook.
+    expect(draft.description).toBe("[[Tasks/Report]]");
+    expect(draft.descriptionHtml).toContain("Tasks/Report");
+  });
+
+  it("omits the description for a task without a note and enforces a minimum length", () => {
+    const draft = buildTaskBlockDraft({ title: "Quick", values: { dayKey: "2026-08-03", startTime: "08:00", durationMinutes: 0 } });
+    expect(draft.description).toBeUndefined();
+    expect(draft.descriptionHtml).toBeUndefined();
+    expect(draft.end.ts - draft.start.ts).toBe(5 * 60 * 1000);
+  });
+
+  it("falls back to 09:00 when the start time is unparseable", () => {
+    const draft = buildTaskBlockDraft({ title: "T", values: { dayKey: "2026-08-03", startTime: "", durationMinutes: 30 } });
+    expect(new Date(draft.start.ts).getHours()).toBe(9);
   });
 });

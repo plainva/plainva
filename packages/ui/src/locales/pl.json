@@ -2330,7 +2330,17 @@
     "dueToday": "termin dziś",
     "dueOn": "termin {{date}}",
     "inviteSubject": "Zaproszenie: {{title}}",
-    "linkedBlock": "Połączony blok kalendarza"
+    "linkedBlock": "Połączony blok kalendarza",
+    "blockTime": "Zablokuj czas",
+    "blockCreatesEvent": "Tworzy wydarzenie o tym tytule i łączy je z notatką.",
+    "blockDuration": "Czas trwania",
+    "blockCustom": "Własny",
+    "blockMinutesLabel": "Minuty",
+    "blockUntil": "Do {{time}}",
+    "blockHours": "{{n}} godz.",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Zablokowano czas: {{title}}",
+    "blockNotAnchored": "Utworzono wydarzenie — nie udało się połączyć notatki."
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

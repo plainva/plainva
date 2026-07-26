@@ -55,6 +55,14 @@ Toda linha de tarefa traz um ícone de banco de dados: **Mover para o banco de t
 
 **+ Nova tarefa** no cabeçalho da seção cria uma entrada diretamente no banco de tarefas (mesma pasta de armazenamento, modelo e preenchimentos de quando você move uma caixa) e a abre. Caixas de seleção escritas em uma nota permanecem nela — só viram tarefas do banco quando você as move.
 
+## Bloqueando tempo para uma tarefa
+
+No Plainva, as tarefas têm granularidade **diária**: uma tarefa tem data de vencimento, não horário. Quando você quiser reservar uma janela para uma delas, o Plainva cria um **evento** — esse é o objeto que possui um intervalo de tempo, aparece com sobreposições na grade e sincroniza com sua conta de calendário.
+
+O ícone de calendário em uma linha de tarefa abre **Bloquear tempo**: a data (preenchida com o vencimento), o início e a **Duração** (15 min, 30 min, 1 h, 2 h ou **Personalizada**), além de um seletor de calendário quando mais de um aceita gravação. O evento leva o título da tarefa e cria um link de volta para a nota.
+
+Em uma tarefa do banco de dados, a nota também guarda o bloqueio no frontmatter (`plainva.blocks`), de modo que o vínculo fica visível dos dois lados. Uma linha com caixa de seleção não tem nota própria — ali apenas o evento é criado, apontando para a nota em que a linha está. O ícone só aparece quando há uma conta de calendário conectada.
+
 ## Ocultando notas da visualização de Tarefas
 
 Algumas notas contêm caixas de seleção que nunca são tarefas "reais" — **modelos**, acima de tudo. Para mantê-las fora da lista, uma nota pode se excluir. A verdade permanece no arquivo: a exclusão é um campo de frontmatter na nota, não uma configuração oculta do app. Ela sincroniza, é visível no Obsidian e pode ser verificada com qualquer editor de texto:

@@ -55,6 +55,14 @@ Haz **clic derecho** en el icono para elegir en su lugar otra base de datos como
 
 **+ Nueva tarea** en la cabecera de la sección crea una entrada directamente en la base de datos de tareas (misma carpeta de almacenamiento, plantilla y valores por defecto que al mover una casilla) y la abre. Las casillas escritas en una nota permanecen en esa nota: solo se convierten en tareas de la base cuando las mueves.
 
+## Bloquear tiempo para una tarea
+
+En Plainva las tareas tienen granularidad **diaria**: una tarea tiene fecha de vencimiento, no una hora. Cuando quieras reservar un hueco para una de ellas, Plainva crea un **evento** — ese es el objeto que posee un intervalo de tiempo, se dibuja con sus solapamientos en la cuadrícula y se sincroniza con tu cuenta de calendario.
+
+El icono de calendario en una fila de tarea abre **Bloquear tiempo**: la fecha (prerrellenada con el vencimiento), el inicio y la **Duración** (15 min, 30 min, 1 h, 2 h o **Personalizada**), además de un selector de calendario cuando hay más de uno con permiso de escritura. El evento lleva el título de la tarea y enlaza de vuelta a la nota.
+
+En una tarea de la base de datos, la nota además recuerda el bloque en su frontmatter (`plainva.blocks`), de modo que el enlace es visible desde ambos lados. Una fila con casilla no tiene nota propia — allí solo se crea el evento, que apunta a la nota en la que está la fila. El icono solo aparece si hay una cuenta de calendario conectada.
+
 ## Ocultar notas de la vista Tareas
 
 Algunas notas contienen casillas que nunca son tareas "reales" — sobre todo las **plantillas**. Para mantenerlas fuera de la lista, una nota puede excluirse a sí misma. La verdad se queda en el archivo: la exclusión es un campo de frontmatter en la nota, no un ajuste oculto de la aplicación. Se sincroniza, es visible en Obsidian y se puede comprobar con cualquier editor de texto:

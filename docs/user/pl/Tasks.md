@@ -55,6 +55,14 @@ Każdy wiersz zadania niesie ikonę bazy danych: **Przenieś do bazy zadań**. J
 
 **+ Nowe zadanie** w nagłówku sekcji tworzy wpis bezpośrednio w bazie zadań (ten sam folder zapisu, szablon i wartości domyślne co przy przenoszeniu pola wyboru) i otwiera go. Pola wyboru napisane w notatce w niej pozostają — zadaniami bazy stają się dopiero wtedy, gdy je przeniesiesz.
 
+## Blokowanie czasu na zadanie
+
+Zadania w Plainvie mają dokładność **dzienną**: zadanie ma termin, a nie godzinę. Gdy chcesz zarezerwować na nie okno czasowe, Plainva tworzy **wydarzenie** — to obiekt, który ma zakres czasu, pokazuje nakładanie się w siatce i synchronizuje się z Twoim kontem kalendarza.
+
+Ikona kalendarza w wierszu zadania otwiera **Zablokuj czas**: datę (wypełnioną terminem), początek i **Czas trwania** (15 min, 30 min, 1 godz., 2 godz. lub **Własny**), a przy kilku zapisywalnych kalendarzach także wybór kalendarza. Wydarzenie nosi tytuł zadania i odsyła z powrotem do notatki.
+
+Przy zadaniu z bazy danych notatka zapamiętuje blokadę również w swoim frontmatterze (`plainva.blocks`), więc powiązanie widać z obu stron. Wiersz z polem wyboru nie ma własnej notatki — powstaje tam tylko wydarzenie wskazujące notatkę, w której znajduje się ten wiersz. Ikona pojawia się tylko wtedy, gdy podłączone jest konto kalendarza.
+
 ## Ukrywanie notatek z widoku Zadania
 
 Niektóre notatki zawierają pola wyboru, które nigdy nie są „prawdziwymi" zadaniami — przede wszystkim **szablony**. Aby trzymać je z dala od listy, notatka może wykluczyć samą siebie. Prawda pozostaje w pliku: wykluczenie to pole frontmatter w notatce, a nie ukryte ustawienie aplikacji. Synchronizuje się, jest widoczne w Obsidian i można je sprawdzić w dowolnym edytorze tekstu:

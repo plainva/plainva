@@ -2323,7 +2323,17 @@
     "dueToday": "vence hoy",
     "dueOn": "vence {{date}}",
     "inviteSubject": "Invitación: {{title}}",
-    "linkedBlock": "Bloque de calendario vinculado"
+    "linkedBlock": "Bloque de calendario vinculado",
+    "blockTime": "Bloquear tiempo",
+    "blockCreatesEvent": "Crea un evento con este título y lo enlaza con la nota.",
+    "blockDuration": "Duración",
+    "blockCustom": "Personalizada",
+    "blockMinutesLabel": "Minutos",
+    "blockUntil": "Hasta las {{time}}",
+    "blockHours": "{{n}} h",
+    "blockLengthMinutes": "{{n}} min",
+    "blockCreated": "Tiempo bloqueado: {{title}}",
+    "blockNotAnchored": "Evento creado: no se pudo enlazar la nota."
   },
   "mail": {
     "sectionTitle": "Correo (IMAP)",
