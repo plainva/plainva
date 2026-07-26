@@ -63,10 +63,11 @@ describe("compose session", () => {
       onChange: () => {},
       onSlashChange: (hit) => hits.push(hit),
     });
+    const latest = () => hits[hits.length - 1];
     session.view.dispatch({ changes: { from: 0, insert: "/bo" }, selection: { anchor: 3 } });
-    expect(hits.at(-1)).toEqual({ from: 0, query: "bo" });
+    expect(latest()).toEqual({ from: 0, query: "bo" });
     session.view.dispatch({ changes: { from: 3, insert: " " }, selection: { anchor: 4 } });
-    expect(hits.at(-1)).toBeNull();
+    expect(latest()).toBeNull();
     session.destroy();
   });
 
