@@ -135,8 +135,11 @@ describe("shared account import", () => {
 
 describe("cloud registry id mapping", () => {
   const record: CloudAccountRecord = {
+    // Nextcloud is a WebDAV flavor, not a family of its own — which is exactly
+    // the distinction the phone could not make while it derived its registry.
     id: "c1",
-    family: "nextcloud",
+    family: "webdav",
+    flavor: "nextcloud",
     label: "marco@example.com",
     services: { calendar: { pimAccountId: "remote-1" }, mail: { mailAccountId: "remote-2" } },
   };
