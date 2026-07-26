@@ -1,7 +1,7 @@
 import type { MailboxInfo, RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "../types";
 import type { AppendDraftArgs, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
-import { decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage } from "./mime";
+import { decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
 import { classifyFolderRole, decodeImapUtf7 } from "../mailOut";
 
 /**
@@ -24,6 +24,13 @@ const CRLF = "\r\n";
  *  three files binary to git here. */
 const LITERAL_MARK = "\u0001";
 const LITERAL_MARK_RE = new RegExp(LITERAL_MARK, "g");
+
+/**
+ * Body bytes taken along per message for the list preview (B3). Enough to get
+ * past a part header block into the actual words, small enough that a 30-row
+ * page stays a mobile-sized request.
+ */
+const PREVIEW_BYTES = 1024;
 
 /** Mailbox names travel in modified UTF-7 (RFC 3501 §5.1.3). */
 export function encodeImapUtf7(name: string): string {
@@ -211,22 +218,39 @@ export class ImapConnection {
    * response: the payload is a normal header block, so the shared MIME header
    * parser handles encoded words and folding instead of a second, IMAP-shaped
    * parser doing the same job slightly differently.
+   *
+   * The same FETCH also takes the first {@link PREVIEW_BYTES} of the body, so
+   * the mobile list can show an opening line (device report B3) without a
+   * second roundtrip. Two body sections mean TWO literals per FETCH line, which
+   * is why the parsing below walks the segments a literal was spliced into
+   * instead of assuming one per line — and why each segment is classified by
+   * the section it names rather than by position: nothing obliges a server to
+   * answer in the order we asked.
    */
   async fetchEnvelopes(uids: number[]): Promise<RawImapEnvelope[]> {
     if (uids.length === 0) return [];
     const res = await this.command(
-      `UID FETCH ${uids.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)])`,
+      `UID FETCH ${uids.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
     );
     if (!res.ok) throw new Error(res.text || "could not read the message list");
     const out: RawImapEnvelope[] = [];
     let li = 0;
     for (const line of res.lines) {
       if (!/^\*\s+\d+\s+FETCH/i.test(line)) continue;
-      const literal = line.includes(LITERAL_MARK) ? res.literals[li++] : "";
+      const segments = line.split(LITERAL_MARK);
+      // One literal per splice point; the LAST segment carries no literal.
+      const taken = res.literals.slice(li, li + segments.length - 1);
+      li += segments.length - 1;
+      let header = "";
+      let bodyPrefix = "";
+      segments.slice(0, -1).forEach((segment, i) => {
+        if (/BODY\[TEXT\]/i.test(segment)) bodyPrefix = taken[i] ?? "";
+        else if (/HEADER/i.test(segment)) header = taken[i] ?? "";
+      });
       const uidM = /UID\s+(\d+)/i.exec(line);
       if (!uidM) continue;
       const flags = (/FLAGS\s+\(([^)]*)\)/i.exec(line)?.[1] ?? "").toLowerCase();
-      const h = parseHeaders(literal);
+      const h = parseHeaders(header);
       out.push({
         uid: Number(uidM[1]),
         subject: decodeWords(h.get("subject") ?? ""),
@@ -234,6 +258,7 @@ export class ImapConnection {
         dateTs: headerDate(h.get("date")),
         seen: flags.includes("\\seen"),
         flagged: flags.includes("\\flagged"),
+        preview: previewFromBodyPrefix(bodyPrefix),
       });
     }
     return out;

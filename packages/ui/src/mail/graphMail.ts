@@ -315,6 +315,9 @@ interface GraphMessageEnvelope {
   receivedDateTime?: string;
   isRead?: boolean;
   flag?: { flagStatus?: string };
+  /** Graph's own one-line summary of the body - free of charge in the same
+   *  request, which is what makes the mobile list's third line cheap (B3). */
+  bodyPreview?: string;
 }
 
 function addressLabel(who: GraphMessageEnvelope["from"]): string {
@@ -336,7 +339,7 @@ export async function graphListEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$select=id,subject,from,receivedDateTime,isRead,flag&$orderby=receivedDateTime desc` +
+    `?$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview&$orderby=receivedDateTime desc` +
     `&$top=${limit}&$skip=${offset}&$count=true`;
   const data = await graphJson<{ value: GraphMessageEnvelope[]; "@odata.count"?: number }>(rt, "GET", q);
   const messages = (data.value ?? []).map((m) => ({
@@ -346,6 +349,7 @@ export async function graphListEnvelopes(
     dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
     seen: m.isRead === true,
     flagged: m.flag?.flagStatus === "flagged",
+    preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
   }));
   // The folder carries its own unread count (no need to page every message).
   const folder = await graphJson<{ unreadItemCount?: number }>(rt, "GET", `/me/mailFolders/${encodeURIComponent(folderId)}?$select=unreadItemCount`);
@@ -444,7 +448,7 @@ export async function graphSearchEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead,flag&$top=50`;
+    `?$search="${encodeURIComponent(query)}"&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview&$top=50`;
   const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
   return (data.value ?? [])
     .map((m) => ({
@@ -454,6 +458,7 @@ export async function graphSearchEnvelopes(
       dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
       seen: m.isRead === true,
       flagged: m.flag?.flagStatus === "flagged",
+      preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
     }))
     .sort((a, b) => b.dateTs - a.dateTs);
 }
@@ -469,7 +474,7 @@ export async function graphListFlaggedEnvelopes(
   const folderId = await resolveFolderId(rt, mailbox);
   const q =
     `/me/mailFolders/${encodeURIComponent(folderId)}/messages` +
-    `?$filter=flag/flagStatus eq 'flagged'&$select=id,subject,from,receivedDateTime,isRead,flag&$top=${Math.min(limit, 500)}`;
+    `?$filter=flag/flagStatus eq 'flagged'&$select=id,subject,from,receivedDateTime,isRead,flag,bodyPreview&$top=${Math.min(limit, 500)}`;
   const data = await graphJson<{ value: GraphMessageEnvelope[] }>(rt, "GET", q);
   return (data.value ?? [])
     .map((m) => ({
@@ -479,6 +484,7 @@ export async function graphListFlaggedEnvelopes(
       dateTs: m.receivedDateTime ? Date.parse(m.receivedDateTime) : 0,
       seen: m.isRead === true,
       flagged: m.flag?.flagStatus === "flagged",
+      preview: (m.bodyPreview ?? "").replace(/\s+/g, " ").trim(),
     }))
     .sort((a, b) => b.dateTs - a.dateTs);
 }

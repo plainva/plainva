@@ -6,6 +6,7 @@ import {
   encodeImapUtf7,
   pageEnvelopes,
   parseMessage,
+  previewFromBodyPrefix,
   setMailSocket,
   type MailSocket,
 } from "@plainva/ui/mail";
@@ -129,6 +130,46 @@ describe("IMAP over a raw socket", () => {
     expect(page.messages[0].dateTs).toBeGreaterThan(0);
   });
 
+  it("takes the list preview from the SECOND literal of the same FETCH (B3)", async () => {
+    // Two body sections mean two counted literals per FETCH line. The answer
+    // below deliberately puts BODY[TEXT] FIRST: nothing obliges a server to
+    // reply in the order we asked, so the parser must classify by section name,
+    // not by position.
+    const header = `Subject: Angebot${CRLF}From: Ada <ada@example.com>${CRLF}Date: Wed, 01 Jul 2026 10:00:00 +0000${CRLF}${CRLF}`;
+    const text = `Content-Type: text/plain; charset=utf-8${CRLF}Content-Transfer-Encoding: quoted-printable${CRLF}${CRLF}Hallo Marco, hier ist das Angebot f=C3=BCr n=C3=A4chste Woche.${CRLF}`;
+    let fetched = "";
+    const sock = new ScriptedSocket(
+      "* OK ready" + CRLF,
+      imapServer((tag, cmd, args) => {
+        if (cmd === "LOGIN") return `${tag} OK ok${CRLF}`;
+        if (cmd === "EXAMINE") return `* 1 EXISTS${CRLF}* OK [UIDVALIDITY 42] .${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("SEARCH UNSEEN")) return `* SEARCH${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("SEARCH")) return `* SEARCH 9${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("FETCH")) {
+          fetched = args;
+          return (
+            `* 1 FETCH (UID 9 FLAGS () BODY[TEXT]<0> {${text.length}}${CRLF}` +
+            text +
+            ` BODY[HEADER.FIELDS (SUBJECT FROM DATE)] {${header.length}}${CRLF}` +
+            header +
+            `)${CRLF}${tag} OK done${CRLF}`
+          );
+        }
+        return `${tag} OK${CRLF}`;
+      }),
+    );
+    setMailSocket(sock);
+
+    const conn = await ImapConnection.connect(creds);
+    const page = await pageEnvelopes(conn, "INBOX", 0, 30);
+
+    // One request, both sections — the preview must never cost a second trip.
+    expect(fetched).toMatch(/BODY\.PEEK\[HEADER\.FIELDS/i);
+    expect(fetched).toMatch(/BODY\.PEEK\[TEXT\]<0\.\d+>/i);
+    expect(page.messages[0].subject).toBe("Angebot");
+    expect(page.messages[0].preview).toBe("Hallo Marco, hier ist das Angebot für nächste Woche.");
+  });
+
   it("upgrades a plaintext port with STARTTLS before sending the password", async () => {
     const sock = new ScriptedSocket(
       "* OK ready" + CRLF,
@@ -238,5 +279,51 @@ describe("the socket transport", () => {
     await transport.checkLogin(creds);
 
     expect(closes).toBe(1);
+  });
+});
+
+/**
+ * The list preview is built from a TRUNCATED body prefix, so it meets every
+ * shape a mail can start with. The contract is: readable words, or nothing —
+ * MIME plumbing must never reach a reader's screen.
+ */
+describe("list preview from a truncated body prefix (B3)", () => {
+  it("reads plain text and collapses its whitespace", () => {
+    expect(previewFromBodyPrefix("Hallo Marco,\r\n\r\nwie besprochen …\r\n")).toBe("Hallo Marco, wie besprochen …");
+  });
+
+  it("decodes quoted-printable and walks into the first text part of a multipart", () => {
+    const raw = [
+      "--b1",
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: quoted-printable",
+      "",
+      "Gr=C3=BC=C3=9Fe aus M=C3=BCnchen",
+      "--b1",
+      "Content-Type: text/html; charset=utf-8",
+      "",
+      "<p>ignored</p>",
+    ].join("\r\n");
+    expect(previewFromBodyPrefix(raw)).toBe("Grüße aus München");
+  });
+
+  it("strips tags when the first part is HTML", () => {
+    const raw = ["Content-Type: text/html; charset=utf-8", "", "<div><b>Rechnung</b>&nbsp;Nr.&nbsp;7</div>"].join("\r\n");
+    expect(previewFromBodyPrefix(raw)).toBe("Rechnung Nr. 7");
+  });
+
+  it("gives up rather than show plumbing or half-decoded base64", () => {
+    // A truncated base64 part cannot be decoded safely.
+    const b64 = ["Content-Type: text/plain", "Content-Transfer-Encoding: base64", "", "SGFsbG8gTWFyY28sIGRhcyBpc3Qg"].join("\r\n");
+    expect(previewFromBodyPrefix(b64)).toBe("");
+    // Truncated before any text — a boundary and nothing else.
+    expect(previewFromBodyPrefix("--_000_boundary_\r\n")).toBe("");
+    expect(previewFromBodyPrefix("   \r\n")).toBe("");
+  });
+
+  it("caps the length so a row never grows a second line", () => {
+    const long = previewFromBodyPrefix("wort ".repeat(200), 40);
+    expect(long.length).toBeLessThanOrEqual(41); // 40 + the ellipsis
+    expect(long.endsWith("…")).toBe(true);
   });
 });

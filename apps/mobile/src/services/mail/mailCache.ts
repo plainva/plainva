@@ -23,6 +23,7 @@ const SCHEMA = [
      date_ts INTEGER NOT NULL,
      seen INTEGER NOT NULL,
      flagged INTEGER NOT NULL,
+     preview TEXT NOT NULL DEFAULT '',
      cached_at INTEGER NOT NULL,
      PRIMARY KEY (account, mailbox, id)
    )`,
@@ -37,6 +38,17 @@ const SCHEMA = [
    )`,
 ];
 
+/**
+ * Columns added after the table shipped. CREATE TABLE IF NOT EXISTS leaves an
+ * existing table alone, so a new column needs its own ALTER — which fails once
+ * it is there, hence the swallowed error. Writing the migration this way keeps
+ * the schema above readable as "what the table looks like now".
+ */
+const ADDED_COLUMNS = [
+  // Third list line, added with device report B3 (2026-07-26).
+  `ALTER TABLE mail_envelopes ADD COLUMN preview TEXT NOT NULL DEFAULT ''`,
+];
+
 /** Bodies are the big rows; keep the most recent ones only. */
 const MAX_BODIES = 200;
 
@@ -46,6 +58,9 @@ async function ensure(vault: MobileVault): Promise<boolean> {
   if (!vault.db) return false;
   if (ready.has(vault.db as object)) return true;
   for (const stmt of SCHEMA) await vault.db.execute(stmt);
+  for (const stmt of ADDED_COLUMNS) {
+    await vault.db.execute(stmt).catch(() => undefined); // already present
+  }
   ready.add(vault.db as object);
   return true;
 }
@@ -65,12 +80,13 @@ export async function cacheEnvelopes(
   const now = Date.now();
   for (const m of rows) {
     await vault.db!.execute(
-      `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, cached_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview, cached_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(account, mailbox, id) DO UPDATE SET
          subject = excluded.subject, sender = excluded.sender, date_ts = excluded.date_ts,
-         seen = excluded.seen, flagged = excluded.flagged, cached_at = excluded.cached_at`,
-      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, now],
+         seen = excluded.seen, flagged = excluded.flagged, preview = excluded.preview,
+         cached_at = excluded.cached_at`,
+      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, m.preview ?? "", now],
     );
   }
 }
@@ -89,8 +105,9 @@ export async function cachedEnvelopes(
     date_ts: number;
     seen: number;
     flagged: number;
+    preview: string | null;
   }>(
-    `SELECT id, subject, sender, date_ts, seen, flagged FROM mail_envelopes
+    `SELECT id, subject, sender, date_ts, seen, flagged, preview FROM mail_envelopes
      WHERE account = ? AND mailbox = ? ORDER BY date_ts DESC LIMIT ?`,
     [account, mailbox, limit],
   );
@@ -101,6 +118,7 @@ export async function cachedEnvelopes(
     dateTs: r.date_ts,
     seen: r.seen === 1,
     flagged: r.flagged === 1,
+    preview: r.preview ?? "",
   }));
 }
 

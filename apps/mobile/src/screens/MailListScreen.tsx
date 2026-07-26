@@ -52,6 +52,7 @@ export function MailListScreen({
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [stale, setStale] = useState(false);
 
@@ -222,29 +223,53 @@ export function MailListScreen({
 
       {stale && <p className="m-hint m-hint--warn">{t("mail.offlineCopy")}</p>}
 
-      {/* Which mailbox am I looking at, and how much is unread. */}
-      <button type="button" className="m-mboxline" onClick={() => setSheet(true)}>
-        <span className="m-mboxline-name">{mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}</span>
-        {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
-        <span className="m-mboxline-acct">{account?.label ?? ""}</span>
-        <ChevronDown size={16} />
-      </button>
-
-      <div className="m-mailsearch">
-        <Search size={16} />
-        <input
-          type="search"
-          value={query}
-          placeholder={t("mail.search")}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void runSearch()}
-        />
-        {searching && (
-          <button type="button" className="m-iconbtn" aria-label={t("sidebar.clearSearch")} onClick={clearSearch}>
-            <X size={16} />
-          </button>
-        )}
+      {/* Which mailbox am I looking at, how much is unread, and search.
+          A container with two buttons, not a button containing one: nested
+          buttons are invalid HTML and the inner one never fires (the month-cell
+          lesson from issue #34). The account shows its LOCAL PART here — the
+          full address was truncated to nothing on a phone; it is in the sheet. */}
+      <div className="m-mailbar">
+        <button type="button" className="m-mboxline" onClick={() => setSheet(true)}>
+          <span className="m-mboxline-name">{mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}</span>
+          {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
+          <span className="m-mboxline-acct">{localPart(account?.label)}</span>
+          <ChevronDown size={16} />
+        </button>
+        <button
+          type="button"
+          className="m-iconbtn"
+          aria-label={t("mail.search")}
+          data-testid="mail-search-toggle"
+          onClick={() => {
+            if (searchOpen && searching) clearSearch();
+            setSearchOpen((v) => !v);
+          }}
+        >
+          <Search size={18} />
+        </button>
       </div>
+
+      {/* Behind the magnifier on purpose: an always-visible field sat directly
+          under the shell's vault-search pill — two search boxes doing different
+          things, stacked (device report B3). */}
+      {searchOpen && (
+        <div className="m-mailsearch">
+          <Search size={16} />
+          <input
+            type="search"
+            value={query}
+            autoFocus
+            placeholder={t("mail.search")}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void runSearch()}
+          />
+          {searching && (
+            <button type="button" className="m-iconbtn" aria-label={t("sidebar.clearSearch")} onClick={clearSearch}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      )}
 
       {error ? (
         <EmptyState icon={<Mail size={20} />}>{error}</EmptyState>
@@ -259,13 +284,19 @@ export function MailListScreen({
                 className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
                 onClick={() => account && mailbox && onOpenMessage(account.id, mailbox, m.id, m.flagged)}
               >
-                <span className="m-mailrow-top">
-                  <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
-                  <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
-                </span>
-                <span className="m-mailrow-subject">
-                  {m.flagged && <Star size={13} className="m-mailrow-flag" />}
-                  {m.subject || t("mail.noSubject")}
+                {/* Unread is a dot AND weight: a phone in sunlight loses the
+                    weight difference long before it loses the dot. */}
+                <span aria-hidden className="m-mailrow-dot" />
+                <span className="m-mailrow-lines">
+                  <span className="m-mailrow-top">
+                    <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                    <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                  </span>
+                  <span className="m-mailrow-subject">
+                    {m.flagged && <Star size={13} className="m-mailrow-flag" />}
+                    {m.subject || t("mail.noSubject")}
+                  </span>
+                  {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                 </span>
               </button>
             </li>
@@ -353,6 +384,14 @@ export function MailListScreen({
 function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
   return e instanceof Error ? e.message : String(e);
+}
+
+/** "marco@example.com" → "marco". The bar has room for a name, not an address;
+ *  the full one is one tap away in the folder sheet. */
+function localPart(label: string | undefined): string {
+  if (!label) return "";
+  const bare = /<([^>]+)>/.exec(label)?.[1] ?? label;
+  return bare.split("@")[0] || bare;
 }
 
 function formatDate(ts: number, lang: string): string {

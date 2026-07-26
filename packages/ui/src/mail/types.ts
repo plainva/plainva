@@ -24,6 +24,14 @@ export interface MailEnvelope {
   dateTs: number;
   seen: boolean;
   flagged: boolean;
+  /**
+   * Opening words of the body, for the third line of a mobile list row (device
+   * report B3). Rides along in the envelope request — Graph carries
+   * `bodyPreview` anyway and IMAP takes a truncated body prefix in the same
+   * FETCH — so it never costs a second roundtrip. Absent or empty when the
+   * server gave nothing usable; the row then shows two lines.
+   */
+  preview?: string;
 }
 
 export interface MailEnvelopePage {
@@ -65,6 +73,8 @@ export interface RawImapEnvelope {
   dateTs: number;
   seen: boolean;
   flagged: boolean;
+  /** See MailEnvelope.preview — built from the truncated body prefix. */
+  preview?: string;
 }
 
 export interface RawImapEnvelopePage {

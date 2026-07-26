@@ -206,6 +206,74 @@ export function parseMessage(raw: string): ParsedMessage {
   return { headers, text, html, attachments, parts };
 }
 
+/**
+ * A one-line preview from the FIRST BYTES of a message body (device report B3:
+ * the mobile list shows three lines, the third being the opening words).
+ *
+ * The input is `BODY[TEXT]<0.n>` — a truncated prefix, on purpose: the preview
+ * rides along in the envelope FETCH instead of costing a second roundtrip.
+ * That means it can be anything: plain text, quoted-printable, the boundary and
+ * part headers of a multipart message, or HTML. Everything here is therefore
+ * best-effort and MUST degrade to "" rather than show MIME plumbing to a
+ * reader. `BODY[TEXT]` is used rather than `BODY[1]` because TEXT is accepted
+ * by every server, and a BAD reply here would take the whole message list down.
+ */
+export function previewFromBodyPrefix(raw: string, max = 160): string {
+  if (!raw.trim()) return "";
+  let body = raw;
+  let headers = new Map<string, string>();
+
+  // Multipart: walk to the first text part inside the prefix we were given.
+  // Anything past the truncation point simply is not there — then the preview
+  // stays empty, which is honest.
+  const boundary = /^--[^\r\n]+$/m.exec(body);
+  if (boundary && /content-type\s*:/i.test(body)) {
+    const chunks = body.split(new RegExp(`^${escapeRe(boundary[0])}(?:--)?\\s*$`, "m")).slice(1);
+    const pick =
+      chunks.find((c) => /content-type\s*:\s*text\/plain/i.test(c)) ??
+      chunks.find((c) => /content-type\s*:\s*text\/html/i.test(c)) ??
+      chunks[0] ??
+      "";
+    const split = splitHeaders(pick.replace(/^\r?\n/, ""));
+    headers = parseHeaders(split.head);
+    body = split.body;
+  } else if (/^(content-type|content-transfer-encoding)\s*:/im.test(body.slice(0, 200))) {
+    // Single part whose headers came along with TEXT on some servers.
+    const split = splitHeaders(body);
+    headers = parseHeaders(split.head);
+    body = split.body;
+  }
+
+  // A truncated base64 part cannot be decoded safely (the tail is a partial
+  // group) — better no preview than mojibake.
+  const encoding = (headers.get("content-transfer-encoding") ?? "").trim().toLowerCase();
+  if (encoding === "base64") return "";
+  let text = encoding === "quoted-printable" || /=[0-9A-F]{2}/.test(body) ? decodeText(headers, body) : body;
+
+  if ((headers.get("content-type") ?? "").includes("text/html") || /<\/?(p|div|br|span|table)\b/i.test(text)) {
+    text = text
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">");
+  }
+
+  const flat = text
+    .replace(/^--[^\r\n]*$/gm, " ") // stray boundary from a nested part
+    .replace(/\s+/g, " ")
+    .trim();
+  // No letters or digits at all means we hit plumbing, not prose.
+  if (!/[\p{L}\p{N}]/u.test(flat)) return "";
+  return flat.length > max ? flat.slice(0, max).trimEnd() + "…" : flat;
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Address list header → the display form the app shows ("A <a@x>, B <b@y>"). */
 export function headerAddresses(value: string | undefined): string {
   if (!value) return "";

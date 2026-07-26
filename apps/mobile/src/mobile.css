@@ -47,6 +47,10 @@ body,
   /* Spinner period (not a motion-scheme duration — a full rotation must stay
      slow even where transitions are fast; reduced-motion disables it fully). */
   --m-spin-dur: 800ms;
+  /* Mail rows carry three lines (sender · subject · opening words), so they
+     need their own height — the generic 56px list row made the list read like
+     a desktop table (device report B3, 2026-07-26). One role, one place. */
+  --m-mailrow-h: 76px;
 }
 
 body {
@@ -2785,17 +2789,27 @@ textarea {
 
 /* --- Mail (feinplan G1) ------------------------------------------------- */
 
-/* Which mailbox is on screen, how much of it is unread, and which account it
-   belongs to — the three facts a phone cannot put in a sidebar. */
+/* Which mailbox is on screen, how much of it is unread, which account it
+   belongs to — and search. The row is a CONTAINER with two buttons rather than
+   one button holding another: nested buttons are invalid HTML and the inner one
+   never fires. */
+.m-mailbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: var(--space-2);
+  background: var(--surface-container-low);
+  border-bottom: 1px solid var(--border-color-light);
+}
 .m-mboxline {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-container-low);
+  background: none;
   border: none;
-  border-bottom: 1px solid var(--border-color-light);
   color: var(--text-main);
   text-align: left;
   font-size: var(--text-ui);
@@ -2820,14 +2834,18 @@ textarea {
   white-space: nowrap;
 }
 
+/* Three lines on a mail-client-sized row: sender, subject, opening words. The
+   generic 56px list row with two lines read like a desktop table on a phone
+   (device report B3) — every mobile mail client gives the sender the largest
+   type and the body a line of its own. */
 .m-maillist { list-style: none; margin: 0; padding: 0; }
 .m-mailrow {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: flex-start;
+  gap: var(--space-2);
   width: 100%;
-  min-height: var(--touch-row);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--m-mailrow-h);
+  padding: var(--space-3);
   background: none;
   border: none;
   border-bottom: 1px solid var(--border-color-light);
@@ -2835,6 +2853,13 @@ textarea {
   text-align: left;
 }
 .m-mailrow:active { background: var(--state-hover); }
+.m-mailrow-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
 .m-mailrow-top { display: flex; align-items: baseline; gap: var(--space-2); }
 .m-mailrow-from {
   flex: 1;
@@ -2842,7 +2867,7 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-ui);
+  font-size: var(--text-md);
 }
 .m-mailrow-date { flex-shrink: 0; color: var(--text-muted); font-size: var(--text-xs); }
 .m-mailrow-subject {
@@ -2852,13 +2877,31 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-ui);
+}
+/* The opening words of the body, from the envelope request (B3). */
+.m-mailrow-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
 .m-mailrow-flag { flex-shrink: 0; color: var(--warning-text); }
-/* Unread is carried by weight AND a colour shift, never by colour alone. */
+/* Unread carries a dot AND weight — never colour alone, and never weight
+   alone: on a phone in sunlight the weight difference is the first to go. */
+.m-mailrow-dot {
+  flex-shrink: 0;
+  width: var(--space-2);
+  height: var(--space-2);
+  margin-top: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: none;
+}
+.m-mailrow.is-unread .m-mailrow-dot { background: var(--accent-color); }
 .m-mailrow.is-unread .m-mailrow-from { font-weight: 700; }
-.m-mailrow.is-unread .m-mailrow-subject { color: var(--text-main); font-weight: 500; }
+.m-mailrow.is-unread .m-mailrow-subject { font-weight: 600; }
+.m-mailrow:not(.is-unread) .m-mailrow-subject { color: var(--text-muted); }
 
 .m-mailmeta {
   padding: var(--space-3);
