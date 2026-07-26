@@ -39,8 +39,37 @@ const GOOGLE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
 
 export type PimOAuthProvider = "google" | "microsoft";
 
+/**
+ * What the consent is for (feinplan G0.2). Calendar has always been the only
+ * purpose; mail reuses this exact flow with different scopes, and the pending
+ * transaction carries the purpose so the single redirect handler knows where
+ * to hand the token — instead of a second, near-identical handler competing
+ * for the same custom-scheme redirect.
+ */
+export type PimOAuthPurpose = "calendar" | "mail";
+
+/** Resolves the token result of a completed flow; mail registers its own. */
+export type OAuthPurposeHandler = (result: {
+  provider: PimOAuthProvider;
+  clientId: string;
+  clientSecret?: string;
+  refreshToken: string;
+  label: string;
+}) => Promise<void>;
+
+const purposeHandlers = new Map<string, OAuthPurposeHandler>();
+
+/** Registered by the mail runtime at startup (calendar stays built in). */
+export function setOAuthPurposeHandler(purpose: PimOAuthPurpose, handler: OAuthPurposeHandler): void {
+  purposeHandlers.set(purpose, handler);
+}
+
 interface PendingPimFlow {
   provider: PimOAuthProvider;
+  /** Absent in transactions written before G0.2 — those are calendar flows. */
+  purpose?: PimOAuthPurpose;
+  /** Scope string of the flow, so the token exchange matches the consent. */
+  scope?: string;
   verifier: string;
   state: string;
   clientId: string;
@@ -92,13 +121,17 @@ async function loadPending(): Promise<PendingPimFlow | null> {
 /** Opens the provider consent page for a calendar account in the system browser. */
 export async function beginPimOAuth(
   provider: PimOAuthProvider,
-  opts: { clientId: string; clientSecret?: string; label?: string },
+  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string },
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
   const clientId = provider === "microsoft" ? opts.clientId.trim() || PLAINVA_ONEDRIVE_CLIENT_ID : opts.clientId.trim();
+  const purpose = opts.purpose ?? "calendar";
+  const scope = opts.scope ?? (provider === "microsoft" ? GRAPH_CALENDAR_SCOPES : GOOGLE_CALENDAR_SCOPES);
   pending = {
     provider,
+    purpose,
+    scope,
     verifier: pkce.codeVerifier,
     state,
     clientId,
@@ -109,8 +142,8 @@ export async function beginPimOAuth(
   await persistPending(pending);
   const url =
     provider === "microsoft"
-      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope: GRAPH_CALENDAR_SCOPES })
-      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope: GOOGLE_CALENDAR_SCOPES });
+      ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope })
+      : buildAuthUrl({ clientId, redirectUri: GOOGLE_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope });
   await Browser.open({ url });
 }
 
@@ -134,20 +167,30 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     if (error) throw new Error(params.get("error_description") || error);
     const code = params.get("code");
     if (!code) throw new Error("no authorization code");
+    const purpose: PimOAuthPurpose = flow.purpose ?? "calendar";
+    let refreshToken: string;
     if (flow.provider === "microsoft") {
       const tok = await exchangeOneDriveCode(
-        { clientId: flow.clientId, code, codeVerifier: flow.verifier, redirectUri: MS_REDIRECT_URI, scope: GRAPH_CALENDAR_SCOPES },
+        { clientId: flow.clientId, code, codeVerifier: flow.verifier, redirectUri: MS_REDIRECT_URI, scope: flow.scope ?? GRAPH_CALENDAR_SCOPES },
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
-      await addPimAccount("microsoft", flow.label || "Microsoft", { kind: "microsoft", clientId: flow.clientId, refreshToken: tok.refreshToken });
+      refreshToken = tok.refreshToken;
     } else {
       const tok = await exchangeCode(
         { clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", code, codeVerifier: flow.verifier, redirectUri: GOOGLE_REDIRECT_URI },
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
-      await addPimAccount("google", flow.label || "Google", { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken: tok.refreshToken });
+      refreshToken = tok.refreshToken;
+    }
+    const handler = purposeHandlers.get(purpose);
+    if (handler) {
+      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: flow.clientSecret, refreshToken, label: flow.label });
+    } else if (flow.provider === "microsoft") {
+      await addPimAccount("microsoft", flow.label || "Microsoft", { kind: "microsoft", clientId: flow.clientId, refreshToken });
+    } else {
+      await addPimAccount("google", flow.label || "Google", { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken });
     }
     toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
     window.dispatchEvent(new CustomEvent("m-pim-changed"));

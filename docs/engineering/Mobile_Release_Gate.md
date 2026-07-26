@@ -28,12 +28,12 @@ maintainer workspace per release.
 
 ## Store plumbing
 
-- [ ] Play Console: app created, internal testing track, data-safety form,
+- [ ] Play Console: app created, internal testing track, data-safety form (mail: see `Mail_Store_Declarations.md`),
       release keystore generated and backed up OFFLINE.
 - [ ] `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` /
       `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` set as repo secrets
       (release-mobile.yml signs only when present).
-- [ ] App Store Connect: listing, screenshots, privacy nutrition labels;
+- [ ] App Store Connect: listing, screenshots, privacy nutrition labels (mail: see `Mail_Store_Declarations.md`);
       TestFlight internal testers verified (ios.yml).
 - [ ] Version bump: `apps/mobile/package.json`, Android `versionName`/
       `versionCode` (build.gradle), iOS `MARKETING_VERSION`.
