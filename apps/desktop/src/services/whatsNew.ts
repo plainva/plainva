@@ -1,46 +1,17 @@
 /**
- * Release highlights shown to existing users after an update.
+ * Desktop side of the release highlights.
  *
- * The highlight *texts* live in i18n (`whatsNew.highlightN`) so they exist in
- * all ten languages; this catalog only says which version they belong to and
- * how many there are. Both must be updated together at release time.
+ * The catalog and the "has this been seen" rule are SHARED (H5): the phone
+ * shows the same highlights, and a release that updates one must not leave the
+ * other behind. What stays here is desktop-specific — where the marker lives
+ * and how the running version is read.
  */
 import { getSettingsStore } from './settingsStore';
+import { getLatestWhatsNew } from '@plainva/ui';
 
-export interface WhatsNewItem {
-  version: string;
-  releaseDate: string;
-  /** Number of `whatsNew.highlightN` keys this release ships. */
-  highlightCount: number;
-  blogUrl?: string;
-}
-
-export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
-  {
-    version: '0.5.0',
-    releaseDate: '2026-07-25',
-    highlightCount: 5,
-    blogUrl: 'https://plainva.com/blog/plainva-0-5-0',
-  },
-];
+export { WHATS_NEW_CATALOG, getLatestWhatsNew, shouldShowWhatsNew, type WhatsNewItem } from '@plainva/ui';
 
 const SEEN_VERSION_KEY = 'whatsNewSeenVersion';
-
-export function getLatestWhatsNew(): WhatsNewItem {
-  return WHATS_NEW_CATALOG[0];
-}
-
-/**
- * True when this build's highlights have not been acknowledged yet.
- *
- * A missing marker means the user has never seen the dialog. Whether that
- * makes them a *new* user (first run) or someone upgrading from before the
- * marker existed is decided by the caller, which also looks at recent vaults.
- */
-export function shouldShowWhatsNew(seenVersion: string | null | undefined, currentVersion: string): boolean {
-  if (!seenVersion) return true;
-  return seenVersion !== currentVersion;
-}
 
 export async function readWhatsNewSeenVersion(): Promise<string | null> {
   try {

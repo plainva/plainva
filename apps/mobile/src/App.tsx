@@ -47,12 +47,14 @@ import { MailComposeScreen, type MailDraft } from "./screens/MailComposeScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
+import { WhatsNewSheet } from "./components/WhatsNewSheet";
 import { GraphScreen } from "./screens/GraphScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
+import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
   backStep,
@@ -134,6 +136,8 @@ export default function App() {
   const [nav, setNav] = useState<NavState>(() => initialNavState(slots[0]));
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
+  /** Release highlights / welcome on this start (H5) — resolved once. */
+  const [releaseDialog, setReleaseDialog] = useState<ReleaseDialog>("none");
   const [quickCreate, setQuickCreate] = useState(false);
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
@@ -174,6 +178,13 @@ export default function App() {
       window.removeEventListener("m-shortcut", onShortcut);
       window.removeEventListener("m-poll-share", onPollShare);
     };
+  }, []);
+
+  // What this start owes the user (H5). Runs once: an existing install that
+  // just updated sees the highlights, a fresh one the welcome — and the
+  // onboarding flag is what tells them apart.
+  useEffect(() => {
+    void pendingReleaseDialog(getMobileSettings().onboarded).then(setReleaseDialog);
   }, []);
 
   const [vaultName, setVaultName] = useState("Plainva");
@@ -462,6 +473,8 @@ export default function App() {
   const noteOpen = top?.kind === "note";
 
   const finishOnboarding = (connectCloud: boolean) => {
+    void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
+    setReleaseDialog("none");
     setOnboarded(true);
     void updateMobileSettings({ onboarded: true });
     if (connectCloud) {
@@ -901,6 +914,18 @@ export default function App() {
             <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
           ))}
         </nav>
+      )}
+
+      {/* Only once the onboarding is behind us — two welcome screens at once
+          would be one too many. */}
+      {onboarded && releaseDialog !== "none" && (
+        <WhatsNewSheet
+          firstRun={releaseDialog === "firstRun"}
+          onClose={() => {
+            setReleaseDialog("none");
+            void markReleaseDialogSeen();
+          }}
+        />
       )}
 
       {areasOpen && (

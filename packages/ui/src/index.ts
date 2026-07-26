@@ -9,6 +9,7 @@ export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/secretsPort";
+export * from "./lib/whatsNew";
 export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";
 export * from "./pim/eventColors";
