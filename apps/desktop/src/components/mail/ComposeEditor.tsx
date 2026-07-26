@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bold, CheckSquare, Code, Heading, Italic, Link2, List, ListOrdered, Quote, Slash, Strikethrough } from "lucide-react";
-import { EditorState, Prec } from "@codemirror/state";
-import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
-import { ICON, markdownDecorationPlugin, markdownTheme } from "@plainva/ui";
+import { ICON } from "@plainva/ui";
 import {
-  applyComposeCommand,
   COMPOSE_COMMANDS,
-  detectSlash,
+  createComposeSession,
   filterCommands,
   type ComposeCommand,
   type ComposeCommandId,
+  type ComposeSession,
 } from "@plainva/ui/mail";
 // The .pv-mail-cmp* rules live in mail.css. Import it here so the editor carries
 // its own styling wherever it is used — the calendar event dialog reuses this
@@ -22,14 +18,17 @@ import "./mail.css";
 /**
  * Compose message editor: a Markdown editor with a formatting toolbar and a `/`
  * slash-command menu (headings, bold/italic/strike/code, lists, task, quote,
- * code block, divider, link). It runs a DEDICATED, ISOLATED CodeMirror live
- * preview (markdownDecorationPlugin + markdownTheme only) so the body renders
- * formatted exactly like the note editor — but WITHOUT the note editor's
- * completion/embed/table/wiki/header/block extensions, which fire global window
- * events the note editor also listens to. No editorCompletion here = no such
- * events, so an open note can never be written to from the mail/event dialog.
- * The toolbar/slash commands stay the pure text ops of composeMarkdown.ts,
- * applied to the editor as CodeMirror transactions.
+ * code block, divider, link).
+ *
+ * The editor itself is the SHARED `createComposeSession` (G3b) — the same one
+ * the phone runs, so writing a message cannot behave differently on the two
+ * platforms. It carries a DEDICATED, ISOLATED CodeMirror live preview
+ * (markdown decorations + theme only) WITHOUT the note editor's completion/
+ * embed/table/wiki/header/block extensions, which fire global window events the
+ * note editor also listens to; no such events here means an open note can never
+ * be written to from the mail or event dialog. This file owns only the desktop
+ * chrome: the inline toolbar, the caret-anchored menu and its keyboard
+ * navigation.
  */
 
 interface ComposeEditorProps {
@@ -63,9 +62,8 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const viewRef = useRef<EditorView | null>(null);
+  const sessionRef = useRef<ComposeSession | null>(null);
   const onChangeRef = useRef(onChange);
-  const lastValueRef = useRef(value);
 
   const [slash, setSlash] = useState<{ from: number; query: string; top: number; left: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -78,45 +76,17 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
   const slashIndexRef = useRef(slashIndex);
 
   const runCommand = useCallback((id: ComposeCommandId) => {
-    const view = viewRef.current;
-    if (!view) return;
-    const doc = view.state.doc.toString();
-    const { from, to } = view.state.selection.main;
-    const edit = applyComposeCommand(id, doc, from, to);
-    view.dispatch({ changes: { from: 0, to: doc.length, insert: edit.value }, selection: { anchor: edit.selStart, head: edit.selEnd } });
-    view.focus();
+    sessionRef.current?.run(id);
   }, []);
   const runCmdRef = useRef(runCommand);
 
   const runSlashCommand = useCallback((id: ComposeCommandId) => {
-    const view = viewRef.current;
     const s = slashRef.current;
-    if (!view || !s) return;
-    const doc = view.state.doc.toString();
-    const caret = view.state.selection.main.head;
-    const stripped = doc.slice(0, s.from) + doc.slice(caret);
-    const edit = applyComposeCommand(id, stripped, s.from, s.from);
-    view.dispatch({ changes: { from: 0, to: doc.length, insert: edit.value }, selection: { anchor: edit.selStart, head: edit.selEnd } });
+    if (!s) return;
+    sessionRef.current?.runSlash(id, s.from);
     setSlash(null);
-    view.focus();
   }, []);
   const runSlashRef = useRef(runSlashCommand);
-
-  const updateSlash = useCallback(() => {
-    const view = viewRef.current;
-    if (!view) { setSlash(null); return; }
-    const doc = view.state.doc.toString();
-    const caret = view.state.selection.main.head;
-    const hit = detectSlash(doc, caret);
-    if (!hit) { setSlash((s) => (s ? null : s)); return; }
-    const coords = view.coordsAtPos(caret);
-    const wrap = wrapRef.current;
-    if (!coords || !wrap) { setSlash(null); return; }
-    const box = wrap.getBoundingClientRect();
-    setSlash({ from: hit.from, query: hit.query, top: coords.bottom - box.top + 2, left: coords.left - box.left });
-    setSlashIndex(0);
-  }, []);
-  const updateSlashRef = useRef(updateSlash);
 
   // Keep the mount-time keymap/listener refs pointing at the latest closures
   // (updating a ref during render is forbidden by the React Compiler rules).
@@ -127,15 +97,17 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
     slashIndexRef.current = slashIndex;
     runCmdRef.current = runCommand;
     runSlashRef.current = runSlashCommand;
-    updateSlashRef.current = updateSlash;
   });
 
-  // Mount the isolated CodeMirror live preview once.
+  // Mount the shared compose session once.
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    const slashKeys = Prec.highest(
-      keymap.of([
+    const parent = hostRef.current;
+    if (!parent) return;
+    const session = createComposeSession({
+      parent,
+      doc: value,
+      placeholder,
+      extraKeys: [
         { key: "ArrowDown", run: () => { const n = commandsRef.current.length; if (!slashRef.current || n === 0) return false; setSlashIndex((i) => (i + 1) % n); return true; } },
         { key: "ArrowUp", run: () => { const n = commandsRef.current.length; if (!slashRef.current || n === 0) return false; setSlashIndex((i) => (i - 1 + n) % n); return true; } },
         { key: "Enter", run: () => { const cmds = commandsRef.current; if (!slashRef.current || cmds.length === 0) return false; runSlashRef.current(cmds[slashIndexRef.current]?.id ?? cmds[0].id); return true; } },
@@ -143,47 +115,30 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
         { key: "Escape", run: () => { if (!slashRef.current) return false; setSlash(null); return true; } },
         { key: "Mod-b", preventDefault: true, run: () => { runCmdRef.current("bold"); return true; } },
         { key: "Mod-i", preventDefault: true, run: () => { runCmdRef.current("italic"); return true; } },
-      ])
-    );
-    const view = new EditorView({
-      state: EditorState.create({
-        doc: value,
-        extensions: [
-          slashKeys,
-          markdown(),
-          markdownDecorationPlugin(true),
-          markdownTheme(),
-          EditorView.lineWrapping,
-          history(),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-          cmPlaceholder(placeholder ?? ""),
-          EditorView.updateListener.of((u) => {
-            if (u.docChanged) {
-              const v = u.state.doc.toString();
-              lastValueRef.current = v;
-              onChangeRef.current(v);
-            }
-            if (u.docChanged || u.selectionSet) updateSlashRef.current();
-          }),
-        ],
-      }),
-      parent: host,
+      ],
+      onChange: (v) => onChangeRef.current(v),
+      onSlashChange: (hit) => {
+        if (!hit) { setSlash((s) => (s ? null : s)); return; }
+        const view = sessionRef.current?.view;
+        const wrap = wrapRef.current;
+        const coords = view?.coordsAtPos(view.state.selection.main.head);
+        if (!coords || !wrap) { setSlash(null); return; }
+        const box = wrap.getBoundingClientRect();
+        setSlash({ from: hit.from, query: hit.query, top: coords.bottom - box.top + 2, left: coords.left - box.left });
+        setSlashIndex(0);
+      },
     });
-    viewRef.current = view;
-    if (autoFocus) view.focus();
-    return () => { view.destroy(); viewRef.current = null; };
+    sessionRef.current = session;
+    if (autoFocus) session.view.focus();
+    return () => { session.destroy(); sessionRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync EXTERNAL value changes (reply/forward prefill set by the parent) into
   // the editor. Typing does not trigger this: onChange updates the parent value
-  // to exactly what the listener already emitted, so value === lastValueRef.
+  // to exactly what the session already emitted.
   useEffect(() => {
-    const view = viewRef.current;
-    if (!view || value === lastValueRef.current) return;
-    const cur = view.state.doc.toString();
-    if (value !== cur) view.dispatch({ changes: { from: 0, to: cur.length, insert: value } });
-    lastValueRef.current = value;
+    sessionRef.current?.applyExternalText(value);
   }, [value]);
 
   return (

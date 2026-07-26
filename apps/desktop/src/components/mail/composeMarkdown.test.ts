@@ -28,6 +28,25 @@ describe("composeMarkdown", () => {
     expect(r.value).toBe("hello world");
   });
 
+  // Emphasis nests. Before G3b the adjacent characters were compared to the
+  // marker, so italic on bold matched the trailing `*` of `**` and silently
+  // removed the bold instead of adding italic.
+  it("adds italic to bold text instead of stripping the bold", () => {
+    const inside = toggleWrap("**hello**", 0, 9, "*");
+    expect(inside.value).toBe("***hello***");
+    const outside = toggleWrap("**hello**", 2, 7, "*");
+    expect(outside.value).toBe("***hello***");
+  });
+
+  it("removes one emphasis at a time from doubly emphasised text", () => {
+    expect(toggleWrap("***hello***", 3, 8, "*").value).toBe("**hello**");
+    expect(toggleWrap("***hello***", 3, 8, "**").value).toBe("*hello*");
+  });
+
+  it("adds bold to italic text", () => {
+    expect(toggleWrap("*hello*", 1, 6, "**").value).toBe("***hello***");
+  });
+
   it("wraps an empty selection with an empty placeholder between markers", () => {
     const r = toggleWrap("ab", 1, 1, "*");
     expect(r.value).toBe("a**b"); // a + * + '' + * + b

@@ -16,19 +16,46 @@ export interface TextEdit {
   selEnd: number;
 }
 
-/** Wrap (or unwrap, when already wrapped) the selection with a marker like `**`. */
+/**
+ * Wrap (or unwrap, when already wrapped) the selection with a marker like `**`.
+ *
+ * Emphasis markers NEST — `*` is italic, `**` bold, `***` both — so the decision
+ * cannot be made by comparing the adjacent characters to the marker: `**` ends
+ * with a `*`, so italic-on-bold used to read as "already italic" and stripped
+ * the bold instead of adding italic. What decides is the LENGTH of the marker
+ * run hugging the selection: for a one-character marker the emphasis is present
+ * when that run is odd (1 or 3), for a longer one when the run reaches its
+ * length. Every marker in use (`*`, `**`, `~~`, `` ` ``) is a run of one
+ * character, which is what makes counting valid.
+ */
 export function toggleWrap(value: string, start: number, end: number, marker: string): TextEdit {
   const sel = value.slice(start, end);
   const m = marker.length;
-  // Already wrapped just inside the selection → unwrap.
-  if (sel.startsWith(marker) && sel.endsWith(marker) && sel.length >= m * 2) {
+  const ch = marker[0];
+  /** Does a run of this length already carry the marker's emphasis? */
+  const carries = (run: number) => (m === 1 ? run % 2 === 1 : run >= m);
+
+  // Run of marker characters just INSIDE the selection (both ends).
+  let insideL = 0;
+  while (insideL < sel.length && sel[insideL] === ch) insideL++;
+  let insideR = 0;
+  while (insideR < sel.length - insideL && sel[sel.length - 1 - insideR] === ch) insideR++;
+  const inside = Math.min(insideL, insideR);
+  if (inside >= m && carries(inside) && sel.length >= m * 2) {
     const inner = sel.slice(m, sel.length - m);
     return { value: value.slice(0, start) + inner + value.slice(end), selStart: start, selEnd: start + inner.length };
   }
-  // Marker sits immediately OUTSIDE the selection → unwrap it.
-  if (value.slice(start - m, start) === marker && value.slice(end, end + m) === marker) {
+
+  // Run of marker characters just OUTSIDE the selection (both ends).
+  let outL = 0;
+  while (start - outL - 1 >= 0 && value[start - outL - 1] === ch) outL++;
+  let outR = 0;
+  while (end + outR < value.length && value[end + outR] === ch) outR++;
+  const outside = Math.min(outL, outR);
+  if (outside >= m && carries(outside)) {
     return { value: value.slice(0, start - m) + sel + value.slice(end + m), selStart: start - m, selEnd: end - m };
   }
+
   const placeholder = sel.length === 0;
   const inner = placeholder ? "" : sel;
   const next = value.slice(0, start) + marker + inner + marker + value.slice(end);

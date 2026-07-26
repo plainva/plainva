@@ -5,6 +5,7 @@ import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { sendMail } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
+import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 
@@ -20,10 +21,9 @@ export interface MailDraft {
  * desktop composer — `sendMail` turns it into the HTML + plain-text pair, so a
  * reply written on the phone looks the same as one written on the desktop.
  *
- * Deliberately a plain text area rather than the desktop's live-preview
- * composer: that one is a CodeMirror instance with its own toolbar, and a
- * half-ported version would behave differently on the two platforms. Bringing
- * it over properly is G3.
+ * Since G3b the body is the shared Markdown editor with a formatting toolbar
+ * and a "/" menu (`MailComposeEditor`), not a plain text area: the same message
+ * now writes the same way on both platforms.
  */
 export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack: () => void }) {
   const { t } = useTranslation();
@@ -127,10 +127,10 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
           <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} />
         </label>
 
-        <label className="m-field">
+        <div className="m-field">
           <span>{t("mail.body")}</span>
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} />
-        </label>
+          <MailComposeEditor value={body} onChange={setBody} placeholder={t("mail.body")} />
+        </div>
 
         <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void send()}>
           {t("mail.send")}

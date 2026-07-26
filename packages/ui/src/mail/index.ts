@@ -18,6 +18,7 @@ export * from "./mailOut";
 export * from "./mailSanitize";
 export * from "./inviteIcs";
 export * from "./composeMarkdown";
+export * from "./composeSession";
 export * from "./mailCapture";
 export * from "./net/socket";
 export * from "./net/mime";

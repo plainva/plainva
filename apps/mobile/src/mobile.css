@@ -2968,3 +2968,64 @@ textarea {
   font-size: var(--text-ui);
 }
 .m-mailsearch input:focus { outline: none; }
+
+/* ===== Mail compose editor (G3b) ===== */
+
+/* The body is a real Markdown editor now. It grows with the message instead of
+   scrolling inside a fixed box — the page already scrolls, and a scroller inside
+   a scroller is a phone anti-pattern. */
+.m-cmpeditor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.m-cmpwrap {
+  position: relative;
+}
+.m-cmpbody {
+  min-height: 220px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+.m-cmpbody .cm-editor {
+  min-height: 220px;
+}
+.m-cmpbody .cm-content {
+  padding: var(--space-3);
+}
+.m-cmpbody .cm-editor.cm-focused {
+  outline: none;
+}
+/* The "/" menu floats over the text like the desktop's, but with touch-sized
+   rows; it is anchored to the caret line, full width, so a thumb cannot miss. */
+.m-cmpslash {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  z-index: var(--z-m-sheet);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--m-surface-container);
+  box-shadow: var(--shadow-2);
+}
+.m-cmpslash-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-sm);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-main);
+  font-size: var(--text-ui);
+  text-align: left;
+}
+.m-cmpslash-item:active {
+  background: var(--m-state-pressed);
+}
