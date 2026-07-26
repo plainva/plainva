@@ -1253,7 +1253,7 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
 
   // …and a VAULT area click returns to the vault world (maintenance holds the reindex row).
   await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
-  await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toBeVisible();
 
   // The identity card is no dropdown: its "switch" link opens the vault
   // picker; picking the not-open vault swaps the VAULT pages to it and the
@@ -1266,7 +1266,7 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await expect(picker).toHaveCount(0);
   await expect(dialog.getByTestId('settings-vault-name')).toHaveText('zweiter-vault');
   await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /Index neu aufbauen|Rebuild index/ })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
 });
 
 test('Cloud accounts derive the pre-existing sync slot; service areas gate on carried services', async ({ page }) => {

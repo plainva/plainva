@@ -238,7 +238,9 @@ export class TauriVaultAdapter implements IVaultAdapter {
     visited: Set<string>,
     limit: FsLimiter,
     skipped: VaultWalkSkip[],
-    depth: number
+    depth: number,
+    /** True once the walk is inside an explicitly requested internal folder. */
+    insideInternal: boolean
   ): Promise<VaultFileInfo[]> {
     if (visited.has(absPath)) {
       skipped.push({ path, reason: "cycle" });
@@ -271,6 +273,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     const validEntries = entries.filter(e => {
       const name = e.name;
       if (!name) return false;
+      if (insideInternal) return true;
       return !isInternalPath(path ? `${path}/${name}` : name);
     });
 
@@ -323,7 +326,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
           .map((entry) => {
             const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
             const childAbsPath = basePath + entry.name;
-            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit, skipped, depth + 1);
+            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit, skipped, depth + 1, insideInternal);
           })
       );
       for (const cl of childLists) results.push(...cl);
@@ -339,8 +342,13 @@ export class TauriVaultAdapter implements IVaultAdapter {
   async listDirReport(path: string = "", recursive: boolean = false): Promise<VaultListing> {
     const absPath = await this.getAbsolutePath(path);
     const skipped: VaultWalkSkip[] = [];
+    // The internal-path filter hides `.plainva`, `.git`, … from a walk over the
+    // VAULT. It must not fire when the caller deliberately walks INSIDE such a
+    // folder — the version history lists `.plainva/backups/...` and would come
+    // back empty. Asking for an internal path is an explicit request for it.
     const files = await this._listDirInternal(
-      path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0
+      path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
+      isInternalPath(path)
     );
     return { files, skipped };
   }
