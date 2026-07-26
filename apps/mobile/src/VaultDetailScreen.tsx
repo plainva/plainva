@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Lock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -246,70 +246,144 @@ export function VaultDetailScreen({
         )}
         {isActive && entry.provider && (
           <>
-            {/* Same chain as the desktop (plan P5): three steps that build on
-                each other, in one place, with the dependency visible. */}
+            {/* Same chain as the desktop, same order (plan P5, corrected):
+                syncing settings and accounts needs NO passphrase — only
+                carrying sign-ins does. So the passphrase sits BETWEEN them. */}
             <p className="m-sectionlabel">{t("settingsSync.chainLabel")}</p>
             <p className="m-hint">{t("settingsSync.chainIntro")}</p>
-            <div className="m-row m-row--static">
-              <span className="m-linestack">
-                {t("settingsSync.step2")}
-                <small>{t("settingsSync.step2Desc")}</small>
-              </span>
-              <Switch
-                checked={settingsSyncOn}
-                disabled={busy}
-                label={t("settingsSync.step2")}
-                onChange={(next) => {
-                  setBusy(true);
-                  void setMobileSettingsSyncEnabled(vaultId, next)
-                    .then(() => restartSync(activeVault))
-                    .then(() => setSettingsSyncOn(next))
-                    .finally(() => setBusy(false));
-                }}
-              />
+
+            <div className="m-chain">
+              <div className={`m-chain-step ${settingsSyncOn ? "is-done" : "is-todo"}`}>
+                <div className="m-chain-node">{settingsSyncOn ? "✓" : "1"}</div>
+                <div className="m-chain-body">
+                  <div className="m-chain-head">
+                    <span className="m-chain-title">{t("settingsSync.step1")}</span>
+                    <Switch
+                      checked={settingsSyncOn}
+                      disabled={busy}
+                      label={t("settingsSync.step1")}
+                      onChange={(next) => {
+                        setBusy(true);
+                        void setMobileSettingsSyncEnabled(vaultId, next)
+                          .then(() => restartSync(activeVault))
+                          .then(() => setSettingsSyncOn(next))
+                          .finally(() => setBusy(false));
+                      }}
+                    />
+                  </div>
+                  <p className="m-chain-desc">{t("settingsSync.step1Desc")}</p>
+                  <div className="m-chain-carries">
+                    <span className="m-chain-chip">{t("settingsSync.chipCalendars")}</span>
+                    <span className="m-chain-chip">{t("settingsSync.chipMailboxes")}</span>
+                    <span className="m-chain-chip">{t("settingsSync.chipSelection")}</span>
+                    <span className="m-chain-chip">{t("settingsSync.chipDaily")}</span>
+                    <span className="m-chain-chip">{t("settingsSync.chipTemplates")}</span>
+                    <span className="m-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional, and independent of step 1 — it exists for step 3. */}
+              <div className={`m-chain-step ${encryption === "unlocked" ? "is-done" : ""}`}>
+                <div className="m-chain-node">{encryption === "unlocked" ? "✓" : "2"}</div>
+                <div className="m-chain-body">
+                  <div className="m-chain-head">
+                    <span className="m-chain-title">
+                      {t("settingsSync.step2")}
+                      {encryption !== "unlocked" && <span className="m-chain-chip">{t("settingsSync.step2Optional")}</span>}
+                    </span>
+                  </div>
+                  <p className="m-chain-desc">
+                    {encryption === "unlocked" ? t("settingsSync.unlockedBody") : t("settingsSync.step2Desc")}
+                  </p>
+                  {encryption === "none" && (
+                    <button className="m-btn" disabled={busy} onClick={() => setSetupOpen(true)} data-testid="encryption-setup-open">
+                      {t("encryption.setPassphrase")}
+                    </button>
+                  )}
+                  {encryption === "locked" && (
+                    <button
+                      className="m-btn m-btn--filled"
+                      disabled={busy}
+                      onClick={() => {
+                        void mPrompt({ title: t("settingsSync.passphraseTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
+                          if (cancelled || !value) return;
+                          setBusy(true);
+                          try {
+                            await unlockMobileEncryption(activeVault, value);
+                            await restartSync(activeVault);
+                            setEncryption("unlocked");
+                          } catch {
+                            toast.warning(t("encryption.wrongPassphrase"));
+                          } finally {
+                            setBusy(false);
+                          }
+                        });
+                      }}
+                    >
+                      {t("encryption.enterPassphrase")}
+                    </button>
+                  )}
+                  {encryption === "unlocked" && (
+                    <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
+                      {t("encryption.lock")}
+                    </button>
+                  )}
+                  {encryption !== "none" && (
+                    <div className="m-row m-row--static">
+                      <span className="m-linestack">
+                        {t("encryption.everyStart")}
+                        <small>{t("encryption.everyStartDesc")}</small>
+                      </span>
+                      <Switch
+                        checked={everyStart}
+                        disabled={busy}
+                        label={t("encryption.everyStart")}
+                        onChange={(next) => {
+                          setBusy(true);
+                          void setMobilePassphraseEveryStart(vaultId, next)
+                            .then(() => setEveryStart(next))
+                            .then(() => mobileEncryptionStatus(activeVault))
+                            .then(setEncryption)
+                            .finally(() => setBusy(false));
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Needs BOTH: the accounts from step 1 and the key from step 2. */}
+              <div className={`m-chain-step ${secretsSyncOn && settingsSyncOn ? "is-done" : !settingsSyncOn || encryption !== "unlocked" ? "is-locked" : ""}`}>
+                <div className="m-chain-node">{secretsSyncOn && settingsSyncOn ? "✓" : "3"}</div>
+                <div className="m-chain-body">
+                  <div className="m-chain-head">
+                    <span className="m-chain-title">
+                      {t("settingsSync.step3")}
+                      {!settingsSyncOn && <span className="m-chain-chip is-excluded">{t("settingsSync.needsStep1")}</span>}
+                      {settingsSyncOn && encryption !== "unlocked" && <span className="m-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>}
+                    </span>
+                    <Switch
+                      checked={secretsSyncOn && settingsSyncOn && encryption === "unlocked"}
+                      disabled={busy || !settingsSyncOn || encryption !== "unlocked"}
+                      label={t("settingsSync.step3")}
+                      onChange={(next) => {
+                        setBusy(true);
+                        void setMobileSecretsSyncEnabled(vaultId, next)
+                          .then(() => restartSync(activeVault))
+                          .then(() => setSecretsSyncOn(next))
+                          .finally(() => setBusy(false));
+                      }}
+                    />
+                  </div>
+                  <p className="m-chain-desc">
+                    {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
+                  </p>
+                  {settingsSyncOn && <p className="m-chain-desc">{t("settingsSync.oauthNote")}</p>}
+                </div>
+              </div>
             </div>
-            <p className="m-hint">{t("settingsSync.carries")}</p>
-            {/* P6: the bare "Enter passphrase" / "Lock" button used to sit here
-                with nothing explaining WHICH passphrase (it is NOT the encrypted
-                workspace's), what it protects, or what locking does. Three
-                states, each with the two sentences that answer that. */}
-            {!settingsSyncOn && (
-              <div className="m-card">
-                <p><b>{t("settingsSync.offTitle")}</b></p>
-                <p>{t("settingsSync.explainer")}</p>
-              </div>
-            )}
-            {/* H2c: this used to be a note saying sign-ins always stay on the
-                device — true only because the phone had no port to receive
-                them. It has one now, so this is a switch. It needs the
-                encryption unlocked: the bundle is sealed with the master key,
-                and without one there is nothing to seal it with. */}
-            {/* E3: shown always, but only operable once step 2 is on — a
-                password can reach an account this device does not know. */}
-            {encryption === "unlocked" && (
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.step3")}
-                  <small>{settingsSyncOn ? t("settingsSync.step3Desc") : t("settingsSync.needsStep2Body")}</small>
-                </span>
-                <Switch
-                  checked={secretsSyncOn && settingsSyncOn}
-                  disabled={busy || !settingsSyncOn}
-                  label={t("settingsSync.step3")}
-                  onChange={(next) => {
-                    setBusy(true);
-                    void setMobileSecretsSyncEnabled(vaultId, next)
-                      .then(() => restartSync(activeVault))
-                      .then(() => setSecretsSyncOn(next))
-                      .finally(() => setBusy(false));
-                  }}
-                />
-              </div>
-            )}
-            {settingsSyncOn && encryption === "unlocked" && <p className="m-hint">{t("settingsSync.oauthNote")}</p>}
-            {settingsSyncOn && encryption !== "unlocked" && (
-              <p className="m-hint">{t("settingsSync.secretsNeedsPassphrase")}</p>
-            )}
+
             {settingsSyncOn && (
               <button
                 className="m-btn"
@@ -321,83 +395,6 @@ export function VaultDetailScreen({
               >
                 {t("settingsSync.pullNow")}
               </button>
-            )}
-            {/* H2e: this state used to be a dead end — the phone could unlock
-                an encryption but never create one, so a phone-only user could
-                not seal their profile at all. */}
-            {settingsSyncOn && encryption === "none" && (
-              <div className="m-card">
-                <p><b>{t("encryption.passphraseRow")}</b></p>
-                <p>{t("encryption.passphraseRowDesc")}</p>
-                <button className="m-btn m-btn--filled" disabled={busy} onClick={() => setSetupOpen(true)} data-testid="encryption-setup-open">
-                  {t("encryption.setPassphrase")}
-                </button>
-              </div>
-            )}
-            {settingsSyncOn && encryption === "locked" && (
-              <div className="m-card">
-                <span className="m-state m-state--warn">
-                  <Lock size={12} />
-                  {t("settingsSync.statePassphraseMissing")}
-                </span>
-                <p><b>{t("settingsSync.passphraseTitle")}</b></p>
-                <p>{t("settingsSync.lockedBody")}</p>
-                <button
-                  className="m-btn m-btn--filled"
-                  disabled={busy}
-                  onClick={() => {
-                    void mPrompt({ title: t("settingsSync.passphraseTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
-                      if (cancelled || !value) return;
-                      setBusy(true);
-                      try {
-                        await unlockMobileEncryption(activeVault, value);
-                        await restartSync(activeVault);
-                        setEncryption("unlocked");
-                      } catch {
-                        toast.warning(t("encryption.wrongPassphrase"));
-                      } finally {
-                        setBusy(false);
-                      }
-                    });
-                  }}
-                >
-                  {t("encryption.enterPassphrase")}
-                </button>
-              </div>
-            )}
-            {settingsSyncOn && encryption !== "none" && (
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("encryption.everyStart")}
-                  <small>{t("encryption.everyStartDesc")}</small>
-                </span>
-                <Switch
-                  checked={everyStart}
-                  disabled={busy}
-                  label={t("encryption.everyStart")}
-                  onChange={(next) => {
-                    setBusy(true);
-                    void setMobilePassphraseEveryStart(vaultId, next)
-                      .then(() => setEveryStart(next))
-                      .then(() => mobileEncryptionStatus(activeVault))
-                      .then(setEncryption)
-                      .finally(() => setBusy(false));
-                  }}
-                />
-              </div>
-            )}
-            {settingsSyncOn && encryption === "unlocked" && (
-              <div className="m-card">
-                <span className="m-state m-state--ok">
-                  <Check size={12} />
-                  {t("settingsSync.stateUnlocked")}
-                </span>
-                <p><b>{t("settingsSync.unlockedTitle")}</b></p>
-                <p>{t("settingsSync.unlockedBody")}</p>
-                <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
-                  {t("encryption.lock")}
-                </button>
-              </div>
             )}
           </>
         )}

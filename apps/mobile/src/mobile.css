@@ -3029,3 +3029,128 @@ textarea {
 .m-cmpslash-item:active {
   background: var(--m-state-pressed);
 }
+
+/* Settings-sync chain (plan P5) — the mobile twin of `.pv-chain`. The three
+   steps are drawn as a chain because the dependency is real: a password can
+   only travel to an account this device already knows (step 1) and only inside
+   a bundle sealed with the passphrase (step 2). Step 1 needs NO passphrase —
+   that is why the optional step sits between them, not in front. Same vertical
+   rhythm as the desktop: --space-3 inside a step, --space-6 between them. */
+/* No horizontal margin: .m-page already carries the 16px page inset, and a
+   second one here would double it and push the chain out of line with the
+   section label above it. */
+.m-chain {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.m-chain-step {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: var(--space-4);
+  position: relative;
+  padding-bottom: var(--space-6);
+}
+.m-chain-step:last-child {
+  padding-bottom: 0;
+}
+.m-chain-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 26px;
+  bottom: var(--space-1);
+  width: 2px;
+  background: var(--border-color);
+}
+.m-chain-step.is-done:not(:last-child)::before {
+  background: var(--m-primary);
+}
+.m-chain-node {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  border: 2px solid var(--border-color);
+  background: var(--m-surface);
+  color: var(--text-muted);
+}
+.m-chain-step.is-done .m-chain-node {
+  background: var(--m-primary);
+  border-color: var(--m-primary);
+  color: var(--m-on-primary);
+}
+.m-chain-step.is-todo .m-chain-node {
+  border-color: var(--warning-text);
+  color: var(--warning-text);
+}
+.m-chain-step.is-locked .m-chain-node {
+  opacity: 0.45;
+}
+.m-chain-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.m-chain-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-height: 26px;
+}
+.m-chain-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-weight: 600;
+  font-size: var(--text-ui);
+}
+.m-chain-desc {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm, 0.85rem);
+  line-height: 1.5;
+}
+.m-chain-desc + .m-chain-desc {
+  margin-top: calc(var(--space-2) - var(--space-3));
+}
+.m-chain-step.is-locked .m-chain-title,
+.m-chain-step.is-locked .m-chain-desc {
+  opacity: 0.55;
+}
+.m-chain-carries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--m-radius-chip);
+  background: var(--surface-container);
+  border: 1px solid var(--border-color-light);
+}
+.m-chain-chip {
+  font-size: var(--text-xs);
+  font-weight: 550;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+.m-chain-chip.is-excluded {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  text-decoration: line-through;
+}
+/* A row inside a step keeps the chain's rhythm instead of the list inset. */
+.m-chain-body > .m-row {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  background: none;
+}

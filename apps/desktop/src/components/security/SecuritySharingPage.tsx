@@ -296,7 +296,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   };
 
   return (
-    <div>
+    // Plain <div> until now: banners, the hero and the cards sat flush against
+    // each other because nothing owned the spacing between them.
+    <div className="pv-security-page">
       <AreaHead areaId="security" />
       {/* Honesty gate (H6): the "experimental, not independently reviewed"
           caveat lived only in the What's-New text and the handbook — not where
@@ -336,17 +338,14 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         </button>
       </div>
 
-      <SettingCard label={t("workspaceSecurity.statusCard")}>
-        <SettingRow label={t("workspaceSecurity.currentStatus")} desc={status ? t("workspaceSecurity.workspaceProtected") : t("workspaceSecurity.notConfigured")}>
-          {status ? (
+      {/* Only render the status card once there IS a workspace. Without one it
+          held a single row that repeated the hero word for word — same label,
+          same "not configured yet", same button. The hero is the status. */}
+      {status && (
+        <SettingCard label={t("workspaceSecurity.statusCard")}>
+          <SettingRow label={t("workspaceSecurity.currentStatus")} desc={t("workspaceSecurity.workspaceProtected")}>
             <strong>{phaseLabel(t, status.phase)}</strong>
-          ) : (
-            <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => setShowSetup(true), true)} data-testid="workspace-security-setup">
-              {t("workspaceSecurity.setup")}
-            </Button>
-          )}
-        </SettingRow>
-        {status && (
+          </SettingRow>
           <>
             <SettingRow label={t("workspaceSecurity.device")} desc={status.keyStorage === "native" ? t("workspaceSecurity.nativeKeychain") : t("workspaceSecurity.passphraseProtected")}>
               <span>{status.deviceName}</span>
@@ -380,8 +379,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               </SettingCardNote>
             )}
           </>
-        )}
-      </SettingCard>
+        </SettingCard>
+      )}
 
       {/* Recovery restore/renew moved to its own second-level area (P2); the
           overview keeps only the device-local "disconnect" action (E8). The

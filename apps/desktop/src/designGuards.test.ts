@@ -240,6 +240,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
   "pv-cascade": "cascade-delete dialog scaffold — rows/badges live inside .pv-setcard on shared status/accent tokens the themes already override",
+  "pv-security": "security page/hero scaffold — layout only (flex + gap), all colour comes from the cards and banners inside, which both themes already override",
+  "pv-chain": "account-sync chain — steps live inside .pv-setcard and draw only from shared accent/status/border tokens both themes already override",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

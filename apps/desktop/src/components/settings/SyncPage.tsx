@@ -278,43 +278,98 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
         <SettingCard label={t("settingsSync.chainLabel")}>
           <SettingCardNote>{t("settingsSync.chainIntro")}</SettingCardNote>
 
-          <SettingRow
-            label={t("settingsSync.step1")}
-            desc={encState === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step1Desc")}
-          >
-            {encState === "unlocked" ? (
-              <Button variant="ghost" onClick={() => void doLock()} data-testid="chain-encryption-lock">{t("encryption.lock")}</Button>
-            ) : (
-              <Button variant="primary" onClick={() => setEncModal(encState === "none" ? "create" : "unlock")} data-testid="chain-encryption">
-                {encState === "none" ? t("encryption.setPassphrase") : t("encryption.enterPassphrase")}
-              </Button>
+          <div className="pv-chain">
+            {/* Step 1 stands alone: syncing settings and accounts needs NO
+                passphrase — without one the profile is simply plaintext JSON in
+                the vault. Only step 3 carries passwords and therefore needs a key. */}
+            <div className={`pv-chain-step ${settingsSyncOn ? "is-done" : "is-todo"}`}>
+              <div className="pv-chain-node">{settingsSyncOn ? "✓" : "1"}</div>
+              <div className="pv-chain-body">
+                <div className="pv-chain-head">
+                  <span className="pv-chain-title">{t("settingsSync.step1")}</span>
+                  <Switch checked={settingsSyncOn} onChange={(on) => void toggleSettingsSync(on)} label={t("settingsSync.step1")} />
+                </div>
+                <p className="pv-chain-desc">{t("settingsSync.step1Desc")}</p>
+                <div className="pv-chain-carries">
+                  <span className="pv-chain-chip">{t("settingsSync.chipCalendars")}</span>
+                  <span className="pv-chain-chip">{t("settingsSync.chipMailboxes")}</span>
+                  <span className="pv-chain-chip">{t("settingsSync.chipSelection")}</span>
+                  <span className="pv-chain-chip">{t("settingsSync.chipDaily")}</span>
+                  <span className="pv-chain-chip">{t("settingsSync.chipTemplates")}</span>
+                  <span className="pv-chain-chip">{t("settingsSync.chipBackup")}</span>
+                  <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
+                  <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPaths")}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 is OPTIONAL — it exists for step 3, and encrypts step 1 as
+                a side effect. This is also the only passphrase surface on this
+                page now; a second one below used to offer the same thing twice. */}
+            {p.isActiveVault && backupAdapter && (
+              <div className={`pv-chain-step ${encState === "unlocked" ? "is-done" : ""}`}>
+                <div className="pv-chain-node">{encState === "unlocked" ? "✓" : "2"}</div>
+                <div className="pv-chain-body">
+                  <div className="pv-chain-head">
+                    <span className="pv-chain-title">
+                      {t("settingsSync.step2")}
+                      {encState !== "unlocked" && <span className="pv-chain-chip">{t("settingsSync.step2Optional")}</span>}
+                    </span>
+                    <span className="pv-chain-extra">
+                      {encState === "none" && (
+                        <Button variant="secondary" onClick={() => setEncModal("create")} data-testid="encryption-set">
+                          {t("encryption.setPassphrase")}
+                        </Button>
+                      )}
+                      {encState === "locked" && (
+                        <Button variant="primary" onClick={() => setEncModal("unlock")} data-testid="encryption-unlock-open">
+                          {t("encryption.enterPassphrase")}
+                        </Button>
+                      )}
+                      {encState === "unlocked" && (
+                        <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
+                      )}
+                    </span>
+                  </div>
+                  <p className="pv-chain-desc">
+                    {encState === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step2Desc")}
+                  </p>
+                  {encState !== "none" && (
+                    <span className="pv-chain-extra">
+                      <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
+                      <span className="pv-chain-desc">{t("encryption.everyStart")}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
             )}
-          </SettingRow>
 
-          <SettingRow label={t("settingsSync.step2")} desc={t("settingsSync.step2Desc")}>
-            <Switch
-              checked={settingsSyncOn}
-              onChange={(on) => void toggleSettingsSync(on)}
-              label={t("settingsSync.step2")}
-            />
-          </SettingRow>
-          <SettingCardNote>{t("settingsSync.carries")}</SettingCardNote>
-
-          {/* E3: locked rather than uselessly switchable. A password can only
-              travel to an account this device already knows, and the accounts
-              come with step 2 — so without it this switch cannot do anything. */}
-          <SettingRow
-            label={t("settingsSync.step3")}
-            desc={settingsSyncOn ? t("settingsSync.step3Desc") : t("settingsSync.needsStep2Body")}
-          >
-            <Switch
-              checked={secretsSyncOn && settingsSyncOn}
-              disabled={!settingsSyncOn}
-              onChange={(on) => void toggleSecretsSync(on)}
-              label={t("settingsSync.step3")}
-            />
-          </SettingRow>
-          {settingsSyncOn && <SettingCardNote>{t("settingsSync.oauthNote")}</SettingCardNote>}
+            {/* E3: locked, not uselessly switchable. It needs BOTH — the accounts
+                from step 1 (a password can only reach an account this device
+                knows) and the key from step 2 (the bundle is sealed with it). */}
+            <div className={`pv-chain-step ${secretsSyncOn && settingsSyncOn ? "is-done" : !settingsSyncOn || encState !== "unlocked" ? "is-locked" : ""}`}>
+              <div className="pv-chain-node">{secretsSyncOn && settingsSyncOn ? "✓" : "3"}</div>
+              <div className="pv-chain-body">
+                <div className="pv-chain-head">
+                  <span className="pv-chain-title">
+                    {t("settingsSync.step3")}
+                    {!settingsSyncOn && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsStep1")}</span>}
+                    {settingsSyncOn && encState !== "unlocked" && <span className="pv-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>}
+                  </span>
+                  <Switch
+                    checked={secretsSyncOn && settingsSyncOn}
+                    disabled={!settingsSyncOn}
+                    onChange={(on) => void toggleSecretsSync(on)}
+                    label={t("settingsSync.step3")}
+                  />
+                </div>
+                <p className="pv-chain-desc">
+                  {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
+                </p>
+                {settingsSyncOn && <p className="pv-chain-desc">{t("settingsSync.oauthNote")}</p>}
+              </div>
+            </div>
+          </div>
 
           {settingsSyncOn && p.isActiveVault && (
             <SettingRow label={t("settingsSync.pullNow")} desc={t("settingsSync.pullNowDesc")}>
@@ -328,42 +383,6 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               >
                 {t("mobile.syncNow")}
               </Button>
-            </SettingRow>
-          )}
-        </SettingCard>
-      )}
-
-      {connected && p.isActiveVault && backupAdapter && (
-        <SettingCard label={t("encryption.cardLabel")}>
-          <SettingCardNote>{t("encryption.scopeNote", { defaultValue: "This encrypts the app settings and account credentials that sync between your devices — not the vault's notes and files. To encrypt the vault content, use Security & Sharing." })}</SettingCardNote>
-          <SettingCardNote>
-            {encState === "unlocked"
-              ? t("encryption.statusUnlocked")
-              : encState === "locked"
-                ? t("encryption.statusLocked")
-                : t("encryption.statusNone")}
-          </SettingCardNote>
-          <SettingRow label={t("encryption.passphraseRow")} desc={t("encryption.passphraseRowDesc")}>
-            {encState === "none" && (
-              <Button variant="primary" onClick={() => setEncModal("create")} data-testid="encryption-set">
-                {t("encryption.setPassphrase")}
-              </Button>
-            )}
-            {encState === "locked" && (
-              <Button variant="primary" onClick={() => setEncModal("unlock")} data-testid="encryption-unlock-open">
-                {t("encryption.enterPassphrase")}
-              </Button>
-            )}
-            {encState === "unlocked" && (
-              <Button variant="ghost" onClick={() => void doLock()} data-testid="encryption-lock">{t("encryption.lock")}</Button>
-            )}
-          </SettingRow>
-          {/* The sign-in switch moved into the chain above, where its dependency
-              on step 2 is visible. Leaving a second copy here would let a user
-              turn it on in the one place that does not show why it does nothing. */}
-          {encState !== "none" && (
-            <SettingRow label={t("encryption.everyStart")} desc={t("encryption.everyStartDesc")}>
-              <Switch checked={everyStart} onChange={(on) => void toggleEveryStart(on)} label={t("encryption.everyStart")} />
             </SettingRow>
           )}
         </SettingCard>
