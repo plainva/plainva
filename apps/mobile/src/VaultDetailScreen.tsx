@@ -16,7 +16,7 @@ import {
   syncNow,
   type MobileSyncProvider,
 } from "./services/syncService";
-import { isMobilePassphraseEveryStart, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
+import { isMobilePassphraseEveryStart, isMobileSecretsSyncEnabled, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSecretsSyncEnabled, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
@@ -59,6 +59,8 @@ export function VaultDetailScreen({
   const isActive = activeVault.vaultId === vaultId;
   const [deleted, setDeleted] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
+  /** H2c: sign-in secrets — its own opt-in, and only while unlocked. */
+  const [secretsSyncOn, setSecretsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
   /** H2b: passphrase re-entry after every start (desktop parity). */
   const [everyStart, setEveryStart] = useState(false);
@@ -78,6 +80,7 @@ export function VaultDetailScreen({
     if (!isActive) return;
     const reload = () => {
       void isMobileSettingsSyncEnabled(vaultId).then(setSettingsSyncOn);
+      void isMobileSecretsSyncEnabled(vaultId).then(setSecretsSyncOn);
       void mobileEncryptionStatus(activeVault).then(setEncryption);
       void isMobilePassphraseEveryStart(vaultId).then(setEveryStart);
       setIntervalSeconds(getMobileSettings().syncIntervalSeconds);
@@ -268,8 +271,33 @@ export function VaultDetailScreen({
                 <p>{t("settingsSync.explainer")}</p>
               </div>
             )}
-            {settingsSyncOn && (
-              <p className="m-hint">{t("settingsSync.secretsNoteMobile")}</p>
+            {/* H2c: this used to be a note saying sign-ins always stay on the
+                device — true only because the phone had no port to receive
+                them. It has one now, so this is a switch. It needs the
+                encryption unlocked: the bundle is sealed with the master key,
+                and without one there is nothing to seal it with. */}
+            {settingsSyncOn && encryption === "unlocked" && (
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.secretsLabel")}
+                  <small>{t("settingsSync.secretsDesc")}</small>
+                </span>
+                <Switch
+                  checked={secretsSyncOn}
+                  disabled={busy}
+                  label={t("settingsSync.secretsLabel")}
+                  onChange={(next) => {
+                    setBusy(true);
+                    void setMobileSecretsSyncEnabled(vaultId, next)
+                      .then(() => restartSync(activeVault))
+                      .then(() => setSecretsSyncOn(next))
+                      .finally(() => setBusy(false));
+                  }}
+                />
+              </div>
+            )}
+            {settingsSyncOn && encryption !== "unlocked" && (
+              <p className="m-hint">{t("settingsSync.secretsNeedsPassphrase")}</p>
             )}
             {settingsSyncOn && encryption === "locked" && (
               <div className="m-card">

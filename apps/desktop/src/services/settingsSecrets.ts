@@ -1,35 +1,18 @@
+import { canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
 import {
-  SecretPolicyError,
-  bindingMatches,
-  canonicalizeEndpoint,
-  stableStringify,
-  type SecretBinding,
-  type SecretEntry,
-  type SecretsBundle,
-  type SecretsPort,
-} from "@plainva/core";
-import { familyOfCalDavUrl, familyOfImapHost, type CloudAccountRecord } from "@plainva/ui";
+  createSecretsPort,
+  familyOfCalDavUrl,
+  familyOfImapHost,
+  type CloudAccountRecord,
+  type LocalSecretCandidate,
+  type SecretsPortMeta,
+} from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
-
-interface SecretMeta {
-  entries: Record<string, { hash: string; entryRev: number; updatedAt: string; deviceId: string; binding: SecretBinding; tombstone?: boolean }>;
-  /** Entries written by this profile may be updated/deleted by later imports. */
-  imported: Record<string, boolean>;
-}
-
-interface LocalCandidate {
-  logicalId: string;
-  slot: string;
-  binding: SecretBinding;
-  secret: Record<string, string> | null;
-  currentStored: unknown;
-  apply(secret: Record<string, string>): unknown;
-}
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
 const metaKey = (vaultPath: string) => `settingsSyncSecretMeta_${b64(vaultPath)}`;
@@ -54,14 +37,14 @@ function familyFor(records: CloudAccountRecord[], service: "calendar" | "mail", 
   return record?.family ?? fallback;
 }
 
-async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promise<LocalCandidate[]> {
+async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promise<LocalSecretCandidate[]> {
   const [map, cloud, pimAccounts, mailAccounts] = await Promise.all([
     deviceIdAndMap(vaultPath).then((x) => x.map),
     loadCloudAccounts(vaultPath),
     pimRuntime.cache.listAccounts(),
     listMailAccounts(vaultPath),
   ]);
-  const candidates: LocalCandidate[] = [];
+  const candidates: LocalSecretCandidate[] = [];
 
   for (const account of pimAccounts) {
     const creds = await getPimCredentials(vaultPath, account.id);
@@ -82,7 +65,6 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
         slot: pimSecretKey(vaultPath, account.id),
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
-        currentStored: creds,
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
       });
     } else if (account.provider === "google") {
@@ -100,7 +82,6 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
         slot: pimSecretKey(vaultPath, account.id),
         binding,
         secret: creds?.kind === "google" && creds.clientSecret ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : null,
-        currentStored: creds,
         // Refresh tokens remain device-local and are deliberately preserved.
         apply: (secret) => ({
           kind: "google",
@@ -129,104 +110,32 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
       slot: mailSecretKey(vaultPath, account.id),
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
-      currentStored: stored,
       apply: (secret) => ({ ...(stored ?? {}), pass: secret.pass ?? "" }),
     });
   }
   return candidates;
 }
 
-/** Desktop OS-keychain bridge for the encrypted secrets sideband. */
+/**
+ * Desktop OS-keychain bridge for the encrypted secrets sideband.
+ *
+ * The decision logic - binding checks, tombstones, per-entry revisions, the
+ * conflict rule and the rollback - lives in @plainva/ui createSecretsPort, so
+ * the phone runs the SAME code rather than a second, subtly different copy
+ * (H2c). This function supplies only what is desktop-specific.
+ */
 export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRuntime): SecretsPort {
-  return {
-    async exportBundle(): Promise<SecretsBundle> {
+  return createSecretsPort({
+    deviceId: async () => (await deviceIdAndMap(vaultPath)).deviceId,
+    readMeta: async () => (await getSettingsStore()).get<SecretsPortMeta>(metaKey(vaultPath)).then((m) => m ?? null),
+    writeMeta: async (meta) => {
       const store = await getSettingsStore();
-      const { deviceId } = await deviceIdAndMap(vaultPath);
-      const now = new Date().toISOString();
-      const meta = (await store.get<SecretMeta>(metaKey(vaultPath))) ?? { entries: {}, imported: {} };
-      const candidates = await localCandidates(vaultPath, pimRuntime);
-      const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
-      const entries: Record<string, SecretEntry> = {};
-
-      for (const candidate of candidates) {
-        if (!candidate.secret) continue;
-        const hash = stableStringify({ binding: candidate.binding, secret: candidate.secret });
-        const previous = meta.entries[candidate.logicalId];
-        const changed = !previous || previous.hash !== hash || previous.tombstone;
-        const entryRev = changed ? (previous?.entryRev ?? 0) + 1 : previous.entryRev;
-        const updatedAt = changed ? now : previous.updatedAt;
-        entries[candidate.logicalId] = { entryRev, updatedAt, deviceId: changed ? deviceId : previous.deviceId, binding: candidate.binding, secret: candidate.secret };
-        meta.entries[candidate.logicalId] = { hash, entryRev, updatedAt, deviceId: entries[candidate.logicalId].deviceId, binding: candidate.binding };
-      }
-      for (const [id, previous] of Object.entries(meta.entries)) {
-        if (currentIds.has(id)) continue;
-        const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
-        const updatedAt = previous.tombstone ? previous.updatedAt : now;
-        entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
-        meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId, tombstone: true };
-      }
       await store.set(metaKey(vaultPath), meta);
       await store.save();
-      return { format: "plainva-secrets", version: 1, bundleRev: Math.max(0, ...Object.values(entries).map((e) => e.entryRev)), updatedAt: now, entries };
     },
-
-    async importBundle(bundle: SecretsBundle): Promise<void> {
-      const store = await getSettingsStore();
-      const meta = (await store.get<SecretMeta>(metaKey(vaultPath))) ?? { entries: {}, imported: {} };
-      const candidates = await localCandidates(vaultPath, pimRuntime);
-      const byId = new Map(candidates.map((c) => [c.logicalId, c]));
-      const operations: Array<{ entry: SecretEntry; candidate: LocalCandidate }> = [];
-
-      // Validate every entry and every conflict before touching the keychain.
-      for (const [logicalId, entry] of Object.entries(bundle.entries)) {
-        const candidate = byId.get(logicalId) ?? candidates.find((c) => bindingMatches(entry.binding, c.binding));
-        if (!candidate && entry.tombstone) {
-          meta.entries[logicalId] = { hash: "", entryRev: entry.entryRev, updatedAt: entry.updatedAt, deviceId: entry.deviceId, binding: entry.binding, tombstone: true };
-          delete meta.imported[logicalId];
-          continue;
-        }
-        if (!candidate || entry.binding.secretType !== candidate.binding.secretType || !bindingMatches(entry.binding, candidate.binding)) {
-          throw new SecretPolicyError(`no matching local account metadata for ${logicalId}`);
-        }
-        if (!entry.tombstone && !entry.secret) throw new SecretPolicyError(`missing secret payload for ${logicalId}`);
-        if (!entry.tombstone && candidate.secret && !meta.imported[logicalId]) {
-          const localShareable = candidate.secret;
-          if (stableStringify(localShareable) !== stableStringify(entry.secret)) {
-            throw new SecretPolicyError(`local secret conflict for ${logicalId}; local credentials were not overwritten`);
-          }
-        }
-        operations.push({ entry, candidate });
-      }
-
-      const snapshots = new Map<string, unknown>();
-      const changed: string[] = [];
-      try {
-        for (const { entry, candidate } of operations) {
-          if (!snapshots.has(candidate.slot)) snapshots.set(candidate.slot, await credentialManager.readSecret(candidate.slot));
-          if (entry.tombstone) {
-            if (meta.imported[candidate.logicalId]) {
-              await credentialManager.removeSecret(candidate.slot);
-              changed.push(candidate.slot);
-            }
-            delete meta.imported[candidate.logicalId];
-          } else {
-            await credentialManager.writeSecret(candidate.slot, candidate.apply(entry.secret!));
-            meta.imported[candidate.logicalId] = true;
-            changed.push(candidate.slot);
-          }
-          const hash = entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
-          meta.entries[candidate.logicalId] = { hash, entryRev: entry.entryRev, updatedAt: entry.updatedAt, deviceId: entry.deviceId, binding: entry.binding, tombstone: entry.tombstone };
-        }
-        await store.set(metaKey(vaultPath), meta);
-        await store.save();
-      } catch (error) {
-        for (const slot of changed.reverse()) {
-          const previous = snapshots.get(slot);
-          if (previous == null) await credentialManager.removeSecret(slot).catch(() => undefined);
-          else await credentialManager.writeSecret(slot, previous).catch(() => undefined);
-        }
-        throw error;
-      }
-    },
-  };
+    candidates: () => localCandidates(vaultPath, pimRuntime),
+    readSlot: (slot) => credentialManager.readSecret(slot),
+    writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
+    removeSlot: (slot) => credentialManager.removeSecret(slot),
+  });
 }

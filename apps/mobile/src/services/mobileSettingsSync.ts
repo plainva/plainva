@@ -3,6 +3,7 @@ import {
   EncryptingSyncTarget,
   FatalSyncProtocolError,
   KeyfileSyncStep,
+  SecretsSyncStep,
   SETTINGS_ENC_PATH,
   SettingsSyncStep,
   connectionFingerprint,
@@ -23,12 +24,15 @@ import {
 import { getPlatformServices, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
+import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 
 const GUARD_VERSION = 1;
 const enabledKey = (vaultId: string) => `settingsSyncMobile_${vaultId}`;
+/** Sign-in secrets are a SEPARATE opt-in from the settings profile (H2c). */
+const secretsKey = (vaultId: string) => `secretsSyncMobile_${vaultId}`;
 const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
 const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
@@ -125,6 +129,22 @@ export async function setMobileSettingsSyncEnabled(vaultId: string, enabled: boo
   await store.save();
 }
 
+/**
+ * Sign-in secrets (H2c) — deliberately its own switch, not part of the settings
+ * profile: carrying folder names between devices and carrying passwords between
+ * them are different decisions, and only the second one needs the encryption to
+ * be set up.
+ */
+export async function isMobileSecretsSyncEnabled(vaultId: string): Promise<boolean> {
+  return (await (await settingsStore()).get<boolean>(secretsKey(vaultId))) === true;
+}
+
+export async function setMobileSecretsSyncEnabled(vaultId: string, enabled: boolean): Promise<void> {
+  const store = await settingsStore();
+  await store.set(secretsKey(vaultId), enabled);
+  await store.save();
+}
+
 async function loadKeyring(vaultId: string): Promise<{ active: MasterKeyBundle; keys: Map<string, MasterKeyBundle> } | null> {
   const present = memory.get(vaultId);
   if (present) return present;
@@ -210,6 +230,7 @@ class MobileSidebandRunner implements SettingsSyncRunner {
     private readonly connectionId: string,
     private readonly keyfile: KeyfileSyncStep,
     private readonly profile: SettingsSyncStep | null,
+    private readonly secrets: SecretsSyncStep | null,
   ) {}
 
   async guardBeforeCycle(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
@@ -236,6 +257,16 @@ class MobileSidebandRunner implements SettingsSyncRunner {
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     await this.keyfile.run(target, vault);
     await this.profile?.run(target, vault);
+    // A refused secret must not take the file sync down with it: a binding
+    // mismatch is a reason to leave the keychain alone and say so, not to stop
+    // syncing notes.
+    if (this.secrets) {
+      try {
+        await this.secrets.run(target, vault);
+      } catch (error) {
+        toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
+      }
+    }
   }
 }
 
@@ -272,7 +303,14 @@ export async function prepareMobileSettingsSync(
         profileCrypto: ring ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") } : undefined,
       })
     : null;
-  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, profile);
+  // Secrets need a master key AND their own opt-in: without an unlocked
+  // keyring there is nothing to seal the bundle with, so the step simply does
+  // not exist rather than failing every cycle.
+  const secrets =
+    ring && (await isMobileSecretsSyncEnabled(vault.vaultId))
+      ? new SecretsSyncStep({ port: createMobileSecretsPort(vault.vaultId), masterKey: ring.active })
+      : null;
+  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, profile, secrets);
   if (!ring) return { target: rawTarget, runner };
   const manifestBytes = await rawTarget.download(ENCRYPTION_MANIFEST_PATH);
   if (!manifestBytes) return { target: rawTarget, runner };

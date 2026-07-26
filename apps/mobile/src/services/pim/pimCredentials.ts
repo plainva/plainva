@@ -13,7 +13,11 @@ export type PimStoredCredentials =
   | { kind: "google"; clientId: string; clientSecret: string; refreshToken: string }
   | { kind: "microsoft"; clientId: string; refreshToken: string };
 
-const key = (vaultId: string, accountId: string) => `pim_${vaultId}_${accountId}`;
+/** Slot name of one account's credentials — exported so the secrets sideband
+ *  (H2c) can address the same slot this module reads and writes. */
+export const pimSecretKey = (vaultId: string, accountId: string) => `pim_${vaultId}_${accountId}`;
+
+const key = pimSecretKey;
 
 export async function getPimCredentials(vaultId: string, accountId: string): Promise<PimStoredCredentials | null> {
   return getPlatformServices().credentials.readSecret<PimStoredCredentials>(key(vaultId, accountId));
