@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus } from "lucide-react";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
 import { Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
@@ -8,6 +8,8 @@ import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
+import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "../../services/taskRecurrence";
+import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -124,8 +126,13 @@ export function TasksView({ onOpenPath }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
-  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null }[] | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; repeat: RepeatRule | null; mirrored: boolean }[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
+  /** Date column of the task database — the generated occurrence writes its
+   * next due date there. */
+  const [dbDueKey, setDbDueKey] = useState<string | null>(null);
+  /** Task whose repetition is being edited, with its current rule. */
+  const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
   const [dbStatusMenu, setDbStatusMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
   const dbStatusOptions = useMemo(() => {
     if (!dbCompletion) return null;
@@ -233,6 +240,7 @@ export function TasksView({ onOpenPath }: Props) {
         const completion = resolveTaskCompletionModel(config);
         if (!alive) return;
         setDbCompletion(completion);
+        setDbDueKey(dueKey);
         const statusModel = completion?.kind === "checkbox" ? completion.status : completion?.status ?? null;
         // queryDatabaseFiles rows carry `file.*` fields plus the bare
         // frontmatter property keys (the same shape every base view reads).
@@ -251,6 +259,11 @@ export function TasksView({ onOpenPath }: Props) {
               status: statusRaw,
               done,
               due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
+              // The `plainva` namespace is indexed as a property (same route
+              // the document icons take), so the badge costs no file read.
+              repeat: repeatFromNamespace(r["plainva"]),
+              // A task mirrored from a provider list keeps ITS recurrence.
+              mirrored: isMirroredNamespace(r["plainva"]),
             };
           })
         );
@@ -564,6 +577,48 @@ export function TasksView({ onOpenPath }: Props) {
     [vaultAdapter, indexer, triggerFileTreeUpdate, pimRuntime, t]
   );
 
+  /**
+   * Writes the next occurrence of a repeating task (issue #34, wave 3): a COPY
+   * of the note with the next due date, open again, in the same folder. The
+   * completed note stays as the record of what was done — that is the whole
+   * point of a generator over a rule: history is real notes, not a projection.
+   */
+  const spawnNextOccurrence = useCallback(
+    async (path: string) => {
+      if (!vaultAdapter || !dbCompletion) return;
+      try {
+        const raw = await vaultAdapter.readTextFile(path);
+        const rule = readRepeatRule(raw);
+        if (!rule || !canRepeat(raw)) return;
+        const dueKey = dbDueKey;
+        const currentDue = dueKey ? String(readFrontmatterPath(raw, [dueKey]) ?? "").slice(0, 10) : null;
+        const next = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
+        if (!next) return;
+
+        // Reopen the copy, carry the rule, set the new due date.
+        let content = applyTaskCompletion(
+          raw,
+          dbCompletion,
+          false,
+          (c, p) => readFrontmatterPath(c, p),
+          (c, p, v) => setFrontmatterPath(c, p, v)
+        );
+        if (dueKey) content = setFrontmatterPath(content, [dueKey], next);
+
+        const created = await writeNextOccurrenceNote(vaultAdapter, path, content);
+        if (!created) return;
+        if (indexer) await applyIndexChanges(indexer, { added: [created] }).catch(() => undefined);
+        triggerFileTreeUpdate([created]);
+        setRefreshTick((x) => x + 1);
+        toast.info(t("tasks.repeatSpawned", { defaultValue: "Nächste Fälligkeit: {{date}}", date: next }));
+      } catch (e) {
+        console.error("[TasksView] creating the next occurrence failed", path, e);
+        toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
+      }
+    },
+    [vaultAdapter, dbCompletion, dbDueKey, indexer, triggerFileTreeUpdate, t]
+  );
+
   /** The overview checkbox flips the note's completion — the checkbox PROPERTY
    * when the database has one (the status column follows), else the status
    * option convention. */
@@ -573,9 +628,13 @@ export function TasksView({ onOpenPath }: Props) {
       const model = dbCompletion;
       void writeDbNote(path, (raw) =>
         applyTaskCompletion(raw, model, done, (c, p) => readFrontmatterPath(c, p), (c, p, v) => setFrontmatterPath(c, p, v))
-      );
+      ).then(() => {
+        // Checking a repeating task off is what CREATES the next one — there is
+        // no hidden series, so nothing exists until it is earned.
+        if (done) void spawnNextOccurrence(path);
+      });
     },
-    [dbCompletion, writeDbNote]
+    [dbCompletion, writeDbNote, spawnNextOccurrence]
   );
 
   const setDbRowStatus = useCallback(
@@ -741,6 +800,23 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ) : null}
                     </button>
+                    {r.repeat && (
+                      <span
+                        data-testid="task-db-repeat-badge"
+                        style={{ flexShrink: 0, marginTop: 2, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
+                      >
+                        <Repeat size={ICON.meta} /> {describeRule(r.repeat, (key, o) => t(key, o))}
+                      </span>
+                    )}
+                    {!r.mirrored && (
+                      <IconButton
+                        label={t("tasks.repeat", { defaultValue: "Wiederholung" })}
+                        data-testid="task-db-repeat"
+                        onClick={() => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null })}
+                      >
+                        <Repeat size={ICON.ui} />
+                      </IconButton>
+                    )}
                     {calendarOptions.length > 0 && (
                       <IconButton
                         label={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
@@ -915,6 +991,25 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+
+      {repeatTarget && (
+        <RepeatTaskModal
+          taskTitle={repeatTarget.title}
+          initial={repeatTarget.rule}
+          currentDue={repeatTarget.due}
+          onCancel={() => setRepeatTarget(null)}
+          onSubmit={async (rule) => {
+            const path = repeatTarget.path;
+            await writeDbNote(path, (raw) => {
+              // A mirrored provider task keeps ITS recurrence — a local
+              // generator on top would push duplicates back at the provider.
+              if (rule && !canRepeat(raw)) throw new Error(t("tasks.repeatRemote", { defaultValue: "Diese Aufgabe kommt von einem Anbieter und wiederholt sich dort." }));
+              return writeRepeatRule(raw, rule);
+            });
+            setRepeatTarget(null);
+          }}
+        />
+      )}
 
       {blockTarget && (
         <TimeBlockModal

@@ -8,6 +8,7 @@ export { IconButton, type IconButtonProps } from "./IconButton";
 export { TextInput, SelectField, TextArea } from "./Field";
 export { Select, type SelectProps, type SelectOption } from "./Select";
 export { SearchField, type SearchFieldProps } from "./SearchField";
+export { ChipField, type ChipFieldProps } from "./ChipField";
 export { Banner, type BannerProps, type BannerKind } from "./Banner";
 export { Radio, type RadioProps } from "./Radio";
 export { Checkbox, type CheckboxProps } from "./Checkbox";

@@ -2104,7 +2104,31 @@
     "dbEmpty": "Noch keine Einträge",
     "setStatus": "Status ändern",
     "statusUpdateFailed": "Status konnte nicht geändert werden.",
-    "dbDoneKey": "erledigt"
+    "dbDoneKey": "erledigt",
+    "repeat": "Wiederholung",
+    "repeatNone": "Nicht wiederholen",
+    "repeatHint": "Beim Abhaken legt Plainva die nächste Aufgabe mit der neuen Fälligkeit an.",
+    "repeatRhythm": "Rhythmus",
+    "repeatInterval": "Alle",
+    "repeatDaily": "Täglich",
+    "repeatWeekly": "Wöchentlich",
+    "repeatMonthly": "Monatlich",
+    "repeatYearly": "Jährlich",
+    "repeatFrom": "Gezählt ab",
+    "repeatFromDue": "Fälligkeit",
+    "repeatFromCompletion": "Erledigung",
+    "repeatFromDueHint": "Fester Takt. Eine überfällige Aufgabe springt auf die nächste Fälligkeit in der Zukunft.",
+    "repeatFromCompletionHint": "Der Takt beginnt an dem Tag, an dem Du abhakst.",
+    "repeatEvery_daily": "alle {{n}} T",
+    "repeatEvery_weekly": "alle {{n}} W",
+    "repeatEvery_monthly": "alle {{n}} M",
+    "repeatEvery_yearly": "alle {{n}} J",
+    "repeatSpawned": "Nächste Fälligkeit: {{date}}",
+    "repeatFailed": "Die nächste Aufgabe konnte nicht angelegt werden.",
+    "repeatRemote": "Diese Aufgabe kommt von einem Anbieter und wiederholt sich dort.",
+    "repeatPreview": "Nächste Fälligkeit: {{date}}",
+    "repeatPreviewFromToday": "Gerechnet ab heute, weil Du beim Abhaken zählst.",
+    "repeatInNote": "Steht in der Notiz"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",
@@ -2460,7 +2484,9 @@
     "signature": "Signatur",
     "signatureHint": "Wird beim Verfassen unter Deinen Text gesetzt. Markdown wie im Editor.",
     "senders": "Weitere Absender-Adressen",
-    "sendersHint": "Eine pro Zeile, z. B. Name <alias@example.org>. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter."
+    "sendersHint": "Mit Enter bestätigen. Beim Verfassen stehen sie im Absender-Menü. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter.",
+    "senderRemove": "Absender entfernen: {{email}}",
+    "sendersPlaceholder": "Name <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

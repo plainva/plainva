@@ -2097,7 +2097,31 @@
     "dbEmpty": "暂无条目",
     "setStatus": "更改状态",
     "statusUpdateFailed": "无法更改状态。",
-    "dbDoneKey": "done"
+    "dbDoneKey": "done",
+    "repeat": "重复",
+    "repeatNone": "不重复",
+    "repeatHint": "勾选完成后，Plainva 会按新的截止日期创建下一个任务。",
+    "repeatRhythm": "周期",
+    "repeatInterval": "每",
+    "repeatDaily": "每天",
+    "repeatWeekly": "每周",
+    "repeatMonthly": "每月",
+    "repeatYearly": "每年",
+    "repeatFrom": "起算于",
+    "repeatFromDue": "截止日期",
+    "repeatFromCompletion": "完成日期",
+    "repeatFromDueHint": "固定节奏。逾期的任务会跳到将来最近的一次截止日期。",
+    "repeatFromCompletionHint": "从你勾选完成的那天开始计算。",
+    "repeatEvery_daily": "每 {{n}} 天",
+    "repeatEvery_weekly": "每 {{n}} 周",
+    "repeatEvery_monthly": "每 {{n}} 个月",
+    "repeatEvery_yearly": "每 {{n}} 年",
+    "repeatSpawned": "下次截止：{{date}}",
+    "repeatFailed": "无法创建下一个任务。",
+    "repeatRemote": "该任务来自服务商，重复由服务商处理。",
+    "repeatPreview": "下次截止：{{date}}",
+    "repeatPreviewFromToday": "从今天起算，因为你选择了从完成日期起算。",
+    "repeatInNote": "保存在笔记中"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",
@@ -2452,7 +2476,9 @@
     "signature": "签名",
     "signatureHint": "撰写时会附加在你的正文下方。使用 Markdown，和编辑器一样。",
     "senders": "其他发件地址",
-    "sendersHint": "每行一个，例如 姓名 <alias@example.org>。某个地址是否被接受，由你的服务商决定。"
+    "sendersHint": "按回车确认。撰写邮件时会出现在发件人菜单中。地址是否被接受由你的服务商决定。",
+    "senderRemove": "移除发件人：{{email}}",
+    "sendersPlaceholder": "名称 <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

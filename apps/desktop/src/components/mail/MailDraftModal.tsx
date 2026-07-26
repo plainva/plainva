@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
+import { Button, ChipField, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
 import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
@@ -225,64 +225,26 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     }
   }, [vaultPath, accounts, accountId, fromAddress, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, t]);
 
-  // Chip-field wiring per recipient list (To / Cc / Bcc).
-  const chipList = (val: string, setVal: (v: string) => void, setDraft: (v: string) => void) => {
-    const list = splitRecipients(val);
-    return {
-      list,
-      commit: (raw: string) => {
-        const parsed = splitRecipients(raw);
-        if (parsed.length === 0) return;
-        setVal([...new Set([...list, ...parsed])].join(", "));
-        setDraft("");
-      },
-      remove: (r: string) => setVal(list.filter((x) => x !== r).join(", ")),
-    };
-  };
-  const toRow = chipList(to, setTo, setToDraft);
-  const ccRow = chipList(cc, setCc, setCcDraft);
-  const bccRow = chipList(bcc, setBcc, setBccDraft);
-
+  // Recipient lists are stored as one comma-joined string (that is what the
+  // send path takes); the field itself works on the split list.
   const renderChips = (
-    row: { list: string[]; commit: (r: string) => void; remove: (r: string) => void },
-    draft: string,
+    value: string,
+    setValue: (v: string) => void,
     setDraft: (v: string) => void,
     testid: string,
     placeholder: string,
     autoFocus = false
   ) => (
-    <div
-      className="pv-field pv-chipfield"
-      data-testid={`${testid}-field`}
-      onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
-    >
-      {row.list.map((r) => (
-        <span key={r} className="pv-chip pv-chip--removable" data-testid={`${testid}-chip`}>
-          <span>{r}</span>
-          <button
-            type="button"
-            className="pv-chip-x"
-            onClick={() => row.remove(r)}
-            aria-label={t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
-            data-testid={`${testid}-remove`}
-          >
-            <X size={ICON.meta} />
-          </button>
-        </span>
-      ))}
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === "," || e.key === ";") { e.preventDefault(); row.commit(draft); }
-          else if (e.key === "Backspace" && draft === "" && row.list.length > 0) { row.remove(row.list[row.list.length - 1]); }
-        }}
-        onBlur={() => row.commit(draft)}
-        data-testid={testid}
-        autoFocus={autoFocus}
-        placeholder={row.list.length === 0 ? placeholder : ""}
-      />
-    </div>
+    <ChipField
+      values={splitRecipients(value)}
+      onChange={(next) => setValue(next.join(", "))}
+      onDraftChange={setDraft}
+      parse={splitRecipients}
+      removeLabel={(r) => t("mail.recipientRemove", { defaultValue: "Empfänger entfernen: {{email}}", email: r })}
+      placeholder={placeholder}
+      testId={testid}
+      autoFocus={autoFocus}
+    />
   );
 
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
@@ -335,7 +297,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               </div>
               <div className="pv-mail-addr">
                 <span className="k">{t("mail.draftTo", { defaultValue: "An" })}</span>
-                {renderChips(toRow, toDraft, setToDraft, "draft-to", "name@example.org", true)}
+                {renderChips(to, setTo, setToDraft, "draft-to", "name@example.org", true)}
                 {!showCc && (
                   <button type="button" className="pv-mail-cctoggle" onClick={() => setShowCc(true)} data-testid="draft-cc-toggle">
                     {t("mail.ccBcc", { defaultValue: "Cc/Bcc" })}
@@ -346,11 +308,11 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 <>
                   <div className="pv-mail-addr">
                     <span className="k">{t("mail.cc", { defaultValue: "Cc" })}</span>
-                    {renderChips(ccRow, ccDraft, setCcDraft, "draft-cc", "")}
+                    {renderChips(cc, setCc, setCcDraft, "draft-cc", "")}
                   </div>
                   <div className="pv-mail-addr">
                     <span className="k">{t("mail.bcc", { defaultValue: "Bcc" })}</span>
-                    {renderChips(bccRow, bccDraft, setBccDraft, "draft-bcc", "")}
+                    {renderChips(bcc, setBcc, setBccDraft, "draft-bcc", "")}
                   </div>
                 </>
               )}

@@ -63,6 +63,20 @@ L'icona del calendario su una riga attività apre **Blocca tempo**: la data (pre
 
 Per un'attività del database, la nota ricorda anche il blocco nel frontmatter (`plainva.blocks`), così il collegamento è visibile da entrambi i lati. Una riga con casella non ha una nota propria — lì viene creato solo l'evento, che punta alla nota in cui si trova la riga. L'icona compare solo se è collegato un account calendario.
 
+## Ripetere le attività
+
+Un'attività che ritorna regolarmente riceve una **ripetizione** tramite l'icona di ripetizione nella sezione **Database attività**. Plainva non crea una **serie**: spuntando l'attività si crea la **successiva** come nota propria accanto a quella completata, con la nuova scadenza. In questo modo c'è sempre esattamente un'attività aperta, quella completata resta come registro di ciò che è stato fatto, e non esiste una serie invisibile dalla quale eliminare tutto per sbaglio — elimina un'attività e la catena finisce.
+
+Il dialogo offre tre elementi:
+
+- **Ritmo** — Giornaliera, Settimanale, Mensile o Annuale, più l'intervallo sotto **Ogni** (ad esempio "Ogni 3" + "Giornaliera" = ogni tre giorni).
+- **Contato da: Scadenza** — una cadenza fissa ("ogni lunedì"). Spunta con ritardo un'attività scaduta e Plainva passa alla prossima scadenza **nel futuro**, invece di riempire l'elenco con quelle che hai mancato.
+- **Contato da: Completamento** — il ritmo parte dal giorno in cui la spunti ("ogni tre giorni dopo aver annaffiato le piante").
+
+**Non ripetere** rimuove di nuovo la ripetizione. Le attività mensili non slittano mai oltre la fine di un mese: il 31 gennaio più un mese è il 28 o il 29 febbraio, non il 3 marzo.
+
+La regola vive nel frontmatter della nota (`plainva.repeat`) e quindi viaggia con la tua sincronizzazione — non in un'impostazione nascosta dell'app, e nemmeno come colonna del database, perché appartiene a **questa** attività, non a ogni voce del database. Le attività rispecchiate da un elenco di attività del tuo provider non offrono la ripetizione: si ripetono lì, e un secondo ritmo sopra spingerebbe indietro dei duplicati verso il provider.
+
 ## Nascondere le note dalla vista Attività
 
 Alcune note contengono caselle di controllo che non sono mai attività "vere" — soprattutto i **modelli**. Per tenerle fuori dall'elenco, una nota può escludere se stessa. La verità resta nel file: l'esclusione è un campo del frontmatter della nota, non un'impostazione nascosta dell'app. Si sincronizza, è visibile in Obsidian e può essere verificata con qualsiasi editor di testo:

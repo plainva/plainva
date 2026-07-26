@@ -2118,7 +2118,31 @@
     "dbEmpty": "Brak wpisów",
     "setStatus": "Zmień status",
     "statusUpdateFailed": "Nie udało się zmienić statusu.",
-    "dbDoneKey": "zrobione"
+    "dbDoneKey": "zrobione",
+    "repeat": "Powtarzanie",
+    "repeatNone": "Nie powtarzaj",
+    "repeatHint": "Po odhaczeniu Plainva tworzy następne zadanie z nowym terminem.",
+    "repeatRhythm": "Rytm",
+    "repeatInterval": "Co",
+    "repeatDaily": "Codziennie",
+    "repeatWeekly": "Co tydzień",
+    "repeatMonthly": "Co miesiąc",
+    "repeatYearly": "Co rok",
+    "repeatFrom": "Liczone od",
+    "repeatFromDue": "Terminu",
+    "repeatFromCompletion": "Wykonania",
+    "repeatFromDueHint": "Stały rytm. Zaległe zadanie wraca na najbliższy termin w przyszłości.",
+    "repeatFromCompletionHint": "Rytm zaczyna się w dniu odhaczenia.",
+    "repeatEvery_daily": "co {{n}} dn.",
+    "repeatEvery_weekly": "co {{n}} tyg.",
+    "repeatEvery_monthly": "co {{n}} mies.",
+    "repeatEvery_yearly": "co {{n}} lat",
+    "repeatSpawned": "Następny termin: {{date}}",
+    "repeatFailed": "Nie udało się utworzyć następnego zadania.",
+    "repeatRemote": "To zadanie pochodzi od dostawcy i powtarza się tam.",
+    "repeatPreview": "Następny termin: {{date}}",
+    "repeatPreviewFromToday": "Liczone od dzisiaj, ponieważ liczenie zaczyna się od wykonania.",
+    "repeatInNote": "Zapisane w notatce"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",
@@ -2476,7 +2500,9 @@
     "signature": "Podpis",
     "signatureHint": "Dodawany pod Twoim tekstem podczas pisania. Markdown, tak jak w edytorze.",
     "senders": "Dodatkowe adresy nadawcy",
-    "sendersHint": "Jeden w wierszu, np. Imię <alias@example.org>. O tym, czy adres zostanie przyjęty, decyduje Twój dostawca."
+    "sendersHint": "Potwierdź klawiszem Enter. Podczas pisania pojawiają się w menu nadawcy. O tym, czy adres zostanie przyjęty, decyduje dostawca.",
+    "senderRemove": "Usuń nadawcę: {{email}}",
+    "sendersPlaceholder": "Nazwa <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

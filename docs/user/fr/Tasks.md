@@ -63,6 +63,20 @@ L'icône d'agenda sur une ligne de tâche ouvre **Bloquer du temps** : la date (
 
 Pour une tâche issue de la base de données, la note mémorise aussi le blocage dans son frontmatter (`plainva.blocks`), de sorte que le lien est visible des deux côtés. Une ligne à cocher n'a pas de note propre — seul l'événement est créé, pointant vers la note qui contient la ligne. L'icône n'apparaît que si un compte d'agenda est connecté.
 
+## Tâches récurrentes
+
+Une tâche qui revient régulièrement reçoit une **répétition** via l'icône de répétition dans la section **Base de tâches**. Plainva ne crée pas de **série** : cocher la tâche crée la **suivante** comme sa propre note à côté de celle qui est terminée, avec la nouvelle échéance. Ainsi, il n'y a jamais qu'une seule tâche ouverte à la fois, celle qui est terminée reste comme trace de ce qui a été fait, et il n'existe pas de série invisible dont on pourrait tout supprimer par accident — supprimez une tâche et la chaîne s'arrête.
+
+La boîte de dialogue propose trois choses :
+
+- **Rythme** — Quotidienne, Hebdomadaire, Mensuelle ou Annuelle, plus l'intervalle sous **Tous les** (par exemple « Tous les 3 » + « Quotidienne » = tous les trois jours).
+- **Compté à partir de : L'échéance** — une cadence fixe (« tous les lundis »). Cochez tardivement une tâche en retard et Plainva saute à la prochaine échéance **à venir** au lieu de remplir la liste avec celles que vous avez manquées.
+- **Compté à partir de : L'achèvement** — le rythme démarre le jour où vous la cochez (« tous les trois jours après avoir arrosé les plantes »).
+
+**Ne pas répéter** retire à nouveau la répétition. Les tâches mensuelles ne dépassent jamais la fin d'un mois : le 31 janvier plus un mois donne le 28 ou le 29 février, pas le 3 mars.
+
+La règle vit dans le frontmatter de la note (`plainva.repeat`) et voyage donc avec votre synchronisation — pas dans un réglage caché de l'application, ni non plus comme colonne de la base de données, car elle appartient à **cette** tâche, et non à chaque entrée de la base de données. Les tâches reflétées depuis une liste de tâches de votre fournisseur n'offrent pas la répétition : elles se répètent là-bas, et un second rythme en plus renverrait des doublons vers le fournisseur.
+
 ## Masquer des notes de la vue Tâches
 
 Certaines notes contiennent des cases à cocher qui ne sont jamais de « vraies » tâches — les **modèles** en premier lieu. Pour les tenir à l'écart de la liste, une note peut s'exclure elle-même. La vérité reste dans le fichier : l'exclusion est un champ de frontmatter dans la note, pas un réglage caché de l'application. Elle se synchronise, est visible dans Obsidian et peut être vérifiée avec n'importe quel éditeur de texte :

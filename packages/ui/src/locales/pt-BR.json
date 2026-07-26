@@ -2111,7 +2111,31 @@
     "dbEmpty": "Nenhuma entrada ainda",
     "setStatus": "Alterar status",
     "statusUpdateFailed": "Não foi possível alterar o status.",
-    "dbDoneKey": "feito"
+    "dbDoneKey": "feito",
+    "repeat": "Repetição",
+    "repeatNone": "Não repetir",
+    "repeatHint": "Ao marcar, o Plainva cria a próxima tarefa com o novo vencimento.",
+    "repeatRhythm": "Ritmo",
+    "repeatInterval": "A cada",
+    "repeatDaily": "Diária",
+    "repeatWeekly": "Semanal",
+    "repeatMonthly": "Mensal",
+    "repeatYearly": "Anual",
+    "repeatFrom": "Contado a partir de",
+    "repeatFromDue": "Do vencimento",
+    "repeatFromCompletion": "Da conclusão",
+    "repeatFromDueHint": "Ritmo fixo. Uma tarefa atrasada retoma no próximo vencimento futuro.",
+    "repeatFromCompletionHint": "O ritmo começa no dia em que você marca.",
+    "repeatEvery_daily": "a cada {{n}} d",
+    "repeatEvery_weekly": "a cada {{n}} sem.",
+    "repeatEvery_monthly": "a cada {{n}} mês(es)",
+    "repeatEvery_yearly": "a cada {{n}} ano(s)",
+    "repeatSpawned": "Próximo vencimento: {{date}}",
+    "repeatFailed": "Não foi possível criar a próxima tarefa.",
+    "repeatRemote": "Esta tarefa vem de um provedor e se repete lá.",
+    "repeatPreview": "Próximo vencimento: {{date}}",
+    "repeatPreviewFromToday": "Contado a partir de hoje, porque você conta a partir da conclusão.",
+    "repeatInNote": "Registrado na nota"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",
@@ -2468,7 +2492,9 @@
     "signature": "Assinatura",
     "signatureHint": "Adicionada abaixo do seu texto ao escrever. Markdown, como no editor.",
     "senders": "Endereços de remetente adicionais",
-    "sendersHint": "Um por linha, p. ex. Nome <alias@example.org>. Se um endereço é aceito, quem decide é o seu provedor."
+    "sendersHint": "Confirme com Enter. Elas aparecem no menu de remetente ao escrever. Seu provedor decide se aceita um endereço.",
+    "senderRemove": "Remover remetente: {{email}}",
+    "sendersPlaceholder": "Nome <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

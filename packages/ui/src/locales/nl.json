@@ -2104,7 +2104,31 @@
     "dbEmpty": "Nog geen items",
     "setStatus": "Status wijzigen",
     "statusUpdateFailed": "Kon de status niet wijzigen.",
-    "dbDoneKey": "klaar"
+    "dbDoneKey": "klaar",
+    "repeat": "Herhaling",
+    "repeatNone": "Niet herhalen",
+    "repeatHint": "Bij het afvinken maakt Plainva de volgende taak met de nieuwe vervaldatum aan.",
+    "repeatRhythm": "Ritme",
+    "repeatInterval": "Elke",
+    "repeatDaily": "Dagelijks",
+    "repeatWeekly": "Wekelijks",
+    "repeatMonthly": "Maandelijks",
+    "repeatYearly": "Jaarlijks",
+    "repeatFrom": "Geteld vanaf",
+    "repeatFromDue": "Vervaldatum",
+    "repeatFromCompletion": "Afvinken",
+    "repeatFromDueHint": "Vast ritme. Een verlopen taak pakt de eerstvolgende vervaldatum in de toekomst.",
+    "repeatFromCompletionHint": "Het ritme begint op de dag dat je afvinkt.",
+    "repeatEvery_daily": "elke {{n}} d",
+    "repeatEvery_weekly": "elke {{n}} wk",
+    "repeatEvery_monthly": "elke {{n}} mnd",
+    "repeatEvery_yearly": "elke {{n}} jr",
+    "repeatSpawned": "Volgende vervaldatum: {{date}}",
+    "repeatFailed": "De volgende taak kon niet worden aangemaakt.",
+    "repeatRemote": "Deze taak komt van een provider en herhaalt daar.",
+    "repeatPreview": "Volgende vervaldatum: {{date}}",
+    "repeatPreviewFromToday": "Geteld vanaf vandaag, omdat je vanaf het afvinken telt.",
+    "repeatInNote": "Staat in de notitie"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",
@@ -2460,7 +2484,9 @@
     "signature": "Handtekening",
     "signatureHint": "Wordt bij het opstellen onder je tekst gezet. Markdown, net als in de editor.",
     "senders": "Extra afzenderadressen",
-    "sendersHint": "Eén per regel, bijv. Naam <alias@example.org>. Of een adres wordt geaccepteerd, bepaalt je provider."
+    "sendersHint": "Bevestig met Enter. Ze verschijnen bij het opstellen in het afzendermenu. Je provider bepaalt of een adres wordt geaccepteerd.",
+    "senderRemove": "Afzender verwijderen: {{email}}",
+    "sendersPlaceholder": "Naam <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

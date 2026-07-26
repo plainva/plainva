@@ -63,6 +63,20 @@ O ícone de calendário em uma linha de tarefa abre **Bloquear tempo**: a data (
 
 Em uma tarefa do banco de dados, a nota também guarda o bloqueio no frontmatter (`plainva.blocks`), de modo que o vínculo fica visível dos dois lados. Uma linha com caixa de seleção não tem nota própria — ali apenas o evento é criado, apontando para a nota em que a linha está. O ícone só aparece quando há uma conta de calendário conectada.
 
+## Repetindo tarefas
+
+Uma tarefa que volta regularmente recebe uma **Repetição** por meio do ícone de repetição na seção **Banco de tarefas**. O Plainva não cria uma **série**: marcar a tarefa como concluída cria a **próxima** como uma nota própria, ao lado da que foi concluída, com o novo vencimento. Assim, sempre há exatamente uma tarefa aberta, a concluída permanece como registro do que foi feito, e não existe uma série invisível da qual você possa excluir tudo sem querer — exclua uma tarefa e a cadeia termina.
+
+O diálogo oferece três coisas:
+
+- **Ritmo** — Diária, Semanal, Mensal ou Anual, mais o intervalo em **A cada** (por exemplo, "A cada 3" + "Diária" = a cada três dias).
+- **Contado a partir de: Do vencimento** — uma cadência fixa ("toda segunda-feira"). Marcar uma tarefa atrasada como concluída faz o Plainva pular para o próximo vencimento **no futuro**, em vez de encher a lista com as que você perdeu.
+- **Contado a partir de: Da conclusão** — o ritmo começa no dia em que você a marca como concluída ("a cada três dias depois de eu regar as plantas").
+
+**Não repetir** remove a repetição novamente. Tarefas mensais nunca ultrapassam o fim do mês: 31 de janeiro mais um mês é 28 ou 29 de fevereiro, não 3 de março.
+
+A regra vive no frontmatter da nota (`plainva.repeat`) e por isso viaja com sua sincronização — não em uma configuração oculta do app, nem como uma coluna do banco de dados, porque ela pertence a **esta** tarefa, não a cada entrada do banco de dados. Tarefas espelhadas de uma lista de tarefas do seu provedor não oferecem a repetição: elas se repetem lá, e um segundo ritmo por cima empurraria duplicatas de volta para o provedor.
+
 ## Ocultando notas da visualização de Tarefas
 
 Algumas notas contêm caixas de seleção que nunca são tarefas "reais" — **modelos**, acima de tudo. Para mantê-las fora da lista, uma nota pode se excluir. A verdade permanece no arquivo: a exclusão é um campo de frontmatter na nota, não uma configuração oculta do app. Ela sincroniza, é visível no Obsidian e pode ser verificada com qualquer editor de texto:

@@ -2111,7 +2111,31 @@
     "dbEmpty": "Aucune entrée pour l'instant",
     "setStatus": "Changer le statut",
     "statusUpdateFailed": "Impossible de changer le statut.",
-    "dbDoneKey": "fait"
+    "dbDoneKey": "fait",
+    "repeat": "Répétition",
+    "repeatNone": "Ne pas répéter",
+    "repeatHint": "En cochant la tâche, Plainva crée la suivante avec la nouvelle échéance.",
+    "repeatRhythm": "Rythme",
+    "repeatInterval": "Tous les",
+    "repeatDaily": "Quotidienne",
+    "repeatWeekly": "Hebdomadaire",
+    "repeatMonthly": "Mensuelle",
+    "repeatYearly": "Annuelle",
+    "repeatFrom": "Compté à partir de",
+    "repeatFromDue": "L'échéance",
+    "repeatFromCompletion": "L'achèvement",
+    "repeatFromDueHint": "Cadence fixe. Une tâche en retard reprend à la prochaine échéance à venir.",
+    "repeatFromCompletionHint": "Le rythme démarre le jour où vous cochez la tâche.",
+    "repeatEvery_daily": "tous les {{n}} j",
+    "repeatEvery_weekly": "toutes les {{n}} sem.",
+    "repeatEvery_monthly": "tous les {{n}} mois",
+    "repeatEvery_yearly": "tous les {{n}} ans",
+    "repeatSpawned": "Prochaine échéance : {{date}}",
+    "repeatFailed": "La tâche suivante n'a pas pu être créée.",
+    "repeatRemote": "Cette tâche vient d'un fournisseur et se répète là-bas.",
+    "repeatPreview": "Prochaine échéance : {{date}}",
+    "repeatPreviewFromToday": "Compté à partir d'aujourd'hui, puisque vous comptez depuis l'achèvement.",
+    "repeatInNote": "Enregistré dans la note"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",
@@ -2468,7 +2492,9 @@
     "signature": "Signature",
     "signatureHint": "Ajoutée sous votre texte lors de la rédaction. En Markdown, comme dans l'éditeur.",
     "senders": "Adresses d'expéditeur supplémentaires",
-    "sendersHint": "Une par ligne, p. ex. Nom <alias@example.org>. C'est votre fournisseur qui décide si une adresse est acceptée."
+    "sendersHint": "Validez avec Entrée. Elles apparaissent dans le menu de l'expéditeur lors de la rédaction. C'est votre fournisseur qui décide si une adresse est acceptée.",
+    "senderRemove": "Supprimer l'expéditeur : {{email}}",
+    "sendersPlaceholder": "Nom <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

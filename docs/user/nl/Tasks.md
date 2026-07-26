@@ -63,6 +63,20 @@ Het agendapictogram op een taakregel opent **Tijd blokkeren**: de datum (vooring
 
 Bij een taak uit de database onthoudt de notitie het blok ook in haar frontmatter (`plainva.blocks`), zodat de koppeling van beide kanten zichtbaar is. Een regel met selectievakje heeft geen eigen notitie — daar ontstaat alleen de afspraak, die verwijst naar de notitie waarin de regel staat. Het pictogram verschijnt alleen als er een agenda-account is verbonden.
 
+## Taken herhalen
+
+Een taak die regelmatig terugkomt, krijgt een **herhaling** via het herhalingsicoon in de sectie **Takendatabase**. Plainva maakt geen **reeks** aan: het afvinken van de taak maakt de **volgende** taak aan als eigen notitie naast de voltooide, met de nieuwe vervaldatum. Zo staat er altijd precies één taak open, blijft de voltooide taak staan als bewijs van wat is gedaan, en is er geen onzichtbare reeks waaruit je per ongeluk alles kunt verwijderen — verwijder je een taak, dan stopt de keten.
+
+Het dialoogvenster biedt drie dingen:
+
+- **Ritme** — Dagelijks, Wekelijks, Maandelijks of Jaarlijks, plus het interval onder **Elke** (bijvoorbeeld "Elke 3" + "Dagelijks" = om de drie dagen).
+- **Geteld vanaf: Vervaldatum** — een vast ritme ("elke maandag"). Vink je een verlopen taak laat af, dan springt Plainva naar de eerstvolgende vervaldatum **in de toekomst**, in plaats van de lijst te vullen met de gemiste data.
+- **Geteld vanaf: Afvinken** — het ritme begint op de dag dat je de taak afvinkt ("om de drie dagen nadat ik de planten water heb gegeven").
+
+**Niet herhalen** verwijdert de herhaling weer. Maandelijkse taken schuiven nooit voorbij het einde van een maand: 31 januari plus één maand is 28 of 29 februari, niet 3 maart.
+
+De regel staat in de frontmatter van de notitie (`plainva.repeat`) en reist dus mee met je synchronisatie — niet in een verborgen app-instelling, en ook niet als databasekolom, omdat de regel bij **deze ene** taak hoort, niet bij elk item van de database. Taken die gespiegeld zijn vanuit een takenlijst van je provider bieden de herhaling niet aan: ze herhalen daar al, en een tweede ritme erbovenop zou dubbele taken terugduwen naar de provider.
+
 ## Notities uit de Taken-weergave verbergen
 
 Sommige notities bevatten selectievakjes die nooit "echte" taken zijn — vooral **sjablonen**. Om ze buiten de lijst te houden, kan een notitie zichzelf uitsluiten. De waarheid blijft in het bestand: de uitsluiting is een frontmatter-veld in de notitie, geen verborgen app-instelling. Het synchroniseert mee, is zichtbaar in Obsidian en is met elke teksteditor te controleren:

@@ -102,9 +102,39 @@ test.beforeEach(async ({ page }) => {
               const content = String(fs['/test-vault/' + rel] ?? '');
               const fm = content.match(/^---\n([\s\S]*?)\n---/);
               if (!fm) continue;
-              for (const line of fm[1].split('\n')) {
-                const kv = line.match(/^([A-Za-z_][\w-]*):\s*(.+)$/);
-                if (kv) out.push({ file_id: rel, key: kv[1], value: kv[2].replace(/^"|"$/g, ''), type: 'text' });
+              const lines = fm[1].split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                const kv = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.+)$/);
+                if (kv) {
+                  out.push({ file_id: rel, key: kv[1], value: kv[2].replace(/^"|"$/g, ''), type: 'text' });
+                  continue;
+                }
+                // A nested block (e.g. the `plainva` namespace) is stored by the
+                // real indexer as ONE property holding JSON. Mirror that here so
+                // readers of the namespace behave as they do against SQLite.
+                const parent = lines[i].match(/^([A-Za-z_][\w-]*):\s*$/);
+                if (!parent) continue;
+                const nested: any = {};
+                const stack: any[] = [{ indent: -1, obj: nested }];
+                let j = i + 1;
+                for (; j < lines.length; j++) {
+                  const m = lines[j].match(/^(\s+)([A-Za-z_][\w-]*):\s*(.*)$/);
+                  if (!m) break;
+                  const indent = m[1].length;
+                  while (stack.length > 1 && indent <= stack[stack.length - 1].indent) stack.pop();
+                  const target = stack[stack.length - 1].obj;
+                  const raw = m[3].trim();
+                  if (raw === '') {
+                    const child = {};
+                    target[m[2]] = child;
+                    stack.push({ indent, obj: child });
+                  } else {
+                    const num = Number(raw);
+                    target[m[2]] = raw === 'true' ? true : raw === 'false' ? false : Number.isFinite(num) && raw !== '' ? num : raw.replace(/^"|"$/g, '');
+                  }
+                }
+                i = j - 1;
+                out.push({ file_id: rel, key: parent[1], value: JSON.stringify(nested), type: 'text' });
               }
             }
             return out;
@@ -504,4 +534,74 @@ test('block time on a task offers date/start/duration and reaches the provider (
   await page.getByTestId('task-block-submit').click();
   await expect(dialog.getByRole('alert')).toBeVisible();
   await expect(dialog).toBeVisible();
+});
+
+test('a repeating task spawns its next occurrence when checked off (issue #34, wave 3)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Blumen.md'] =
+      '---\ntype: task\nstatus: Offen\nfrist: 2026-08-03\nplainva:\n  repeat:\n    freq: weekly\n    interval: 1\n    from: due\n---\n\n# Blumen giessen\n';
+    // A task mirrored from a provider list: it keeps ITS recurrence.
+    fs['/test-vault/Aufgaben/Remote.md'] =
+      '---\ntype: task\nstatus: Offen\nplainva:\n  pim:\n    uid: remote-1\n---\n\n# Remote\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const rows = page.getByTestId('task-db-row');
+  await expect(rows).toHaveCount(2);
+  // The rule shows as a badge, read from the INDEXED namespace (no file read).
+  await expect(page.getByTestId('task-db-repeat-badge')).toHaveCount(1);
+  // The mirrored task offers no local repetition — one button, not two.
+  await expect(page.getByTestId('task-db-repeat')).toHaveCount(1);
+
+  // Check the repeating task off: the completed note stays, and the next
+  // occurrence appears as an ordinary sibling note, open again, one week later.
+  await rows.filter({ hasText: 'Blumen' }).getByTestId('task-db-toggle').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Blumen 2.md']))
+    .toBeTruthy();
+
+  const next = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Blumen 2.md']);
+  expect(next).toContain('frist: 2026-08-10');
+  expect(next).toContain('status: Offen');
+  expect(next).toContain('freq: weekly');
+  const done = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Blumen.md']);
+  expect(done).toContain('status: Erledigt');
+});
+
+test('the repeat dialog writes and clears the rule (issue #34, wave 3)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = '---\ntype: task\nstatus: Offen\nfrist: 2026-08-03\n---\n\n# Steuer\n';
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  await page.getByTestId('task-db-repeat').click();
+  await expect(page.getByTestId('task-repeat-modal')).toBeVisible();
+  await page.getByTestId('task-repeat-monthly').click();
+  await page.getByTestId('task-repeat-interval').fill('3');
+  await page.getByTestId('task-repeat-from-completion').click();
+  await page.getByTestId('task-repeat-submit').click();
+
+  await expect
+    .poll(() => page.evaluate(() => String((window as any).mockFs['/test-vault/Aufgaben/Steuer.md'] ?? '')))
+    .toContain('freq: monthly');
+  const note = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md']);
+  expect(note).toContain('interval: 3');
+  expect(note).toContain('from: completion');
+
+  // Turning it off removes the rule again.
+  await page.getByTestId('task-db-repeat').click();
+  await page.getByTestId('task-repeat-off').click();
+  await expect
+    .poll(() => page.evaluate(() => String((window as any).mockFs['/test-vault/Aufgaben/Steuer.md'] ?? '')))
+    .not.toContain('freq:');
 });

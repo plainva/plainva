@@ -2111,7 +2111,31 @@
     "dbEmpty": "Aún no hay entradas",
     "setStatus": "Cambiar estado",
     "statusUpdateFailed": "No se pudo cambiar el estado.",
-    "dbDoneKey": "hecho"
+    "dbDoneKey": "hecho",
+    "repeat": "Repetición",
+    "repeatNone": "No repetir",
+    "repeatHint": "Al marcarla, Plainva crea la siguiente tarea con el nuevo vencimiento.",
+    "repeatRhythm": "Ritmo",
+    "repeatInterval": "Cada",
+    "repeatDaily": "Diaria",
+    "repeatWeekly": "Semanal",
+    "repeatMonthly": "Mensual",
+    "repeatYearly": "Anual",
+    "repeatFrom": "Contado desde",
+    "repeatFromDue": "El vencimiento",
+    "repeatFromCompletion": "La finalización",
+    "repeatFromDueHint": "Ritmo fijo. Una tarea vencida sigue en el próximo vencimiento futuro.",
+    "repeatFromCompletionHint": "El ritmo empieza el día en que la marcas.",
+    "repeatEvery_daily": "cada {{n}} d",
+    "repeatEvery_weekly": "cada {{n}} sem.",
+    "repeatEvery_monthly": "cada {{n}} mes(es)",
+    "repeatEvery_yearly": "cada {{n}} año(s)",
+    "repeatSpawned": "Próximo vencimiento: {{date}}",
+    "repeatFailed": "No se pudo crear la siguiente tarea.",
+    "repeatRemote": "Esta tarea viene de un proveedor y se repite allí.",
+    "repeatPreview": "Próximo vencimiento: {{date}}",
+    "repeatPreviewFromToday": "Contado desde hoy, porque cuentas desde que la marcas.",
+    "repeatInNote": "Guardado en la nota"
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",
@@ -2468,7 +2492,9 @@
     "signature": "Firma",
     "signatureHint": "Se añade debajo de tu texto al redactar. Markdown, como en el editor.",
     "senders": "Direcciones de remitente adicionales",
-    "sendersHint": "Una por línea, p. ej. Nombre <alias@example.org>. Que una dirección se acepte lo decide tu proveedor."
+    "sendersHint": "Confirma con Intro. Aparecen en el menú de remitente al redactar. Tu proveedor decide si acepta una dirección.",
+    "senderRemove": "Quitar remitente: {{email}}",
+    "sendersPlaceholder": "Nombre <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

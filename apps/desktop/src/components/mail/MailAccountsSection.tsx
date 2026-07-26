@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
-import { Button, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
+import { Button, ChipField, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
@@ -9,10 +9,11 @@ import { listMailAccounts, mailAccountKind, updateMailAccount, type MailAccountC
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
 
-/** One address per line, blanks dropped. */
-function splitLines(text: string): string[] {
-  return text
-    .split("\n")
+/** Raw chip input into addresses. A paste of several at once is split on the
+ * usual separators; the angle-bracket form `Name <a@b.c>` stays intact. */
+function splitAddresses(raw: string): string[] {
+  return raw
+    .split(/[,;\n]/)
     .map((l) => l.trim())
     .filter(Boolean);
 }
@@ -33,7 +34,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   // must never ask for a password again.
   const [sendingId, setSendingId] = useState("");
   const [signature, setSignature] = useState("");
-  const [senders, setSenders] = useState("");
+  const [senders, setSenders] = useState<string[]>([]);
 
   const reload = useCallback(async () => {
     if (!vaultPath) return;
@@ -57,7 +58,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
     }
     if (current.id !== sendingId) setSendingId(current.id);
     setSignature(current.signature ?? "");
-    setSenders((current.senders ?? []).join("\n"));
+    setSenders(current.senders ?? []);
   }, [accounts, sendingId]);
 
   const persistSending = useCallback(
@@ -207,17 +208,23 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           </SettingRow>
           <SettingRow
             label={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}
-            desc={t("mail.sendersHint", { defaultValue: "Eine pro Zeile, z. B. Name <alias@example.org>. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter." })}
+            desc={t("mail.sendersHint", {
+              defaultValue:
+                "Mit Enter bestätigen. Beim Verfassen stehen sie im Absender-Menü. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter.",
+            })}
             wide
           >
-            <textarea
-              value={senders}
-              onChange={(e) => setSenders(e.target.value)}
-              onBlur={() => void persistSending({ senders: splitLines(senders) })}
-              rows={3}
-              className="pv-field pv-field--area"
-              data-testid="mail-senders"
-              style={{ width: "100%" }}
+            <ChipField
+              values={senders}
+              onChange={(next) => {
+                setSenders(next);
+                void persistSending({ senders: next });
+              }}
+              parse={splitAddresses}
+              removeLabel={(value) => t("mail.senderRemove", { defaultValue: "Absender entfernen: {{email}}", email: value })}
+              placeholder={t("mail.sendersPlaceholder", { defaultValue: "Name <alias@example.org>" })}
+              testId="mail-senders"
+              ariaLabel={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}
             />
           </SettingRow>
         </SettingCard>

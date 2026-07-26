@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2, X } from "lucide-react";
-import { Button, Checkbox, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput } from "@plainva/ui";
+import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2 } from "lucide-react";
+import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -91,12 +91,6 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   const setAttendees = (v: string) => setValues((prev) => ({ ...prev, attendees: v, attendeesTouched: true }));
   const setDescription = (v: string) => setValues((prev) => ({ ...prev, description: v, descriptionTouched: true }));
   const attendeeList = parseEmails(values.attendees);
-  const commitAttendees = (raw: string) => {
-    if (!raw.trim()) return;
-    setAttendees(parseEmails(`${values.attendees}\n${raw}`).join("\n"));
-    setAttendeeDraft("");
-  };
-  const removeAttendee = (email: string) => setAttendees(attendeeList.filter((a) => a !== email).join("\n"));
   const setRepeat = <K extends keyof EventFormValues>(key: K, v: EventFormValues[K]) => setValues((prev) => ({ ...prev, [key]: v, repeatTouched: true }));
   const toggleWeekday = (code: string) =>
     setValues((prev) => ({
@@ -421,42 +415,16 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
           <div className="pv-setcard">
             <div className="pv-setrow pv-setrow--wide">
               <label className="pv-setrow-label" htmlFor="event-attendees-input">{t("pim.attendees", { defaultValue: "Teilnehmer" })}</label>
-              <div
-                className="pv-field pv-chipfield"
-                data-testid="event-attendees-field"
-                onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.focus(); }}
-              >
-            {attendeeList.map((email) => (
-              <span key={email} className="pv-chip pv-chip--removable" data-testid="event-attendee-chip">
-                <span>{email}</span>
-                <button
-                  type="button"
-                  className="pv-chip-x"
-                  onClick={() => removeAttendee(email)}
-                  aria-label={t("pim.attendeeRemove", { defaultValue: "Teilnehmer entfernen: {{email}}", email })}
-                  data-testid="event-attendee-remove"
-                >
-                  <X size={ICON.meta} />
-                </button>
-              </span>
-            ))}
-            <input
-              id="event-attendees-input"
-              value={attendeeDraft}
-              onChange={(e) => setAttendeeDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === "," || e.key === ";") {
-                  e.preventDefault();
-                  commitAttendees(attendeeDraft);
-                } else if (e.key === "Backspace" && attendeeDraft === "" && attendeeList.length > 0) {
-                  removeAttendee(attendeeList[attendeeList.length - 1]);
-                }
-              }}
-              onBlur={() => commitAttendees(attendeeDraft)}
-              data-testid="event-attendees-input"
-              placeholder={attendeeList.length === 0 ? t("pim.attendeesChipHint", { defaultValue: "E-Mail-Adresse eingeben und Enter drücken" }) : ""}
-            />
-              </div>
+              <ChipField
+                values={attendeeList}
+                onChange={(next) => setAttendees(next.join("\n"))}
+                onDraftChange={setAttendeeDraft}
+                parse={parseEmails}
+                removeLabel={(email) => t("pim.attendeeRemove", { defaultValue: "Teilnehmer entfernen: {{email}}", email })}
+                placeholder={t("pim.attendeesChipHint", { defaultValue: "E-Mail-Adresse eingeben und Enter drücken" })}
+                testId="event-attendee"
+                inputId="event-attendees-input"
+              />
             </div>
             {attendeeList.length > 0 && (
               <div className="pv-setrow">

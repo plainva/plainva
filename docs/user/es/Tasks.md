@@ -63,6 +63,20 @@ El icono de calendario en una fila de tarea abre **Bloquear tiempo**: la fecha (
 
 En una tarea de la base de datos, la nota además recuerda el bloque en su frontmatter (`plainva.blocks`), de modo que el enlace es visible desde ambos lados. Una fila con casilla no tiene nota propia — allí solo se crea el evento, que apunta a la nota en la que está la fila. El icono solo aparece si hay una cuenta de calendario conectada.
 
+## Tareas repetitivas
+
+Una tarea que vuelve con regularidad obtiene una **Repetición** mediante el icono de repetición en la sección **Base de datos de tareas**. Plainva no crea una **serie**: marcar la tarea como hecha crea la **siguiente** como su propia nota junto a la terminada, con la nueva fecha de vencimiento. De ese modo solo hay una tarea abierta a la vez, la terminada queda como registro de lo hecho, y no existe una serie invisible de la que se pueda borrar todo por accidente — elimina una tarea y la cadena termina.
+
+El diálogo ofrece tres cosas:
+
+- **Ritmo** — Diaria, Semanal, Mensual o Anual, más el intervalo bajo **Cada** (por ejemplo, «Cada 3» + «Diaria» = cada tres días).
+- **Contado desde: El vencimiento** — una cadencia fija («cada lunes»). Si marcas como hecha con retraso una tarea vencida, Plainva salta al siguiente vencimiento **en el futuro** en lugar de llenar la lista con las que se te pasaron.
+- **Contado desde: La finalización** — el ritmo empieza el día en que la marcas como hecha («cada tres días después de regar las plantas»).
+
+**No repetir** elimina la repetición de nuevo. Las tareas mensuales nunca se desplazan más allá del fin de un mes: el 31 de enero más un mes es el 28 o el 29 de febrero, no el 3 de marzo.
+
+La regla vive en el frontmatter de la nota (`plainva.repeat`) y por eso viaja con tu sincronización — no es un ajuste oculto de la aplicación, ni tampoco una columna de la base de datos, porque pertenece a **esta** tarea, no a cada entrada de la base de datos. Las tareas reflejadas desde una lista de tareas de tu proveedor no ofrecen la repetición: se repiten allí, y un segundo ritmo superpuesto devolvería duplicados al proveedor.
+
 ## Ocultar notas de la vista Tareas
 
 Algunas notas contienen casillas que nunca son tareas "reales" — sobre todo las **plantillas**. Para mantenerlas fuera de la lista, una nota puede excluirse a sí misma. La verdad se queda en el archivo: la exclusión es un campo de frontmatter en la nota, no un ajuste oculto de la aplicación. Se sincroniza, es visible en Obsidian y se puede comprobar con cualquier editor de texto:

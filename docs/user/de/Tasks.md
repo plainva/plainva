@@ -63,6 +63,20 @@ Das Kalender-Symbol an einer Aufgabenzeile öffnet **Zeit blocken**: Datum (mit 
 
 Bei einer Aufgabe aus der Datenbank merkt sich die Notiz den Block zusätzlich im Frontmatter (`plainva.blocks`), sodass die Verknüpfung von beiden Seiten sichtbar ist. Eine Checkbox-Zeile hat keine eigene Notiz — dort entsteht nur der Termin, der auf die Notiz zeigt, in der die Zeile steht. Das Symbol erscheint nur, wenn ein Kalender-Konto verbunden ist.
 
+## Wiederkehrende Aufgaben
+
+Eine Aufgabe, die regelmäßig wiederkommt, bekommt über das Wiederhol-Symbol in der Sektion **Aufgaben-Datenbank** eine **Wiederholung**. Plainva legt dabei **keine Serie** an: Beim Abhaken entsteht die **nächste** Aufgabe als eigene Notiz neben der erledigten, mit der neuen Fälligkeit. Damit ist immer genau eine offene Aufgabe da, die erledigte bleibt als Nachweis liegen, und es gibt keine unsichtbare Serie, aus der man versehentlich alles löscht — löschst Du eine Aufgabe, endet die Kette.
+
+Im Dialog stellst Du drei Dinge ein:
+
+- **Rhythmus** — Täglich, Wöchentlich, Monatlich oder Jährlich, dazu unter **Alle** das Intervall (z. B. „Alle 3" + „Täglich" = alle drei Tage).
+- **Gezählt ab: Fälligkeit** — fester Takt („jeden Montag"). Hakst Du eine überfällige Aufgabe spät ab, springt Plainva auf die nächste Fälligkeit **in der Zukunft** und legt nicht die verpassten Termine nach.
+- **Gezählt ab: Erledigung** — der Takt beginnt an dem Tag, an dem Du abhakst („alle drei Tage, nachdem ich gegossen habe").
+
+**Nicht wiederholen** entfernt die Wiederholung wieder. Monatliche Aufgaben rutschen nie über das Monatsende: Der 31. Januar plus ein Monat ist der 28. bzw. 29. Februar, nicht der 3. März.
+
+Die Regel steht im Frontmatter der Notiz (`plainva.repeat`) und wandert damit über die Synchronisation mit — nicht in einer versteckten App-Einstellung und auch nicht als Datenbank-Spalte, denn sie gehört zu **dieser** Aufgabe, nicht zu jedem Eintrag der Datenbank. Aufgaben, die aus einer Aufgabenliste Deines Anbieters gespiegelt sind, bieten die Wiederholung nicht an: Sie wiederholen sich dort, und ein zweiter Rhythmus darüber würde dem Anbieter Dubletten zurückschieben.
+
 ## Notizen aus der Aufgabenansicht ausblenden
 
 Manche Notizen enthalten Checkboxen, die nie „echte" Aufgaben sind — allen voran **Vorlagen**. Damit sie die Liste nicht füllen, kann eine Notiz sich selbst ausschließen. Die Wahrheit bleibt dabei in der Datei: der Ausschluss steht als Frontmatter-Feld in der Notiz, nicht in einer versteckten App-Einstellung. Er synchronisiert mit, ist in Obsidian sichtbar und lässt sich mit jedem Texteditor prüfen:

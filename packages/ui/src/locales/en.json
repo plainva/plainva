@@ -2104,7 +2104,31 @@
     "dbEmpty": "No entries yet",
     "setStatus": "Change status",
     "statusUpdateFailed": "Could not change the status.",
-    "dbDoneKey": "done"
+    "dbDoneKey": "done",
+    "repeat": "Repeat",
+    "repeatNone": "Do not repeat",
+    "repeatHint": "When you check it off, Plainva creates the next task with the new due date.",
+    "repeatRhythm": "Rhythm",
+    "repeatInterval": "Every",
+    "repeatDaily": "Daily",
+    "repeatWeekly": "Weekly",
+    "repeatMonthly": "Monthly",
+    "repeatYearly": "Yearly",
+    "repeatFrom": "Counted from",
+    "repeatFromDue": "Due date",
+    "repeatFromCompletion": "Completion",
+    "repeatFromDueHint": "A fixed cadence. An overdue task resumes at the next due date in the future.",
+    "repeatFromCompletionHint": "The rhythm starts on the day you check it off.",
+    "repeatEvery_daily": "every {{n}} d",
+    "repeatEvery_weekly": "every {{n}} w",
+    "repeatEvery_monthly": "every {{n}} mo",
+    "repeatEvery_yearly": "every {{n}} y",
+    "repeatSpawned": "Next due: {{date}}",
+    "repeatFailed": "The next task could not be created.",
+    "repeatRemote": "This task comes from a provider and repeats there.",
+    "repeatPreview": "Next due: {{date}}",
+    "repeatPreviewFromToday": "Counted from today, because you count from when you check it off.",
+    "repeatInNote": "Stored in the note"
   },
   "findReplace": {
     "title": "Find & replace in vault",
@@ -2460,7 +2484,9 @@
     "signature": "Signature",
     "signatureHint": "Added below what you write when composing. Markdown, like in the editor.",
     "senders": "Additional sender addresses",
-    "sendersHint": "One per line, e.g. Name <alias@example.org>. Whether an address is accepted is up to your provider."
+    "sendersHint": "Confirm with Enter. They appear in the sender menu when composing. Whether an address is accepted is up to your provider.",
+    "senderRemove": "Remove sender: {{email}}",
+    "sendersPlaceholder": "Name <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

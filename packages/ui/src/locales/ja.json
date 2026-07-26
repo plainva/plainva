@@ -2097,7 +2097,31 @@
     "dbEmpty": "まだ項目がありません",
     "setStatus": "ステータスを変更",
     "statusUpdateFailed": "ステータスを変更できませんでした。",
-    "dbDoneKey": "done"
+    "dbDoneKey": "done",
+    "repeat": "繰り返し",
+    "repeatNone": "繰り返さない",
+    "repeatHint": "チェックを付けると、Plainva が新しい期日で次のタスクを作成します。",
+    "repeatRhythm": "周期",
+    "repeatInterval": "間隔",
+    "repeatDaily": "毎日",
+    "repeatWeekly": "毎週",
+    "repeatMonthly": "毎月",
+    "repeatYearly": "毎年",
+    "repeatFrom": "起点",
+    "repeatFromDue": "期日",
+    "repeatFromCompletion": "完了日",
+    "repeatFromDueHint": "固定の周期です。期限切れのタスクは将来の次の期日に進みます。",
+    "repeatFromCompletionHint": "チェックを付けた日から数え始めます。",
+    "repeatEvery_daily": "{{n}} 日ごと",
+    "repeatEvery_weekly": "{{n}} 週ごと",
+    "repeatEvery_monthly": "{{n}} か月ごと",
+    "repeatEvery_yearly": "{{n}} 年ごと",
+    "repeatSpawned": "次の期日: {{date}}",
+    "repeatFailed": "次のタスクを作成できませんでした。",
+    "repeatRemote": "このタスクは提供元のもので、繰り返しはそちらで管理されます。",
+    "repeatPreview": "次の期日: {{date}}",
+    "repeatPreviewFromToday": "完了日を起点にしているため、今日から数えます。",
+    "repeatInNote": "ノートに保存されます"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
@@ -2452,7 +2476,9 @@
     "signature": "署名",
     "signatureHint": "作成時に本文の下に追加されます。エディターと同じく Markdown です。",
     "senders": "追加の差出人アドレス",
-    "sendersHint": "1 行に 1 つ、例: 名前 <alias@example.org>。アドレスが受け付けられるかは提供元の判断です。"
+    "sendersHint": "Enter で確定します。作成時に差出人メニューへ表示されます。アドレスが受け付けられるかは提供元が決めます。",
+    "senderRemove": "差出人を削除: {{email}}",
+    "sendersPlaceholder": "名前 <alias@example.org>"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

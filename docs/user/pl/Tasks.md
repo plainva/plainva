@@ -63,6 +63,20 @@ Ikona kalendarza w wierszu zadania otwiera **Zablokuj czas**: datę (wypełnion�
 
 Przy zadaniu z bazy danych notatka zapamiętuje blokadę również w swoim frontmatterze (`plainva.blocks`), więc powiązanie widać z obu stron. Wiersz z polem wyboru nie ma własnej notatki — powstaje tam tylko wydarzenie wskazujące notatkę, w której znajduje się ten wiersz. Ikona pojawia się tylko wtedy, gdy podłączone jest konto kalendarza.
 
+## Powtarzanie zadań
+
+Zadanie, które powraca regularnie, otrzymuje **Powtarzanie** za pomocą ikony powtarzania w sekcji **Baza zadań**. Plainva nie tworzy **serii**: odhaczenie zadania tworzy **następne** jako osobną notatkę obok ukończonej, z nowym terminem. Dzięki temu zawsze otwarte jest dokładnie jedno zadanie, ukończone pozostaje jako zapis tego, co zostało zrobione, a nie istnieje niewidoczna seria, z której można by przypadkiem usunąć wszystko naraz — usunięcie zadania kończy łańcuch.
+
+Okno dialogowe oferuje trzy elementy:
+
+- **Rytm** — Codziennie, Co tydzień, Co miesiąc lub Co rok, plus interwał pod **Co** (na przykład „Co 3" + „Codziennie" = co trzy dni).
+- **Liczone od: Terminu** — stały rytm („co poniedziałek"). Odhaczenie zaległego zadania z opóźnieniem sprawia, że Plainva przeskakuje do najbliższego terminu **w przyszłości**, zamiast zapychać listę tymi, które zostały przegapione.
+- **Liczone od: Wykonania** — rytm zaczyna się w dniu odhaczenia zadania („co trzy dni po podlaniu roślin").
+
+**Nie powtarzaj** ponownie usuwa powtarzanie. Zadania miesięczne nigdy nie przesuwają się poza koniec miesiąca: 31 stycznia plus miesiąc to 28 lub 29 lutego, a nie 3 marca.
+
+Reguła znajduje się we frontmatterze notatki (`plainva.repeat`) i dzięki temu podróżuje razem z synchronizacją — nie jest ukrytym ustawieniem aplikacji ani kolumną bazy danych, ponieważ należy do **tego** zadania, a nie do każdego wpisu w bazie danych. Zadania odzwierciedlone z listy zadań Twojego dostawcy nie oferują powtarzania: powtarzają się tam, a dodatkowy rytm nałożony na to spowodowałby duplikaty odsyłane z powrotem do dostawcy.
+
 ## Ukrywanie notatek z widoku Zadania
 
 Niektóre notatki zawierają pola wyboru, które nigdy nie są „prawdziwymi" zadaniami — przede wszystkim **szablony**. Aby trzymać je z dala od listy, notatka może wykluczyć samą siebie. Prawda pozostaje w pliku: wykluczenie to pole frontmatter w notatce, a nie ukryte ustawienie aplikacji. Synchronizuje się, jest widoczne w Obsidian i można je sprawdzić w dowolnym edytorze tekstu:

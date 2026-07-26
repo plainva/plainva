@@ -63,6 +63,20 @@ The calendar icon on a task row opens **Block time**: the date (prefilled with t
 
 For a task from the database, the note also remembers the block in its frontmatter (`plainva.blocks`), so the link is visible from both ends. A checkbox row has no note of its own — there only the event is created, pointing at the note the row lives in. The icon appears only when a calendar account is connected.
 
+## Repeating tasks
+
+A task that comes back regularly gets a **repeat** via the repeat icon in the **Task database** section. Plainva does not create a **series**: checking the task off creates the **next** one as its own note beside the finished one, with the new due date. That way exactly one task is ever open, the finished one stays as the record of what was done, and there is no invisible series you can delete everything from by accident — delete a task and the chain ends.
+
+The dialog offers three things:
+
+- **Rhythm** — Daily, Weekly, Monthly or Yearly, plus the interval under **Every** (for example "Every 3" + "Daily" = every three days).
+- **Counted from: Due date** — a fixed cadence ("every Monday"). Check an overdue task off late and Plainva jumps to the next due date **in the future** instead of filling the list with the ones you missed.
+- **Counted from: Completion** — the rhythm starts on the day you check it off ("every three days after I water the plants").
+
+**Do not repeat** removes the repeat again. Monthly tasks never slide past the end of a month: 31 January plus one month is 28 or 29 February, not 3 March.
+
+The rule lives in the note's frontmatter (`plainva.repeat`) and therefore travels with your sync — not in a hidden app setting, and not as a database column either, because it belongs to **this** task, not to every entry of the database. Tasks mirrored from a task list of your provider do not offer the repeat: they repeat there, and a second rhythm on top would push duplicates back at the provider.
+
 ## Hiding notes from the Tasks view
 
 Some notes hold checkboxes that are never "real" tasks — **templates** above all. To keep them out of the list, a note can exclude itself. The truth stays in the file: the exclusion is a frontmatter field in the note, not a hidden app setting. It syncs, is visible in Obsidian, and can be checked with any text editor:
