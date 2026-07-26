@@ -98,16 +98,19 @@ export class CalDavPimTarget implements IPimTarget {
     for (const e of entries) {
       if (!e.href || !e.isCalendar) continue;
       const comps = e.components ?? [];
-      // A collection that only stores VTODO/VJOURNAL is a task list, not a
-      // calendar — it still surfaces (supportsTasks) for the task-list picker.
+      // A collection that only stores VTODO is a reminder list, not a calendar.
+      // Both flags travel; the WORKER decides which picker a collection reaches
+      // (issue #34: an Apple "Reminders" list used to show up as a calendar).
+      // A server that omits the component set means "everything" per RFC 4791.
       const hasEvents = comps.length === 0 || comps.includes("VEVENT");
-      const hasTasks = comps.includes("VTODO");
+      const hasTasks = comps.length === 0 || comps.includes("VTODO");
       if (!hasEvents && !hasTasks) continue;
       out.push({
         id: this.resolve(e.href),
         name: e.displayName || decodeURIComponent(e.href.replace(/\/+$/, "").split("/").pop() ?? e.href),
         color: e.color,
         supportsTasks: hasTasks,
+        supportsEvents: hasEvents,
         readOnly: e.readOnly,
       });
     }
@@ -210,9 +213,13 @@ export class CalDavPimTarget implements IPimTarget {
 
   // ---- tasks --------------------------------------------------------------
 
-  /** CalDAV task lists ARE calendar collections that store VTODO. */
-  async listTaskLists(): Promise<PimTaskList[]> {
-    const calendars = await this.listCalendars();
+  /**
+   * CalDAV task lists ARE calendar collections that store VTODO — so a listing
+   * the caller already holds answers this without a second PROPFIND (and
+   * without a second chance to fail; see `IPimTarget.listTaskLists`).
+   */
+  async listTaskLists(collections?: PimCalendar[]): Promise<PimTaskList[]> {
+    const calendars = collections ?? (await this.listCalendars());
     return calendars.filter((c) => c.supportsTasks).map((c) => ({ id: c.id, name: c.name }));
   }
 
@@ -785,6 +792,7 @@ export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
   const multistatus = doc?.multistatus;
   if (!multistatus) return [];
   const rawResponses: any[] = Array.isArray(multistatus.response) ? multistatus.response : [];
+  const componentNamesByHref = componentNamesPerResponse(xml);
 
   const entries: CalDavEntry[] = [];
   for (const resp of rawResponses) {
@@ -803,11 +811,14 @@ export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
       if (prop.getetag != null) entry.etag = String(prop.getetag);
       const calData = prop["calendar-data"];
       if (typeof calData === "string" && calData) entry.calendarData = calData;
-      const comps = prop["supported-calendar-component-set"]?.comp;
-      if (Array.isArray(comps)) {
+      if (prop["supported-calendar-component-set"] !== undefined) {
         // With ignoreAttributes the <c:comp name="VEVENT"/> elements parse to
-        // empty strings — re-extract the names from the raw XML instead.
-        entry.components = extractComponentNames(xml, entry.href);
+        // empty strings — re-extract the names from the raw XML instead. The
+        // presence check must not require an ARRAY: a collection that supports
+        // exactly one component type can parse to a plain value, and demanding
+        // an array there is what let Apple's VTODO-only reminder lists pass as
+        // ordinary calendars (issue #34).
+        entry.components = componentNamesByHref.get(entry.href ?? "") ?? [];
       }
       const principal = prop["current-user-principal"]?.href;
       if (typeof principal === "string" && principal) entry.principal = principal;
@@ -826,15 +837,41 @@ export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
 
 /**
  * The component names live in ATTRIBUTES (<c:comp name="VEVENT"/>), which the
- * namespace-stripped, attribute-ignoring parse drops. A scoped regex over the
- * response block of `href` recovers them; hrefs are unique per multistatus.
+ * namespace-stripped, attribute-ignoring parse drops — so they are recovered
+ * from the raw XML. The multistatus is split into its response blocks ONCE and
+ * each block's names are keyed by its own href.
+ *
+ * Splitting beats the previous per-entry search on two counts (issue #34):
+ * a failed lookup used to fall back to scanning the WHOLE document, which
+ * handed every collection the union of all component names; and the attribute
+ * pattern only matched double quotes, so a server writing name='VTODO' left the
+ * set empty — which reads as "no component set" and turns a reminder list into
+ * a calendar. Quoting style and attribute order no longer matter here.
  */
-function extractComponentNames(xml: string, href: string | undefined): string[] {
-  if (!href) return [];
-  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const respMatch = xml.match(new RegExp(`<[^>]*response[^>]*>(?:(?!</[^>]*response>)[\\s\\S])*${escaped}(?:(?!</[^>]*response>)[\\s\\S])*</[^>]*response>`, "i"));
-  const scope = respMatch ? respMatch[0] : xml;
-  const names = new Set<string>();
-  for (const m of scope.matchAll(/<[^>]*comp\s+name="([A-Z]+)"/gi)) names.add(m[1].toUpperCase());
-  return [...names];
+function componentNamesPerResponse(xml: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const block of xml.split(/<[^>]*\bresponse\b[^>]*>/i)) {
+    const hrefMatch = block.match(/<[^>]*\bhref\b[^>]*>([\s\S]*?)<\/[^>]*\bhref\b[^>]*>/i);
+    if (!hrefMatch) continue;
+    const names = new Set<string>();
+    for (const m of block.matchAll(/<[^>]*\bcomp\b[^>]*\sname\s*=\s*["']?([A-Za-z]+)/gi)) {
+      names.add(m[1].toUpperCase());
+    }
+    // A block without a component set stays absent from the map: "not stated"
+    // must not collapse into "stated as empty" (RFC 4791: absent = all types).
+    // The key is entity-decoded so it matches the href the XML parser produced
+    // (a collection path containing "&" would otherwise never line up).
+    if (names.size > 0) out.set(decodeXmlEntities(hrefMatch[1].trim()), [...names]);
+  }
+  return out;
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
 }

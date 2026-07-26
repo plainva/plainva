@@ -39,6 +39,8 @@ L'icona a forma di nota su qualsiasi evento crea (o riapre) la sua **nota della 
 
 ## Elenchi attività esterni nel database attività
 
+Gli elenchi di promemoria (Promemoria di Apple via CalDAV di iCloud, elenchi di attività di Nextcloud) sono raccolte separate sul server e compaiono quindi in **Elenchi di attività**, mai in **Calendari**. Se un account collegato non mostra elenchi di attività, la sezione lo dice e offre **Cerca di nuovo**; se la ricerca è fallita, viene mostrato il motivo e la selezione precedente resta invariata.
+
 Spunta un **elenco attività** in un account collegato e le sue attività appaiono come note nel tuo [database attività predefinito](Tasks.md): il titolo diventa la nota (H1), la scadenza finisce nella colonna della data del database, e il completamento si riflette nella **proprietà casella di controllo di completamento** del database (la colonna di stato la segue; un database senza colonna casella di controllo utilizza la convenzione di stato — prima opzione = aperta, ultima = completata). La sincronizzazione è bidirezionale e per campo:
 
 - Modifichi la nota (titolo, scadenza, stato) → la modifica viene inviata al provider.

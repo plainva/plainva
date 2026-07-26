@@ -39,6 +39,8 @@ Het notitie-icoon bij een afspraak maakt zijn **vergadernotitie** aan (of opent 
 
 ## Externe takenlijsten in je takendatabase
 
+Herinneringslijsten (Apple Herinneringen via iCloud-CalDAV, Nextcloud-takenlijsten) zijn eigen collecties op de server en verschijnen daarom onder **Takenlijsten** — nooit onder **Agenda's**. Toont een verbonden account geen takenlijsten, dan zegt de sectie dat en biedt **Opnieuw zoeken** aan; is het zoeken zelf mislukt, dan staat daar de reden en blijft je eerdere selectie behouden.
+
 Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschijnen als notities in je [standaard takendatabase](Tasks.md): de titel wordt de notitie (H1), de vervaldatum belandt in de datumkolom van de database, en voltooiing wordt afgebeeld op de **voltooid-selectievakje-eigenschap** van de database (de statuskolom volgt mee; een database zonder selectievakjekolom gebruikt de statusconventie — eerste optie = open, laatste = voltooid). De synchronisatie verloopt in beide richtingen, per veld:
 
 - Bewerk je de notitie (titel, vervaldatum, status) → de wijziging wordt naar de provider gepusht.

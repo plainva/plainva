@@ -39,6 +39,8 @@ The note icon on any event creates (or re-opens) its **meeting note** — a norm
 
 ## External task lists in your task database
 
+Reminder lists (Apple Reminders over iCloud CalDAV, Nextcloud task lists) are their own collections on the server, so they appear under **Task lists** — never under **Calendars**. If a connected account shows no task lists, the section says so and offers **Look again**; when the lookup itself failed, the reason is shown instead and your previous selection is kept.
+
 Tick a **task list** on a connected account and its tasks appear as notes in your [standard task database](Tasks.md): the title becomes the note (H1), the due date lands in the database's date column, and completion maps to the database's **done checkbox property** (the status column follows it; a database without a checkbox column uses the status convention — first option = open, last = done). The sync is two-way and field-wise:
 
 - Edit the note (title, due, status) → the change is pushed to the provider.

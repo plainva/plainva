@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Button, ICON } from "@plainva/ui";
+import { Banner, Button, ICON } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -21,6 +21,11 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<Array<PimCalendar & { accountId: string; selected: boolean }>>([]);
   const [taskLists, setTaskLists] = useState<Array<PimTaskList & { accountId: string; selected: boolean }>>([]);
+  // Per-account failures. The worker has always RECORDED them in the scope
+  // state; nothing ever showed them, so a failing account looked like an empty
+  // one (issue #34 — the reporter mistook an emoji in a list name for our
+  // error indicator, because we had none).
+  const [errors, setErrors] = useState<Record<string, { account?: string; taskLists?: string }>>({});
   const [tick, setTick] = useState(0);
   const [meetingFolder, setMeetingFolder] = useState("");
 
@@ -85,6 +90,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
       setAccounts([]);
       setCalendars([]);
       setTaskLists([]);
+      setErrors({});
       return;
     }
     void (async () => {
@@ -98,6 +104,17 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
         setAccounts(acc);
         setCalendars(cals);
         setTaskLists(lists);
+        const states = await Promise.all(
+          acc.map(async (a) => {
+            const [account, tasks] = await Promise.all([
+              pimRuntime.cache.getScopeState(a.id, "account").catch(() => null),
+              pimRuntime.cache.getScopeState(a.id, "tasklists").catch(() => null),
+            ]);
+            return [a.id, { account: account?.lastError ?? undefined, taskLists: tasks?.lastError ?? undefined }] as const;
+          })
+        );
+        if (!alive) return;
+        setErrors(Object.fromEntries(states));
       } catch (e) {
         console.error("[PimAccountsSection] loading accounts failed", e);
       }
@@ -139,6 +156,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
       {accounts.map((account) => {
         const accCals = calendars.filter((c) => c.accountId === account.id);
         const accLists = taskLists.filter((l) => l.accountId === account.id);
+        const accErrors = errors[account.id] ?? {};
         return (
           <div key={account.id} data-testid={`pim-account-${account.provider}`} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "0.6rem 0.75rem", marginBottom: "0.6rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -164,6 +182,25 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
               )}
             </div>
 
+            {accErrors.account && (
+              <div style={{ marginTop: "0.5rem" }}>
+                <Banner
+                  kind="error"
+                  rounded
+                  actions={
+                    <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
+                      {t("pim.tryAgain")}
+                    </Button>
+                  }
+                >
+                  {t("pim.accountFailed")} {accErrors.account}
+                </Banner>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                  {t("pim.lastKnownSelection")}
+                </p>
+              </div>
+            )}
+
             {accCals.length > 0 && (
               <div style={{ marginTop: "0.5rem" }}>
                 <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
@@ -188,12 +225,37 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
               </div>
             )}
 
-            {accLists.length > 0 && (
-              <div style={{ marginTop: "0.5rem" }}>
-                <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
-                  {t("pim.taskLists", { defaultValue: "Aufgabenlisten" })}
+            {/* ALWAYS rendered (issue #34): hiding the section on an empty
+                result made "nothing found" indistinguishable from "feature does
+                not exist" — the reporter searched for a week. */}
+            <div style={{ marginTop: "0.5rem" }}>
+              <div style={{ fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", marginBottom: 2 }}>
+                {t("pim.taskLists", { defaultValue: "Aufgabenlisten" })}
+              </div>
+              {accErrors.taskLists ? (
+                <Banner
+                  kind="error"
+                  rounded
+                  actions={
+                    <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
+                      {t("pim.lookAgain")}
+                    </Button>
+                  }
+                >
+                  {t("pim.taskListsFailed")} {accErrors.taskLists}
+                </Banner>
+              ) : accLists.length === 0 ? (
+                <div data-testid="pim-tasklists-empty" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+                  <p style={{ margin: 0 }}>{t("pim.noTaskLists")}</p>
+                  <p style={{ margin: "0.15rem 0 0.35rem", fontSize: "var(--text-sm)" }}>
+                    {account.provider === "caldav" ? t("pim.noTaskListsCalDavHint") : t("pim.noTaskListsHint")}
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
+                    {t("pim.lookAgain")}
+                  </Button>
                 </div>
-                {accLists.map((list) => (
+              ) : null}
+              {accLists.map((list) => (
                   <label key={list.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-md)", padding: "0.1rem 0", cursor: "pointer" }}>
                     <input
                       type="checkbox"
@@ -208,8 +270,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.name}</span>
                   </label>
                 ))}
-              </div>
-            )}
+            </div>
           </div>
         );
       })}

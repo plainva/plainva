@@ -19,8 +19,21 @@ export interface PimCalendar {
   primary?: boolean;
   /** CalDAV: the collection also stores VTODO items (task list capability). */
   supportsTasks?: boolean;
+  /**
+   * CalDAV: `false` for a collection that stores NO VEVENT — an Apple/Nextcloud
+   * reminder list. Such a collection is a task list only and must never reach
+   * the calendar picker: ticking it would make the worker run an event query
+   * against a reminder list (issue #34). Undefined/true = event calendar, so
+   * Google and Graph (whose calendars are always event calendars) need no flag.
+   */
+  supportsEvents?: boolean;
   /** Provider marks the calendar read-only for this user. */
   readOnly?: boolean;
+}
+
+/** Event calendars of a collection listing — see `PimCalendar.supportsEvents`. */
+export function eventCalendarsOf(collections: PimCalendar[]): PimCalendar[] {
+  return collections.filter((c) => c.supportsEvents !== false);
 }
 
 export interface PimEventTime {
@@ -221,12 +234,22 @@ export class PimConflictError extends Error {
  */
 export interface IPimTarget {
   readonly provider: PimProviderId;
+  /** Every collection of the account — event calendars AND (CalDAV) reminder
+   * lists, told apart by `supportsEvents` / `supportsTasks`. */
   listCalendars(): Promise<PimCalendar[]>;
   /** All event instances of the calendar overlapping [rangeStart, rangeEnd)
    * (UTC ms). Recurring series arrive EXPANDED (server-side for Google/Graph,
    * ical.js for CalDAV) plus one master row carrying `recurrence`. */
   pullEvents(calendarId: string, rangeStartTs: number, rangeEndTs: number): Promise<PullEventsResult>;
-  listTaskLists(): Promise<PimTaskList[]>;
+  /**
+   * Task lists of the account. `collections` is the result of a `listCalendars`
+   * call the caller already made: for CalDAV task lists ARE collections, so
+   * passing it saves a second full PROPFIND per cycle — and, more importantly,
+   * removes a second failure point that used to swallow the task lists whole
+   * (issue #34). Providers whose task lists live behind their own API (Google
+   * Tasks, Microsoft To Do) ignore the argument.
+   */
+  listTaskLists(collections?: PimCalendar[]): Promise<PimTaskList[]>;
   pullTasks(listId: string): Promise<PullTasksResult>;
   /** Creates a single event; recurring events are out of scope until stage 4. */
   createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult>;

@@ -1,5 +1,6 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
-import type { IPimTarget, PimEvent } from "./types.js";
+import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
+import { eventCalendarsOf } from "./types.js";
 
 /**
  * Periodic PIM pull loop (stage 2, read-only): refreshes calendars, the
@@ -119,9 +120,12 @@ export class PimWorker {
     const { startTs, endTs } = this.windowRange;
     let wrote = false;
 
-    const calendars = await target.listCalendars();
+    // ONE collection listing per cycle. CalDAV reminder lists arrive in the same
+    // listing as the calendars and are told apart here — a VTODO-only collection
+    // must never reach the calendar picker (issue #34).
+    const collections = await target.listCalendars();
     if (gen !== this.generation) return wrote;
-    await cache.replaceCalendars(account.id, calendars);
+    await cache.replaceCalendars(account.id, eventCalendarsOf(collections));
     wrote = true;
 
     // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,
@@ -160,7 +164,19 @@ export class PimWorker {
       }
     }
 
-    const lists = await target.listTaskLists().catch(() => null);
+    // Task lists: a failure here used to be swallowed (`.catch(() => null)`),
+    // which silently meant "this account has no task lists" — for good, and
+    // without a word to the user (issue #34). Now the previously known lists
+    // stay put and the reason is recorded for the settings UI to show.
+    let lists: PimTaskList[] | null = null;
+    try {
+      lists = await target.listTaskLists(collections);
+      await cache.setScopeState(account.id, "tasklists", { lastError: null });
+    } catch (e) {
+      await cache
+        .setScopeState(account.id, "tasklists", { lastError: e instanceof Error ? e.message : String(e) })
+        .catch(() => {});
+    }
     if (gen !== this.generation) return wrote;
     if (lists) {
       await cache.replaceTaskLists(account.id, lists);

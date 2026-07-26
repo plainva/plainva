@@ -37,6 +37,8 @@ Ikona notatki przy dowolnym wydarzeniu tworzy (lub otwiera ponownie) jego **nota
 
 ## Zewnętrzne listy zadań w Twojej bazie zadań
 
+Listy przypomnień (Przypomnienia Apple przez CalDAV iCloud, listy zadań Nextcloud) są na serwerze osobnymi kolekcjami, dlatego pojawiają się w sekcji **Listy zadań** — nigdy w **Kalendarzach**. Jeśli połączone konto nie pokazuje list zadań, sekcja to komunikuje i proponuje **Szukaj ponownie**; gdy samo wyszukiwanie się nie powiodło, wyświetlany jest powód, a Twój dotychczasowy wybór zostaje zachowany.
+
 Zaznacz **listę zadań** przy połączonym koncie, a jej zadania pojawią się jako notatki w Twojej [domyślnej bazie zadań](Tasks.md): tytuł staje się notatką (H1), termin trafia do kolumny daty w bazie danych, a ukończenie odwzorowuje się na **właściwość pola wyboru zrobione** bazy danych (kolumna statusu podąża za tą zmianą; baza danych bez kolumny pola wyboru korzysta z konwencji statusu — pierwsza opcja = otwarte, ostatnia = zrobione). Synchronizacja jest dwukierunkowa i działa dla poszczególnych pól:
 
 - Edytujesz notatkę (tytuł, termin, status) → zmiana jest wysyłana do dostawcy.

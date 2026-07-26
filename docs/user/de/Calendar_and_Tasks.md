@@ -39,6 +39,8 @@ Das Notiz-Symbol an einem Termin erstellt (oder öffnet erneut) seine **Meeting-
 
 ## Externe Aufgabenlisten in Deiner Aufgabendatenbank
 
+Erinnerungslisten (Apple Erinnerungen über iCloud-CalDAV, Nextcloud-Aufgabenlisten) sind auf dem Server eigene Sammlungen und erscheinen deshalb unter **Aufgabenlisten** — nie unter **Kalender**. Findet ein verbundenes Konto keine Aufgabenlisten, sagt der Bereich das und bietet **Erneut suchen** an; ist die Suche selbst fehlgeschlagen, steht dort der Grund und Deine bisherige Auswahl bleibt erhalten.
+
 Hake bei einem verbundenen Konto eine **Aufgabenliste** an, und ihre Aufgaben erscheinen als Notizen in Deiner [Standard-Aufgabendatenbank](Tasks.md): der Titel wird die Notiz (H1), die Fälligkeit landet in der Datums-Spalte, und „erledigt" bildet sich über die **Erledigt-Checkbox-Eigenschaft** der Datenbank ab (die Status-Spalte folgt ihr; eine Datenbank ohne Checkbox-Spalte nutzt die Status-Konvention — erste Option = offen, letzte = erledigt). Der Abgleich läuft in beide Richtungen, Feld für Feld:
 
 - Bearbeitest Du die Notiz (Titel, Fälligkeit, Status) → die Änderung geht an den Anbieter.

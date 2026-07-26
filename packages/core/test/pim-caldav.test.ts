@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CalDavPimTarget, expandIcsEvents, parseCalDavMultistatus } from "../src/pim/CalDavPimTarget.ts";
+import { eventCalendarsOf } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
 
 const CREDS = { url: "https://cloud.example.org/remote.php/dav/", user: "marco", pass: "app-pass" };
@@ -132,6 +133,86 @@ describe("CalDavPimTarget discovery", () => {
     const t = new CalDavPimTarget(CREDS, fetchFn);
     const lists = await t.listTaskLists();
     expect(lists).toEqual([{ id: "https://cloud.example.org/remote.php/dav/calendars/marco/personal/", name: "Privat" }]);
+  });
+
+  // Issue #34: an iCloud "Reminders" list is a VTODO-ONLY collection. It used
+  // to arrive as an ordinary calendar (the component set was read with a regex
+  // that only matched double quotes, and the presence check demanded an array),
+  // so it showed up in the calendar picker and never in the task-list picker.
+  it("classifies an Apple-shaped VTODO-only collection as a task list, not a calendar", async () => {
+    const APPLE = `<?xml version="1.0" encoding="UTF-8"?>
+      <multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+        <response>
+          <href>/1234567890/calendars/home/</href>
+          <propstat><prop>
+            <resourcetype><collection/><C:calendar/></resourcetype>
+            <displayname>Home</displayname>
+            <C:supported-calendar-component-set><C:comp name='VEVENT'/></C:supported-calendar-component-set>
+          </prop><status>HTTP/1.1 200 OK</status></propstat>
+        </response>
+        <response>
+          <href>/1234567890/calendars/reminders/</href>
+          <propstat><prop>
+            <resourcetype><collection/><C:calendar/></resourcetype>
+            <displayname>Reminders</displayname>
+            <C:supported-calendar-component-set><C:comp name='VTODO'/></C:supported-calendar-component-set>
+          </prop><status>HTTP/1.1 200 OK</status></propstat>
+        </response>
+      </multistatus>`;
+    const fetchFn: FetchFn = vi.fn(async (input, init) => {
+      const url = String(input);
+      if (init?.method === "PROPFIND" && url.endsWith("/remote.php/dav/")) {
+        return davRes(`<?xml version="1.0"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response><d:href>/remote.php/dav/</d:href>
+              <d:propstat><d:prop>
+                <c:calendar-home-set><d:href>/1234567890/calendars/</d:href></c:calendar-home-set>
+              </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+            </d:response>
+          </d:multistatus>`);
+      }
+      if (url.includes("/1234567890/calendars/")) return davRes(APPLE);
+      return new Response("nope", { status: 404 });
+    });
+
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const cols = await t.listCalendars();
+    expect(cols.map((c) => [c.name, c.supportsEvents, c.supportsTasks])).toEqual([
+      ["Home", true, false],
+      ["Reminders", false, true],
+    ]);
+    // The reminder list is the ONLY task list — and it is not an event calendar.
+    expect((await t.listTaskLists(cols)).map((l) => l.name)).toEqual(["Reminders"]);
+    expect(eventCalendarsOf(cols).map((c) => c.name)).toEqual(["Home"]);
+    // Reusing the listing spares the second PROPFIND that used to swallow the
+    // task lists whole when it failed.
+    const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls.length;
+    await t.listTaskLists(cols);
+    expect((fetchFn as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls);
+  });
+
+  it("keeps each collection's component set to itself and survives a missing one", () => {
+    const xml = `<?xml version="1.0"?>
+      <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response>
+          <d:href>/dav/cal/a&amp;b/</d:href>
+          <d:propstat><d:prop>
+            <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
+            <c:supported-calendar-component-set><c:comp name="VTODO"/></c:supported-calendar-component-set>
+          </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/dav/cal/plain/</d:href>
+          <d:propstat><d:prop>
+            <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
+          </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+        </d:response>
+      </d:multistatus>`;
+    const entries = parseCalDavMultistatus(xml);
+    // The "&" href lines up despite entity encoding, and the neighbour does NOT
+    // inherit its VTODO (the old whole-document fallback handed it over).
+    expect(entries[0].components).toEqual(["VTODO"]);
+    expect(entries[1].components).toBeUndefined();
   });
 });
 

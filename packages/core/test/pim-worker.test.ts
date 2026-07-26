@@ -109,6 +109,64 @@ describe("PimWorker", () => {
     expect((await cache.listTasks("a1", "l1")).map((t) => t.uid)).toEqual(["t1"]);
   });
 
+  // Issue #34: a CalDAV reminder list must not reach the calendar picker, and
+  // the listing is fetched ONCE — `listTaskLists` gets the collections handed in.
+  it("keeps VTODO-only collections out of the calendars and reuses the one listing", async () => {
+    const collections = [
+      { id: "cal1", name: "Home", supportsEvents: true, supportsTasks: false },
+      { id: "rem1", name: "Reminders", supportsEvents: false, supportsTasks: true },
+    ];
+    const listTaskLists = vi.fn(async (given?: typeof collections) =>
+      (given ?? []).filter((c) => c.supportsTasks).map((c) => ({ id: c.id, name: c.name }))
+    );
+    const target: IPimTarget = {
+      ...unusedWrites,
+      provider: "caldav",
+      listCalendars: vi.fn(async () => collections),
+      pullEvents: vi.fn(async () => ({ events: [] })),
+      listTaskLists: listTaskLists as unknown as IPimTarget["listTaskLists"],
+      pullTasks: async () => ({ tasks: [] }),
+    };
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+
+    expect((await cache.listCalendars("a1")).map((c) => c.id)).toEqual(["cal1"]);
+    expect((await cache.listTaskLists("a1")).map((l) => l.id)).toEqual(["rem1"]);
+    expect(target.listCalendars).toHaveBeenCalledTimes(1);
+    expect(listTaskLists).toHaveBeenCalledWith(collections);
+  });
+
+  // The failure used to be swallowed (`.catch(() => null)`) and read as "this
+  // account has no task lists" — silently and for good.
+  it("keeps the known task lists and records the reason when discovery fails", async () => {
+    let failLists = false;
+    const target: IPimTarget = {
+      ...unusedWrites,
+      provider: "caldav",
+      listCalendars: async () => [{ id: "cal1", name: "Home", supportsEvents: true }],
+      pullEvents: async () => ({ events: [] }),
+      listTaskLists: async () => {
+        if (failLists) throw new Error("caldav PROPFIND 503");
+        return [{ id: "l1", name: "Reminders" }];
+      },
+      pullTasks: async () => ({ tasks: [] }),
+    };
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    expect((await cache.listTaskLists("a1")).map((l) => l.id)).toEqual(["l1"]);
+    await cache.setTaskListSelected("a1", "l1", true);
+
+    failLists = true;
+    await worker.triggerImmediate();
+    // Selection survives; the reason is readable for the settings UI.
+    expect((await cache.listTaskLists("a1")).map((l) => [l.id, l.selected])).toEqual([["l1", true]]);
+    expect((await cache.getScopeState("a1", "tasklists"))?.lastError).toContain("503");
+
+    failLists = false;
+    await worker.triggerImmediate();
+    expect((await cache.getScopeState("a1", "tasklists"))?.lastError).toBeNull();
+  });
+
   it("skips deselected calendars and disabled accounts", async () => {
     const target = fakeTarget([ev("e1", "cal1", "2026-08-02T10:00:00Z"), ev("e2", "cal2", "2026-08-03T10:00:00Z")]);
     const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
