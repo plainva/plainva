@@ -104,6 +104,10 @@ th:hover .base-col-resize { opacity: 1; background: linear-gradient(to right, tr
 .base-cfg-newprop { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px; background: var(--bg-primary); margin-top: 4px; }
 .base-cfg-subtitle { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-top: 8px; }
 .base-cfg-check { display: flex; align-items: center; gap: 8px; padding: 3px 2px; cursor: pointer; font-size: var(--text-ui); color: var(--text-main); }
+/* Wizard: the found-properties list stays scrollable inside its card, and the
+   match count reads as a quiet note under the source card rather than a box. */
+.base-cfg-wizcols { max-height: 240px; overflow-y: auto; }
+.base-cfg-hint { display: flex; align-items: center; gap: 6px; padding: 0 2px; font-size: var(--text-sm); color: var(--text-muted); }
 .base-cfg-colrow { display: flex; align-items: center; gap: 6px; }
 .base-cfg-badge { font-size: var(--text-xs); color: var(--accent-color); background: var(--bg-hover); padding: 1px 5px; border-radius: var(--radius-xs); margin-left: auto; flex-shrink: 0; }
 .base-cfg-iconbtn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; flex-shrink: 0; }

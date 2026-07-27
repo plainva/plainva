@@ -454,7 +454,20 @@ class MobileSidebandRunner implements SettingsSyncRunner {
     // report 2026-07-26). It also means unlocking the passphrase or flipping
     // the switch takes effect on the next cycle instead of needing a restart.
     const profile = await this.steps.profile(vault);
-    await profile?.run(target, vault);
+    if (profile) {
+      try {
+        await profile.run(target, vault);
+      } catch (error) {
+        // Rethrown, so the cycle behaves as before — but not in silence: the
+        // worker only console.errors this, and a settings sync that transported
+        // nothing for days looked exactly like a working one.
+        const message = error instanceof Error ? error.message : String(error);
+        if (shouldReportWaitingAccounts(`profile-error:${this.vaultId}`, [message])) {
+          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        }
+        throw error;
+      }
+    }
     // A refused secret must not take the file sync down with it: a binding
     // mismatch is a reason to leave the keychain alone and say so, not to stop
     // syncing notes.
@@ -489,7 +502,15 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
       // A keyfile in the vault means the profile is sealed. Writing a plaintext
       // one beside it would be a second, competing truth — so a locked device
       // waits instead. The chain says so; it must not claim step 1 is running.
-      if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
+      if (!ring && (await raw.exists(KEYFILE_PATH))) {
+        // Said once per session, like on the desktop: the chain shows the state,
+        // but nothing tells a user who is not looking at it why their settings
+        // stopped moving.
+        if (shouldReportWaitingAccounts(`profile-locked:${vaultId}`, ["locked"])) {
+          toast.info(i18n.t("settingsSync.lockedHere"));
+        }
+        return null;
+      }
       return new SettingsSyncStep({
         port: profilePort(vault),
         deviceId: device,

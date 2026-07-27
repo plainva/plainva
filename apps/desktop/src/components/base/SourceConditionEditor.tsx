@@ -42,9 +42,9 @@ export function SourceConditionEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      {conditions.length === 0 && (
-        <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)", fontStyle: "italic" }}>{t("database.noConditions", "Keine Bedingungen")}</div>
-      )}
+      {/* A quiet empty state, not italics: "no conditions yet" is the normal
+          starting point of a new database, not something that went wrong. */}
+      {conditions.length === 0 && <div className="base-cfg-empty">{t("database.noConditions", "Keine Bedingungen")}</div>}
       {conditions.map(({ clause, idx }) => {
         const parsed = parseSourceClause(clause);
         const label = parsed?.type === "tag" ? t("database.tag", "Tag") : t("database.folder", "Ordner");

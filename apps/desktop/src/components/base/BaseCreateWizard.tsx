@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Database, X, Plus, Trash2, Info } from "lucide-react";
+import { Database, Plus, Trash2, Info } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { Select } from "../Select";
 import { SourceConditionEditor } from "./SourceConditionEditor";
 import { buildWizardConfig, collectWizardColumns, type WizardColumn, type WizardNewColumn } from "./createWizardModel";
 import { listVaultFolders } from "../../services/vaultFolders";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { ICON } from "@plainva/ui";
+import { Button, ICON, IconButton, Modal } from "@plainva/ui";
 
 // Creation wizard of a new `.base` (plan W3, P1/P2): step 1 picks the data
 // source (folders/tags, combinable; a brand-new folder starts from zero), step
@@ -90,32 +90,39 @@ export function BaseCreateWizard({
   };
 
   const canCreate = clauses.length > 0;
-  const stepBadge = (n: string) => (
-    <span className="pv-badge pv-badge--accent" style={{ flexShrink: 0 }}>{n}</span>
-  );
 
   return (
-    // NOTE (design sweep 2026-07-19): the overlay/head markup below migrated to
-    // shared tokens, but the outer card keeps its original (legacy) class name
-    // — the wizard e2e ("a brand-new EMPTY folder is pickable…", base.spec.ts
-    // line ~970) locates it via that exact CSS class, and this sweep must not
-    // touch e2e sources.
-    <div className="pv-overlay" onMouseDown={onCancel}>
-      <div className="pv-modal pv-modal--md" data-testid="base-create-wizard" style={{ width: 560 }} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="pv-modal-row">
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-main)" }}>
-            <Database size={ICON.ui} color="var(--accent-color)" />
-            {t("database.wizardTitle", "Neue Datenbank")}: {fileName}
-          </span>
-          <button type="button" className="pv-iconbtn" aria-label={t("common.close", "Schließen")} data-tip={t("common.close", "Schließen")} onClick={onCancel}><X size={ICON.ui} /></button>
-        </div>
-
-        <div className="pv-modal-section">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {stepBadge("1")}
-            <span style={{ fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("database.sourceConfig", "Datenquelle")}</span>
-          </div>
-          <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
+    // The quiet-card grammar of the configuration panel (2026-07-18), not a
+    // hand-rolled dialog: same groups, same cards, same spacing. The wizard used
+    // its own cramped markup, which is what the maintainer kept seeing.
+    <Modal
+      onClose={onCancel}
+      title={`${t("database.wizardTitle", "Neue Datenbank")}: ${fileName}`}
+      icon={<Database size={ICON.ui} color="var(--accent-color)" />}
+      size="md"
+      testId="base-create-wizard"
+      bodyClassName="base-cfg-body"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</Button>
+          <Button
+            variant="primary"
+            disabled={!canCreate}
+            data-tip={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
+            onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
+          >
+            {t("database.wizardCreate", "Datenbank erstellen")}
+          </Button>
+        </>
+      }
+    >
+      <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">1 · {t("database.sourceConfig", "Datenquelle")}</div>
+        <div className="base-cfg-pagedesc">{t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}</div>
+        <div className="base-cfg-card">
+          {/* The editor brings no padding of its own (in the config panel its
+              container supplies it), so it gets a proper card row here. */}
+          <div className="base-cfg-cardrow base-cfg-cardrow--field">
           <SourceConditionEditor
             conditions={clauses.map((clause, idx) => ({ clause, idx }))}
             tags={tags}
@@ -125,44 +132,55 @@ export function BaseCreateWizard({
             onListFolders={listFolders}
             onCreateFolder={createFolder}
           />
-          {matchCount !== null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface-container)", borderRadius: "var(--radius-sm)", padding: "6px 10px", fontSize: "var(--text-ui)", color: "var(--text-main)" }}>
-              <Info size={ICON.ui} color="var(--accent-color)" />
-              {t("database.wizardMatches", { count: matchCount, defaultValue: "{{count}} Notizen entsprechen dieser Quelle" })}
-            </div>
-          )}
-        </div>
-
-        <div className="pv-modal-section" style={{ borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {stepBadge("2")}
-            <span style={{ fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("database.properties", "Eigenschaften")}</span>
           </div>
-          {clauses.length === 0 && <div style={{ fontSize: "var(--text-ui)", color: "var(--text-faint)", fontStyle: "italic" }}>{t("database.wizardNoSource", "Zuerst oben eine Quelle wählen.")}</div>}
-          {clauses.length > 0 && (
-            <>
-              {columns.length > 0 && <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>{t("database.wizardColumnsHint", "In den gefundenen Notizen vorhandene Eigenschaften – als Spalten übernehmen?")}</div>}
-              <div style={{ display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" }}>
-                {columns.map((col) => (
-                  <label key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
-                    <input type="checkbox" className="pv-check" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
-                    {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
-                    <span className="base-cfg-badge" data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
-                  </label>
-                ))}
-                {newColumns.map((col) => (
-                  <div key={col.name} className="base-cfg-check" style={{ borderBottom: "1px solid var(--border-color)", padding: "5px 2px" }}>
-                    <input type="checkbox" className="pv-check" checked readOnly disabled />
-                    {" "}<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{col.name}</span>
-                    <span className="base-cfg-badge">{t("database.newProperty", "Neue Eigenschaft")}</span>
-                    <button onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        </div>
+        {matchCount !== null && (
+          <div className="base-cfg-hint">
+            <Info size={ICON.meta} color="var(--accent-color)" />
+            {t("database.wizardMatches", { count: matchCount, defaultValue: "{{count}} Notizen entsprechen dieser Quelle" })}
+          </div>
+        )}
+      </div>
+
+      <div className="base-cfg-group">
+        <div className="base-cfg-grouplabel">2 · {t("database.properties", "Eigenschaften")}</div>
+        {clauses.length === 0 ? (
+          <div className="base-cfg-card">
+            <div className="base-cfg-cardrow">
+              <span className="base-cfg-empty">{t("database.wizardNoSource", "Zuerst oben eine Quelle wählen.")}</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {columns.length > 0 && (
+              <div className="base-cfg-pagedesc">{t("database.wizardColumnsHint", "In den gefundenen Notizen vorhandene Eigenschaften – als Spalten übernehmen?")}</div>
+            )}
+            <div className="base-cfg-card base-cfg-wizcols">
+              {columns.map((col) => (
+                <label key={col.name} className="base-cfg-cardrow">
+                  <input type="checkbox" className="pv-check" checked={col.selected} onChange={() => setColumns((prev) => prev.map((c) => (c.name === col.name ? { ...c, selected: !c.selected } : c)))} />
+                  <span className="base-cfg-rowlabel">{col.name}</span>
+                  <span className="base-cfg-badge" data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: col.coverage, total: matchCount ?? 0 })}>{col.coverage}/{matchCount ?? 0}</span>
+                </label>
+              ))}
+              {newColumns.map((col) => (
+                <div key={col.name} className="base-cfg-cardrow">
+                  <input type="checkbox" className="pv-check" checked readOnly disabled />
+                  <span className="base-cfg-rowlabel">{col.name}</span>
+                  <span className="base-cfg-badge">{t("database.newProperty", "Neue Eigenschaft")}</span>
+                  <IconButton
+                    label={t("common.delete", "Löschen")}
+                    size="sm"
+                    onClick={() => setNewColumns((prev) => prev.filter((c) => c.name !== col.name))}
+                  >
+                    <Trash2 size={ICON.meta} />
+                  </IconButton>
+                </div>
+              ))}
+              <div className="base-cfg-cardrow">
                 <input
                   type="text"
-                  className="base-cfg-input"
+                  className="pv-field pv-field--compact"
                   style={{ flex: 1, minWidth: 0 }}
                   placeholder={t("database.propertyNamePlaceholder", "Name der Eigenschaft...")}
                   value={newPropName}
@@ -179,25 +197,15 @@ export function BaseCreateWizard({
                     options={baseInputTypeOptions(t)}
                   />
                 </div>
-                <button className="base-cfg-addbtn" onClick={addNewProp} disabled={newPropInvalid} style={{ opacity: newPropInvalid ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}><Plus size={ICON.meta} />{t("database.add", "Hinzufügen")}</button>
+                <Button variant="ghost" size="sm" disabled={newPropInvalid} onClick={addNewProp}>
+                  <Plus size={ICON.meta} />
+                  {t("database.add", "Hinzufügen")}
+                </Button>
               </div>
-            </>
-          )}
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border-color)", paddingTop: "0.85rem" }}>
-          <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</button>
-          <button
-            type="button"
-            className="pv-btn pv-btn--primary pv-btn--sm"
-            onClick={() => onCreate(buildWizardConfig(clauses, columns, newColumns, defaultViewName(t, "table")))}
-            disabled={!canCreate}
-            data-tip={canCreate ? undefined : t("database.wizardSourceHint", "Welche Notizen soll diese Datenbank zeigen? Mindestens ein Ordner oder ein Tag; Kombinationen grenzen weiter ein.")}
-          >
-            {t("database.wizardCreate", "Datenbank erstellen")}
-          </button>
-        </div>
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

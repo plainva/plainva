@@ -1033,9 +1033,9 @@ test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag
   // base-cfg-* rules used to be an inline <style> that only the viewer rendered
   // — so this dialog came up completely unstyled (maintainer report
   // 2026-07-27). Pin that its stylesheet is actually in effect here.
-  const addButton = wizard.locator('.base-cfg-addbtn');
-  await expect(addButton).toBeVisible();
-  expect(await addButton.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  const card = wizard.locator('.base-cfg-card').first();
+  await expect(card).toBeVisible();
+  expect(await card.evaluate((el) => getComputedStyle(el).borderTopWidth)).not.toBe('0px');
 
   await page.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 });
