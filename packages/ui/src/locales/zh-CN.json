@@ -1687,6 +1687,7 @@
     "quote": "引用",
     "code": "代码块",
     "duplicate": "创建副本",
+    "move": "移动",
     "moveUp": "上移",
     "moveDown": "下移",
     "delete": "删除块"

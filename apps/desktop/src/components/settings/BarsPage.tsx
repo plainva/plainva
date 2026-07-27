@@ -7,6 +7,8 @@ import {
   IconButton,
   SettingCard,
   SettingCardNote,
+  createDragAutoScroll,
+  type DragAutoScroll,
   hiddenAreas,
   moveArea,
   setAreaVisible,
@@ -111,6 +113,11 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
   const [overId, setOverId] = useState<string | null>(null);
   const dragRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Built on the first drag, not during render: handing a ref to a function in
+  // the render body is exactly what react-hooks/refs forbids, and a drag that
+  // never happens needs no loop.
+  const autoScrollRef = useRef<DragAutoScroll | null>(null);
+  const autoScroll = () => (autoScrollRef.current ??= createDragAutoScroll(() => rootRef.current));
 
   const rowAt = (clientY: number): string | null => {
     const root = rootRef.current;
@@ -131,10 +138,14 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
   };
   const onDragMove = (e: React.PointerEvent) => {
     if (!dragRef.current) return;
+    // Ten action-rail entries plus three more blocks below reach past the
+    // settings viewport; pointer capture stops it scrolling by itself (§ 9.3).
+    autoScroll().update(e.clientY);
     const target = rowAt(e.clientY);
     if (target) setOverId(target);
   };
   const onDragEnd = (e: React.PointerEvent) => {
+    autoScrollRef.current?.stop();
     const from = dragRef.current;
     dragRef.current = null;
     try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* not supported */ }

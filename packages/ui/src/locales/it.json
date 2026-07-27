@@ -1693,6 +1693,7 @@
     "quote": "Citazione",
     "code": "Blocco di codice",
     "duplicate": "Duplica",
+    "move": "Sposta",
     "moveUp": "Sposta su",
     "moveDown": "Sposta giù",
     "delete": "Elimina blocco"

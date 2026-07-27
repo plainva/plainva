@@ -10,6 +10,7 @@ import {
   sanitizeBarTabCount,
   type TabScreenId,
 } from "../navigation";
+import { createDragAutoScroll, type DragAutoScroll } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 
 /**
@@ -38,6 +39,14 @@ export function NavBarScreen({
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
+  // Eight entries plus stepper and preview do not fit one screen, and pointer
+  // capture keeps the page from scrolling under the finger — without this a
+  // drag from bottom to top is simply not possible in one gesture (§ 9.3).
+  // Built on the first drag, not during render: handing a ref to a function in
+  // the render body is exactly what react-hooks/refs forbids, and a drag that
+  // never happens needs no loop.
+  const autoScrollRef = useRef<DragAutoScroll | null>(null);
+  const autoScroll = () => (autoScrollRef.current ??= createDragAutoScroll(() => listRef.current));
   const [dragId, setDragId] = useState<TabScreenId | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const count = sanitizeBarTabCount(barCount);
@@ -70,10 +79,12 @@ export function NavBarScreen({
 
   const moveDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!dragId) return;
+    autoScroll().update(e.clientY);
     setDropIndex(indexAt(e.clientY));
   };
 
   const endDrag = () => {
+    autoScrollRef.current?.stop();
     if (dragId && dropIndex !== null) {
       const from = order.indexOf(dragId);
       // indexAt counts insertion slots; dropping BELOW the origin shifts by one.
@@ -104,7 +115,7 @@ export function NavBarScreen({
           <span>{t(def.labelKey)}</span>
         </span>
         <button
-          aria-label={t("block.move", { defaultValue: "Verschieben" })}
+          aria-label={t("block.move")}
           className="m-iconbtn m-grip"
           onPointerDown={startDrag(id)}
           onPointerMove={moveDrag}
@@ -163,7 +174,11 @@ export function NavBarScreen({
             return (
               <span className="m-navpreview-tab" key={id}>
                 <Icon size={16} />
-                <span>{t(def.labelKey)}</span>
+                {/* The real bar renders barLabelKey when there is one (App.tsx).
+                    Showing labelKey here made the preview promise "Datenbanken"
+                    where the bar says "DBs" — the very case barLabelKey exists
+                    for (§ 9.1). */}
+                <span>{t(def.barLabelKey ?? def.labelKey)}</span>
               </span>
             );
           })}

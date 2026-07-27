@@ -75,7 +75,7 @@ Pasek akcji zupełnie po lewej, karty lewego panelu, sekcje nad drzewem plików 
 
 **Na miejscu:** naciśnij i przytrzymaj przycisk lub nagłówek sekcji i przeciągnij go w nowe miejsce — zwykłe kliknięcie nadal po prostu go uruchamia, a jeśli podczas przytrzymywania przewijasz, po prostu przewijasz (przeciąganie zostaje anulowane). `Esc` anuluje trwające przeciąganie. **Kliknięcie prawym przyciskiem** oferuje te same akcje bez przytrzymywania: **W górę**, **Ukryj** i **Dostosuj paski…**.
 
-**W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie cztery paski znajdują się jeden pod drugim. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt.
+**W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie cztery paski znajdują się jeden pod drugim. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, strona przewija się razem z tym, dzięki czemu wpis może przejść z samego dołu na sam szczyt w jednym ruchu.
 
 Dwóch rzeczy celowo nie można ukryć: **Pomoc** i **Ustawienia** na dole paska akcji oraz karta **Pliki** lewego panelu. Wszystko inne możesz ukryć; ukryte akcje paska pozostają dostępne z **palety poleceń** (`Ctrl+P`). Sekcje prawego panelu, które nie mają nic do pokazania dla otwartej notatki, w ogóle się nie pojawiają.
 

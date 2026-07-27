@@ -75,7 +75,7 @@ De actiebalk helemaal links, de tabbladen van de linkerzijbalk, de secties boven
 
 **Precies waar ze staan:** **houd** een knop of een sectiekop **ingedrukt** en sleep hem naar zijn nieuwe plek — een gewone klik activeert hem nog gewoon, en als je scrolt terwijl je vasthoudt, scrol je (het slepen wordt geannuleerd). `Esc` breekt een lopende sleepbeweging af. Een **rechtsklik** biedt dezelfde acties zonder vasthouden: **Omhoog**, **Verbergen** en **Balken aanpassen…**.
 
-**Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vier de balken onder elkaar. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld.
+**Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vier de balken onder elkaar. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld. Sleep je naar de boven- of onderrand, dan scrollt de pagina mee, zodat een item ook van helemaal onderaan naar helemaal bovenaan in één beweging kan reizen.
 
 Twee dingen kunnen bewust niet worden verborgen: **Sneltoetsen tonen** en **Instellingen** onderaan de actiebalk, en het tabblad **Bestanden** van de linkerzijbalk. Al het overige mag je verbergen; verborgen acties van de balk blijven bereikbaar via het **opdrachtenpalet** (`Ctrl+P`). Secties van de rechterzijbalk die niets te tonen hebben voor de geopende notitie verschijnen sowieso nooit.
 

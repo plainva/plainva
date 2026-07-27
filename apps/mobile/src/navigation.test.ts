@@ -254,3 +254,17 @@ describe("ensureVisibleTab (plan P5)", () => {
     expect(ensureVisibleTab(state, [])).toBe(state);
   });
 });
+
+describe("bar labels (\u00a7 9.1)", () => {
+  it("keeps a short bar label for every area that declares one", () => {
+    // The bar renders `barLabelKey ?? labelKey`; the settings preview used to
+    // render `labelKey` only, so it promised "Datenbanken" where the bar says
+    // "DBs" \u2014 the exact case barLabelKey was introduced for. Anything that
+    // draws the bar has to read it the same way.
+    const withShort = TAB_POOL.filter((d) => d.barLabelKey);
+    expect(withShort.length).toBeGreaterThan(0);
+    for (const def of withShort) {
+      expect(def.barLabelKey).not.toBe(def.labelKey);
+    }
+  });
+});

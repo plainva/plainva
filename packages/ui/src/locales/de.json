@@ -1690,6 +1690,7 @@
     "quote": "Zitat",
     "code": "Code-Block",
     "duplicate": "Duplizieren",
+    "move": "Verschieben",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
     "delete": "Block löschen"

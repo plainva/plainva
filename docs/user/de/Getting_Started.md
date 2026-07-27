@@ -75,7 +75,7 @@ Die Aktionsleiste ganz links, die Reiter der linken Seitenleiste, die Abschnitte
 
 **Direkt an Ort und Stelle:** **Halte** einen Knopf oder eine Abschnitts-Überschrift gedrückt und ziehe ihn an seine neue Stelle — ein normaler Klick löst weiterhin nur aus, und wer beim Halten scrollt, scrollt (das Ziehen bricht dann ab). Mit `Esc` brichst Du ein laufendes Ziehen ab. Ein **Rechtsklick** bietet dieselben Aktionen ohne Halten: **Nach oben**, **Ausblenden** und **Leisten anpassen…**.
 
-**Zentral:** Unter **Einstellungen → Vault → Leisten & Bereiche** liegen alle vier Leisten untereinander. Jede ist **eine** Liste mit einer Trennlinie: Was darüber steht, ist sichtbar; was darunter steht, ist ausgeblendet. Verschoben wird hier mit dem Zieh-Griff — auf dieser Seite wird eine Liste geordnet, deshalb ist der Griff hier richtig.
+**Zentral:** Unter **Einstellungen → Vault → Leisten & Bereiche** liegen alle vier Leisten untereinander. Jede ist **eine** Liste mit einer Trennlinie: Was darüber steht, ist sichtbar; was darunter steht, ist ausgeblendet. Verschoben wird hier mit dem Zieh-Griff — auf dieser Seite wird eine Liste geordnet, deshalb ist der Griff hier richtig. Ziehst Du an den oberen oder unteren Rand, scrollt die Seite mit, sodass ein Eintrag auch von ganz unten nach ganz oben in einer Bewegung wandert.
 
 Zwei Dinge lassen sich bewusst nicht ausblenden: **Hilfe** und **Einstellungen** ganz unten in der Aktionsleiste, und der Reiter **Dateien** der linken Seitenleiste. Alles andere darfst Du ausblenden; ausgeblendete Aktionen der Aktionsleiste bleiben über die **Befehls-Palette** (`Strg+P`) erreichbar. Abschnitte der rechten Seitenleiste, die zur geöffneten Notiz nichts zu zeigen haben, erscheinen ohnehin gar nicht erst.
 

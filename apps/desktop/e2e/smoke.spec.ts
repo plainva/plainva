@@ -1409,6 +1409,36 @@ test('Bars & areas: hiding a right-sidebar section from its own header removes i
   await expect(dialog.getByText(/^(Rechte Seitenleiste|Right sidebar)$/)).toBeVisible();
 });
 
+// --- Dragging near an edge scrolls the list along (plan \u00a7 9.3) --------------
+// Pointer capture is what keeps a drag alive outside the row \u2014 and what stops
+// the surface underneath from scrolling. Without this the four bar blocks
+// cannot be crossed in one gesture.
+test('Bars & areas: dragging to the bottom edge scrolls the settings page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(Leisten & Bereiche|Bars & areas)$/ }).click();
+  await expect(dialog.getByRole('heading', { name: /^(Leisten & Bereiche|Bars & areas)$/ })).toBeVisible();
+
+  const scroller = dialog.locator('.pv-setpages').locator('..');
+  const before = await scroller.evaluate((el) => el.scrollTop);
+
+  // Grab the first drag handle and hold the pointer at the page's bottom edge.
+  const handle = dialog.getByRole('button', { name: /Zum Verschieben|Press and hold to move/i }).first();
+  const box = await handle.boundingBox();
+  const view = page.viewportSize()!;
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width / 2, view.height - 12, { steps: 4 });
+  // The loop runs per animation frame; a moment of holding still is the point.
+  await page.waitForTimeout(500);
+  const during = await scroller.evaluate((el) => el.scrollTop);
+  await page.mouse.up();
+
+  expect(during).toBeGreaterThan(before);
+});
+
 test('Cloud accounts derive the pre-existing sync slot; service areas gate on carried services', async ({ page }) => {
   // A vault that was connected to Nextcloud BEFORE the cloud-accounts area
   // existed: only the keychain slot is populated, no registry entry.

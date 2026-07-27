@@ -1690,6 +1690,7 @@
     "quote": "Quote",
     "code": "Code block",
     "duplicate": "Duplicate",
+    "move": "Move",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "delete": "Delete block"
