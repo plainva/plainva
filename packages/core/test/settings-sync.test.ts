@@ -562,6 +562,53 @@ describe("SettingsSyncStep sealed mode", () => {
     expect(vault.files.has(PROFILE_SYNC_PATH)).toBe(false); // and locally
     expect(isSealedBlob(target.remote.get(SETTINGS_ENC_PATH)!)).toBe(true);
   });
+
+  // Device report 2026-07-27: five devices, `settings.enc` and `settings.json`
+  // side by side for two days, the PLAINTEXT one newer. Sealed devices ignored
+  // it, locked devices kept writing it, and neither side ever converged.
+  it("adopts a NEWER plaintext profile, seals it, and only then drops the copy", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    // What this device already knows: the sealed profile, unchanged locally.
+    const sealedDoc = doc(1, "laptop", "2026-07-25T20:59:00Z", { theme: "nord" });
+    target.remote.set(SETTINGS_ENC_PATH, sealBlob(mk(), new TextEncoder().encode(serializeProfile(sealedDoc)), "settings"));
+    vault.bins.set(SETTINGS_ENC_PATH, target.remote.get(SETTINGS_ENC_PATH)!);
+    // What a locked device wrote beside it, later and further along.
+    const plainDoc = doc(2, "desktop-c", "2026-07-25T21:02:00Z", { theme: "solarized" });
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(plainDoc)));
+
+    const store = { values: { theme: "nord" }, applied: [] as Record<string, unknown>[] };
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, profileCrypto });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    // The locked device's state is adopted, not thrown away with its file...
+    expect(store.values).toEqual({ theme: "solarized" });
+    // ...and it reaches the sealed file BEFORE the plaintext copy disappears.
+    const sealedNow = parseProfile(new TextDecoder().decode(openBlob(mk(), target.remote.get(SETTINGS_ENC_PATH)!, "settings")));
+    expect(sealedNow?.values).toEqual({ theme: "solarized" });
+    expect(target.remote.has(PROFILE_SYNC_PATH)).toBe(false);
+  });
+
+  it("clears a stale plaintext copy even when nothing else changed", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const sealedDoc = doc(2, "laptop", "2026-07-26T10:00:00Z", { theme: "nord" });
+    target.remote.set(SETTINGS_ENC_PATH, sealBlob(mk(), new TextEncoder().encode(serializeProfile(sealedDoc)), "settings"));
+    vault.bins.set(SETTINGS_ENC_PATH, target.remote.get(SETTINGS_ENC_PATH)!);
+    // An older leftover: outranked, so it must go without touching the sealed one.
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(doc(0, "desktop-c", "2026-07-20T08:00:00Z", { theme: "light" }))));
+
+    const store = { values: { theme: "nord" }, applied: [] as Record<string, unknown>[] };
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, profileCrypto });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    // Tying the cleanup to "we uploaded something" is what let the split survive:
+    // two converged files, no upload, no cleanup, forever.
+    expect(target.remote.has(PROFILE_SYNC_PATH)).toBe(false);
+    expect(store.values).toEqual({ theme: "nord" });
+    const sealedNow = parseProfile(new TextDecoder().decode(openBlob(mk(), target.remote.get(SETTINGS_ENC_PATH)!, "settings")));
+    expect(sealedNow?.values).toEqual({ theme: "nord" });
+  });
 });
 
 // --- v3 secrets sideband step ---

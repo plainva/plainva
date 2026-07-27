@@ -39,6 +39,7 @@ import {
   parseBookmarksFile,
   remapCloudRegistry,
   serializeBookmarksFile,
+  shouldReportWaitingAccounts,
   toast,
   validCloudAccount,
   validMailAccount,
@@ -51,7 +52,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
-import { loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
+import { hasLocalKeyfile, loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
 import {
   GUARD_VERSION,
   connectionIdFor,
@@ -571,8 +572,7 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
     private readonly vaultPath: string,
     private readonly connectionId: string | null,
     private readonly keyfileStep: KeyfileSyncStep | null,
-    private readonly profileStep: SettingsSyncStep | null,
-    private readonly secretsStep: SecretsSyncStep | null
+    private readonly steps: DesktopSidebandSteps
   ) {}
 
   async guardBeforeCycle(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
@@ -622,19 +622,107 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
 
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     if (this.keyfileStep) await this.keyfileStep.run(target, vault);
-    if (this.profileStep) await this.profileStep.run(target, vault);
+    // Decided PER CYCLE, not once when the vault opened — the same fix the phone
+    // already carries. Unlocking the passphrase, flipping a switch or a keyfile
+    // that only just arrived used to need a restart before they were noticed,
+    // and the crypto choice (sealed vs plaintext) froze for the whole session.
+    const profile = await this.steps.profile(vault);
+    if (profile) {
+      try {
+        await profile.run(target, vault);
+      } catch (error) {
+        // Rethrown, so the cycle behaves exactly as before — but no longer in
+        // silence: the worker only console.errors this, which is why a settings
+        // sync that transported nothing for days looked like a working one.
+        const message = error instanceof Error ? error.message : String(error);
+        if (shouldReportWaitingAccounts(`profile-error:${this.vaultPath}`, [message])) {
+          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        }
+        throw error;
+      }
+    }
     // A refused secret must not take the rest down with it, and it must not be
     // invisible either — the worker only console.errors, so until now a rejected
     // credential import looked exactly like "nothing happens". Mobile has had
     // this toast; the desktop had neither the catch nor the message.
-    if (this.secretsStep) {
+    const secrets = await this.steps.secrets();
+    if (secrets) {
       try {
-        await this.secretsStep.run(target, vault);
+        await secrets.run(target, vault);
       } catch (error) {
         toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
       }
     }
   }
+}
+
+/** Vaults whose "locked, so settings stay put" notice has already been shown. */
+const lockedProfileNotified = new Set<string>();
+
+/** Says once per session why the settings are not moving on this device. */
+function reportProfileLocked(vaultPath: string): void {
+  if (lockedProfileNotified.has(vaultPath)) return;
+  lockedProfileNotified.add(vaultPath);
+  toast.info(i18n.t("settingsSync.lockedHere"));
+}
+
+/** The two optional steps, rebuilt for every cycle (see `run` above). */
+interface DesktopSidebandSteps {
+  profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null>;
+  secrets(): Promise<SecretsSyncStep | null>;
+}
+
+/**
+ * Builds the per-cycle steps for a vault.
+ *
+ * The locked-device guard is the important part: with a keyfile in the vault the
+ * profile is sealed, so a device that cannot seal must NOT write the plaintext
+ * variant beside it. Doing so created two competing files that never saw each
+ * other — the sealed devices ignored the plaintext one, the locked ones ignored
+ * the sealed one, and nothing converged on either side (device report
+ * 2026-07-27, five devices, both files present for two days). The phone has
+ * refused this since 2026-07-26; the desktop did not.
+ */
+function desktopSidebandSteps(vaultPath: string, deviceId: string, context: DesktopProfileContext): DesktopSidebandSteps {
+  return {
+    async profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null> {
+      if (!(await isSettingsSyncEnabled(vaultPath))) return null;
+      const mk = await loadCachedMasterKey(vaultPath);
+      if (!mk && (await hasLocalKeyfile(raw))) {
+        // Say it once per session instead of syncing nothing in silence.
+        reportProfileLocked(vaultPath);
+        return null;
+      }
+      return new SettingsSyncStep({
+        port: createDesktopProfilePort(vaultPath, context),
+        deviceId,
+        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        profileCrypto: mk ? profileCryptoFor(mk) : undefined,
+      });
+    },
+    async secrets(): Promise<SecretsSyncStep | null> {
+      // E2: secrets ride ON the profile. A credential can only be placed on an
+      // account this device knows, and the accounts arrive with the profile —
+      // running without it produced a toast every cycle asking for something
+      // that was already switched on.
+      if (!(await isSettingsSyncEnabled(vaultPath))) return null;
+      if (!(await isSecretsSyncEnabled(vaultPath))) return null;
+      const mk = await loadCachedMasterKey(vaultPath);
+      if (!mk || !context.pimRuntime) return null;
+      return new SecretsSyncStep({
+        port: createDesktopSecretsPort(vaultPath, context.pimRuntime),
+        masterKey: mk,
+        // Not an error: the account simply has not arrived here yet. Reported
+        // once per changed set — it used to fire on every cycle (~30s), because
+        // a skipped entry never changes the local view that triggers it.
+        onUnknownAccounts: (ids) => {
+          if (shouldReportWaitingAccounts(vaultPath, ids)) {
+            toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
+          }
+        },
+      });
+    },
+  };
 }
 
 /**
@@ -663,26 +751,6 @@ export async function buildSettingsSyncStep(vaultPath: string, context: DesktopP
         },
       })
     : null;
-  // Sync the profile only when opted in; sealed once a master key exists (E3).
-  const profileStep = profileOn
-    ? new SettingsSyncStep({
-        port: createDesktopProfilePort(vaultPath, context),
-        deviceId,
-        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
-        profileCrypto: mk ? profileCryptoFor(mk) : undefined,
-      })
-    : null;
 
-  const secretsStep = secretsOn && mk && context.pimRuntime
-    ? new SecretsSyncStep({
-        port: createDesktopSecretsPort(vaultPath, context.pimRuntime),
-        masterKey: mk,
-        // Not an error: the account simply has not arrived here yet. Say so once
-        // rather than staying silent — it is the difference between "still
-        // syncing" and "broken", and the user cannot tell them apart otherwise.
-        onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
-      })
-    : null;
-
-  return new DesktopSidebandRunner(vaultPath, connectionId, keyfileStep, profileStep, secretsStep);
+  return new DesktopSidebandRunner(vaultPath, connectionId, keyfileStep, desktopSidebandSteps(vaultPath, deviceId, context));
 }

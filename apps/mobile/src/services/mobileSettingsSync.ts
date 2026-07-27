@@ -30,6 +30,7 @@ import {
   getPlatformServices,
   importAccountMetadata,
   remapCloudRegistry,
+  shouldReportWaitingAccounts,
   toast,
   validCloudAccount,
   type AccountImportPorts,
@@ -499,12 +500,23 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
       });
     },
     async secrets(): Promise<SecretsSyncStep | null> {
+      // E2: secrets ride ON the profile. A password can only be placed on an
+      // account this device already knows, and the accounts arrive with the
+      // profile — running without it asked the user, every single cycle, to
+      // switch on something that was either already on or would not have helped.
+      if (!(await isMobileSettingsSyncEnabled(vaultId))) return null;
       const ring = await loadKeyring(vaultId);
       if (!ring || !(await isMobileSecretsSyncEnabled(vaultId))) return null;
       return new SecretsSyncStep({
         port: createMobileSecretsPort(vaultId),
         masterKey: ring.active,
-        onUnknownAccounts: (ids) => toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length })),
+        // Once per CHANGED set, not once per cycle: a skipped entry never
+        // changes the local view that triggers this, so the condition persists.
+        onUnknownAccounts: (ids) => {
+          if (shouldReportWaitingAccounts(vaultId, ids)) {
+            toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
+          }
+        },
       });
     },
   };

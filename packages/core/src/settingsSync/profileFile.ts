@@ -87,6 +87,18 @@ function pickWinner(mine: ProfileDoc, remote: ProfileDoc): "mine" | "remote" | "
   return mine.deviceId >= remote.deviceId ? "mine" : "remote";
 }
 
+/**
+ * Picks the better of two profile documents by the same rule as `pickWinner`.
+ * Used when a vault holds BOTH the sealed and the plaintext variant: whichever
+ * is further along wins, so the state of a device that could not seal (locked,
+ * no passphrase here) is adopted rather than discarded with its file.
+ */
+export function preferNewerProfile(a: ProfileDoc | null, b: ProfileDoc | null): ProfileDoc | null {
+  if (!a) return b;
+  if (!b) return a;
+  return pickWinner(a, b) === "mine" ? a : b;
+}
+
 export interface ReconcileInput {
   /** Live store values (already re-keyed to logical names). */
   current: Record<string, unknown>;

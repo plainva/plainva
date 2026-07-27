@@ -9,7 +9,14 @@
  */
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
-import { PROFILE_SYNC_PATH, parseProfile, reconcileProfile, serializeProfile } from "./profileFile.js";
+import {
+  PROFILE_SYNC_PATH,
+  parseProfile,
+  preferNewerProfile,
+  reconcileProfile,
+  serializeProfile,
+  type ProfileDoc,
+} from "./profileFile.js";
 import { SETTINGS_ENC_PATH } from "./paths.js";
 import { FatalSyncProtocolError } from "./errors.js";
 
@@ -96,10 +103,26 @@ export class SettingsSyncStep {
 
     const remoteBytes = await target.download(path);
     const remoteText = this.readProfileText(remoteBytes);
-    const remote = parseProfile(remoteText);
+    let remote = parseProfile(remoteText);
     if (remoteText && !remote) {
       throw new FatalSyncProtocolError("manifest-invalid", `remote settings profile ${path} is malformed`);
     }
+
+    // A leftover PLAINTEXT profile beside the sealed one is a second, competing
+    // truth: a device that cannot seal (locked, no passphrase here) keeps writing
+    // it, while a sealed device never reads it. Reported 2026-07-27 with both
+    // files sitting side by side for two days — the PLAINTEXT one newer.
+    //
+    // So it is read as a candidate rather than ignored (deleting it unread would
+    // discard whatever that device wrote), and removed further down once its
+    // content is safely inside the sealed file.
+    let stalePlaintext: ProfileDoc | null = null;
+    if (sealed) {
+      const legacyBytes = await target.download(PROFILE_SYNC_PATH);
+      stalePlaintext = parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null);
+      if (stalePlaintext) remote = preferNewerProfile(remote, stalePlaintext);
+    }
+    const plaintextWon = !!stalePlaintext && remote === stalePlaintext;
 
     const decision = reconcileProfile({
       current,
@@ -115,19 +138,24 @@ export class SettingsSyncStep {
       if (sealed) await vault.writeBinaryFile(path, this.encodeProfile(text));
       else await vault.writeTextFile(path, text);
     }
-    if (decision.upload) {
+    // An adopted plaintext state must reach the SEALED file before the plaintext
+    // copy is removed below — otherwise deleting it would drop the newer state.
+    const upload = decision.upload ?? (plaintextWon ? (decision.writeLocal ?? remote ?? undefined) : undefined);
+    if (upload) {
       await target.push({
         id: 0,
         file_path: path,
         operation: "write",
-        content: this.encodeProfile(serializeProfile(decision.upload)),
+        content: this.encodeProfile(serializeProfile(upload)),
         retry_count: 0,
         next_retry_at: 0,
         queued_at: 0,
       });
-      // One-time cleanup of the stale plaintext variant once we go sealed (E3).
-      if (sealed) await this.dropStalePlaintext(target, vault);
     }
+    // Cleanup runs whenever a plaintext copy is present — not only on an upload
+    // cycle. Tying it to `decision.upload` meant a converged pair of files was
+    // never cleaned up, which is exactly how the split survived for days.
+    if (sealed && stalePlaintext) await this.dropStalePlaintext(target, vault);
     if (decision.adoptedFrom) this.options.onAdopted?.(decision.adoptedFrom);
   }
 

@@ -205,6 +205,30 @@ export function remapCloudRegistry(
   }));
 }
 
+/**
+ * Per-vault memory of the "waiting for its account" set, so the notice appears
+ * once per CHANGED set instead of once per sync cycle.
+ *
+ * The condition behind it does not clear itself: an entry whose account is
+ * unknown here is skipped, never stored, so the next cycle sees exactly the same
+ * situation and would report it again — every ~30 seconds, on both shells
+ * (device report 2026-07-27).
+ */
+const reportedWaitingAccounts = new Map<string, string>();
+
+/** True when this set of waiting account ids has not been reported yet. */
+export function shouldReportWaitingAccounts(vaultKey: string, ids: readonly string[]): boolean {
+  const fingerprint = [...ids].sort().join(" ");
+  if (reportedWaitingAccounts.get(vaultKey) === fingerprint) return false;
+  reportedWaitingAccounts.set(vaultKey, fingerprint);
+  return true;
+}
+
+/** Forgets the notice state (the accounts arrived, or the vault was closed). */
+export function clearWaitingAccountsNotice(vaultKey: string): void {
+  reportedWaitingAccounts.delete(vaultKey);
+}
+
 /** The reverse of remapCloudRegistry, for export (local ids → shared ids). */
 export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): CloudAccountRecord[] {
   return records.map((record) => ({
