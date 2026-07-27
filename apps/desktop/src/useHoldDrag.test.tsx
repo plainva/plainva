@@ -23,7 +23,7 @@ const calls = {
 };
 
 function Harness({ holdMs = 400 }: { holdMs?: number }) {
-  const { dragId, handlers } = useHoldDrag({
+  const { dragId, handlers, consumeDragClick } = useHoldDrag({
     holdMs,
     slopPx: 8,
     onMove: (id) => calls.move.push(id),
@@ -34,10 +34,13 @@ function Harness({ holdMs = 400 }: { holdMs?: number }) {
       type="button"
       data-testid="row"
       data-dragging={dragId === "a" ? "yes" : "no"}
+      {...handlers("a")}
       onClick={() => {
+        // Every real surface asks this first: React does not let a capture
+        // handler suppress onClick on the SAME element.
+        if (consumeDragClick()) return;
         calls.click += 1;
       }}
-      {...handlers("a")}
     >
       Row A
     </button>
@@ -192,5 +195,42 @@ describe("useHoldDrag", () => {
     fire(row(), "pointerdown");
     tick(350);
     expect(row().dataset.dragging).toBe("yes");
+  });
+
+  it("the click that follows a drag does not also run the action", () => {
+    // The drag state is cleared on pointerup, which happens BEFORE the browser
+    // dispatches click — so the guard has to outlive the drag itself. Without
+    // that, every reorder would also toggle the section it just moved.
+    render(<Harness />);
+    fire(row(), "pointerdown");
+    tick(400);
+    fire(row(), "pointermove", { clientY: 40 });
+    fire(row(), "pointerup");
+    fire(row(), "click");
+    expect(calls.drop).toEqual(["a"]);
+    expect(calls.click).toBe(0);
+  });
+
+  it("a plain press still clicks", () => {
+    render(<Harness />);
+    fire(row(), "pointerdown");
+    tick(100);
+    fire(row(), "pointerup");
+    fire(row(), "click");
+    expect(calls.click).toBe(1);
+  });
+
+  it("a click after a drag and a fresh press counts again", () => {
+    render(<Harness />);
+    fire(row(), "pointerdown");
+    tick(400);
+    fire(row(), "pointerup");
+    fire(row(), "click");
+    expect(calls.click).toBe(0);
+    fire(row(), "pointerdown");
+    tick(50);
+    fire(row(), "pointerup");
+    fire(row(), "click");
+    expect(calls.click).toBe(1);
   });
 });

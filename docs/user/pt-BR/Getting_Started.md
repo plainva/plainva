@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-07-26
+Última revisão: 2026-07-27
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -68,9 +68,17 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 - **Fixar aba** mantém uma aba no lugar: ela vai para o início da barra, mostra um alfinete em vez do X de fechar e sobrevive a qualquer **Fechar as outras abas** / **Fechar abas à esquerda** / **Fechar abas à direita** / **Fechar todas as abas**. Para fechá-la, primeiro **Desafixar aba**.
 - **Recarregar** descarta a visualização e relê o arquivo do disco — útil quando outro programa o alterou. Se a aba tiver alterações não salvas, o Plainva se recusa a recarregar em vez de sobrescrever seu trabalho.
 
-## Organizando a barra de ações
+## Barras e áreas
 
-A barra estreita à extrema esquerda é sua para organizar: **arraste um botão** até seu novo lugar (depois de mantê-lo pressionado por um instante, para que um clique simples continue apenas acionando-o). O grupo de cima (ações) e o de baixo (atalhos, configurações) permanecem separados — a reorganização acontece dentro de cada grupo. O Plainva lembra a ordem; nada fica escondido, então nenhuma função pode se tornar impossível de encontrar. `Esc` cancela um arraste em andamento.
+A barra de ações na extrema esquerda, as abas da barra lateral esquerda, as seções acima da árvore de arquivos e as seções da barra lateral direita funcionam todas da mesma forma.
+
+**Bem onde estão:** **pressione e segure** um botão ou o título de uma seção e arraste-o até o novo lugar — um clique simples continua apenas acionando-o, e se você rolar a tela enquanto segura, a rolagem acontece normalmente (o arraste é cancelado). `Esc` cancela um arraste em andamento. Um **clique com o botão direito** oferece as mesmas ações sem precisar segurar: **Mover para cima**, **Ocultar** e **Personalizar barras…**.
+
+**Em um só lugar:** em **Configurações → Vault → Barras e áreas**, as quatro barras ficam uma abaixo da outra. Cada uma é **uma** lista com uma linha divisória: tudo acima dela está visível, tudo abaixo está oculto. Aqui você move os itens pela alça de arraste — nesta página você está organizando uma lista, que é exatamente para isso que uma alça serve.
+
+Duas coisas propositalmente não podem ser ocultadas: **Ajuda** e **Configurações**, na parte inferior da barra de ações, e a aba **Arquivos** da barra lateral esquerda. Tudo o mais é seu para ocultar; as ações ocultas da barra continuam acessíveis pela **paleta de comandos** (`Ctrl+P`). Seções da barra lateral direita que não têm nada a mostrar para a nota aberta nunca chegam a aparecer.
+
+A organização pertence ao vault e viaja para seus outros dispositivos (veja [Configurar Sincronização](Sync_Setup.md)). Um vault que você não adaptou segue o seu **padrão** — defina-o com **Salvar como padrão**, e **Restaurar o padrão** devolve a ele um vault adaptado.
 
 ## Personalizando a interface
 

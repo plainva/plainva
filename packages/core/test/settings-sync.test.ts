@@ -109,7 +109,11 @@ describe("reconcileProfile", () => {
     const remote = doc(7, "phone", "new", { theme: "light" });
     const d = reconcileProfile({ current: { theme: "dark" }, local, remote, deviceId: "laptop", now });
     expect(d.applyToStore).toEqual({ theme: "light" });
-    expect(d.writeLocal).toEqual(remote);
+    // The local file is rewritten with the remote's CONTENT; since the bars
+    // plan it carries per-field history, so it is no longer byte-identical to
+    // the (version 1) remote document.
+    expect(d.writeLocal?.values).toEqual({ theme: "light" });
+    expect(d.writeLocal?.rev).toBe(7);
     expect(d.upload).toBeUndefined();
   });
 
@@ -245,6 +249,156 @@ describe("SettingsSyncStep.run", () => {
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.applied).toHaveLength(0);
     expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.rev).toBe(1);
+  });
+});
+
+// --- bars plan P6: per-field merge + member partition -----------------------
+
+describe("reconcileProfile field merge", () => {
+  const now = "2026-07-27T12:00:00Z";
+
+  it("two devices that change DIFFERENT fields both keep their change", () => {
+    // The failure this exists for: whole-document LWW let the later writer
+    // replace fields it had never touched.
+    const base = doc(1, "laptop", "2026-07-27T10:00:00Z", { theme: "dark", folder: "Daily" });
+    // The phone changed only the folder and uploaded.
+    const phone = reconcileProfile({
+      current: { theme: "dark", folder: "Journal" },
+      local: base,
+      remote: base,
+      deviceId: "phone",
+      now: "2026-07-27T11:00:00Z",
+    });
+    expect(phone.upload?.values).toEqual({ theme: "dark", folder: "Journal" });
+
+    // The laptop meanwhile changed only the theme and now sees that document.
+    const laptop = reconcileProfile({
+      current: { theme: "light", folder: "Daily" },
+      local: base,
+      remote: phone.upload!,
+      deviceId: "laptop",
+      now,
+    });
+    expect(laptop.applyToStore).toEqual({ theme: "light", folder: "Journal" });
+    expect(laptop.upload?.values).toEqual({ theme: "light", folder: "Journal" });
+  });
+
+  it("a removed setting travels as a tombstone rather than being resurrected", () => {
+    const base = doc(1, "laptop", "2026-07-27T10:00:00Z", { theme: "dark", folder: "Daily" });
+    const removed = reconcileProfile({
+      current: { folder: "Daily" },
+      local: base,
+      remote: base,
+      deviceId: "laptop",
+      now,
+    });
+    expect(removed.upload?.values).toEqual({ folder: "Daily" });
+    expect(removed.upload?.entries?.theme?.deleted).toBe(true);
+
+    // The other device still HAS the value and must drop it, not push it back.
+    const other = reconcileProfile({
+      current: { theme: "dark", folder: "Daily" },
+      local: base,
+      remote: removed.upload!,
+      deviceId: "phone",
+      now: "2026-07-27T13:00:00Z",
+    });
+    expect(other.applyToStore).toEqual({ folder: "Daily" });
+  });
+
+  it("reads a version-1 document as one generation (no migration step)", () => {
+    const v1 = doc(4, "laptop", "2026-07-27T10:00:00Z", { theme: "dark" });
+    const d = reconcileProfile({ current: { theme: "dark" }, local: v1, remote: null, deviceId: "laptop", now });
+    expect(d.upload?.entries?.theme).toEqual({ value: "dark", rev: 4, updatedAt: "2026-07-27T10:00:00Z", deviceId: "laptop" });
+  });
+
+  it("keeps the values map for a version-1 reader", () => {
+    const d = reconcileProfile({ current: { theme: "dark" }, local: null, remote: null, deviceId: "laptop", now });
+    expect(d.upload?.version).toBe(2);
+    expect(d.upload?.values).toEqual({ theme: "dark" });
+  });
+});
+
+describe("SettingsSyncStep member partition", () => {
+  const dev = { deviceId: "laptop", now: () => "2026-07-27T12:00:00Z" };
+  const memberPath = (id: string) => `.plainva/sync/members/${id}/settings.json`;
+  const isMemberField = (logical: string) => logical.startsWith("my");
+
+  it("without a member id everything stays in the shared file", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    const store = { values: { folder: "Daily", myBars: ["a"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(store), ...dev, isMemberField })
+      .run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(PROFILE_SYNC_PATH)!))?.values)
+      .toEqual({ folder: "Daily", myBars: ["a"] });
+    expect(target.remote.has(memberPath("m1"))).toBe(false);
+  });
+
+  it("splits personal fields into the own file of the member", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    const store = { values: { folder: "Daily", myBars: ["a"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(store), ...dev, memberId: "m1", isMemberField })
+      .run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(PROFILE_SYNC_PATH)!))?.values).toEqual({ folder: "Daily" });
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(memberPath("m1"))!))?.values).toEqual({ myBars: ["a"] });
+  });
+
+  it("a second member never overwrites the personal settings of the first", async () => {
+    const target = new FakeTarget();
+    // Member 1 publishes.
+    const v1 = new FakeVault();
+    const s1 = { values: { folder: "Daily", myBars: ["a"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(s1), ...dev, memberId: "m1", isMemberField })
+      .run(target as unknown as ISyncTarget, v1 as unknown as IVaultAdapter);
+
+    // Member 2 arrives with an arrangement of its own in the same vault.
+    const v2 = new FakeVault();
+    const s2 = { values: { folder: "Daily", myBars: ["z"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(s2), deviceId: "desk", now: dev.now, memberId: "m2", isMemberField })
+      .run(target as unknown as ISyncTarget, v2 as unknown as IVaultAdapter);
+
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(memberPath("m1"))!))?.values).toEqual({ myBars: ["a"] });
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(memberPath("m2"))!))?.values).toEqual({ myBars: ["z"] });
+    // Member 1 syncs again and keeps its own bars — the reported failure.
+    await new SettingsSyncStep({ port: makePort(s1), ...dev, memberId: "m1", isMemberField })
+      .run(target as unknown as ISyncTarget, v1 as unknown as IVaultAdapter);
+    expect(s1.values.myBars).toEqual(["a"]);
+  });
+
+  it("the vault-wide fields still reach both members", async () => {
+    const target = new FakeTarget();
+    const v1 = new FakeVault();
+    const s1 = { values: { folder: "Journal", myBars: ["a"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(s1), ...dev, memberId: "m1", isMemberField })
+      .run(target as unknown as ISyncTarget, v1 as unknown as IVaultAdapter);
+
+    const v2 = new FakeVault();
+    const s2 = { values: { folder: "Daily", myBars: ["z"] }, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(s2), deviceId: "desk", now: () => "2026-07-27T12:30:00Z", memberId: "m2", isMemberField })
+      .run(target as unknown as ISyncTarget, v2 as unknown as IVaultAdapter);
+    // Fresh participation adopts the shared convention and keeps its own bars.
+    expect(s2.values).toEqual({ folder: "Journal", myBars: ["z"] });
+  });
+
+  it("a shared file written before the split loses its personal fields to the partition", async () => {
+    const target = new FakeTarget();
+    // Legacy state: everything in the shared file.
+    target.remote.set(
+      PROFILE_SYNC_PATH,
+      new TextEncoder().encode(serializeProfile(doc(3, "old", "2026-07-26T10:00:00Z", { folder: "Daily", myBars: ["a"] }))),
+    );
+    const vault = new FakeVault();
+    const store = { values: {}, applied: [] as Record<string, unknown>[] };
+    await new SettingsSyncStep({ port: makePort(store), ...dev, memberId: "m1", isMemberField })
+      .run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    // The vault convention arrives; the personal field is NOT read from the
+    // shared file (it belongs to whoever wrote it) and the shared file sheds it.
+    expect(store.values).toEqual({ folder: "Daily" });
+    expect(parseProfile(new TextDecoder().decode(target.remote.get(PROFILE_SYNC_PATH)!))?.values).toEqual({ folder: "Daily" });
   });
 });
 

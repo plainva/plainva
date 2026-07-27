@@ -62,6 +62,15 @@ export function useHoldDrag(options: HoldDragOptions) {
   const pendingRef = useRef<{ id: string; target: HTMLElement } | null>(null);
   const armedRef = useRef(false);
   const scrollTimerRef = useRef<number | null>(null);
+  /**
+   * Survives the drag so the click that follows it can be recognised. It has to
+   * outlive `finish()`, because `pointerup` clears the drag state BEFORE the
+   * browser dispatches `click` — checking `armedRef` there would always read
+   * false and the button would fire its action after every drag. Cleared on the
+   * next press, never by a reader, so both the capture guard and an explicit
+   * `consumeDragClick()` in the component see the same truth.
+   */
+  const justDraggedRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -84,6 +93,7 @@ export function useHoldDrag(options: HoldDragOptions) {
       stopAutoScroll();
       pendingRef.current = null;
       originRef.current = null;
+      if (armedRef.current) justDraggedRef.current = true;
       armedRef.current = false;
       dragRef.current = null;
       setDragId(null);
@@ -135,6 +145,7 @@ export function useHoldDrag(options: HoldDragOptions) {
   const onPointerDown = useCallback(
     (id: string) => (e: React.PointerEvent) => {
       if (!enabled || e.button !== 0) return;
+      justDraggedRef.current = false;
       const target = e.currentTarget as HTMLElement;
       pendingRef.current = { id, target };
       originRef.current = { x: e.clientX, y: e.clientY };
@@ -205,13 +216,20 @@ export function useHoldDrag(options: HoldDragOptions) {
     finish("cancel");
   }, [clearTimer, finish]);
 
-  /** A drag must not also read as a click on the element underneath. */
+  /**
+   * A drag must not also read as a click on whatever sits inside the element.
+   * React does NOT let a capture handler suppress `onClick` on the SAME node,
+   * so the element's own handler additionally asks `consumeDragClick()`.
+   */
   const onClickCapture = useCallback((e: React.MouseEvent) => {
-    if (dragRef.current || armedRef.current) {
+    if (dragRef.current || armedRef.current || justDraggedRef.current) {
       e.preventDefault();
       e.stopPropagation();
     }
   }, []);
+
+  /** True when the click being handled is the tail of a drag — ignore it. */
+  const consumeDragClick = useCallback(() => justDraggedRef.current, []);
 
   /** Right-clicking mid-hold means "menu", not "drag". */
   const onContextMenu = useCallback(() => {
@@ -233,5 +251,5 @@ export function useHoldDrag(options: HoldDragOptions) {
     [onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onClickCapture, onContextMenu],
   );
 
-  return { dragId, handlers, cancel: () => finish("cancel") };
+  return { dragId, handlers, consumeDragClick, cancel: () => finish("cancel") };
 }

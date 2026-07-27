@@ -50,6 +50,7 @@ import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
+import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
 import { SecuritySharingPage } from "./security/SecuritySharingPage";
 
@@ -839,6 +840,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       extendedDatabases={extendedDatabases}
                       onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
                     />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "bars"}>
+                    <BarsPage isActiveVault={isActiveVault} vaultPath={isActiveVault ? section : null} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "backup"}>
                     <BackupPage

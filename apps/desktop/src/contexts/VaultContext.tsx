@@ -801,7 +801,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                         : s),
                   }));
                 if (currentAbortSignal.aborted) return null;
-                const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
+                const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
@@ -1139,7 +1139,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();

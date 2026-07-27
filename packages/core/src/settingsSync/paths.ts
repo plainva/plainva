@@ -12,6 +12,21 @@
 
 /** Sealed profile (once any master key exists — sealed under K_settings). */
 export const SETTINGS_ENC_PATH = ".plainva/sync/settings.enc";
+
+/**
+ * A member's own partition of the profile (bars plan P6). Personal settings —
+ * how the bars are arranged, which mailbox is selected, backup rules — live
+ * here instead of the shared file, so two people in one encrypted workspace stop
+ * overwriting each other. Vault-wide conventions (daily-note folder, template
+ * folder, task database) stay in the shared file, because they are shared.
+ *
+ * Organisationally separate, deliberately NOT secret from the other members:
+ * everything here is sealed under the same K_settings. Real confidentiality
+ * would have to draw the key from the member's personal group — a separate step
+ * and out of scope here.
+ */
+export const memberProfilePath = (memberId: string, sealed: boolean): string =>
+  `.plainva/sync/members/${memberId}/settings.${sealed ? "enc" : "json"}`;
 /** Sealed account-secrets bundle (K_secrets). */
 export const SECRETS_SYNC_PATH = ".plainva/sync/secrets.enc";
 /** Passphrase-wrapped master key(s). Public, travels with the vault. */

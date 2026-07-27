@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -68,9 +68,17 @@ The **Calendar** on the right is a day overview: **clicking** a date opens the [
 - **Pin** holds a tab in place: it moves to the front of the strip, shows a pin instead of the close cross, and survives every **Close others** / **Close to the left** / **Close to the right** / **Close all**. To close it, **Unpin** first.
 - **Reload** discards the view and reads the file from disk again — handy when another program changed it. If the tab has unsaved edits, Plainva refuses to reload rather than overwrite your work.
 
-## Arranging the action bar
+## Arranging bars & areas
 
-The narrow bar on the far left is yours to sort: **drag a button** to its new place (after a short hold, so a plain click still just triggers it). The top group (actions) and the bottom group (shortcuts, settings) stay separate — sorting happens within a group. Plainva remembers the order; nothing is ever hidden, so no function can become unfindable. `Esc` cancels a drag in progress.
+The action rail on the far left, the tabs of the left sidebar, the sections above the file tree and the sections of the right sidebar all work the same way.
+
+**Right where they are:** **press and hold** a button or a section heading and drag it to its new place — a plain click still just triggers it, and if you scroll while holding, you scroll (the drag is cancelled). `Esc` cancels a drag in progress. A **right-click** offers the same actions without holding: **Move up**, **Hide** and **Customize bars…**.
+
+**In one place:** under **Settings → Vault → Bars & areas** all four bars sit below each other. Each is **one** list with a dividing line: everything above it is visible, everything below is hidden. Here you move entries with the drag handle — on this page a list is being arranged, which is exactly what a handle is for.
+
+Two things deliberately cannot be hidden: **Help** and **Settings** at the bottom of the action rail, and the **Files** tab of the left sidebar. Everything else is yours to hide; hidden rail actions stay reachable from the **command palette** (`Ctrl+P`). Right-sidebar sections with nothing to show for the open note never appear in the first place.
+
+The arrangement belongs to the vault and travels to your other devices through [settings sync](Sync_Setup.md). A vault you have not adapted follows your **default** — set it with **Save as default**, and **Reset to default** returns an adapted vault to it.
 
 ## Customizing the interface
 

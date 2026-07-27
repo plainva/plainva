@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-27
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -68,9 +68,17 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 - **Vastzetten** houdt een tabblad op zijn plek: het verplaatst naar het begin van de balk, toont een pin in plaats van het sluitkruisje en overleeft elke **Andere sluiten** / **Links sluiten** / **Rechts sluiten** / **Alles sluiten**. Om het te sluiten, eerst **Losmaken**.
 - **Vernieuwen** verwerpt de weergave en leest het bestand opnieuw van de schijf — handig wanneer een ander programma het heeft gewijzigd. Heeft het tabblad niet-opgeslagen wijzigingen, dan weigert Plainva te vernieuwen in plaats van je werk te overschrijven.
 
-## De actiebalk aanpassen
+## Balken en gebieden
 
-De smalle balk uiterst links kun je zelf sorteren: **sleep een knop** naar zijn nieuwe plek (na kort vasthouden, zodat een gewone klik nog steeds gewoon activeert). De bovenste groep (acties) en de onderste groep (sneltoetsen, instellingen) blijven daarbij gescheiden — sorteren gebeurt binnen een groep. Plainva onthoudt de volgorde; niets wordt ooit verborgen, zodat geen enkele functie onvindbaar kan worden. `Esc` breekt een lopende sleepbeweging af.
+De actiebalk helemaal links, de tabbladen van de linkerzijbalk, de secties boven de bestandsboom en de secties van de rechterzijbalk werken allemaal op dezelfde manier.
+
+**Precies waar ze staan:** **houd** een knop of een sectiekop **ingedrukt** en sleep hem naar zijn nieuwe plek — een gewone klik activeert hem nog gewoon, en als je scrolt terwijl je vasthoudt, scrol je (het slepen wordt geannuleerd). `Esc` breekt een lopende sleepbeweging af. Een **rechtsklik** biedt dezelfde acties zonder vasthouden: **Omhoog**, **Verbergen** en **Balken aanpassen…**.
+
+**Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vier de balken onder elkaar. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld.
+
+Twee dingen kunnen bewust niet worden verborgen: **Sneltoetsen tonen** en **Instellingen** onderaan de actiebalk, en het tabblad **Bestanden** van de linkerzijbalk. Al het overige mag je verbergen; verborgen acties van de balk blijven bereikbaar via het **opdrachtenpalet** (`Ctrl+P`). Secties van de rechterzijbalk die niets te tonen hebben voor de geopende notitie verschijnen sowieso nooit.
+
+Deze indeling hoort bij de vault en reist mee naar je andere apparaten via [Sync instellen](Sync_Setup.md). Een vault die je niet hebt aangepast, volgt je **standaard** — stel die in met **Als standaard opslaan**, en **Terugzetten op standaard** brengt een aangepaste vault terug naar die standaard.
 
 ## De interface aanpassen
 

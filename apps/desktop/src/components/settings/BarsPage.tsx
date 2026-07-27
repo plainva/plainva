@@ -1,0 +1,281 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { GripVertical, Eye, EyeOff } from "lucide-react";
+import {
+  Button,
+  ICON,
+  IconButton,
+  SettingCard,
+  SettingCardNote,
+  hiddenAreas,
+  moveArea,
+  setAreaVisible,
+  visibleAreas,
+  type AreaOrder,
+} from "@plainva/ui";
+import { AreaHead } from "./AppPages";
+import {
+  BAR_DEFS,
+  barLayoutIsInherited,
+  loadAllBarLayouts,
+  resetBarLayout,
+  saveBarLayout,
+  saveBarLayoutAsDefault,
+  type BarDef,
+  type BarId,
+} from "../../services/barLayout";
+
+/**
+ * "Bars & areas" — the one place where the action rail and both sidebars are
+ * arranged (plan § 2). Each bar is one ordered list with a line: everything
+ * above it is visible, everything below is hidden. That is the mobile model,
+ * and it is why there is no second "visible?" switch to keep in sync.
+ *
+ * Drag HANDLES belong here (plan E10): on this page a list is being ARRANGED,
+ * so a handle is the honest affordance. In the interface itself the element is
+ * pressed and held instead — a handle beside every section header was exactly
+ * the visual noise the maintainer objected to.
+ */
+
+interface RowProps {
+  def: BarDef;
+  layout: AreaOrder;
+  id: string;
+  visible: boolean;
+  pinned: boolean;
+  onMove: (id: string, toIndex: number) => void;
+  onToggle: (id: string, visible: boolean) => void;
+  dragId: string | null;
+  overId: string | null;
+  onDragStart: (id: string, e: React.PointerEvent) => void;
+  onDragMove: (e: React.PointerEvent) => void;
+  onDragEnd: (e: React.PointerEvent) => void;
+  label: string;
+  hint?: string;
+}
+
+const AreaRow: React.FC<RowProps> = ({ id, visible, pinned, onToggle, dragId, overId, onDragStart, onDragMove, onDragEnd, label, hint }) => {
+  const { t } = useTranslation();
+  const isOver = overId === id && dragId !== null && dragId !== id;
+  return (
+    <div
+      data-bar-area={id}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-2)",
+        padding: "var(--space-1) 0",
+        opacity: dragId === id ? 0.6 : undefined,
+        borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent",
+      }}
+    >
+      <span
+        role="button"
+        aria-label={t("bars.reorder", { defaultValue: "Zum Verschieben gedrückt halten" })}
+        data-tip={t("bars.reorder", { defaultValue: "Zum Verschieben gedrückt halten" })}
+        onPointerDown={(e) => { if (e.button === 0) onDragStart(id, e); }}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        style={{ display: "flex", alignItems: "center", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none" }}
+      >
+        <GripVertical size={ICON.ui} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {hint && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{hint}</span>}
+      {!pinned && (
+        <IconButton
+          label={visible ? t("bars.hide", { defaultValue: "Ausblenden" }) : t("bars.show", { defaultValue: "Einblenden" })}
+          onClick={() => onToggle(id, !visible)}
+        >
+          {visible ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
+        </IconButton>
+      )}
+    </div>
+  );
+};
+
+interface BarBlockProps {
+  def: BarDef;
+  layout: AreaOrder;
+  inherited: boolean;
+  vaultPath: string | null;
+  onChange: (bar: BarId, next: AreaOrder) => void;
+  onReset: (bar: BarId) => void;
+  onSaveDefault: (bar: BarId) => void;
+}
+
+const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, onReset, onSaveDefault }) => {
+  const { t } = useTranslation();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const dragRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const rowAt = (clientY: number): string | null => {
+    const root = rootRef.current;
+    if (!root) return null;
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>("[data-bar-area]"))) {
+      const r = el.getBoundingClientRect();
+      if (clientY >= r.top && clientY <= r.bottom) return el.dataset.barArea ?? null;
+    }
+    return null;
+  };
+
+  const onDragStart = (id: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* not supported */ }
+    dragRef.current = id;
+    setDragId(id);
+    setOverId(id);
+  };
+  const onDragMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const target = rowAt(e.clientY);
+    if (target) setOverId(target);
+  };
+  const onDragEnd = (e: React.PointerEvent) => {
+    const from = dragRef.current;
+    dragRef.current = null;
+    try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* not supported */ }
+    const to = rowAt(e.clientY);
+    setDragId(null);
+    setOverId(null);
+    if (!from || !to || from === to) return;
+    const target = layout.order.indexOf(to);
+    if (target >= 0) onChange(def.id, moveArea(layout, from, target, def.spec));
+  };
+
+  const label = (id: string) => {
+    const area = def.areas.find((a) => a.id === id);
+    return area ? t(area.labelKey, { defaultValue: id }) : id;
+  };
+  const pinned = (id: string) => (def.spec.alwaysVisible ?? []).includes(id);
+  const shown = visibleAreas(layout);
+  const hidden = hiddenAreas(layout);
+
+  const rowProps = {
+    def,
+    layout,
+    onMove: () => {},
+    onToggle: (id: string, visible: boolean) => onChange(def.id, setAreaVisible(layout, id, visible, def.spec)),
+    dragId,
+    overId,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+  };
+
+  return (
+    <SettingCard label={t(def.titleKey, { defaultValue: def.id })}>
+      <SettingCardNote>{t(def.descriptionKey, { defaultValue: "" })}</SettingCardNote>
+      <div ref={rootRef}>
+        <div style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", paddingTop: "var(--space-2)" }}>
+          {t("bars.visible", { defaultValue: "Sichtbar" })}
+        </div>
+        {shown.map((id) => (
+          <AreaRow
+            key={id}
+            {...rowProps}
+            id={id}
+            visible
+            pinned={pinned(id)}
+            label={label(id)}
+            hint={pinned(id) ? t("bars.alwaysVisible", { defaultValue: "immer sichtbar" }) : undefined}
+          />
+        ))}
+        <div style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", paddingTop: "var(--space-3)" }}>
+          {t("bars.hidden", { defaultValue: "Ausgeblendet" })}
+        </div>
+        {hidden.length === 0 ? (
+          <SettingCardNote>—</SettingCardNote>
+        ) : (
+          hidden.map((id) => (
+            <AreaRow key={id} {...rowProps} id={id} visible={false} pinned={false} label={label(id)} />
+          ))
+        )}
+        {def.id === "ribbon" && hidden.length > 0 && (
+          <SettingCardNote>{t("bars.hiddenHintRibbon", { defaultValue: "Weiter über die Befehlspalette erreichbar." })}</SettingCardNote>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", paddingTop: "var(--space-3)", flexWrap: "wrap" }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          {inherited
+            ? t("bars.inherited", { defaultValue: "Folgt dem Standard" })
+            : t("bars.ownValue", { defaultValue: "Für diesen Vault angepasst" })}
+        </span>
+        {!inherited && (
+          <Button variant="ghost" onClick={() => onReset(def.id)}>
+            {t("bars.resetDefault", { defaultValue: "Auf Standard zurücksetzen" })}
+          </Button>
+        )}
+        <Button variant="ghost" onClick={() => onSaveDefault(def.id)}>
+          {t("bars.saveAsDefault", { defaultValue: "Als Standard übernehmen" })}
+        </Button>
+      </div>
+    </SettingCard>
+  );
+};
+
+export const BarsPage: React.FC<{ isActiveVault: boolean; vaultPath: string | null }> = ({ isActiveVault, vaultPath }) => {
+  const { t } = useTranslation();
+  const [layouts, setLayouts] = useState<Record<BarId, AreaOrder> | null>(null);
+  const [inherited, setInherited] = useState<Partial<Record<BarId, boolean>>>({});
+
+  const reload = useCallback(async () => {
+    const all = await loadAllBarLayouts(vaultPath);
+    setLayouts(all);
+    const flags: Partial<Record<BarId, boolean>> = {};
+    for (const def of BAR_DEFS) flags[def.id] = await barLayoutIsInherited(def.id, vaultPath);
+    setInherited(flags);
+  }, [vaultPath]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const change = (bar: BarId, next: AreaOrder) => {
+    setLayouts((prev) => (prev ? { ...prev, [bar]: next } : prev));
+    setInherited((prev) => ({ ...prev, [bar]: false }));
+    void saveBarLayout(bar, vaultPath, next);
+  };
+
+  const reset = (bar: BarId) => {
+    void resetBarLayout(bar, vaultPath).then(reload);
+  };
+
+  const saveDefault = (bar: BarId) => {
+    const value = layouts?.[bar];
+    if (value) void saveBarLayoutAsDefault(bar, value);
+  };
+
+  return (
+    <div>
+      <AreaHead areaId="bars" />
+      {!isActiveVault ? (
+        <SettingCard>
+          <SettingCardNote>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</SettingCardNote>
+        </SettingCard>
+      ) : (
+        <>
+          <SettingCard>
+            <SettingCardNote>{t("bars.defaultHint", { defaultValue: "Der Standard gilt in jedem Vault, der nichts Eigenes gesetzt hat." })}</SettingCardNote>
+          </SettingCard>
+          {layouts
+            && BAR_DEFS.map((def) => (
+              <BarBlock
+                key={def.id}
+                def={def}
+                layout={layouts[def.id]}
+                inherited={inherited[def.id] ?? true}
+                vaultPath={vaultPath}
+                onChange={change}
+                onReset={reset}
+                onSaveDefault={saveDefault}
+              />
+            ))}
+        </>
+      )}
+    </div>
+  );
+};

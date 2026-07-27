@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-26
+Stand: 2026-07-27
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -68,9 +68,17 @@ Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum ö
 - **Anheften** hält einen Tab fest: Er rückt an den Anfang der Leiste, zeigt statt des Schließen-Kreuzes eine Nadel und überlebt jedes **Andere schließen** / **Links schließen** / **Rechts schließen** / **Alle schließen**. Zum Schließen erst wieder **Lösen**.
 - **Neu laden** verwirft die Ansicht und liest die Datei frisch von der Platte — nützlich, wenn ein anderes Programm sie geändert hat. Hat der Tab ungespeicherte Änderungen, lehnt Plainva das Neuladen ab, statt Deine Arbeit zu überschreiben.
 
-## Aktionsleiste anpassen
+## Leisten & Bereiche anpassen
 
-Die schmale Leiste ganz links kannst Du selbst sortieren: **Ziehe einen Knopf** an seine neue Stelle (nach kurzem Halten, damit ein normaler Klick weiterhin nur auslöst). Die obere Gruppe (Aktionen) und die untere Gruppe (Tastenkombinationen, Einstellungen) bleiben dabei getrennt — sortiert wird innerhalb einer Gruppe. Die Reihenfolge merkt sich Plainva; ausgeblendet wird nichts, damit keine Funktion unauffindbar wird. Mit `Esc` brichst Du ein laufendes Ziehen ab.
+Die Aktionsleiste ganz links, die Reiter der linken Seitenleiste, die Abschnitte über dem Dateibaum und die Abschnitte der rechten Seitenleiste folgen alle derselben Mechanik.
+
+**Direkt an Ort und Stelle:** **Halte** einen Knopf oder eine Abschnitts-Überschrift gedrückt und ziehe ihn an seine neue Stelle — ein normaler Klick löst weiterhin nur aus, und wer beim Halten scrollt, scrollt (das Ziehen bricht dann ab). Mit `Esc` brichst Du ein laufendes Ziehen ab. Ein **Rechtsklick** bietet dieselben Aktionen ohne Halten: **Nach oben**, **Ausblenden** und **Leisten anpassen…**.
+
+**Zentral:** Unter **Einstellungen → Vault → Leisten & Bereiche** liegen alle vier Leisten untereinander. Jede ist **eine** Liste mit einer Trennlinie: Was darüber steht, ist sichtbar; was darunter steht, ist ausgeblendet. Verschoben wird hier mit dem Zieh-Griff — auf dieser Seite wird eine Liste geordnet, deshalb ist der Griff hier richtig.
+
+Zwei Dinge lassen sich bewusst nicht ausblenden: **Hilfe** und **Einstellungen** ganz unten in der Aktionsleiste, und der Reiter **Dateien** der linken Seitenleiste. Alles andere darfst Du ausblenden; ausgeblendete Aktionen der Aktionsleiste bleiben über die **Befehls-Palette** (`Strg+P`) erreichbar. Abschnitte der rechten Seitenleiste, die zur geöffneten Notiz nichts zu zeigen haben, erscheinen ohnehin gar nicht erst.
+
+Die Anordnung gehört zum Vault und reist über die [Einstellungs-Synchronisation](Sync_Setup.md) zu Deinen anderen Geräten. Ein Vault, in dem Du nichts geändert hast, folgt Deinem **Standard** — den setzt Du mit **Als Standard übernehmen**, und mit **Auf Standard zurücksetzen** kehrt ein angepasster Vault dorthin zurück.
 
 ## Oberfläche anpassen
 

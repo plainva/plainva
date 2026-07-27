@@ -20,6 +20,8 @@ import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
+import { LeftSidebarTabs } from "./components/LeftSidebarTabs";
+import { migrateLegacyBarLayouts } from "./services/barLayout";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
@@ -61,7 +63,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Hash, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
@@ -135,6 +137,12 @@ function App() {
     window.addEventListener("plainva-open-sync-settings", onOpenSyncSettings);
     return () => window.removeEventListener("plainva-open-sync-settings", onOpenSyncSettings);
   }, []);
+  // Arrangements that predate the shared bar model (rail order in the settings
+  // store, sidebar orders in localStorage) become bar layouts on first sight.
+  // Idempotent: it only writes where nothing is stored yet.
+  useEffect(() => {
+    void migrateLegacyBarLayouts(vaultPath);
+  }, [vaultPath]);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
   // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
@@ -1126,30 +1134,11 @@ function App() {
           </div>
         </div>
         {/* View switch (Files / Tags / Databases). Bookmarks and "Recently
-            opened" are collapsible, reorderable sections above the tree
+            opened" are collapsible sections above the tree
             (LeftPinnedSections), so there is no separate Bookmarks tab. The tree
-            collapse/expand-all toggle lives in the file-tree heading below. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px 8px' }}>
-          <div role="tablist" aria-label={t('sidebar.viewSwitch', { defaultValue: 'Ansicht' })} style={{ display: 'flex', gap: 4, flex: 1 }}>
-            {([['files', Folder, t('sidebar.files')], ['tags', Hash, t('sidebar.tags')], ['databases', Database, t('sidebar.databases', { defaultValue: 'Datenbanken' })]] as const).map(([key, Icon, label]) => {
-              const active = leftSidebarTab === key;
-              return (
-                <button
-                  key={key}
-                  role="tab"
-                  aria-selected={active}
-                  aria-label={label}
-                  data-tip={label}
-                  onClick={() => setLeftSidebarTab(key as 'files' | 'tags' | 'databases')}
-                  className="pv-btn pv-btn--ghost"
-                  style={{ flex: 1, height: 34, gap: 7, background: active ? 'var(--accent-container)' : undefined, color: active ? 'var(--on-accent-container)' : undefined }}
-                >
-                  <Icon size={ICON.ui} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            collapse/expand-all toggle lives in the file-tree heading below.
+            Which tabs show and in which order is the shared bar model. */}
+        <LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} />
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>

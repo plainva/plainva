@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-07-26
+Última actualización: 2026-07-27
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -68,9 +68,17 @@ El **Calendario** de la derecha es una vista general por días: **hacer clic** e
 - **Fijar** mantiene una pestaña en su lugar: se mueve al principio de la barra de pestañas, muestra un pin en lugar de la cruz de cierre y sobrevive a cada **Cerrar las demás** / **Cerrar a la izquierda** / **Cerrar a la derecha** / **Cerrar todo**. Para cerrarla, primero elige **Dejar de fijar**.
 - **Recargar** descarta la vista actual y vuelve a leer el archivo desde el disco — útil cuando otro programa lo ha modificado. Si la pestaña tiene cambios sin guardar, Plainva se niega a recargar en lugar de sobrescribir tu trabajo.
 
-## Organizar la barra de acciones
+## Barras y áreas
 
-La barra estrecha del extremo izquierdo la puedes organizar tú mismo: **arrastra un botón** a su nuevo lugar (tras mantenerlo pulsado un momento, para que un simple clic siga solo activándolo). El grupo superior (acciones) y el grupo inferior (atajos, configuración) permanecen separados — el orden se ajusta dentro de cada grupo. Plainva recuerda el orden; nada se oculta nunca, así que ninguna función puede volverse inencontrable. `Esc` cancela un arrastre en curso.
+La barra de acciones del extremo izquierdo, las pestañas de la barra lateral izquierda, las secciones sobre el árbol de archivos y las secciones de la barra lateral derecha funcionan todas de la misma manera.
+
+**Justo donde están:** **mantén pulsado** un botón o un encabezado de sección y arrástralo a su nuevo lugar — un simple clic sigue solo activándolo, y si te desplazas mientras mantienes pulsado, te desplazas (el arrastre se cancela). `Esc` cancela un arrastre en curso. Un **clic derecho** ofrece las mismas acciones sin mantener pulsado: **Subir**, **Ocultar** y **Personalizar barras…**.
+
+**En un solo lugar:** en **Configuración → Vault → Barras y áreas** las cuatro barras están una debajo de otra. Cada una es **una única** lista con una línea divisoria: todo lo que está por encima es visible, todo lo que está por debajo está oculto. Aquí mueves las entradas con el asa de arrastre — en esta página se está organizando una lista, que es exactamente para lo que sirve un asa.
+
+Dos cosas no se pueden ocultar a propósito: **Mostrar atajos de teclado** y **Configuración** en la parte inferior de la barra de acciones, y la pestaña **Archivos** de la barra lateral izquierda. Todo lo demás puedes ocultarlo; las acciones ocultas de la barra siguen siendo accesibles desde la **paleta de comandos** (`Ctrl+P`). Las secciones de la barra lateral derecha que no tienen nada que mostrar para la nota abierta nunca llegan a aparecer.
+
+Esta disposición pertenece al vault y viaja a tus otros dispositivos mediante [Configurar la sincronización](Sync_Setup.md). Un vault que no has adaptado sigue tu **valor predeterminado** — configúralo con **Guardar como predeterminado**, y **Restablecer el valor predeterminado** devuelve un vault adaptado a ese valor.
 
 ## Personalizar la interfaz
 

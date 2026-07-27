@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-07-27
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -68,9 +68,17 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 - **Blocca** tiene ferma una scheda: si sposta all'inizio della barra delle schede, mostra una puntina invece della croce di chiusura e sopravvive a ogni **Chiudi le altre** / **Chiudi a sinistra** / **Chiudi a destra** / **Chiudi tutto**. Per chiuderla, tocca prima **Sblocca**.
 - **Ricarica** scarta la vista attuale e rilegge il file dal disco — utile quando un altro programma lo ha modificato. Se la scheda ha modifiche non salvate, Plainva rifiuta di ricaricare piuttosto che sovrascrivere il tuo lavoro.
 
-## Organizzare la barra delle azioni
+## Barre e aree
 
-La barra stretta all'estrema sinistra puoi ordinarla tu: **trascina un pulsante** nella sua nuova posizione (dopo una breve pressione, così un semplice clic continua solo ad attivarlo). Il gruppo superiore (azioni) e quello inferiore (scorciatoie, impostazioni) restano separati — l'ordinamento avviene all'interno di un gruppo. Plainva ricorda l'ordine; nulla viene mai nascosto, così nessuna funzione può diventare irreperibile. `Esc` annulla un trascinamento in corso.
+La barra delle azioni all'estrema sinistra, le schede della barra laterale sinistra, le sezioni sopra l'albero dei file e le sezioni della barra laterale destra funzionano tutte allo stesso modo.
+
+**Proprio dove si trovano:** **tieni premuto** su un pulsante o su un'intestazione di sezione e trascinalo nella sua nuova posizione — un semplice clic continua solo ad attivarlo, e se scorri mentre tieni premuto, scorri (il trascinamento viene annullato). `Esc` annulla un trascinamento in corso. Un **clic destro** offre le stesse azioni senza tenere premuto: **Sposta in alto**, **Nascondi** e **Personalizza le barre…**.
+
+**In un unico posto:** sotto **Impostazioni → Vault → Barre e aree** tutte e quattro le barre stanno una sotto l'altra. Ognuna è **un'unica** lista con una linea di separazione: tutto ciò che sta sopra è visibile, tutto ciò che sta sotto è nascosto. Qui sposti le voci con la maniglia di trascinamento — in questa pagina si sta ordinando proprio una lista, esattamente ciò a cui serve una maniglia.
+
+Due cose non possono deliberatamente essere nascoste: **Mostra le scorciatoie da tastiera** e **Impostazioni** in fondo alla barra delle azioni, e la scheda **File** della barra laterale sinistra. Tutto il resto puoi nasconderlo a tuo piacimento; le azioni nascoste della barra restano raggiungibili dalla **palette dei comandi** (`Ctrl+P`). Le sezioni della barra laterale destra che non hanno nulla da mostrare per la nota aperta non compaiono mai.
+
+Questa disposizione appartiene al vault e viaggia sui tuoi altri dispositivi tramite [Configurare la sincronizzazione](Sync_Setup.md). Un vault che non hai adattato segue il tuo **valore predefinito** — impostalo con **Salva come predefinito**, e **Ripristina il valore predefinito** riporta a quel valore un vault adattato.
 
 ## Personalizzare l'interfaccia
 

@@ -6,18 +6,25 @@
  * adapter — that would create sync_state rows and `.CONFLICT` copies of the
  * settings file). The shell provides a `ProfileSettingsPort` that maps the
  * logical values to and from its native settings store (re-keying).
+ *
+ * Since the bars plan (P6) the profile can be SPLIT: everything personal goes
+ * into the signed-in member's own partition, everything vault-wide stays in the
+ * shared file. Without a member id — one person, several devices — there is one
+ * file and the behaviour is exactly as before.
  */
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import {
   PROFILE_SYNC_PATH,
+  filterEntries,
+  entriesOf,
   parseProfile,
   preferNewerProfile,
   reconcileProfile,
   serializeProfile,
   type ProfileDoc,
 } from "./profileFile.js";
-import { SETTINGS_ENC_PATH } from "./paths.js";
+import { SETTINGS_ENC_PATH, memberProfilePath } from "./paths.js";
 import { FatalSyncProtocolError } from "./errors.js";
 
 /** Shell-implemented bridge between the profile document and the native store. */
@@ -56,14 +63,42 @@ export interface SettingsSyncStepOptions {
    * truths). Absent = plaintext mode (unchanged P1 behavior).
    */
   profileCrypto?: ProfileCrypto;
+  /**
+   * The signed-in member of an encrypted workspace (bars plan P6). With it,
+   * personal settings move into that member's own partition; without it there
+   * is one shared file, which is right for one person on several devices.
+   */
+  memberId?: string;
+  /**
+   * Which logical fields are personal. Only consulted when a member id exists;
+   * the core deliberately does not know the field names.
+   */
+  isMemberField?: (logical: string) => boolean;
+}
+
+interface PartitionResult {
+  /** The complete desired state of THIS partition after reconciling. */
+  desired: Record<string, unknown>;
+  adoptedFrom?: string;
 }
 
 /** Runs the profile-sync sideband against a target + raw vault adapter. */
 export class SettingsSyncStep {
   constructor(private readonly options: SettingsSyncStepOptions) {}
 
+  private get sealed(): boolean {
+    return !!this.options.profileCrypto;
+  }
+
+  /** The shared file — vault-wide conventions (and everything, without a member). */
   private get path(): string {
-    return this.options.profileCrypto ? SETTINGS_ENC_PATH : PROFILE_SYNC_PATH;
+    return this.sealed ? SETTINGS_ENC_PATH : PROFILE_SYNC_PATH;
+  }
+
+  /** Active only while a member is signed in to an encrypted workspace. */
+  private get memberPath(): string | null {
+    const id = this.options.memberId;
+    return id ? memberProfilePath(id, this.sealed) : null;
   }
 
   private readProfileText(bytes: Uint8Array | null): string | null {
@@ -87,26 +122,87 @@ export class SettingsSyncStep {
   }
 
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
-    const path = this.path;
-    const sealed = !!this.options.profileCrypto;
+    const memberPath = this.memberPath;
+    const isMember = this.options.isMemberField ?? (() => false);
     const current = await this.options.port.exportValues();
+
+    // Without a member partition every field belongs to the shared file, which
+    // is the single-person case and byte-for-byte the previous behaviour.
+    const belongsToMember = memberPath ? isMember : () => false;
+    const sharedValues: Record<string, unknown> = {};
+    const memberValues: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(current)) {
+      if (belongsToMember(key)) memberValues[key] = value;
+      else sharedValues[key] = value;
+    }
+
+    const results: PartitionResult[] = [];
+    results.push(
+      await this.runPartition(target, vault, this.path, sharedValues, {
+        // A shared file written before the split still carries personal fields.
+        // They are filtered out rather than tombstoned: a tombstone would tell
+        // the OTHER members to drop their own value, and the field has simply
+        // moved house.
+        keep: (logical) => !belongsToMember(logical),
+        cleanupPlaintext: true,
+      }),
+    );
+    if (memberPath) {
+      results.push(
+        await this.runPartition(target, vault, memberPath, memberValues, {
+          keep: belongsToMember,
+          cleanupPlaintext: false,
+        }),
+      );
+    }
+
+    // ONE apply call for both partitions. An absent key means "reset to the
+    // default", so each partition reports its COMPLETE desired state and the
+    // union is what the store should hold — applying them one after the other
+    // would have each partition wipe the other's settings.
+    const desired: Record<string, unknown> = {};
+    for (const r of results) Object.assign(desired, r.desired);
+    const changed =
+      Object.keys(desired).length !== Object.keys(current).length
+      || Object.keys(desired).some((k) => !(k in current) || JSON.stringify(desired[k]) !== JSON.stringify(current[k]));
+    if (changed) await this.options.port.applyValues(desired);
+
+    const adopted = results.find((r) => r.adoptedFrom);
+    if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom);
+  }
+
+  /** One document: read local + remote, reconcile, write back. */
+  private async runPartition(
+    target: ISyncTarget,
+    vault: IVaultAdapter,
+    path: string,
+    current: Record<string, unknown>,
+    opts: { keep: (logical: string) => boolean; cleanupPlaintext: boolean },
+  ): Promise<PartitionResult> {
+    const sealed = this.sealed;
 
     // Local copy: sealed mode reads the ciphertext bytes; plaintext mode reads text.
     let localText: string | null = null;
     if (await vault.exists(path)) {
       localText = sealed ? this.readProfileText(await vault.readBinaryFile(path)) : await vault.readTextFile(path);
     }
-    const local = parseProfile(localText);
+    const local = this.scoped(parseProfile(localText), opts.keep);
     if (localText && !local) {
       throw new FatalSyncProtocolError("manifest-invalid", `local settings profile ${path} is malformed`);
     }
 
     const remoteBytes = await target.download(path);
     const remoteText = this.readProfileText(remoteBytes);
-    let remote = parseProfile(remoteText);
-    if (remoteText && !remote) {
+    const parsedRemote = parseProfile(remoteText);
+    if (remoteText && !parsedRemote) {
       throw new FatalSyncProtocolError("manifest-invalid", `remote settings profile ${path} is malformed`);
     }
+    let remote = this.scoped(parsedRemote, opts.keep);
+    // A file written before the split still lists fields that now live in the
+    // other partition. They are ignored above; here we note it so the file is
+    // rewritten without them — otherwise one member's personal settings would
+    // sit in the shared file forever, readable and misleading.
+    const remoteCarriesForeignFields = !!parsedRemote && remote !== parsedRemote;
 
     // A leftover PLAINTEXT profile beside the sealed one is a second, competing
     // truth: a device that cannot seal (locked, no passphrase here) keeps writing
@@ -117,9 +213,9 @@ export class SettingsSyncStep {
     // discard whatever that device wrote), and removed further down once its
     // content is safely inside the sealed file.
     let stalePlaintext: ProfileDoc | null = null;
-    if (sealed) {
+    if (sealed && opts.cleanupPlaintext) {
       const legacyBytes = await target.download(PROFILE_SYNC_PATH);
-      stalePlaintext = parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null);
+      stalePlaintext = this.scoped(parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null), opts.keep);
       if (stalePlaintext) remote = preferNewerProfile(remote, stalePlaintext);
     }
     const plaintextWon = !!stalePlaintext && remote === stalePlaintext;
@@ -132,7 +228,6 @@ export class SettingsSyncStep {
       now: (this.options.now ?? (() => new Date().toISOString()))(),
     });
 
-    if (decision.applyToStore) await this.options.port.applyValues(decision.applyToStore);
     if (decision.writeLocal) {
       const text = serializeProfile(decision.writeLocal);
       if (sealed) await vault.writeBinaryFile(path, this.encodeProfile(text));
@@ -140,7 +235,9 @@ export class SettingsSyncStep {
     }
     // An adopted plaintext state must reach the SEALED file before the plaintext
     // copy is removed below — otherwise deleting it would drop the newer state.
-    const upload = decision.upload ?? (plaintextWon ? (decision.writeLocal ?? remote ?? undefined) : undefined);
+    const upload =
+      decision.upload
+      ?? ((plaintextWon || remoteCarriesForeignFields) ? (decision.writeLocal ?? remote ?? undefined) : undefined);
     if (upload) {
       await target.push({
         id: 0,
@@ -155,8 +252,22 @@ export class SettingsSyncStep {
     // Cleanup runs whenever a plaintext copy is present — not only on an upload
     // cycle. Tying it to `decision.upload` meant a converged pair of files was
     // never cleaned up, which is exactly how the split survived for days.
-    if (sealed && stalePlaintext) await this.dropStalePlaintext(target, vault);
-    if (decision.adoptedFrom) this.options.onAdopted?.(decision.adoptedFrom);
+    if (sealed && opts.cleanupPlaintext && stalePlaintext) await this.dropStalePlaintext(target, vault);
+    return { desired: decision.applyToStore ?? current, adoptedFrom: decision.adoptedFrom };
+  }
+
+  /**
+   * Narrows a document to the fields this partition owns. A shared file written
+   * before the split still lists personal fields; ignoring them here is what
+   * lets them move into the member partition without a migration pass.
+   */
+  private scoped(doc: ProfileDoc | null, keep: (logical: string) => boolean): ProfileDoc | null {
+    if (!doc) return null;
+    const entries = filterEntries(entriesOf(doc), keep);
+    if (Object.keys(entries).length === Object.keys(entriesOf(doc)).length) return doc;
+    const values: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(entries)) if (!entry.deleted) values[key] = entry.value;
+    return { ...doc, values, entries };
   }
 
   /** Best-effort removal of a leftover plaintext `settings.json` after going sealed. */

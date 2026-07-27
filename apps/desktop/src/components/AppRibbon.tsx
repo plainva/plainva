@@ -1,33 +1,45 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Sun, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints } from "lucide-react";
-import { ICON } from "@plainva/ui";
+import { Sun, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import {
-  applyRibbonOrder,
-  DEFAULT_RIBBON_ORDER,
-  getStoredRibbonOrder,
-  moveRibbonAction,
-  setStoredRibbonOrder,
-  type RibbonGroup,
-  type RibbonOrder,
-} from "../services/ribbonOrder";
+  ICON,
+  MenuSurface,
+  MenuItem,
+  MenuSeparator,
+  MenuLabel,
+  useHoldDrag,
+  visibleAreas,
+  moveArea,
+  setAreaVisible,
+  sanitizeAreaOrder,
+  type AreaOrder,
+} from "@plainva/ui";
+import { useVault } from "../contexts/VaultContext";
+import {
+  BAR_LAYOUT_CHANGED_EVENT,
+  openBarSettings,
+  barDef,
+  loadBarLayout,
+  saveBarLayout,
+} from "../services/barLayout";
 
 /**
- * App ribbon (maintainer report #3): the slim vertical action rail left of
- * the sidebar, Obsidian-style. It carries VAULT-WIDE actions that otherwise
- * hide behind shortcuts — top: new note, quick switcher, daily note, graph,
- * command palette; bottom: shortcuts help and settings. Buttons are plain
- * pv-iconbtns inside a `pv-ribbon` hook so themes (LCARS!) can restyle the
- * rail like every other chrome surface.
+ * App ribbon: the slim vertical action rail left of the sidebar, Obsidian-style.
+ * It carries VAULT-WIDE actions that otherwise hide behind shortcuts.
  *
- * Since 2026-07-25 (plan P3) the order is the user's: a LONG PRESS (~400 ms,
- * the maintainer's explicit choice over a drag handle — the rail is too narrow
- * for one) lifts a button into drag mode; a short click stays a click. Only
- * sorting, and only within a group: nothing can be hidden and Settings stays
- * where the user can always reach it.
+ * Since 2026-07-27 (plan § 2) the rail shares ONE model with both sidebars:
+ * a single ordered list with a visible line, per vault, inherited from the
+ * global default. Press and hold (~400 ms) lifts a button; a short click stays
+ * a click; right-click carries the same actions without holding.
+ *
+ * The bottom group (help, settings) is deliberately outside that model — not a
+ * runtime check but a structural fact, which is what keeps Settings and the
+ * command palette reachable no matter what the user hides (E3). Hidden actions
+ * stay available through the command palette.
  */
 
-const LONG_PRESS_MS = 400;
+type RibbonId = "new" | "open" | "daily" | "graph" | "tasks" | "calendar" | "mail" | "palette";
+const SPEC = barDef("ribbon").spec;
 
 export interface AppRibbonProps {
   onNewNote: () => void;
@@ -51,132 +63,136 @@ interface RibbonAction {
   testId?: string;
 }
 
-/** Drag state: which button is lifted, and where it would land. */
-interface DragState {
-  group: RibbonGroup;
-  key: string;
-  overIndex: number;
-}
-
 export function AppRibbon(props: AppRibbonProps) {
   const { t } = useTranslation();
-  const [order, setOrder] = useState<RibbonOrder>(DEFAULT_RIBBON_ORDER);
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const pressTimer = useRef<number | null>(null);
+  const { vaultPath } = useVault();
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
+  const [overId, setOverId] = useState<RibbonId | null>(null);
+  const [menuAt, setMenuAt] = useState<{ id: RibbonId; x: number; y: number } | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
-  /** Set once a long press fires, so the following click is swallowed. */
-  const draggedRef = useRef(false);
+
+  // Identifies this surface in the change event, so it does not re-read the
+  // store because of its own write.
+  const sourceRef = useRef<string>(`ribbon-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
-    void getStoredRibbonOrder().then(setOrder);
-  }, []);
+    let alive = true;
+    const read = (e?: Event) => {
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      void loadBarLayout("ribbon", vaultPath).then((v) => {
+        if (alive) setLayout(v);
+      });
+    };
+    read();
+    window.addEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
+    return () => {
+      alive = false;
+      window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
+    };
+  }, [vaultPath]);
 
-  const rawTop: RibbonAction[] = [
-    { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={ICON.head} />, run: props.onNewNote },
-    { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
-    { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
-    { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },
-    { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
+  const persist = useCallback(
+    (next: AreaOrder) => {
+      setLayout(next);
+      void saveBarLayout("ribbon", vaultPath, next, sourceRef.current);
+    },
+    [vaultPath],
+  );
+
+  /** Every action the rail COULD carry, keyed by id. Gated services are absent
+   *  entirely — they cannot be arranged into a rail that has no such account. */
+  const catalog: Partial<Record<RibbonId, RibbonAction>> = {
+    new: { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={ICON.head} />, run: props.onNewNote },
+    open: { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
+    daily: { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
+    graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },
+    tasks: { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
     ...(props.onOpenCalendar
-      ? [{ key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" }]
-      : []),
+      ? { calendar: { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" } }
+      : {}),
     ...(props.onOpenMail
-      ? [{ key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" }]
-      : []),
-    { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
-  ];
-  const rawBottom: RibbonAction[] = [
+      ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" } }
+      : {}),
+    palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
+  };
+
+  const bottom: RibbonAction[] = [
     { key: "help", label: t("shortcuts.showShortcuts", { defaultValue: "Tastaturkürzel anzeigen" }), icon: <HelpCircle size={ICON.head} />, run: props.onShortcuts },
     { key: "settings", label: t("shortcuts.openSettings", { defaultValue: "Einstellungen öffnen" }), icon: <Settings size={ICON.head} />, run: props.onSettings },
   ];
 
-  const top = applyRibbonOrder(rawTop, order.top);
-  const bottom = applyRibbonOrder(rawBottom, order.bottom);
+  const shown = useMemo(
+    () => (visibleAreas(layout) as RibbonId[]).filter((id) => catalog[id] !== undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layout, props.onOpenCalendar, props.onOpenMail],
+  );
 
-  const cancelPress = () => {
-    if (pressTimer.current !== null) {
-      window.clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-  };
-
-  const commit = (state: DragState) => {
-    const group = state.group;
-    const next: RibbonOrder = {
-      ...order,
-      [group]: moveRibbonAction(order[group], state.key, state.overIndex),
-    };
-    setOrder(next);
-    void setStoredRibbonOrder(next).catch((e) => console.error("[AppRibbon] saving the order failed", e));
-  };
-
-  /** Which slot of `group` the pointer currently sits over (rail is vertical). */
-  const slotAt = (group: RibbonGroup, clientY: number): number => {
+  /** Which slot the pointer currently sits over (the rail is vertical). */
+  const slotAt = useCallback((clientY: number): RibbonId | null => {
     const rail = railRef.current;
-    if (!rail) return 0;
-    const buttons = Array.from(rail.querySelectorAll<HTMLElement>(`[data-ribbon-group="${group}"]`));
-    for (let i = 0; i < buttons.length; i++) {
-      const r = buttons[i].getBoundingClientRect();
-      if (clientY < r.top + r.height / 2) return i;
+    if (!rail) return null;
+    const buttons = Array.from(rail.querySelectorAll<HTMLElement>("[data-ribbon-key]"));
+    for (const b of buttons) {
+      const r = b.getBoundingClientRect();
+      if (clientY >= r.top && clientY <= r.bottom) return (b.dataset.ribbonKey as RibbonId) ?? null;
     }
-    return buttons.length;
-  };
+    return null;
+  }, []);
 
-  const renderAction = (a: RibbonAction, group: RibbonGroup) => {
-    const lifted = drag?.key === a.key;
+  const dropRef = useRef<RibbonId | null>(null);
+  const { dragId, handlers, consumeDragClick } = useHoldDrag({
+    onMove: (_id, ev) => {
+      const target = slotAt(ev.clientY);
+      dropRef.current = target;
+      setOverId(target);
+    },
+    onDrop: (id) => {
+      const to = dropRef.current;
+      dropRef.current = null;
+      setOverId(null);
+      if (!to || to === id) return;
+      const target = layout.order.indexOf(to);
+      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+    },
+    onCancel: () => {
+      dropRef.current = null;
+      setOverId(null);
+    },
+  });
+
+  const renderAction = (a: RibbonAction, sortable: boolean) => {
+    const drag = sortable ? handlers(a.key) : null;
+    const lifted = dragId === a.key;
+    const isOver = sortable && overId === a.key && dragId !== null && dragId !== a.key;
     return (
       <button
         key={a.key}
-        data-ribbon-group={group}
-        data-ribbon-key={a.key}
+        data-ribbon-key={sortable ? a.key : undefined}
         className="pv-iconbtn"
         aria-label={a.label}
         data-tip={a.label}
         data-testid={a.testId}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          draggedRef.current = false;
-          const target = e.currentTarget;
-          const pointerId = e.pointerId;
-          cancelPress();
-          pressTimer.current = window.setTimeout(() => {
-            draggedRef.current = true;
-            target.setPointerCapture(pointerId);
-            setDrag({ group, key: a.key, overIndex: (group === "top" ? top : bottom).findIndex((x) => x.key === a.key) });
-          }, LONG_PRESS_MS);
-        }}
-        onPointerMove={(e) => {
-          if (!drag || drag.key !== a.key) return;
-          const overIndex = slotAt(group, e.clientY);
-          if (overIndex !== drag.overIndex) setDrag({ ...drag, overIndex });
-        }}
-        onPointerUp={(e) => {
-          cancelPress();
-          if (drag && drag.key === a.key) {
-            e.currentTarget.releasePointerCapture?.(e.pointerId);
-            commit(drag);
-            setDrag(null);
-          }
-        }}
-        onPointerCancel={() => {
-          cancelPress();
-          setDrag(null);
-        }}
-        onPointerLeave={cancelPress}
+        {...(drag ?? {})}
         onClick={() => {
-          // A long press already did its job — do not also fire the action.
-          if (draggedRef.current) {
-            draggedRef.current = false;
-            return;
-          }
+          if (sortable && consumeDragClick()) return;
           a.run();
         }}
+        onContextMenu={
+          sortable
+            ? (e) => {
+                drag?.onContextMenu();
+                e.preventDefault();
+                setMenuAt({ id: a.key as RibbonId, x: e.clientX, y: e.clientY });
+              }
+            : undefined
+        }
         style={{
           width: 30,
           height: 30,
           opacity: lifted ? 0.85 : 1,
           boxShadow: lifted ? "var(--shadow-2)" : undefined,
           background: lifted ? "var(--bg-primary)" : undefined,
+          borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent",
           touchAction: "none",
         }}
       >
@@ -184,20 +200,6 @@ export function AppRibbon(props: AppRibbonProps) {
       </button>
     );
   };
-
-  // Escape abandons a drag without reordering (the mockup's "release outside
-  // cancels" sibling).
-  useEffect(() => {
-    if (!drag) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        cancelPress();
-        setDrag(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [drag]);
 
   return (
     <nav
@@ -216,9 +218,49 @@ export function AppRibbon(props: AppRibbonProps) {
         borderRight: "1px solid var(--border-color-light)",
       }}
     >
-      {top.map((a) => renderAction(a, "top"))}
+      {shown.map((id) => renderAction(catalog[id] as RibbonAction, true))}
       <span style={{ flex: 1 }} />
-      {bottom.map((a) => renderAction(a, "bottom"))}
+      {bottom.map((a) => renderAction(a, false))}
+
+      {menuAt && (
+        <MenuSurface
+          open
+          onClose={() => setMenuAt(null)}
+          at={{ x: menuAt.x, y: menuAt.y }}
+          minWidth={188}
+          ariaLabel={catalog[menuAt.id]?.label ?? ""}
+        >
+          <MenuLabel>{catalog[menuAt.id]?.label ?? ""}</MenuLabel>
+          <MenuItem
+            icon={<ArrowUp size={ICON.ui} />}
+            onClick={() => {
+              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.moveUp", { defaultValue: "Nach oben" })}
+          </MenuItem>
+          <MenuItem
+            icon={<EyeOff size={ICON.ui} />}
+            onClick={() => {
+              persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.hide", { defaultValue: "Ausblenden" })}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            icon={<SettingsIcon size={ICON.ui} />}
+            onClick={() => {
+              openBarSettings();
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.customize", { defaultValue: "Leisten anpassen…" })}
+          </MenuItem>
+        </MenuSurface>
+      )}
     </nav>
   );
 }

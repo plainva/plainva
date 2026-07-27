@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, Database, GripVertical, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Database, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -10,9 +10,31 @@ import { GraphContextSection } from "./graph/GraphContextSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
-import { ICON, EMPTY_NOTE_DATABASE_CONTEXT, hasNoteDatabaseContext, type NoteDatabaseContext } from "@plainva/ui";
+import {
+  ICON,
+  EMPTY_NOTE_DATABASE_CONTEXT,
+  hasNoteDatabaseContext,
+  MenuSurface,
+  MenuItem,
+  MenuSeparator,
+  MenuLabel,
+  useHoldDrag,
+  visibleAreas,
+  moveArea,
+  setAreaVisible,
+  sanitizeAreaOrder,
+  type AreaOrder,
+  type NoteDatabaseContext,
+} from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
+import {
+  BAR_LAYOUT_CHANGED_EVENT,
+  openBarSettings,
+  barDef,
+  loadBarLayout,
+  saveBarLayout,
+} from "../services/barLayout";
 
 /** Cheap top-level frontmatter key count (regex + small YAML parse) — avoids a full
  *  markdown AST parse per keystroke so the badge stays light even when collapsed. */
@@ -28,20 +50,8 @@ function frontmatterKeyCount(content: string): number {
 }
 
 type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
-const ALL: SectionId[] = ["calendar", "outline", "graph", "databases", "backlinks", "properties"];
-const ORDER_KEY = "plainva-right-panels-order";
+const SPEC = barDef("rightSections").spec;
 const openKey = (id: SectionId) => `plainva-right-panel-open-${id}`;
-
-function readOrder(): SectionId[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]") as SectionId[];
-    const valid = raw.filter((id) => ALL.includes(id));
-    for (const id of ALL) if (!valid.includes(id)) valid.push(id);
-    return valid.length === ALL.length ? valid : [...ALL];
-  } catch {
-    return [...ALL];
-  }
-}
 
 function readOpen(id: SectionId): boolean {
   const v = localStorage.getItem(openKey(id));
@@ -64,15 +74,39 @@ interface RightSidebarProps {
 
 export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken }: RightSidebarProps) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion, vaultAdapter } = useVault();
-  const [order, setOrder] = useState<SectionId[]>(() => readOrder());
+  const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
+  // Which sections are shown and in which order — per vault, inherited from the
+  // global default until this vault is adapted (plan § 3).
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
     calendar: readOpen("calendar"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
   }));
   const [counts, setCounts] = useState<{ backlinks: number; properties: number; outline: number }>({ backlinks: 0, properties: 0, outline: 0 });
+  const [menuAt, setMenuAt] = useState<{ id: SectionId; x: number; y: number } | null>(null);
   // Database context of the active note (plan P4). Same cached source as the
   // context line in the document head, so both always agree.
   const [dbContext, setDbContext] = useState<NoteDatabaseContext>(EMPTY_NOTE_DATABASE_CONTEXT);
+
+  // Identifies this surface in the change event, so it does not re-read the
+  // store because of its own write.
+  const sourceRef = useRef<string>(`rightSections-${Math.random().toString(36).slice(2)}`);
+
+  useEffect(() => {
+    let alive = true;
+    const read = (e?: Event) => {
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      void loadBarLayout("rightSections", vaultPath).then((v) => {
+        if (alive) setLayout(v);
+      });
+    };
+    read();
+    window.addEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
+    return () => {
+      alive = false;
+      window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
+    };
+  }, [vaultPath]);
+
   useEffect(() => {
     if (!activePath || !vaultAdapter || !queryService || !/\.md$/i.test(activePath)) {
       setDbContext(EMPTY_NOTE_DATABASE_CONTEXT);
@@ -86,12 +120,10 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       cancelled = true;
     };
   }, [activePath, vaultAdapter, queryService, fileTreeVersion]);
-  const [dragId, setDragId] = useState<SectionId | null>(null);
-  const [overId, setOverId] = useState<SectionId | null>(null);
-  // Synchronous mirror of the active drag so pointer handlers don't read stale state.
-  const dragIdRef = useRef<SectionId | null>(null);
+
   // Live DOM node per section, used to map a pointer's Y position onto a target row.
   const sectionEls = useRef<Partial<Record<SectionId, HTMLElement>>>({});
+  const [overId, setOverId] = useState<SectionId | null>(null);
 
   const toggle = (id: SectionId) => {
     setOpen((prev) => {
@@ -101,61 +133,48 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     });
   };
 
-  const reorder = useCallback((from: SectionId, to: SectionId) => {
-    if (from === to) return;
-    setOrder((prev) => {
-      const next = prev.filter((x) => x !== from);
-      const idx = next.indexOf(to);
-      next.splice(idx, 0, from);
-      localStorage.setItem(ORDER_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const persist = useCallback(
+    (next: AreaOrder) => {
+      setLayout(next);
+      void saveBarLayout("rightSections", vaultPath, next, sourceRef.current);
+    },
+    [vaultPath],
+  );
 
-  // Pointer-based reordering. HTML5 drag-and-drop is swallowed by Tauri's native
-  // drag-drop handler (dragDropEnabled defaults to true) and is unreliable on
-  // WebKitGTK, so we drive the reorder with pointer events instead — engine- and
-  // Tauri-config-independent.
-  const sectionAtY = (clientY: number): SectionId | null => {
-    for (const sid of order) {
+  const shown = useMemo(() => visibleAreas(layout) as SectionId[], [layout]);
+
+  const sectionAtY = useCallback((clientY: number): SectionId | null => {
+    for (const sid of shown) {
       const el = sectionEls.current[sid];
       if (!el) continue;
       const r = el.getBoundingClientRect();
       if (clientY >= r.top && clientY <= r.bottom) return sid;
     }
     return null;
-  };
+  }, [shown]);
 
-  const beginDrag = (id: SectionId, e: React.PointerEvent) => {
-    e.preventDefault();
-    // Capture so move/up keep firing on the grip even as the pointer leaves it.
-    try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* not supported */ }
-    dragIdRef.current = id;
-    setDragId(id);
-    setOverId(id);
-  };
-
-  const onGripMove = (e: React.PointerEvent) => {
-    if (!dragIdRef.current) return;
-    const target = sectionAtY(e.clientY);
-    if (target) setOverId(target);
-  };
-
-  const endDrag = (e: React.PointerEvent) => {
-    const from = dragIdRef.current;
-    dragIdRef.current = null;
-    try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* not supported */ }
-    const to = sectionAtY(e.clientY); // computed fresh, never from stale state
-    if (from && to && from !== to) reorder(from, to);
-    setDragId(null);
-    setOverId(null);
-  };
-
-  const cancelDrag = () => {
-    dragIdRef.current = null;
-    setDragId(null);
-    setOverId(null);
-  };
+  // Press and hold on the header, then drag (plan E10). The handle is gone; it
+  // lives on in Settings, where a list is being arranged rather than used.
+  const dropRef = useRef<SectionId | null>(null);
+  const { dragId, handlers, consumeDragClick } = useHoldDrag({
+    onMove: (_id, ev) => {
+      const target = sectionAtY(ev.clientY);
+      dropRef.current = target;
+      setOverId(target);
+    },
+    onDrop: (id) => {
+      const to = dropRef.current;
+      dropRef.current = null;
+      setOverId(null);
+      if (!to || to === id) return;
+      const target = layout.order.indexOf(to);
+      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+    },
+    onCancel: () => {
+      dropRef.current = null;
+      setOverId(null);
+    },
+  });
 
   const setBacklinksCount = useCallback((n: number) => setCounts((c) => (c.backlinks === n ? c : { ...c, backlinks: n })), []);
 
@@ -202,54 +221,51 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     return <PropertiesSection onOpenPath={onOpenPath} />;
   };
 
+  /** A section with nothing to show disappears entirely (plan E6) — it used to
+   *  keep a greyed-out header, which is why the panel felt cluttered with dead
+   *  rows on notes that have no properties, backlinks or database membership. */
+  const hasContent = (id: SectionId): boolean =>
+    id === "calendar"
+    || (id === "graph" && Boolean(activePath && /\.md$/i.test(activePath)))
+    || (id === "databases" && hasNoteDatabaseContext(dbContext))
+    || (id === "outline" && counts.outline > 0)
+    || (id === "backlinks" && counts.backlinks > 0)
+    || (id === "properties" && counts.properties > 0);
+
   return (
     <div
       className="custom-scrollbar"
       style={{ width: "100%", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}
     >
-      {order.map((id) => {
+      {shown.filter(hasContent).map((id) => {
         const m = meta[id];
-        // Empty note-context sections close only EFFECTIVELY. Their persisted
-        // global preference remains untouched and returns as soon as the next
-        // note has content again (no "No properties for this file" panel).
-        const hasContent = id === "calendar"
-          || (id === "graph" && Boolean(activePath && /\.md$/i.test(activePath)))
-          || (id === "databases" && hasNoteDatabaseContext(dbContext))
-          || (id === "outline" && counts.outline > 0)
-          || (id === "backlinks" && counts.backlinks > 0)
-          || (id === "properties" && counts.properties > 0);
-        const isOpen = hasContent && open[id];
+        const drag = handlers(id);
+        const isOpen = open[id];
         const isOver = overId === id && dragId !== null && dragId !== id;
         return (
           <section
             key={id}
             className="pv-side-section"
             ref={(el) => { if (el) sectionEls.current[id] = el; else delete sectionEls.current[id]; }}
-            style={{ borderBottom: "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent" }}
+            style={{ borderBottom: "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent", opacity: dragId === id ? 0.6 : undefined }}
           >
             <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
-              <span
-                className="pv-side-grip"
-                onPointerDown={(e) => { if (e.button === 0) beginDrag(id, e); }}
-                onPointerMove={onGripMove}
-                onPointerUp={endDrag}
-                onPointerCancel={cancelDrag}
-                role="button"
-                aria-label={t("rightPanel.reorder", { defaultValue: "Abschnitt verschieben" })}
-                data-tip={t("rightPanel.reorder", { defaultValue: "Abschnitt verschieben" })}
-                style={{ position: "absolute", left: 0, top: 0, bottom: 0, display: "flex", alignItems: "center", padding: "0 2px", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none", opacity: dragId ? 1 : undefined }}
-              >
-                <GripVertical size={ICON.ui} />
-              </span>
               <button
-                onClick={() => { if (hasContent) toggle(id); }}
+                {...drag}
+                onClick={() => { if (consumeDragClick()) return; toggle(id); }}
+                onContextMenu={(e) => {
+                  // A right-click means "menu", so the pending hold is dropped.
+                  drag.onContextMenu();
+                  e.preventDefault();
+                  setMenuAt({ id, x: e.clientX, y: e.clientY });
+                }}
                 aria-expanded={isOpen}
-                aria-disabled={!hasContent}
                 className="pv-side-section-header"
+                style={{ cursor: dragId === id ? "grabbing" : undefined }}
               >
                 <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
                 <span className="pv-side-section-glyph">{m.icon}</span>
-                <span style={{ flex: 1, textAlign: "left" }}>{m.title}</span>
+                <span style={{ flex: 1, textAlign: "left", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.title}</span>
                 {m.count !== undefined && m.count > 0 && (
                   <span className="pv-badge pv-badge--accent">
                     {m.count}
@@ -261,6 +277,46 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           </section>
         );
       })}
+
+      {menuAt && (
+        <MenuSurface
+          open
+          onClose={() => setMenuAt(null)}
+          at={{ x: menuAt.x, y: menuAt.y }}
+          minWidth={188}
+          ariaLabel={meta[menuAt.id].title}
+        >
+          <MenuLabel>{meta[menuAt.id].title}</MenuLabel>
+          <MenuItem
+            icon={<ArrowUp size={ICON.ui} />}
+            onClick={() => {
+              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.moveUp", { defaultValue: "Nach oben" })}
+          </MenuItem>
+          <MenuItem
+            icon={<EyeOff size={ICON.ui} />}
+            onClick={() => {
+              persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.hide", { defaultValue: "Ausblenden" })}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            icon={<SettingsIcon size={ICON.ui} />}
+            onClick={() => {
+              openBarSettings();
+              setMenuAt(null);
+            }}
+          >
+            {t("bars.customize", { defaultValue: "Leisten anpassen…" })}
+          </MenuItem>
+        </MenuSurface>
+      )}
     </div>
   );
 }

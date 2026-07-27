@@ -7,6 +7,7 @@ import {
   Info,
   Mail,
   Palette,
+  PanelsTopLeft,
   Pencil,
   RefreshCw,
   Rocket,
@@ -54,6 +55,7 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },
+  { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft },
   { id: "backup", world: "vault", labelKey: "settings.backupSection", descKey: "settings.pageDescBackup", icon: Archive },
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },
 ];

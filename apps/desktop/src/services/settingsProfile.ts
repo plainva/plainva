@@ -72,6 +72,7 @@ import {
 import type { PimRuntime } from "./pim/pimRuntime";
 import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
+import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "./barLayout";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
 // graph into a service (the same decoupling backupPolicy.ts uses). These MUST
@@ -101,10 +102,21 @@ export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnable
 /** Global stable device id (LWW tiebreak + "settings from device X" notice). */
 export const DEVICE_ID_KEY = "deviceId";
 
+/**
+ * Who a setting belongs to (bars plan P6). `vault` is a convention of the
+ * ARCHIVE and sensibly the same for everyone who works in it; `member` is
+ * personal and would otherwise be overwritten every time a second person syncs.
+ * Without an encrypted workspace there is no member, and everything behaves as
+ * before — that case is one person on several devices, where "personal" and
+ * "shared" are the same thing.
+ */
+export type ProfileScope = "vault" | "member";
+
 /** A syncable setting: logical name (device-independent) ↔ device-local store key. */
 interface ProfileField {
   logical: string;
   key: (vaultPath: string) => string;
+  scope: ProfileScope;
 }
 
 /**
@@ -113,29 +125,63 @@ interface ProfileField {
  * ids — those are excluded by design.
  */
 const PROFILE_FIELDS: ProfileField[] = [
-  { logical: "dailyNotesFolder", key: dailyNotesFolderKey },
-  { logical: "dailyNotesFormat", key: dailyNotesFormatKey },
-  { logical: "dailyNoteTemplate", key: dailyNoteTemplateKey },
-  { logical: "dailyNoteType", key: dailyNoteTypeKey },
-  { logical: "templateFolder", key: templateFolderKey },
-  { logical: "defaultNoteType", key: defaultNoteTypeKey },
-  { logical: "taskDatabase", key: taskDatabaseKey },
-  { logical: "extendedDatabases", key: extendedDatabasesKey },
-  { logical: "meetingFolder", key: meetingFolderKey },
-  { logical: "mailFolder", key: mailFolderKey },
-  { logical: "mailRemoteImages", key: mailRemoteImagesKey },
-  { logical: "syncIntervalSeconds", key: syncIntervalKey },
-  { logical: "defaultCalendar", key: defaultCalendarKey },
-  { logical: "backupSnapshotIntervalSeconds", key: backupSnapshotIntervalKey },
-  { logical: "backupMaxCountPerFile", key: backupMaxCountKey },
-  { logical: "backupMaxAgeDays", key: backupMaxAgeDaysKey },
-  { logical: "backupZipEnabled", key: backupZipEnabledKey },
-  { logical: "backupZipKeep", key: backupZipKeepKey },
+  { logical: "dailyNotesFolder", key: dailyNotesFolderKey, scope: "vault" },
+  { logical: "dailyNotesFormat", key: dailyNotesFormatKey, scope: "vault" },
+  { logical: "dailyNoteTemplate", key: dailyNoteTemplateKey, scope: "vault" },
+  { logical: "dailyNoteType", key: dailyNoteTypeKey, scope: "vault" },
+  { logical: "templateFolder", key: templateFolderKey, scope: "vault" },
+  { logical: "defaultNoteType", key: defaultNoteTypeKey, scope: "vault" },
+  { logical: "taskDatabase", key: taskDatabaseKey, scope: "vault" },
+  { logical: "extendedDatabases", key: extendedDatabasesKey, scope: "vault" },
+  { logical: "meetingFolder", key: meetingFolderKey, scope: "vault" },
+  { logical: "mailFolder", key: mailFolderKey, scope: "member" },
+  { logical: "mailRemoteImages", key: mailRemoteImagesKey, scope: "member" },
+  { logical: "syncIntervalSeconds", key: syncIntervalKey, scope: "member" },
+  { logical: "defaultCalendar", key: defaultCalendarKey, scope: "member" },
+  { logical: "backupSnapshotIntervalSeconds", key: backupSnapshotIntervalKey, scope: "member" },
+  { logical: "backupMaxCountPerFile", key: backupMaxCountKey, scope: "member" },
+  { logical: "backupMaxAgeDays", key: backupMaxAgeDaysKey, scope: "member" },
+  { logical: "backupZipEnabled", key: backupZipEnabledKey, scope: "member" },
+  { logical: "backupZipKeep", key: backupZipKeepKey, scope: "member" },
+  // How the action rail and the sidebars are arranged (bars plan § 3). These
+  // ride along because the arrangement is per vault and free of paths and
+  // account identity — the same reason the fields above qualify. The GLOBAL
+  // default beneath them (`barLayoutDefault_*`) deliberately stays local: it is
+  // this device's starting point for vaults that were never adapted, not a
+  // shared setting, and syncing it would let one vault dictate every other.
+  { logical: "barLayoutRibbon", key: (v) => barLayoutKey("ribbon", v), scope: "member" },
+  { logical: "barLayoutLeftTabs", key: (v) => barLayoutKey("leftTabs", v), scope: "member" },
+  { logical: "barLayoutLeftSections", key: (v) => barLayoutKey("leftSections", v), scope: "member" },
+  { logical: "barLayoutRightSections", key: (v) => barLayoutKey("rightSections", v), scope: "member" },
 ];
+
+/**
+ * Logical fields that are NOT declared in PROFILE_FIELDS because they come from
+ * their own sources (accounts, selections, bookmarks). All of them are personal:
+ * two people in one workspace have different mailboxes, different calendar
+ * selections and different bookmarks.
+ */
+const MEMBER_EXTRA_LOGICAL = new Set(["pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
+
+/**
+ * Whether a logical field belongs to the signed-in member rather than the vault.
+ * Fields nobody knows (the forward-compatibility bucket of a newer Plainva) stay
+ * with the vault — guessing a scope for them would be worse than keeping today's
+ * behaviour.
+ */
+export function isMemberProfileField(logical: string): boolean {
+  if (MEMBER_EXTRA_LOGICAL.has(logical)) return true;
+  return PROFILE_FIELDS.find((f) => f.logical === logical)?.scope === "member";
+}
 
 export interface DesktopProfileContext {
   pimRuntime?: PimRuntime | null;
   rawVault?: IVaultAdapter | null;
+  /**
+   * The signed-in member of an encrypted workspace. Present only there; without
+   * it the profile stays one shared file, which is the single-person case.
+   */
+  memberId?: string | null;
   /**
    * Reports records that were dropped as malformed. The port wires this to a
    * toast; keeping it a callback rather than toasting from here leaves the
@@ -303,6 +349,7 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-default-calendar-changed"));
     window.dispatchEvent(new CustomEvent("plainva-cloud-accounts-changed", { detail: { vaultPath } }));
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
+    window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
   }
 }
 
@@ -698,6 +745,8 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         deviceId,
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,
+        memberId: context.memberId ?? undefined,
+        isMemberField: isMemberProfileField,
       });
     },
     async secrets(): Promise<SecretsSyncStep | null> {

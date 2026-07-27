@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-07-27
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -68,9 +68,17 @@ Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ou
 - **Épingler** fixe un onglet en place : il se déplace au début de la barre d'onglets, affiche une épingle à la place de la croix de fermeture et survit à chaque **Fermer les autres** / **Fermer à gauche** / **Fermer à droite** / **Fermer tout**. Pour le fermer, choisissez d'abord **Désépingler**.
 - **Recharger** abandonne la vue actuelle et relit le fichier depuis le disque — pratique quand un autre programme l'a modifié. Si l'onglet contient des modifications non enregistrées, Plainva refuse de recharger plutôt que d'écraser votre travail.
 
-## Organiser la barre d'actions
+## Barres et zones
 
-La barre étroite tout à gauche peut être réorganisée par vos soins : **faites glisser un bouton** à son nouvel emplacement (après un court maintien, pour qu'un simple clic continue de simplement le déclencher). Le groupe du haut (actions) et le groupe du bas (raccourcis, paramètres) restent séparés — le tri se fait à l'intérieur d'un groupe. Plainva se souvient de l'ordre ; rien n'est jamais masqué, si bien qu'aucune fonction ne peut devenir introuvable. `Esc` annule un glissement en cours.
+La barre d'actions tout à gauche, les onglets de la barre latérale gauche, les sections au-dessus de l'arborescence et les sections de la barre latérale droite fonctionnent tous de la même façon.
+
+**Directement à leur emplacement :** **maintenez appuyé** sur un bouton ou un titre de section et faites-le glisser à son nouvel emplacement — un simple clic continue de simplement le déclencher, et si vous faites défiler pendant que vous maintenez, vous faites défiler (le glissement est annulé). `Esc` annule un glissement en cours. Un **clic droit** propose les mêmes actions sans maintien : **Monter**, **Masquer** et **Personnaliser les barres…**.
+
+**À un seul endroit :** sous **Paramètres → Vault → Barres et zones**, les quatre barres se trouvent les unes sous les autres. Chacune forme **une seule** liste avec une ligne de séparation : tout ce qui est au-dessus est visible, tout ce qui est en dessous est masqué. Ici, vous déplacez les entrées avec la poignée de glissement — sur cette page, c'est justement une liste que vous réorganisez, exactement ce à quoi sert une poignée.
+
+Deux éléments ne peuvent délibérément pas être masqués : **Afficher les raccourcis clavier** et **Paramètres** en bas de la barre d'actions, ainsi que l'onglet **Fichiers** de la barre latérale gauche. Tout le reste peut être masqué à votre gré ; les actions masquées de la barre d'actions restent accessibles depuis la **palette de commandes** (`Ctrl+P`). Les sections de la barre latérale droite qui n'ont rien à montrer pour la note ouverte n'apparaissent jamais.
+
+Cet arrangement appartient au vault et se propage à vos autres appareils via [Configurer la synchronisation](Sync_Setup.md). Un vault que vous n'avez pas adapté suit votre **valeur par défaut** — définissez-la avec **Définir par défaut**, et **Rétablir la valeur par défaut** ramène un vault adapté à cette valeur.
 
 ## Personnaliser l'interface
 

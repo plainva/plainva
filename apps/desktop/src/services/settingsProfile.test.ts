@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ISettingsStore } from "@plainva/ui";
-import { exportProfileValues, applyProfileValues, sanitizeProfileValues } from "./settingsProfile";
+import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField } from "./settingsProfile";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -144,5 +144,40 @@ describe("settingsProfile validation", () => {
     await applyProfileValues(store, V, { dailyNotesFolder: "Daily", backupZipKeep: "seven" }, { onSkipped: (r) => skipped.push(r) });
     expect(store.map.get(dailyNotesFolderKey(V))).toBe("Daily");
     expect(skipped.flat().join(" ")).toContain("backupZipKeep");
+  });
+});
+
+describe("profile field scope (bars plan P6)", () => {
+  it("keeps vault conventions shared", () => {
+    // Where the daily notes live is a property of the ARCHIVE: everyone working
+    // in it should see the same folders, so these stay in the shared file.
+    for (const logical of ["dailyNotesFolder", "templateFolder", "taskDatabase", "defaultNoteType", "meetingFolder"]) {
+      expect(isMemberProfileField(logical)).toBe(false);
+    }
+  });
+
+  it("treats arrangement, accounts and personal rules as the member's own", () => {
+    for (const logical of [
+      "barLayoutRibbon",
+      "barLayoutLeftTabs",
+      "barLayoutLeftSections",
+      "barLayoutRightSections",
+      "bookmarks",
+      "mailAccounts",
+      "pimAccounts",
+      "pimSelections",
+      "cloudAccounts",
+      "backupZipEnabled",
+      "syncIntervalSeconds",
+      "defaultCalendar",
+    ]) {
+      expect(isMemberProfileField(logical)).toBe(true);
+    }
+  });
+
+  it("leaves a field it does not know with the vault", () => {
+    // The forward-compatibility bucket of a newer Plainva: guessing a scope for
+    // it would be worse than keeping the behaviour we have.
+    expect(isMemberProfileField("somethingFromTheFuture")).toBe(false);
   });
 });

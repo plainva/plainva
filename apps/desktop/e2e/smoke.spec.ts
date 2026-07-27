@@ -1298,6 +1298,30 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
 });
 
+test('Bars & areas: hiding a right-sidebar section from its own header removes it', async ({ page }) => {
+  // The point of the bars plan: arrange a bar where it lives, and see the
+  // change immediately — not only in a settings page far away from it.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  const calendar = page.getByRole('button', { name: /^(Kalender|Calendar)$/ });
+  await expect(calendar).toBeVisible();
+  await calendar.click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: /^(Kalender|Calendar)$/ });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: /^(Ausblenden|Hide)$/ }).click();
+  await expect(calendar).toHaveCount(0);
+
+  // …and the settings page lists it under "hidden", where it can come back.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(Leisten & Bereiche|Bars & areas)$/ }).click();
+  await expect(dialog.getByRole('heading', { name: /^(Leisten & Bereiche|Bars & areas)$/ })).toBeVisible();
+  // All four bars are arranged in one place.
+  await expect(dialog.getByText(/^(Aktionsleiste|Action rail)$/)).toBeVisible();
+  await expect(dialog.getByText(/^(Rechte Seitenleiste|Right sidebar)$/)).toBeVisible();
+});
+
 test('Cloud accounts derive the pre-existing sync slot; service areas gate on carried services', async ({ page }) => {
   // A vault that was connected to Nextcloud BEFORE the cloud-accounts area
   // existed: only the keychain slot is populated, no registry entry.

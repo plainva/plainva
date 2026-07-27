@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-26
+Stan na: 2026-07-27
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -68,9 +68,17 @@ Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą
 - **Przypnij** utrzymuje kartę na miejscu: przesuwa się na początek paska, zamiast krzyżyka zamykania pokazuje pinezkę i przetrwa każde **Zamknij pozostałe** / **Zamknij po lewej** / **Zamknij po prawej** / **Zamknij wszystkie**. Aby ją zamknąć, najpierw **Odepnij**.
 - **Odśwież** odrzuca widok i wczytuje plik na nowo z dysku — przydatne, gdy zmienił go inny program. Jeśli karta ma niezapisane zmiany, Plainva odmawia odświeżenia, zamiast nadpisywać Twoją pracę.
 
-## Dostosowywanie paska akcji
+## Paski i obszary
 
-Wąski pasek zupełnie po lewej możesz sam sortować: **przeciągnij przycisk** na nowe miejsce (po krótkim przytrzymaniu, dzięki czemu zwykłe kliknięcie nadal po prostu go uruchamia). Górna grupa (akcje) i dolna grupa (skróty, ustawienia) pozostają przy tym rozdzielone — sortowanie odbywa się w obrębie jednej grupy. Plainva zapamiętuje kolejność; nic nigdy nie jest ukrywane, dzięki czemu żadna funkcja nie może stać się nieodnajdywalna. `Esc` anuluje trwające przeciąganie.
+Pasek akcji zupełnie po lewej, karty lewego panelu, sekcje nad drzewem plików i sekcje prawego panelu — wszystkie działają tak samo.
+
+**Na miejscu:** naciśnij i przytrzymaj przycisk lub nagłówek sekcji i przeciągnij go w nowe miejsce — zwykłe kliknięcie nadal po prostu go uruchamia, a jeśli podczas przytrzymywania przewijasz, po prostu przewijasz (przeciąganie zostaje anulowane). `Esc` anuluje trwające przeciąganie. **Kliknięcie prawym przyciskiem** oferuje te same akcje bez przytrzymywania: **W górę**, **Ukryj** i **Dostosuj paski…**.
+
+**W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie cztery paski znajdują się jeden pod drugim. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt.
+
+Dwóch rzeczy celowo nie można ukryć: **Pomoc** i **Ustawienia** na dole paska akcji oraz karta **Pliki** lewego panelu. Wszystko inne możesz ukryć; ukryte akcje paska pozostają dostępne z **palety poleceń** (`Ctrl+P`). Sekcje prawego panelu, które nie mają nic do pokazania dla otwartej notatki, w ogóle się nie pojawiają.
+
+Układ należy do vaultu i przenosi się na inne urządzenia (patrz [Konfiguracja synchronizacji](Sync_Setup.md)). Vault, który nie został dostosowany, stosuje Twój **układ domyślny** — ustaw go przyciskiem **Zapisz jako domyślne**, a **Przywróć domyślne** przywraca do niego dostosowany vault.
 
 ## Dostosowywanie interfejsu
 
