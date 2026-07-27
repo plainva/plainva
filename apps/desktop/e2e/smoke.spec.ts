@@ -467,7 +467,8 @@ test('File tree: selected folder receives the + Neu note, which starts with an H
   await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await aside.getByText('Ordner', { exact: true }).click(); // select (and expand) the folder
-  await page.getByRole('button', { name: /^(Neu|New)$/ }).click();
+  await page.getByTestId('sidebar-new').click();
+  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
   const input = page.getByPlaceholder(/Dateiname|File name/i);
   await expect(input).toBeVisible();
   await input.fill('Idee');
@@ -681,7 +682,8 @@ test('index.md auto-update: creating a note refreshes the managed listing only',
 
   // Create in P: its managed index.md picks up the new entry (debounced).
   await aside.getByText('P', { exact: true }).click();
-  await page.getByRole('button', { name: /^(Neu|New)$/ }).click();
+  await page.getByTestId('sidebar-new').click();
+  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
   const input = page.getByPlaceholder(/Dateiname|File name/i);
   await input.fill('Frisch');
   await input.press('Enter');
@@ -691,7 +693,8 @@ test('index.md auto-update: creating a note refreshes the managed listing only',
 
   // Create in Q: no index.md there — none may appear.
   await aside.getByText('Q', { exact: true }).click();
-  await page.getByRole('button', { name: /^(Neu|New)$/ }).click();
+  await page.getByTestId('sidebar-new').click();
+  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
   const input2 = page.getByPlaceholder(/Dateiname|File name/i);
   await input2.fill('Anders');
   await input2.press('Enter');
@@ -824,10 +827,9 @@ test('Sidebar calendar: a day click opens the calendar tab; right-click offers a
   await expect(menu).toContainText(String(now.getDate()));
   await expect(menu.getByRole('menuitem', { name: /Kalender öffnen|Open calendar/i })).toBeVisible();
 
-  // The daily action creates (opens) the daily note — the in-app create-confirm
-  // dialog is part of the flow.
+  // The daily action creates (opens) the daily note straight away — no
+  // confirmation, the same as every other entry point since plan § 7.2.
   await menu.getByRole('menuitem', { name: /Tageseintrag|Daily Note/i }).click();
-  await page.getByRole('button', { name: /^(Confirm|Bestätigen)$/ }).click();
   await expect
     .poll(() => page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey))
     .toBeTruthy();
@@ -1298,6 +1300,43 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
 });
 
+test('Creating from another tab switches to Files instead of vanishing', async ({ page }) => {
+  // The create request is answered by the FILE TREE, which is not mounted on
+  // the Tags or Databases tab. Sent from there the event used to disappear
+  // without a trace (plan § 7.1).
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.getByRole('tab', { name: /^(Tags)$/ }).click();
+  await expect(page.getByTestId('file-tree')).toHaveCount(0);
+
+  await page.getByTestId('sidebar-new').click();
+  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+
+  // The tab switched back and the name field is there, ready.
+  await expect(page.getByTestId('file-tree')).toBeVisible();
+  const input = page.getByPlaceholder(/Dateiname|File name/i);
+  await expect(input).toBeVisible();
+  await input.fill('Aus Tags');
+  await input.press('Enter');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Aus Tags.md']), { timeout: 8000 })
+    .toContain('# Aus Tags');
+});
+
+test('The search placeholder says what is being searched', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  const field = page.locator('aside[aria-label="Left Sidebar"] input[type="search"], aside[aria-label="Left Sidebar"] input').first();
+
+  await expect(field).toHaveAttribute('placeholder', /Notizen durchsuchen|Search notes/i);
+  await page.getByRole('tab', { name: /^(Tags)$/ }).click();
+  await expect(field).toHaveAttribute('placeholder', /Tags filtern|Filter tags/i);
+  await page.getByRole('tab', { name: /^(Datenbanken|Databases)$/ }).click();
+  await expect(field).toHaveAttribute('placeholder', /Datenbanken filtern|Filter databases/i);
+});
+
 test('Bars & areas: hiding a right-sidebar section from its own header removes it', async ({ page }) => {
   // The point of the bars plan: arrange a bar where it lives, and see the
   // change immediately — not only in a settings page far away from it.
@@ -1702,4 +1741,25 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
   // The month navigation would be a dead control here: the row follows the open
   // day, so paging the month moves nothing.
   expect(narrow.monthNav).toBe(false);
+});
+
+test('Sidebar tabs carry labels while they fit, then fall back to the active one', async ({ page }) => {
+  // Measured in the real font rather than keyed to a pixel guess: "Databases"
+  // is more than twice the width of "Tags", so a fixed threshold would either
+  // cut the long label or hide the short one long before it had to.
+  const labelsAt = async (width: number) => {
+    await page.addInitScript((w) => {
+      localStorage.setItem('plainva-left-sidebar-width', String(w));
+    }, width);
+    await page.goto('/');
+    await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-left-tab]')).toHaveCount(3);
+    return (await page.locator('[data-left-tab]').allInnerTexts()).map((s) => s.trim());
+  };
+
+  expect(await labelsAt(400)).toEqual(['Files', 'Tags', 'Databases']);
+  // At the DEFAULT width all three do not fit — the tab you are standing on
+  // keeps its name, so the labels never disappear entirely.
+  expect(await labelsAt(250)).toEqual(['Files', '', '']);
+  expect(await labelsAt(190)).toEqual(['', '', '']);
 });

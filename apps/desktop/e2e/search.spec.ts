@@ -254,7 +254,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-const searchInput = (page: any) => page.getByLabel('Search...');
+// The placeholder now says WHAT is being searched (plan P5) — on the Files tab
+// that is "Search notes…", and the accessible name follows it.
+const searchInput = (page: any) => page.getByLabel(/Search notes|Notizen durchsuchen/);
 
 test('Search: results appear while typing a partial word, with mark + groups', async ({ page }) => {
   await page.goto('/');

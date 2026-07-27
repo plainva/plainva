@@ -63,7 +63,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "./services/commandRegistry";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Plus, ChevronDown, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
+import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
@@ -912,18 +912,46 @@ function App() {
     width: "5px", flexShrink: 0, cursor: "col-resize", background: "transparent", alignSelf: "stretch",
   };
 
-  // Calendar click: open the daily note for the picked date, creating it (after
-  // a confirm dialog) from the template if it doesn't exist yet.
+  /**
+   * "New note / folder / database" is answered by the FILE TREE, which is only
+   * mounted on the Files tab and not at all while the sidebar is collapsed. Sent
+   * from anywhere else the event used to vanish without a trace (plan § 7.1).
+   *
+   * So the request is parked and the sidebar is put into a state that can answer
+   * it; the effect below fires once the tree is actually there. Child effects run
+   * before parent effects, so its listener is registered by then.
+   */
+  const [pendingNewItem, setPendingNewItem] = useState<"file" | "folder" | "base" | null>(null);
+  const requestNewItem = (kind: "file" | "folder" | "base") => {
+    if (leftCollapsed) setLeftCollapsed(false);
+    if (leftSidebarTab !== "files") setLeftSidebarTab("files");
+    setPendingNewItem(kind);
+  };
+  useEffect(() => {
+    if (!pendingNewItem || leftCollapsed || leftSidebarTab !== "files") return;
+    window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: pendingNewItem } }));
+    setPendingNewItem(null);
+  }, [pendingNewItem, leftCollapsed, leftSidebarTab]);
+
+  /** The placeholder says WHAT is being searched — three tabs, three answers. */
+  const searchPlaceholderKey =
+    leftSidebarTab === "tags" ? "sidebar.searchTags"
+    : leftSidebarTab === "databases" ? "sidebar.searchDatabases"
+    : "sidebar.searchNotes";
+
+  // Calendar click: open the daily note for the picked date, creating it from
+  // the template if it doesn't exist yet.
   const handleOpenDailyNote = async (date: Date) => {
     if (!vaultPath || !vaultAdapter || !indexer) return;
     try {
+      // No confirmation (plan § 7.2): six entry points used to disagree about
+      // whether creating a daily note needs asking. Creating one is harmless and
+      // undoable, so the answer is the same everywhere — just do it.
       const path = await resolveOrCreateDailyNote(date, {
         vaultPath,
         adapter: vaultAdapter,
         onIndex: () => indexer.indexVaultFull(),
-        confirmCreate: true,
-        confirmMessage: (p) => t("calendar.createConfirm", { path: p }),
-        confirmTitle: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }),
+        confirmCreate: false,
         onCreated: (p) => notifyFileOps([{ type: "create", path: p }]),
       });
       if (path) {
@@ -935,19 +963,8 @@ function App() {
     }
   };
 
-  // "Neu ▾ → Tageseintrag": open/create today's daily note (no confirm dialog).
-  const openTodayDailyNote = async () => {
-    if (!vaultPath || !vaultAdapter || !indexer) return;
-    try {
-      const path = await resolveOrCreateDailyNote(new Date(), {
-        vaultPath, adapter: vaultAdapter, onIndex: () => indexer.indexVaultFull(), confirmCreate: false,
-        onCreated: (p) => notifyFileOps([{ type: "create", path: p }]),
-      });
-      if (path) { triggerFileTreeUpdate(); openInFocusedPane(path); }
-    } catch (e) {
-      console.error("Failed to open today's daily note", e);
-    }
-  };
+  /** "+ → Tageseintrag" and the palette: today's note, same path as the calendar. */
+  const openTodayDailyNote = () => handleOpenDailyNote(new Date());
 
   // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
   // the non-memoized daily helper); this stable wrapper opens today's note.
@@ -1079,7 +1096,7 @@ function App() {
       />
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <AppRibbon
-        onNewNote={() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } }))}
+        onNewNote={() => requestNewItem("file")}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
         onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}
@@ -1092,37 +1109,34 @@ function App() {
       />
       {!leftCollapsed && (
       <aside aria-label="Left Sidebar" style={{ width: `${leftSidebarWidth}px`, flexShrink: 0, borderRight: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column' }}>
-        {/* Search */}
-        <div style={{ padding: '10px 10px 6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Search + "+" on one row (plan P5): the full-width green button cost a
+            whole chrome row for something reachable seven other ways, so it is
+            an icon beside the search field and always opens its menu. */}
+        <div style={{ padding: '10px 10px 6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <SearchField
             ref={leftSearchRef}
             form
             value={leftQuery}
             onValueChange={(v) => { if (v === '' && leftQuery !== '') clearLeftQuery(); else setLeftQuery(v); }}
-            placeholder={t('fileTree.search')}
-            aria-label={t('fileTree.search')}
+            placeholder={t(searchPlaceholderKey, { defaultValue: t('fileTree.search') })}
+            aria-label={t(searchPlaceholderKey, { defaultValue: t('fileTree.search') })}
             clearLabel={t('sidebar.clearSearch')}
+            style={{ flex: 1, minWidth: 0 }}
           />
-          {/* New ▾ split button */}
-          <div style={{ position: 'relative' }}>
-            <div className="pv-splitbtn" style={{ display: 'flex', width: '100%' }}>
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'file' } }))}
-                className="pv-btn pv-btn--primary"
-                style={{ flex: 1, height: 38, gap: 8 }}
-              >
-                <Plus size={ICON.ui} />{t('sidebar.new', { defaultValue: 'Neu' })}
-              </button>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div style={{ display: 'flex' }}>
               <button
                 ref={newBtnRef}
                 aria-haspopup="menu"
                 aria-expanded={showNewMenu}
-                aria-label={t('sidebar.newMore', { defaultValue: 'Weitere Optionen' })}
+                aria-label={t('sidebar.new', { defaultValue: 'Neu' })}
+                data-tip={t('sidebar.new', { defaultValue: 'Neu' })}
+                data-testid="sidebar-new"
                 onClick={() => setShowNewMenu((s) => !s)}
                 className="pv-btn pv-btn--primary"
-                style={{ width: 34, height: 38, padding: 0, borderLeft: '1px solid color-mix(in srgb, var(--accent-on) 22%, transparent)' }}
+                style={{ width: 34, height: 34, padding: 0 }}
               >
-                <ChevronDown size={ICON.ui} style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform var(--dur-2) var(--ease-1)' }} />
+                <Plus size={ICON.ui} />
               </button>
             </div>
             <DropdownMenu
@@ -1131,9 +1145,9 @@ function App() {
               onClose={() => setShowNewMenu(false)}
               ariaLabel={t('sidebar.new', { defaultValue: 'Neu' })}
               items={[
-                { id: 'note', label: t('sidebar.newNote', { defaultValue: 'Neue Notiz' }), icon: <FilePlus size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'file' } })) },
-                { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'folder' } })) },
-                { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={ICON.ui} />, onSelect: () => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })) },
+                { id: 'note', label: t('sidebar.newNote', { defaultValue: 'Neue Notiz' }), icon: <FilePlus size={ICON.ui} />, onSelect: () => requestNewItem('file') },
+                { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={ICON.ui} />, onSelect: () => requestNewItem('folder') },
+                { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={ICON.ui} />, onSelect: () => requestNewItem('base') },
                 'separator',
                 { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sun size={ICON.ui} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
               ]}
@@ -1208,6 +1222,7 @@ function App() {
                 query={leftQueryDebounced}
                 activePath={activePath}
                 onOpen={openInFocusedPane}
+                onCreate={() => requestNewItem('base')}
               />
             </div>
           )}

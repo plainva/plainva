@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DocIcon, ICON, noteDisplayName } from "@plainva/ui";
+import { Plus } from "lucide-react";
+import { Button, DocIcon, ICON, noteDisplayName } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 
@@ -9,6 +10,8 @@ interface Props {
   query: string;
   activePath: string | null;
   onOpen: (path: string) => void;
+  /** Offered in the empty state — the tab used to have no way to create one. */
+  onCreate?: () => void;
 }
 
 /**
@@ -17,7 +20,7 @@ interface Props {
  * from the index (listBases), icons from the shared document-icon hook (a custom
  * `plainva.icon` or the default database icon). Re-queries on every index bump.
  */
-export function DatabasesList({ query, activePath, onOpen }: Props) {
+export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultPath } = useVault();
   const docIcons = useDocumentIcons();
@@ -46,9 +49,18 @@ export function DatabasesList({ query, activePath, onOpen }: Props) {
   const filtered = bases.filter((b) => b.path.toLowerCase().includes(q));
 
   if (filtered.length === 0) {
+    // An empty tab with no way out of it was the third finding of plan § 7: the
+    // databases tab had no create entry at all. `query` is the sidebar filter —
+    // while it is set, "nothing found" is the honest answer, not "create one".
     return (
-      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)" }}>
-        {t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}
+      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)" }}>
+        <span>{t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}</span>
+        {q === "" && onCreate && (
+          <Button variant="secondary" onClick={onCreate}>
+            <Plus size={ICON.ui} />
+            {t("sidebar.newBase", { defaultValue: "Neue Base" })}
+          </Button>
+        )}
       </div>
     );
   }
