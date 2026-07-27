@@ -16,6 +16,7 @@ export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";
 export * from "./pim/eventColors";
 export * from "./lib/contentFont";
+export * from "./lib/orderedAreas";
 export * from "./lib/outline";
 export * from "./lib/palette";
 export * from "./lib/recentsFile";
@@ -97,6 +98,7 @@ export * from "./components/ui/ToastHost";
 export * from "./components/NoteCardBody";
 export * from "./components/PlainvaLogo";
 export * from "./hooks/useFocusTrap";
+export * from "./hooks/useHoldDrag";
 
 // Editor layer (M0.4): the CodeMirror session and its portable plugins.
 // Shell capabilities (file access, note embeds, URL opening) arrive through
