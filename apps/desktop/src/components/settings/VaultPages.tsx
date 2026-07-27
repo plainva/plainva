@@ -92,6 +92,27 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
     <div>
       <AreaHead areaId="content" />
 
+      {/* Order (maintainer, 2026-07-27): the template folder comes first — it is
+          the precondition for the template picker further down, not an appendix
+          to the tasks. Then everything about daily notes, including their
+          template. The task database gets its own card: "templates & tasks" was
+          one heading over two unrelated things. */}
+      <SettingCard label={t("settings.groupTemplates", { defaultValue: "Vorlagen" })}>
+        <SettingRow label={t("settings.templateFolder")} desc={t("settings.templateFolderDesc")}>
+          <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+            <input autoComplete="off" value={p.templateFolder} onChange={(e) => p.onTemplateFolder(e.target.value)} placeholder="Templates/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
+            <IconButton
+              label={t("settings.browseFolders")}
+              data-testid="browse-template-folder"
+              disabled={!p.isActiveVault}
+              onClick={p.onBrowseTemplateFolder}
+            >
+              <Folder size={ICON.ui} />
+            </IconButton>
+          </div>
+        </SettingRow>
+      </SettingCard>
+
       <SettingCard label={t("settings.groupDailyNotes", { defaultValue: "Tagesnotizen" })}>
         <SettingRow label={t("settings.dailyNotesFolder")}>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
@@ -109,26 +130,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
           <input autoComplete="off" value={p.dailyNotesFormat} onChange={(e) => p.onDailyNotesFormat(e.target.value.replace(/[./\\]/g, "-"))} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
         </SettingRow>
-      </SettingCard>
-
-      <SettingCard label={t("settings.groupTemplatesTasks", { defaultValue: "Vorlagen & Aufgaben" })}>
-        <SettingRow label={t("settings.templateFolder")}>
-          <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-            <input autoComplete="off" value={p.templateFolder} onChange={(e) => p.onTemplateFolder(e.target.value)} placeholder="Templates/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
-            <IconButton
-              label={t("settings.browseFolders")}
-              data-testid="browse-template-folder"
-              disabled={!p.isActiveVault}
-              onClick={p.onBrowseTemplateFolder}
-            >
-              <Folder size={ICON.ui} />
-            </IconButton>
-          </div>
-        </SettingRow>
-        {/* Right below the folder it lives in: the daily-note template is a file
-            NAME inside that folder, so the two only make sense together — they
-            used to sit in separate cards (maintainer report 2026-07-27). */}
-        <SettingRow label={t("settings.dailyNotesTemplate")}>
+        <SettingRow label={t("settings.dailyNotesTemplate")} desc={t("settings.dailyNotesTemplateDesc")}>
           {p.templateFiles.length > 0 ? (
             <Select
               ariaLabel={t("settings.dailyNotesTemplate")}
@@ -140,6 +142,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             <input autoComplete="off" value={p.dailyNoteTemplate} onChange={(e) => p.onDailyNoteTemplate(e.target.value)} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
           )}
         </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupTasks", { defaultValue: "Aufgaben" })}>
         <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")} wide>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
             {p.baseFiles.length > 0 ? (
