@@ -33,7 +33,7 @@ import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
-import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
@@ -183,43 +183,21 @@ export const Editor: React.FC<{
   // the editor adds the prompt/toast shell around it.
   const handleMenuRename = async () => {
     if (!activePath || !vaultAdapter) return;
-    const next = await appPrompt({
-      title: t("common.rename", { defaultValue: "Umbenennen" }),
-      initial: renameInitialName(activePath, false),
-    });
-    if (next == null) return;
-    try {
+    await promptRenameFile(activePath, {
+      adapter: vaultAdapter,
+      queryService: queryService ?? null,
+      indexer: indexer ?? null,
+      t,
+      prompt: appPrompt,
+      toast,
       // Write any pending debounced save FIRST — after the rename it would
       // resurrect the old path (same handshake the version restore uses).
-      await requestSaveFlush(activePath);
-      const result = await renameToName({
-        adapter: vaultAdapter,
-        queryService: queryService ?? null,
-        oldPath: activePath,
-        newName: next,
-        isFolder: false,
-        // .base renames sweep templateFor assignments in the template folder (plan P4).
-        templateFolder: activePath.toLowerCase().endsWith(".base") && vaultPath ? await getTemplateFolder(vaultPath) : undefined,
-      });
-      if (!result.ok) {
-        if (result.reason === "already-exists") toast.error(t("dialogs.alreadyExistsMsg"));
-        else if (result.reason === "invalid-name") toast.error(t("dialogs.invalidNameMsg"));
-        return;
-      }
-      onRenamed?.(activePath, result.newPath);
-      // Targeted reindex (Issue #9): avoid a full-vault scan on every rename.
-      if (indexer) await reindexAfterRename(indexer, { oldPath: activePath, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
-      triggerFileTreeUpdate();
-      if (result.linkUpdateFailed) {
-        toast.warning(t("dialogs.renameLinksFailed"));
-      } else if (result.changedFiles > 0) {
-        toast.success(t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
-      }
-      notifyFileOps([{ type: "move", from: activePath, to: result.newPath }]);
-    } catch (err) {
-      console.error("[Editor] rename failed", err);
-      toast.error(t("dialogs.renameErrorMsg", { error: (err as Error).message }));
-    }
+      flush: requestSaveFlush,
+      templateFolder: () => (vaultPath ? getTemplateFolder(vaultPath) : Promise.resolve(undefined)),
+      onRenamed,
+      refresh: triggerFileTreeUpdate,
+      notify: notifyFileOps,
+    });
   };
 
   const handleMenuDuplicate = async () => {

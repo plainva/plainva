@@ -1171,6 +1171,11 @@ function App() {
                   activePath={activePath}
                   onOpen={openInFocusedPane}
                   query={leftQueryDebounced}
+                  onOpenNewTab={(p) => openInFocusedPane(p, true)}
+                  onOpenInSplit={openPathInSplit}
+                  isBookmarked={(p) => bookmarks.includes(p)}
+                  onToggleBookmarkPath={toggleBookmark}
+                  onForgetRecent={(p) => setRecentPaths((prev) => prev.filter((x) => x !== p))}
                 />
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>

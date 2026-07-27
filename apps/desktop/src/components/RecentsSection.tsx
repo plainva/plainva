@@ -1,3 +1,4 @@
+import type React from "react";
 import { FileText, Paperclip, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DocIcon, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
@@ -15,6 +16,8 @@ interface Props {
   /** When true, render only the row buttons (no header/border) — used inside the
    *  collapsible LeftPinnedSections shell, which provides its own header. */
   headless?: boolean;
+  /** Right-click on a row; the shell owns the menu (plan P4). */
+  onRowContextMenu?: (path: string, event: React.MouseEvent<HTMLElement>) => void;
 }
 
 /**
@@ -24,7 +27,7 @@ interface Props {
  * the tree keeps its expand state instead of resetting. Renders nothing when
  * empty, so the tree keeps the full height.
  */
-export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5, headless = false }: Props) {
+export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5, headless = false, onRowContextMenu }: Props) {
   const { t } = useTranslation();
   const docIcons = useDocumentIcons();
   const docTitles = useDocumentTitles();
@@ -62,6 +65,7 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5, hea
           <button
             key={path}
             onClick={() => onOpen(path)}
+            onContextMenu={onRowContextMenu ? (e) => { e.preventDefault(); onRowContextMenu(path, e); } : undefined}
             data-tip={virtual ? undefined : path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,

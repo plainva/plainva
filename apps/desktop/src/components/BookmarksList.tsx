@@ -1,3 +1,4 @@
+import type React from "react";
 import { FileText, Paperclip } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DocIcon, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
@@ -11,6 +12,8 @@ interface Props {
   query: string;
   activePath: string | null;
   onOpen: (path: string) => void;
+  /** Right-click on a row; the shell owns the menu (plan P4). */
+  onRowContextMenu?: (path: string, event: React.MouseEvent<HTMLElement>) => void;
 }
 
 /**
@@ -20,7 +23,7 @@ interface Props {
  * `.md`/`.base` extension. A bookmark only stores its path, so title + mode come
  * from the index (useDocumentTitles), mirroring how the tree derives its label.
  */
-export function BookmarksList({ bookmarks, query, activePath, onOpen }: Props) {
+export function BookmarksList({ bookmarks, query, activePath, onOpen, onRowContextMenu }: Props) {
   const { t } = useTranslation();
   const docIcons = useDocumentIcons();
   const docTitles = useDocumentTitles();
@@ -62,6 +65,7 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen }: Props) {
           <button
             key={path}
             onClick={() => onOpen(path)}
+            onContextMenu={onRowContextMenu ? (e) => { e.preventDefault(); onRowContextMenu(path, e); } : undefined}
             data-tip={path}
             style={{
               width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,

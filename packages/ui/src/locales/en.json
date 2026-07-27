@@ -1040,6 +1040,7 @@
     "versionHistory": "Version history…",
     "restoreDeleted": "Restore deleted files…",
     "copyPath": "Copy Path",
+    "removeFromList": "Remove from list",
     "fileActions": "File actions",
     "scanning": "Scanning vault...",
     "noNotes": "No notes found.",

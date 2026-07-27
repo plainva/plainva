@@ -212,3 +212,68 @@ export async function duplicateFile(adapter: FileActionAdapter, path: string, co
   }
   return candidate;
 }
+
+/** Minimal translator surface (react-i18next's `t` satisfies it). */
+type Translate = (key: string, opts?: Record<string, unknown>) => string;
+
+export interface PromptRenameContext {
+  adapter: FileActionAdapter;
+  queryService: VaultQueryService | null;
+  indexer: RenameReindexer | null;
+  t: Translate;
+  /** Ask for the new name; returning null cancels. */
+  prompt: (opts: { title: string; initial: string }) => Promise<string | null>;
+  toast: { error: (m: string) => void; warning: (m: string) => void; success: (m: string) => void };
+  /** Flush a pending debounced save first — after the rename it would resurrect the old path. */
+  flush?: (path: string) => Promise<void>;
+  /** Vault-relative template folder, resolved lazily (only `.base` renames need it). */
+  templateFolder?: () => Promise<string | undefined>;
+  onRenamed?: (oldPath: string, newPath: string) => void;
+  /** Refresh the sidebar (triggerFileTreeUpdate). */
+  refresh?: () => void;
+  notify?: (ops: { type: "move"; from: string; to: string }[]) => void;
+}
+
+/**
+ * Rename a FILE through a prompt dialog — the flow the editor's ⋮ menu and the
+ * pinned sidebar lists share (plan P4). The file tree keeps its own path: there
+ * the new name is typed into the row itself, which is a different interaction,
+ * not a different rename.
+ */
+export async function promptRenameFile(path: string, ctx: PromptRenameContext): Promise<void> {
+  const next = await ctx.prompt({
+    title: ctx.t("common.rename", { defaultValue: "Umbenennen" }),
+    initial: renameInitialName(path, false),
+  });
+  if (next == null) return;
+  try {
+    await ctx.flush?.(path);
+    const result = await renameToName({
+      adapter: ctx.adapter,
+      queryService: ctx.queryService,
+      oldPath: path,
+      newName: next,
+      isFolder: false,
+      templateFolder: path.toLowerCase().endsWith(".base") ? await ctx.templateFolder?.() : undefined,
+    });
+    if (!result.ok) {
+      if (result.reason === "already-exists") ctx.toast.error(ctx.t("dialogs.alreadyExistsMsg"));
+      else if (result.reason === "invalid-name") ctx.toast.error(ctx.t("dialogs.invalidNameMsg"));
+      return;
+    }
+    ctx.onRenamed?.(path, result.newPath);
+    if (ctx.indexer) {
+      await reindexAfterRename(ctx.indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+    }
+    ctx.refresh?.();
+    if (result.linkUpdateFailed) {
+      ctx.toast.warning(ctx.t("dialogs.renameLinksFailed"));
+    } else if (result.changedFiles > 0) {
+      ctx.toast.success(ctx.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+    }
+    ctx.notify?.([{ type: "move", from: path, to: result.newPath }]);
+  } catch (err) {
+    console.error("[fileActions] rename failed", err);
+    ctx.toast.error(ctx.t("dialogs.renameErrorMsg", { error: (err as Error).message }));
+  }
+}

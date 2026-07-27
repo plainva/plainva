@@ -1043,6 +1043,7 @@
     "versionHistory": "Historique des versions…",
     "restoreDeleted": "Restaurer les fichiers supprimés…",
     "copyPath": "Copier le chemin",
+    "removeFromList": "Retirer de la liste",
     "fileActions": "Actions sur le fichier",
     "scanning": "Analyse du vault...",
     "noNotes": "Aucune note trouvée.",

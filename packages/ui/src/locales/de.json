@@ -1040,6 +1040,7 @@
     "versionHistory": "Versionsverlauf…",
     "restoreDeleted": "Gelöschte Dateien wiederherstellen…",
     "copyPath": "Pfad kopieren",
+    "removeFromList": "Aus der Liste entfernen",
     "fileActions": "Datei-Aktionen",
     "scanning": "Vault wird durchsucht...",
     "noNotes": "Keine Notizen gefunden.",

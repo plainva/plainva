@@ -3,16 +3,14 @@ import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
-import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isTextFile, isInternalPath, VaultQueryService } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
-  FilePlus, FolderPlus, ExternalLink, Columns2, Rows2, Pencil, Copy, Bookmark,
-  History, ClipboardCopy, Trash2, RefreshCw, ArchiveRestore, ListTree, Check, XCircle, Download,
 } from "lucide-react";
+import { FileContextMenu } from "./FileContextMenu";
 import { buildNewNoteContent, getConfiguredNoteType } from "../services/newNote";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
@@ -1112,9 +1110,8 @@ export const FileTree: React.FC<{
     setContextMenu({ path, isFolder, x: event.clientX, y: event.clientY });
   });
 
-  const openContextPathInNewTab = () => {
-    if (!contextMenu) return;
-    handleOpen(contextMenu.path, true);
+  const openContextPathInNewTab = (path: string) => {
+    handleOpen(path, true);
     setContextMenu(null);
   };
 
@@ -1148,11 +1145,9 @@ export const FileTree: React.FC<{
     }
   };
 
-  const copyContextPath = async () => {
-    if (!contextMenu) return;
-
+  const copyContextPath = async (path: string) => {
     try {
-      await navigator.clipboard.writeText(contextMenu.path);
+      await navigator.clipboard.writeText(path);
       toast.info(t("fileTree.pathCopied", "Pfad kopiert."));
     } catch (error) {
       console.warn("Failed to copy file path", error);
@@ -1386,125 +1381,38 @@ export const FileTree: React.FC<{
         {content}
       </div>
       {contextMenu && (
-        <MenuSurface
-          open
+        // The menu itself lives in FileContextMenu so the pinned lists above
+        // the tree can show the same one (plan P4). Which entries appear is
+        // decided by which callbacks are handed over.
+        <FileContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          path={contextMenu.path}
+          isFolder={contextMenu.isFolder}
+          selectionCount={selection.has(contextMenu.path) ? selection.size : 1}
           onClose={() => setContextMenu(null)}
-          at={{ x: contextMenu.x, y: contextMenu.y }}
-          minWidth={188}
-          ariaLabel={t("fileTree.fileActions")}
-        >
-          {selection.size > 1 && selection.has(contextMenu.path) ? (
-            // Bulk menu (P9): the actions target the whole (pruned) selection.
-            <>
-              <MenuLabel>{t("fileTree.selectedCount", { count: selection.size })}</MenuLabel>
-              <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => handleDuplicate([...selection])}>{t("fileTree.duplicate")}</MenuItem>
-              <MenuItem icon={<XCircle size={ICON.ui} />} onSelect={() => { setSelection(new Set()); setSelectionAnchor(null); }}>{t("fileTree.clearSelection")}</MenuItem>
-              <MenuSeparator />
-              <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => handleBulkDelete([...selection])}>{t("common.delete")}</MenuItem>
-            </>
-          ) : (
-            // Grouped single-target menu (plan UI-Menüs 2026-07-05, P3):
-            // labelled sections instead of one flat list.
-            <>
-              {isConflictPath(contextMenu.path) && (
-                <>
-                  <MenuItem icon={<Check size={ICON.ui} />} onSelect={() => resolveConflictKeep(contextMenu.path)}>{t("fileTree.keepVersion")}</MenuItem>
-                  <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => resolveConflictDiscard(contextMenu.path)}>{t("fileTree.discardConflict")}</MenuItem>
-                  <MenuSeparator />
-                </>
-              )}
-              {contextMenu.isFolder ? (
-                <>
-                  <MenuLabel>{t("fileTree.groupNew", "Neu")}</MenuLabel>
-                  <MenuItem icon={<FilePlus size={ICON.ui} />} onSelect={() => createNewItem("file", contextMenu.path)}>{t("fileTree.newNoteHere")}</MenuItem>
-                  <MenuItem icon={<FolderPlus size={ICON.ui} />} onSelect={() => createNewItem("folder", contextMenu.path)}>{t("fileTree.newFolderHere")}</MenuItem>
-                  <MenuItem icon={<Database size={ICON.ui} />} onSelect={() => createNewItem("base", contextMenu.path)}>{t("fileTree.newBaseHere", "Neue Datenbank (.base)")}</MenuItem>
-                  <MenuItem icon={<Download size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}>{t("import.contextAction", "Aus anderer App importieren...")}</MenuItem>
-                  <MenuSeparator />
-                  <MenuLabel>{contextMenu.path === "" ? t("fileTree.groupVault", "Vault") : t("fileTree.groupFolder", "Ordner")}</MenuLabel>
-                  {/* P1b: the fast path on a huge vault — reconcile just this
-                      subtree instead of walking all 20.000 files. */}
-                  <MenuItem
-                    icon={<RefreshCw size={ICON.ui} />}
-                    data-testid="tree-refresh-folder"
-                    onSelect={() => {
-                      if (contextMenu.path === "") void refreshVault();
-                      else void refreshFolder(contextMenu.path);
-                    }}
-                  >
-                    {contextMenu.path === ""
-                      ? t("refresh.action", { defaultValue: "Vault neu einlesen" })
-                      : t("refresh.folderAction", { defaultValue: "Ordner neu einlesen" })}
-                  </MenuItem>
-                  <MenuItem icon={<ListTree size={ICON.ui} />} onSelect={() => handleGenerateIndex(contextMenu.path)}>{t("indexMd.contextAction")}</MenuItem>
-                  {contextMenu.path === "" && (
-                    <MenuItem icon={<RefreshCw size={ICON.ui} />} onSelect={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}>
-                      {t("indexMd.updateAllAction")}
-                    </MenuItem>
-                  )}
-                  {contextMenu.path === "" && (
-                    <MenuItem icon={<ArchiveRestore size={ICON.ui} />} data-testid="tree-deleted-files" onSelect={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}>
-                      {t("fileTree.restoreDeleted")}
-                    </MenuItem>
-                  )}
-                  {contextMenu.path && (
-                    <>
-                      <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => startRenaming(contextMenu.path, true)}>{t("common.rename")}</MenuItem>
-                      <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <MenuLabel>{t("fileTree.groupOpen", "Öffnen")}</MenuLabel>
-                  <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={openContextPathInNewTab}>{t("fileTree.openNewTab")}</MenuItem>
-                  {onOpenInSplit && (
-                    <>
-                      <MenuItem icon={<Columns2 size={ICON.ui} />} onSelect={() => onOpenInSplit(contextMenu.path, "vertical")}>{t("fileTree.openSplitRight")}</MenuItem>
-                      <MenuItem icon={<Rows2 size={ICON.ui} />} onSelect={() => onOpenInSplit(contextMenu.path, "horizontal")}>{t("fileTree.openSplitDown")}</MenuItem>
-                    </>
-                  )}
-                  <MenuSeparator />
-                  <MenuLabel>{t("fileTree.groupFile", "Datei")}</MenuLabel>
-                  <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => startRenaming(contextMenu.path, false)}>{t("common.rename")}</MenuItem>
-                  {!isConflictPath(contextMenu.path) && (
-                    <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => handleDuplicate([contextMenu.path])}>{t("fileTree.duplicate")}</MenuItem>
-                  )}
-                  {onToggleBookmarkPath && (
-                    <MenuItem icon={<Bookmark size={ICON.ui} fill={isBookmarked?.(contextMenu.path) ? "currentColor" : "none"} />} onSelect={() => onToggleBookmarkPath(contextMenu.path)}>
-                      {isBookmarked?.(contextMenu.path) ? t("editor.removeBookmark") : t("editor.addBookmark")}
-                    </MenuItem>
-                  )}
-                  {!isConflictPath(contextMenu.path) && (
-                    <MenuItem
-                      icon={<History size={ICON.ui} />}
-                      data-testid="tree-version-history"
-                      onSelect={() => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: contextMenu.path } }))}
-                    >
-                      {t("fileTree.versionHistory")}
-                    </MenuItem>
-                  )}
-                  {isConflictPath(contextMenu.path) && (
-                    <MenuItem
-                      icon={<History size={ICON.ui} />}
-                      data-testid="tree-resolve-conflict"
-                      onSelect={() => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: contextMenu.path } }))}
-                    >
-                      {t("conflict.resolveAction")}
-                    </MenuItem>
-                  )}
-                  <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={copyContextPath}>{t("fileTree.copyPath")}</MenuItem>
-                </>
-              )}
-              {contextMenu.path && (
-                <>
-                  <MenuSeparator />
-                  <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => handleDelete(contextMenu.path, contextMenu.isFolder)}>{t("common.delete")}</MenuItem>
-                </>
-              )}
-            </>
-          )}
-        </MenuSurface>
+          onOpenNewTab={openContextPathInNewTab}
+          onOpenInSplit={onOpenInSplit}
+          onRename={startRenaming}
+          onDuplicate={handleDuplicate}
+          isBookmarked={isBookmarked}
+          onToggleBookmark={onToggleBookmarkPath}
+          onVersionHistory={(path: string) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } }))}
+          onCopyPath={copyContextPath}
+          onDelete={handleDelete}
+          onKeepConflict={resolveConflictKeep}
+          onDiscardConflict={resolveConflictDiscard}
+          onResolveConflict={(path: string) => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path } }))}
+          onNewItem={createNewItem}
+          onImport={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}
+          onRefresh={(path: string) => { if (path === "") void refreshVault(); else void refreshFolder(path); }}
+          onGenerateIndex={handleGenerateIndex}
+          onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
+          onRestoreDeleted={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}
+          onBulkDuplicate={() => handleDuplicate([...selection])}
+          onClearSelection={() => { setSelection(new Set()); setSelectionAnchor(null); }}
+          onBulkDelete={() => handleBulkDelete([...selection])}
+        />
       )}
       {baseWizardPath && (
         <React.Suspense fallback={null}>

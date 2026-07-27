@@ -1037,6 +1037,7 @@
     "versionHistory": "バージョン履歴…",
     "restoreDeleted": "削除されたファイルを復元…",
     "copyPath": "パスをコピー",
+    "removeFromList": "リストから削除",
     "fileActions": "ファイル操作",
     "scanning": "保管庫をスキャンしています...",
     "noNotes": "ノートが見つかりません。",

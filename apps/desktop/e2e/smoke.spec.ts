@@ -651,6 +651,54 @@ test('Bookmarks: entries drop the .md extension and show an icon, like the file 
   await expect(bmRow.locator('svg')).toBeVisible();
 });
 
+// --- Right-click works in the pinned lists too, not just the tree (plan P4) ---
+test('Bookmarks: right-click offers the file actions and drops the row from the list', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/MeineNotiz.md': '# MeineNotiz\n',
+      '/test-vault/.plainva/bookmarks.json': JSON.stringify({ items: [{ type: 'file', path: 'MeineNotiz.md' }] }),
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  const bmSection = aside.getByTestId('bookmarks-section');
+  const bmRow = bmSection.getByRole('button', { name: 'MeineNotiz' });
+  await bmRow.click({ button: 'right' });
+
+  // The same menu the tree shows — minus the entries that need a folder or a
+  // multi-selection, plus the one the tree has no use for.
+  const menu = page.getByRole('menu');
+  await expect(menu.getByRole('menuitem', { name: /Umbenennen|Rename/i })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /Im Dateibaum anzeigen|Reveal in file tree/i })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /Neue Notiz|New note/i })).toHaveCount(0);
+
+  // "Remove from list" drops the bookmark; the note itself stays in the tree.
+  await menu.getByRole('menuitem', { name: /Aus der Liste entfernen|Remove from list/i }).click();
+  await expect(bmSection.getByRole('button', { name: 'MeineNotiz' })).toHaveCount(0);
+  await expect(aside.locator('[data-tree-path="MeineNotiz.md"]')).toBeVisible();
+});
+
+test('Recently opened: a view row offers only open and forget, never rename or delete', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Open the vault map so it lands in "Recently opened" as a virtual row.
+  await page.getByTestId('ribbon-graph').click();
+  const recentRow = aside.getByTestId('recents-section').getByRole('button', { name: /^(Graph)$/ });
+  await expect(recentRow).toBeVisible();
+
+  await recentRow.click({ button: 'right' });
+  const menu = page.getByRole('menu');
+  // A view is not a file: renaming or deleting it would be nonsense.
+  await expect(menu.getByRole('menuitem')).toHaveCount(2);
+  await expect(menu.getByRole('menuitem', { name: /Umbenennen|Rename/i })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /L\u00f6schen|Delete/i })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /Aus der Liste entfernen|Remove from list/i })).toBeVisible();
+});
+
 // --- Images open in the in-app viewer instead of the OS app (UI-UX P10) ---
 test('File tree: clicking an image opens the in-app image viewer', async ({ page }) => {
   await page.addInitScript(() => {

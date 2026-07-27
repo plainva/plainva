@@ -1037,6 +1037,7 @@
     "versionHistory": "版本历史…",
     "restoreDeleted": "恢复已删除的文件…",
     "copyPath": "复制路径",
+    "removeFromList": "从列表中移除",
     "fileActions": "文件操作",
     "scanning": "正在扫描仓库…",
     "noNotes": "未找到笔记。",
