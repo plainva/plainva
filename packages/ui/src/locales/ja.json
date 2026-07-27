@@ -3045,7 +3045,9 @@
     "subItemCount": "{{n}}件のサブアイテム",
     "linked": "リンク済み",
     "linkedEntry": "{{base}} · {{n}}件のエントリ",
-    "openBaseView": "{{base}} · 「{{view}}」ビュー"
+    "openBaseView": "{{base}} · 「{{view}}」ビュー",
+    "prevEntry": "前の項目",
+    "nextEntry": "次の項目"
   },
   "deviceSignIn": {
     "action": "このデバイスでサインイン",

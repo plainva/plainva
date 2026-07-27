@@ -3045,7 +3045,9 @@
     "subItemCount": "{{n}}个子项",
     "linked": "已关联",
     "linkedEntry": "{{base}} · {{n}} 个条目",
-    "openBaseView": "{{base}} · 视图“{{view}}”"
+    "openBaseView": "{{base}} · 视图“{{view}}”",
+    "prevEntry": "上一条",
+    "nextEntry": "下一条"
   },
   "deviceSignIn": {
     "action": "在此设备上登录",

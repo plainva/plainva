@@ -523,6 +523,57 @@ async function configTab(page: Page, area: keyof typeof CFG_TAB) {
   await page.locator('.base-config-panel').getByRole('tab', { name: CFG_TAB[area] }).click();
 }
 
+// --- The sidebar's "Databases" section is an entry inspector (plan P2) ------
+// Opening a note that is a row of a database used to say only WHICH database
+// it belonged to. It now shows the note's values for that database's columns,
+// in the database's own order, and steps to the neighbouring entry.
+test('Entry inspector: the sidebar shows the database columns and steps to the neighbour', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Projekte"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Projekte"]').click();
+  await aside.locator('[data-tree-path="Projekte/Beta.md"]').click();
+
+  const right = page.locator('aside[aria-label="Right Sidebar"]');
+  // Sidebar sections remember their open state per device; a fresh profile
+  // starts them collapsed, so the section has to be opened first.
+  await right.getByRole('button', { name: /Datenbanken|Databases/ }).click();
+  const grid = right.locator('.pv-dbinsp-grid').first();
+  await expect(grid).toBeVisible({ timeout: 10000 });
+
+  // Beta's own values for the Cockpit's columns \u2014 the properties panel would
+  // list raw frontmatter; this is the row as its database sees it.
+  await expect(grid).toContainText('paused');
+
+  // Position in the view, and a step to the neighbour.
+  const pos = right.locator('.pv-dbinsp-pos').first();
+  await expect(pos).toHaveText(/[0-9]+ . [0-9]+/);
+  const before = await pos.innerText();
+  await right.getByRole('button', { name: /Nächster Eintrag|Next entry/i }).first().click();
+  await expect(right.locator('.pv-dbinsp-pos').first()).not.toHaveText(before);
+});
+
+// A 232px sidebar is a real width — the plan calls it out by name. The grid has
+// to give up its second column before the editors get squeezed.
+test('Entry inspector: the key/value grid stacks in a narrow sidebar', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('plainva-right-sidebar-width', '210'));
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Projekte"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Projekte"]').click();
+  await aside.locator('[data-tree-path="Projekte/Beta.md"]').click();
+
+  const right = page.locator('aside[aria-label="Right Sidebar"]');
+  await expect(right.locator('.pv-side-right')).toHaveAttribute('data-side-step', /compact|minimal/);
+  await right.getByRole('button', { name: /Datenbanken|Databases/ }).click();
+  const grid = right.locator('.pv-dbinsp-grid').first();
+  await expect(grid).toBeVisible({ timeout: 10000 });
+
+  // One column, not two: the label sits above its value.
+  const cols = await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  expect(cols.trim().split(/\s+/).length).toBe(1);
+});
+
 test('Base table: rows render, filter row narrows, sort rule flips order', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Cockpit');

@@ -45,13 +45,9 @@ export function buildMobilePlanDeps(v: MobileVault): DeletionPlanDeps | null {
       }
       return out;
     },
-    // queryDatabaseFiles rows carry base-view field names — normalize to the
-    // kernel's {path,title} contract (same as the desktop deps).
-    queryDatabaseFiles: async (config) =>
-      (await qs.queryDatabaseFiles(config)).map((r: any) => ({
-        path: String(r["file.path"] ?? r.path ?? ""),
-        title: (r["file.name"] ?? r.title ?? null) as string | null,
-      })),
+    // Rows travel WHOLE (same as the desktop deps): membership reads path and
+    // title, the entry inspector reads the column values.
+    queryDatabaseFiles: (config) => qs.queryDatabaseFiles(config),
     listBaseFilePaths: () => qs.listBaseFilePaths(),
     readTextFile: (path) => v.files.readTextFile(path),
   };

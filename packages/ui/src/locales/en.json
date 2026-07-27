@@ -3062,7 +3062,9 @@
     "subItemCount": "{{n}} sub-items",
     "linked": "Linked",
     "linkedEntry": "{{base}} · {{n}} entries",
-    "openBaseView": "{{base}} · view “{{view}}”"
+    "openBaseView": "{{base}} · view “{{view}}”",
+    "prevEntry": "Previous entry",
+    "nextEntry": "Next entry"
   },
   "deviceSignIn": {
     "action": "Sign in on this device",

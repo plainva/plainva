@@ -534,3 +534,17 @@
 }
 [data-theme-name="win95"] .pv-dbbar-crumb { border-radius: 0; }
 [data-theme-name="win95"] .pv-kv-key { text-transform: none; letter-spacing: 0; }
+/* Entry inspector: the position stepper is a sunken well, like every other
+   read-only value box of the era; nothing rounded survives here. */
+[data-theme-name="win95"] .pv-dbinsp-nav {
+  border-radius: 0;
+  background: #FFFFFF;
+  box-shadow:
+    inset -1px -1px 0 #DFDFDF,
+    inset 1px 1px 0 #808080,
+    inset -2px -2px 0 #FFFFFF,
+    inset 2px 2px 0 #0A0A0A;
+}
+[data-theme-name="win95"] .pv-dbinsp-pos { color: var(--text-main); }
+[data-theme-name="win95"] .pv-dbinsp-disclose { text-transform: none; }
+[data-theme-name="win95"] .pv-dbinsp-grid { row-gap: 1px; }

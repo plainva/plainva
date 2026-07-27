@@ -56,13 +56,10 @@ export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: Vault
       }
       return out;
     },
-    // queryDatabaseFiles rows carry base-view field names — normalize to the
-    // kernel's {path,title} contract here (mobile does the same).
-    queryDatabaseFiles: async (config) =>
-      (await queryService.queryDatabaseFiles(config)).map((r: any) => ({
-        path: String(r["file.path"] ?? r.path ?? ""),
-        title: (r["file.name"] ?? r.title ?? null) as string | null,
-      })),
+    // Rows travel WHOLE: membership reads path/title, the entry inspector reads
+    // the column values. Normalizing here once cost the inspector every value
+    // it needs, without any error to show for it.
+    queryDatabaseFiles: (config) => queryService.queryDatabaseFiles(config),
     listBaseFilePaths: () => queryService.listBaseFilePaths(),
     readTextFile: (path) => adapter.readTextFile(path),
   };

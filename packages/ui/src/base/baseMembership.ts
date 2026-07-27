@@ -24,8 +24,13 @@ export interface BaseDataDeps {
   getIncomingRelationRefs(targetPaths: string[]): Promise<Map<string, IncomingRelationRef[]>>;
   /** Resolved outgoing targets of one property on one note (link index order). */
   getOutgoingRelationTargets(sourcePath: string, propertyKey: string): Promise<string[]>;
-  /** Membership query (the shells pass VaultQueryService.queryDatabaseFiles). */
-  queryDatabaseFiles(config: unknown): Promise<Array<{ path: string; title?: string | null }>>;
+  /**
+   * Base-view query (the shells pass VaultQueryService.queryDatabaseFiles
+   * THROUGH — rows keep their `file.*` fields and property values). Membership
+   * reads only path and title; the entry inspector needs the values, so a
+   * shell must not normalize them away.
+   */
+  queryDatabaseFiles(config: unknown): Promise<Array<Record<string, unknown>>>;
   listBaseFilePaths(): Promise<string[]>;
   readTextFile(path: string): Promise<string>;
 }
@@ -129,10 +134,11 @@ export function createMemberLookup(deps: BaseDataDeps): (base: BaseInfo) => Prom
     if (cached) return cached;
     let rows: Array<{ path: string; title: string }>;
     try {
-      rows = (await deps.queryDatabaseFiles(stripPropertyFilters(base.config))).map((r) => ({
-        path: normBasePath(r.path),
-        title: (r.title ?? "") || noteDisplayName(String(r.path)),
-      }));
+      rows = (await deps.queryDatabaseFiles(stripPropertyFilters(base.config))).map((r) => {
+        const path = normBasePath(r["file.path"] ?? r.path);
+        const title = r["file.name"] ?? r.title;
+        return { path, title: (title == null ? "" : String(title)) || noteDisplayName(path) };
+      });
     } catch {
       rows = [];
     }

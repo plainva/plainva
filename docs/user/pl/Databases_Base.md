@@ -88,7 +88,9 @@ Relacje łączą notatki ze sobą — jak w Notion, ale zapisywane jako zupełni
 Gdy otwierasz wpis bazy danych bezpośrednio — z drzewa plików, z wyszukiwania lub przez `[[link]]` — Plainva mówi Ci teraz, czego jest częścią:
 
 - Nad notatką znajduje się **wiersz kontekstu**: bazy danych, do których należy notatka, jako klikalne chipy (kliknięcie otwiera bazę danych), a po nich ścieżka `element nadrzędny / ta notatka`, gdy baza danych korzysta z elementów podrzędnych. Jeśli notatka należy do **kilku** baz danych, pojawiają się wszystkie — wiersz zawija się, zamiast pomijać którąś z nich.
-- W prawym pasku bocznym sekcja **Bazy danych** pokazuje to samo bardziej szczegółowo: przynależności wraz z widokami, w których pojawia się notatka, jej **element nadrzędny**, jej **elementy podrzędne** oraz wpisy **powiązane** przez relacje — każdy klikalny.
+- W prawym pasku bocznym sekcja **Bazy danych** jest **inspektorem wpisu**: pokazuje notatkę tak, jak widzi ją jej baza danych — kolumny pierwszego widoku, w kolejności tego widoku, z typami i kolorami opcji z `.base`, i **edytowalne** tak samo jak w tabeli. Dzięki temu status można zmienić bez otwierania bazy danych. Nad nimi znajduje się pozycja w widoku (**12 / 34**) ze strzałkami do poprzedniego i następnego wpisu. Notatka należąca do kilku baz danych dostaje osobny blok dla każdej z nich. Poniżej następują **element nadrzędny**, **elementy podrzędne** (rozwijane) oraz wpisy **powiązane** przez relacje — każdy klikalny.
+- Pozycja pojawia się tylko wtedy, gdy notatka rzeczywiście **jest** w widoku: przynależność do bazy danych celowo nie zależy od filtrów widoku, więc obie te rzeczy mogą się zasadnie różnić.
+- Panel **Właściwości** pozostaje przy tym przydatny: pokazuje surowy frontmatter — każde pole, bez kolejności, typów i filtrów bazy danych.
 - Jeśli notatka nie należy do żadnej bazy danych, nie pojawia się ani wiersz, ani sekcja. Nic z tego nie jest zapisywane w notatce: kontekst jest obliczany na nowo przy każdym otwarciu na podstawie plików `.base` i Twoich linków, a sama notatka pozostaje zwykłym Markdownem.
 
 ## Tworzenie nowych wpisów

@@ -3062,7 +3062,9 @@
     "subItemCount": "{{n}} subitems",
     "linked": "Gekoppeld",
     "linkedEntry": "{{base}} · {{n}} items",
-    "openBaseView": "{{base}} · weergave \"{{view}}\""
+    "openBaseView": "{{base}} · weergave \"{{view}}\"",
+    "prevEntry": "Vorig item",
+    "nextEntry": "Volgend item"
   },
   "deviceSignIn": {
     "action": "Op dit apparaat aanmelden",

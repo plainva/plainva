@@ -730,6 +730,16 @@
         <li>Elementlisten eingeklappt (nur Zähler); aufgeklappt scrollbar auf <code>--bg-primary</code>, Unterelemente eingerückt (<code>--sub</code>), Ausnahmen erklärt ein Badge (<code>.pv-cascade-badge--warn</code> geteilt/Mehrfach-Mitglied, <code>--muted</code> Unterelement-Zähler).</li>
         <li>Bestehende Zweitabfrage ab der Großlöschungs-Schwelle + Cloud-/Snapshot-Fußnote bleiben unverändert.</li>
       </ul>
+      <h4 style="margin-top:14px;">Eintrags-Inspektor (<code>.pv-dbinsp-*</code>, 2026-07-28)</h4>
+      <div class="schema">
+        <span class="blk">Datenbank · Ansicht</span><span class="blk hi">◀ 12 / 34 ▶</span><span class="gap">→</span><span class="blk">Schlüssel : Wert (bearbeitbar)</span><span class="blk">Unterelemente (aufklappbar)</span>
+      </div>
+      <ul class="tight">
+        <li>Die Sektion „Datenbanken“ der rechten Leiste zeigt die Zeile <b>so, wie ihre Datenbank sie sieht</b>: Spaltenreihenfolge der ersten Ansicht, deklarierte Typen, Optionsfarben — bearbeitbar über dieselbe Zellenschicht wie die Tabelle (<code>useBaseCells</code>).</li>
+        <li><b>Ein Block je Mitgliedschaft.</b> Eine Notiz, die in zwei Datenbanken liegt, bekommt zwei Blöcke — nie eine gemischte Liste.</li>
+        <li><code>.pv-dbinsp-grid</code> ist ein Zwei-Spalten-Raster (<code>.pv-kv-key</code> / <code>.pv-dbinsp-val</code>); die Wertspalte bekommt die Restbreite, weil dort die Editoren sitzen.</li>
+        <li><code>.pv-dbinsp-nav</code> erscheint <b>nur, wenn die Notiz in der Ansicht steht</b> — die Mitgliedschaft ignoriert Ansichts-Filter bewusst, „0 / 34“ wäre ein Rätsel. Ziffern <code>tabular-nums</code>, Pille unter LCARS eckig, unter Win95 versenkt.</li>
+      </ul>
     </div>
   </section>
 

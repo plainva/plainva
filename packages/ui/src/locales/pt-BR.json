@@ -3079,7 +3079,9 @@
     "subItemCount": "{{n}} subitens",
     "linked": "Vinculado",
     "linkedEntry": "{{base}} · {{n}} entradas",
-    "openBaseView": "{{base}} · visualização \"{{view}}\""
+    "openBaseView": "{{base}} · visualização \"{{view}}\"",
+    "prevEntry": "Entrada anterior",
+    "nextEntry": "Próxima entrada"
   },
   "deviceSignIn": {
     "action": "Entrar neste dispositivo",

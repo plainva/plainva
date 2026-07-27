@@ -88,7 +88,9 @@ Le relazioni collegano le note tra loro — come in Notion, ma memorizzate come 
 Quando apri direttamente una voce di database — dall'albero dei file, dalla ricerca o tramite un `[[link]]` — Plainva ora ti dice di cosa fa parte:
 
 - Sopra la nota c'è una **riga di contesto**: i database a cui appartiene la nota, come chip cliccabili (un clic apre il database), seguiti dal percorso `voce genitore / questa nota` quando il database usa i sottoelementi. Se la nota appartiene a **più** database, compaiono tutti — la riga va a capo invece di ometterne uno.
-- Nella barra laterale destra, la sezione **Database** mostra la stessa cosa in modo più dettagliato: le appartenenze con le viste in cui compare la nota, la sua **voce genitore**, i suoi **sottoelementi** e le voci **collegate** tramite relazioni — ciascuna cliccabile.
+- Nella barra laterale destra, la sezione **Database** è l'**ispettore della voce**: mostra la nota così come la vede il suo database — le colonne della prima vista, nell'ordine di quella vista, con i tipi e i colori delle opzioni del `.base`, e **modificabile** proprio come nella tabella. Così uno stato può essere cambiato senza aprire il database. Sopra si trova la posizione nella vista (**12 / 34**) con le frecce verso la voce precedente e successiva. Una nota che appartiene a più database ottiene un blocco per ciascun database. Sotto seguono la **voce genitore**, i **sottoelementi** (comprimibili) e le voci **collegate** tramite relazioni — ciascuna cliccabile.
+- La posizione compare solo quando la nota si trova effettivamente **nella** vista: l'appartenenza a un database deliberatamente non dipende dai filtri di una vista, quindi le due cose possono legittimamente divergere.
+- Il pannello **Proprietà** resta comunque utile accanto: mostra il frontmatter grezzo — ogni campo, senza l'ordine, i tipi e i filtri del database.
 - Se una nota non appartiene a nessun database, non compaiono né la riga né la sezione. Niente di tutto ciò viene scritto nella nota: il contesto viene ricalcolato dai tuoi file `.base` e dai tuoi link ogni volta che la apri, e la nota stessa resta puro Markdown.
 
 ## Creare nuove voci

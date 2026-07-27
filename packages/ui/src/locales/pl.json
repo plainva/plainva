@@ -3096,7 +3096,9 @@
     "subItemCount": "Elementy podrzędne: {{n}}",
     "linked": "Powiązane",
     "linkedEntry": "{{base}} · {{n}} wpisów",
-    "openBaseView": "{{base}} · widok „{{view}}”"
+    "openBaseView": "{{base}} · widok „{{view}}”",
+    "prevEntry": "Poprzedni wpis",
+    "nextEntry": "Następny wpis"
   },
   "deviceSignIn": {
     "action": "Zaloguj się na tym urządzeniu",

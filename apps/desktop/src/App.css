@@ -397,6 +397,18 @@ option {
 .pv-side-right[data-side-step="minimal"] .pv-row-value {
   overflow-wrap: anywhere;
 }
+/* Entry inspector: the two-column key/value grid gives up its columns before
+   the editors get squeezed — an option chip that cannot show its label is
+   worse than a label on its own line (plan P2, 232px). */
+.pv-side-right[data-side-step="compact"] .pv-dbinsp-grid,
+.pv-side-right[data-side-step="minimal"] .pv-dbinsp-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+.pv-side-right[data-side-step="minimal"] .pv-dbinsp-val {
+  overflow-wrap: anywhere;
+}
+
 /* Section bodies lose their generous inset before the content has to. */
 .pv-side-right[data-side-step="compact"] .pv-side-section > div:last-child,
 .pv-side-right[data-side-step="minimal"] .pv-side-section > div:last-child {

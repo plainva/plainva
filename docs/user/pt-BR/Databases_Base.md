@@ -88,7 +88,9 @@ Relações conectam notas entre si — como no Notion, mas armazenadas como `[[w
 Ao abrir um item de banco de dados diretamente — pela árvore de arquivos, pela busca ou por um `[[link]]` — o Plainva agora mostra do que ele faz parte:
 
 - Acima da nota fica uma **linha de contexto**: os bancos de dados aos quais a nota pertence, como chips clicáveis (um clique abre o banco de dados), seguidos do caminho `item pai / esta nota` quando o banco de dados usa subitens. Se a nota pertencer a **vários** bancos de dados, todos aparecem — a linha se estende em vez de omitir algum.
-- Na barra lateral direita, a seção **Bancos de dados** mostra o mesmo com mais detalhes: as associações com as visualizações em que a nota aparece, seu **item pai**, seus **subitens** e as entradas **vinculadas** por relações — cada uma clicável.
+- Na barra lateral direita, a seção **Bancos de dados** é o **inspetor de item**: ela mostra a nota do jeito que seu banco de dados a vê — as colunas da primeira visualização, na ordem dessa visualização, com os tipos e as cores de opção do `.base`, e **editável** assim como na tabela. Assim dá para mudar um status sem abrir o banco de dados. Acima delas fica a posição na visualização (**12 / 34**) com setas para o item anterior e o seguinte. Uma nota que pertence a vários bancos de dados ganha um bloco para cada um. Abaixo vêm o **item pai**, os **subitens** (recolhíveis) e as entradas **vinculadas** por relações — cada uma clicável.
+- A posição só aparece quando a nota realmente **está** na visualização: pertencer a um banco de dados propositalmente não depende dos filtros de uma visualização, então as duas coisas podem legitimamente divergir.
+- O painel de **Propriedades** continua útil ao lado: ele mostra o frontmatter bruto — cada campo, sem a ordem, os tipos e os filtros do banco de dados.
 - Se uma nota não pertencer a nenhum banco de dados, nem a linha nem a seção aparecem. Nada disso é gravado na nota: o contexto é recalculado a partir dos seus arquivos `.base` e dos links toda vez que você a abre, e a nota em si continua sendo Markdown puro.
 
 ## Criando novos itens

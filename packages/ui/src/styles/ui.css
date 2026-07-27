@@ -1723,6 +1723,54 @@ button.pv-acct:hover { background: var(--state-hover); }
   white-space: nowrap;
 }
 .pv-dbbar-crumb--here { color: var(--text-main); font-weight: 600; cursor: default; }
+/* Entry inspector: the sidebar's database section shows this note's row the
+   way its database sees it — column order, types, option colors — so a status
+   can be changed without opening the database first (plan P2). */
+.pv-dbinsp-grid {
+  display: grid;
+  /* The key column takes what the labels need and no more; the value column
+     gets the rest, because that is where the editors live. */
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px var(--space-2);
+}
+.pv-dbinsp-val {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A note can be a row of several databases. Without a rule between the blocks
+   the second one's column values read as a continuation of the first. */
+.pv-dbinsp-block + .pv-dbinsp-block {
+  border-top: 1px solid var(--border-color-light);
+  padding-top: var(--space-2);
+}
+/* Position in the view ("12 / 34") with a step to either neighbour. */
+.pv-dbinsp-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-low);
+}
+.pv-dbinsp-pos {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+}
+.pv-dbinsp-disclose {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
 /* Key/value label of the sidebar's database section (mockup variant B). */
 .pv-kv-key {
   font-size: var(--text-xs);

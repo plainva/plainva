@@ -88,7 +88,9 @@ Relations link notes to each other — like in Notion, but stored as perfectly n
 When you open a database entry directly — from the file tree, from search or through a `[[link]]` — Plainva now tells you what it is part of:
 
 - Above the note sits a **context line**: the databases the note belongs to as clickable chips (a click opens the database), followed by the path `parent entry / this note` when the database uses sub-items. If the note belongs to **several** databases, all of them appear — the line wraps rather than dropping one.
-- In the right sidebar, the **Databases** section shows the same in more detail: memberships with the views the note appears in, its **parent entry**, its **sub-items** and the entries **linked** through relations — each one clickable.
+- In the right sidebar, the **Databases** section is the **entry inspector**: it shows the note the way its database sees it — the columns of the first view, in that view's order, with the `.base` types and option colors, and **editable** just like in the table. So a status can be changed without opening the database. Above them sits the position in the view (**12 / 34**) with arrows to the previous and next entry. A note that belongs to several databases gets one block per database. Below follow the **parent entry**, the **sub-items** (collapsible) and the entries **linked** through relations — each one clickable.
+- The position only appears when the note actually **is** in the view: belonging to a database deliberately does not depend on a view's filters, so the two can legitimately differ.
+- The **Properties** panel stays useful alongside it: it shows the raw frontmatter — every field, without the database's order, types and filters.
 - If a note belongs to no database, neither the line nor the section appears. None of this is written into the note: the context is recomputed from your `.base` files and links every time you open it, and the note itself stays plain Markdown.
 
 ## Creating new entries

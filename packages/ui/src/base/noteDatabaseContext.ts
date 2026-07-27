@@ -8,6 +8,7 @@ import {
   type BaseInfo,
   type IncomingRelationRef,
 } from "./baseMembership";
+import { combineFilters } from "./filterExpr";
 import { noteDisplayName } from "../lib/noteTitle";
 
 /**
@@ -32,6 +33,22 @@ export interface NoteDatabaseMembership {
   baseLabel: string;
   /** First view name of that base, for "Aufgaben · Ansicht ‚Offen'". */
   viewName: string | null;
+  /** The `.base` config — the inspector needs it for types, options and colors. */
+  config: unknown;
+  /** Visible columns of that view, in the order the table shows them (bare keys). */
+  columns: string[];
+  /** This note as the view sees it: property values plus the `file.*` fields. */
+  row: Record<string, unknown> | null;
+  /**
+   * 1-based position in the VIEW and its length ("12 / 34"). Zero when the note
+   * belongs to the database but the view's own filters exclude it — membership
+   * deliberately ignores those filters, so the two can legitimately disagree.
+   */
+  index: number;
+  total: number;
+  /** Neighbours in view order; null at either end. */
+  prevPath: string | null;
+  nextPath: string | null;
 }
 
 export interface NoteRelative {
@@ -69,6 +86,50 @@ export function hasNoteDatabaseContext(ctx: NoteDatabaseContext): boolean {
   return ctx.memberships.length > 0 || ctx.parent !== null || ctx.children.length > 0 || ctx.linked.length > 0;
 }
 
+/**
+ * What the FIRST view of a database says about this one note: which columns it
+ * shows, this note's values for them, and where the note sits in the view.
+ *
+ * The view's own filters apply here — unlike membership, which strips them so
+ * that "belongs to" cannot change with a filter. Both readings are needed: one
+ * answers "is this a row of that database", the other "what would I see there".
+ */
+async function inspectFirstView(
+  deps: BaseDataDeps,
+  base: BaseInfo,
+  path: string,
+): Promise<Pick<NoteDatabaseMembership, "columns" | "row" | "index" | "total" | "prevPath" | "nextPath">> {
+  const empty = { columns: [] as string[], row: null, index: 0, total: 0, prevPath: null, nextPath: null };
+  const cfg = base.config as { views?: unknown[]; filters?: unknown } | null;
+  const views = Array.isArray(cfg?.views) ? cfg!.views : [];
+  const view = (views[0] ?? {}) as { order?: unknown[] };
+
+  let rows: Array<Record<string, unknown>>;
+  try {
+    const merged = { ...(cfg ?? {}), filters: combineFilters(cfg?.filters, (view as { filters?: unknown }).filters), views: [view] };
+    rows = (await deps.queryDatabaseFiles(merged)) as unknown as Array<Record<string, unknown>>;
+  } catch {
+    return empty;
+  }
+
+  const at = rows.findIndex((r) => normBasePath(r["file.path"] ?? r.path) === path);
+  // `note.` is the on-disk prefix for a note property; `file.*` columns are
+  // derived fields the inspector cannot edit, so they stay out of it.
+  const columns = (Array.isArray(view.order) ? view.order : [])
+    .map((c) => String(c).replace(/^note\./, ""))
+    .filter((c) => c && !c.startsWith("file."));
+
+  if (at < 0) return { ...empty, columns, total: rows.length };
+  return {
+    columns,
+    row: rows[at],
+    index: at + 1,
+    total: rows.length,
+    prevPath: at > 0 ? normBasePath(rows[at - 1]["file.path"] ?? rows[at - 1].path) : null,
+    nextPath: at < rows.length - 1 ? normBasePath(rows[at + 1]["file.path"] ?? rows[at + 1].path) : null,
+  };
+}
+
 export async function buildNoteDatabaseContext(deps: BaseDataDeps, notePath: string): Promise<NoteDatabaseContext> {
   const path = normBasePath(notePath);
   // A `.base` file is a database, not a row of one.
@@ -84,7 +145,13 @@ export async function buildNoteDatabaseContext(deps: BaseDataDeps, notePath: str
     const members = await membersOf(base);
     if (!members.set.has(path)) continue;
     owning.push(base);
-    memberships.push({ basePath: base.path, baseLabel: base.label, viewName: base.viewNames[0] ?? null });
+    memberships.push({
+      basePath: base.path,
+      baseLabel: base.label,
+      viewName: base.viewNames[0] ?? null,
+      config: base.config,
+      ...(await inspectFirstView(deps, base, path)),
+    });
   }
 
   // Parent/children only exist where a database declares a sub-items property —

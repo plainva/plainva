@@ -695,3 +695,9 @@
 }
 [data-theme-name="lcars"] .pv-dbbar-crumb { text-transform: uppercase; letter-spacing: 0.04em; }
 [data-theme-name="lcars"] .pv-kv-key { color: var(--text-main); letter-spacing: 0.1em; }
+/* Entry inspector: Okuda squares off the position pill; the label column
+   follows the same uppercase grammar as the rest of the console. */
+[data-theme-name="lcars"] .pv-dbinsp-nav { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; background: var(--surface-container); }
+[data-theme-name="lcars"] .pv-dbinsp-pos { color: var(--text-main); letter-spacing: 0.08em; }
+[data-theme-name="lcars"] .pv-dbinsp-disclose { text-transform: uppercase; letter-spacing: 0.04em; }
+[data-theme-name="lcars"] .pv-dbinsp-grid { row-gap: 4px; }

@@ -3079,7 +3079,9 @@
     "subItemCount": "{{n}} sottoelementi",
     "linked": "Collegato",
     "linkedEntry": "{{base}} · {{n}} voci",
-    "openBaseView": "{{base}} · vista \"{{view}}\""
+    "openBaseView": "{{base}} · vista \"{{view}}\"",
+    "prevEntry": "Voce precedente",
+    "nextEntry": "Voce successiva"
   },
   "deviceSignIn": {
     "action": "Accedi su questo dispositivo",
