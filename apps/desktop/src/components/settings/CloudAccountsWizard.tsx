@@ -52,6 +52,8 @@ interface WizardProps {
   records: CloudAccountRecord[];
   onDone: (records: CloudAccountRecord[]) => void;
   onCancel: () => void;
+  /** Provider id from the splash deep link — preselects its tile. */
+  initialFamily?: string;
 }
 
 interface ProviderTileDef {
@@ -92,12 +94,14 @@ function authHintText(t: (k: string, o?: Record<string, unknown>) => string, mod
 
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
 
-export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime, records, onDone, onCancel }) => {
+export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime, records, onDone, onCancel, initialFamily }) => {
   const { t } = useTranslation();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // A deep link that already names the provider skips the tile grid.
+  const preselected = initialFamily ? (TILES.find((t) => t.key === initialFamily) ?? null) : null;
+  const [step, setStep] = useState<1 | 2 | 3>(preselected ? 2 : 1);
   /** Account id of the first successful bind — retries upsert the same record. */
   const boundIdRef = useRef<string | undefined>(undefined);
-  const [tile, setTile] = useState<ProviderTileDef | null>(null);
+  const [tile, setTile] = useState<ProviderTileDef | null>(preselected);
   const [svc, setSvc] = useState<Record<CloudServiceId, boolean>>({ files: false, calendar: false, mail: false });
   const [byoOpen, setByoOpen] = useState(false);
   const [byoId, setByoId] = useState("");

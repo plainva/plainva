@@ -58,13 +58,18 @@ import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, ser
 
 type Mode = { kind: "list" } | { kind: "wizard" } | { kind: "detail"; id: string };
 
-export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selectedVault }) => {
+export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvider?: string }> = ({
+  selectedVault,
+  initialProvider,
+}) => {
   const { t } = useTranslation();
   const { pimRuntime, vaultPath } = useVault();
   const isActiveVault = selectedVault === vaultPath;
   const runtime = isActiveVault ? pimRuntime : null;
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
-  const [mode, setMode] = useState<Mode>({ kind: "list" });
+  // The splash "open an online vault" path deep-links here with the provider
+  // the user already picked — land in the wizard on that tile, not on the list.
+  const [mode, setMode] = useState<Mode>(initialProvider ? { kind: "wizard" } : { kind: "list" });
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [busy, setBusy] = useState(false);
   const [newPass, setNewPass] = useState("");
@@ -289,6 +294,7 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
       <div>
         <AreaHead areaId="cloudAccounts" />
         <CloudAccountsWizard
+          initialFamily={initialProvider}
           vaultPath={selectedVault}
           runtime={runtime}
           records={records}

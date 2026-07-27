@@ -771,7 +771,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
-                    <CloudAccountsPage selectedVault={selectedVault} />
+                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
