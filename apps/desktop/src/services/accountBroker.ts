@@ -98,10 +98,29 @@ export function forgetAccountBroker(vaultPath: string, accountId: string): void 
  * Returns the provider shape `OneDriveSyncTarget.accessTokenProvider` and the
  * PIM/mail runtimes expect: `force` drops a cached token the server rejected.
  */
+/**
+ * Set while the wizard connects a Microsoft account through the union consent:
+ * the account slot already holds the token, but the registry record only comes
+ * into being after all services bound. Without this, the very validations that
+ * run DURING the connect (listing calendars, reading the mailbox address)
+ * would find no account and fall back to an empty per-service token.
+ */
+let pendingAccount: { vaultPath: string; accountId: string } | null = null;
+export function setPendingBrokerAccount(next: { vaultPath: string; accountId: string } | null): void {
+  pendingAccount = next;
+}
+
 export async function brokerTokenProvider(
   vaultPath: string,
   service: CloudServiceId
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
+  if (pendingAccount && pendingAccount.vaultPath === vaultPath) {
+    const broker = getAccountBroker(vaultPath, pendingAccount.accountId);
+    return async (force: boolean) => {
+      if (force) broker.forget();
+      return broker.getAccessToken(service);
+    };
+  }
   const records = await loadCloudAccounts(vaultPath);
   const record = records.find((r) => r.family === "microsoft" && accountServices(r).includes(service));
   if (!record) return undefined;

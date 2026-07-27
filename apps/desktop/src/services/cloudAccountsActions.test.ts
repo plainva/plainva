@@ -35,6 +35,10 @@ vi.mock("./CredentialManager", () => ({
     }),
     getWebDavCredentials: vi.fn(async () => slots.get("webdav") ?? null),
     getDriveCredentials: vi.fn(async () => slots.get("drive") ?? null),
+    getOneDriveCredentials: vi.fn(async () => slots.get("onedrive") ?? null),
+    saveOneDriveCredentials: vi.fn(async (_v: string, creds: unknown) => {
+      slots.set("onedrive", creds);
+    }),
     saveDriveCredentials: vi.fn(async (_v: string, creds: unknown) => {
       slots.set("drive", creds);
     }),
@@ -78,7 +82,7 @@ vi.mock("./pim/pimAccounts", () => ({
     if (!opts.refreshToken) consents.push({ via: "pim" });
     return { id: "P", label: "marco@gmail.com" };
   }),
-  connectMicrosoftAccount: vi.fn(),
+  connectMicrosoftAccount: vi.fn(async () => ({ id: "P", label: "marco@outlook.com" })),
   removePimAccount: vi.fn(),
 }));
 
@@ -88,7 +92,26 @@ vi.mock("./driveAuth", () => ({
     return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT" };
   }),
 }));
-vi.mock("./oneDriveAuth", () => ({ authorizeOneDrive: vi.fn() }));
+vi.mock("./oneDriveAuth", () => ({
+  authorizeOneDrive: vi.fn(async (opts: { clientId: string; scope?: string }) => {
+    consents.push({ scope: opts.scope, via: "onedrive" });
+    return { clientId: opts.clientId, refreshToken: "MS-RT" };
+  }),
+}));
+
+/** Account-wide token slot, so the union path can be observed. */
+const accountTokens = new Map<string, unknown>();
+vi.mock("./accountBroker", () => ({
+  microsoftUnionScope: (a: string[]) => a.map((x) => `ms:${x}`).join(" "),
+  saveAccountToken: vi.fn(async (_v: string, id: string, token: unknown) => {
+    accountTokens.set(id, token);
+  }),
+  clearAccountToken: vi.fn(async (_v: string, id: string) => {
+    accountTokens.delete(id);
+  }),
+  setPendingBrokerAccount: vi.fn(),
+  brokerTokenProvider: vi.fn(async () => undefined),
+}));
 vi.mock("./dropboxAuth", () => ({ authorizeDropbox: vi.fn() }));
 
 vi.mock("./pim/pimCredentials", () => ({
@@ -273,5 +296,64 @@ describe("Google union consent", () => {
     );
     // The calendar flow ran its own consent; no Drive scope was requested.
     expect(consents).toEqual([{ via: "pim" }]);
+  });
+});
+
+/**
+ * Stage B / B3: Microsoft consents per account too, but its refresh token
+ * ROTATES — so the union token must land in the ACCOUNT slot and never be
+ * copied into the per-service slots, or the first refresh would invalidate
+ * the copies of the other two services.
+ */
+describe("Microsoft union consent", () => {
+  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+
+  beforeEach(() => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    consents.length = 0;
+    slots.clear();
+    accountTokens.clear();
+    registry.clear();
+  });
+
+  it("asks once and puts the token in the account slot, not in the service slots", async () => {
+    const result = await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "microsoft", services: ["files", "calendar"] },
+      () => {}
+    );
+    expect(consents).toHaveLength(1);
+    expect(consents[0].scope).toBe("ms:files ms:calendar");
+
+    // Account slot holds the single rotating token...
+    expect(result.accountId).toBeTruthy();
+    expect(accountTokens.get(result.accountId!)).toMatchObject({ refreshToken: "MS-RT" });
+    // ...and the file sync slot deliberately holds none.
+    expect(slots.get("drive")).toBeUndefined();
+  });
+
+  it("hands the minted account id to the registry record", async () => {
+    const result = await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "microsoft", services: ["files", "calendar"] },
+      () => {}
+    );
+    const { records, accountId } = await bindConnectResult(
+      "/v",
+      runtime,
+      { family: "microsoft", services: ["files", "calendar"] },
+      result
+    );
+    // Without this the account slot would belong to no account record.
+    expect(accountId).toBe(result.accountId);
+    expect(records.find((r) => r.id === accountId)).toBeTruthy();
+  });
+
+  it("leaves a single-service connect on its own per-service consent", async () => {
+    await runConnectSequence("/v", runtime, { family: "microsoft", services: ["calendar"] }, () => {});
+    // No union run: nothing was written to an account slot.
+    expect(accountTokens.size).toBe(0);
   });
 });

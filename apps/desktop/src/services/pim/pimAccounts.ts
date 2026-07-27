@@ -91,9 +91,15 @@ export async function connectGoogleAccount(
 export async function connectMicrosoftAccount(
   runtime: PimRuntime,
   vaultPath: string,
-  opts: { clientId: string }
+  /**
+   * `viaBroker` marks an account whose refresh token lives in the shared
+   * account slot (union consent, stage B): no consent of our own, and the
+   * per-service slot deliberately stores an empty token because every read
+   * goes through the broker.
+   */
+  opts: { clientId: string; viaBroker?: boolean }
 ): Promise<PimAccountRow> {
-  const { refreshToken } = await authorizeMicrosoftPim(opts);
+  const { refreshToken } = opts.viaBroker ? { refreshToken: "" } : await authorizeMicrosoftPim(opts);
   const id = newAccountId();
   const creds: PimStoredCredentials = { kind: "microsoft", clientId: opts.clientId, refreshToken };
   const auth = buildPimAuthProvider(vaultPath, id, creds);
