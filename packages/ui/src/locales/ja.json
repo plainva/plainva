@@ -2557,6 +2557,8 @@
     "finish": "完了",
     "retry": "再試行",
     "back": "戻る",
+    "unifyLogin": "すべてのサービスを 1 回のログインで",
+    "loginUnified": "ログインを統一しました。",
     "reconnect": "再度ログイン",
     "removeAccount": "アカウントを削除",
     "removeAccountMsg": "このアカウントのすべてのサービスがこの保管庫から削除されます。プロバイダー側では何も削除されません。",

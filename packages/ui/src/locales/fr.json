@@ -2575,6 +2575,8 @@
     "finish": "Terminé",
     "retry": "Réessayer",
     "back": "Retour",
+    "unifyLogin": "Une connexion pour tous les services",
+    "loginUnified": "Connexion unifiée.",
     "reconnect": "Se reconnecter",
     "removeAccount": "Supprimer le compte",
     "removeAccountMsg": "Tous les services de ce compte seront retirés de ce vault. Rien n'est supprimé chez le fournisseur.",

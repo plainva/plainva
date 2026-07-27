@@ -2584,6 +2584,8 @@
     "finish": "Gotowe",
     "retry": "Spróbuj ponownie",
     "back": "Wstecz",
+    "unifyLogin": "Jedno logowanie dla wszystkich usług",
+    "loginUnified": "Logowanie ujednolicone.",
     "reconnect": "Zaloguj się ponownie",
     "removeAccount": "Usuń konto",
     "removeAccountMsg": "Wszystkie usługi tego konta zostaną usunięte z tego vaulta. U dostawcy nic nie zostanie usunięte.",

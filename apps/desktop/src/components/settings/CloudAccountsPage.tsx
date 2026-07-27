@@ -38,6 +38,8 @@ import {
   googleByoFromSlots,
   removeCloudAccount,
   rerunAccountAuth,
+  canUnifyAccountLogin,
+  unifyAccountLogin,
   passwordServicesOf,
   updateAccountPassword,
   runConnectSequence,
@@ -66,6 +68,8 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [busy, setBusy] = useState(false);
   const [newPass, setNewPass] = useState("");
+  /** Accounts that still hold one refresh token per service (stage B offer). */
+  const [unifiable, setUnifiable] = useState<Set<string>>(new Set());
   const backfilled = useRef(false);
 
   const reload = useCallback(async () => {
@@ -90,6 +94,18 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
       if (next) setRecords(next);
     });
   }, [isActiveVault, selectedVault]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(records.map(async (r) => ((await canUnifyAccountLogin(selectedVault, r)) ? r.id : null)))
+      .then((ids) => {
+        if (!cancelled) setUnifiable(new Set(ids.filter((x): x is string => !!x)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [records, selectedVault]);
 
   const filesAccount = records.find((r) => r.services.files);
   const detail = mode.kind === "detail" ? records.find((r) => r.id === mode.id) : undefined;
@@ -244,6 +260,23 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
     }
   };
 
+  /** E8: migrating to the shared broker is an OFFER, never forced. */
+  const unifyLogin = async (record: CloudAccountRecord) => {
+    setReconStatus({});
+    setBusy(true);
+    try {
+      await unifyAccountLogin(selectedVault, runtime, record, (service, st) =>
+        setReconStatus((prev) => ({ ...prev, [service]: st }))
+      );
+      toast.success(t("cloudAccounts.loginUnified"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      void reload();
+    }
+  };
+
   const persistByoId = async (record: CloudAccountRecord, value: string) => {
     const next = records.map((r) => (r.id === record.id ? { ...r, byoClientId: value.trim() || undefined } : r));
     await saveCloudAccounts(selectedVault, next);
@@ -288,7 +321,18 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
             <div className="pv-acct-name">{name}</div>
             {identity && <div className="pv-acct-id">{identity}</div>}
           </div>
-          {oauthFamily && (
+          {unifiable.has(detail.id) && (
+            <Button
+              variant="secondary"
+              icon={<RotateCw size={ICON.meta} />}
+              disabled={busy || !isActiveVault}
+              onClick={() => void unifyLogin(detail)}
+              data-testid="cloudacct-unify"
+            >
+              {t("cloudAccounts.unifyLogin")}
+            </Button>
+          )}
+          {oauthFamily && !unifiable.has(detail.id) && (
             <Button variant="secondary" icon={<RotateCw size={ICON.meta} />} disabled={busy} onClick={() => void reconnect(detail)} data-testid="cloudacct-reconnect">
               {t("cloudAccounts.reconnect")}
             </Button>

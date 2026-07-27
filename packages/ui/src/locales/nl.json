@@ -2566,6 +2566,8 @@
     "finish": "Klaar",
     "retry": "Opnieuw proberen",
     "back": "Terug",
+    "unifyLogin": "Een login voor alle diensten",
+    "loginUnified": "Aanmelding samengevoegd.",
     "reconnect": "Opnieuw verbinden",
     "removeAccount": "Account verwijderen",
     "removeAccountMsg": "Alle diensten van dit account worden uit deze vault verwijderd. Bij de provider wordt niets gewist.",

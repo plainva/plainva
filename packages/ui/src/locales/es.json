@@ -2575,6 +2575,8 @@
     "finish": "Listo",
     "retry": "Reintentar",
     "back": "Atrás",
+    "unifyLogin": "Un inicio de sesión para todos los servicios",
+    "loginUnified": "Inicio de sesión unificado.",
     "reconnect": "Volver a conectar",
     "removeAccount": "Eliminar cuenta",
     "removeAccountMsg": "Todos los servicios de esta cuenta se eliminarán de este vault. No se borra nada en el proveedor.",

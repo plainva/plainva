@@ -2566,6 +2566,8 @@
     "finish": "Done",
     "retry": "Try again",
     "back": "Back",
+    "unifyLogin": "One login for all services",
+    "loginUnified": "Sign-in unified.",
     "reconnect": "Sign in again",
     "removeAccount": "Remove account",
     "removeAccountMsg": "All services of this account are removed from this vault. Nothing is deleted at the provider.",

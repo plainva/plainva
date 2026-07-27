@@ -2557,6 +2557,8 @@
     "finish": "完成",
     "retry": "重试",
     "back": "返回",
+    "unifyLogin": "一次登录，所有服务通用",
+    "loginUnified": "登录已统一。",
     "reconnect": "重新登录",
     "removeAccount": "移除账户",
     "removeAccountMsg": "此账户的所有服务都将从此仓库移除。服务商那边不会删除任何内容。",

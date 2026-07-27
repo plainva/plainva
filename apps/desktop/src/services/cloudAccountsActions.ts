@@ -2,6 +2,7 @@ import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES } from "@plainva/core";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
+  accountServices,
   identityKey,
   type CloudAccountRecord,
   type CloudProviderFamily,
@@ -38,7 +39,7 @@ import {
 } from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { clearAccountToken, microsoftUnionScope, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
+import { clearAccountToken, getAccountToken, microsoftUnionScope, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -683,6 +684,71 @@ export async function saveSyncRootFolder(vaultPath: string, provider: SyncProvid
     if (creds) await credentialManager.saveS3Credentials(vaultPath, { ...creds, prefix: value || undefined });
   }
   announceCredentials(false);
+}
+
+/**
+ * True for a Microsoft account that still holds one refresh token per service
+ * — i.e. it was connected before stage B and can be migrated to the shared
+ * broker with a single re-consent (decision E8: an offer, never a forced
+ * migration).
+ */
+export async function canUnifyAccountLogin(vaultPath: string, record: CloudAccountRecord): Promise<boolean> {
+  if (record.family !== "microsoft") return false;
+  if (accountServices(record).length < 2) return false;
+  return !(await getAccountToken(vaultPath, record.id));
+}
+
+/**
+ * Moves an existing Microsoft account onto the shared broker: ONE consent for
+ * the union of the services it already carries, the token into the account
+ * slot, and the per-service tokens cleared afterwards so nothing keeps
+ * refreshing a copy on the side.
+ *
+ * The per-service slots themselves stay (they hold the folder choice, the
+ * account row, the mailbox address); only their refresh tokens go.
+ */
+export async function unifyAccountLogin(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord,
+  onStatus: ServiceStatusCb
+): Promise<void> {
+  const services = accountServices(record);
+  const clientId = record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
+  const scope = microsoftUnionScope(services);
+  for (const service of services) onStatus(service, { state: "pending" });
+
+  const { refreshToken } = await authorizeOneDrive({ clientId, scope }).catch((err) => {
+    for (const service of services) {
+      onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+    }
+    throw err;
+  });
+
+  // Account slot first: from here on every service can resolve a token, so a
+  // failure while clearing the old ones leaves the account working.
+  await saveAccountToken(vaultPath, record.id, { clientId, refreshToken, scopes: scope });
+
+  if (record.services.files?.provider === "onedrive") {
+    const creds = await credentialManager.getOneDriveCredentials(vaultPath);
+    if (creds) await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
+    onStatus("files", { state: "ok" });
+  }
+  const pimId = record.services.calendar?.pimAccountId;
+  if (pimId) {
+    const creds = await getPimCredentials(vaultPath, pimId);
+    if (creds?.kind === "microsoft") await savePimCredentials(vaultPath, pimId, { ...creds, refreshToken: "" });
+    onStatus("calendar", { state: "ok" });
+  }
+  const mailId = record.services.mail?.mailAccountId;
+  if (mailId) {
+    forgetGraphMailRuntime(mailId);
+    await saveMailRefreshToken(vaultPath, mailId, "");
+    onStatus("mail", { state: "ok" });
+  }
+
+  announceCredentials(false);
+  if (pimId && runtime) void runtime.worker.triggerImmediate();
 }
 
 /** Turns ONE service of an account off (existing subsystem removal semantics). */
