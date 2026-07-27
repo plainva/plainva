@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Clock, Bookmark, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -71,13 +71,14 @@ export function LeftPinnedSections({ vaultPath, recentPaths, bookmarks, activePa
   const sectionEls = useRef<Partial<Record<SectionId, HTMLElement>>>({});
 
   // Identifies this surface in the change event, so it does not re-read the
-  // store because of its own write.
-  const sourceRef = useRef<string>(`leftSections-${Math.random().toString(36).slice(2)}`);
+  // store because of its own write. useId is stable per instance and pure —
+  // a random id in the render body is not (react-hooks/purity).
+  const source = useId();
 
   useEffect(() => {
     let alive = true;
     const read = (e?: Event) => {
-      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === source) return;
       void loadBarLayout("leftSections", vaultPath).then((v) => {
         if (alive) setLayout(v);
       });
@@ -88,7 +89,7 @@ export function LeftPinnedSections({ vaultPath, recentPaths, bookmarks, activePa
       alive = false;
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
     };
-  }, [vaultPath]);
+  }, [vaultPath, source]);
 
   // Reload the device-local open state when the vault changes.
   useEffect(() => {
@@ -106,9 +107,9 @@ export function LeftPinnedSections({ vaultPath, recentPaths, bookmarks, activePa
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("leftSections", vaultPath, next, sourceRef.current);
+      void saveBarLayout("leftSections", vaultPath, next, source);
     },
-    [vaultPath],
+    [vaultPath, source],
   );
 
   const shown = useMemo(() => visibleAreas(layout) as SectionId[], [layout]);

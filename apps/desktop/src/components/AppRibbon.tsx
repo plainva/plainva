@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Sun, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import {
@@ -72,13 +72,14 @@ export function AppRibbon(props: AppRibbonProps) {
   const railRef = useRef<HTMLElement | null>(null);
 
   // Identifies this surface in the change event, so it does not re-read the
-  // store because of its own write.
-  const sourceRef = useRef<string>(`ribbon-${Math.random().toString(36).slice(2)}`);
+  // store because of its own write. useId is stable per instance and pure —
+  // a random id in the render body is not (react-hooks/purity).
+  const source = useId();
 
   useEffect(() => {
     let alive = true;
     const read = (e?: Event) => {
-      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === source) return;
       void loadBarLayout("ribbon", vaultPath).then((v) => {
         if (alive) setLayout(v);
       });
@@ -89,14 +90,14 @@ export function AppRibbon(props: AppRibbonProps) {
       alive = false;
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
     };
-  }, [vaultPath]);
+  }, [vaultPath, source]);
 
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("ribbon", vaultPath, next, sourceRef.current);
+      void saveBarLayout("ribbon", vaultPath, next, source);
     },
-    [vaultPath],
+    [vaultPath, source],
   );
 
   /** Every action the rail COULD carry, keyed by id. Gated services are absent

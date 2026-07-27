@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, Hash, Database, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import {
@@ -51,13 +51,14 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Identifies this surface in the change event, so it does not re-read the
-  // store because of its own write.
-  const sourceRef = useRef<string>(`leftTabs-${Math.random().toString(36).slice(2)}`);
+  // store because of its own write. useId is stable per instance and pure —
+  // a random id in the render body is not (react-hooks/purity).
+  const source = useId();
 
   useEffect(() => {
     let alive = true;
     const read = (e?: Event) => {
-      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === source) return;
       void loadBarLayout("leftTabs", vaultPath).then((v) => {
         if (alive) setLayout(v);
       });
@@ -68,14 +69,14 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
       alive = false;
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
     };
-  }, [vaultPath]);
+  }, [vaultPath, source]);
 
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("leftTabs", vaultPath, next, sourceRef.current);
+      void saveBarLayout("leftTabs", vaultPath, next, source);
     },
-    [vaultPath],
+    [vaultPath, source],
   );
 
   const shown = useMemo(() => visibleAreas(layout) as LeftTabId[], [layout]);

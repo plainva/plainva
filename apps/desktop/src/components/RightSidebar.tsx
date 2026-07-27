@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Database, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
@@ -88,13 +88,14 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   const [dbContext, setDbContext] = useState<NoteDatabaseContext>(EMPTY_NOTE_DATABASE_CONTEXT);
 
   // Identifies this surface in the change event, so it does not re-read the
-  // store because of its own write.
-  const sourceRef = useRef<string>(`rightSections-${Math.random().toString(36).slice(2)}`);
+  // store because of its own write. useId is stable per instance and pure —
+  // a random id in the render body is not (react-hooks/purity).
+  const source = useId();
 
   useEffect(() => {
     let alive = true;
     const read = (e?: Event) => {
-      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === sourceRef.current) return;
+      if (e && (e as CustomEvent<{ source?: string }>).detail?.source === source) return;
       void loadBarLayout("rightSections", vaultPath).then((v) => {
         if (alive) setLayout(v);
       });
@@ -105,7 +106,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       alive = false;
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, read);
     };
-  }, [vaultPath]);
+  }, [vaultPath, source]);
 
   useEffect(() => {
     if (!activePath || !vaultAdapter || !queryService || !/\.md$/i.test(activePath)) {
@@ -136,9 +137,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("rightSections", vaultPath, next, sourceRef.current);
+      void saveBarLayout("rightSections", vaultPath, next, source);
     },
-    [vaultPath],
+    [vaultPath, source],
   );
 
   const shown = useMemo(() => visibleAreas(layout) as SectionId[], [layout]);
