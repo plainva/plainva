@@ -109,18 +109,6 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
           <input autoComplete="off" value={p.dailyNotesFormat} onChange={(e) => p.onDailyNotesFormat(e.target.value.replace(/[./\\]/g, "-"))} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
         </SettingRow>
-        <SettingRow label={t("settings.dailyNotesTemplate")}>
-          {p.templateFiles.length > 0 ? (
-            <Select
-              ariaLabel={t("settings.dailyNotesTemplate")}
-              value={p.templateFiles.includes(p.dailyNoteTemplate) ? p.dailyNoteTemplate : ""}
-              onChange={p.onDailyNoteTemplate}
-              options={[{ value: "", label: "—" }, ...p.templateFiles.map((f) => ({ value: f, label: f }))]}
-            />
-          ) : (
-            <input autoComplete="off" value={p.dailyNoteTemplate} onChange={(e) => p.onDailyNoteTemplate(e.target.value)} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
-          )}
-        </SettingRow>
       </SettingCard>
 
       <SettingCard label={t("settings.groupTemplatesTasks", { defaultValue: "Vorlagen & Aufgaben" })}>
@@ -136,6 +124,21 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               <Folder size={ICON.ui} />
             </IconButton>
           </div>
+        </SettingRow>
+        {/* Right below the folder it lives in: the daily-note template is a file
+            NAME inside that folder, so the two only make sense together — they
+            used to sit in separate cards (maintainer report 2026-07-27). */}
+        <SettingRow label={t("settings.dailyNotesTemplate")}>
+          {p.templateFiles.length > 0 ? (
+            <Select
+              ariaLabel={t("settings.dailyNotesTemplate")}
+              value={p.templateFiles.includes(p.dailyNoteTemplate) ? p.dailyNoteTemplate : ""}
+              onChange={p.onDailyNoteTemplate}
+              options={[{ value: "", label: "—" }, ...p.templateFiles.map((f) => ({ value: f, label: f }))]}
+            />
+          ) : (
+            <input autoComplete="off" value={p.dailyNoteTemplate} onChange={(e) => p.onDailyNoteTemplate(e.target.value)} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
+          )}
         </SettingRow>
         <SettingRow label={t("settings.taskDatabase")} desc={t("settings.taskDatabaseDesc")} wide>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>

@@ -1028,6 +1028,15 @@ test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag
   // Both conditions landed as rows — never a free-text fallback.
   await expect(wizard.getByText('Leerbereich', { exact: true })).toBeVisible();
   await expect(wizard.getByText('#projekt', { exact: true })).toBeVisible();
+
+  // The wizard opens WITHOUT a BaseViewer (file tree / settings), and the
+  // base-cfg-* rules used to be an inline <style> that only the viewer rendered
+  // — so this dialog came up completely unstyled (maintainer report
+  // 2026-07-27). Pin that its stylesheet is actually in effect here.
+  const addButton = wizard.locator('.base-cfg-addbtn');
+  await expect(addButton).toBeVisible();
+  expect(await addButton.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
   await page.getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 });
 

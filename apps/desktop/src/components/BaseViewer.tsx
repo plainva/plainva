@@ -46,7 +46,7 @@ import { HeaderColorPicker } from "./HeaderColorPicker";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
-import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, BASE_VIEWER_STYLES, EXTENDED_TYPES } from "./base/baseViewerShared";
+import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems } from "../services/baseViewState";
 import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
@@ -2015,7 +2015,6 @@ export function BaseViewer({
         )}
       </div>
 
-      <style>{BASE_VIEWER_STYLES}</style>
       {renameProgress && (
         <Modal
           onClose={() => {}}

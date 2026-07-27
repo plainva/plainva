@@ -32,6 +32,7 @@ const STYLE_FILES = {
   baseColors: join(REPO, "packages/ui/src/styles/base-colors.css"),
   appCss: join(SRC, "App.css"),
   mailCss: join(SRC, "components/mail/mail.css"),
+  baseCss: join(SRC, "components/base/base.css"),
   mobileCss: join(REPO, "apps/mobile/src/mobile.css"),
 };
 const THEME_DIR = join(REPO, "packages/ui/src/themes");
