@@ -12,6 +12,8 @@ import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
 import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
+import { setMailTokenResolver } from "@plainva/ui/mail";
+import { brokerTokenProvider } from "./services/accountBroker";
 import App from "./App";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
@@ -88,6 +90,11 @@ setPlatformServices({
 // can be opened. Stage one is Graph-only — the IMAP half refuses until the
 // native plugin lands (G2).
 registerMobileMailPlatform();
+
+// Mail reads its Graph token from the shared account broker when the account
+// was connected through the union consent; otherwise the resolver returns
+// undefined and the per-account refresh path stays (cloud accounts stage B).
+setMailTokenResolver((vaultId) => brokerTokenProvider(vaultId, "mail"));
 
 async function boot(): Promise<void> {
   // Never let an init failure blank the screen: log and render anyway, so an

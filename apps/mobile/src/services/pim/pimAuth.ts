@@ -5,6 +5,7 @@ import {
   type PimAuthProvider,
 } from "@plainva/core";
 import { webdavFetch } from "../../adapters/webdavHttp";
+import { brokerTokenProvider } from "../accountBroker";
 import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 
 /**
@@ -47,8 +48,16 @@ export function buildPimAuthProvider(
     return accessToken;
   };
 
+  /** Probed once: broker-backed Microsoft accounts read through the broker. */
+  let brokerProbe: Promise<((force: boolean) => Promise<string>) | undefined> | null = null;
+
   return {
     async getAccessToken(force?: boolean): Promise<string> {
+      if (creds.kind === "microsoft") {
+        if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultId, "calendar").catch(() => undefined);
+        const viaBroker = await brokerProbe;
+        if (viaBroker) return viaBroker(force ?? false);
+      }
       if (!force && accessToken && Date.now() < expiresAt) return accessToken;
       if (!inFlight) {
         inFlight = refresh().finally(() => {

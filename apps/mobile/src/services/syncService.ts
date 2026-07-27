@@ -20,6 +20,7 @@ import {
 import { getPlatformServices, scaffoldVaultTemplate, type VaultTemplateDefinition } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
+import { brokerTokenProvider } from "./accountBroker";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
@@ -357,7 +358,7 @@ export async function stopSyncAndDrain(): Promise<void> {
  */
 const MOBILE_REQUEST_TIMEOUT_MS = 120_000;
 
-function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
+function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): ISyncTarget {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson). AWAITED and
   // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
@@ -391,6 +392,15 @@ function buildTarget(p: MobileSyncProvider, credKey: string): ISyncTarget {
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
       );
+      // Broker-backed accounts (cloud accounts stage B): the account slot owns
+      // the rotating refresh token, this target only asks for access tokens.
+      if (vaultId) {
+        void brokerTokenProvider(vaultId, "files")
+          .then((provider) => {
+            if (provider) target.accessTokenProvider = provider;
+          })
+          .catch(() => undefined);
+      }
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
         p.creds.refreshToken = refreshToken;
@@ -427,7 +437,7 @@ function workspaceProvider(provider: MobileSyncProvider["provider"]) {
 export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
   const provider = await getStoredProvider(vaultId);
   if (!provider) throw new Error("sync connection required");
-  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), buildTarget(provider, credKeyFor(vaultId)));
+  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), buildTarget(provider, credKeyFor(vaultId), vaultId));
 }
 
 export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ workspaceId: string; fingerprint: string } | null> {
@@ -468,7 +478,7 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string): 
 export async function remoteSidebandFileExists(vaultId: string, path: string): Promise<boolean> {
   const provider = await getStoredProvider(vaultId);
   if (!provider) throw new Error("sync connection required");
-  return (await buildTarget(provider, credKeyFor(vaultId)).download(path)) !== null;
+  return (await buildTarget(provider, credKeyFor(vaultId), vaultId).download(path)) !== null;
 }
 
 /** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
