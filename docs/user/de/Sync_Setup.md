@@ -55,6 +55,8 @@ Plainva liefert eine eigene App-Registrierung mit — Du musst **keine eigene ID
 
 Optional: Über **Eigene App-ID verwenden** kannst Du stattdessen eine selbst registrierte Client-ID hinterlegen (z. B. bei Firmen-Sperren). Ausführliche Anleitung: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+Verbindest Du bei Microsoft mehrere Dienste zusammen — etwa **Dateien** und **Kalender** —, fragt Microsoft nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Bestehende Konten, die noch je Dienst getrennt angemeldet sind, bieten in den Konto-Details **Ein Login für alle Dienste** an: ein Durchgang, danach hängen alle Dienste an derselben Anmeldung.
+
 ## Dropbox
 
 Plainva liefert eine eigene Dropbox-App mit — **keine eigene App nötig**:

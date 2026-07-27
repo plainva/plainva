@@ -55,6 +55,8 @@ Plainva dostarcza własną rejestrację aplikacji — **nie musisz już zakłada
 
 Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast tego podać samodzielnie zarejestrowany Client ID (np. przy ograniczeniach firmowych). Szczegółowa instrukcja: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+Jeśli połączysz kilka usług Microsoft naraz — na przykład **Pliki** i **Kalendarz** — Microsoft poprosi o zgodę tylko **raz**, a Plainva zachowa jedno logowanie dla całego konta. Konta logujqce się wciąż osobno dla każdej usługi oferują **Jedno logowanie dla wszystkich usług** w szczegółach konta.
+
 ## Dropbox
 
 Plainva dostarcza własną aplikację Dropbox — **nie potrzebujesz własnej aplikacji**:

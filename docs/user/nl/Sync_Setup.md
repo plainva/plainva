@@ -55,6 +55,8 @@ Plainva levert een eigen app-registratie mee — je hoeft **geen eigen ID meer a
 
 Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf geregistreerde client-ID opgeven (bijv. bij bedrijfsbeperkingen). Uitgebreide handleiding: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden bieden **Een login voor alle diensten** in de accountgegevens.
+
 ## Dropbox
 
 Plainva levert een eigen Dropbox-app mee — **geen eigen app nodig**:

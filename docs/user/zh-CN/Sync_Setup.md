@@ -55,6 +55,8 @@ Plainva自带了应用注册——你**不再需要自己创建ID**：
 
 可选：通过**使用你自己的应用 ID**，你可以改为填入一个自行注册的客户端ID（例如遇到公司限制时）。详细指南：[OneDrive与Dropbox（BYO）](OneDrive_and_Dropbox_BYO_Guide.md)。
 
+如果同时连接多项 Microsoft 服务（例如**文件**和**日历**），Microsoft 只会请求一次授权，Plainva 为整个账户保存一份登录。仍按服务分别登录的账户，可在账户详情中使用**一次登录，所有服务通用**。
+
 ## Dropbox
 
 Plainva自带了Dropbox应用——**无需自己的应用**：

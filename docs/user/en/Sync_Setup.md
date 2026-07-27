@@ -55,6 +55,8 @@ Plainva ships its own app registration — you **no longer need your own ID**:
 
 Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+When you connect several Microsoft services together — say **Files** and **Calendar** — Microsoft asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. Accounts that still sign in per service offer **One login for all services** in the account details: one round trip, and afterwards every service shares the same sign-in.
+
 ## Dropbox
 
 Plainva ships its own Dropbox app — **no own app needed**:

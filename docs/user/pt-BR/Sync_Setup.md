@@ -55,6 +55,8 @@ O Plainva já vem com seu próprio registro de app — você **não precisa mais
 
 Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez disso, um Client ID registrado por você mesmo (por exemplo, por restrições corporativas). Guia detalhado: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+Ao conectar vários serviços da Microsoft juntos — por exemplo **Arquivos** e **Agenda** —, a Microsoft pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Contas que ainda entram serviço a serviço oferecem **Um login para todos os serviços** nos detalhes da conta.
+
 ## Dropbox
 
 O Plainva já vem com seu próprio app do Dropbox — **nenhum app próprio é necessário**:

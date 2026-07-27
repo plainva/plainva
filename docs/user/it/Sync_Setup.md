@@ -55,6 +55,8 @@ Plainva fornisce una propria registrazione dell'app — **non devi più crearne 
 
 Facoltativo: tramite **Usa il tuo ID applicazione** puoi invece fornire un ID client registrato da te (ad es. per restrizioni aziendali). Guida dettagliata: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
+Collegando più servizi Microsoft insieme — ad esempio **File** e **Calendario** — Microsoft chiede il consenso una **sola volta** e Plainva conserva un unico accesso per l'intero account. Gli account che accedono ancora servizio per servizio offrono **Un accesso per tutti i servizi** nei dettagli dell'account.
+
 ## Dropbox
 
 Plainva fornisce una propria app Dropbox — **non serve un'app tua**:
