@@ -43,6 +43,8 @@ Google Drive currently runs with your own credentials ("Bring Your Own"): you cr
 
 Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while the Google project is in testing mode, the login expires after 7 days and must be renewed via **Sign in again** in the account details.
 
+If you tick **Files** and **Calendar** together while connecting, Google asks for your consent only **once** — requesting exactly the permissions of the services you picked. Adding another service later brings a second, incremental consent.
+
 ## OneDrive
 
 Plainva ships its own app registration — you **no longer need your own ID**:

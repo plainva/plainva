@@ -43,6 +43,8 @@ Google Drive funziona attualmente con le tue credenziali ("Bring Your Own"): cre
 
 Versione breve: in **Account cloud** → **Collega account…**, scegli la scheda **Google**, spunta il servizio **File**, inserisci l'**ID client** e il **Secret client** dal tuo progetto Google, poi **Accedi con Google…** — l'accesso si apre nel tuo browser. Una volta connesso, scegli la **Cartella cloud** tramite **Scegli cartella…** direttamente dal tuo Drive (sottocartelle incluse, predefinita "Plainva"). Nota: finché il progetto Google è in modalità di test, l'accesso scade dopo 7 giorni e va rinnovato tramite **Riconnetti** nei dettagli dell'account.
 
+Se selezioni **File** e **Calendario** insieme durante la connessione, Google chiede il consenso una **sola volta**, richiedendo esattamente i permessi dei servizi scelti. Aggiungendo un altro servizio in seguito compare un secondo consenso integrativo.
+
 ## OneDrive
 
 Plainva fornisce una propria registrazione dell'app — **non devi più crearne una tua**:

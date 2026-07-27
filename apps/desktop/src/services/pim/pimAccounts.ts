@@ -68,9 +68,15 @@ export async function connectCalDavAccount(
 export async function connectGoogleAccount(
   runtime: PimRuntime,
   vaultPath: string,
-  opts: { clientId: string; clientSecret: string }
+  /**
+   * `refreshToken` short-circuits the consent: the cloud-accounts wizard may
+   * already hold one from a single union-scope run covering files AND calendar
+   * (stage B / B2). Google refresh tokens do not rotate, so the same token can
+   * back both services.
+   */
+  opts: { clientId: string; clientSecret: string; refreshToken?: string }
 ): Promise<PimAccountRow> {
-  const { refreshToken } = await authorizeGooglePim(opts);
+  const { refreshToken } = opts.refreshToken ? { refreshToken: opts.refreshToken } : await authorizeGooglePim(opts);
   const id = newAccountId();
   const creds: PimStoredCredentials = { kind: "google", clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken };
   // Validate + derive the label: Google's primary calendar id IS the address.

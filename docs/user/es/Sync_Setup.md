@@ -43,6 +43,8 @@ Google Drive funciona actualmente con tus propias credenciales ("Bring Your Own"
 
 Versión corta: en **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Google**, marca el servicio **Archivos**, introduce el **Client ID** y el **Client Secret** de tu proyecto de Google, y luego **Iniciar sesión con Google…** — el inicio de sesión se abre en tu navegador. Una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu Drive (subcarpetas incluidas, por defecto «Plainva»). Nota: mientras el proyecto de Google esté en modo de prueba, el inicio de sesión caduca a los 7 días y debe renovarse mediante **Volver a conectar** en los detalles de la cuenta.
 
+Si marcas **Archivos** y **Calendario** juntos al conectar, Google pide tu consentimiento una **sola vez** y solicita exactamente los permisos de los servicios elegidos. Si añades otro servicio más adelante, aparece un segundo consentimiento complementario.
+
 ## OneDrive
 
 Plainva incluye su propio registro de aplicación — **ya no necesitas tu propio ID**:

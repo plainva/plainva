@@ -43,6 +43,8 @@ Google Drive działa obecnie z własnymi danymi dostępowymi („Bring Your Own�
 
 Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: w trybie testowym projektu Google logowanie wygasa po 7 dniach i musi zostać odnowione przez **Zaloguj się ponownie** w szczegółach konta.
 
+Jeśli podczas łączenia zaznaczysz **Pliki** i **Kalendarz** razem, Google poprosi o zgodę tylko **raz** — dokładnie o uprawnienia wybranych usług. Dodanie kolejnej usługi później oznacza drugą, uzupełniającą zgodę.
+
 ## OneDrive
 
 Plainva dostarcza własną rejestrację aplikacji — **nie musisz już zakładać własnego identyfikatora**:

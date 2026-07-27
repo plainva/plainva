@@ -25,6 +25,15 @@ import { credentialManager } from "./CredentialManager";
 export async function authorizeDrive(opts: {
   clientId: string;
   clientSecret: string;
+  /**
+   * Scope override. Google's consent is per ACCOUNT, not per service, so the
+   * cloud-accounts wizard asks for the union of the selected services in ONE
+   * run (stage B / B2) instead of sending the user through two browser
+   * consents. Defaults to Drive alone.
+   */
+  scope?: string;
+  /** Set when a service is added later, so previously granted scopes survive. */
+  includeGrantedScopes?: boolean;
 }): Promise<{ clientId: string; clientSecret: string; refreshToken: string }> {
   const { clientId, clientSecret } = opts;
 
@@ -36,7 +45,14 @@ export async function authorizeDrive(opts: {
   // 2. PKCE + a random state for CSRF protection.
   const { codeVerifier, codeChallenge } = await generatePkcePair();
   const state = generateCodeVerifier();
-  const authUrl = buildAuthUrl({ clientId, redirectUri, codeChallenge, state });
+  const authUrl = buildAuthUrl({
+    clientId,
+    redirectUri,
+    codeChallenge,
+    state,
+    scope: opts.scope,
+    includeGrantedScopes: opts.includeGrantedScopes,
+  });
 
   // 3. Open the system browser, then wait for the single redirect on the loopback.
   await openUrl(authUrl);

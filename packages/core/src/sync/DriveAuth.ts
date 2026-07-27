@@ -70,6 +70,12 @@ export function buildAuthUrl(opts: {
   codeChallenge: string;
   scope?: string;
   state?: string;
+  /**
+   * Adds `include_granted_scopes`, so a consent for a NEWLY added service also
+   * carries the scopes the account already granted — the incremental path when
+   * a second service is ticked later (cloud accounts stage B).
+   */
+  includeGrantedScopes?: boolean;
 }): string {
   const params = new URLSearchParams({
     client_id: opts.clientId,
@@ -81,6 +87,7 @@ export function buildAuthUrl(opts: {
     access_type: "offline",
     prompt: "consent",
   });
+  if (opts.includeGrantedScopes) params.set("include_granted_scopes", "true");
   if (opts.state) params.set("state", opts.state);
   return `${DRIVE_AUTH_ENDPOINT}?${params.toString()}`;
 }

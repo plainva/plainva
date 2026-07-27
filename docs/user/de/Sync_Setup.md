@@ -43,6 +43,8 @@ Google Drive läuft aktuell mit eigenen Zugangsdaten („Bring Your Own"): Du le
 
 Kurzfassung: In **Cloud-Konten** → **Konto verbinden…** die Kachel **Google** wählen, den Dienst **Dateien** anhaken, **Client ID** und **Client Secret** aus Deinem Google-Projekt eintragen und **Bei Google anmelden…** — die Anmeldung öffnet sich im Browser. Nach dem Verbinden wählst Du den **Cloud-Ordner** über **Ordner auswählen…** direkt aus Deinem Drive (auch Unterordner, Standard „Plainva"). Hinweis: Im Testing-Modus des Google-Projekts läuft die Anmeldung nach 7 Tagen ab und muss über **Erneut anmelden** in den Konto-Details erneuert werden.
 
+Hakst Du beim Verbinden **Dateien** und **Kalender** gemeinsam an, fragt Google nur **einmal** nach Deiner Zustimmung — angefordert werden dabei genau die Rechte der gewählten Dienste. Wählst Du später einen weiteren Dienst dazu, kommt eine zweite, ergänzende Zustimmung.
+
 ## OneDrive
 
 Plainva liefert eine eigene App-Registrierung mit — Du musst **keine eigene ID mehr anlegen**:

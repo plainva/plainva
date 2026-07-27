@@ -43,6 +43,8 @@ Google Drive draait momenteel met eigen toegangsgegevens ("Bring Your Own"): je 
 
 Kort samengevat: kies in **Cloudaccounts** → **Account verbinden…** de tegel **Google**, vink de dienst **Bestanden** aan, voer de **Client-ID** en **Client secret** uit je Google-project in, en dan **Aanmelden met Google…** — de aanmelding opent in je browser. Eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je Drive (submappen inbegrepen, standaard "Plainva"). Let op: zolang het Google-project in de testmodus staat, verloopt de aanmelding na 7 dagen en moet die worden vernieuwd via **Opnieuw verbinden** in de accountdetails.
 
+Vink je bij het verbinden **Bestanden** en **Agenda** samen aan, dan vraagt Google slechts **één keer** om toestemming — precies voor de rechten van de gekozen diensten. Voeg je later een dienst toe, dan volgt een tweede, aanvullende toestemming.
+
 ## OneDrive
 
 Plainva levert een eigen app-registratie mee — je hoeft **geen eigen ID meer aan te maken**:

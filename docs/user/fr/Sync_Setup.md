@@ -43,6 +43,8 @@ Google Drive fonctionne actuellement avec vos propres identifiants (« Bring You
 
 Version courte : dans **Comptes cloud** → **Connecter un compte…**, choisissez la tuile **Google**, cochez le service **Fichiers**, saisissez l'**ID client** et le **Secret client** de votre projet Google, puis **Se connecter avec Google…** — la connexion s'ouvre dans votre navigateur. Une fois connecté, choisissez le **Dossier cloud** via **Choisir un dossier…** directement depuis votre Drive (sous-dossiers inclus, par défaut « Plainva »). Remarque : tant que le projet Google est en mode test, la connexion expire au bout de 7 jours et doit être renouvelée via **Se reconnecter** dans les détails du compte.
 
+Si vous cochez **Fichiers** et **Agenda** ensemble lors de la connexion, Google ne demande votre consentement qu'**une seule fois**, en réclamant exactement les droits des services choisis. Ajouter un service plus tard donne lieu à un second consentement complémentaire.
+
 ## OneDrive
 
 Plainva fournit sa propre inscription d'application — vous **n'avez plus besoin de votre propre ID** :

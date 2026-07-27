@@ -43,6 +43,8 @@ O Google Drive hoje funciona com suas próprias credenciais ("Bring Your Own"): 
 
 Versão resumida: em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Google**, marque o serviço **Arquivos**, informe o **Client ID** e o **Client Secret** do seu projeto do Google, depois **Entrar com o Google…** — o login abre no seu navegador. Depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu Drive (subpastas incluídas, padrão "Plainva"). Observação: enquanto o projeto do Google estiver no modo de teste, o login expira após 7 dias e precisa ser renovado por **Entrar novamente**, nos detalhes da conta.
 
+Se você marcar **Arquivos** e **Agenda** juntos ao conectar, o Google pede seu consentimento apenas **uma vez**, solicitando exatamente as permissões dos serviços escolhidos. Ao adicionar outro serviço depois, surge um segundo consentimento complementar.
+
 ## OneDrive
 
 O Plainva já vem com seu próprio registro de app — você **não precisa mais de um ID próprio**:

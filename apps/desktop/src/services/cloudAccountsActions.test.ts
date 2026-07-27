@@ -34,6 +34,15 @@ vi.mock("./CredentialManager", () => ({
       slots.delete(key);
     }),
     getWebDavCredentials: vi.fn(async () => slots.get("webdav") ?? null),
+    getDriveCredentials: vi.fn(async () => slots.get("drive") ?? null),
+    saveDriveCredentials: vi.fn(async (_v: string, creds: unknown) => {
+      slots.set("drive", creds);
+    }),
+    clearWebDavCredentials: vi.fn(async () => undefined),
+    clearDriveCredentials: vi.fn(async () => undefined),
+    clearOneDriveCredentials: vi.fn(async () => undefined),
+    clearDropboxCredentials: vi.fn(async () => undefined),
+    clearS3Credentials: vi.fn(async () => undefined),
     saveWebDavCredentials: vi.fn(async (_v: string, creds: unknown) => {
       if (reject.has("webdav-write")) throw new Error("webdav write failed");
       slots.set("webdav", creds);
@@ -56,15 +65,31 @@ vi.mock("./syncTargets", () => ({
   buildDropboxTarget: vi.fn(),
 }));
 
+/** Records every OAuth consent so the union run can be counted. */
+const consents: { scope?: string; via: string }[] = [];
+
 vi.mock("./pim/pimAccounts", () => ({
   checkCalDavLogin: vi.fn(async () => {
     if (reject.has("caldav")) throw new Error("caldav login failed");
   }),
   connectCalDavAccount: vi.fn(),
-  connectGoogleAccount: vi.fn(),
+  connectGoogleAccount: vi.fn(async (_r: unknown, _v: string, opts: { refreshToken?: string }) => {
+    // Without a handed-down token this would run its own browser consent.
+    if (!opts.refreshToken) consents.push({ via: "pim" });
+    return { id: "P", label: "marco@gmail.com" };
+  }),
   connectMicrosoftAccount: vi.fn(),
   removePimAccount: vi.fn(),
 }));
+
+vi.mock("./driveAuth", () => ({
+  authorizeDrive: vi.fn(async (opts: { clientId: string; clientSecret: string; scope?: string }) => {
+    consents.push({ scope: opts.scope, via: "drive" });
+    return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT" };
+  }),
+}));
+vi.mock("./oneDriveAuth", () => ({ authorizeOneDrive: vi.fn() }));
+vi.mock("./dropboxAuth", () => ({ authorizeDropbox: vi.fn() }));
 
 vi.mock("./pim/pimCredentials", () => ({
   getPimCredentials: vi.fn(async () => slots.get("pim") ?? null),
@@ -75,7 +100,7 @@ vi.mock("./pim/pimCredentials", () => ({
 }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
-import { bindConnectResult, passwordServicesOf, updateAccountPassword } from "./cloudAccountsActions";
+import { bindConnectResult, passwordServicesOf, runConnectSequence, updateAccountPassword } from "./cloudAccountsActions";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 describe("bindConnectResult", () => {
@@ -191,5 +216,62 @@ describe("account password rotation", () => {
     // The files slot was written first and must be back on the old secret.
     expect(slots.get("webdav")).toMatchObject({ pass: "old" });
     expect(slots.get("pim")).toMatchObject({ pass: "old" });
+  });
+});
+
+/**
+ * Stage B / B2: Google consents per ACCOUNT, so files + calendar together must
+ * cost ONE browser round trip carrying the union of both scopes — and ticking
+ * one service alone must never widen that scope.
+ */
+describe("Google union consent", () => {
+  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+
+  beforeEach(() => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    consents.length = 0;
+    slots.clear();
+    registry.clear();
+  });
+
+  it("asks once for files + calendar, with both scopes in one consent", async () => {
+    const result = await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "google", services: ["files", "calendar"], byoClientId: "cid", googleClientSecret: "sec" },
+      () => {}
+    );
+    expect(consents).toHaveLength(1);
+    expect(consents[0].via).toBe("drive");
+    expect(consents[0].scope).toContain("auth/drive");
+    expect(consents[0].scope).toContain("auth/calendar");
+    expect(consents[0].scope).toContain("auth/tasks");
+    // Both services ended up on the same token.
+    expect(result.filesProvider).toBe("drive");
+    expect(result.pimAccountId).toBe("P");
+    expect(slots.get("drive")).toMatchObject({ refreshToken: "RT" });
+  });
+
+  it("keeps the scope narrow when only files is selected", async () => {
+    await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "google", services: ["files"], byoClientId: "cid", googleClientSecret: "sec" },
+      () => {}
+    );
+    expect(consents).toHaveLength(1);
+    // No union: the per-service flow runs with its own default scope.
+    expect(consents[0].scope).toBeUndefined();
+  });
+
+  it("does not pull Drive scopes in when only the calendar is selected", async () => {
+    await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "google", services: ["calendar"], byoClientId: "cid", googleClientSecret: "sec" },
+      () => {}
+    );
+    // The calendar flow ran its own consent; no Drive scope was requested.
+    expect(consents).toEqual([{ via: "pim" }]);
   });
 });

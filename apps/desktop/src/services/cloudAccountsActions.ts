@@ -1,3 +1,4 @@
+import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES } from "@plainva/core";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
@@ -93,8 +94,21 @@ function announceCredentials(isNewConnection: boolean): void {
   window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection } }));
 }
 
+/**
+ * Google's consent covers the ACCOUNT, not one service — so when files and
+ * calendar are ticked together, one run with the union of both scopes replaces
+ * two browser round trips (stage B / B2). Google refresh tokens do not rotate,
+ * which is why the resulting token can safely back both services.
+ */
+function googleUnionScope(services: CloudServiceId[]): string | null {
+  const parts: string[] = [];
+  if (services.includes("files")) parts.push(DRIVE_DEFAULT_SCOPE);
+  if (services.includes("calendar")) parts.push(GOOGLE_CALENDAR_SCOPES);
+  return parts.length > 1 ? parts.join(" ") : null;
+}
+
 /** Connects the FILES service of the request. Binds nothing before success. */
-async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<SyncProviderId> {
+async function connectFiles(vaultPath: string, req: ConnectRequest, googleToken?: string): Promise<SyncProviderId> {
   switch (req.family) {
     case "microsoft": {
       const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
@@ -109,7 +123,9 @@ async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<Syn
       const clientId = req.byoClientId?.trim() ?? "";
       const clientSecret = req.googleClientSecret?.trim() ?? "";
       const existing = await credentialManager.getDriveCredentials(vaultPath);
-      const creds = await authorizeDrive({ clientId, clientSecret });
+      const creds = googleToken
+        ? { clientId, clientSecret, refreshToken: googleToken }
+        : await authorizeDrive({ clientId, clientSecret });
       await clearOtherSyncSlots(vaultPath, "drive");
       await credentialManager.saveDriveCredentials(vaultPath, { ...creds, rootFolderName: existing?.rootFolderName });
       announceCredentials(true);
@@ -155,7 +171,12 @@ async function connectFiles(vaultPath: string, req: ConnectRequest): Promise<Syn
   }
 }
 
-async function connectCalendar(vaultPath: string, runtime: PimRuntime, req: ConnectRequest): Promise<{ id: string; label: string }> {
+async function connectCalendar(
+  vaultPath: string,
+  runtime: PimRuntime,
+  req: ConnectRequest,
+  googleToken?: string
+): Promise<{ id: string; label: string }> {
   switch (req.family) {
     case "microsoft": {
       const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
@@ -166,6 +187,7 @@ async function connectCalendar(vaultPath: string, runtime: PimRuntime, req: Conn
       const row = await connectGoogleAccount(runtime, vaultPath, {
         clientId: req.byoClientId?.trim() ?? "",
         clientSecret: req.googleClientSecret?.trim() ?? "",
+        refreshToken: googleToken,
       });
       return { id: row.id, label: row.label };
     }
@@ -243,14 +265,38 @@ export async function runConnectSequence(
 ): Promise<ConnectResult> {
   const result: ConnectResult = {};
   const selected = SERVICE_ORDER.filter((s) => req.services.includes(s));
+
+  // One consent for the whole Google account instead of one per service. The
+  // scopes are the union of exactly the SELECTED services — ticking calendar
+  // alone must never hand out Drive access (the scope minimisation this plan
+  // was built on).
+  let googleToken: string | undefined;
+  const unionScope = req.family === "google" ? googleUnionScope(selected) : null;
+  if (unionScope) {
+    for (const service of selected) if (service !== "mail") onStatus(service, { state: "pending" });
+    try {
+      const creds = await authorizeDrive({
+        clientId: req.byoClientId?.trim() ?? "",
+        clientSecret: req.googleClientSecret?.trim() ?? "",
+        scope: unionScope,
+      });
+      googleToken = creds.refreshToken;
+    } catch (err) {
+      for (const service of selected) {
+        if (service !== "mail") onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      }
+      throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialResult: result });
+    }
+  }
+
   for (const service of selected) {
     onStatus(service, { state: "pending" });
     try {
       if (service === "files") {
-        result.filesProvider = await connectFiles(vaultPath, req);
+        result.filesProvider = await connectFiles(vaultPath, req, googleToken);
       } else if (service === "calendar") {
         if (!runtime) throw new Error("calendar needs the open vault's runtime");
-        const row = await connectCalendar(vaultPath, runtime, req);
+        const row = await connectCalendar(vaultPath, runtime, req, googleToken);
         result.pimAccountId = row.id;
         if (!result.identity) result.identity = row.label;
       } else {
