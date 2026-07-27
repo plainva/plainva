@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -34,6 +34,8 @@ The simplest route for self-hosted servers and most cloud storages:
 **Nextcloud** special: ONE form covers files **and** calendar — Plainva derives the WebDAV and CalDAV endpoints from the server address itself (the derived addresses are shown in the assistant; **Advanced: set endpoints individually** allows separate URLs). Tick both services and a single pass connects both.
 
 Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many more) are listed in [Sync Compatibility](Sync_Compatibility.md).
+
+If the app password changes later, enter it **once** in the account details under **Credentials**: Plainva verifies it against every service of that account and only stores it when all of them accept — so no service is left behind on an old password.
 
 ## Google Drive
 

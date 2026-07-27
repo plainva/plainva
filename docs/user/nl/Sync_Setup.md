@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-27
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -34,6 +34,8 @@ De eenvoudigste weg voor eigen servers en de meeste cloudopslag:
 Bijzonderheid **Nextcloud**: ÉÉN formulier dekt bestanden **en** agenda — Plainva leidt de WebDAV- en CalDAV-endpoints zelf af uit het serveradres (de afgeleide adressen worden in de assistent getoond; **Geavanceerd: endpoints afzonderlijk instellen** maakt aparte URL's mogelijk). Vink beide diensten aan en één keer verbinden koppelt ze allebei.
 
 Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele andere) vind je in [Sync-compatibiliteit](Sync_Compatibility.md).
+
+Verandert het app-wachtwoord later, voer het dan **één keer** in bij de accountgegevens onder **Inloggegevens**: Plainva controleert het bij elke dienst van dat account en slaat het pas op als ze het allemaal accepteren — zo blijft geen dienst achter met een oud wachtwoord.
 
 ## Google Drive
 

@@ -38,6 +38,8 @@ import {
   googleByoFromSlots,
   removeCloudAccount,
   rerunAccountAuth,
+  passwordServicesOf,
+  updateAccountPassword,
   runConnectSequence,
   type ConnectRequest,
   type ServiceRunStatus,
@@ -63,6 +65,7 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [busy, setBusy] = useState(false);
+  const [newPass, setNewPass] = useState("");
   const backfilled = useRef(false);
 
   const reload = useCallback(async () => {
@@ -219,6 +222,28 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
     }
   };
 
+  /**
+   * Rotates the app password across EVERY password-backed service of the
+   * account. Before this existed, a rotated Nextcloud/Fastmail password meant
+   * removing the account and connecting each service again.
+   */
+  const changePassword = async (record: CloudAccountRecord) => {
+    setReconStatus({});
+    setBusy(true);
+    try {
+      await updateAccountPassword(selectedVault, runtime, record, newPass, (service, st) =>
+        setReconStatus((prev) => ({ ...prev, [service]: st }))
+      );
+      setNewPass("");
+      toast.success(t("cloudAccounts.passwordUpdated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      void reload();
+    }
+  };
+
   const persistByoId = async (record: CloudAccountRecord, value: string) => {
     const next = records.map((r) => (r.id === record.id ? { ...r, byoClientId: value.trim() || undefined } : r));
     await saveCloudAccounts(selectedVault, next);
@@ -250,6 +275,7 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
     const available = FAMILY_SERVICES[detail.family];
     const oauthFamily = detail.family === "microsoft" || detail.family === "google" || detail.family === "dropbox";
     const hasByo = oauthFamily;
+    const passwordServices = passwordServicesOf(detail);
     return (
       <div>
         <AreaHead areaId="cloudAccounts" />
@@ -338,6 +364,31 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string }> = ({ selecte
             );
           })}
         </SettingCard>
+
+        {passwordServices.length > 0 && (
+          <SettingCard label={t("cloudAccounts.credentialsGroup")}>
+            <SettingRow label={t("cloudAccounts.newPassword")} desc={t("cloudAccounts.newPasswordDesc")}>
+              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                <TextInput
+                  type="password"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  placeholder={t("settings.password")}
+                  style={{ width: 220 }}
+                  data-testid="cloudacct-new-password"
+                />
+                <Button
+                  variant="secondary"
+                  disabled={busy || !newPass.trim() || !isActiveVault}
+                  onClick={() => void changePassword(detail)}
+                  data-testid="cloudacct-update-password"
+                >
+                  {t("cloudAccounts.updatePassword")}
+                </Button>
+              </div>
+            </SettingRow>
+          </SettingCard>
+        )}
 
         {hasByo && (
           <SettingCard label={t("cloudAccounts.appRegGroup")}>

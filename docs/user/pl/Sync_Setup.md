@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-26
+Stan na: 2026-07-27
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -34,6 +34,8 @@ Najprostsza droga dla własnych serwerów i większości magazynów w chmurze:
 Szczególny przypadek **Nextcloud**: JEDEN formularz obsługuje pliki **i** kalendarz — Plainva samodzielnie wyprowadza punkty końcowe WebDAV i CalDAV z adresu serwera (wyprowadzone adresy są pokazywane w asystencie; **Zaawansowane: ustaw punkty końcowe osobno** pozwala na osobne adresy URL). Jeśli zaznaczysz obie usługi, jeden przebieg połączy obie.
 
 Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele innych) znajdziesz w [Zgodności synchronizacji](Sync_Compatibility.md).
+
+Jeśli hasło aplikacji zmieni się później, wpisz je **raz** w szczegółach konta w sekcji **Dane logowania**: Plainva sprawdzi je w każdej usłudze tego konta i zapisze dopiero wtedy, gdy wszystkie je zaakceptują — dzięki temu żadna usługa nie zostanie ze starym hasłem.
 
 ## Google Drive
 

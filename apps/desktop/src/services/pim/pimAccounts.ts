@@ -14,6 +14,17 @@ function newAccountId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+/**
+ * Proves a CalDAV credential set without touching any stored slot — the
+ * counterpart to the mail core's checkMailLogin. Used by the account-wide
+ * password update (stage B / B1), which must validate EVERY service before it
+ * writes the first one.
+ */
+export async function checkCalDavLogin(opts: { url: string; user: string; pass: string }): Promise<void> {
+  const calendars = await new CalDavPimTarget(opts, httpFetch).listCalendars();
+  if (calendars.length === 0) throw new Error("No calendars found on this server.");
+}
+
 async function finishConnect(
   runtime: PimRuntime,
   vaultPath: string,

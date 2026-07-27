@@ -19,7 +19,7 @@ import {
   buildDropboxTarget,
   type S3TargetCreds,
 } from "./syncTargets";
-import { connectCalDavAccount, connectGoogleAccount, connectMicrosoftAccount, removePimAccount } from "./pim/pimAccounts";
+import { checkCalDavLogin, connectCalDavAccount, connectGoogleAccount, connectMicrosoftAccount, removePimAccount } from "./pim/pimAccounts";
 import { savePimCredentials, getPimCredentials } from "./pim/pimCredentials";
 import { authorizeGooglePim, authorizeMicrosoftPim } from "./pim/pimAuth";
 import { graphMailAddress, forgetGraphMailRuntime } from "@plainva/ui/mail";
@@ -27,6 +27,8 @@ import { authorizeMicrosoftMail } from "./mail/graphMailAuth";
 import { checkMailLogin } from "@plainva/ui/mail";
 import {
   listMailAccounts,
+  mailAccountKind,
+  mailSecretKey,
   saveMailAccount,
   saveMicrosoftMailAccount,
   saveMailRefreshToken,
@@ -388,6 +390,137 @@ export async function rerunAccountAuth(
       throw err;
     }
   }
+}
+
+/** One password-backed service of an account, ready to be verified and written. */
+interface PasswordSlotPlan {
+  service: CloudServiceId;
+  /** Proves the new secret against the live endpoint. Throws on failure. */
+  verify: (pass: string) => Promise<void>;
+  /** Writes the new secret. Only runs after EVERY verify() succeeded. */
+  write: (pass: string) => Promise<void>;
+  /** Restores the pre-write value if a later write fails. */
+  rollback: () => Promise<void>;
+}
+
+/**
+ * Which services of an account are secured by a PASSWORD (as opposed to an
+ * OAuth token or an S3 key pair). Synchronous, so the settings page can decide
+ * whether to offer the credentials card without touching the keychain — the
+ * same predicate then drives passwordSlots below, so both stay in step.
+ *
+ * Calendar is CalDAV unless the family authenticates through OAuth; mail is
+ * IMAP unless it is Microsoft Graph (Gmail deliberately uses an app password).
+ */
+export function passwordServicesOf(record: CloudAccountRecord): CloudServiceId[] {
+  const services: CloudServiceId[] = [];
+  if (record.services.files?.provider === "webdav") services.push("files");
+  if (record.services.calendar && record.family !== "google" && record.family !== "microsoft") services.push("calendar");
+  if (record.services.mail && record.family !== "microsoft") services.push("mail");
+  return services;
+}
+
+/**
+ * Reads the stored slot of every password-backed service and wraps it into a
+ * verify/write/rollback plan. A service whose slot is missing or holds another
+ * credential kind is skipped rather than guessed at.
+ */
+async function passwordSlots(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord
+): Promise<PasswordSlotPlan[]> {
+  const plans: PasswordSlotPlan[] = [];
+  const wanted = new Set(passwordServicesOf(record));
+
+  if (wanted.has("files")) {
+    const creds = await credentialManager.getWebDavCredentials(vaultPath);
+    if (creds) {
+      plans.push({
+        service: "files",
+        verify: (pass) => buildWebDavTarget({ ...creds, pass }).listFolders("").then(() => undefined),
+        write: (pass) => credentialManager.saveWebDavCredentials(vaultPath, { ...creds, pass }),
+        rollback: () => credentialManager.saveWebDavCredentials(vaultPath, creds),
+      });
+    }
+  }
+
+  const pimId = wanted.has("calendar") ? record.services.calendar?.pimAccountId : undefined;
+  if (pimId && runtime) {
+    const creds = await getPimCredentials(vaultPath, pimId);
+    if (creds?.kind === "caldav") {
+      plans.push({
+        service: "calendar",
+        verify: (pass) => checkCalDavLogin({ url: creds.url, user: creds.user, pass }),
+        write: (pass) => savePimCredentials(vaultPath, pimId, { ...creds, pass }),
+        rollback: () => savePimCredentials(vaultPath, pimId, creds),
+      });
+    }
+  }
+
+  const mailId = wanted.has("mail") ? record.services.mail?.mailAccountId : undefined;
+  if (mailId) {
+    const account = (await listMailAccounts(vaultPath)).find((a) => a.id === mailId);
+    if (account && mailAccountKind(account) === "imap") {
+      const stored = await credentialManager.readSecret<{ pass?: string }>(mailSecretKey(vaultPath, mailId));
+      const previous = stored?.pass ?? "";
+      plans.push({
+        service: "mail",
+        verify: (pass) => checkMailLogin(account, pass).then(() => undefined),
+        write: (pass) => saveMailAccount(vaultPath, account, pass),
+        rollback: () => saveMailAccount(vaultPath, account, previous),
+      });
+    }
+  }
+
+  return plans;
+}
+
+/**
+ * Updates the password of EVERY password-backed service of one account — the
+ * stage-B answer to "the app password was rotated" (before this, the only way
+ * was removing the account and connecting it again, service by service).
+ *
+ * Ordering is deliberate and mirrors createSecretsPort: verify every service
+ * FIRST, write only afterwards, and roll back what was already written if a
+ * later write fails. A half-updated account (files reachable, calendar locked
+ * out) is the outcome this prevents.
+ */
+export async function updateAccountPassword(
+  vaultPath: string,
+  runtime: PimRuntime | null,
+  record: CloudAccountRecord,
+  pass: string,
+  onStatus: ServiceStatusCb
+): Promise<void> {
+  const plans = await passwordSlots(vaultPath, runtime, record);
+  if (plans.length === 0) throw new Error("this account has no password-backed service");
+
+  for (const plan of plans) {
+    onStatus(plan.service, { state: "pending" });
+    try {
+      await plan.verify(pass);
+    } catch (err) {
+      onStatus(plan.service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
+  }
+
+  const written: PasswordSlotPlan[] = [];
+  for (const plan of plans) {
+    try {
+      await plan.write(pass);
+      written.push(plan);
+      onStatus(plan.service, { state: "ok" });
+    } catch (err) {
+      for (const done of written) await done.rollback().catch(() => undefined);
+      onStatus(plan.service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
+  }
+
+  announceCredentials(false);
+  if (record.services.calendar && runtime) void runtime.worker.triggerImmediate();
 }
 
 /**
