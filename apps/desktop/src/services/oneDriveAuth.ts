@@ -24,6 +24,13 @@ import { microsoftAuthFetch } from "./authFetch";
  */
 export async function authorizeOneDrive(opts: {
   clientId: string;
+  /**
+   * Scope override. Microsoft consents per ACCOUNT, so the cloud-accounts
+   * wizard asks once for the union of the selected services (stage B / B3)
+   * instead of running one browser consent per service. Defaults to the file
+   * sync scopes.
+   */
+  scope?: string;
 }): Promise<{ clientId: string; refreshToken: string }> {
   const { clientId } = opts;
 
@@ -32,7 +39,7 @@ export async function authorizeOneDrive(opts: {
 
   const { codeVerifier, codeChallenge } = await generatePkcePair();
   const state = generateCodeVerifier();
-  const authUrl = buildOneDriveAuthUrl({ clientId, redirectUri, codeChallenge, state });
+  const authUrl = buildOneDriveAuthUrl({ clientId, redirectUri, codeChallenge, state, scope: opts.scope });
 
   await openUrl(authUrl);
   const redirect = await invoke<{ code: string; state: string | null }>("oauth_loopback_wait", {
@@ -43,7 +50,7 @@ export async function authorizeOneDrive(opts: {
   }
 
   const tokens = await exchangeOneDriveCode(
-    { clientId, code: redirect.code, codeVerifier, redirectUri },
+    { clientId, code: redirect.code, codeVerifier, redirectUri, scope: opts.scope },
     microsoftAuthFetch
   );
   if (!tokens.refreshToken) {

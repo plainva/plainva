@@ -11,6 +11,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { getSettingsStore } from "./services/settingsStore";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
+import { setMailTokenResolver } from "@plainva/ui/mail";
+import { brokerTokenProvider } from "./services/accountBroker";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -57,6 +59,11 @@ setPlatformServices({
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
 // to the Tauri http plugin with the Origin-free relay for token POSTs.
 registerDesktopMailPlatform();
+
+// Mail draws its Graph token from the shared account broker when the account
+// was connected through the union consent (cloud accounts stage B); otherwise
+// the resolver returns undefined and the per-account refresh path stays.
+setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.

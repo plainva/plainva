@@ -38,7 +38,24 @@ const runtimes = new Map<string, GraphMailRuntime>();
 
 /** Access-token provider with single-flight refresh + rotated-token persistence
  * (mirrors buildPimAuthProvider — Microsoft rotates the refresh token). */
-function buildRuntime(vaultPath: string, account: MailAccountConfig, initialRefreshToken: string): GraphMailRuntime {
+/**
+ * Set by the shell (cloud accounts stage B): resolves the account broker's
+ * access-token provider for the mail service of a vault, or undefined when the
+ * account still holds its own refresh token. Injected rather than imported,
+ * because the broker wiring is platform code and this module is not.
+ */
+export type MailTokenResolver = (vaultPath: string) => Promise<((force: boolean) => Promise<string>) | undefined>;
+let mailTokenResolver: MailTokenResolver | null = null;
+export function setMailTokenResolver(resolver: MailTokenResolver | null): void {
+  mailTokenResolver = resolver;
+}
+
+function buildRuntime(
+  vaultPath: string,
+  account: MailAccountConfig,
+  initialRefreshToken: string,
+  viaBroker?: (force: boolean) => Promise<string>
+): GraphMailRuntime {
   const clientId = account.clientId ?? "";
   let accessToken: string | null = null;
   let expiresAt = 0;
@@ -59,6 +76,9 @@ function buildRuntime(vaultPath: string, account: MailAccountConfig, initialRefr
   return {
     folderIds: new Map(),
     async getAccessToken(force?: boolean): Promise<string> {
+      // The broker caches and single-flights across every service of the
+      // account, so nothing is cached a second time here.
+      if (viaBroker) return viaBroker(force ?? false);
       if (!force && accessToken && Date.now() < expiresAt) return accessToken;
       if (!inFlight) inFlight = refresh().finally(() => { inFlight = null; });
       return inFlight;
@@ -70,8 +90,10 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
   const existing = runtimes.get(account.id);
   if (existing) return existing;
   const refreshToken = await getMailRefreshToken(vaultPath, account.id);
-  if (!refreshToken) throw new Error("missing Microsoft mail credentials");
-  const rt = buildRuntime(vaultPath, account, refreshToken);
+  // A broker-backed account carries no mail-side refresh token by design.
+  const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath).catch(() => undefined) : undefined;
+  if (!refreshToken && !viaBroker) throw new Error("missing Microsoft mail credentials");
+  const rt = buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
   runtimes.set(account.id, rt);
   return rt;
 }

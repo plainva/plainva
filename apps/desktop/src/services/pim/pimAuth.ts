@@ -16,6 +16,7 @@ import {
 } from "@plainva/core";
 import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { microsoftAuthFetch } from "../authFetch";
+import { brokerTokenProvider } from "../accountBroker";
 
 /**
  * Desktop OAuth glue for the PIM accounts. Reuses the file sync's building
@@ -105,8 +106,22 @@ export function buildPimAuthProvider(
     return accessToken;
   };
 
+  /**
+   * Probed once, lazily: a Microsoft account connected through the union
+   * consent keeps its refresh token in the shared broker, and the calendar
+   * then only asks for an access token (cloud accounts stage B). Accounts
+   * without an account slot keep the per-service refresh below.
+   */
+  let brokerProbe: Promise<((force: boolean) => Promise<string>) | undefined> | null = null;
+
   return {
     async getAccessToken(force?: boolean): Promise<string> {
+      if (creds.kind === "microsoft") {
+        if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultPath, "calendar").catch(() => undefined);
+        const viaBroker = await brokerProbe;
+        // The broker caches and single-flights across all services itself.
+        if (viaBroker) return viaBroker(force ?? false);
+      }
       if (!force && accessToken && Date.now() < expiresAt) return accessToken;
       // Single-flight: parallel calendar pulls must not race N refreshes
       // (Microsoft rotation would self-destruct).
