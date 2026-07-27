@@ -101,4 +101,12 @@ Die Anordnung gehört zum Vault und reist über die [Einstellungs-Synchronisatio
 
 ## Globale Einstellung der rechten Seitenleiste
 
-Leere Kontextbereiche wie **Gliederung**, **Backlinks** und **Eigenschaften** klappen automatisch zu, ohne ihre globale Offen-/Geschlossen-Einstellung zu überschreiben. Auch die gesamte rechte Seitenleiste merkt sich für Notizen eine globale Einstellung; Vollflächenansichten ohne Notizkontext schließen sie nur vorübergehend.
+Abschnitte, die zur geöffneten Notiz nichts zu zeigen haben — **Gliederung**, **Backlinks**, **Eigenschaften**, **Datenbanken** — erscheinen gar nicht erst, statt als graue Zeile stehen zu bleiben. Die gesamte rechte Seitenleiste merkt sich für Notizen eine globale Einstellung; Vollflächenansichten ohne Notizkontext schließen sie nur vorübergehend.
+
+**Wenn Du die Leiste schmal ziehst**, wechselt sie in drei Stufen, damit nichts zerbricht:
+
+- **ab 280 px** — wie gewohnt.
+- **232–280 px** — Eigenschaften stehen mit dem Namen über dem Wert statt daneben, lange Werte brechen um, die Abschnitte rücken enger.
+- **unter 232 px** — der Kalender zeigt **eine Woche statt des Monats** (sieben Tage, Kalenderwoche rechts darunter); ein Monatsraster hätte hier 14 Pixel breite Zellen und wäre kein Kalender mehr. Der Graph wird flacher, und Backlinks zeigen nur noch den Dateinamen ohne Pfadzeile.
+
+Schmaler als **200 px** lässt sich die rechte Leiste nicht ziehen — darunter ist kein Abschnitt mehr bedienbar. Die linke Leiste darf weiter bis 150 px, weil Dateinamen dort einfach kürzen.

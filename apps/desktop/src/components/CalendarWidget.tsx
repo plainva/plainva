@@ -31,6 +31,12 @@ interface CalendarWidgetProps {
   activeDate?: Date | null;
   /** Bump to force a refresh of the marked dates (e.g. after a note is created). */
   refreshToken?: number;
+  /**
+   * Very narrow sidebar: show ONE week instead of the month. A month grid below
+   * ~232 px has cells of 14 px — not a calendar any more, just a pattern. The
+   * week row keeps the days readable and moves the week number to the right.
+   */
+  weekRow?: boolean;
 }
 
 const sameDay = (a: Date, b: Date) =>
@@ -39,7 +45,7 @@ const sameDay = (a: Date, b: Date) =>
 /** Widget-local pref, persisted like the right-panel open/order states. */
 const SHOW_WEEKS_KEY = "plainva-calendar-show-weeks";
 
-export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onOpenCalendarDay, onOpenNote, loadMarkedDates, activeDate, refreshToken }) => {
+export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onOpenCalendarDay, onOpenNote, loadMarkedDates, activeDate, refreshToken, weekRow = false }) => {
   const { t, i18n } = useTranslation();
   const { pimRuntime, vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
   const today = new Date();
@@ -83,9 +89,28 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const monthFmt = new Intl.DateTimeFormat(lang, { month: "short" });
   const monthNames = Array.from({ length: 12 }, (_, i) => monthFmt.format(new Date(2024, i, 1)));
 
-  const cells = useMemo(() => buildMonthCells(viewDate, weekStartDay), [viewDate, weekStartDay]);
-  // ISO week numbers are defined on Monday rows — only offered there.
-  const weekNumbers = showWeeks && weekStartDay === 1 ? isoWeeksForCells(cells) : null;
+  const monthCells = useMemo(() => buildMonthCells(viewDate, weekStartDay), [viewDate, weekStartDay]);
+  /**
+   * In the week row the seven days around the anchor are shown: the open daily
+   * note if there is one, otherwise today — so the row always contains the day
+   * the user is looking at, even after paging the month.
+   */
+  // `today` is a fresh Date on every render, so the memo keys on the DAY rather
+  // than the instant; the same goes for the anchor.
+  const anchorKey = (activeDate ?? today).toDateString();
+  const weekCells = useMemo(() => {
+    const anchor = new Date(anchorKey);
+    const offset = (anchor.getDay() - weekStartDay + 7) % 7;
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - offset);
+    return Array.from({ length: 7 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
+  }, [anchorKey, weekStartDay]);
+  const cells = weekRow ? weekCells : monthCells;
+  // ISO week numbers are defined on Monday rows — only offered there. They
+  // survive the compact step on purpose: the DEFAULT panel width (250 px) falls
+  // inside it, so dropping them there would mean a setting the user switched on
+  // never shows up. The week row carries the single number instead.
+  const weekNumbers = showWeeks && weekStartDay === 1 && !weekRow ? isoWeeksForCells(cells) : null;
+  const rowWeekNumber = weekRow && weekStartDay === 1 ? isoWeeksForCells(cells)[0] : null;
 
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
@@ -269,9 +294,17 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const menuEvents = menu ? eventsByDay.get(menu.dayKey) ?? [] : [];
   const menuTasks = menu ? tasksByDay.get(menu.dayKey) ?? [] : [];
 
+  const weekLabel = new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(cells[0] ?? viewDate);
+
   return (
     <div style={{ position: "relative", padding: "0.75rem", borderBottom: "1px solid var(--border-color-light)", flexShrink: 0 }}>
-      <div ref={navRef} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
+      {weekRow && (
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "0.4rem" }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-ui)", fontWeight: 600, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{weekLabel}</span>
+          <button onClick={goToday} data-testid="calendar-today" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.today")} data-tip={t("calendar.today")}><CalendarCheck size={ICON.ui} /></button>
+        </div>
+      )}
+      <div ref={navRef} hidden={weekRow} style={{ position: "relative", display: weekRow ? "none" : "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
         <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} data-tip={t("calendar.prevMonth")}><ChevronLeft size={ICON.ui} /></button>
         <button
           onClick={togglePicker}
@@ -339,7 +372,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
         {weekdays.map((w, i) => (
           <div key={`wd-${i}`} style={{ textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "0.2rem 0", textTransform: "uppercase", overflow: "hidden", whiteSpace: "nowrap" }}>{w}</div>
         ))}
-        {Array.from({ length: 6 }, (_, row) => {
+        {Array.from({ length: weekRow ? 1 : 6 }, (_, row) => {
           const rowCells = cells.slice(row * 7, row * 7 + 7);
           return (
             <React.Fragment key={`row-${row}`}>
@@ -353,6 +386,11 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           );
         })}
       </div>
+      {rowWeekNumber !== null && (
+        <div data-testid="calendar-row-week" style={{ textAlign: "right", fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "2px 2px 0 0" }}>
+          {t("calendar.weekShort")} {rowWeekNumber}
+        </div>
+      )}
 
 
       {menu && (

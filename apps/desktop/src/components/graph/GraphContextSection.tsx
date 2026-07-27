@@ -308,6 +308,7 @@ export function GraphContextSection({ activePath, onOpenPath, onOpenPathInSplit 
             role="application"
             aria-label={t("graph.contextAria", { defaultValue: "Kontext-Graph der aktiven Notiz" })}
             data-testid="graph-context-canvas"
+            className="pv-graph-stage"
             style={{ width: "100%", height: CANVAS_HEIGHT, display: "block", borderRadius: "var(--radius-md)", background: "var(--bg-primary)", outline: "none" }}
           />
           <PinModeToggle active={pinMode} onToggle={togglePinMode} />

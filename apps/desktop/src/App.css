@@ -334,7 +334,9 @@ option {
 .pv-type-btn:hover { color: var(--text-main); background: var(--state-hover); }
 .pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: var(--text-ui); padding: 2px 0; }
 .pv-key:focus { color: var(--text-main); }
-.pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; }
+/* `overflow-wrap` belongs here rather than in a step: a value long enough to
+   push the row wider than the panel does that at every width. */
+.pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; overflow-wrap: anywhere; }
 .pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
 .pv-row:hover .pv-del { opacity: 0.55; }
 .pv-del:hover { opacity: 1; }
@@ -351,6 +353,75 @@ option {
 @container cal-grid (max-width: 232px) {
   .pv-cal-dots { display: none; }
 }
+
+/* ============================================================
+ * Right sidebar: three named steps (plan P3).
+ *
+ * `data-side-step` is set by a ResizeObserver on the panel root, because one
+ * of the steps is structural (the calendar switches to a single week row) and
+ * no stylesheet can do that. A container on the ROOT was avoided on purpose:
+ * it would clip the fixed context menus the sections open.
+ *
+ *   comfortable  >= 280px   as before
+ *   compact      232-280px  label over value, tighter indentation
+ *   minimal      < 232px    week row, shorter graph, no backlink context
+ * ============================================================ */
+
+/* Compact: the day dots shrink rather than disappear — at this width the month
+   still fits, so the information should stay. (Below 232 px the cal-grid
+   container hides them outright; there is no room left at all.) */
+.pv-side-right[data-side-step="compact"] .pv-cal-dots { transform: translateX(-50%) scale(0.75); gap: 1px; }
+
+/* Compact: the property rows stack, exactly as the 220px container query does
+   for panels elsewhere — but keyed to the PANEL width, which is what the user
+   is actually dragging. */
+.pv-side-right[data-side-step="compact"] .pv-row,
+.pv-side-right[data-side-step="minimal"] .pv-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+.pv-side-right[data-side-step="compact"] .pv-row-label,
+.pv-side-right[data-side-step="minimal"] .pv-row-label {
+  width: 100%;
+  padding-top: 0;
+}
+.pv-side-right[data-side-step="compact"] .pv-del,
+.pv-side-right[data-side-step="minimal"] .pv-del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+/* Long values wrap instead of pushing the row wider than the panel. */
+.pv-side-right[data-side-step="compact"] .pv-row-value,
+.pv-side-right[data-side-step="minimal"] .pv-row-value {
+  overflow-wrap: anywhere;
+}
+/* Section bodies lose their generous inset before the content has to. */
+.pv-side-right[data-side-step="compact"] .pv-side-section > div:last-child,
+.pv-side-right[data-side-step="minimal"] .pv-side-section > div:last-child {
+  padding-inline: 8px;
+}
+
+/* Minimal: the graph keeps a usable but small stage, and backlinks drop the
+   context line — at this width it was one word per line. */
+.pv-side-right[data-side-step="minimal"] .pv-graph-stage { height: 200px; }
+.pv-side-right[data-side-step="minimal"] .pv-backlink-context { display: none; }
+/* Chips can never widen the panel; they truncate like everything else. */
+.pv-side-right[data-side-step="minimal"] .pv-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------
+ * Truncation hardening — the cheap half of P3, effective at EVERY width.
+ * Missing `min-width: 0` is why a long value could push a flex row wider than
+ * its panel instead of shortening: a flex item refuses to shrink below its
+ * content unless told otherwise.
+ * ------------------------------------------------------------ */
+.pv-side-section-header > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* text / number / url / email / phone inputs */
 

@@ -1716,6 +1716,11 @@ button.pv-acct:hover { background: var(--state-hover); }
   font-size: inherit;
   font-family: inherit;
   cursor: pointer;
+  /* A long database name shortens instead of widening the panel it sits in. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pv-dbbar-crumb--here { color: var(--text-main); font-weight: 600; cursor: default; }
 /* Key/value label of the sidebar's database section (mockup variant B). */

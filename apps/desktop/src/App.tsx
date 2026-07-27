@@ -332,14 +332,20 @@ function App() {
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
-  const SIDEBAR_MIN = 150;
+  // The two sides need different floors (plan P3): on the left a narrow strip
+  // still works — file names simply truncate — while on the right no section is
+  // usable below 200 px. The calendar, the property rows and the graph all need
+  // real room.
+  const SIDEBAR_MIN_LEFT = 150;
+  const SIDEBAR_MIN_RIGHT = 200;
   const SIDEBAR_MAX = 600;
-  const readSidebarWidth = (key: string) => {
+  const readSidebarWidth = (key: string, min: number) => {
     const v = Number(localStorage.getItem(key));
-    return v >= SIDEBAR_MIN && v <= SIDEBAR_MAX ? v : 250;
+    // A width stored below the new floor is lifted rather than discarded.
+    return v >= min && v <= SIDEBAR_MAX ? v : Math.max(min, 250);
   };
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-left-sidebar-width"));
-  const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-right-sidebar-width"));
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-left-sidebar-width", SIDEBAR_MIN_LEFT));
+  const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-right-sidebar-width", SIDEBAR_MIN_RIGHT));
   // Collapsible sidebars (plan Designsprache P6/L1): toggled via title-bar
   // buttons and Mod+Alt+B / Mod+Alt+R (Mod+B stays bold in the editor).
   const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem("plainva-left-sidebar-collapsed") === "1");
@@ -885,7 +891,8 @@ function App() {
     e.preventDefault();
     const onMove = (ev: MouseEvent) => {
       const raw = side === "left" ? ev.clientX : window.innerWidth - ev.clientX;
-      const w = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, raw));
+      const min = side === "left" ? SIDEBAR_MIN_LEFT : SIDEBAR_MIN_RIGHT;
+      const w = Math.max(min, Math.min(SIDEBAR_MAX, raw));
       if (side === "left") setLeftSidebarWidth(w);
       else setRightSidebarWidth(w);
     };

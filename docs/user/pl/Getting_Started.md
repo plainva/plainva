@@ -101,4 +101,12 @@ Przez **Ctrl/Cmd+Shift+G** (lub sekcję **Graf** w prawym pasku bocznym) widzisz
 
 ## Pamięć prawego panelu
 
-Puste sekcje kontekstowe, takie jak **Konspekt**, **Linki zwrotne** i **Właściwości**, zamykają się bez nadpisywania globalnej preferencji. Cały prawy panel pamięta jedną globalną preferencję dla notatek; widoki bez kontekstu notatki zamykają go tylko tymczasowo.
+Sekcje, które nie mają nic do pokazania dla otwartej notatki — **Konspekt**, **Linki zwrotne**, **Właściwości**, **Bazy danych** — w ogóle się nie pojawiają, zamiast stać tam wyszarzone. Cały prawy panel pamięta jedną globalną preferencję dla notatek; widoki pełnoekranowe bez kontekstu notatki zamykają go tylko tymczasowo.
+
+**Gdy przeciągniesz panel, zwężając go**, zmienia się on w trzech krokach, dzięki czemu nic się nie psuje:
+
+- **280 px i więcej** — jak zwykle.
+- **232–280 px** — właściwości umieszczają nazwę nad wartością zamiast obok niej, długie wartości zawijają się, sekcje stają się bardziej zwarte.
+- **poniżej 232 px** — kalendarz pokazuje **jeden tydzień zamiast miesiąca** (siedem dni, numer tygodnia poniżej z prawej); siatka miesiąca miałaby tu komórki o szerokości 14 pikseli i przestałaby być kalendarzem. Graf robi się krótszy, a linki zwrotne pokazują nazwę pliku bez linii ze ścieżką.
+
+Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości żadna sekcja nie jest użyteczna. Lewy panel wciąż schodzi do 150 px, bo nazwy plików po prostu są ucinane.

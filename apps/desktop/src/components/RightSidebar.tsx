@@ -28,6 +28,7 @@ import {
 } from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
+import { useSidebarStep } from "../lib/sidebarStep";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   openBarSettings,
@@ -122,6 +123,11 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     };
   }, [activePath, vaultAdapter, queryService, fileTreeVersion]);
 
+  // How much room the panel has — drives both the cosmetic degradation (via the
+  // data attribute) and the calendar's structural switch (plan P3).
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const step = useSidebarStep(rootRef);
+
   // Live DOM node per section, used to map a pointer's Y position onto a target row.
   const sectionEls = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const [overId, setOverId] = useState<SectionId | null>(null);
@@ -214,7 +220,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   };
 
   const renderBody = (id: SectionId) => {
-    if (id === "calendar") return <CalendarWidget onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
+    if (id === "calendar") return <CalendarWidget weekRow={step === "minimal"} onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
     if (id === "outline") return <OutlineSection />;
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
     if (id === "databases") return <NoteDatabasesSection context={dbContext} onOpenPath={onOpenPath} />;
@@ -235,7 +241,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   return (
     <div
-      className="custom-scrollbar"
+      ref={rootRef}
+      className="custom-scrollbar pv-side-right"
+      data-side-step={step}
       style={{ width: "100%", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}
     >
       {shown.filter(hasContent).map((id) => {

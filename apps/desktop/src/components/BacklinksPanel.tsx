@@ -72,7 +72,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
             <div style={{ fontSize: 'var(--text-ui)', fontWeight: 500, color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {link.source_path.split(/[/\\]/).pop()}
             </div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="pv-backlink-context" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {link.source_path}
             </div>
           </div>

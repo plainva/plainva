@@ -1666,3 +1666,40 @@ test('Tab menu: pinning survives "close all", unpinning releases the tab', async
   await page.getByRole('menuitem', { name: /Alle Tabs schließen|Close all tabs/ }).click();
   await expect(tab).toHaveCount(0);
 });
+
+test('A narrow right sidebar degrades in three named steps, and the calendar becomes a week row', async ({ page }) => {
+  // Measured rather than assumed: a month grid at 210 px has 14 px cells, which
+  // is a pattern, not a calendar. Each width is a fresh load because the panel
+  // width is restored from localStorage.
+  const at = async (width: number) => {
+    await page.addInitScript((w) => {
+      localStorage.setItem('plainva-right-sidebar-width', String(w));
+    }, width);
+    await page.goto('/');
+    await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+    const root = page.locator('.pv-side-right');
+    await expect(root).toHaveCount(1);
+    return {
+      step: await root.getAttribute('data-side-step'),
+      days: await page.locator('[data-testid^="sidecal-day-"]').count(),
+      weekLabel: await page.getByTestId('calendar-row-week').count(),
+      monthNav: await page.getByTestId('calendar-month-label').isVisible().catch(() => false),
+    };
+  };
+
+  const wide = await at(320);
+  expect(wide.step).toBe('comfortable');
+  expect(wide.days).toBe(42); // six rows of the month grid
+
+  const mid = await at(260);
+  expect(mid.step).toBe('compact');
+  expect(mid.days).toBe(42); // still the month, only tighter
+
+  const narrow = await at(210);
+  expect(narrow.step).toBe('minimal');
+  expect(narrow.days).toBe(7); // one week
+  expect(narrow.weekLabel).toBe(1);
+  // The month navigation would be a dead control here: the row follows the open
+  // day, so paging the month moves nothing.
+  expect(narrow.monthNav).toBe(false);
+});

@@ -101,4 +101,12 @@ A través de **Ctrl/Cmd+Shift+G** (o la sección **Grafo** en la barra lateral d
 
 ## Memoria de la barra lateral derecha
 
-Las secciones contextuales vacías como **Esquema**, **Enlaces entrantes** y **Propiedades** se cierran sin sobrescribir su preferencia global. Toda la barra lateral derecha recuerda una preferencia global para las notas; las vistas sin contexto de nota solo la cierran temporalmente.
+Las secciones que no tienen nada que mostrar para la nota abierta — **Esquema**, **Retroenlaces**, **Propiedades**, **Bases de datos** — no aparecen en absoluto, en lugar de quedarse ahí atenuadas. Toda la barra lateral derecha recuerda una única preferencia global para las notas; las vistas de pantalla completa sin contexto de nota solo la cierran temporalmente.
+
+**Cuando arrastras el panel para estrecharlo** cambia en tres pasos, para que nada se rompa:
+
+- **280 px o más** — como siempre.
+- **232–280 px** — las propiedades ponen el nombre encima del valor en lugar de al lado, los valores largos pasan a la línea siguiente, las secciones se comprimen.
+- **por debajo de 232 px** — el calendario muestra **una semana en lugar del mes** (siete días, número de semana abajo a la derecha); una cuadrícula mensual tendría aquí celdas de 14 píxeles y dejaría de ser un calendario. El grafo se vuelve más corto, y los retroenlaces muestran el nombre del archivo sin la línea de ruta.
+
+La barra lateral derecha no puede bajar de **200 px** — ninguna sección es utilizable por debajo de eso. La izquierda sigue bajando hasta 150 px, porque los nombres de archivo simplemente se truncan.

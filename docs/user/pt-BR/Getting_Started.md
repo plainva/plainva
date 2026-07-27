@@ -101,4 +101,12 @@ Por **Ctrl/Cmd+Shift+G** (ou a seção **Grafo** na barra lateral direita) você
 
 ## Memória da barra lateral direita
 
-Seções contextuais vazias como **Estrutura**, **Backlinks** e **Propriedades** fecham sem substituir a preferência global. A barra lateral direita inteira também lembra uma preferência global para notas; telas sem contexto de nota a fecham apenas temporariamente.
+Seções sem nada para mostrar na nota aberta — **Estrutura**, **Backlinks**, **Propriedades**, **Bancos de dados** — não aparecem de forma alguma, em vez de ficarem ali acinzentadas. A barra lateral direita inteira lembra uma única preferência global para as notas; visualizações em tela cheia sem contexto de nota a fecham apenas temporariamente.
+
+**Quando você arrasta o painel para deixá-lo estreito**, ele muda em três estágios, para que nada quebre:
+
+- **280 px ou mais** — como de costume.
+- **232–280 px** — as propriedades colocam o nome acima do valor em vez de ao lado, valores longos quebram a linha, as seções ficam mais compactas.
+- **abaixo de 232 px** — o calendário mostra **uma semana em vez do mês** (sete dias, número da semana embaixo à direita); uma grade mensal teria células de 14 pixels aqui e deixaria de ser um calendário. O grafo fica mais curto, e os backlinks mostram o nome do arquivo sem a linha do caminho.
+
+A barra lateral direita não pode ficar abaixo de **200 px** — nenhuma seção fica utilizável abaixo disso. A esquerda ainda vai até 150 px, porque os nomes de arquivo simplesmente são truncados.

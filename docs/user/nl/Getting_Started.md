@@ -101,4 +101,12 @@ Via **Ctrl/Cmd+Shift+G** (of de sectie **Graaf** in de rechterzijbalk) zie je je
 
 ## Geheugen van de rechterzijbalk
 
-Lege contextsecties zoals **Overzicht**, **Backlinks** en **Eigenschappen** sluiten zonder hun globale voorkeur te overschrijven. De hele rechterzijbalk onthoudt één globale voorkeur voor notities; weergaven zonder notitiecontext sluiten hem alleen tijdelijk.
+Secties die niets te tonen hebben voor de geopende notitie — **Structuur**, **Backlinks**, **Eigenschappen**, **Databases** — verschijnen helemaal niet, in plaats van grijs weergegeven te blijven staan. De hele rechterzijbalk onthoudt één globale voorkeur voor notities; weergaven op volledig scherm zonder notitiecontext sluiten hem alleen tijdelijk.
+
+**Als je het paneel smal sleept**, verandert het in drie stappen, zodat er niets breekt:
+
+- **280 px en meer** — zoals gebruikelijk.
+- **232–280 px** — eigenschappen zetten de naam boven de waarde in plaats van ernaast, lange waarden lopen door naar een nieuwe regel, de secties worden compacter.
+- **onder 232 px** — de kalender toont **één week in plaats van de maand** (zeven dagen, weeknummer rechtsonder); een maandraster zou hier cellen van 14 pixel hebben en geen kalender meer zijn. De graaf wordt korter, en backlinks tonen de bestandsnaam zonder de padregel.
+
+De rechterzijbalk kan niet onder **200 px** komen — geen enkele sectie is daaronder nog bruikbaar. De linker gaat nog wel terug tot 150 px, omdat bestandsnamen gewoon worden afgekapt.

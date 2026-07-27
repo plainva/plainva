@@ -101,4 +101,12 @@ Via **Ctrl/Cmd+Shift+G** (or the **Graph** section in the right sidebar) you see
 
 ## Remembering the right sidebar
 
-Empty context sections such as **Outline**, **Backlinks**, and **Properties** collapse without overwriting their global preference. The whole right sidebar also remembers one global preference for notes; full-surface views without note context close it only temporarily.
+Sections with nothing to show for the open note — **Outline**, **Backlinks**, **Properties**, **Databases** — do not appear at all, rather than sitting there greyed out. The whole right sidebar remembers one global preference for notes; full-surface views without note context close it only temporarily.
+
+**When you drag the panel narrow** it changes in three steps, so nothing breaks:
+
+- **280 px and up** — as usual.
+- **232–280 px** — properties put the name above the value instead of beside it, long values wrap, the sections tighten up.
+- **below 232 px** — the calendar shows **one week instead of the month** (seven days, week number below right); a month grid would have 14-pixel cells here and stop being a calendar. The graph gets shorter, and backlinks show the file name without the path line.
+
+The right panel cannot go below **200 px** — no section is usable under that. The left one still goes down to 150 px, because file names simply truncate.
