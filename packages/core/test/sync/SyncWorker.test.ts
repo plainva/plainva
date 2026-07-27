@@ -97,6 +97,42 @@ describe("SyncWorker", () => {
     expect(vault.createDir).toHaveBeenCalledWith("Neu/Leer");
   });
 
+  // Issue #34: "folders can't be deleted" — no error, the folder simply came
+  // back. The full listing still reported it (its DELETE was queued, or the
+  // provider keeps empty folders) and this loop recreated it minutes later.
+  it("does not recreate a folder whose deletion is still pending", async () => {
+    vault.createDir = vi.fn().mockResolvedValue(undefined);
+    vault.exists = vi.fn().mockResolvedValue(false);
+    queue.getPendingDeletePaths = vi.fn().mockResolvedValue(["Tasks"]);
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map(),
+      folders: ["Tasks", "Tasks/Archiv", "Andere"],
+    });
+
+    await worker.runCycle();
+
+    expect(vault.createDir).toHaveBeenCalledTimes(1);
+    expect(vault.createDir).toHaveBeenCalledWith("Andere");
+  });
+
+  it("does not recreate a folder the user deleted in this session", async () => {
+    vault.createDir = vi.fn().mockResolvedValue(undefined);
+    vault.exists = vi.fn().mockResolvedValue(false);
+    // The confirmed deletion is already through the queue; only the session
+    // note remains — a full listing minutes later must still not undo it.
+    worker.noteUserInitiatedDeletion(["Tasks"]);
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map(),
+      folders: ["Tasks", "Tasks/Archiv", "Tasksammlung"],
+    });
+
+    await worker.runCycle();
+
+    // "Tasksammlung" merely starts with the same letters — it is a sibling.
+    expect(vault.createDir).toHaveBeenCalledTimes(1);
+    expect(vault.createDir).toHaveBeenCalledWith("Tasksammlung");
+  });
+
   it("should pull from target and write new files to vault", async () => {
     target.pull.mockResolvedValueOnce({
       etagMap: new Map([["test.md", "12345"]])

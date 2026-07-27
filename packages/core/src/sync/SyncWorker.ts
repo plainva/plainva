@@ -1019,8 +1019,19 @@ export class SyncWorker {
       // sync_state), and the raw adapter keeps the creation out of the push
       // queue (no echo mkdir). Desktop trees refresh via the OS watcher, the
       // mobile browser lists the live file system on entry.
+      // A folder the user just deleted here must not be resurrected by the next
+      // full listing. Issue #34 ("folders can't be deleted", no error message,
+      // empty or not): the remote copy is still listed while its DELETE waits in
+      // the queue — or stays listed because the provider keeps empty folders —
+      // and this loop faithfully recreated it minutes later.
+      const deletionPending = (pullResult.folders ?? []).length > 0 ? await this.queue.getPendingDeletePaths() : [];
+      const awaitingDeletion = (folder: string): boolean =>
+        this.isUserInitiatedDeletion(folder) ||
+        deletionPending.some((p) => folder === p || folder.startsWith(p + "/"));
+
       for (const folder of pullResult.folders ?? []) {
         if (!folder || isLocalOnlyPath(folder)) continue;
+        if (awaitingDeletion(folder)) continue;
         try {
           if (!(await this.vault.exists(folder))) {
             await this.vault.createDir(folder);
