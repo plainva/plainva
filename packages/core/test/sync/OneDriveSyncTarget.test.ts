@@ -373,3 +373,58 @@ describe("OneDriveSyncTarget.listFolders (settings picker, 2026-07-06)", () => {
     await expect(target.listFolders("")).rejects.toThrow("OneDrive folder listing failed: 403");
   });
 });
+
+/**
+ * Cloud accounts stage B: when the shell owns the refresh token in a shared
+ * broker, this target must never refresh on its own — otherwise the account
+ * would again hold two rotating copies, the exact failure the broker removes.
+ */
+describe("OneDriveSyncTarget with an external access-token provider", () => {
+  it("asks the provider instead of hitting the token endpoint", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string) => {
+      if (url.startsWith(GRAPH)) return res({ value: [] });
+      throw new Error(`unexpected call: ${url}`);
+    }, { accessToken: undefined });
+    const provider = vi.fn(async () => "AT-from-broker");
+    target.accessTokenProvider = provider;
+
+    await target.listFolders("");
+
+    expect(provider).toHaveBeenCalledTimes(1);
+    // No token request went out; the broker owns that path now.
+    expect(calls(fetchFn).some((c) => c.url === TOKEN_URL)).toBe(false);
+    const authed = calls(fetchFn).find((c) => c.url.startsWith(GRAPH));
+    expect(authed?.init.headers.Authorization).toBe("Bearer AT-from-broker");
+  });
+
+  it("forces a fresh token when the server rejects the cached one", async () => {
+    let served = 0;
+    const { target } = makeTarget(async (url: string) => {
+      if (!url.startsWith(GRAPH)) throw new Error(`unexpected call: ${url}`);
+      served += 1;
+      return served === 1 ? res({ error: "unauthorized" }, { status: 401 }) : res({ value: [] });
+    }, { accessToken: undefined });
+    const seen: boolean[] = [];
+    target.accessTokenProvider = async (force: boolean) => {
+      seen.push(force);
+      return `AT-${seen.length}`;
+    };
+
+    await target.listFolders("");
+
+    // First call opportunistic, retry with force so a stale cached token in
+    // the broker cannot be handed back a second time.
+    expect(seen).toEqual([false, true]);
+  });
+
+  it("still refreshes itself when no provider is set", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string) => {
+      if (url === TOKEN_URL) return res({ access_token: "AT", refresh_token: "RT2", expires_in: 3600 });
+      return res({ value: [] });
+    }, { accessToken: undefined });
+
+    await target.listFolders("");
+
+    expect(calls(fetchFn).some((c) => c.url === TOKEN_URL)).toBe(true);
+  });
+});

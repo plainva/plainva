@@ -3,6 +3,7 @@ import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
+import { brokerTokenProvider } from "../services/accountBroker";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
@@ -685,6 +686,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         syncTargetRef.current = null; // cleared each load; set to the raw target below
         syncProviderRef.current = null;
         let target: ISyncTarget | null = null;
+        // Microsoft accounts connected through the union consent keep ONE
+        // refresh token in the account slot; the file sync then only asks the
+        // broker for an access token instead of rotating a copy of its own
+        // (cloud accounts stage B). Undefined for every other account.
+        const filesTokenProvider = await brokerTokenProvider(path, "files").catch(() => undefined);
         if (driveReady && driveCreds && driveCreds.refreshToken) {
           syncProvider = "drive";
           target = new DriveSyncTarget(
@@ -696,25 +702,33 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             },
             fetch
           );
-        } else if (oneDriveReady && oneDriveCreds && oneDriveCreds.refreshToken) {
+        } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "onedrive";
           const oneDriveTarget = new OneDriveSyncTarget(
             {
               clientId: oneDriveCreds.clientId,
-              refreshToken: oneDriveCreds.refreshToken,
+              // Empty for broker-backed accounts: the provider below supplies
+              // the access token and this field is never read.
+              refreshToken: oneDriveCreds.refreshToken ?? "",
               rootFolderName: oneDriveCreds.rootFolderName,
             },
             microsoftAuthFetch
           );
-          // Microsoft ROTATES refresh tokens: persist every rotation immediately or the
-          // stored token goes stale and the user is forced through the consent flow again.
-          oneDriveTarget.onTokensRefreshed = (_accessToken, refreshToken) => {
-            if (!refreshToken || refreshToken === oneDriveCreds.refreshToken) return;
-            oneDriveCreds.refreshToken = refreshToken;
-            credentialManager
-              .saveOneDriveCredentials(path, { ...oneDriveCreds, refreshToken })
-              .catch((e) => console.error("[VaultContext] persisting rotated OneDrive token failed", e));
-          };
+          if (filesTokenProvider) {
+            // The broker owns the refresh token and its rotation for every
+            // service of the account; this target never refreshes on its own.
+            oneDriveTarget.accessTokenProvider = filesTokenProvider;
+          } else {
+            // Microsoft ROTATES refresh tokens: persist every rotation immediately or the
+            // stored token goes stale and the user is forced through the consent flow again.
+            oneDriveTarget.onTokensRefreshed = (_accessToken, refreshToken) => {
+              if (!refreshToken || refreshToken === oneDriveCreds.refreshToken) return;
+              oneDriveCreds.refreshToken = refreshToken;
+              credentialManager
+                .saveOneDriveCredentials(path, { ...oneDriveCreds, refreshToken })
+                .catch((e) => console.error("[VaultContext] persisting rotated OneDrive token failed", e));
+            };
+          }
           target = oneDriveTarget;
         } else if (dropboxReady && dropboxCreds && dropboxCreds.refreshToken) {
           syncProvider = "dropbox";

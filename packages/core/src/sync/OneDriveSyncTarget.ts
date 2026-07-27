@@ -127,7 +127,22 @@ export class OneDriveSyncTarget implements ISyncTarget {
    */
   private refreshInFlight: Promise<void> | null = null;
 
-  private refreshAccessToken(): Promise<void> {
+  /**
+   * Set by the shell when the account's refresh token is owned by a shared
+   * broker (cloud accounts stage B): this target then never refreshes itself,
+   * it only asks for an access token. `force` is passed on a 401 so the broker
+   * drops a cached token that the server has already rejected.
+   */
+  public accessTokenProvider?: (force: boolean) => Promise<string>;
+
+  private refreshAccessToken(force = false): Promise<void> {
+    if (this.accessTokenProvider) {
+      // The broker serialises across ALL services of the account, so the
+      // per-target single-flight below would only add a second, weaker guard.
+      return this.accessTokenProvider(force).then((token) => {
+        this.accessToken = token;
+      });
+    }
     if (this.refreshInFlight) return this.refreshInFlight;
     this.refreshInFlight = this.doRefreshAccessToken().finally(() => {
       this.refreshInFlight = null;
@@ -171,7 +186,9 @@ export class OneDriveSyncTarget implements ISyncTarget {
       method === "GET" ? "read" : "write"
     );
     if (res.status === 401 && !isRetry) {
-      await this.refreshAccessToken();
+      // force: a broker-cached token the server just rejected must not be
+      // handed back to us a second time.
+      await this.refreshAccessToken(true);
       return this.authedFetch(method, url, init, true);
     }
     return res;

@@ -1,4 +1,5 @@
-import { createTokenBroker, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
+import { accountServices, createTokenBroker, type CloudServiceId, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
+import { loadCloudAccounts } from "./cloudAccounts";
 import { GRAPH_CALENDAR_SCOPES, ONEDRIVE_DEFAULT_SCOPE, refreshOneDriveAccessToken } from "@plainva/core";
 import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
@@ -85,4 +86,30 @@ export function getAccountBroker(vaultPath: string, accountId: string): TokenBro
 
 export function forgetAccountBroker(vaultPath: string, accountId: string): void {
   brokers.delete(accountSecretKey(vaultPath, accountId));
+}
+
+/**
+ * The ONE place that decides whether a service draws its access token from the
+ * account broker: the account must be Microsoft, must carry that service, and
+ * must actually have an account-wide token (i.e. it was connected through the
+ * union consent). Everything else keeps its per-service refresh path, so
+ * accounts connected before stage B are untouched.
+ *
+ * Returns the provider shape `OneDriveSyncTarget.accessTokenProvider` and the
+ * PIM/mail runtimes expect: `force` drops a cached token the server rejected.
+ */
+export async function brokerTokenProvider(
+  vaultPath: string,
+  service: CloudServiceId
+): Promise<((force: boolean) => Promise<string>) | undefined> {
+  const records = await loadCloudAccounts(vaultPath);
+  const record = records.find((r) => r.family === "microsoft" && accountServices(r).includes(service));
+  if (!record) return undefined;
+  if (!(await getAccountToken(vaultPath, record.id))) return undefined;
+
+  const broker = getAccountBroker(vaultPath, record.id);
+  return async (force: boolean) => {
+    if (force) broker.forget();
+    return broker.getAccessToken(service);
+  };
 }
