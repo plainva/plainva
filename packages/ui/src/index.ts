@@ -10,6 +10,7 @@ export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/accountProfile";
 export * from "./lib/secretsPort";
+export * from "./lib/tokenBroker";
 export * from "./lib/whatsNew";
 export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";
