@@ -12,6 +12,7 @@ export * from "./lib/attachmentPath";
 export * from "./lib/dailyNotePath";
 export * from "./lib/profileFields";
 export * from "./lib/syncDiagnostics";
+export * from "./lib/taskList";
 export * from "./lib/accountProfile";
 export * from "./lib/authErrors";
 export * from "./lib/secretsPort";

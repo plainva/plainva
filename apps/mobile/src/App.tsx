@@ -44,6 +44,7 @@ import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { MailListScreen } from "./screens/MailListScreen";
 import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { MailComposeScreen, type MailDraft } from "./screens/MailComposeScreen";
+import { TasksScreen } from "./screens/TasksScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
@@ -126,6 +127,7 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   bookmarks: { kind: "bookmarks", path: "" },
   calendar: { kind: "pimcalendar", path: "" },
   mail: { kind: "mail", path: "" },
+  tasks: { kind: "tasks", path: "" },
   databases: { kind: "databases", path: "" },
   graph: { kind: "graphmap", path: "" },
 };
@@ -851,6 +853,8 @@ export default function App() {
           <MailComposeScreen draft={parseDraft(top.path)} onBack={pop} />
         ) : top?.kind === "mailaccounts" ? (
           <MailAccountsScreen bump={bump} onBack={pop} />
+        ) : top?.kind === "tasks" ? (
+          <TasksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "graphmap" ? (
