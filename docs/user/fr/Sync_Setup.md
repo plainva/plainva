@@ -116,14 +116,14 @@ Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes
 | Voyage avec le coffre | Reste sur cet appareil |
 | --- | --- |
 | Comptes — calendriers, boîtes aux lettres, comptes cloud, signets | Chemins absolus — emplacement du coffre, destination des sauvegardes |
-| Dossiers et modèles — notes du jour, dossier de modèles, base de tâches | Jetons de connexion Microsoft et Google |
+| Dossiers et modèles — notes du jour, dossier de modèles, dossier de la boîte de réception, dossier des pièces jointes, base de tâches | Jetons de connexion Microsoft et Google |
 | Paramètres du calendrier — dossier des réunions, calendrier par défaut | La boîte aux lettres et le dossier ouverts en dernier |
 | Paramètres de messagerie — dossier de classement, images distantes | La disposition de départ de cet appareil pour les nouveaux coffres |
 | Règles de sauvegarde — intervalle d'instantanés, conservation, archives | Mots de passe statiques — sauf si l'étape 3 est activée |
 | Intervalle de synchronisation |  |
 | Disposition des barres (ordinateur) |  |
 
-Le téléphone en transporte moins : il n'a pas de disposition de barres, pas de dossier de réunions et pas encore de base de tâches. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
+Le téléphone en transporte moins : il n'a pas de disposition de barres et pas de dossier de réunions. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
 
 ## Erreurs et nouvelle tentative automatique
 

@@ -312,6 +312,8 @@
     "appKey": "App Key",
     "askBeforeCreateLink": "Pytaj przed utworzeniem pustych linków",
     "askBeforeCreateLinkDesc": "Kliknięcie linku do notatki, która jeszcze nie istnieje, zwykle tworzy ją od razu. Przy tej opcji najpierw pojawia się pytanie.",
+    "inboxFolder": "Folder skrzynki",
+    "inboxFolderDesc": "Miejsce, gdzie szybkie przechwytywanie ＋ na Twoim telefonie zapisuje notatkę i gdzie trafia tekst udostępniony z innej aplikacji. Na komputerze notatki są zawsze tworzone tam, gdzie wskażesz.",
     "attachmentFolder": "Folder załączników",
     "attachmentFolderDesc": "Gdzie trafiają pliki upuszczone, wklejone i sfotografowane. Zostaw puste, aby trzymać je obok notatki.",
     "autoOpenLastVaultDesc": "Bez zaznaczenia Plainva zawsze uruchamia się na ekranie wyboru vaultu.",

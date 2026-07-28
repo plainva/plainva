@@ -116,14 +116,14 @@ Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy 
 | Podróżuje z sejfem | Zostaje na tym urządzeniu |
 | --- | --- |
 | Konta — kalendarze, skrzynki pocztowe, konta w chmurze, zakładki | Ścieżki bezwzględne — lokalizacja sejfu, cel kopii zapasowych |
-| Foldery i szablony — notatki dzienne, folder szablonów, baza zadań | Tokeny logowania Microsoft i Google |
+| Foldery i szablony — notatki dzienne, folder szablonów, folder skrzynki, folder załączników, baza zadań | Tokeny logowania Microsoft i Google |
 | Ustawienia kalendarza — folder spotkań, kalendarz domyślny | Która skrzynka i który folder były ostatnio otwarte |
 | Ustawienia poczty — folder zapisu, obrazy zdalne | Początkowy układ tego urządzenia dla nowych sejfów |
 | Reguły kopii — odstęp migawek, przechowywanie, archiwa | Hasła statyczne — chyba że krok 3 jest włączony |
 | Interwał synchronizacji |  |
 | Układ pasków (komputer) |  |
 
-Telefon przenosi tego mniej: nie ma układu pasków, folderu spotkań ani jeszcze bazy zadań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
+Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
 
 ## Błędy i automatyczne ponawianie
 

@@ -116,14 +116,14 @@ No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas 
 | Viaja com o cofre | Fica neste dispositivo |
 | --- | --- |
 | Contas — calendários, caixas de correio, contas na nuvem, favoritos | Caminhos absolutos — local do cofre, destino dos backups |
-| Pastas e modelos — notas diárias, pasta de modelos, banco de tarefas | Tokens de acesso da Microsoft e do Google |
+| Pastas e modelos — notas diárias, pasta de modelos, pasta de entrada, pasta de anexos, banco de tarefas | Tokens de acesso da Microsoft e do Google |
 | Configurações do calendário — pasta de reuniões, calendário padrão | Qual caixa de correio e qual pasta você deixou abertas por último |
 | Configurações de e-mail — pasta de arquivamento, imagens remotas | A disposição inicial deste dispositivo para cofres novos |
 | Regras de backup — intervalo de instantâneos, retenção, arquivos | Senhas estáticas — a menos que o passo 3 esteja ativado |
 | Intervalo de sincronização |  |
 | Disposição das barras (desktop) |  |
 
-O telefone carrega menos disso: não tem disposição de barras, nem pasta de reuniões, nem ainda banco de tarefas. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último. Novo nesta versão: o telefone também assume o formato do nome das notas diárias, o tipo OKF das notas novas e seus favoritos. Antes, um cofre com outro formato de data ganhava uma segunda nota diária para o mesmo dia assim que o telefone o tocava.
+O telefone carrega menos disso: não tem disposição de barras nem pasta de reuniões. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último. Novo nesta versão: o telefone também assume o formato do nome das notas diárias, o tipo OKF das notas novas e seus favoritos. Antes, um cofre com outro formato de data ganhava uma segunda nota diária para o mesmo dia assim que o telefone o tocava.
 
 ## Erros e nova tentativa automática
 

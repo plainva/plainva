@@ -93,6 +93,7 @@ const dailyNotesFormatKey = (v: string) => `dailyNotesFormat_${b64(v)}`;
 const dailyNoteTemplateKey = (v: string) => `dailyNoteTemplate_${b64(v)}`;
 const dailyNoteTypeKey = (v: string) => `dailyNoteType_${b64(v)}`;
 const templateFolderKey = (v: string) => `templateFolder_${b64(v)}`;
+const inboxFolderKey = (v: string) => `inboxFolder_${b64(v)}`;
 const attachmentFolderKey = (v: string) => `attachmentFolder_${b64(v)}`;
 const defaultNoteTypeKey = (v: string) => `defaultNoteType_${b64(v)}`;
 const taskDatabaseKey = (v: string) => `taskDatabase_${b64(v)}`;
@@ -141,6 +142,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   dailyNoteTemplate: dailyNoteTemplateKey,
   dailyNoteType: dailyNoteTypeKey,
   templateFolder: templateFolderKey,
+  inboxFolder: inboxFolderKey,
   attachmentFolder: attachmentFolderKey,
   defaultNoteType: defaultNoteTypeKey,
   taskDatabase: taskDatabaseKey,

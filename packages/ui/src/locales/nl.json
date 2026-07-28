@@ -310,6 +310,8 @@
     "appKey": "App-key",
     "askBeforeCreateLink": "Vragen voordat lege links worden aangemaakt",
     "askBeforeCreateLinkDesc": "Klikken op een link naar een notitie die nog niet bestaat, maakt deze normaal gesproken meteen aan. Met deze optie wordt eerst gevraagd.",
+    "inboxFolder": "Inbox-map",
+    "inboxFolderDesc": "Waar de snelle ＋-vastlegging op je telefoon een notitie neerzet, en waar gedeelde tekst uit een andere app terechtkomt. Op de desktop worden notities altijd aangemaakt waar je op wijst.",
     "attachmentFolder": "Bijlagenmap",
     "attachmentFolderDesc": "Waar neergezette, geplakte en gefotografeerde bestanden terechtkomen. Laat leeg om ze naast de notitie te houden.",
     "autoOpenLastVaultDesc": "Zonder vinkje start Plainva altijd op het vault-keuzescherm.",

@@ -311,6 +311,8 @@
     "appKey": "Chiave dell'app",
     "askBeforeCreateLink": "Chiedi prima di creare link vuoti",
     "askBeforeCreateLinkDesc": "Cliccare su un link a una nota che non esiste ancora di norma la crea subito. Con questa opzione, viene chiesta conferma prima.",
+    "inboxFolder": "Cartella Inbox",
+    "inboxFolderDesc": "Dove la cattura rapida ＋ del tuo telefono mette una nota, e dove finisce il testo condiviso da un'altra app. Sul desktop, le note vengono sempre create dove indichi.",
     "attachmentFolder": "Cartella degli allegati",
     "attachmentFolderDesc": "Dove finiscono i file trascinati, incollati e fotografati. Lascia vuoto per tenerli accanto alla nota.",
     "autoOpenLastVaultDesc": "Se non selezionata, Plainva parte sempre dalla schermata di scelta del vault.",

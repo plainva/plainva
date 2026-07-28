@@ -310,6 +310,8 @@
     "appKey": "App Key",
     "askBeforeCreateLink": "Ask before creating empty links",
     "askBeforeCreateLinkDesc": "Clicking a link to a note that doesn't exist yet normally creates it right away. With this option, you're asked first.",
+    "inboxFolder": "Inbox folder",
+    "inboxFolderDesc": "Where the ＋ quick capture on your phone puts a note, and where text shared from another app lands. The desktop always creates notes where you point it.",
     "attachmentFolder": "Attachments folder",
     "attachmentFolderDesc": "Where dropped, pasted and photographed files land. Leave empty to keep them beside the note.",
     "autoOpenLastVaultDesc": "Unchecked, Plainva always starts on the vault chooser screen.",

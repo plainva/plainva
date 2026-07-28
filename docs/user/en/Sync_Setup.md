@@ -116,14 +116,14 @@ On the **phone** you find the same chain on the vault page — the same three st
 | Travels with the vault | Stays on this device |
 | --- | --- |
 | Accounts — calendars, mailboxes, cloud accounts, bookmarks | Absolute paths — vault location, backup destination |
-| Folders and templates — daily notes, template folder, task database | Sign-in tokens for Microsoft and Google |
+| Folders and templates — daily notes, template, inbox and attachments folders, task database | Sign-in tokens for Microsoft and Google |
 | Calendar settings — meetings folder, default calendar | Which mailbox and folder you last had open |
 | Mail settings — capture folder, remote images | This device's starting arrangement for new vaults |
 | Backup rules — snapshot interval, retention, archives | Static passwords — unless step 3 is on |
 | Sync interval |  |
 | Bar arrangement (desktop) |  |
 
-The phone carries fewer of these: it has no bar arrangement, no meetings folder and no task database yet. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
+The phone carries fewer of these: it has no bar arrangement and no meetings folder. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
 
 ## Errors and automatic retries
 

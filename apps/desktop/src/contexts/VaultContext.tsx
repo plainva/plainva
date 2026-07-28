@@ -225,6 +225,7 @@ export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${bt
 export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Where dropped/pasted files land (S17); empty = beside the note, as before. */
+export const inboxFolderKey = (vaultPath: string) => `inboxFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const attachmentFolderKey = (vaultPath: string) => `attachmentFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;

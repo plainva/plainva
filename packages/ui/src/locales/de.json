@@ -310,6 +310,8 @@
     "appKey": "App-Key",
     "askBeforeCreateLink": "Vor dem Anlegen leerer Links fragen",
     "askBeforeCreateLinkDesc": "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt.",
+    "inboxFolder": "Eingangsordner",
+    "inboxFolderDesc": "Wohin die ＋-Schnellerfassung auf Deinem Telefon eine Notiz legt und wo aus anderen Apps geteilter Text landet. Am Desktop entstehen Notizen immer dort, wohin Du zeigst.",
     "attachmentFolder": "Anhänge-Ordner",
     "attachmentFolderDesc": "Wohin abgelegte, eingefügte und fotografierte Dateien kommen. Leer lassen, um sie neben der Notiz zu behalten.",
     "autoOpenLastVaultDesc": "Ohne Haken zeigt Plainva beim Start immer den Vault-Auswahlbildschirm.",

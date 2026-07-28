@@ -24,7 +24,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -125,7 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
   // reuses the sync picker UI with a listing that walks the OPEN vault, so the
   // browse buttons are gated to the active vault like the other vault actions.
-  const [vaultFolderPicker, setVaultFolderPicker] = useState<"daily" | "templates" | "attachments" | null>(null);
+  const [vaultFolderPicker, setVaultFolderPicker] = useState<"daily" | "templates" | "attachments" | "inbox" | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [configuredVaults, setConfiguredVaults] = useState<Set<string>>(new Set());
 
@@ -153,6 +153,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [dailyNotesFolder, setDailyNotesFolder] = useState("");
   const [dailyNotesFormat, setDailyNotesFormat] = useState("YYYY-MM-DD");
   const [templateFolder, setTemplateFolder] = useState("Templates");
+  const [inboxFolder, setInboxFolder] = useState("Inbox");
   const [attachmentFolder, setAttachmentFolder] = useState("Attachments");
   const [dailyNoteTemplate, setDailyNoteTemplate] = useState("");
   const [templateFiles, setTemplateFiles] = useState<string[]>([]);
@@ -363,6 +364,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setDailyNotesFolder(await store.get<string>(dailyNotesFolderKey(section)) ?? "");
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
         setTemplateFolder(await store.get<string>(templateFolderKey(section)) ?? "Templates");
+        setInboxFolder(await store.get<string>(inboxFolderKey(section)) ?? "Inbox");
         setAttachmentFolder(await store.get<string>(attachmentFolderKey(section)) ?? "Attachments");
         setDailyNoteTemplate(await store.get<string>(dailyNoteTemplateKey(section)) ?? "");
         setTaskDatabase(await store.get<string>(taskDatabaseKey(section)) ?? "");
@@ -823,6 +825,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onTemplateFolder={(v) => { setTemplateFolder(v); void persistFeature(section, templateFolderKey(section), v); }}
                       onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
                       attachmentFolder={attachmentFolder}
+                      inboxFolder={inboxFolder}
+                      onInboxFolder={(v) => { setInboxFolder(v); void persistFeature(section, inboxFolderKey(section), v); }}
+                      onBrowseInboxFolder={() => setVaultFolderPicker("inbox")}
                       onAttachmentFolder={(v) => { setAttachmentFolder(v); void persistFeature(section, attachmentFolderKey(section), v); }}
                       onBrowseAttachmentFolder={() => setVaultFolderPicker("attachments")}
                       dailyNoteTemplate={dailyNoteTemplate}
@@ -948,6 +953,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
             } else if (vaultFolderPicker === "templates") {
               setTemplateFolder(picked);
               void persistFeature(section, templateFolderKey(section), picked);
+            } else if (vaultFolderPicker === "inbox") {
+              setInboxFolder(picked);
+              void persistFeature(section, inboxFolderKey(section), picked);
             } else {
               setAttachmentFolder(picked);
               void persistFeature(section, attachmentFolderKey(section), picked);
