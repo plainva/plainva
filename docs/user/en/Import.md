@@ -63,6 +63,11 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **Notesnook** | The Markdown export | Notes and their notebook folders; a note filed in two notebooks is imported once |
 | **Capacities** | The export folder or ZIP | Notes with their properties as frontmatter, plus media |
 | **Amplenote** | The export ZIP | Notes with their frontmatter and images |
+| **Supernotes** | The Markdown export | Cards as Markdown, with the metadata files beside them |
+| **Heptabase** | The Markdown export | Cards with their frontmatter; whiteboard layout is not carried over |
+| **UpNote** | The Markdown export | Notes with their notebooks and attachments |
+| **Craft** | The Markdown export | Documents with their assets |
+| **Anytype** | The Markdown export | Objects with their relations as frontmatter |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
 **Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.

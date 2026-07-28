@@ -119,6 +119,18 @@ export abstract class MarkdownFamilyImporter implements ImportSource {
   /** Notes this export writes more than once; the base drops the repeats. */
   protected readonly dedupeByContent: boolean = false;
 
+  /**
+   * A text entry that is the app's own bookkeeping and belongs in no vault.
+   *
+   * Everything else that is not a note is written through as a file. Dropping
+   * it would be the quiet kind of loss this importer exists to avoid: a
+   * Capacities collection CSV is the user's data, even when Plainva has
+   * nothing clever to do with it yet.
+   */
+  protected shouldDrop(_file: UnpackedFile): boolean {
+    return false;
+  }
+
   async detect(input: any): Promise<boolean> {
     if (!Array.isArray(input)) return false;
     const files = input.filter((f: any) => typeof f?.relativePath === 'string') as UnpackedFile[];
@@ -178,8 +190,21 @@ export abstract class MarkdownFamilyImporter implements ImportSource {
         if (!isTextEntry(file)) continue;
 
         try {
+          if (this.shouldDrop(file)) continue;
+
           const mapped = this.mapNote(file);
-          if (!mapped) continue;
+          if (!mapped) {
+            // Not a note, but still the user's file — a collection CSV, a
+            // stylesheet, whatever the app put beside the notes.
+            await writer.writeFile(
+              file.relativePath,
+              file.content ?? '',
+              'attachment',
+              undefined,
+              timesFromFile(file)
+            );
+            continue;
+          }
 
           if (this.dedupeByContent) {
             const previous = seen.get(mapped.content);
@@ -255,13 +280,17 @@ export class BearImporter extends MarkdownFamilyImporter {
     return relativePath.replace(/\.textbundle\//, '/');
   }
 
+  /** `info.json` and friends describe the bundle, not the note inside it. */
+  protected shouldDrop(file: UnpackedFile): boolean {
+    return (
+      file.relativePath.includes('.textbundle/') &&
+      !/\.textbundle\/text\.(markdown|md)$/.test(file.relativePath)
+    );
+  }
+
   protected mapNote(file: UnpackedFile): MappedNote | null {
     const match = file.relativePath.match(/^(.*)\.textbundle\/text\.(markdown|md)$/);
-    if (!match) {
-      // Everything else inside a bundle is the bundle's own bookkeeping.
-      if (file.relativePath.includes('.textbundle/')) return null;
-      return super.mapNote(file);
-    }
+    if (!match) return super.mapNote(file);
 
     const stem = match[1];
     const name = stem.slice(stem.lastIndexOf('/') + 1);
@@ -306,8 +335,8 @@ export class NotesnookImporter extends MarkdownFamilyImporter {
  * Capacities' Markdown export.
  *
  * Its properties become frontmatter and its collections are written as CSV
- * files next to the notes. The CSVs are left as files on purpose: turning them
- * into `.base` databases would mean guessing which collection belongs to which
+ * files next to the notes. Those CSVs come across as files: turning them into
+ * `.base` databases would mean guessing which collection belongs to which
  * folder, and a wrong guess writes a database the user then has to undo.
  *
  * No signature: the export is Markdown, frontmatter and CSV, which is what
@@ -334,6 +363,81 @@ export class AmplenoteImporter extends MarkdownFamilyImporter {
   readonly id: ImportSourceId = 'amplenote';
   readonly name = 'Amplenote (Markdown export)';
   readonly description = 'Imports an Amplenote Markdown export with its frontmatter and images.';
+
+  protected signature(): boolean {
+    return false;
+  }
+}
+
+/**
+ * Supernotes' Markdown export.
+ *
+ * Cards as Markdown with their metadata beside them. The metadata files come
+ * across as files rather than being read: what exactly Supernotes writes into
+ * them is not documented well enough to map, and a mapping built on a guess
+ * would put wrong values into somebody's frontmatter. No signature either —
+ * picked from the tile.
+ */
+export class SupernotesImporter extends MarkdownFamilyImporter {
+  readonly id: ImportSourceId = 'supernotes';
+  readonly name = 'Supernotes (Markdown export)';
+  readonly description = 'Imports a Supernotes Markdown export with its cards and the metadata files beside them.';
+
+  protected signature(): boolean {
+    return false;
+  }
+}
+
+/**
+ * Heptabase's Markdown export.
+ *
+ * Cards as Markdown with YAML frontmatter, which the family already reads for
+ * the dates. The whiteboards themselves are Heptabase's own spatial layer and
+ * have no counterpart here — what comes across is the writing, not the canvas.
+ */
+export class HeptabaseImporter extends MarkdownFamilyImporter {
+  readonly id: ImportSourceId = 'heptabase';
+  readonly name = 'Heptabase (Markdown export)';
+  readonly description = 'Imports a Heptabase Markdown export: the cards with their frontmatter. Whiteboard layout is not carried over.';
+
+  protected signature(): boolean {
+    return false;
+  }
+}
+
+/** UpNote's Markdown export: notes and their folders, nothing app-specific. */
+export class UpNoteImporter extends MarkdownFamilyImporter {
+  readonly id: ImportSourceId = 'upnote';
+  readonly name = 'UpNote (Markdown export)';
+  readonly description = 'Imports an UpNote Markdown export with its notebooks and attachments.';
+
+  protected signature(): boolean {
+    return false;
+  }
+}
+
+/** Craft's Markdown export: documents plus the assets they reference. */
+export class CraftImporter extends MarkdownFamilyImporter {
+  readonly id: ImportSourceId = 'craft';
+  readonly name = 'Craft (Markdown export)';
+  readonly description = 'Imports a Craft Markdown export with its documents and assets.';
+
+  protected signature(): boolean {
+    return false;
+  }
+}
+
+/**
+ * Anytype's Markdown export.
+ *
+ * Objects as Markdown with their relations as frontmatter. Anytype's own
+ * object types have no equivalent on the way in — a note is a note here — so
+ * the type survives as a frontmatter value rather than as structure.
+ */
+export class AnytypeImporter extends MarkdownFamilyImporter {
+  readonly id: ImportSourceId = 'anytype';
+  readonly name = 'Anytype (Markdown export)';
+  readonly description = 'Imports an Anytype Markdown export: objects with their relations as frontmatter.';
 
   protected signature(): boolean {
     return false;

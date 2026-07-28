@@ -63,6 +63,11 @@ Um workspace grande pode demorar, por isso uma importação pode ser interrompid
 | **Notesnook** | A exportação Markdown | Notas e suas pastas de caderno; uma nota em dois cadernos é importada uma vez |
 | **Capacities** | A pasta ou o ZIP da exportação | Notas com suas propriedades como frontmatter, além das mídias |
 | **Amplenote** | O ZIP da exportação | Notas com seu frontmatter e suas imagens |
+| **Supernotes** | A exportação Markdown | Cartões em Markdown, com os arquivos de metadados ao lado |
+| **Heptabase** | A exportação Markdown | Cartões com seu frontmatter; o layout do whiteboard não é trazido |
+| **UpNote** | A exportação Markdown | Notas com seus cadernos e anexos |
+| **Craft** | A exportação Markdown | Documentos com seus recursos |
+| **Anytype** | A exportação Markdown | Objetos com suas relações como frontmatter |
 | **Pasta Markdown / ZIP** | Uma pasta, arquivos ou um ZIP | Os arquivos `.md` e sua estrutura de pastas |
 
 **Obsidian** também está na lista, mas não inicia nenhuma importação — e nem precisa. O Plainva trabalha com os mesmos arquivos Markdown: o item explica isso e oferece **Abrir vault**. Wiki links, tags, frontmatter e arquivos `.base` continuam funcionando, e seu vault permanece utilizável no Obsidian. Sendo honesto: não existe ecossistema de plugins, nem Canvas nem Dataview — em vez disso você tem filtros no `.base`, e a sintaxe de plugin nas suas notas permanece ali como texto simples.

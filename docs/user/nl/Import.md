@@ -63,6 +63,11 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **Notesnook** | De Markdown-export | Notities en hun notitieboekmappen; een notitie in twee notitieboeken wordt één keer geïmporteerd |
 | **Capacities** | De map of ZIP van de export | Notities met hun eigenschappen als frontmatter, plus media |
 | **Amplenote** | De ZIP van de export | Notities met hun frontmatter en afbeeldingen |
+| **Supernotes** | De Markdown-export | Kaarten als Markdown, met de metadatabestanden ernaast |
+| **Heptabase** | De Markdown-export | Kaarten met hun frontmatter; de whiteboard-indeling komt niet mee |
+| **UpNote** | De Markdown-export | Notities met hun notitieboeken en bijlagen |
+| **Craft** | De Markdown-export | Documenten met hun assets |
+| **Anytype** | De Markdown-export | Objecten met hun relaties als frontmatter |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
 **Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.

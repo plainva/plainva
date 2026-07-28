@@ -80,9 +80,12 @@ describe('Markdown family — detection only on a real signature', () => {
     expect(await new AmplenoteImporter().detect(plain)).toBe(false);
   });
 
-  it('registers all five so the wizard can offer them', () => {
+  it('registers all ten so the wizard can offer them', () => {
     const ids = defaultImportRegistry.list().map((s) => s.id);
-    for (const id of ['joplin', 'bear', 'notesnook', 'capacities', 'amplenote']) {
+    for (const id of [
+      'joplin', 'bear', 'notesnook', 'capacities', 'amplenote',
+      'supernotes', 'heptabase', 'upnote', 'craft', 'anytype',
+    ]) {
       expect(ids).toContain(id);
     }
   });
@@ -179,8 +182,8 @@ describe('Capacities and Amplenote — plain, and honest about it', () => {
     const note = vault.files.get('Import/Pages/Idea.md') ?? '';
     expect(note).toContain('created: 2024-03-01');
     // Turning a collection into a database would mean guessing which folder it
-    // belongs to; it stays a file until that guess is not needed.
-    expect(vault.files.has('Import/Collections/Books.csv')).toBe(false);
+    // belongs to — but the CSV is the user's data and comes across as a file.
+    expect(vault.files.get('Import/Collections/Books.csv')).toContain('Dune,Herbert');
   });
 
   it('imports an Amplenote export with its frontmatter intact', async () => {

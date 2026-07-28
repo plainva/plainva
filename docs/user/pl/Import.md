@@ -63,6 +63,11 @@ Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzyma�
 | **Notesnook** | Eksport Markdown | Notatki i ich foldery notatników; notatka w dwóch notatnikach jest importowana raz |
 | **Capacities** | Folder lub ZIP eksportu | Notatki z właściwościami jako frontmatter oraz media |
 | **Amplenote** | ZIP eksportu | Notatki z frontmatterem i obrazami |
+| **Supernotes** | Eksport Markdown | Karty jako Markdown, wraz z plikami metadanych obok |
+| **Heptabase** | Eksport Markdown | Karty z frontmatterem; układ tablicy nie jest przenoszony |
+| **UpNote** | Eksport Markdown | Notatki z notatnikami i załącznikami |
+| **Craft** | Eksport Markdown | Dokumenty wraz z zasobami |
+| **Anytype** | Eksport Markdown | Obiekty z relacjami jako frontmatter |
 | **Folder Markdown / ZIP** | Folder, pliki lub ZIP | Pliki `.md` i ich struktura folderów |
 
 **Obsidian** też jest na liście, ale nie uruchamia żadnego importu — i żadnego nie potrzebuje. Plainva pracuje na tych samych plikach Markdown: pozycja to wyjaśnia i oferuje **Otwórz vault**. Linki wiki, tagi, frontmatter i pliki `.base` nadal działają, a Twój vault pozostaje użyteczny w Obsidianie. Trzeba przy tym uczciwie dodać: nie ma ekosystemu wtyczek, nie ma Canvasa ani Dataview — w zamian masz filtry w `.base`, a składnia wtyczek w Twoich notatkach pozostaje zwykłym tekstem.

@@ -25,8 +25,13 @@ import {
   AmplenoteImporter,
   BearImporter,
   CapacitiesImporter,
+  AnytypeImporter,
+  CraftImporter,
+  HeptabaseImporter,
   JoplinImporter,
   NotesnookImporter,
+  SupernotesImporter,
+  UpNoteImporter,
 } from './adapters/markdownFamily.js';
 
 // Register all standard PKM import adapters into the default registry
@@ -42,3 +47,8 @@ defaultImportRegistry.register(new BearImporter());
 defaultImportRegistry.register(new NotesnookImporter());
 defaultImportRegistry.register(new CapacitiesImporter());
 defaultImportRegistry.register(new AmplenoteImporter());
+defaultImportRegistry.register(new SupernotesImporter());
+defaultImportRegistry.register(new HeptabaseImporter());
+defaultImportRegistry.register(new UpNoteImporter());
+defaultImportRegistry.register(new CraftImporter());
+defaultImportRegistry.register(new AnytypeImporter());

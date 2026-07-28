@@ -63,6 +63,11 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **Notesnook** | L’export Markdown | Notes et leurs dossiers de carnets ; une note classée dans deux carnets est importée une fois |
 | **Capacities** | Le dossier ou le ZIP de l’export | Notes avec leurs propriétés en frontmatter, plus les médias |
 | **Amplenote** | Le ZIP de l’export | Notes avec leur frontmatter et leurs images |
+| **Supernotes** | L’export Markdown | Cartes en Markdown, avec les fichiers de métadonnées à côté |
+| **Heptabase** | L’export Markdown | Cartes avec leur frontmatter ; la disposition du whiteboard n’est pas reprise |
+| **UpNote** | L’export Markdown | Notes avec leurs carnets et pièces jointes |
+| **Craft** | L’export Markdown | Documents avec leurs ressources |
+| **Anytype** | L’export Markdown | Objets avec leurs relations en frontmatter |
 | **Dossier Markdown / ZIP** | Un dossier, des fichiers ou un ZIP | Les fichiers `.md` et leur structure de dossiers |
 
 **Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.
