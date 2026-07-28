@@ -68,6 +68,9 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **UpNote** | L’export Markdown | Notes avec leurs carnets et pièces jointes |
 | **Craft** | L’export Markdown | Documents avec leurs ressources |
 | **Anytype** | L’export Markdown | Objets avec leurs relations en frontmatter |
+| **Standard Notes** | La sauvegarde JSON déchiffrée | Notes avec leurs titres et étiquettes |
+| **Workflowy / Dynalist** | L’export OPML | Une note par élément de premier niveau, ses enfants en listes imbriquées |
+| **Trilium** | L’export de sous-arbre | L’arborescence des notes et ses pièces jointes ; les notes HTML deviennent du Markdown |
 | **Dossier Markdown / ZIP** | Un dossier, des fichiers ou un ZIP | Les fichiers `.md` et leur structure de dossiers |
 
 **Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.

@@ -68,6 +68,9 @@ Plainva可以把笔记从其他笔记应用中导入进来。导入内容总是�
 | **UpNote** | Markdown 导出 | 笔记及其笔记本和附件 |
 | **Craft** | Markdown 导出 | 文档及其素材 |
 | **Anytype** | Markdown 导出 | 对象及作为 frontmatter 的关联 |
+| **Standard Notes** | 已解密的 JSON 备份 | 笔记及其标题和标签 |
+| **Workflowy / Dynalist** | OPML 导出 | 每个顶层条目一篇笔记，其子项作为嵌套列表 |
+| **Trilium** | 子树导出 | 笔记树及其附件；HTML 笔记会转换为 Markdown |
 | **Markdown文件夹 / ZIP** | 一个文件夹、若干文件或一个ZIP | `.md`文件及其文件夹结构 |
 
 **Obsidian** 也在这份列表中，但它不会启动任何导入——也确实不需要。Plainva 使用的是同样的 Markdown 文件：这一项会说明这一点，并为你提供**打开仓库**。Wiki链接、标签、Frontmatter 和 `.base` 文件都能继续正常使用，你的仓库在 Obsidian 中依然可用。诚实地说：这里没有插件生态、没有 Canvas、也没有 Dataview——取而代之的是`.base`中的筛选功能，笔记中的插件语法则会原样保留为纯文本。

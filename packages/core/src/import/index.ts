@@ -13,6 +13,7 @@ export * from './adapters/EvernoteEnexImporter.js';
 export * from './adapters/LogseqImporter.js';
 export * from './adapters/NotionImporter.js';
 export * from './adapters/markdownFamily.js';
+export * from './adapters/outlinerAndJson.js';
 
 import { defaultImportRegistry } from './ImportRegistry.js';
 import { GenericMarkdownImporter } from './adapters/GenericMarkdownImporter.js';
@@ -33,6 +34,11 @@ import {
   SupernotesImporter,
   UpNoteImporter,
 } from './adapters/markdownFamily.js';
+import {
+  OpmlOutlinerImporter,
+  StandardNotesImporter,
+  TriliumImporter,
+} from './adapters/outlinerAndJson.js';
 
 // Register all standard PKM import adapters into the default registry
 defaultImportRegistry.register(new GenericMarkdownImporter());
@@ -52,3 +58,6 @@ defaultImportRegistry.register(new HeptabaseImporter());
 defaultImportRegistry.register(new UpNoteImporter());
 defaultImportRegistry.register(new CraftImporter());
 defaultImportRegistry.register(new AnytypeImporter());
+defaultImportRegistry.register(new StandardNotesImporter());
+defaultImportRegistry.register(new OpmlOutlinerImporter());
+defaultImportRegistry.register(new TriliumImporter());

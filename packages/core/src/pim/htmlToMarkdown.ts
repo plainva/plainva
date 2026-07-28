@@ -51,6 +51,13 @@ export function htmlToMarkdown(html: string): string {
   s = s.replace(/<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_m, _t, inner: string) => `**${stripTags(inner).trim()}**`);
   s = s.replace(/<(em|i)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_m, _t, inner: string) => `*${stripTags(inner).trim()}*`);
   s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, (_m, inner: string) => `\`${stripTags(inner).trim()}\``);
+  // Headings keep their level. They used to be treated as a block boundary and
+  // nothing else, which cost a note its structure — invisible in a calendar
+  // description, but a Trilium page is mostly headings.
+  s = s.replace(
+    /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi,
+    (_m, level: string, inner: string) => `\n\n${'#'.repeat(Number(level))} ${stripTags(inner).trim()}\n\n`
+  );
   // List items become "- " lines.
   s = s.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_m, inner: string) => `\n- ${stripTags(inner).trim()}`);
   // Block boundaries and hard breaks become newlines.

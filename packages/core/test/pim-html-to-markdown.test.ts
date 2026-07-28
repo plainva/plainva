@@ -37,3 +37,14 @@ describe("looksLikeHtml", () => {
     expect(looksLikeHtml("a < b comparison")).toBe(false);
   });
 });
+
+describe("headings keep their level", () => {
+  it("converts h1..h6 rather than flattening them to a line break", () => {
+    expect(htmlToMarkdown("<h1>Plan</h1><p>Text.</p>")).toBe("# Plan\n\nText.");
+    expect(htmlToMarkdown("<h3>Deeper</h3>")).toBe("### Deeper");
+  });
+
+  it("keeps inline formatting inside a heading", () => {
+    expect(htmlToMarkdown("<h2>A <strong>bold</strong> heading</h2>")).toBe("## A **bold** heading");
+  });
+});
