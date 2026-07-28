@@ -16,9 +16,26 @@ import Network
  *
  * A mail server on the user's own network triggers the iOS local-network
  * prompt — `NSLocalNetworkUsageDescription` in Info.plist explains why.
+ *
+ * `CAPBridgedPlugin` is not optional. Since Capacitor 6 the bridge no longer
+ * discovers a plugin's JS name and methods through the Objective-C runtime: it
+ * reads them from `jsName` and `pluginMethods`. Without that this class was
+ * registered, compiled and shipped — and every call still answered
+ * `"MailNet" plugin is not implemented on ios`, because the bridge had no way
+ * to connect `registerPlugin("MailNet")` in mailNet.ts to it. Mail was dead on
+ * the whole platform (maintainer finding 2026-07-28).
  */
 @objc(MailNetPlugin)
-public class MailNetPlugin: CAPPlugin {
+public class MailNetPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "MailNetPlugin"
+    public let jsName = "MailNet"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startTls", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise)
+    ]
 
     private final class Conn {
         let connection: NWConnection
